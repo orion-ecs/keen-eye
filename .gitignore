@@ -52,3 +52,30 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# xUnit
+xunit-results.xml
+
+# Coverage
+coverage/
+*.coverage
+*.coveragexml
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userprefs
+
+# JetBrains Rider
+*.sln.iml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# BenchmarkDotNet
+BenchmarkDotNet.Artifacts/
