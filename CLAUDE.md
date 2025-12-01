@@ -111,3 +111,105 @@ dotnet format --verify-no-changes  # Check formatting
 3. **Queries are fluent** - `world.Query<A, B>().With<C>().Without<D>()`
 4. **Systems are explicit** - User registers what they need per-world
 5. **Builders are generated** - `WithPosition(x, y)` instead of `With(new Position{...})`
+
+## Work Tracking
+
+Agents must track their work to maintain visibility and enable collaboration:
+
+### Todo Lists
+- Use `TodoWrite` for any task with 3+ steps
+- Mark todos `in_progress` before starting work
+- Mark todos `completed` immediately after finishing (don't batch)
+- Break complex features into granular, trackable items
+
+### Commit Messages
+- Write clear, descriptive commit messages explaining the "why"
+- Reference related features or issues when applicable
+- Group related changes into logical commits
+- Use conventional format: `Add/Update/Fix/Remove <what> - <why>`
+
+### Progress Documentation
+- Update ROADMAP.md when completing roadmap items (check the box)
+- Note any deviations or design decisions in commit messages
+- Document blockers or open questions for future agents
+
+## XML Documentation
+
+All public APIs must have XML documentation comments for API doc generation.
+
+### Required Documentation
+
+**All public types** (classes, structs, interfaces, enums):
+```csharp
+/// <summary>
+/// Brief description of what this type represents.
+/// </summary>
+/// <remarks>
+/// Additional details, usage notes, or examples if needed.
+/// </remarks>
+public sealed class World : IDisposable
+```
+
+**All public members** (methods, properties, fields, events):
+```csharp
+/// <summary>
+/// Creates a new entity with the specified components.
+/// </summary>
+/// <param name="components">The components to add to the entity.</param>
+/// <returns>The created entity handle.</returns>
+/// <exception cref="ArgumentNullException">Thrown when components is null.</exception>
+public Entity CreateEntity(params IComponent[] components)
+```
+
+**Generic type parameters**:
+```csharp
+/// <summary>
+/// Gets a component from an entity.
+/// </summary>
+/// <typeparam name="T">The component type to retrieve.</typeparam>
+/// <param name="entity">The entity to get the component from.</param>
+/// <returns>A reference to the component data.</returns>
+public ref T Get<T>(Entity entity) where T : struct, IComponent
+```
+
+### Documentation Style Guide
+
+1. **Be concise** - First sentence should be a complete summary
+2. **Use active voice** - "Creates..." not "This method creates..."
+3. **Document behavior** - What it does, not how it's implemented
+4. **Include examples** for complex APIs:
+```csharp
+/// <summary>
+/// Builds a query for entities matching the specified component types.
+/// </summary>
+/// <example>
+/// <code>
+/// foreach (var entity in world.Query&lt;Position, Velocity&gt;().Without&lt;Frozen&gt;())
+/// {
+///     // Process moving entities
+/// }
+/// </code>
+/// </example>
+```
+
+5. **Document exceptions** that callers should handle
+6. **Cross-reference related types** with `<see cref="TypeName"/>`
+7. **Mark obsolete APIs** with `[Obsolete]` attribute AND `<remarks>` explaining migration
+
+### What NOT to Document
+
+- Private/internal members (unless complex)
+- Self-evident properties (e.g., `public int Count => items.Count;`)
+- Generated code (source generators handle this)
+
+### Validation
+
+The build enforces documentation:
+```xml
+<PropertyGroup>
+  <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Remove this to enforce -->
+</PropertyGroup>
+```
+
+Future goal: Enable CS1591 warning to require docs on all public members.
