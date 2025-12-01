@@ -35,7 +35,9 @@ public sealed class ComponentRegistry
         var type = typeof(T);
 
         if (byType.TryGetValue(type, out var existing))
+        {
             return existing;
+        }
 
         var id = new ComponentId(nextId++);
         var size = isTag ? 0 : ComponentMeta<T>.Size;

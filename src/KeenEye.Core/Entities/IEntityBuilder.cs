@@ -4,7 +4,6 @@ namespace KeenEye;
 /// Interface for fluent entity builders.
 /// Implemented by EntityBuilder, PrefabBuilder, etc.
 /// </summary>
-/// <typeparam name="TSelf">The concrete builder type for fluent chaining.</typeparam>
 public interface IEntityBuilder
 {
     /// <summary>

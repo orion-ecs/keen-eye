@@ -14,5 +14,6 @@ public readonly record struct Entity(int Id, int Version)
     /// <summary>Whether this entity reference is valid (non-null).</summary>
     public bool IsValid => Id >= 0;
 
+    /// <inheritdoc />
     public override string ToString() => $"Entity({Id}v{Version})";
 }
