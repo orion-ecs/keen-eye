@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Runtime.CompilerServices;
 
 namespace KeenEye;
 
@@ -44,14 +43,18 @@ public sealed class QueryDescription
         foreach (var required in AllRequired)
         {
             if (!componentSet.Contains(required))
+            {
                 return false;
+            }
         }
 
         // Must not have any excluded components
         foreach (var excluded in without)
         {
             if (componentSet.Contains(excluded))
+            {
                 return false;
+            }
         }
 
         return true;
@@ -101,6 +104,7 @@ public readonly struct QueryBuilder<T1> : IEnumerable<Entity>
     /// <summary>Gets the world this query operates on.</summary>
     public World World => world;
 
+    /// <summary>Gets an enumerator for iterating over matching entities.</summary>
     public QueryEnumerator<T1> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -147,6 +151,7 @@ public readonly struct QueryBuilder<T1, T2> : IEnumerable<Entity>
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
+    /// <summary>Gets an enumerator for iterating over matching entities.</summary>
     public QueryEnumerator<T1, T2> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -195,6 +200,7 @@ public readonly struct QueryBuilder<T1, T2, T3> : IEnumerable<Entity>
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
+    /// <summary>Gets an enumerator for iterating over matching entities.</summary>
     public QueryEnumerator<T1, T2, T3> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
@@ -245,6 +251,7 @@ public readonly struct QueryBuilder<T1, T2, T3, T4> : IEnumerable<Entity>
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
+    /// <summary>Gets an enumerator for iterating over matching entities.</summary>
     public QueryEnumerator<T1, T2, T3, T4> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

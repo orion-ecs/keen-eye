@@ -68,7 +68,9 @@ public sealed class World : IDisposable
     public bool Despawn(Entity entity)
     {
         if (!IsAlive(entity))
+        {
             return false;
+        }
 
         entityVersions[entity.Id]++;
         entityComponents.Remove(entity.Id);
@@ -100,7 +102,9 @@ public sealed class World : IDisposable
     public bool Has<T>(Entity entity) where T : struct, IComponent
     {
         if (!entityComponents.TryGetValue(entity.Id, out var components))
+        {
             return false;
+        }
 
         var info = Components.Get<T>();
         return info is not null && components.ContainsKey(info.Id);

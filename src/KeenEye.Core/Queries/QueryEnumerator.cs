@@ -20,11 +20,15 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
         entityEnumerator = world.GetMatchingEntities(description).GetEnumerator();
     }
 
+    /// <inheritdoc />
     public Entity Current => entityEnumerator.Current;
     object IEnumerator.Current => Current;
 
+    /// <inheritdoc />
     public bool MoveNext() => entityEnumerator.MoveNext();
+    /// <inheritdoc />
     public void Reset() => entityEnumerator.Reset();
+    /// <inheritdoc />
     public void Dispose() => entityEnumerator.Dispose();
 }
 
@@ -46,11 +50,15 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
         entityEnumerator = world.GetMatchingEntities(description).GetEnumerator();
     }
 
+    /// <inheritdoc />
     public Entity Current => entityEnumerator.Current;
     object IEnumerator.Current => Current;
 
+    /// <inheritdoc />
     public bool MoveNext() => entityEnumerator.MoveNext();
+    /// <inheritdoc />
     public void Reset() => entityEnumerator.Reset();
+    /// <inheritdoc />
     public void Dispose() => entityEnumerator.Dispose();
 }
 
@@ -73,11 +81,15 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
         entityEnumerator = world.GetMatchingEntities(description).GetEnumerator();
     }
 
+    /// <inheritdoc />
     public Entity Current => entityEnumerator.Current;
     object IEnumerator.Current => Current;
 
+    /// <inheritdoc />
     public bool MoveNext() => entityEnumerator.MoveNext();
+    /// <inheritdoc />
     public void Reset() => entityEnumerator.Reset();
+    /// <inheritdoc />
     public void Dispose() => entityEnumerator.Dispose();
 }
 
@@ -101,10 +113,14 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
         entityEnumerator = world.GetMatchingEntities(description).GetEnumerator();
     }
 
+    /// <inheritdoc />
     public Entity Current => entityEnumerator.Current;
     object IEnumerator.Current => Current;
 
+    /// <inheritdoc />
     public bool MoveNext() => entityEnumerator.MoveNext();
+    /// <inheritdoc />
     public void Reset() => entityEnumerator.Reset();
+    /// <inheritdoc />
     public void Dispose() => entityEnumerator.Dispose();
 }

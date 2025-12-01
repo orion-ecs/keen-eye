@@ -14,10 +14,14 @@ public readonly record struct ComponentId(int Value) : IComparable<ComponentId>
     /// <summary>Whether this ID is valid.</summary>
     public bool IsValid => Value >= 0;
 
+    /// <inheritdoc />
     public int CompareTo(ComponentId other) => Value.CompareTo(other.Value);
 
+    /// <inheritdoc />
     public override string ToString() => $"ComponentId({Value})";
 
+    /// <summary>Converts a ComponentId to its underlying integer value.</summary>
+    /// <param name="id">The component ID.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator int(ComponentId id) => id.Value;
 }

@@ -30,6 +30,7 @@ public sealed class ComponentInfo
         IsTag = isTag;
     }
 
+    /// <inheritdoc />
     public override string ToString() => $"ComponentInfo({Name}, Id={Id.Value}, Size={Size}, IsTag={IsTag})";
 }
 
