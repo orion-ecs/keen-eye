@@ -941,3 +941,314 @@ public partial struct EnemyConfig
 **Future/Editor:**
 9. Inspector metadata attributes - editor-dependent
 10. `[MigrateFrom]` schema evolution - production need
+
+---
+
+## C#/.NET Features to Leverage
+
+Modern .NET provides powerful features for building high-performance ECS frameworks. This section maps relevant .NET features to each roadmap phase.
+
+### Phase 1: Core Completion
+
+| Feature | Usage |
+|---------|-------|
+| `ref` returns | Zero-copy component access: `ref T Get<T>(Entity e)` |
+| `in` parameters | Read-only refs for queries: `in Position pos` |
+| `Span<T>` | Stack-allocated component lists in builders |
+| `readonly record struct` | Entity type: `readonly record struct Entity(int Id, int Version)` |
+| Generic constraints | `where T : struct, IComponent` |
+| `Unsafe.SizeOf<T>()` | Component size calculation without boxing |
+| `CollectionsMarshal.GetValueRefOrAddDefault` | Fast dictionary access |
+
+```csharp
+// Example: Zero-copy component access
+public ref T Get<T>(Entity entity) where T : struct, IComponent
+{
+    ref var storage = ref CollectionsMarshal.GetValueRefOrNullRef(components, entity.Id);
+    return ref Unsafe.As<byte, T>(ref storage[offset]);
+}
+```
+
+### Phase 2: Archetype Storage
+
+| Feature | Usage |
+|---------|-------|
+| `Span<T>` / `Memory<T>` | Contiguous component storage views |
+| `ArrayPool<T>.Shared` | Pooled archetype chunk allocation |
+| `Unsafe.As<TFrom, TTo>()` | Type punning for generic component access |
+| `MemoryMarshal.Cast<T1, T2>()` | Reinterpret component arrays |
+| `NativeMemory.AlignedAlloc()` | Cache-aligned allocations |
+| `[SkipLocalsInit]` | Avoid zeroing large arrays |
+| `[InlineArray(N)]` | Fixed-size inline component storage (C# 12) |
+
+```csharp
+// Example: Archetype chunk with pooled storage
+public sealed class ArchetypeChunk
+{
+    private byte[] buffer = ArrayPool<byte>.Shared.Rent(ChunkSize);
+
+    public Span<T> GetComponentSpan<T>(int offset, int count) where T : struct
+        => MemoryMarshal.Cast<byte, T>(buffer.AsSpan(offset, count * Unsafe.SizeOf<T>()));
+}
+```
+
+### Phase 3: Entity Hierarchy
+
+| Feature | Usage |
+|---------|-------|
+| `Span<Entity>` | Return children without allocation |
+| `stackalloc` | Small child lists on stack |
+| `ValueListBuilder<T>` | Growing lists without heap allocation |
+
+### Phase 4: Events & Change Tracking
+
+| Feature | Usage |
+|---------|-------|
+| `Action<T>` / `Func<T>` | Lightweight event delegates |
+| `WeakReference<T>` | Prevent memory leaks in event subscriptions |
+| `ConditionalWeakTable<K,V>` | Associate change tracking data without modifying types |
+| `[Flags] enum` | Dirty flag bitfields |
+
+```csharp
+// Example: Weak event subscription
+public sealed class EventBus<T>
+{
+    private readonly List<WeakReference<Action<T>>> handlers = [];
+
+    public void Subscribe(Action<T> handler)
+        => handlers.Add(new WeakReference<Action<T>>(handler));
+}
+```
+
+### Phase 5: System Enhancements
+
+| Feature | Usage |
+|---------|-------|
+| `IComparer<T>` | System priority sorting |
+| `TopologicalSort` | Dependency-based ordering |
+| `Lazy<T>` | Deferred system initialization |
+| `[CallerMemberName]` | Automatic system naming |
+
+### Phase 6: Plugin System
+
+| Feature | Usage |
+|---------|-------|
+| `AssemblyLoadContext` | Plugin isolation and unloading |
+| `Type.GetType()` with assembly | Cross-assembly type resolution |
+| `Activator.CreateInstance<T>()` | Plugin instantiation |
+| Generic interfaces | `IWorldPlugin`, `IPluginContext` |
+
+### Phase 7: Inter-System Messaging
+
+| Feature | Usage |
+|---------|-------|
+| `System.Threading.Channels` | High-perf async message queues |
+| `Channel<T>.CreateUnbounded()` | Lock-free message passing |
+| `ConcurrentQueue<T>` | Simple thread-safe queues |
+| `IObservable<T>` / `IObserver<T>` | Reactive message patterns |
+
+```csharp
+// Example: High-performance message bus
+public sealed class MessageBus
+{
+    private readonly Channel<object> channel = Channel.CreateUnbounded<object>(
+        new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+}
+```
+
+### Phase 8: Prefabs & Templates
+
+| Feature | Usage |
+|---------|-------|
+| `Expression<T>` | Compile prefab factories at runtime |
+| `Delegate.CreateDelegate()` | Fast delegate creation |
+| `FrozenDictionary<K,V>` | Immutable prefab registry (.NET 8+) |
+
+### Phase 9: Entity Tags
+
+| Feature | Usage |
+|---------|-------|
+| `FrozenSet<string>` | Immutable tag lookups (.NET 8+) |
+| `StringComparer.Ordinal` | Fast string comparison |
+| `string.GetHashCode(StringComparison)` | Consistent hashing |
+| `HashSet<string>` | Tag storage per entity |
+
+### Phase 10: Component Validation
+
+| Feature | Usage |
+|---------|-------|
+| Roslyn Analyzers | Compile-time validation rules |
+| `DiagnosticDescriptor` | Custom compiler warnings |
+| `[Conditional("DEBUG")]` | Debug-only validation |
+
+### Phase 11: Serialization
+
+| Feature | Usage |
+|---------|-------|
+| `System.Text.Json` source generators | AOT-friendly JSON |
+| `JsonSerializerContext` | Compile-time serialization |
+| `BinaryReader` / `BinaryWriter` | Fast binary I/O |
+| `IBufferWriter<byte>` | Zero-copy serialization |
+| `MemoryPack` (library) | Fastest binary serializer |
+| `ReadOnlySpan<byte>` | Zero-copy deserialization |
+
+```csharp
+// Example: Source-generated JSON serialization
+[JsonSerializable(typeof(WorldSnapshot))]
+[JsonSourceGenerationOptions(WriteIndented = false)]
+public partial class SnapshotJsonContext : JsonSerializerContext { }
+```
+
+### Phase 12: Logging
+
+| Feature | Usage |
+|---------|-------|
+| `Microsoft.Extensions.Logging` | Standard logging abstraction |
+| `LoggerMessage.Define()` | High-perf cached log delegates |
+| `[LoggerMessage]` attribute | Source-generated logging (.NET 6+) |
+| `ILogger<T>` | Category-based logging |
+| `EventSource` | ETW tracing on Windows |
+
+```csharp
+// Example: High-performance logging
+public static partial class EcsLoggers
+{
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Entity {EntityId} created")]
+    public static partial void EntityCreated(ILogger logger, int entityId);
+}
+```
+
+### Phase 13: Debugging & Profiling
+
+| Feature | Usage |
+|---------|-------|
+| `Stopwatch.GetTimestamp()` | High-resolution timing |
+| `Stopwatch.GetElapsedTime()` | Allocation-free elapsed time (.NET 7+) |
+| `DiagnosticSource` | Structured diagnostics |
+| `Activity` | Distributed tracing |
+| `EventCounter` | Performance counters |
+| `GC.GetAllocatedBytesForCurrentThread()` | Per-thread allocation tracking |
+| `[DebuggerDisplay]` | Better debugger experience |
+| `[DebuggerTypeProxy]` | Custom debugger views |
+
+```csharp
+// Example: Zero-allocation timing
+public readonly struct SystemTimer
+{
+    private readonly long start = Stopwatch.GetTimestamp();
+    public TimeSpan Elapsed => Stopwatch.GetElapsedTime(start);
+}
+```
+
+### Phase 14: Testing
+
+| Feature | Usage |
+|---------|-------|
+| `xUnit` / `NUnit` | Test frameworks |
+| `[Theory]` / `[InlineData]` | Parameterized tests |
+| `Verify` (library) | Snapshot testing |
+| `NSubstitute` / `Moq` | Mocking |
+| `BenchmarkDotNet` | Performance regression tests |
+| `ITestOutputHelper` | Test logging |
+
+### Phase 16: Production Readiness
+
+| Feature | Usage |
+|---------|-------|
+| Native AOT | Ahead-of-time compilation |
+| `[DynamicallyAccessedMembers]` | Trimming hints |
+| `[RequiresUnreferencedCode]` | Mark reflection-heavy APIs |
+| `[UnconditionalSuppressMessage]` | Suppress false trimming warnings |
+| `PublishAot=true` | Enable AOT publishing |
+| `JsonSerializer` with context | AOT-safe JSON |
+| Source generators | Reflection-free code gen |
+
+```xml
+<!-- Example: AOT-compatible project settings -->
+<PropertyGroup>
+  <PublishAot>true</PublishAot>
+  <TrimMode>full</TrimMode>
+  <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+</PropertyGroup>
+```
+
+### Phase 17: Advanced Performance
+
+| Feature | Usage |
+|---------|-------|
+| `Vector<T>` / `Vector128<T>` | SIMD operations |
+| `Parallel.ForEach()` | Parallel iteration |
+| `IThreadPoolWorkItem` | Custom thread pool work |
+| `ThreadPool.UnsafeQueueUserWorkItem()` | Low-overhead scheduling |
+| `SpinLock` / `SpinWait` | Lock-free synchronization |
+| `Interlocked.*` | Atomic operations |
+| `[MethodImpl(AggressiveInlining)]` | Force inlining |
+| `[MethodImpl(AggressiveOptimization)]` | Tier-1 JIT immediately |
+| Hardware intrinsics | `System.Runtime.Intrinsics` |
+
+```csharp
+// Example: SIMD-accelerated position update
+public static void UpdatePositions(Span<Position> positions, Span<Velocity> velocities, float dt)
+{
+    var dtVec = Vector256.Create(dt);
+    for (int i = 0; i <= positions.Length - Vector256<float>.Count; i += Vector256<float>.Count)
+    {
+        var pos = Vector256.LoadUnsafe(ref Unsafe.As<Position, float>(ref positions[i]));
+        var vel = Vector256.LoadUnsafe(ref Unsafe.As<Velocity, float>(ref velocities[i]));
+        var result = Vector256.FusedMultiplyAdd(vel, dtVec, pos);
+        result.StoreUnsafe(ref Unsafe.As<Position, float>(ref positions[i]));
+    }
+}
+```
+
+### Phase 18: Deterministic Replay
+
+| Feature | Usage |
+|---------|-------|
+| `BinaryReader` / `BinaryWriter` | Efficient binary I/O |
+| `GZipStream` / `BrotliStream` | Compression |
+| `RandomNumberGenerator` | Secure seed generation |
+| `System.Random` with seed | Deterministic randomness |
+| `FileStream` with `FileOptions.Asynchronous` | Async file I/O |
+| `PipeReader` / `PipeWriter` | High-perf streaming |
+
+### Phase 19: IDE Extension
+
+| Feature | Usage |
+|---------|-------|
+| Roslyn `IIncrementalGenerator` | Incremental source generation |
+| `Microsoft.CodeAnalysis` | Code analysis APIs |
+| `DiagnosticAnalyzer` | Custom warnings/errors |
+| `CodeFixProvider` | Automated code fixes |
+| `ISourceGenerator` | Legacy source generation |
+| Language Server Protocol | IDE-agnostic tooling |
+
+### General Best Practices
+
+| Practice | Description |
+|----------|-------------|
+| `readonly struct` | Prevents defensive copies |
+| `record struct` | Value equality + deconstruction |
+| `init` properties | Immutable after construction |
+| `required` members | Enforce initialization (C# 11) |
+| `file` scoped types | Reduce namespace pollution (C# 11) |
+| Collection expressions | `[1, 2, 3]` syntax (C# 12) |
+| Primary constructors | Less boilerplate (C# 12) |
+| `params Span<T>` | Stack-allocated varargs (C# 13) |
+| `allows ref struct` | Generic ref struct support (C# 13) |
+| `Lock` object | Better than `object` for locking (.NET 9) |
+
+### .NET Version Requirements
+
+| Feature | Minimum Version |
+|---------|-----------------|
+| `Span<T>`, `Memory<T>` | .NET Core 2.1 |
+| Default interface methods | .NET Core 3.0 |
+| Source generators | .NET 5.0 |
+| `LoggerMessage` attribute | .NET 6.0 |
+| `Stopwatch.GetElapsedTime()` | .NET 7.0 |
+| `FrozenDictionary/Set` | .NET 8.0 |
+| Native AOT (production) | .NET 8.0 |
+| `params Span<T>` | .NET 9.0 |
+| `Lock` class | .NET 9.0 |
+| **KeenEye Target** | **.NET 10** |
