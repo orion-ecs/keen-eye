@@ -30,8 +30,15 @@ public sealed class TagComponentAttribute : Attribute;
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
 public sealed class DefaultValueAttribute : Attribute
 {
+    /// <summary>
+    /// Gets the default value for the field or property.
+    /// </summary>
     public object? Value { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DefaultValueAttribute"/> class.
+    /// </summary>
+    /// <param name="value">The default value to use in generated builder methods.</param>
     public DefaultValueAttribute(object? value)
     {
         Value = value;
