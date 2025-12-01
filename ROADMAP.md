@@ -633,3 +633,311 @@ When implementing these features, maintain KeenEye's core principles:
 4. **Source Generators for Ergonomics** - Reduce boilerplate, maintain performance
 5. **Components are Structs** - Cache-friendly value semantics
 6. **Entities are IDs** - Lightweight `(int Id, int Version)` with staleness detection
+
+---
+
+## Source Generator Opportunities
+
+Source generators can eliminate boilerplate, enable AOT compatibility, and provide compile-time safety. Below are all features that could benefit from source generation.
+
+### Already Planned (from CLAUDE.md)
+
+| Attribute | Generates |
+|-----------|-----------|
+| `[Component]` | `WithComponentName(...)` fluent builder methods |
+| `[TagComponent]` | Parameterless `WithTagName()` methods |
+| `[System]` | Metadata properties (Phase, Order, Group) |
+| `[Query]` | Efficient query iterators |
+
+### Core ECS Enhancements
+
+#### Component Registration (Phase 1)
+```csharp
+[Component]
+public partial struct Position { public float X, Y; }
+
+// Generates:
+// - ComponentId constant
+// - WithPosition(float x, float y) extension on EntityBuilder
+// - Ref accessor helpers
+```
+
+#### Singleton Accessors (Phase 1)
+```csharp
+[Singleton]
+public partial class GameTime { public float Delta; public float Total; }
+
+// Generates:
+// - world.GameTime property (typed accessor)
+// - Compile-time existence check
+```
+
+#### Query Optimization (Phase 2)
+```csharp
+[Query]
+public partial struct MovementQuery : IQuery<Position, Velocity> { }
+
+// Generates:
+// - Specialized enumerator for this component combination
+// - Archetype-aware iteration
+// - Inline component access (no dictionary lookups)
+```
+
+### Validation & Safety
+
+#### Component Dependencies (Phase 10)
+```csharp
+[Component]
+[RequiresComponent(typeof(Transform))]
+[ConflictsWith(typeof(StaticBody))]
+public partial struct RigidBody { }
+
+// Generates:
+// - Compile-time warnings if dependencies not added
+// - Runtime validation in debug mode
+// - EntityBuilder guards
+```
+
+#### Entity Tags (Phase 9)
+```csharp
+[Tags]
+public enum EntityTags { Player, Enemy, Projectile, Pickup }
+
+// Generates:
+// - Type-safe tag constants
+// - .WithTag(EntityTags.Player) overload
+// - .HasTag(EntityTags.Enemy) overload
+// - Query: .WithTag(EntityTags.Player)
+```
+
+### Serialization & Networking
+
+#### Component Serialization (Phase 11)
+```csharp
+[Component(Serializable = true)]
+public partial struct Health { public int Current; public int Max; }
+
+// Generates:
+// - Binary serializer/deserializer (reflection-free)
+// - JSON serializer (optional)
+// - Schema version tracking
+// - AOT-compatible serialization
+```
+
+#### Network Replication (Phase 16)
+```csharp
+[Component]
+[Replicated(Interpolated = true)]
+public partial struct NetworkTransform { public float X, Y, Rotation; }
+
+// Generates:
+// - Delta compression serializer
+// - Interpolation helpers
+// - Ownership/authority checks
+// - Bandwidth estimation
+```
+
+#### Schema Migration (Phase 16)
+```csharp
+[Component(Version = 2)]
+[MigrateFrom(typeof(HealthV1), nameof(MigrateFromV1))]
+public partial struct Health { public int Current; public int Max; public int Shield; }
+
+// Generates:
+// - Version detection during deserialization
+// - Automatic migration pipeline
+// - Backward compatibility layer
+```
+
+### Systems & Execution
+
+#### System Dependencies (Phase 5)
+```csharp
+[System(Phase = SystemPhase.Update, Order = 10)]
+[RunAfter(typeof(InputSystem))]
+[RunBefore(typeof(RenderSystem))]
+[WriteComponents(typeof(Position))]
+[ReadComponents(typeof(Velocity))]
+public partial class MovementSystem : SystemBase { }
+
+// Generates:
+// - Dependency graph edges
+// - Parallelization safety analysis
+// - Automatic system ordering
+```
+
+#### System Queries (Phase 5)
+```csharp
+public partial class MovementSystem : SystemBase
+{
+    [Query]
+    private partial IEnumerable<(Entity, ref Position, ref readonly Velocity)> GetMovables();
+}
+
+// Generates:
+// - Optimized query method implementation
+// - Cached query descriptor
+// - Read/write component tracking
+```
+
+### Component Bundles (Phase 17)
+```csharp
+[Bundle]
+public partial struct TransformBundle
+{
+    public Position Position;
+    public Rotation Rotation;
+    public Scale Scale;
+}
+
+// Generates:
+// - .WithTransformBundle(pos, rot, scale) on EntityBuilder
+// - Bundle-aware archetype optimization
+// - Shorthand query: Query<TransformBundle>()
+```
+
+### Events & Change Tracking
+
+#### Reactive Components (Phase 4)
+```csharp
+[Component]
+[TrackChanges]
+public partial struct Health { public int Current; public int Max; }
+
+// Generates:
+// - Automatic dirty flag management
+// - OnHealthChanged event hookup
+// - Previous value tracking (optional)
+```
+
+#### Event Handlers (Phase 4)
+```csharp
+public partial class DamageSystem : SystemBase
+{
+    [OnComponentChanged(typeof(Health))]
+    private partial void HandleHealthChanged(Entity entity, Health oldValue, Health newValue);
+}
+
+// Generates:
+// - Event subscription in OnInitialize
+// - Unsubscription in Dispose
+// - Type-safe handler wiring
+```
+
+### Prefabs & Templates
+
+#### Prefab Definition (Phase 8)
+```csharp
+[Prefab("Enemy/Goblin")]
+public partial struct GoblinPrefab
+{
+    public Position Position;
+    public Health Health = new() { Current = 100, Max = 100 };
+    public Enemy EnemyTag;
+}
+
+// Generates:
+// - Prefab registration on world startup
+// - world.SpawnGoblin(position) typed method
+// - Override support: world.SpawnGoblin(position, health: new(...))
+```
+
+### Testing Utilities (Phase 14)
+
+#### Test Assertions
+```csharp
+[Component]
+public partial struct Health { public int Current; public int Max; }
+
+// Generates (in KeenEye.Testing):
+// - entity.ShouldHaveHealth()
+// - entity.ShouldHaveHealth(h => h.Current > 0)
+// - health.ShouldEqual(expected)
+```
+
+### Logging & Diagnostics
+
+#### Log Categories (Phase 12)
+```csharp
+[LogCategory]
+public static partial class EcsLogs
+{
+    public static partial void EntityCreated(Entity entity);
+    public static partial void ComponentAdded<T>(Entity entity);
+    public static partial void SystemExecuted(string name, double ms);
+}
+
+// Generates:
+// - High-performance logging methods
+// - Structured log parameters
+// - Compile-time log level filtering
+// - Zero allocation when disabled
+```
+
+### Editor & Inspector (Long-term)
+
+#### Property Metadata
+```csharp
+[Component]
+public partial struct EnemyConfig
+{
+    [Range(0, 100)]
+    [Tooltip("Movement speed in units per second")]
+    public float Speed;
+
+    [Header("Combat")]
+    [Min(1)]
+    public int Damage;
+
+    [ColorPicker]
+    public uint TintColor;
+}
+
+// Generates:
+// - Inspector UI descriptors
+// - Validation code
+// - Default value initialization
+// - Undo/redo support metadata
+```
+
+### Summary: Generator-Enhanced Attributes
+
+| Attribute | Phase | Purpose |
+|-----------|-------|---------|
+| `[Component]` | 1 | Builder methods, registration |
+| `[TagComponent]` | 1 | Zero-size tag helpers |
+| `[Singleton]` | 1 | Typed singleton accessors |
+| `[Query]` | 2 | Optimized query iterators |
+| `[Bundle]` | 17 | Component grouping |
+| `[System]` | 5 | Metadata, ordering |
+| `[RunBefore]` / `[RunAfter]` | 5 | System dependencies |
+| `[ReadComponents]` / `[WriteComponents]` | 5 | Parallelization safety |
+| `[RequiresComponent]` | 10 | Validation |
+| `[ConflictsWith]` | 10 | Validation |
+| `[TrackChanges]` | 4 | Change detection |
+| `[OnComponentChanged]` | 4 | Event handlers |
+| `[Serializable]` | 11 | Binary/JSON serialization |
+| `[Replicated]` | 16 | Network sync |
+| `[MigrateFrom]` | 16 | Schema evolution |
+| `[Prefab]` | 8 | Entity templates |
+| `[Tags]` | 9 | Type-safe string tags |
+| `[LogCategory]` | 12 | Structured logging |
+| `[Range]`, `[Tooltip]`, etc. | Editor | Inspector metadata |
+
+### Implementation Priority
+
+**High Value, Lower Complexity:**
+1. `[Component]` enhancements (builder methods) - already started
+2. `[Query]` optimized iterators - major perf win
+3. `[Serializable]` reflection-free serialization - AOT requirement
+4. `[LogCategory]` high-perf logging - common need
+
+**High Value, Higher Complexity:**
+5. `[System]` with dependency analysis - enables parallelization
+6. `[TrackChanges]` reactive components - common pattern
+7. `[Prefab]` typed spawning - great DX
+8. `[Replicated]` network code gen - significant boilerplate reduction
+
+**Future/Editor:**
+9. Inspector metadata attributes - editor-dependent
+10. `[MigrateFrom]` schema evolution - production need
