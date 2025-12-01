@@ -1,4 +1,4 @@
-# KeenEye
+# KeenEyes
 
 A high-performance Entity Component System (ECS) framework for .NET 10.
 
@@ -28,7 +28,7 @@ keen-eye/
 ├── docs/                   # Documentation
 ├── Directory.Build.props   # Shared MSBuild properties
 ├── Directory.Packages.props # Centralized NuGet package versions
-└── KeenEye.sln            # Solution file
+└── KeenEyes.sln            # Solution file
 ```
 
 ## Getting Started

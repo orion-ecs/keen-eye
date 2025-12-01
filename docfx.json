@@ -6,8 +6,8 @@
         {
           "src": "src",
           "files": [
-            "KeenEye.Core/**/*.csproj",
-            "KeenEye.Generators.Attributes/**/*.csproj"
+            "KeenEyes.Core/**/*.csproj",
+            "KeenEyes.Generators.Attributes/**/*.csproj"
           ]
         }
       ],
@@ -50,9 +50,9 @@
       "modern"
     ],
     "globalMetadata": {
-      "_appTitle": "KeenEye ECS",
-      "_appName": "KeenEye",
-      "_appFooter": "KeenEye ECS Framework",
+      "_appTitle": "KeenEyes ECS",
+      "_appName": "KeenEyes",
+      "_appFooter": "KeenEyes ECS Framework",
       "_enableSearch": true,
       "_enableNewTab": true
     },
