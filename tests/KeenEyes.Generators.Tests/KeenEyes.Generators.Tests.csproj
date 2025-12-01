@@ -1,0 +1,21 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference the generator project directly (not as an analyzer) -->
+    <ProjectReference Include="..\..\src\KeenEyes.Generators\KeenEyes.Generators.csproj" ReferenceOutputAssembly="true" OutputItemType="None" />
+    <ProjectReference Include="..\..\src\KeenEyes.Generators.Attributes\KeenEyes.Generators.Attributes.csproj" />
+  </ItemGroup>
+
+</Project>
