@@ -263,6 +263,185 @@ This is an architectural decision - the current monolithic `World` may be accept
 
 ---
 
+## Phase 14: Production Readiness
+
+Features for shipping production games.
+
+### 14.1 Multi-World Support
+- [ ] Multiple independent worlds in one process
+- [ ] World isolation guarantees
+- [ ] Cross-world entity references (optional)
+- [ ] World templates/cloning
+
+### 14.2 Component Schema Evolution
+- [ ] Component versioning
+- [ ] Migration handlers for schema changes
+- [ ] Backward compatibility utilities
+- [ ] Data upgrade pipelines
+
+### 14.3 Enhanced Save/Load System
+Beyond basic serialization:
+- [ ] Multiple save slots with metadata
+- [ ] Save slot management (create, delete, copy)
+- [ ] Compression (gzip, brotli)
+- [ ] Optional encryption (AES-256)
+- [ ] Checksum validation & corruption detection
+- [ ] Cloud save synchronization
+- [ ] Conflict resolution for cloud saves
+- [ ] Auto-save with configurable triggers
+- [ ] Incremental/delta saves
+- [ ] Thumbnails and custom metadata
+- [ ] Import/export for cross-platform
+
+### 14.4 Network Synchronization
+- [ ] Entity replication
+- [ ] Component sync strategies
+- [ ] Client-side prediction
+- [ ] Server reconciliation
+- [ ] Network plugin foundation
+
+---
+
+## Phase 15: Advanced Performance
+
+Maximum performance optimizations.
+
+### 15.1 Parallelization
+- [ ] Parallel system execution
+- [ ] Job system integration
+- [ ] Thread-safe command buffers
+- [ ] Parallel query iteration
+- [ ] Dependency graph for safe parallelism
+
+### 15.2 Native AOT Support
+- [ ] Trimming-safe APIs
+- [ ] Source generator compatibility with AOT
+- [ ] Reflection-free serialization
+- [ ] Benchmark AOT vs JIT performance
+
+### 15.3 Advanced Spatial Partitioning
+- [ ] Configurable grid sizes
+- [ ] Hierarchical spatial structures
+- [ ] Broadphase/narrowphase separation
+- [ ] Spatial query optimization
+
+### 15.4 Component Composition
+- [ ] Component inheritance/mixins
+- [ ] Component bundles (group common components)
+- [ ] `[Bundle]` attribute for source generation
+
+---
+
+## Phase 16: Deterministic Replay System
+
+Record and replay gameplay for debugging and playtesting.
+
+### 16.1 Recording System
+- [ ] `ReplayRecorder` class
+- [ ] Record all inputs (keyboard, mouse, gamepad)
+- [ ] Capture non-deterministic events (random seeds, timestamps)
+- [ ] Log system execution order
+- [ ] Interval-based snapshot capture
+- [ ] Delta compression for storage efficiency
+
+### 16.2 Playback Engine
+- [ ] `ReplayPlayer` class
+- [ ] Frame-perfect input replay
+- [ ] Deterministic execution guarantee
+- [ ] State restoration at any point
+- [ ] Cross-machine determinism
+
+### 16.3 Timeline Controls
+- [ ] `ReplayTimeline` class
+- [ ] Play/pause/stop
+- [ ] Timeline scrubbing (seek to any frame)
+- [ ] Speed adjustment (0.25x to 4x)
+- [ ] Frame stepping (forward/backward)
+
+### 16.4 Playtesting Infrastructure
+- [ ] Session recording for playtesters
+- [ ] Web distribution of test builds
+- [ ] Crash reporting integration
+- [ ] Player feedback collection
+- [ ] Debug visualization during replay
+
+---
+
+## Phase 17: IDE Extension
+
+Developer tooling for Visual Studio / VS Code / Rider.
+
+### 17.1 Code Navigation
+- [ ] Go to component/system definition
+- [ ] Find all references
+- [ ] Component/system usage analysis
+
+### 17.2 Refactoring Support
+- [ ] Rename component (updates all usages)
+- [ ] Extract component from entity
+- [ ] Inline component
+
+### 17.3 Visualization Tools
+- [ ] Entity hierarchy tree view
+- [ ] Archetype visualization
+- [ ] System dependency graph
+- [ ] Query visualization
+
+### 17.4 Debugging Integration
+- [ ] Entity inspector panel
+- [ ] Component value editing
+- [ ] System execution visualizer
+- [ ] Breakpoints on component changes
+
+---
+
+## Long-Term Vision: Browser-Based Editor
+
+*Target: v1.0.0+ (2027+)*
+
+A full-featured browser-based game editor like Unity/Godot, powered by KeenEye.
+
+### Editor Frontend Application
+- [ ] Project management UI
+- [ ] Asset browser
+- [ ] Drag-and-drop entity creation
+- [ ] Visual scripting (optional)
+
+### Scene Editor
+- [ ] 2D/3D viewport
+- [ ] Entity manipulation (transform gizmos)
+- [ ] Multi-select and group operations
+- [ ] Undo/redo system
+- [ ] Scene hierarchy panel
+
+### Inspector & Properties Panel
+- [ ] Auto-generated editors from C# types
+- [ ] Custom property drawers
+- [ ] Multi-entity editing
+- [ ] Property search and filtering
+- [ ] Collapsible component sections
+- [ ] Property metadata decorators (`[Range]`, `[Tooltip]`, etc.)
+
+### Code Editor Integration
+- [ ] In-browser C# editing (via Blazor/Monaco)
+- [ ] Hot reload support
+- [ ] Intellisense/autocomplete
+- [ ] Error highlighting
+
+### Editor Backend Services
+- [ ] Project persistence
+- [ ] Asset pipeline
+- [ ] Build system integration
+- [ ] Collaboration features (optional)
+
+### Play Mode
+- [ ] Run game in editor
+- [ ] Pause and inspect state
+- [ ] Live entity/component editing
+- [ ] Performance overlay
+
+---
+
 ## Future: Companion Packages
 
 Optional packages that extend KeenEye:
@@ -280,10 +459,21 @@ Optional packages that extend KeenEye:
 | `KeenEye.Testing` | Test utilities, mock worlds |
 | `KeenEye.DevTools` | Profiling, debugging, inspection |
 
+### Additional Plugins from OrionECS
+| Plugin | Purpose |
+|--------|---------|
+| `KeenEye.Canvas2D` | 2D canvas rendering |
+| `KeenEye.ResourceManager` | Asset loading and caching |
+| `KeenEye.Interaction` | User interaction systems |
+| `KeenEye.Budgets` | Resource budget management |
+| `KeenEye.ComponentPropagation` | Parent-to-child component inheritance |
+| `KeenEye.TransformPropagation` | Automatic transform inheritance |
+
 ---
 
 ## Feature Count Summary
 
+### Engine Core (Phases 1-13)
 | Category | Features | Status |
 |----------|----------|--------|
 | Core Entity Operations | 7 | Pending |
@@ -302,7 +492,46 @@ Optional packages that extend KeenEye:
 | Component Validation | 4 | Pending |
 | Serialization | 6 | Pending |
 | Debug/Profiling | 10 | Pending |
-| **Total** | **~109** | |
+| **Subtotal** | **~109** | |
+
+### Production & Advanced (Phases 14-15)
+| Category | Features | Status |
+|----------|----------|--------|
+| Multi-World Support | 4 | Pending |
+| Schema Evolution | 4 | Pending |
+| Enhanced Save/Load | 11 | Pending |
+| Network Sync | 5 | Pending |
+| Parallelization | 5 | Pending |
+| Native AOT | 4 | Pending |
+| Advanced Spatial | 4 | Pending |
+| Component Composition | 3 | Pending |
+| **Subtotal** | **~40** | |
+
+### Tooling (Phases 16-17)
+| Category | Features | Status |
+|----------|----------|--------|
+| Replay Recording | 6 | Pending |
+| Replay Playback | 5 | Pending |
+| Timeline Controls | 5 | Pending |
+| Playtesting Infrastructure | 5 | Pending |
+| IDE Code Navigation | 3 | Pending |
+| IDE Refactoring | 3 | Pending |
+| IDE Visualization | 4 | Pending |
+| IDE Debugging | 4 | Pending |
+| **Subtotal** | **~35** | |
+
+### Long-Term: Browser Editor
+| Category | Features | Status |
+|----------|----------|--------|
+| Editor Frontend | 4 | Future |
+| Scene Editor | 5 | Future |
+| Inspector Panel | 6 | Future |
+| Code Editor | 4 | Future |
+| Backend Services | 4 | Future |
+| Play Mode | 4 | Future |
+| **Subtotal** | **~27** | |
+
+### Grand Total: **~211 features**
 
 ---
 
