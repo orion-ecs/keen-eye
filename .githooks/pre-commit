@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Pre-commit hook: Validates code formatting before allowing commit
+# Install: git config core.hooksPath .githooks
+
+set -e
+
+echo "Running pre-commit validations..."
+
+# Check if dotnet is available
+if ! command -v dotnet &> /dev/null; then
+    echo "Error: dotnet CLI not found. Please install .NET SDK."
+    exit 1
+fi
+
+# Run format check
+echo "Checking code formatting..."
+if ! dotnet format --verify-no-changes --verbosity minimal; then
+    echo ""
+    echo "Commit rejected: Code formatting issues detected."
+    echo ""
+    echo "To fix formatting, run:"
+    echo "  dotnet format"
+    echo ""
+    echo "Then stage the changes and commit again."
+    exit 1
+fi
+
+echo "Pre-commit validations passed."

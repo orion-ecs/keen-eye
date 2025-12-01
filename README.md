@@ -64,6 +64,29 @@ This project uses:
 - **EditorConfig** - Code style enforcement via `.editorconfig`
 - **Nullable Reference Types** - Enabled by default
 - **Treat Warnings as Errors** - Enabled for clean builds
+- **Git Hooks** - Pre-commit and pre-push validations
+
+#### Setting Up Git Hooks
+
+Install the git hooks to validate code before commits and pushes:
+
+```bash
+# Linux/macOS
+./scripts/install-hooks.sh
+
+# Windows (PowerShell)
+.\scripts\install-hooks.ps1
+```
+
+This enables:
+- **Pre-commit**: Validates code formatting (`dotnet format`)
+- **Pre-push**: Runs build and tests
+
+To skip hooks temporarily (not recommended):
+```bash
+git commit --no-verify
+git push --no-verify
+```
 
 ## Contributing
 
