@@ -43,7 +43,7 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+        run: dotnet test --no-build --configuration Release --verbosity normal --coverage --coverage-output-format cobertura --results-directory ./coverage
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
