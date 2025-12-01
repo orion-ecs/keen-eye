@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -47,12 +49,17 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             var allInfos = components.Concat(tagComponents).ToImmutableArray();
 
             if (allInfos.Length == 0)
+            {
                 return;
+            }
 
             // Generate component interface implementations
             foreach (var info in allInfos)
             {
-                if (info is null) continue;
+                if (info is null)
+                {
+                    continue;
+                }
                 var componentSource = GenerateComponentPartial(info);
                 ctx.AddSource($"{info.FullName}.g.cs", SourceText.From(componentSource, Encoding.UTF8));
             }
@@ -66,7 +73,9 @@ public sealed class ComponentGenerator : IIncrementalGenerator
     private static ComponentInfo? GetComponentInfo(GeneratorAttributeSyntaxContext context, bool isTag)
     {
         if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
+        {
             return null;
+        }
 
         var fields = new List<FieldInfo>();
 
@@ -75,17 +84,23 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             foreach (var member in typeSymbol.GetMembers())
             {
                 if (member is not IFieldSymbol field)
+                {
                     continue;
+                }
 
                 if (field.IsStatic || field.IsConst)
+                {
                     continue;
+                }
 
                 // Check for [BuilderIgnore]
                 var hasBuilderIgnore = field.GetAttributes()
                     .Any(a => a.AttributeClass?.ToDisplayString() == BuilderIgnoreAttribute);
 
                 if (hasBuilderIgnore)
+                {
                     continue;
+                }
 
                 // Check for [DefaultValue]
                 string? defaultValue = null;
@@ -129,7 +144,9 @@ public sealed class ComponentGenerator : IIncrementalGenerator
     private static string FormatDefaultValue(TypedConstant constant)
     {
         if (constant.IsNull)
+        {
             return "null";
+        }
 
         return constant.Kind switch
         {
@@ -186,7 +203,10 @@ public sealed class ComponentGenerator : IIncrementalGenerator
 
         foreach (var info in components)
         {
-            if (info is null) continue;
+            if (info is null)
+            {
+                continue;
+            }
 
             sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
 
@@ -243,7 +263,9 @@ public sealed class ComponentGenerator : IIncrementalGenerator
     private static string? GetDefaultExpression(FieldInfo field)
     {
         if (field.DefaultValue is not null)
+        {
             return field.DefaultValue;
+        }
 
         // Provide sensible defaults based on type
         return field.Type switch
@@ -267,11 +289,15 @@ public sealed class ComponentGenerator : IIncrementalGenerator
     private static string ToCamelCase(string name)
     {
         if (string.IsNullOrEmpty(name))
+        {
             return name;
+        }
 
         // Handle names like "X", "Y", "Z" - keep them lowercase
         if (name.Length == 1)
+        {
             return name.ToLowerInvariant();
+        }
 
         // Handle PascalCase -> camelCase
         return char.ToLowerInvariant(name[0]) + name.Substring(1);
