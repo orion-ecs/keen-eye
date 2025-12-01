@@ -20,6 +20,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
     private const string DefaultValueAttribute = "KeenEye.DefaultValueAttribute";
     private const string BuilderIgnoreAttribute = "KeenEye.BuilderIgnoreAttribute";
 
+    /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Find all structs with [Component] attribute

@@ -15,6 +15,7 @@ public sealed class SystemGenerator : IIncrementalGenerator
 {
     private const string SystemAttribute = "KeenEye.SystemAttribute";
 
+    /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var systemProvider = context.SyntaxProvider
