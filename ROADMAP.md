@@ -22,29 +22,29 @@ KeenEyes has basic ECS scaffolding in place:
 Essential features needed for basic usability.
 
 ### 1.1 Entity Operations
-- [ ] `World.Get<T>(entity)` - retrieve component data (currently throws `NotImplementedException`)
-- [ ] `World.Set<T>(entity, value)` - update component data
-- [ ] `World.Add<T>(entity, component)` - add component to existing entity
-- [ ] `World.Remove<T>(entity)` - remove component from entity
-- [ ] `World.GetComponents(entity)` - get all components on entity
-- [ ] `World.Has<T>(entity)` - check component presence (partial implementation exists)
-- [ ] Entity naming support (`World.Spawn(name)`)
+- [x] `World.Get<T>(entity)` - retrieve component data with ref return
+- [x] `World.Set<T>(entity, value)` - update component data
+- [x] `World.Add<T>(entity, component)` - add component to existing entity
+- [x] `World.Remove<T>(entity)` - remove component from entity
+- [x] `World.GetComponents(entity)` - get all components on entity
+- [x] `World.Has<T>(entity)` - check component presence
+- [x] Entity naming support (`World.Spawn(name)`, `GetName`, `SetName`)
 
 ### 1.2 Singletons / Resources
 World-level data not tied to entities (time, input, config, etc.):
-- [ ] `World.SetSingleton<T>(value)`
-- [ ] `World.GetSingleton<T>()`
-- [ ] `World.TryGetSingleton<T>(out T value)`
-- [ ] `World.HasSingleton<T>()`
-- [ ] `World.RemoveSingleton<T>()`
+- [x] `World.SetSingleton<T>(value)`
+- [x] `World.GetSingleton<T>()`
+- [x] `World.TryGetSingleton<T>(out T value)`
+- [x] `World.HasSingleton<T>()`
+- [x] `World.RemoveSingleton<T>()`
 
 ### 1.3 Command Buffer / Deferred Operations
 Safe entity modification during iteration:
-- [ ] `CommandBuffer` class
-- [ ] Deferred entity creation
-- [ ] Deferred component add/remove
-- [ ] Deferred entity destruction (`QueueDespawn`)
-- [ ] `World.Flush()` to execute buffered commands
+- [x] `CommandBuffer` class
+- [x] Deferred entity creation (`QueueSpawn`)
+- [x] Deferred component add/remove (`QueueAdd`, `QueueSet`, `QueueRemove`)
+- [x] Deferred entity destruction (`QueueDespawn`)
+- [x] `World.Flush()` to execute buffered commands
 
 ---
 

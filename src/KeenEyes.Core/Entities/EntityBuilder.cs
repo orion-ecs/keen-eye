@@ -7,6 +7,7 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
 {
     private readonly World world;
     private readonly List<(ComponentInfo Info, object Data)> components = [];
+    private string? name;
 
     internal EntityBuilder(World world)
     {
@@ -40,7 +41,7 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     /// <returns>The created entity.</returns>
     public Entity Build()
     {
-        return world.CreateEntity(components);
+        return world.CreateEntity(components, name);
     }
 
     // Explicit interface implementations for non-generic interface
@@ -50,5 +51,12 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     internal void Reset()
     {
         components.Clear();
+        name = null;
+    }
+
+    internal void Reset(string entityName)
+    {
+        components.Clear();
+        name = entityName;
     }
 }
