@@ -222,29 +222,101 @@ Save/load world state.
 
 ---
 
-## Phase 12: Debugging & Profiling
+## Phase 12: Logging System
+
+Pluggable logging with multiple providers.
+
+### 12.1 Log Provider Architecture
+- [ ] `ILogProvider` interface
+- [ ] `LogManager` for provider registration
+- [ ] Multiple simultaneous providers
+- [ ] Provider-specific configuration
+
+### 12.2 Built-in Providers
+- [ ] Console log provider (default)
+- [ ] File log provider
+- [ ] Debug output provider (IDE integration)
+- [ ] Null provider (disable logging)
+
+### 12.3 Logging Features
+- [ ] Log levels (Trace, Debug, Info, Warning, Error, Fatal)
+- [ ] Log filtering by level and category
+- [ ] Structured logging with properties
+- [ ] Log scopes for context
+- [ ] Timestamp and source formatting
+- [ ] Performance-friendly (zero overhead when disabled)
+
+### 12.4 ECS-Specific Logging
+- [ ] System execution logging
+- [ ] Entity lifecycle logging
+- [ ] Component change logging
+- [ ] Query execution logging
+- [ ] Configurable verbosity per category
+
+---
+
+## Phase 13: Debugging & Profiling
 
 Development tools and diagnostics.
 
-### 12.1 Debug Mode
+### 13.1 Debug Mode
 - [ ] `World.DebugMode` toggle
 - [ ] Verbose logging option
 - [ ] Entity/component inspection
 
-### 12.2 Profiling
+### 13.2 Profiling
 - [ ] System execution timing
 - [ ] Query performance metrics
 - [ ] Memory usage tracking
 - [ ] GC allocation monitoring
 
-### 12.3 Visualization
+### 13.3 Visualization
 - [ ] Entity inspector API
 - [ ] System execution timeline
 - [ ] Archetype statistics
 
 ---
 
-## Phase 13: Manager Architecture (Optional Refactor)
+## Phase 14: Testing Tools
+
+Utilities for testing ECS code.
+
+### 14.1 Test World Builder
+- [ ] `TestWorldBuilder` with fluent API
+- [ ] Pre-configured test worlds
+- [ ] Isolated world instances per test
+- [ ] Deterministic entity ID generation
+- [ ] Time control (manual tick advancement)
+
+### 14.2 Assertion Helpers
+- [ ] `entity.ShouldHaveComponent<T>()`
+- [ ] `entity.ShouldNotHaveComponent<T>()`
+- [ ] `entity.ShouldBeAlive()` / `ShouldBeDead()`
+- [ ] `component.ShouldEqual(expected)`
+- [ ] `world.ShouldHaveEntityCount(n)`
+- [ ] `query.ShouldMatchEntities(count)`
+
+### 14.3 Mock Utilities
+- [ ] Mock system base class
+- [ ] System execution recording
+- [ ] Component change tracking for tests
+- [ ] Event capture and verification
+
+### 14.4 Snapshot Testing
+- [ ] World state snapshots for comparison
+- [ ] Entity snapshot assertions
+- [ ] Component data diffing
+- [ ] Snapshot serialization format
+
+### 14.5 Test Fixtures
+- [ ] Common component fixtures
+- [ ] Entity builder presets
+- [ ] System test harness
+- [ ] Integration test utilities
+
+---
+
+## Phase 15: Manager Architecture (Optional Refactor)
 
 Consider splitting `World` into specialized managers for better separation of concerns:
 
@@ -263,23 +335,23 @@ This is an architectural decision - the current monolithic `World` may be accept
 
 ---
 
-## Phase 14: Production Readiness
+## Phase 16: Production Readiness
 
 Features for shipping production games.
 
-### 14.1 Multi-World Support
+### 16.1 Multi-World Support
 - [ ] Multiple independent worlds in one process
 - [ ] World isolation guarantees
 - [ ] Cross-world entity references (optional)
 - [ ] World templates/cloning
 
-### 14.2 Component Schema Evolution
+### 16.2 Component Schema Evolution
 - [ ] Component versioning
 - [ ] Migration handlers for schema changes
 - [ ] Backward compatibility utilities
 - [ ] Data upgrade pipelines
 
-### 14.3 Enhanced Save/Load System
+### 16.3 Enhanced Save/Load System
 Beyond basic serialization:
 - [ ] Multiple save slots with metadata
 - [ ] Save slot management (create, delete, copy)
@@ -293,7 +365,7 @@ Beyond basic serialization:
 - [ ] Thumbnails and custom metadata
 - [ ] Import/export for cross-platform
 
-### 14.4 Network Synchronization
+### 16.4 Network Synchronization
 - [ ] Entity replication
 - [ ] Component sync strategies
 - [ ] Client-side prediction
@@ -302,41 +374,41 @@ Beyond basic serialization:
 
 ---
 
-## Phase 15: Advanced Performance
+## Phase 17: Advanced Performance
 
 Maximum performance optimizations.
 
-### 15.1 Parallelization
+### 17.1 Parallelization
 - [ ] Parallel system execution
 - [ ] Job system integration
 - [ ] Thread-safe command buffers
 - [ ] Parallel query iteration
 - [ ] Dependency graph for safe parallelism
 
-### 15.2 Native AOT Support
+### 17.2 Native AOT Support
 - [ ] Trimming-safe APIs
 - [ ] Source generator compatibility with AOT
 - [ ] Reflection-free serialization
 - [ ] Benchmark AOT vs JIT performance
 
-### 15.3 Advanced Spatial Partitioning
+### 17.3 Advanced Spatial Partitioning
 - [ ] Configurable grid sizes
 - [ ] Hierarchical spatial structures
 - [ ] Broadphase/narrowphase separation
 - [ ] Spatial query optimization
 
-### 15.4 Component Composition
+### 17.4 Component Composition
 - [ ] Component inheritance/mixins
 - [ ] Component bundles (group common components)
 - [ ] `[Bundle]` attribute for source generation
 
 ---
 
-## Phase 16: Deterministic Replay System
+## Phase 18: Deterministic Replay System
 
 Record and replay gameplay for debugging and playtesting.
 
-### 16.1 Recording System
+### 18.1 Recording System
 - [ ] `ReplayRecorder` class
 - [ ] Record all inputs (keyboard, mouse, gamepad)
 - [ ] Capture non-deterministic events (random seeds, timestamps)
@@ -344,21 +416,21 @@ Record and replay gameplay for debugging and playtesting.
 - [ ] Interval-based snapshot capture
 - [ ] Delta compression for storage efficiency
 
-### 16.2 Playback Engine
+### 18.2 Playback Engine
 - [ ] `ReplayPlayer` class
 - [ ] Frame-perfect input replay
 - [ ] Deterministic execution guarantee
 - [ ] State restoration at any point
 - [ ] Cross-machine determinism
 
-### 16.3 Timeline Controls
+### 18.3 Timeline Controls
 - [ ] `ReplayTimeline` class
 - [ ] Play/pause/stop
 - [ ] Timeline scrubbing (seek to any frame)
 - [ ] Speed adjustment (0.25x to 4x)
 - [ ] Frame stepping (forward/backward)
 
-### 16.4 Playtesting Infrastructure
+### 18.4 Playtesting Infrastructure
 - [ ] Session recording for playtesters
 - [ ] Web distribution of test builds
 - [ ] Crash reporting integration
@@ -367,27 +439,27 @@ Record and replay gameplay for debugging and playtesting.
 
 ---
 
-## Phase 17: IDE Extension
+## Phase 19: IDE Extension
 
 Developer tooling for Visual Studio / VS Code / Rider.
 
-### 17.1 Code Navigation
+### 19.1 Code Navigation
 - [ ] Go to component/system definition
 - [ ] Find all references
 - [ ] Component/system usage analysis
 
-### 17.2 Refactoring Support
+### 19.2 Refactoring Support
 - [ ] Rename component (updates all usages)
 - [ ] Extract component from entity
 - [ ] Inline component
 
-### 17.3 Visualization Tools
+### 19.3 Visualization Tools
 - [ ] Entity hierarchy tree view
 - [ ] Archetype visualization
 - [ ] System dependency graph
 - [ ] Query visualization
 
-### 17.4 Debugging Integration
+### 19.4 Debugging Integration
 - [ ] Entity inspector panel
 - [ ] Component value editing
 - [ ] System execution visualizer
@@ -473,7 +545,7 @@ Optional packages that extend KeenEye:
 
 ## Feature Count Summary
 
-### Engine Core (Phases 1-13)
+### Engine Core (Phases 1-11)
 | Category | Features | Status |
 |----------|----------|--------|
 | Core Entity Operations | 7 | Pending |
@@ -491,10 +563,26 @@ Optional packages that extend KeenEye:
 | Entity Tags | 6 | Pending |
 | Component Validation | 4 | Pending |
 | Serialization | 6 | Pending |
-| Debug/Profiling | 10 | Pending |
-| **Subtotal** | **~109** | |
+| **Subtotal** | **~99** | |
 
-### Production & Advanced (Phases 14-15)
+### Developer Experience (Phases 12-14)
+| Category | Features | Status |
+|----------|----------|--------|
+| Log Provider Architecture | 4 | Pending |
+| Built-in Log Providers | 4 | Pending |
+| Logging Features | 6 | Pending |
+| ECS-Specific Logging | 5 | Pending |
+| Debug Mode | 3 | Pending |
+| Profiling | 4 | Pending |
+| Visualization | 3 | Pending |
+| Test World Builder | 5 | Pending |
+| Assertion Helpers | 6 | Pending |
+| Mock Utilities | 4 | Pending |
+| Snapshot Testing | 4 | Pending |
+| Test Fixtures | 4 | Pending |
+| **Subtotal** | **~52** | |
+
+### Production & Advanced (Phases 16-17)
 | Category | Features | Status |
 |----------|----------|--------|
 | Multi-World Support | 4 | Pending |
@@ -507,7 +595,7 @@ Optional packages that extend KeenEye:
 | Component Composition | 3 | Pending |
 | **Subtotal** | **~40** | |
 
-### Tooling (Phases 16-17)
+### Tooling (Phases 18-19)
 | Category | Features | Status |
 |----------|----------|--------|
 | Replay Recording | 6 | Pending |
@@ -531,7 +619,7 @@ Optional packages that extend KeenEye:
 | Play Mode | 4 | Future |
 | **Subtotal** | **~27** | |
 
-### Grand Total: **~211 features**
+### Grand Total: **~253 features**
 
 ---
 
