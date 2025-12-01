@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -27,7 +27,11 @@ public sealed class SystemGenerator : IIncrementalGenerator
         // Generate individual system partials
         context.RegisterSourceOutput(systemProvider, static (ctx, info) =>
         {
-            if (info is null) return;
+            if (info is null)
+            {
+                return;
+            }
+
             var source = GenerateSystemPartial(info);
             ctx.AddSource($"{info.FullName}.System.g.cs", SourceText.From(source, Encoding.UTF8));
         });
@@ -36,11 +40,15 @@ public sealed class SystemGenerator : IIncrementalGenerator
     private static SystemInfo? GetSystemInfo(GeneratorAttributeSyntaxContext context)
     {
         if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
+        {
             return null;
+        }
 
         var attr = context.Attributes.FirstOrDefault();
         if (attr is null)
+        {
             return null;
+        }
 
         // Extract attribute properties
         var phase = SystemPhase.Update;

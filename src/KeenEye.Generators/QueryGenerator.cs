@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -28,7 +30,10 @@ public sealed class QueryGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(queryProvider, static (ctx, info) =>
         {
-            if (info is null) return;
+            if (info is null)
+            {
+                return;
+            }
 
             var source = GenerateQueryImplementation(info);
             ctx.AddSource($"{info.FullName}.Query.g.cs", SourceText.From(source, Encoding.UTF8));
@@ -38,17 +43,23 @@ public sealed class QueryGenerator : IIncrementalGenerator
     private static QueryInfo? GetQueryInfo(GeneratorAttributeSyntaxContext context)
     {
         if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
+        {
             return null;
+        }
 
         var fields = new List<QueryFieldInfo>();
 
         foreach (var member in typeSymbol.GetMembers())
         {
             if (member is not IFieldSymbol field)
+            {
                 continue;
+            }
 
             if (field.IsStatic || field.IsConst)
+            {
                 continue;
+            }
 
             var fieldType = field.Type;
             var isRef = false;
