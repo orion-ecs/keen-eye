@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+
+    <!-- xUnit v3 with Microsoft Testing Platform -->
+    <UseMicrosoftTestingPlatform>true</UseMicrosoftTestingPlatform>
+
+    <!-- Disable XML documentation requirements for test projects -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" />
+    <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" />
+    <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Include="FluentAssertions" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Reference the generator project directly (not as an analyzer) -->
+    <ProjectReference Include="..\..\src\KeenEye.Generators\KeenEye.Generators.csproj" ReferenceOutputAssembly="true" OutputItemType="None" />
+    <ProjectReference Include="..\..\src\KeenEye.Generators.Attributes\KeenEye.Generators.Attributes.csproj" />
+  </ItemGroup>
+
+</Project>
