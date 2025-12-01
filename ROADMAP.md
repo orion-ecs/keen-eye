@@ -1,10 +1,10 @@
-# KeenEye Roadmap
+# KeenEyes Roadmap
 
-This document outlines the features needed to achieve parity with [OrionECS](https://github.com/tyevco/OrionECS), the TypeScript ECS framework that KeenEye reimplements in C#.
+This document outlines the features needed to achieve parity with [OrionECS](https://github.com/tyevco/OrionECS), the TypeScript ECS framework that KeenEyes reimplements in C#.
 
 ## Current Status
 
-KeenEye has basic ECS scaffolding in place:
+KeenEyes has basic ECS scaffolding in place:
 - `World` container with isolated state
 - `Entity` as `readonly record struct` with version tracking
 - `EntityBuilder` with fluent `With<T>()` / `WithTag<T>()` API
@@ -471,7 +471,7 @@ Developer tooling for Visual Studio / VS Code / Rider.
 
 *Target: v1.0.0+ (2027+)*
 
-A full-featured browser-based game editor like Unity/Godot, powered by KeenEye.
+A full-featured browser-based game editor like Unity/Godot, powered by KeenEyes.
 
 ### Editor Frontend Application
 - [ ] Project management UI
@@ -516,30 +516,30 @@ A full-featured browser-based game editor like Unity/Godot, powered by KeenEye.
 
 ## Future: Companion Packages
 
-Optional packages that extend KeenEye:
+Optional packages that extend KeenEyes:
 
 | Package | Purpose |
 |---------|---------|
-| `KeenEye.Math` | Vector2/3, Matrix4x4, Quaternion, etc. |
-| `KeenEye.Physics` | Physics simulation plugin |
-| `KeenEye.Input` | Input management plugin |
-| `KeenEye.Network` | Multiplayer/networking plugin |
-| `KeenEye.StateMachine` | Finite state machine plugin |
-| `KeenEye.AI` | Decision trees, behavior trees |
-| `KeenEye.Spatial` | Quadtree/octree spatial partitioning |
-| `KeenEye.Timeline` | Animation/sequencing |
-| `KeenEye.Testing` | Test utilities, mock worlds |
-| `KeenEye.DevTools` | Profiling, debugging, inspection |
+| `KeenEyes.Math` | Vector2/3, Matrix4x4, Quaternion, etc. |
+| `KeenEyes.Physics` | Physics simulation plugin |
+| `KeenEyes.Input` | Input management plugin |
+| `KeenEyes.Network` | Multiplayer/networking plugin |
+| `KeenEyes.StateMachine` | Finite state machine plugin |
+| `KeenEyes.AI` | Decision trees, behavior trees |
+| `KeenEyes.Spatial` | Quadtree/octree spatial partitioning |
+| `KeenEyes.Timeline` | Animation/sequencing |
+| `KeenEyes.Testing` | Test utilities, mock worlds |
+| `KeenEyes.DevTools` | Profiling, debugging, inspection |
 
 ### Additional Plugins from OrionECS
 | Plugin | Purpose |
 |--------|---------|
-| `KeenEye.Canvas2D` | 2D canvas rendering |
-| `KeenEye.ResourceManager` | Asset loading and caching |
-| `KeenEye.Interaction` | User interaction systems |
-| `KeenEye.Budgets` | Resource budget management |
-| `KeenEye.ComponentPropagation` | Parent-to-child component inheritance |
-| `KeenEye.TransformPropagation` | Automatic transform inheritance |
+| `KeenEyes.Canvas2D` | 2D canvas rendering |
+| `KeenEyes.ResourceManager` | Asset loading and caching |
+| `KeenEyes.Interaction` | User interaction systems |
+| `KeenEyes.Budgets` | Resource budget management |
+| `KeenEyes.ComponentPropagation` | Parent-to-child component inheritance |
+| `KeenEyes.TransformPropagation` | Automatic transform inheritance |
 
 ---
 
@@ -625,7 +625,7 @@ Optional packages that extend KeenEye:
 
 ## Design Principles
 
-When implementing these features, maintain KeenEye's core principles:
+When implementing these features, maintain KeenEyes's core principles:
 
 1. **No Static State** - All state is per-world instance
 2. **Respect User Intent** - Provide helpers, let users wire things up
@@ -849,7 +849,7 @@ public partial struct GoblinPrefab
 [Component]
 public partial struct Health { public int Current; public int Max; }
 
-// Generates (in KeenEye.Testing):
+// Generates (in KeenEyes.Testing):
 // - entity.ShouldHaveHealth()
 // - entity.ShouldHaveHealth(h => h.Current > 0)
 // - health.ShouldEqual(expected)
@@ -1251,4 +1251,4 @@ public static void UpdatePositions(Span<Position> positions, Span<Velocity> velo
 | Native AOT (production) | .NET 8.0 |
 | `params Span<T>` | .NET 9.0 |
 | `Lock` class | .NET 9.0 |
-| **KeenEye Target** | **.NET 10** |
+| **KeenEyes Target** | **.NET 10** |

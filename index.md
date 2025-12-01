@@ -2,7 +2,7 @@
 _layout: landing
 ---
 
-# KeenEye ECS
+# KeenEyes ECS
 
 High-performance Entity Component System framework for .NET 10.
 

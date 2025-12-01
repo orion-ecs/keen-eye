@@ -1,10 +1,10 @@
-# KeenEye Documentation
+# KeenEyes Documentation
 
-Welcome to the KeenEye ECS framework documentation.
+Welcome to the KeenEyes ECS framework documentation.
 
-## What is KeenEye?
+## What is KeenEyes?
 
-KeenEye is a high-performance Entity Component System (ECS) framework for .NET 10, reimplementing [OrionECS](https://github.com/tyevco/OrionECS) in C#.
+KeenEyes is a high-performance Entity Component System (ECS) framework for .NET 10, reimplementing [OrionECS](https://github.com/tyevco/OrionECS) in C#.
 
 ## Key Features
 
@@ -17,7 +17,7 @@ KeenEye is a high-performance Entity Component System (ECS) framework for .NET 1
 ## Getting Started
 
 ```csharp
-using KeenEye.Core;
+using KeenEyes.Core;
 
 // Create a world
 var world = new World();

@@ -4,7 +4,7 @@ This file contains guidance for Claude Code when working on this repository.
 
 ## Project Overview
 
-KeenEye is a high-performance Entity Component System (ECS) framework for .NET 10, reimplementing [OrionECS](https://github.com/tyevco/OrionECS) in C#.
+KeenEyes is a high-performance Entity Component System (ECS) framework for .NET 10, reimplementing [OrionECS](https://github.com/tyevco/OrionECS) in C#.
 
 ## Architecture Principles
 
@@ -72,13 +72,13 @@ Use Roslyn source generators to reduce boilerplate while maintaining performance
 ```
 keen-eye/
 ├── src/
-│   ├── KeenEye.Core/                 # Runtime ECS framework
+│   ├── KeenEyes.Core/                 # Runtime ECS framework
 │   │   ├── Components/               # IComponent, ComponentRegistry
 │   │   ├── Entities/                 # Entity, EntityBuilder
 │   │   ├── Queries/                  # QueryBuilder, QueryEnumerator
 │   │   └── Systems/                  # ISystem, SystemBase
-│   ├── KeenEye.Generators/           # Source generators
-│   └── KeenEye.Generators.Attributes/ # Attributes (netstandard2.0)
+│   ├── KeenEyes.Generators/           # Source generators
+│   └── KeenEyes.Generators.Attributes/ # Attributes (netstandard2.0)
 ├── tests/                            # Unit and integration tests
 ├── samples/                          # Example projects
 ├── benchmarks/                       # Performance benchmarks
