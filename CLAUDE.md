@@ -213,3 +213,226 @@ The build enforces documentation:
 ```
 
 Future goal: Enable CS1591 warning to require docs on all public members.
+
+## Code Quality Requirements
+
+All code contributions must meet strict quality standards. No exceptions.
+
+### Build Validation
+
+Before committing, ensure:
+
+```bash
+dotnet build --warnaserror          # Zero warnings, zero errors
+dotnet test                          # All tests pass
+dotnet format --verify-no-changes   # Code is formatted
+```
+
+**Non-negotiable rules:**
+- All existing tests must continue to pass
+- No new warnings introduced (warnings are errors)
+- No new analyzer violations
+- Code must be formatted per `.editorconfig`
+
+### Introducing Changes
+
+When modifying code:
+1. Run the full build before AND after changes
+2. If a warning exists, fix it - don't suppress it without justification
+3. If a test fails, fix the code or update the test with clear reasoning
+4. Never commit code that breaks the build
+
+### Suppressing Warnings
+
+Only suppress warnings when absolutely necessary:
+
+```csharp
+// GOOD: Documented justification
+#pragma warning disable CS8618 // Non-nullable field not initialized - set in Initialize()
+private World world;
+#pragma warning restore CS8618
+
+// BAD: No explanation
+#pragma warning disable CS8618
+private World world;
+#pragma warning restore CS8618
+```
+
+## Sample & Tutorial Code Quality
+
+**All code is teaching code.** Samples, tutorials, examples, and documentation snippets are as important as production code - often more so.
+
+### Why This Matters
+
+- Users learn by copying examples
+- Bad habits in samples become bad habits in user code
+- First impressions establish patterns that persist
+- Examples are the most-read code in any project
+
+### Sample Code Standards
+
+Every code sample must:
+
+1. **Compile and run** - No pseudo-code in samples
+2. **Follow all conventions** - Same standards as production code
+3. **Demonstrate best practices** - Show the RIGHT way, not shortcuts
+4. **Be self-contained** - Runnable without hidden dependencies
+5. **Include error handling** - Show proper patterns, not happy-path only
+6. **Use meaningful names** - `Position`, `Velocity`, not `Foo`, `Bar`
+
+### Example Quality Checklist
+
+```csharp
+// ✅ GOOD: Complete, follows conventions, demonstrates patterns
+[Component]
+public partial struct Position
+{
+    public float X;
+    public float Y;
+}
+
+[Component]
+public partial struct Velocity
+{
+    public float X;
+    public float Y;
+}
+
+public class MovementSystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        foreach (var entity in World.Query<Position, Velocity>())
+        {
+            ref var pos = ref World.Get<Position>(entity);
+            ref readonly var vel = ref World.Get<Velocity>(entity);
+
+            pos.X += vel.X * deltaTime;
+            pos.Y += vel.Y * deltaTime;
+        }
+    }
+}
+```
+
+```csharp
+// ❌ BAD: Incomplete, bad names, missing patterns
+public class MySystem : SystemBase
+{
+    public override void Update(float dt)
+    {
+        // TODO: implement
+        foreach (var e in World.Query<Foo>())
+        {
+            // do stuff
+        }
+    }
+}
+```
+
+### Establish Patterns Early
+
+When writing examples, reinforce core patterns:
+- Show `readonly record struct` for entities
+- Show `struct` for components
+- Show proper `ref` usage for zero-copy access
+- Show `using` statements for disposables
+- Show query patterns with `With<>()` and `Without<>()`
+
+## ECS Principles
+
+When implementing features, always keep ECS fundamentals in mind.
+
+### Core ECS Tenets
+
+1. **Composition over Inheritance**
+   - Entities are IDs, not objects
+   - Behavior comes from component combinations
+   - No entity base classes or inheritance hierarchies
+
+2. **Data-Oriented Design**
+   - Components are plain data (structs)
+   - Systems contain logic, components contain state
+   - Optimize for cache locality and iteration
+
+3. **Separation of Concerns**
+   - Components: WHAT an entity has (data only)
+   - Systems: HOW entities behave (logic only)
+   - Queries: WHICH entities to process (filtering)
+
+4. **Explicit over Implicit**
+   - No hidden registration or auto-wiring
+   - Users explicitly add systems to worlds
+   - No magic - behavior is traceable
+
+### Anti-Patterns to Avoid
+
+```csharp
+// ❌ BAD: Logic in components
+public struct Health
+{
+    public int Current;
+    public int Max;
+
+    public void TakeDamage(int amount) => Current -= amount;  // NO!
+}
+
+// ✅ GOOD: Pure data component
+public struct Health
+{
+    public int Current;
+    public int Max;
+}
+
+// Logic in systems
+public class DamageSystem : SystemBase { ... }
+```
+
+```csharp
+// ❌ BAD: Inheritance-based entities
+public class Enemy : Entity { }       // NO!
+public class Player : Enemy { }       // NO!
+
+// ✅ GOOD: Composition-based
+var enemy = world.Spawn()
+    .With(new Position { X = 0, Y = 0 })
+    .With(new Health { Current = 100, Max = 100 })
+    .WithTag<EnemyTag>()
+    .Build();
+```
+
+```csharp
+// ❌ BAD: God component with everything
+public struct Actor
+{
+    public float X, Y;
+    public float VelX, VelY;
+    public int Health, MaxHealth;
+    public int Damage;
+    public string Name;
+    // ... 50 more fields
+}
+
+// ✅ GOOD: Small, focused components
+public struct Position { public float X, Y; }
+public struct Velocity { public float X, Y; }
+public struct Health { public int Current, Max; }
+public struct Damage { public int Amount; }
+public struct Named { public string Name; }
+```
+
+### Performance Mindset
+
+Always consider:
+- **Allocations**: Minimize heap allocations in hot paths
+- **Cache locality**: Keep related data together
+- **Iteration**: Optimize for bulk processing, not individual entity access
+- **Indirection**: Reduce pointer chasing, prefer contiguous arrays
+
+### When in Doubt
+
+Ask these questions:
+1. Is this component pure data with no logic?
+2. Is this system processing entities in bulk?
+3. Could this be composed from smaller components?
+4. Am I relying on implicit behavior?
+5. Would this work with 10,000 entities?
