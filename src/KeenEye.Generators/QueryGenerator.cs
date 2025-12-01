@@ -19,6 +19,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
     private const string WithoutAttribute = "KeenEye.WithoutAttribute";
     private const string OptionalAttribute = "KeenEye.OptionalAttribute";
 
+    /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var queryProvider = context.SyntaxProvider
