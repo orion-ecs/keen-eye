@@ -310,7 +310,7 @@ public class CommandBufferTests
         for (int i = 0; i < 5; i++)
         {
             world.Spawn()
-                .With(new Health { Current = 10 - i * 3, Max = 10 })
+                .With(new Health { Current = 10 - i * 4, Max = 10 })
                 .Build();
         }
 
