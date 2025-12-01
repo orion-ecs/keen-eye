@@ -1,6 +1,6 @@
+using KeenEyes.Generators;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using KeenEyes.Generators;
 
 namespace KeenEyes.Generators.Tests;
 
