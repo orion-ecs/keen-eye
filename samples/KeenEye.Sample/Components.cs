@@ -15,7 +15,9 @@ namespace KeenEye.Sample;
 [Component]
 public partial struct Position
 {
+    /// <summary>X coordinate.</summary>
     public float X;
+    /// <summary>Y coordinate.</summary>
     public float Y;
 }
 
@@ -25,7 +27,9 @@ public partial struct Position
 [Component]
 public partial struct Velocity
 {
+    /// <summary>X velocity component.</summary>
     public float X;
+    /// <summary>Y velocity component.</summary>
     public float Y;
 }
 
@@ -35,10 +39,14 @@ public partial struct Velocity
 [Component]
 public partial struct Health
 {
+    /// <summary>Current health points.</summary>
     public float Current;
+    /// <summary>Maximum health points.</summary>
     public float Max;
+    /// <summary>Whether this entity is immune to damage.</summary>
     public bool Invulnerable;
 
+    /// <summary>Gets the health percentage (0-1).</summary>
     public readonly float Percentage => Max > 0 ? Current / Max : 0;
 }
 
@@ -65,12 +73,15 @@ public partial struct Sprite
 [Component]
 public partial struct Config
 {
+    /// <summary>Maximum number of entities allowed.</summary>
     [DefaultValue(100)]
     public int MaxEntities;
 
+    /// <summary>Simulation tick rate in Hz.</summary>
     [DefaultValue(60f)]
     public float TickRate;
 
+    /// <summary>Whether debug mode is enabled.</summary>
     [DefaultValue(true)]
     public bool EnableDebug;
 }

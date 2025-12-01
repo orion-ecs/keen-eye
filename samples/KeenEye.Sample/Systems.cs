@@ -14,6 +14,7 @@ namespace KeenEye.Sample;
 [System(Phase = SystemPhase.Update, Order = 0)]
 public partial class MovementSystem : SystemBase
 {
+    /// <inheritdoc />
     public override void Update(float deltaTime)
     {
         // Using the fluent query API
@@ -36,6 +37,7 @@ public partial class MovementSystem : SystemBase
 [System(Phase = SystemPhase.EarlyUpdate, Order = 0)]
 public partial class PlayerInputSystem : SystemBase
 {
+    /// <inheritdoc />
     public override void Update(float deltaTime)
     {
         // Query with filter - only entities that have Player tag
@@ -52,6 +54,7 @@ public partial class PlayerInputSystem : SystemBase
 [System(Phase = SystemPhase.Update, Order = 10)]
 public partial class EnemyAISystem : SystemBase
 {
+    /// <inheritdoc />
     public override void Update(float deltaTime)
     {
         // Complex query: entities with Position and Velocity,
@@ -71,6 +74,7 @@ public partial class EnemyAISystem : SystemBase
 [System(Phase = SystemPhase.Render, Order = 0)]
 public partial class RenderSystem : SystemBase
 {
+    /// <inheritdoc />
     public override void Update(float deltaTime)
     {
         foreach (var entity in World.Query<Position, Sprite>())
@@ -86,6 +90,7 @@ public partial class RenderSystem : SystemBase
 [System(Phase = SystemPhase.LateUpdate, Order = 0, Group = "Combat")]
 public partial class HealthSystem : SystemBase
 {
+    /// <inheritdoc />
     public override void Update(float deltaTime)
     {
         foreach (var entity in World.Query<Health>().Without<Disabled>())
