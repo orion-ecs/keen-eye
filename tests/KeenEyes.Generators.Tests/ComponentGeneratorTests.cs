@@ -84,22 +84,22 @@ public class ComponentGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("WithVelocity"));
     }
 
-    private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
+    private static (IReadOnlyList<Microsoft.CodeAnalysis.Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
 
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
-        var references = new List<MetadataReference>
+        var references = new List<Microsoft.CodeAnalysis.MetadataReference>
         {
-            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(attributesAssembly.Location),
+            Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
+            Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(attributesAssembly.Location),
         };
 
         // Add runtime assembly references
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
-        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "System.Runtime.dll")));
+        references.Add(Microsoft.CodeAnalysis.MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "System.Runtime.dll")));
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
@@ -108,7 +108,7 @@ public class ComponentGeneratorTests
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
         var generator = new KeenEyes.Generators.ComponentGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+        Microsoft.CodeAnalysis.GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
 
