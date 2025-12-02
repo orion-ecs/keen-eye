@@ -40,7 +40,7 @@ public class ComponentGeneratorTests
 
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
-        Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+        Assert.DoesNotContain(diagnostics, d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
         Assert.Contains(generatedTrees, t => t.Contains("partial struct Position"));
     }
 
@@ -58,7 +58,7 @@ public class ComponentGeneratorTests
 
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
-        Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+        Assert.DoesNotContain(diagnostics, d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
         Assert.Contains(generatedTrees, t => t.Contains("ITagComponent"));
     }
 
@@ -80,7 +80,7 @@ public class ComponentGeneratorTests
 
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
-        Assert.Empty(diagnostics.Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+        Assert.DoesNotContain(diagnostics, d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error);
         Assert.Contains(generatedTrees, t => t.Contains("WithVelocity"));
     }
 
