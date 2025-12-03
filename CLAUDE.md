@@ -436,3 +436,58 @@ Ask these questions:
 3. Could this be composed from smaller components?
 4. Am I relying on implicit behavior?
 5. Would this work with 10,000 entities?
+
+## Claude Code Web Sessions
+
+Claude Code web environments have proxy restrictions that prevent NuGet from authenticating properly. A SessionStart hook automatically handles this.
+
+### How It Works
+
+1. **SessionStart hook** (`.claude/hooks/install-packages.sh`) runs automatically on web sessions
+2. Downloads packages via `wget` (which handles proxy auth correctly)
+3. Extracts packages to `~/.nuget/packages/` (global cache)
+4. Copies `.nupkg` files to `/tmp/nuget-feed/` (local source)
+5. **PreToolUse hook** (`.claude/hooks/dotnet-pre.sh`) disables `nuget.org` before any `dotnet` command
+6. **PostToolUse hook** (`.claude/hooks/dotnet-post.sh`) re-enables `nuget.org` after (keeps config clean for commits)
+
+### If Restore Fails with Missing Packages
+
+Run the install script manually and check for failures:
+
+```bash
+CLAUDE_CODE_REMOTE=true .claude/hooks/install-packages.sh
+```
+
+Then add missing packages to the script. Common causes:
+- New package added to a `.csproj`
+- Version updated in `Directory.Packages.props`
+- New transitive dependency introduced
+
+### Maintaining the Package List
+
+The package list in `.claude/hooks/install-packages.sh` must be kept in sync with project dependencies:
+
+**When adding packages:**
+1. Add the package reference to the project
+2. Run `dotnet restore` locally to verify it works
+3. Add the package (and any new transitive dependencies) to `install-packages.sh`
+4. Test on web: `CLAUDE_CODE_REMOTE=true .claude/hooks/install-packages.sh`
+
+**Finding transitive dependencies:**
+```bash
+# Run restore and note missing packages from errors
+dotnet restore 2>&1 | grep "Unable to find package"
+
+# Or check the package's dependencies on nuget.org
+```
+
+**Package list structure in the script:**
+```bash
+# Direct dependencies (from Directory.Packages.props)
+download_pkg "PackageName" "Version"
+
+# Transitive dependencies (required by direct deps)
+download_pkg "TransitivePackage" "Version"
+```
+
+Keep the script organized with comments grouping related packages.

@@ -1,34 +1,44 @@
 #!/bin/bash
 # NuGet Package Installer for Proxy-Restricted Environments (Claude Code Web)
 # This script downloads NuGet packages via wget (which works through the proxy)
-# and places them in a local feed directory.
+# and extracts them directly to the global packages cache.
 #
 # Usage: Runs automatically as a SessionStart hook on Claude Code web.
-# The nuget.config in this repo is configured to use /tmp/nuget-feed as a package source.
 
 # Only run in Claude Code web environments (skip for local CLI)
 if [[ "$CLAUDE_CODE_REMOTE" != "true" ]]; then
     exit 0
 fi
 
+CACHE_DIR="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
 FEED_DIR="/tmp/nuget-feed"
-mkdir -p "$FEED_DIR"
+TEMP_DIR="/tmp/nuget-download"
+mkdir -p "$CACHE_DIR" "$FEED_DIR" "$TEMP_DIR"
 
 download_pkg() {
     local id=$(echo "$1" | tr '[:upper:]' '[:lower:]')
     local version="$2"
-    local file="$FEED_DIR/${id}.${version}.nupkg"
+    local pkg_dir="$CACHE_DIR/$id/$version"
+    local feed_file="$FEED_DIR/${id}.${version}.nupkg"
 
-    if [ -f "$file" ]; then
+    # Skip if already in cache
+    if [ -d "$pkg_dir" ] && [ -f "$feed_file" ]; then
         return 0
     fi
 
     local url="https://api.nuget.org/v3-flatcontainer/${id}/${version}/${id}.${version}.nupkg"
+    local nupkg="$TEMP_DIR/${id}.${version}.nupkg"
 
-    if wget -q -O "$file" "$url" 2>/dev/null; then
+    if wget -q -O "$nupkg" "$url" 2>/dev/null; then
+        # Extract to global cache
+        mkdir -p "$pkg_dir"
+        unzip -q -o "$nupkg" -d "$pkg_dir" 2>/dev/null
+        cp "$nupkg" "$pkg_dir/${id}.${version}.nupkg"
+        # Also keep in feed for offline resolution
+        mv "$nupkg" "$feed_file"
         return 0
     else
-        rm -f "$file"
+        rm -f "$nupkg"
         return 1
     fi
 }
@@ -132,5 +142,5 @@ download_pkg "System.Composition.Hosting" "9.0.0"
 download_pkg "System.Composition.Runtime" "9.0.0"
 download_pkg "System.Composition.TypedParts" "9.0.0"
 
-count=$(ls "$FEED_DIR"/*.nupkg 2>/dev/null | wc -l)
-echo "Package installation complete! ($count packages in $FEED_DIR)"
+count=$(find "$CACHE_DIR" -maxdepth 2 -mindepth 2 -type d 2>/dev/null | wc -l)
+echo "Package installation complete! ($count packages in $CACHE_DIR)"
