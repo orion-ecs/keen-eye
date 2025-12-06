@@ -232,6 +232,72 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
+    /// Removes a component from an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type to remove.</typeparam>
+    /// <param name="entity">The entity to remove the component from.</param>
+    /// <returns>
+    /// <c>true</c> if the component was removed; <c>false</c> if the entity is not alive,
+    /// the component type is not registered, or the entity does not have the component.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This operation is idempotent: calling it multiple times with the same arguments
+    /// will return <c>false</c> after the first successful removal.
+    /// </para>
+    /// <para>
+    /// After removing a component, the entity will no longer be matched by queries that
+    /// require that component type. This operation is O(1) for the dictionary-based storage.
+    /// </para>
+    /// <para>
+    /// <strong>Warning:</strong> Removing components from entities during query iteration
+    /// may cause unexpected behavior. Consider using a command buffer pattern where removals
+    /// are queued and applied after iteration completes.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Remove a component from an entity
+    /// bool removed = world.Remove&lt;Velocity&gt;(entity);
+    /// if (removed)
+    /// {
+    ///     Console.WriteLine("Velocity component removed");
+    /// }
+    ///
+    /// // Idempotent: second removal returns false
+    /// bool removedAgain = world.Remove&lt;Velocity&gt;(entity);
+    /// Debug.Assert(removedAgain == false);
+    /// </code>
+    /// </example>
+    public bool Remove<T>(Entity entity) where T : struct, IComponent
+    {
+        // Check if entity is alive
+        if (!IsAlive(entity))
+        {
+            return false;
+        }
+
+        // Check if component type is registered
+        var info = Components.Get<T>();
+        if (info is null)
+        {
+            return false;
+        }
+
+        // Check if entity has the component and remove it
+        if (!entityComponents.TryGetValue(entity.Id, out var components) ||
+            !components.Remove(info.Id))
+        {
+            return false;
+        }
+
+        // Remove from type tracking for query matching
+        entityComponentTypes[entity.Id].Remove(typeof(T));
+
+        return true;
+    }
+
+    /// <summary>
     /// Gets all entities currently alive in this world.
     /// </summary>
     public IEnumerable<Entity> GetAllEntities()
