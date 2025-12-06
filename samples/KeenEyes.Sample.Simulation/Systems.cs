@@ -10,7 +10,7 @@ namespace KeenEyes.Sample.Simulation;
 [System(Phase = SystemPhase.Update, Order = 0)]
 public partial class MovementSystem : SystemBase
 {
-    private readonly CommandBuffer _buffer = new();
+    private readonly CommandBuffer buffer = new();
 
     /// <summary>World width in units.</summary>
     public float WorldWidth { get; set; } = 60;
@@ -38,7 +38,7 @@ public partial class MovementSystem : SystemBase
             {
                 if (pos.X < 0 || pos.X >= WorldWidth || pos.Y < 0 || pos.Y >= WorldHeight)
                 {
-                    _buffer.AddComponent(entity, new Dead());
+                    buffer.AddComponent(entity, new Dead());
                 }
             }
             else
@@ -69,7 +69,7 @@ public partial class MovementSystem : SystemBase
             }
         }
 
-        _buffer.Flush(World);
+        buffer.Flush(World);
     }
 }
 
@@ -147,7 +147,7 @@ public partial class CollisionSystem : SystemBase
 [System(Phase = SystemPhase.LateUpdate, Order = 0)]
 public partial class HealthSystem : SystemBase
 {
-    private readonly CommandBuffer _buffer = new();
+    private readonly CommandBuffer buffer = new();
 
     /// <summary>Event raised when an enemy dies.</summary>
     public event Action? OnEnemyKilled;
@@ -164,7 +164,7 @@ public partial class HealthSystem : SystemBase
 
             if (!health.IsAlive)
             {
-                _buffer.AddComponent(entity, new Dead());
+                buffer.AddComponent(entity, new Dead());
 
                 if (World.Has<Enemy>(entity))
                 {
@@ -173,7 +173,7 @@ public partial class HealthSystem : SystemBase
             }
         }
 
-        _buffer.Flush(World);
+        buffer.Flush(World);
     }
 }
 
@@ -183,7 +183,7 @@ public partial class HealthSystem : SystemBase
 [System(Phase = SystemPhase.LateUpdate, Order = 5)]
 public partial class LifetimeSystem : SystemBase
 {
-    private readonly CommandBuffer _buffer = new();
+    private readonly CommandBuffer buffer = new();
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -198,11 +198,11 @@ public partial class LifetimeSystem : SystemBase
 
             if (lifetime.Remaining <= 0)
             {
-                _buffer.AddComponent(entity, new Dead());
+                buffer.AddComponent(entity, new Dead());
             }
         }
 
-        _buffer.Flush(World);
+        buffer.Flush(World);
     }
 }
 
@@ -252,8 +252,8 @@ public partial class CleanupSystem : SystemBase
 [System(Phase = SystemPhase.EarlyUpdate, Order = 0)]
 public partial class SpawnerSystem : SystemBase
 {
-    private readonly Random _random = new();
-    private float _spawnTimer;
+    private readonly Random random = new();
+    private float spawnTimer;
 
     /// <summary>Seconds between spawns.</summary>
     public float SpawnInterval { get; set; } = 2.0f;
@@ -270,11 +270,11 @@ public partial class SpawnerSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        _spawnTimer -= deltaTime;
+        spawnTimer -= deltaTime;
 
-        if (_spawnTimer <= 0)
+        if (spawnTimer <= 0)
         {
-            _spawnTimer = SpawnInterval;
+            spawnTimer = SpawnInterval;
 
             // Count current enemies
             int enemyCount = World.Query<Position>()
@@ -293,33 +293,33 @@ public partial class SpawnerSystem : SystemBase
     {
         // Random edge spawn
         float x, y, vx, vy;
-        int edge = _random.Next(4);
+        int edge = random.Next(4);
 
         switch (edge)
         {
             case 0: // Top
-                x = _random.NextSingle() * WorldWidth;
+                x = random.NextSingle() * WorldWidth;
                 y = 0;
-                vx = (_random.NextSingle() - 0.5f) * 10;
-                vy = _random.NextSingle() * 5 + 2;
+                vx = (random.NextSingle() - 0.5f) * 10;
+                vy = random.NextSingle() * 5 + 2;
                 break;
             case 1: // Bottom
-                x = _random.NextSingle() * WorldWidth;
+                x = random.NextSingle() * WorldWidth;
                 y = WorldHeight - 1;
-                vx = (_random.NextSingle() - 0.5f) * 10;
-                vy = -(_random.NextSingle() * 5 + 2);
+                vx = (random.NextSingle() - 0.5f) * 10;
+                vy = -(random.NextSingle() * 5 + 2);
                 break;
             case 2: // Left
                 x = 0;
-                y = _random.NextSingle() * WorldHeight;
-                vx = _random.NextSingle() * 5 + 2;
-                vy = (_random.NextSingle() - 0.5f) * 10;
+                y = random.NextSingle() * WorldHeight;
+                vx = random.NextSingle() * 5 + 2;
+                vy = (random.NextSingle() - 0.5f) * 10;
                 break;
             default: // Right
                 x = WorldWidth - 1;
-                y = _random.NextSingle() * WorldHeight;
-                vx = -(_random.NextSingle() * 5 + 2);
-                vy = (_random.NextSingle() - 0.5f) * 10;
+                y = random.NextSingle() * WorldHeight;
+                vx = -(random.NextSingle() * 5 + 2);
+                vy = (random.NextSingle() - 0.5f) * 10;
                 break;
         }
 
@@ -328,7 +328,7 @@ public partial class SpawnerSystem : SystemBase
         ConsoleColor color;
         int health;
 
-        int type = _random.Next(3);
+        int type = random.Next(3);
         switch (type)
         {
             case 0: // Fast, weak
@@ -369,7 +369,7 @@ public partial class SpawnerSystem : SystemBase
 [System(Phase = SystemPhase.Update, Order = -5)]
 public partial class ShootingSystem : SystemBase
 {
-    private readonly CommandBuffer _buffer = new();
+    private readonly CommandBuffer buffer = new();
 
     /// <summary>Time between auto-shots.</summary>
     public float FireRate { get; set; } = 0.3f;
@@ -423,7 +423,7 @@ public partial class ShootingSystem : SystemBase
                         float vy = (dy / dist) * speed;
 
                         // Queue projectile spawn via CommandBuffer
-                        _buffer.Spawn()
+                        buffer.Spawn()
                             .With(new Position { X = pos.X, Y = pos.Y })
                             .With(new Velocity { X = vx, Y = vy })
                             .With(new Damage { Amount = 1 })
@@ -437,7 +437,7 @@ public partial class ShootingSystem : SystemBase
         }
 
         // Flush all queued spawns
-        _buffer.Flush(World);
+        buffer.Flush(World);
     }
 }
 
@@ -447,8 +447,8 @@ public partial class ShootingSystem : SystemBase
 [System(Phase = SystemPhase.Update, Order = -4)]
 public partial class EnemyShootingSystem : SystemBase
 {
-    private readonly Random _random = new();
-    private readonly CommandBuffer _buffer = new();
+    private readonly Random random = new();
+    private readonly CommandBuffer buffer = new();
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -490,7 +490,7 @@ public partial class EnemyShootingSystem : SystemBase
 
             if (cooldown.Remaining <= 0)
             {
-                cooldown.Remaining = 1.5f + _random.NextSingle();
+                cooldown.Remaining = 1.5f + random.NextSingle();
 
                 // Shoot toward player
                 float dx = playerPos.X - pos.X;
@@ -504,7 +504,7 @@ public partial class EnemyShootingSystem : SystemBase
                     float vy = (dy / dist) * speed;
 
                     // Queue enemy projectile spawn via CommandBuffer
-                    _buffer.Spawn()
+                    buffer.Spawn()
                         .With(new Position { X = pos.X, Y = pos.Y })
                         .With(new Velocity { X = vx, Y = vy })
                         .With(new Damage { Amount = 1 })
@@ -518,6 +518,6 @@ public partial class EnemyShootingSystem : SystemBase
         }
 
         // Flush all queued spawns
-        _buffer.Flush(World);
+        buffer.Flush(World);
     }
 }

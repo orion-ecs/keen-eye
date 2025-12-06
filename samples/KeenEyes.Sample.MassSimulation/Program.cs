@@ -1,6 +1,6 @@
+using System.Diagnostics;
 using KeenEyes;
 using KeenEyes.Sample.MassSimulation;
-using System.Diagnostics;
 
 // =============================================================================
 // KEEN EYES ECS - Mass Entity Simulation (100,000+ Entities)
@@ -173,10 +173,10 @@ Console.WriteLine();
 
 // Archetype and chunk statistics
 Console.WriteLine("Archetype Statistics:");
-Console.WriteLine($"  Archetype count:     {world.ArchetypeManager.Count}");
+Console.WriteLine($"  Archetype count:     {world.ArchetypeManager.ArchetypeCount}");
 
 var totalChunks = 0;
-foreach (var archetype in world.ArchetypeManager.AllArchetypes)
+foreach (var archetype in world.ArchetypeManager.Archetypes)
 {
     totalChunks += archetype.ChunkCount;
 }

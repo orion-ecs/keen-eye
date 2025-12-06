@@ -376,7 +376,7 @@ public class ChunkEfficiencyBenchmarks
                 .With(new Velocity { X = 1, Y = 0 })
                 .Build();
         }
-        return world.ArchetypeManager.Count;
+        return world.ArchetypeManager.ArchetypeCount;
     }
 
     /// <summary>
@@ -410,6 +410,6 @@ public class ChunkEfficiencyBenchmarks
 
             builder.Build();
         }
-        return world.ArchetypeManager.Count;
+        return world.ArchetypeManager.ArchetypeCount;
     }
 }
