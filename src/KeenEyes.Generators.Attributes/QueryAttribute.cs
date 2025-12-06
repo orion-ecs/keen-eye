@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace KeenEyes;
 
@@ -7,6 +8,7 @@ namespace KeenEyes;
 /// an efficient enumerator for iterating matching archetypes.
 /// </summary>
 [AttributeUsage(AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class QueryAttribute : Attribute;
 
 /// <summary>
@@ -14,6 +16,7 @@ public sealed class QueryAttribute : Attribute;
 /// The entity must have this component, but it won't be accessible in the query.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class WithAttribute : Attribute;
 
 /// <summary>
@@ -21,6 +24,7 @@ public sealed class WithAttribute : Attribute;
 /// The entity must NOT have this component.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class WithoutAttribute : Attribute;
 
 /// <summary>
@@ -28,4 +32,5 @@ public sealed class WithoutAttribute : Attribute;
 /// The component will be default if not present on the entity.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class OptionalAttribute : Attribute;

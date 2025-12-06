@@ -656,7 +656,7 @@ public class QueryEnumeratorTests
     }
 
     [Fact]
-    public void QueryEnumerator_Reset_ThrowsNotSupportedException()
+    public void QueryEnumerator_Reset_ResetsEnumerator()
     {
         using var world = new World();
 
@@ -665,10 +665,12 @@ public class QueryEnumeratorTests
             .Build();
 
         var enumerator = world.Query<TestPosition>().GetEnumerator();
-        enumerator.MoveNext();
+        Assert.True(enumerator.MoveNext());
+        Assert.False(enumerator.MoveNext()); // Exhausted
 
-        // Yield-based enumerators don't support Reset
-        Assert.Throws<NotSupportedException>(() => enumerator.Reset());
+        // Archetype-based enumerators support Reset
+        enumerator.Reset();
+        Assert.True(enumerator.MoveNext()); // Can iterate again after reset
 
         enumerator.Dispose();
     }
