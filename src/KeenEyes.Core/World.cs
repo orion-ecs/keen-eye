@@ -39,8 +39,9 @@ public sealed class World : IDisposable
 
     /// <summary>
     /// Gets the archetype manager for this world.
+    /// Provides access to archetype storage, chunk pooling, and entity location tracking.
     /// </summary>
-    internal ArchetypeManager Archetypes => archetypeManager;
+    public ArchetypeManager ArchetypeManager => archetypeManager;
 
     /// <summary>
     /// Gets the query manager for this world.
