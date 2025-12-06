@@ -446,4 +446,795 @@ public class PoolingTests
     }
 
     #endregion
+
+    #region ChunkPool Tests
+
+    [Fact]
+    public void ChunkPool_Rent_CreatesNewChunkWhenPoolEmpty()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+
+        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+
+        Assert.NotNull(chunk);
+        Assert.Equal(archetypeId, chunk.ArchetypeId);
+        Assert.Equal(1, pool.TotalRented);
+        Assert.Equal(1, pool.TotalCreated);
+    }
+
+    [Fact]
+    public void ChunkPool_Return_PoolsEmptyChunk()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+
+        var returned = pool.Return(chunk);
+
+        Assert.True(returned);
+        Assert.Equal(1, pool.TotalReturned);
+        Assert.Equal(1, pool.PooledCount);
+    }
+
+    [Fact]
+    public void ChunkPool_Rent_ReusesPooledChunk()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        pool.Return(chunk1);
+
+        var chunk2 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+
+        Assert.Same(chunk1, chunk2);
+        Assert.Equal(2, pool.TotalRented);
+        Assert.Equal(1, pool.TotalCreated); // Only one created
+    }
+
+    [Fact]
+    public void ChunkPool_Return_DiscardsNonEmptyChunk()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+
+        // Add an entity to make chunk non-empty
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 1 });
+
+        var returned = pool.Return(chunk);
+
+        Assert.False(returned);
+        Assert.Equal(1, pool.TotalDiscarded);
+        Assert.Equal(0, pool.PooledCount);
+    }
+
+    [Fact]
+    public void ChunkPool_Return_DiscardsWhenPoolFull()
+    {
+        var pool = new ChunkPool(maxChunksPerArchetype: 1);
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+
+        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk2 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+
+        pool.Return(chunk1); // First return succeeds
+        var returned = pool.Return(chunk2); // Second should be discarded
+
+        Assert.False(returned);
+        Assert.Equal(1, pool.PooledCount);
+    }
+
+    [Fact]
+    public void ChunkPool_ReuseRate_ReturnsCorrectValue()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+
+        // Rent and return to create reuse scenario
+        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]); // created = 1, rented = 1
+        pool.Return(chunk1);
+        pool.Rent(archetypeId, [typeof(TestPosition)]); // rented = 2, created still = 1
+
+        // ReuseRate = 1 - (created / rented) = 1 - (1/2) = 0.5
+        Assert.Equal(0.5, pool.ReuseRate);
+    }
+
+    [Fact]
+    public void ChunkPool_ReuseRate_ReturnsZeroWhenNoRentals()
+    {
+        var pool = new ChunkPool();
+
+        Assert.Equal(0, pool.ReuseRate);
+    }
+
+    [Fact]
+    public void ChunkPool_ClearArchetype_RemovesPooledChunks()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+
+        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        pool.Return(chunk);
+
+        Assert.Equal(1, pool.PooledCount);
+
+        pool.ClearArchetype(archetypeId);
+
+        Assert.Equal(0, pool.PooledCount);
+    }
+
+    [Fact]
+    public void ChunkPool_ClearArchetype_NonExistentArchetype_NoOp()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+
+        // Should not throw
+        pool.ClearArchetype(archetypeId);
+
+        Assert.Equal(0, pool.PooledCount);
+    }
+
+    [Fact]
+    public void ChunkPool_Clear_RemovesAllPooledChunks()
+    {
+        var pool = new ChunkPool();
+        var archetypeId1 = new ArchetypeId([typeof(TestPosition)]);
+        var archetypeId2 = new ArchetypeId([typeof(int)]);
+
+        var chunk1 = pool.Rent(archetypeId1, [typeof(TestPosition)]);
+        var chunk2 = pool.Rent(archetypeId2, [typeof(int)]);
+        pool.Return(chunk1);
+        pool.Return(chunk2);
+
+        Assert.Equal(2, pool.PooledCount);
+
+        pool.Clear();
+
+        Assert.Equal(0, pool.PooledCount);
+    }
+
+    [Fact]
+    public void ChunkPool_GetStats_ReturnsCorrectValues()
+    {
+        var pool = new ChunkPool();
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+
+        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk2 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        pool.Return(chunk1);
+
+        var stats = pool.GetStats();
+
+        Assert.Equal(2, stats.TotalRented);
+        Assert.Equal(2, stats.TotalCreated);
+        Assert.Equal(1, stats.TotalReturned);
+        Assert.Equal(0, stats.TotalDiscarded);
+        Assert.Equal(1, stats.PooledCount);
+        Assert.Equal(1, stats.ArchetypeCount);
+    }
+
+    [Fact]
+    public void ChunkPoolStats_HitRate_CalculatesCorrectly()
+    {
+        var stats = new ChunkPoolStats(
+            TotalRented: 10,
+            TotalReturned: 5,
+            TotalCreated: 4,
+            TotalDiscarded: 0,
+            PooledCount: 3,
+            ArchetypeCount: 2);
+
+        // HitRate = 1 - (created / rented) = 1 - (4/10) = 0.6
+        Assert.Equal(0.6, stats.HitRate);
+    }
+
+    [Fact]
+    public void ChunkPoolStats_HitRate_ZeroRented_ReturnsZero()
+    {
+        var stats = new ChunkPoolStats(
+            TotalRented: 0,
+            TotalReturned: 0,
+            TotalCreated: 0,
+            TotalDiscarded: 0,
+            PooledCount: 0,
+            ArchetypeCount: 0);
+
+        Assert.Equal(0, stats.HitRate);
+    }
+
+    [Fact]
+    public void ChunkPool_PooledCount_TracksMultipleArchetypes()
+    {
+        var pool = new ChunkPool();
+        var archetypeId1 = new ArchetypeId([typeof(TestPosition)]);
+        var archetypeId2 = new ArchetypeId([typeof(int)]);
+
+        var chunk1a = pool.Rent(archetypeId1, [typeof(TestPosition)]);
+        var chunk1b = pool.Rent(archetypeId1, [typeof(TestPosition)]);
+        var chunk2 = pool.Rent(archetypeId2, [typeof(int)]);
+
+        pool.Return(chunk1a);
+        pool.Return(chunk1b);
+        pool.Return(chunk2);
+
+        Assert.Equal(3, pool.PooledCount);
+    }
+
+    #endregion
+
+    #region FixedComponentArray Tests
+
+    private struct IntComponent : IComponent
+    {
+        public int Value;
+    }
+
+    [Fact]
+    public void FixedComponentArray_Add_StoresComponent()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+
+        var index = array.Add(new IntComponent { Value = 42 });
+
+        Assert.Equal(0, index);
+        Assert.Equal(1, array.Count);
+        Assert.Equal(42, array.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_GetRef_AllowsModification()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+
+        ref var comp = ref array.GetRef(0);
+        comp.Value = 99;
+
+        Assert.Equal(99, array.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_GetReadonly_ReturnsValue()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 42 });
+
+        ref readonly var comp = ref array.GetReadonly(0);
+
+        Assert.Equal(42, comp.Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_Set_UpdatesValue()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+
+        array.Set(0, new IntComponent { Value = 99 });
+
+        Assert.Equal(99, array.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_AsSpan_ReturnsValidSpan()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+        array.Add(new IntComponent { Value = 2 });
+
+        var span = array.AsSpan();
+
+        Assert.Equal(2, span.Length);
+        Assert.Equal(1, span[0].Value);
+        Assert.Equal(2, span[1].Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_AsReadOnlySpan_ReturnsValidSpan()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+        array.Add(new IntComponent { Value = 2 });
+
+        var span = array.AsReadOnlySpan();
+
+        Assert.Equal(2, span.Length);
+        Assert.Equal(1, span[0].Value);
+        Assert.Equal(2, span[1].Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_RemoveAtSwapBack_RemovesCorrectly()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+        array.Add(new IntComponent { Value = 2 });
+        array.Add(new IntComponent { Value = 3 });
+
+        array.RemoveAtSwapBack(0);
+
+        Assert.Equal(2, array.Count);
+        Assert.Equal(3, array.GetRef(0).Value); // Last swapped to first
+        Assert.Equal(2, array.GetRef(1).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_RemoveAtSwapBack_LastElement()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+        array.Add(new IntComponent { Value = 2 });
+
+        array.RemoveAtSwapBack(1);
+
+        Assert.Equal(1, array.Count);
+        Assert.Equal(1, array.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_RemoveAtSwapBack_InvalidIndex_Throws()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => array.RemoveAtSwapBack(-1));
+        Assert.Throws<ArgumentOutOfRangeException>(() => array.RemoveAtSwapBack(5));
+    }
+
+    [Fact]
+    public void FixedComponentArray_AddBoxed_WorksCorrectly()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+
+        var index = array.AddBoxed(new IntComponent { Value = 42 });
+
+        Assert.Equal(0, index);
+        Assert.Equal(42, array.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_GetBoxed_ReturnsValue()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 42 });
+
+        var result = array.GetBoxed(0);
+
+        Assert.IsType<IntComponent>(result);
+        Assert.Equal(42, ((IntComponent)result).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_SetBoxed_UpdatesValue()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+
+        array.SetBoxed(0, new IntComponent { Value = 99 });
+
+        Assert.Equal(99, array.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_Clear_EmptiesArray()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+        array.Add(new IntComponent { Value = 1 });
+        array.Add(new IntComponent { Value = 2 });
+
+        array.Clear();
+
+        Assert.Equal(0, array.Count);
+    }
+
+    [Fact]
+    public void FixedComponentArray_Clear_EmptyArray_NoOp()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+
+        array.Clear(); // Should not throw
+
+        Assert.Equal(0, array.Count);
+    }
+
+    [Fact]
+    public void FixedComponentArray_CopyTo_FixedArray()
+    {
+        var source = new FixedComponentArray<IntComponent>(10);
+        source.Add(new IntComponent { Value = 42 });
+        var dest = new FixedComponentArray<IntComponent>(10);
+
+        source.CopyTo(0, dest);
+
+        Assert.Equal(1, dest.Count);
+        Assert.Equal(42, dest.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_CopyTo_GrowableArray()
+    {
+        var source = new FixedComponentArray<IntComponent>(10);
+        source.Add(new IntComponent { Value = 42 });
+        var dest = new ComponentArray<IntComponent>();
+
+        source.CopyTo(0, dest);
+
+        Assert.Equal(1, dest.Count);
+        Assert.Equal(42, dest.GetRef(0).Value);
+    }
+
+    [Fact]
+    public void FixedComponentArray_CopyTo_WrongType_Throws()
+    {
+        var source = new FixedComponentArray<IntComponent>(10);
+        source.Add(new IntComponent { Value = 42 });
+        var dest = new FixedComponentArray<TestPosition>(10);
+
+        Assert.Throws<InvalidOperationException>(() => source.CopyTo(0, dest));
+    }
+
+    [Fact]
+    public void FixedComponentArray_Capacity_ReturnsCorrectValue()
+    {
+        var array = new FixedComponentArray<IntComponent>(25);
+
+        Assert.Equal(25, array.Capacity);
+    }
+
+    [Fact]
+    public void FixedComponentArray_ComponentType_ReturnsCorrectType()
+    {
+        var array = new FixedComponentArray<IntComponent>(10);
+
+        Assert.Equal(typeof(IntComponent), array.ComponentType);
+    }
+
+    #endregion
+
+    #region ArchetypeChunk Tests
+
+    [Fact]
+    public void ArchetypeChunk_AddEntity_StoresEntity()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+
+        var index = chunk.AddEntity(new Entity(1, 1));
+
+        Assert.Equal(0, index);
+        Assert.Equal(1, chunk.Count);
+        Assert.False(chunk.IsEmpty);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_AddComponent_StoresComponent()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+
+        chunk.AddComponent(new TestPosition { X = 42, Y = 99 });
+
+        Assert.Equal(42, chunk.Get<TestPosition>(0).X);
+        Assert.Equal(99, chunk.Get<TestPosition>(0).Y);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_RemoveEntity_RemovesCorrectly()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var entity = new Entity(1, 1);
+        chunk.AddEntity(entity);
+        chunk.AddComponent(new TestPosition { X = 1 });
+
+        var swapped = chunk.RemoveEntity(entity);
+
+        Assert.Null(swapped);
+        Assert.Equal(0, chunk.Count);
+        Assert.True(chunk.IsEmpty);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_RemoveEntity_SwapsBack()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+
+        var entity1 = new Entity(1, 1);
+        var entity2 = new Entity(2, 1);
+        var entity3 = new Entity(3, 1);
+
+        chunk.AddEntity(entity1);
+        chunk.AddComponent(new TestPosition { X = 1 });
+        chunk.AddEntity(entity2);
+        chunk.AddComponent(new TestPosition { X = 2 });
+        chunk.AddEntity(entity3);
+        chunk.AddComponent(new TestPosition { X = 3 });
+
+        var swapped = chunk.RemoveEntity(entity1);
+
+        Assert.Equal(entity3, swapped); // entity3 was swapped into position 0
+        Assert.Equal(2, chunk.Count);
+        Assert.Equal(3, chunk.Get<TestPosition>(0).X); // entity3's component
+    }
+
+    [Fact]
+    public void ArchetypeChunk_IsFull_ReturnsCorrectValue()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)], capacity: 2);
+
+        Assert.False(chunk.IsFull);
+
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition());
+        Assert.False(chunk.IsFull);
+
+        chunk.AddEntity(new Entity(2, 1));
+        chunk.AddComponent(new TestPosition());
+        Assert.True(chunk.IsFull);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_FreeSpace_ReturnsCorrectValue()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)], capacity: 5);
+
+        Assert.Equal(5, chunk.FreeSpace);
+
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition());
+
+        Assert.Equal(4, chunk.FreeSpace);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_Contains_ReturnsCorrectValue()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var entity = new Entity(1, 1);
+        chunk.AddEntity(entity);
+        chunk.AddComponent(new TestPosition());
+
+        Assert.True(chunk.Contains(entity));
+        Assert.False(chunk.Contains(new Entity(999, 1)));
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetEntityIndex_ReturnsCorrectIndex()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var entity = new Entity(1, 1);
+        chunk.AddEntity(entity);
+        chunk.AddComponent(new TestPosition());
+
+        Assert.Equal(0, chunk.GetEntityIndex(entity));
+        Assert.Equal(-1, chunk.GetEntityIndex(new Entity(999, 1)));
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetEntity_ReturnsCorrectEntity()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var entity = new Entity(1, 1);
+        chunk.AddEntity(entity);
+        chunk.AddComponent(new TestPosition());
+
+        Assert.Equal(entity, chunk.GetEntity(0));
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetEntities_ReturnsAllEntities()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+
+        var entity1 = new Entity(1, 1);
+        var entity2 = new Entity(2, 1);
+        chunk.AddEntity(entity1);
+        chunk.AddComponent(new TestPosition());
+        chunk.AddEntity(entity2);
+        chunk.AddComponent(new TestPosition());
+
+        var entities = chunk.GetEntities();
+
+        Assert.Equal(2, entities.Length);
+        Assert.Equal(entity1, entities[0]);
+        Assert.Equal(entity2, entities[1]);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_Has_ReturnsCorrectValue()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+
+        Assert.True(chunk.Has<TestPosition>());
+        Assert.True(chunk.Has(typeof(TestPosition)));
+        Assert.False(chunk.Has<IntComponent>());
+        Assert.False(chunk.Has(typeof(IntComponent)));
+    }
+
+    [Fact]
+    public void ArchetypeChunk_Set_UpdatesComponent()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 1 });
+
+        chunk.Set(0, new TestPosition { X = 99 });
+
+        Assert.Equal(99, chunk.Get<TestPosition>(0).X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetReadonly_ReturnsValue()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 42 });
+
+        ref readonly var pos = ref chunk.GetReadonly<TestPosition>(0);
+
+        Assert.Equal(42, pos.X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetSpan_ReturnsValidSpan()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 1 });
+        chunk.AddEntity(new Entity(2, 1));
+        chunk.AddComponent(new TestPosition { X = 2 });
+
+        var span = chunk.GetSpan<TestPosition>();
+
+        Assert.Equal(2, span.Length);
+        Assert.Equal(1, span[0].X);
+        Assert.Equal(2, span[1].X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetReadOnlySpan_ReturnsValidSpan()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 1 });
+
+        var span = chunk.GetReadOnlySpan<TestPosition>();
+
+        Assert.Equal(1, span.Length);
+        Assert.Equal(1, span[0].X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_AddEntity_WhenFull_Throws()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)], capacity: 1);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition());
+
+        Assert.Throws<InvalidOperationException>(() => chunk.AddEntity(new Entity(2, 1)));
+    }
+
+    [Fact]
+    public void ArchetypeChunk_RemoveEntity_NotInChunk_ReturnsNull()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+
+        var result = chunk.RemoveEntity(new Entity(999, 1));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_Reset_ClearsAllData()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 42 });
+
+        chunk.Reset();
+
+        Assert.Equal(0, chunk.Count);
+        Assert.True(chunk.IsEmpty);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetBoxed_ReturnsValue()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 42 });
+
+        var result = chunk.GetBoxed(typeof(TestPosition), 0);
+
+        Assert.IsType<TestPosition>(result);
+        Assert.Equal(42, ((TestPosition)result).X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_GetBoxed_TypeNotInChunk_Throws()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition());
+
+        Assert.Throws<InvalidOperationException>(() => chunk.GetBoxed(typeof(IntComponent), 0));
+    }
+
+    [Fact]
+    public void ArchetypeChunk_SetBoxed_UpdatesValue()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition { X = 1 });
+
+        chunk.SetBoxed(typeof(TestPosition), 0, new TestPosition { X = 99 });
+
+        Assert.Equal(99, chunk.Get<TestPosition>(0).X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_AddComponentBoxed_AddsComponent()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+
+        chunk.AddComponentBoxed(typeof(TestPosition), new TestPosition { X = 42 });
+
+        Assert.Equal(42, chunk.Get<TestPosition>(0).X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_CopyComponentsTo_CopiesSharedComponents()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var source = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var dest = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+
+        source.AddEntity(new Entity(1, 1));
+        source.AddComponent(new TestPosition { X = 42 });
+        dest.AddEntity(new Entity(2, 1));
+
+        source.CopyComponentsTo(0, dest);
+
+        Assert.Equal(42, dest.Get<TestPosition>(0).X);
+    }
+
+    [Fact]
+    public void ArchetypeChunk_Dispose_CleansUp()
+    {
+        var archetypeId = new ArchetypeId([typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        chunk.AddEntity(new Entity(1, 1));
+        chunk.AddComponent(new TestPosition());
+
+        chunk.Dispose();
+        chunk.Dispose(); // Should not throw on double dispose
+
+        Assert.Equal(0, chunk.Count);
+    }
+
+    #endregion
 }
