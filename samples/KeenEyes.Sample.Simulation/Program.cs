@@ -1,7 +1,7 @@
-using KeenEyes;
-using KeenEyes.Sample.Simulation;
 using System.Diagnostics;
 using System.Text;
+using KeenEyes;
+using KeenEyes.Sample.Simulation;
 
 // =============================================================================
 // KEEN EYES ECS - Self-Running Simulation
