@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <!-- Benchmarks need Release builds for accurate measurements -->
+    <Configuration>Release</Configuration>
+    <!-- Suppress missing XML doc warnings for benchmarks -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+  </ItemGroup>
+
+</Project>
