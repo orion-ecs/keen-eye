@@ -143,6 +143,55 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
+    /// Adds a component to an existing entity at runtime.
+    /// </summary>
+    /// <typeparam name="T">The component type to add.</typeparam>
+    /// <param name="entity">The entity to add the component to.</param>
+    /// <param name="component">The component value to add.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the entity is not alive, or when the entity already has a component
+    /// of the specified type. Use <see cref="Set{T}(Entity, in T)"/> to update existing components.
+    /// </exception>
+    /// <remarks>
+    /// After adding a component, the entity will be matched by queries that require that component type.
+    /// This operation is O(1) for the dictionary-based storage in Phase 1.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Create an entity with just Position
+    /// var entity = world.Spawn().With(new Position { X = 0, Y = 0 }).Build();
+    ///
+    /// // Later, add Velocity at runtime
+    /// world.Add(entity, new Velocity { X = 1, Y = 0 });
+    ///
+    /// // Now entity is matched by queries requiring both Position and Velocity
+    /// </code>
+    /// </example>
+    public void Add<T>(Entity entity, in T component) where T : struct, IComponent
+    {
+        if (!IsAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        var info = Components.GetOrRegister<T>();
+
+        if (!entityComponents.TryGetValue(entity.Id, out var components))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        if (components.ContainsKey(info.Id))
+        {
+            throw new InvalidOperationException(
+                $"Entity {entity} already has component {typeof(T).Name}. Use Set<T>() to update existing components.");
+        }
+
+        components[info.Id] = component;
+        entityComponentTypes[entity.Id].Add(typeof(T));
+    }
+
+    /// <summary>
     /// Sets (replaces) a component value on an entity that already has this component.
     /// </summary>
     /// <typeparam name="T">The component type to update.</typeparam>
