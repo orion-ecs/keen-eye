@@ -22,29 +22,29 @@ KeenEyes has basic ECS scaffolding in place:
 Essential features needed for basic usability.
 
 ### 1.1 Entity Operations
-- [ ] `World.Get<T>(entity)` - retrieve component data (currently throws `NotImplementedException`)
-- [ ] `World.Set<T>(entity, value)` - update component data
-- [ ] `World.Add<T>(entity, component)` - add component to existing entity
-- [ ] `World.Remove<T>(entity)` - remove component from entity
+- [x] `World.Get<T>(entity)` - retrieve component data
+- [x] `World.Set<T>(entity, value)` - update component data
+- [x] `World.Add<T>(entity, component)` - add component to existing entity
+- [x] `World.Remove<T>(entity)` - remove component from entity
 - [x] `World.GetComponents(entity)` - get all components on entity
-- [ ] `World.Has<T>(entity)` - check component presence (partial implementation exists)
-- [ ] Entity naming support (`World.Spawn(name)`)
+- [x] `World.Has<T>(entity)` - check component presence
+- [x] Entity naming support (`World.Spawn(name)`, `World.GetEntityByName(name)`)
 
 ### 1.2 Singletons / Resources
 World-level data not tied to entities (time, input, config, etc.):
-- [ ] `World.SetSingleton<T>(value)`
-- [ ] `World.GetSingleton<T>()`
-- [ ] `World.TryGetSingleton<T>(out T value)`
-- [ ] `World.HasSingleton<T>()`
-- [ ] `World.RemoveSingleton<T>()`
+- [x] `World.SetSingleton<T>(value)`
+- [x] `World.GetSingleton<T>()`
+- [x] `World.TryGetSingleton<T>(out T value)`
+- [x] `World.HasSingleton<T>()`
+- [x] `World.RemoveSingleton<T>()`
 
 ### 1.3 Command Buffer / Deferred Operations
 Safe entity modification during iteration:
-- [ ] `CommandBuffer` class
-- [ ] Deferred entity creation
-- [ ] Deferred component add/remove
-- [ ] Deferred entity destruction (`QueueDespawn`)
-- [ ] `World.Flush()` to execute buffered commands
+- [x] `CommandBuffer` class
+- [x] Deferred entity creation (`CommandBuffer.Spawn()`)
+- [x] Deferred component add/remove (`AddComponent`, `RemoveComponent`, `SetComponent`)
+- [x] Deferred entity destruction (`CommandBuffer.Despawn()`)
+- [x] `CommandBuffer.Flush(world)` to execute buffered commands
 
 ---
 
@@ -53,21 +53,21 @@ Safe entity modification during iteration:
 Replace dictionary-based storage with cache-friendly archetypes.
 
 ### 2.1 Archetype System
-- [ ] `Archetype` - component type combination storage
-- [ ] `ArchetypeStorage` - contiguous component arrays
-- [ ] Archetype graph for efficient transitions
-- [ ] `ref T` returns for zero-copy component access
+- [x] `Archetype` - component type combination storage
+- [x] `ArchetypeChunk` - contiguous component arrays with fixed-size chunks
+- [x] Archetype manager for efficient entity migrations
+- [x] `ref T` returns for zero-copy component access
 
 ### 2.2 Object Pooling
-- [ ] Entity ID recycling
-- [ ] Component array pooling
-- [ ] Archetype chunk pooling
-- [ ] Memory usage statistics
+- [x] Entity ID recycling (`EntityPool`)
+- [x] Component array pooling (`ComponentArrayPool`)
+- [x] Archetype chunk pooling (`ChunkPool`)
+- [x] Memory usage statistics (`World.GetMemoryStats()`)
 
 ### 2.3 Query Caching
-- [ ] `QueryManager` for cached queries
-- [ ] Automatic cache invalidation on archetype changes
-- [ ] Query reuse across systems
+- [x] `QueryManager` for cached queries
+- [x] Automatic cache invalidation on archetype changes
+- [x] Query reuse across systems
 
 ---
 
@@ -548,11 +548,11 @@ Optional packages that extend KeenEyes:
 ### Engine Core (Phases 1-11)
 | Category | Features | Status |
 |----------|----------|--------|
-| Core Entity Operations | 7 | Pending |
-| Singletons/Resources | 5 | Pending |
-| Command Buffer | 5 | Pending |
-| Archetype Storage | 8 | Pending |
-| Query Caching | 3 | Pending |
+| Core Entity Operations | 7 | ✅ Complete |
+| Singletons/Resources | 5 | ✅ Complete |
+| Command Buffer | 5 | ✅ Complete |
+| Archetype Storage | 8 | ✅ Complete |
+| Query Caching | 3 | ✅ Complete |
 | Entity Hierarchy | 7 | Pending |
 | Event System | 6 | Pending |
 | Change Tracking | 5 | Pending |
