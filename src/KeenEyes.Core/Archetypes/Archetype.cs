@@ -4,13 +4,18 @@ namespace KeenEyes;
 
 /// <summary>
 /// An archetype stores all entities that share the same set of component types.
-/// Entities are stored contiguously in memory for cache-friendly iteration.
+/// Entities are stored in fixed-size chunks for cache-friendly iteration and reduced GC pressure.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Each archetype maintains parallel arrays for entity IDs and components.
-/// This enables fast iteration over all entities with a specific component combination.
+/// Each archetype maintains a list of <see cref="ArchetypeChunk"/> instances, each holding
+/// up to a fixed number of entities. This chunked storage enables:
 /// </para>
+/// <list type="bullet">
+/// <item>Cache-friendly iteration (chunks sized for L2 cache)</item>
+/// <item>Chunk pooling for reduced allocations</item>
+/// <item>Potential parallel processing of different chunks</item>
+/// </list>
 /// <para>
 /// When an entity's component set changes (via Add or Remove), the entity must
 /// migrate to a different archetype. The <see cref="ArchetypeManager"/> handles
@@ -19,9 +24,11 @@ namespace KeenEyes;
 /// </remarks>
 public sealed class Archetype : IDisposable
 {
-    private readonly Dictionary<Type, IComponentArray> componentArrays;
-    private readonly List<Entity> entities;
-    private readonly Dictionary<int, int> entityIdToIndex;
+    private readonly List<ArchetypeChunk> chunks;
+    private readonly Dictionary<int, (int ChunkIndex, int IndexInChunk)> entityLocations;
+    private readonly List<Type> componentTypesList;
+    private readonly ChunkPool? chunkPool;
+    private int totalCount;
 
     /// <summary>
     /// Gets the unique identifier for this archetype.
@@ -31,60 +38,82 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets the number of entities in this archetype.
     /// </summary>
-    public int Count => entities.Count;
+    public int Count => totalCount;
 
     /// <summary>
     /// Gets the component types in this archetype.
     /// </summary>
-    public IReadOnlyList<Type> ComponentTypes => [.. Id.ComponentTypes];
+    public IReadOnlyList<Type> ComponentTypes => componentTypesList;
+
+    /// <summary>
+    /// Gets all chunks in this archetype.
+    /// </summary>
+    public IReadOnlyList<ArchetypeChunk> Chunks => chunks;
+
+    /// <summary>
+    /// Gets the number of chunks in this archetype.
+    /// </summary>
+    public int ChunkCount => chunks.Count;
 
     /// <summary>
     /// Gets all entities in this archetype.
     /// </summary>
-    public IReadOnlyList<Entity> Entities => entities;
+    public IEnumerable<Entity> Entities
+    {
+        get
+        {
+            foreach (var chunk in chunks)
+            {
+                for (var i = 0; i < chunk.Count; i++)
+                {
+                    yield return chunk.GetEntity(i);
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Creates a new archetype with the specified component types.
     /// </summary>
     /// <param name="id">The archetype identifier.</param>
     /// <param name="componentInfos">The component information for each type.</param>
-    internal Archetype(ArchetypeId id, IEnumerable<ComponentInfo> componentInfos)
+    /// <param name="chunkPool">Optional chunk pool for chunk reuse.</param>
+    internal Archetype(ArchetypeId id, IEnumerable<ComponentInfo> componentInfos, ChunkPool? chunkPool = null)
     {
         Id = id;
-        componentArrays = [];
-        entities = [];
-        entityIdToIndex = [];
-
-        foreach (var info in componentInfos)
-        {
-            // Create typed component array using reflection
-            var arrayType = typeof(ComponentArray<>).MakeGenericType(info.Type);
-            var array = (IComponentArray)Activator.CreateInstance(arrayType)!;
-            componentArrays[info.Type] = array;
-        }
+        this.chunkPool = chunkPool;
+        chunks = [];
+        entityLocations = [];
+        componentTypesList = componentInfos.Select(c => c.Type).ToList();
     }
 
     /// <summary>
     /// Adds an entity to this archetype.
     /// </summary>
     /// <param name="entity">The entity to add.</param>
-    /// <returns>The index of the entity in this archetype.</returns>
+    /// <returns>The index of the entity in this archetype (global index across all chunks).</returns>
     internal int AddEntity(Entity entity)
     {
-        var index = entities.Count;
-        entities.Add(entity);
-        entityIdToIndex[entity.Id] = index;
-        return index;
+        var chunk = GetOrCreateChunkWithSpace();
+        var chunkIndex = chunks.IndexOf(chunk);
+        var indexInChunk = chunk.AddEntity(entity);
+
+        entityLocations[entity.Id] = (chunkIndex, indexInChunk);
+        totalCount++;
+
+        return (chunkIndex * ArchetypeChunk.DefaultCapacity) + indexInChunk;
     }
 
     /// <summary>
-    /// Adds a component value for the entity at the specified index.
+    /// Adds a component value for the most recently added entity.
     /// </summary>
     /// <typeparam name="T">The component type.</typeparam>
     /// <param name="component">The component value.</param>
     internal void AddComponent<T>(in T component) where T : struct, IComponent
     {
-        GetComponentArray<T>().Add(in component);
+        // Add to the last chunk (where the entity was just added)
+        var lastChunk = chunks[^1];
+        lastChunk.AddComponent(in component);
     }
 
     /// <summary>
@@ -92,233 +121,322 @@ public sealed class Archetype : IDisposable
     /// </summary>
     internal void AddComponentBoxed(Type type, object value)
     {
-        if (componentArrays.TryGetValue(type, out var array))
-        {
-            array.AddBoxed(value);
-        }
+        var lastChunk = chunks[^1];
+        lastChunk.AddComponentBoxed(type, value);
     }
 
     /// <summary>
     /// Removes an entity from this archetype using swap-back removal.
     /// </summary>
     /// <param name="entity">The entity to remove.</param>
-    /// <returns>The entity that was swapped into the removed position, or null if the entity was the last one.</returns>
+    /// <returns>The entity that was swapped into the removed position, or null.</returns>
     internal Entity? RemoveEntity(Entity entity)
     {
-        if (!entityIdToIndex.TryGetValue(entity.Id, out var index))
+        if (!entityLocations.TryGetValue(entity.Id, out var location))
         {
             return null;
         }
 
-        var lastIndex = entities.Count - 1;
-        Entity? swappedEntity = null;
+        var (chunkIndex, indexInChunk) = location;
+        var chunk = chunks[chunkIndex];
 
-        if (index != lastIndex)
-        {
-            // Swap with last entity
-            var lastEntity = entities[lastIndex];
-            entities[index] = lastEntity;
-            entityIdToIndex[lastEntity.Id] = index;
-            swappedEntity = lastEntity;
+        // Remove from chunk
+        var swappedEntity = chunk.RemoveEntity(entity);
 
-            // Swap all component arrays
-            foreach (var array in componentArrays.Values)
-            {
-                array.RemoveAtSwapBack(index);
-            }
-        }
-        else
+        // Update swapped entity's location if one was swapped
+        if (swappedEntity.HasValue)
         {
-            // Just remove the last element
-            foreach (var array in componentArrays.Values)
-            {
-                array.RemoveAtSwapBack(index);
-            }
+            var newIndex = chunk.GetEntityIndex(swappedEntity.Value);
+            entityLocations[swappedEntity.Value.Id] = (chunkIndex, newIndex);
         }
 
-        entities.RemoveAt(lastIndex);
-        entityIdToIndex.Remove(entity.Id);
+        entityLocations.Remove(entity.Id);
+        totalCount--;
+
+        // If chunk is now empty, return it to the pool
+        if (chunk.IsEmpty && chunks.Count > 1)
+        {
+            chunks.RemoveAt(chunkIndex);
+
+            // Update locations for entities in chunks after the removed one
+            UpdateLocationsAfterChunkRemoval(chunkIndex);
+
+            if (chunkPool != null)
+            {
+                chunkPool.Return(chunk);
+            }
+            else
+            {
+                chunk.Dispose();
+            }
+        }
 
         return swappedEntity;
     }
 
     /// <summary>
-    /// Gets a reference to a component for the entity at the specified index.
+    /// Gets a reference to a component for the entity at the specified global index.
     /// </summary>
-    /// <typeparam name="T">The component type.</typeparam>
-    /// <param name="index">The entity index in this archetype.</param>
-    /// <returns>A reference to the component.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref T Get<T>(int index) where T : struct, IComponent
+    public ref T Get<T>(int globalIndex) where T : struct, IComponent
     {
-        return ref GetComponentArray<T>().GetRef(index);
+        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
+        return ref chunks[chunkIndex].Get<T>(indexInChunk);
     }
 
     /// <summary>
-    /// Gets a readonly reference to a component for the entity at the specified index.
+    /// Gets a reference to a component for an entity.
     /// </summary>
-    /// <typeparam name="T">The component type.</typeparam>
-    /// <param name="index">The entity index in this archetype.</param>
-    /// <returns>A readonly reference to the component.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ref readonly T GetReadonly<T>(int index) where T : struct, IComponent
+    public ref T GetByEntity<T>(Entity entity) where T : struct, IComponent
     {
-        return ref GetComponentArray<T>().GetReadonly(index);
+        var (chunkIndex, indexInChunk) = entityLocations[entity.Id];
+        return ref chunks[chunkIndex].Get<T>(indexInChunk);
     }
 
     /// <summary>
-    /// Sets a component value for the entity at the specified index.
+    /// Gets a readonly reference to a component.
     /// </summary>
-    /// <typeparam name="T">The component type.</typeparam>
-    /// <param name="index">The entity index in this archetype.</param>
-    /// <param name="component">The new component value.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Set<T>(int index, in T component) where T : struct, IComponent
+    public ref readonly T GetReadonly<T>(int globalIndex) where T : struct, IComponent
     {
-        GetComponentArray<T>().Set(index, in component);
+        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
+        return ref chunks[chunkIndex].GetReadonly<T>(indexInChunk);
+    }
+
+    /// <summary>
+    /// Sets a component value at the specified global index.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void Set<T>(int globalIndex, in T component) where T : struct, IComponent
+    {
+        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
+        chunks[chunkIndex].Set(indexInChunk, in component);
     }
 
     /// <summary>
     /// Sets a component value from a boxed object.
     /// </summary>
-    internal void SetBoxed(Type type, int index, object value)
+    internal void SetBoxed(Type type, int globalIndex, object value)
     {
-        if (componentArrays.TryGetValue(type, out var array))
-        {
-            array.SetBoxed(index, value);
-        }
+        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
+        chunks[chunkIndex].SetBoxed(type, indexInChunk, value);
     }
 
     /// <summary>
-    /// Gets the boxed component value at the specified index.
+    /// Gets the boxed component value at the specified global index.
     /// </summary>
-    internal object GetBoxed(Type type, int index)
+    internal object GetBoxed(Type type, int globalIndex)
     {
-        if (componentArrays.TryGetValue(type, out var array))
-        {
-            return array.GetBoxed(index);
-        }
-        throw new InvalidOperationException($"Archetype does not contain component type {type.Name}");
+        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
+        return chunks[chunkIndex].GetBoxed(type, indexInChunk);
+    }
+
+    /// <summary>
+    /// Gets a span of components from a specific chunk for efficient iteration.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="chunkIndex">The chunk index.</param>
+    /// <returns>A span over component values in that chunk.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Span<T> GetChunkSpan<T>(int chunkIndex) where T : struct, IComponent
+    {
+        return chunks[chunkIndex].GetSpan<T>();
+    }
+
+    /// <summary>
+    /// Gets a readonly span of components from a specific chunk.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ReadOnlySpan<T> GetChunkReadOnlySpan<T>(int chunkIndex) where T : struct, IComponent
+    {
+        return chunks[chunkIndex].GetReadOnlySpan<T>();
     }
 
     /// <summary>
     /// Gets a span of components for efficient iteration.
+    /// Note: With chunked storage, this only returns the first chunk's span.
+    /// For full iteration, use chunk-based methods.
     /// </summary>
-    /// <typeparam name="T">The component type.</typeparam>
-    /// <returns>A span over all component values.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [Obsolete("Use GetChunkSpan for chunked archetypes. This method only returns the first chunk.")]
     public Span<T> GetSpan<T>() where T : struct, IComponent
     {
-        return GetComponentArray<T>().AsSpan();
+        if (chunks.Count == 0)
+        {
+            return Span<T>.Empty;
+        }
+        return chunks[0].GetSpan<T>();
     }
 
     /// <summary>
-    /// Gets a readonly span of components for efficient iteration.
+    /// Gets a readonly span of components.
+    /// Note: With chunked storage, this only returns the first chunk's span.
     /// </summary>
-    /// <typeparam name="T">The component type.</typeparam>
-    /// <returns>A readonly span over all component values.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    [Obsolete("Use GetChunkReadOnlySpan for chunked archetypes. This method only returns the first chunk.")]
     public ReadOnlySpan<T> GetReadOnlySpan<T>() where T : struct, IComponent
     {
-        return GetComponentArray<T>().AsReadOnlySpan();
+        if (chunks.Count == 0)
+        {
+            return ReadOnlySpan<T>.Empty;
+        }
+        return chunks[0].GetReadOnlySpan<T>();
     }
 
     /// <summary>
     /// Checks if this archetype contains a specific component type.
     /// </summary>
-    /// <typeparam name="T">The component type to check.</typeparam>
-    /// <returns>True if this archetype contains the component type.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has<T>() where T : struct, IComponent
     {
-        return componentArrays.ContainsKey(typeof(T));
+        return componentTypesList.Contains(typeof(T));
     }
 
     /// <summary>
     /// Checks if this archetype contains a specific component type.
     /// </summary>
-    /// <param name="type">The component type to check.</param>
-    /// <returns>True if this archetype contains the component type.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has(Type type)
     {
-        return componentArrays.ContainsKey(type);
+        return componentTypesList.Contains(type);
     }
 
     /// <summary>
-    /// Gets the index of an entity in this archetype.
+    /// Gets the global index of an entity in this archetype.
     /// </summary>
-    /// <param name="entity">The entity to look up.</param>
-    /// <returns>The index, or -1 if not found.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetEntityIndex(Entity entity)
     {
-        return entityIdToIndex.TryGetValue(entity.Id, out var index) ? index : -1;
+        if (!entityLocations.TryGetValue(entity.Id, out var location))
+        {
+            return -1;
+        }
+        return (location.ChunkIndex * ArchetypeChunk.DefaultCapacity) + location.IndexInChunk;
     }
 
     /// <summary>
-    /// Gets the entity at the specified index.
+    /// Gets the entity location (chunk index and index within chunk).
     /// </summary>
-    /// <param name="index">The index.</param>
-    /// <returns>The entity at that index.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Entity GetEntity(int index)
+    public (int ChunkIndex, int IndexInChunk) GetEntityLocation(Entity entity)
     {
-        return entities[index];
+        return entityLocations.TryGetValue(entity.Id, out var location) ? location : (-1, -1);
+    }
+
+    /// <summary>
+    /// Gets the entity at the specified global index.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Entity GetEntity(int globalIndex)
+    {
+        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
+        return chunks[chunkIndex].GetEntity(indexInChunk);
     }
 
     /// <summary>
     /// Copies all shared components from one entity to another archetype.
-    /// Used during entity migration when adding/removing components.
     /// </summary>
-    /// <param name="sourceIndex">The index in this archetype.</param>
-    /// <param name="destination">The destination archetype.</param>
-    internal void CopySharedComponentsTo(int sourceIndex, Archetype destination)
+    internal void CopySharedComponentsTo(int globalIndex, Archetype destination)
     {
-        foreach (var (type, sourceArray) in componentArrays)
-        {
-            if (destination.componentArrays.TryGetValue(type, out var destArray))
-            {
-                sourceArray.CopyTo(sourceIndex, destArray);
-            }
-        }
+        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
+        var sourceChunk = chunks[chunkIndex];
+        var destChunk = destination.chunks[^1]; // Destination's last chunk
+
+        sourceChunk.CopyComponentsTo(indexInChunk, destChunk);
     }
 
     /// <summary>
-    /// Gets the typed component array for the specified type.
-    /// </summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal ComponentArray<T> GetComponentArray<T>() where T : struct, IComponent
-    {
-        return (ComponentArray<T>)componentArrays[typeof(T)];
-    }
-
-    /// <summary>
-    /// Gets all component arrays in this archetype.
+    /// Gets all component arrays in the first chunk (for backwards compatibility).
     /// </summary>
     internal IReadOnlyDictionary<Type, IComponentArray> GetAllComponentArrays()
     {
-        return componentArrays;
+        if (chunks.Count == 0)
+        {
+            return new Dictionary<Type, IComponentArray>();
+        }
+
+        // This is for backwards compatibility - returns first chunk's arrays
+        var result = new Dictionary<Type, IComponentArray>();
+        foreach (var type in componentTypesList)
+        {
+            var arrayType = typeof(ComponentArray<>).MakeGenericType(type);
+            var array = (IComponentArray)Activator.CreateInstance(arrayType)!;
+            result[type] = array;
+        }
+        return result;
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        foreach (var array in componentArrays.Values)
+        foreach (var chunk in chunks)
         {
-            if (array is IDisposable disposable)
+            if (chunkPool != null)
             {
-                disposable.Dispose();
+                chunk.Reset();
+                chunkPool.Return(chunk);
+            }
+            else
+            {
+                chunk.Dispose();
             }
         }
-        componentArrays.Clear();
-        entities.Clear();
-        entityIdToIndex.Clear();
+        chunks.Clear();
+        entityLocations.Clear();
+        totalCount = 0;
     }
 
     /// <inheritdoc />
     public override string ToString()
     {
-        return $"Archetype[{Id}] ({Count} entities)";
+        return $"Archetype[{Id}] ({Count} entities in {ChunkCount} chunks)";
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private (int ChunkIndex, int IndexInChunk) GetChunkLocation(int globalIndex)
+    {
+        var chunkIndex = globalIndex / ArchetypeChunk.DefaultCapacity;
+        var indexInChunk = globalIndex % ArchetypeChunk.DefaultCapacity;
+        return (chunkIndex, indexInChunk);
+    }
+
+    private ArchetypeChunk GetOrCreateChunkWithSpace()
+    {
+        // Find a chunk with space
+        foreach (var chunk in chunks)
+        {
+            if (!chunk.IsFull)
+            {
+                return chunk;
+            }
+        }
+
+        // Need a new chunk
+        ArchetypeChunk newChunk;
+        if (chunkPool != null)
+        {
+            newChunk = chunkPool.Rent(Id, componentTypesList);
+        }
+        else
+        {
+            newChunk = new ArchetypeChunk(Id, componentTypesList);
+        }
+
+        chunks.Add(newChunk);
+        return newChunk;
+    }
+
+    private void UpdateLocationsAfterChunkRemoval(int removedChunkIndex)
+    {
+        // Update all entity locations that were in chunks after the removed one
+        foreach (var entityId in entityLocations.Keys.ToList())
+        {
+            var (chunkIdx, indexInChunk) = entityLocations[entityId];
+            if (chunkIdx > removedChunkIndex)
+            {
+                entityLocations[entityId] = (chunkIdx - 1, indexInChunk);
+            }
+        }
     }
 }

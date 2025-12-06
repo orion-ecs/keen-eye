@@ -709,11 +709,21 @@ public class ArchetypeTests
     [Fact]
     public void Archetype_GetBoxed_TypeNotInArchetype_Throws()
     {
+        using var world = new World();
+        // Create an entity so there's at least one chunk
+        world.Spawn().With(new Position()).Build();
+
+        // Get the archetype via the world's internals
         var registry = new ComponentRegistry();
         registry.Register<Position>();
         var manager = new ArchetypeManager(registry);
         var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
 
+        // Add an entity to the archetype to create a chunk
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 1 });
+
+        // Now try to get a component type that doesn't exist in the archetype
         Assert.Throws<InvalidOperationException>(() =>
             archetype.GetBoxed(typeof(Velocity), 0));
     }
@@ -775,7 +785,7 @@ public class ArchetypeTests
     }
 
     [Fact]
-    public void Archetype_GetAllComponentArrays_ReturnsArrays()
+    public void Archetype_ComponentTypes_ReturnsCorrectTypes()
     {
         var registry = new ComponentRegistry();
         registry.Register<Position>();
@@ -783,11 +793,11 @@ public class ArchetypeTests
         var manager = new ArchetypeManager(registry);
         var archetype = manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
 
-        var arrays = archetype.GetAllComponentArrays();
+        var types = archetype.ComponentTypes;
 
-        Assert.Equal(2, arrays.Count);
-        Assert.True(arrays.ContainsKey(typeof(Position)));
-        Assert.True(arrays.ContainsKey(typeof(Velocity)));
+        Assert.Equal(2, types.Count);
+        Assert.Contains(typeof(Position), types);
+        Assert.Contains(typeof(Velocity), types);
     }
 
     #endregion
