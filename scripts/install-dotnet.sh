@@ -13,11 +13,25 @@ if [ "$CLAUDE_CODE_REMOTE" != "true" ]; then
     exit 0
 fi
 
+# Helper function to persist environment variables
+# This must run on EVERY session start (including resume) so dotnet is in PATH
+persist_env_vars() {
+    if [ -n "$CLAUDE_ENV_FILE" ]; then
+        echo "DOTNET_ROOT=$DOTNET_INSTALL_DIR" >> "$CLAUDE_ENV_FILE"
+        echo "PATH=$DOTNET_INSTALL_DIR:\$PATH" >> "$CLAUDE_ENV_FILE"
+        echo "Environment variables persisted to CLAUDE_ENV_FILE"
+    fi
+    export DOTNET_ROOT="$DOTNET_INSTALL_DIR"
+    export PATH="$DOTNET_INSTALL_DIR:$PATH"
+}
+
 # Check if .NET 10 is already installed
 if command -v dotnet &> /dev/null; then
     INSTALLED_VERSION=$(dotnet --version 2>/dev/null || echo "")
     if [[ "$INSTALLED_VERSION" == 10.* ]]; then
         echo ".NET 10 SDK is already installed: $INSTALLED_VERSION"
+        # Still persist env vars for resumed sessions where PATH was cleared
+        persist_env_vars
         exit 0
     fi
 fi
@@ -35,15 +49,7 @@ chmod +x /tmp/dotnet-install.sh
 rm -f /tmp/dotnet-install.sh
 
 # Persist environment variables for subsequent bash commands
-if [ -n "$CLAUDE_ENV_FILE" ]; then
-    echo "DOTNET_ROOT=$DOTNET_INSTALL_DIR" >> "$CLAUDE_ENV_FILE"
-    echo "PATH=$DOTNET_INSTALL_DIR:\$PATH" >> "$CLAUDE_ENV_FILE"
-    echo "Environment variables persisted to CLAUDE_ENV_FILE"
-fi
-
-# Export for current session
-export DOTNET_ROOT="$DOTNET_INSTALL_DIR"
-export PATH="$DOTNET_INSTALL_DIR:$PATH"
+persist_env_vars
 
 # Verify installation
 echo "Verifying .NET installation..."
