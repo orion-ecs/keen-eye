@@ -47,15 +47,22 @@ if (string.IsNullOrEmpty(baselinePath) || string.IsNullOrEmpty(currentPath))
 var baselineDir = new DirectoryInfo(baselinePath);
 var currentDir = new DirectoryInfo(currentPath);
 
-if (!baselineDir.Exists)
+// Handle missing directories gracefully - this can happen when:
+// - New benchmarks are added in a PR (baseline won't have them)
+// - Benchmark filter matches nothing in baseline
+var baselineMissing = !baselineDir.Exists;
+var currentMissing = !currentDir.Exists;
+
+if (baselineMissing)
 {
-    Console.Error.WriteLine($"Error: Baseline directory not found: {baselinePath}");
-    return 1;
+    Console.Error.WriteLine($"Warning: Baseline directory not found: {baselinePath}");
+    Console.Error.WriteLine("Comparison will show all current benchmarks as 'New'.");
 }
 
-if (!currentDir.Exists)
+if (currentMissing)
 {
     Console.Error.WriteLine($"Error: Current directory not found: {currentPath}");
+    Console.Error.WriteLine("Cannot compare without current benchmark results.");
     return 1;
 }
 
@@ -95,6 +102,12 @@ return 0;
 static Dictionary<string, BenchmarkResult> LoadBenchmarkResults(DirectoryInfo dir)
 {
     var results = new Dictionary<string, BenchmarkResult>();
+
+    // Handle missing directory gracefully
+    if (!dir.Exists)
+    {
+        return results;
+    }
 
     // Find all JSON report files in the directory tree
     var jsonFiles = dir.GetFiles("*-report-full.json", SearchOption.AllDirectories)
@@ -232,6 +245,29 @@ static string GenerateMarkdownReport(List<ComparisonResult> comparisons, double 
     var newBenchmarks = comparisons.Where(c => c.Status == ComparisonStatus.New).ToList();
     var removed = comparisons.Where(c => c.Status == ComparisonStatus.Removed).ToList();
 
+    // Handle case where all benchmarks are new (no baseline available)
+    if (comparisons.Count > 0 && comparisons.All(c => c.Status == ComparisonStatus.New))
+    {
+        sb.AppendLine("### No Baseline Available");
+        sb.AppendLine();
+        sb.AppendLine("> **Note:** No baseline benchmarks found for comparison. This typically happens when:");
+        sb.AppendLine("> - New benchmark files are added in this PR");
+        sb.AppendLine("> - The benchmark filter doesn't match any benchmarks in the base branch");
+        sb.AppendLine();
+        sb.AppendLine("The benchmarks below establish a new baseline:");
+        sb.AppendLine();
+        sb.AppendLine("| Benchmark | Time | Allocated |");
+        sb.AppendLine("|-----------|------|-----------|");
+        foreach (var b in newBenchmarks.OrderBy(x => x.Name))
+        {
+            sb.AppendLine($"| `{TruncateName(b.Name)}` | {FormatTime(b.CurrentMeanNs)} | {FormatBytes(b.CurrentAllocBytes)} |");
+        }
+        sb.AppendLine();
+        sb.AppendLine("---");
+        sb.AppendLine("*No regressions detected (no baseline to compare against)*");
+        return sb.ToString();
+    }
+
     // Summary
     sb.AppendLine("### Summary");
     sb.AppendLine();
@@ -351,6 +387,21 @@ static string FormatAllocDelta(long bytes)
     {
         > -1024 and < 1024 => $"{sign}{bytes} B",
         _ => $"{sign}{bytes / 1024.0:F1} KB"
+    };
+}
+
+static string FormatBytes(long bytes)
+{
+    if (bytes == 0)
+    {
+        return "-";
+    }
+
+    return bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:F1} KB",
+        _ => $"{bytes / (1024.0 * 1024.0):F1} MB"
     };
 }
 
