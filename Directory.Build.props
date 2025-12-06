@@ -5,6 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- NU1603: Downgrade warning - package X depends on Y >= A but Y B was resolved.
+         This occurs when transitive dependencies request older versions than what's
+         pinned via CentralPackageTransitivePinningEnabled. Higher versions are safe. -->
+    <NoWarn>$(NoWarn);NU1603</NoWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1603</WarningsNotAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
