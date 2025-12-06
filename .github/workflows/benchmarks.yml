@@ -1,14 +1,23 @@
 name: Performance Benchmarks
 
 on:
+  push:
+    branches:
+      - main
+      - develop
   pull_request:
     branches:
       - main
       - develop
   workflow_dispatch:
     inputs:
+      benchmark_filter:
+        description: 'Benchmark filter pattern (default: full suite)'
+        required: false
+        type: string
+        default: '*'
       baseline_ref:
-        description: 'Git ref to use as baseline (default: base branch)'
+        description: 'Git ref to use as baseline (default: base branch or HEAD~1)'
         required: false
         type: string
 
@@ -41,32 +50,55 @@ jobs:
           dotnet-version: '10.0.x'
           dotnet-quality: 'preview'
 
-      - name: Determine baseline ref
-        id: baseline
+      - name: Determine benchmark configuration
+        id: config
         run: |
-          if [ -n "${{ inputs.baseline_ref }}" ]; then
-            echo "ref=${{ inputs.baseline_ref }}" >> $GITHUB_OUTPUT
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "ref=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+          # PRs run smoke tests only (fast), pushes to main/develop run full suite
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "filter=*SmokeTest*" >> $GITHUB_OUTPUT
+            echo "timeout=10" >> $GITHUB_OUTPUT
+            echo "mode=smoke" >> $GITHUB_OUTPUT
+          elif [ -n "${{ inputs.benchmark_filter }}" ]; then
+            echo "filter=${{ inputs.benchmark_filter }}" >> $GITHUB_OUTPUT
+            echo "timeout=60" >> $GITHUB_OUTPUT
+            echo "mode=custom" >> $GITHUB_OUTPUT
           else
-            echo "ref=HEAD~1" >> $GITHUB_OUTPUT
+            echo "filter=*" >> $GITHUB_OUTPUT
+            echo "timeout=60" >> $GITHUB_OUTPUT
+            echo "mode=full" >> $GITHUB_OUTPUT
           fi
+
+          # Determine baseline ref
+          if [ -n "${{ inputs.baseline_ref }}" ]; then
+            echo "baseline=${{ inputs.baseline_ref }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "baseline=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "baseline=HEAD~1" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Print configuration
+        run: |
+          echo "Benchmark mode: ${{ steps.config.outputs.mode }}"
+          echo "Filter: ${{ steps.config.outputs.filter }}"
+          echo "Baseline: ${{ steps.config.outputs.baseline }}"
+          echo "Timeout: ${{ steps.config.outputs.timeout }} minutes"
 
       - name: Build PR version
         run: dotnet build benchmarks/KeenEyes.Benchmarks -c Release
 
-      - name: Run PR benchmarks
+      - name: Run current benchmarks
         working-directory: benchmarks/KeenEyes.Benchmarks
         run: |
           dotnet run -c Release --no-build -- \
-            --filter "*" \
+            --filter "${{ steps.config.outputs.filter }}" \
             --exporters json \
-            --artifacts ../artifacts/pr \
+            --artifacts ../artifacts/current \
             --job short
-        timeout-minutes: 30
+        timeout-minutes: ${{ fromJson(steps.config.outputs.timeout) }}
 
       - name: Checkout baseline
-        run: git checkout ${{ steps.baseline.outputs.ref }}
+        run: git checkout ${{ steps.config.outputs.baseline }}
 
       - name: Build baseline version
         run: dotnet build benchmarks/KeenEyes.Benchmarks -c Release
@@ -75,13 +107,13 @@ jobs:
         working-directory: benchmarks/KeenEyes.Benchmarks
         run: |
           dotnet run -c Release --no-build -- \
-            --filter "*" \
+            --filter "${{ steps.config.outputs.filter }}" \
             --exporters json \
             --artifacts ../artifacts/baseline \
             --job short
-        timeout-minutes: 30
+        timeout-minutes: ${{ fromJson(steps.config.outputs.timeout) }}
 
-      - name: Checkout back to PR for comparison tool
+      - name: Checkout back for comparison tool
         run: git checkout ${{ github.sha }}
 
       - name: Compare benchmark results
@@ -90,7 +122,7 @@ jobs:
           dotnet run --project tools/BenchmarkCompare \
             -- \
             --baseline benchmarks/artifacts/baseline \
-            --current benchmarks/artifacts/pr \
+            --current benchmarks/artifacts/current \
             --threshold 5.0 \
             --output benchmarks/artifacts/comparison.md
 
@@ -104,7 +136,7 @@ jobs:
       - name: Upload benchmark artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results
+          name: benchmark-results-${{ steps.config.outputs.mode }}
           path: benchmarks/artifacts/
           retention-days: 30
 
@@ -126,7 +158,12 @@ jobs:
             const marker = '<!-- benchmark-results -->';
             const existingComment = comments.find(c => c.body.includes(marker));
 
-            const body = `${marker}\n## Performance Benchmark Results\n\n${comparison}`;
+            const mode = '${{ steps.config.outputs.mode }}';
+            const modeNote = mode === 'smoke'
+              ? '\n\n> **Note:** This is a smoke test run. Full benchmarks run on merge to main/develop.'
+              : '';
+
+            const body = `${marker}\n## Performance Benchmark Results\n\n${comparison}${modeNote}`;
 
             if (existingComment) {
               await github.rest.issues.updateComment({
