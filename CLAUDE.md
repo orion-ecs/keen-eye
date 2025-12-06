@@ -223,10 +223,14 @@ All code contributions must meet strict quality standards. No exceptions.
 Before committing, ensure:
 
 ```bash
-dotnet build --warnaserror          # Zero warnings, zero errors
+dotnet build                         # Zero warnings, zero errors (TreatWarningsAsErrors enabled)
 dotnet test                          # All tests pass
 dotnet format --verify-no-changes   # Code is formatted
 ```
+
+Note: NuGet dependency warnings (NU1603) may appear during restore due to central
+package management pinning higher versions than some packages request. These are
+suppressed from being treated as errors via `NoWarn` in Directory.Build.props.
 
 **Non-negotiable rules:**
 - All existing tests must continue to pass
