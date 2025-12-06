@@ -16,7 +16,8 @@ download_pkg() {
 
     local url="https://api.nuget.org/v3-flatcontainer/${id}/${version}/${id}.${version}.nupkg"
 
-    if wget -q -O "$file" "$url" 2>/dev/null; then
+    # Clear no_proxy to ensure we use the proxy (DNS requires proxy in this env)
+    if no_proxy="" NO_PROXY="" wget -q -O "$file" "$url" 2>/dev/null; then
         echo "  Downloaded: $id@$version"
         return 0
     else
@@ -27,7 +28,8 @@ download_pkg() {
 
 get_latest_version() {
     local id=$(echo "$1" | tr '[:upper:]' '[:lower:]')
-    wget -q -O - "https://api.nuget.org/v3-flatcontainer/${id}/index.json" 2>/dev/null | \
+    # Clear no_proxy to ensure we use the proxy (DNS requires proxy in this env)
+    no_proxy="" NO_PROXY="" wget -q -O - "https://api.nuget.org/v3-flatcontainer/${id}/index.json" 2>/dev/null | \
         grep -oP '"[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?"' | tail -1 | tr -d '"'
 }
 
