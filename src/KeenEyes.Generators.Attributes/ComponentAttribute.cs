@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace KeenEyes;
 
@@ -9,6 +10,7 @@ namespace KeenEyes;
 /// - Serialization code (if Serializable = true)
 /// </summary>
 [AttributeUsage(AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class ComponentAttribute : Attribute
 {
     /// <summary>
@@ -22,12 +24,14 @@ public sealed class ComponentAttribute : Attribute
 /// Tag components have no data and are used purely for filtering queries.
 /// </summary>
 [AttributeUsage(AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class TagComponentAttribute : Attribute;
 
 /// <summary>
 /// Specifies a default value for a component field in generated builder methods.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class DefaultValueAttribute : Attribute
 {
     /// <summary>
@@ -50,4 +54,5 @@ public sealed class DefaultValueAttribute : Attribute
 /// The field will use its default value.
 /// </summary>
 [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class BuilderIgnoreAttribute : Attribute;

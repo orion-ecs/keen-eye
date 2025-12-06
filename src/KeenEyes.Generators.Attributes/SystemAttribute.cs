@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace KeenEyes;
 
@@ -6,6 +7,7 @@ namespace KeenEyes;
 /// Marks a class as an ECS system for auto-discovery and registration.
 /// </summary>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
 public sealed class SystemAttribute : Attribute
 {
     /// <summary>
