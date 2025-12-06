@@ -1,0 +1,152 @@
+name: Performance Benchmarks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: 'Git ref to use as baseline (default: base branch)'
+        required: false
+        type: string
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+          dotnet-quality: 'preview'
+
+      - name: Determine baseline ref
+        id: baseline
+        run: |
+          if [ -n "${{ inputs.baseline_ref }}" ]; then
+            echo "ref=${{ inputs.baseline_ref }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "ref=HEAD~1" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build PR version
+        run: dotnet build benchmarks/KeenEyes.Benchmarks -c Release
+
+      - name: Run PR benchmarks
+        working-directory: benchmarks/KeenEyes.Benchmarks
+        run: |
+          dotnet run -c Release --no-build -- \
+            --filter "*" \
+            --exporters json \
+            --artifacts ../artifacts/pr \
+            --job short
+        timeout-minutes: 30
+
+      - name: Checkout baseline
+        run: git checkout ${{ steps.baseline.outputs.ref }}
+
+      - name: Build baseline version
+        run: dotnet build benchmarks/KeenEyes.Benchmarks -c Release
+
+      - name: Run baseline benchmarks
+        working-directory: benchmarks/KeenEyes.Benchmarks
+        run: |
+          dotnet run -c Release --no-build -- \
+            --filter "*" \
+            --exporters json \
+            --artifacts ../artifacts/baseline \
+            --job short
+        timeout-minutes: 30
+
+      - name: Checkout back to PR for comparison tool
+        run: git checkout ${{ github.sha }}
+
+      - name: Compare benchmark results
+        id: compare
+        run: |
+          dotnet run --project tools/BenchmarkCompare \
+            -- \
+            --baseline benchmarks/artifacts/baseline \
+            --current benchmarks/artifacts/pr \
+            --threshold 5.0 \
+            --output benchmarks/artifacts/comparison.md
+
+          # Check if there are regressions
+          if grep -q "REGRESSION" benchmarks/artifacts/comparison.md; then
+            echo "has_regressions=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_regressions=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmarks/artifacts/
+          retention-days: 30
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const comparison = fs.readFileSync('benchmarks/artifacts/comparison.md', 'utf8');
+
+            // Find existing comment to update
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number
+            });
+
+            const marker = '<!-- benchmark-results -->';
+            const existingComment = comments.find(c => c.body.includes(marker));
+
+            const body = `${marker}\n## Performance Benchmark Results\n\n${comparison}`;
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }
+
+      - name: Check for regressions
+        if: steps.compare.outputs.has_regressions == 'true'
+        run: |
+          echo "::warning::Performance regressions detected! See the comparison report for details."
+          # Uncomment to fail the build on regressions:
+          # exit 1
