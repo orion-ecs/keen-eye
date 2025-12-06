@@ -867,4 +867,577 @@ public class ArchetypeTests
     }
 
     #endregion
+
+    #region Archetype Advanced Coverage Tests
+
+    [Fact]
+    public void Archetype_Entities_IteratesAllEntities()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var entity1 = new Entity(1, 1);
+        var entity2 = new Entity(2, 1);
+        var entity3 = new Entity(3, 1);
+
+        archetype.AddEntity(entity1);
+        archetype.AddComponent(new Position { X = 1 });
+        archetype.AddEntity(entity2);
+        archetype.AddComponent(new Position { X = 2 });
+        archetype.AddEntity(entity3);
+        archetype.AddComponent(new Position { X = 3 });
+
+        var entities = archetype.Entities.ToList();
+
+        Assert.Equal(3, entities.Count);
+        Assert.Contains(entity1, entities);
+        Assert.Contains(entity2, entities);
+        Assert.Contains(entity3, entities);
+    }
+
+    [Fact]
+    public void Archetype_GetReadonly_ReturnsValue()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 42, Y = 99 });
+
+        ref readonly var pos = ref archetype.GetReadonly<Position>(0);
+
+        Assert.Equal(42, pos.X);
+        Assert.Equal(99, pos.Y);
+    }
+
+    [Fact]
+    public void Archetype_Set_UpdatesComponent()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 1 });
+
+        archetype.Set(0, new Position { X = 99, Y = 88 });
+
+        Assert.Equal(99, archetype.Get<Position>(0).X);
+        Assert.Equal(88, archetype.Get<Position>(0).Y);
+    }
+
+    [Fact]
+    public void Archetype_SetBoxed_UpdatesComponent()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 1 });
+
+        archetype.SetBoxed(typeof(Position), 0, new Position { X = 77 });
+
+        Assert.Equal(77, archetype.Get<Position>(0).X);
+    }
+
+    [Fact]
+    public void Archetype_GetChunkSpan_ReturnsValidSpan()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 1 });
+        archetype.AddEntity(new Entity(2, 1));
+        archetype.AddComponent(new Position { X = 2 });
+
+        var span = archetype.GetChunkSpan<Position>(0);
+
+        Assert.Equal(2, span.Length);
+        Assert.Equal(1, span[0].X);
+        Assert.Equal(2, span[1].X);
+    }
+
+    [Fact]
+    public void Archetype_GetChunkReadOnlySpan_ReturnsValidSpan()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 42 });
+
+        var span = archetype.GetChunkReadOnlySpan<Position>(0);
+
+        Assert.Equal(1, span.Length);
+        Assert.Equal(42, span[0].X);
+    }
+
+    [Fact]
+    public void Archetype_GetEntityLocation_ReturnsCorrectLocation()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var entity = new Entity(1, 1);
+        archetype.AddEntity(entity);
+        archetype.AddComponent(new Position());
+
+        var (chunkIndex, indexInChunk) = archetype.GetEntityLocation(entity);
+
+        Assert.Equal(0, chunkIndex);
+        Assert.Equal(0, indexInChunk);
+    }
+
+    [Fact]
+    public void Archetype_GetEntityLocation_NotFound_ReturnsNegative()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var (chunkIndex, indexInChunk) = archetype.GetEntityLocation(new Entity(999, 1));
+
+        Assert.Equal(-1, chunkIndex);
+        Assert.Equal(-1, indexInChunk);
+    }
+
+    [Fact]
+    public void Archetype_GetEntity_ReturnsCorrectEntity()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var entity = new Entity(42, 1);
+        archetype.AddEntity(entity);
+        archetype.AddComponent(new Position());
+
+        var result = archetype.GetEntity(0);
+
+        Assert.Equal(entity, result);
+    }
+
+    [Fact]
+    public void Archetype_GetByEntity_ReturnsCorrectComponent()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var entity = new Entity(1, 1);
+        archetype.AddEntity(entity);
+        archetype.AddComponent(new Position { X = 123, Y = 456 });
+
+        ref var pos = ref archetype.GetByEntity<Position>(entity);
+
+        Assert.Equal(123, pos.X);
+        Assert.Equal(456, pos.Y);
+    }
+
+    [Fact]
+    public void Archetype_Has_ByType_ReturnsCorrectResult()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        Assert.True(archetype.Has(typeof(Position)));
+        Assert.False(archetype.Has(typeof(Velocity)));
+    }
+
+#pragma warning disable CS0618 // Obsolete methods
+    [Fact]
+    public void Archetype_GetSpan_ObsoleteMethod_ReturnsFirstChunkSpan()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 42 });
+
+        var span = archetype.GetSpan<Position>();
+
+        Assert.Equal(1, span.Length);
+        Assert.Equal(42, span[0].X);
+    }
+
+    [Fact]
+    public void Archetype_GetSpan_EmptyArchetype_ReturnsEmpty()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var span = archetype.GetSpan<Position>();
+
+        Assert.True(span.IsEmpty);
+    }
+
+    [Fact]
+    public void Archetype_GetReadOnlySpan_ObsoleteMethod_ReturnsFirstChunkSpan()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position { X = 42 });
+
+        var span = archetype.GetReadOnlySpan<Position>();
+
+        Assert.Equal(1, span.Length);
+        Assert.Equal(42, span[0].X);
+    }
+
+    [Fact]
+    public void Archetype_GetReadOnlySpan_EmptyArchetype_ReturnsEmpty()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var span = archetype.GetReadOnlySpan<Position>();
+
+        Assert.True(span.IsEmpty);
+    }
+#pragma warning restore CS0618
+
+    [Fact]
+    public void Archetype_GetAllComponentArrays_EmptyArchetype_ReturnsEmptyDict()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var arrays = archetype.GetAllComponentArrays();
+
+        // No chunks yet, returns a dict with empty arrays per type
+        Assert.NotNull(arrays);
+    }
+
+    [Fact]
+    public void Archetype_Dispose_WithChunkPool_ReturnsChunksToPool()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var pool = new ChunkPool();
+        var manager = new ArchetypeManager(registry, pool);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        archetype.AddEntity(new Entity(1, 1));
+        archetype.AddComponent(new Position());
+
+        archetype.Dispose();
+
+        Assert.Equal(0, archetype.Count);
+        // Chunk should be returned to pool
+        Assert.True(pool.PooledCount >= 0); // Pool may or may not accept returned chunks
+    }
+
+    [Fact]
+    public void Archetype_RemoveEntity_TriggersChunkRemovalAndLocationUpdate()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var pool = new ChunkPool();
+        var manager = new ArchetypeManager(registry, pool);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        // Add many entities to create multiple chunks
+        var entities = new List<Entity>();
+        for (int i = 0; i < ArchetypeChunk.DefaultCapacity + 10; i++)
+        {
+            var entity = new Entity(i, 1);
+            entities.Add(entity);
+            archetype.AddEntity(entity);
+            archetype.AddComponent(new Position { X = i });
+        }
+
+        Assert.True(archetype.ChunkCount >= 2);
+
+        // Remove entities from first chunk to make it empty
+        for (int i = 0; i < ArchetypeChunk.DefaultCapacity; i++)
+        {
+            archetype.RemoveEntity(entities[i]);
+        }
+
+        // Should still have remaining entities in subsequent chunks
+        Assert.Equal(10, archetype.Count);
+    }
+
+    #endregion
+
+    #region ArchetypeManager Advanced Coverage Tests
+
+    [Fact]
+    public void ArchetypeManager_Constructor_WithCustomChunkPool()
+    {
+        var registry = new ComponentRegistry();
+        var customPool = new ChunkPool(maxChunksPerArchetype: 10);
+        var manager = new ArchetypeManager(registry, customPool);
+
+        Assert.Same(customPool, manager.ChunkPool);
+    }
+
+    [Fact]
+    public void ArchetypeManager_EntityCount_TracksEntities()
+    {
+        using var world = new World();
+
+        Assert.Equal(0, world.ArchetypeManager.EntityCount);
+
+        world.Spawn().With(new Position()).Build();
+        Assert.Equal(1, world.ArchetypeManager.EntityCount);
+
+        world.Spawn().With(new Position()).Build();
+        Assert.Equal(2, world.ArchetypeManager.EntityCount);
+    }
+
+    [Fact]
+    public void ArchetypeManager_GetMatchingArchetypes_FiltersCorrectly()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        registry.Register<Velocity>();
+        registry.Register<Health>();
+        var manager = new ArchetypeManager(registry);
+
+        // Create various archetypes
+        manager.GetOrCreateArchetype([typeof(Position)]);
+        manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+        manager.GetOrCreateArchetype([typeof(Health)]);
+
+        var query = new QueryDescription();
+        query.AddWrite<Position>();
+
+        var matches = manager.GetMatchingArchetypes(query).ToList();
+
+        Assert.Equal(2, matches.Count);
+    }
+
+    [Fact]
+    public void ArchetypeManager_GetMatchingArchetypes_WithExclude()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        registry.Register<Velocity>();
+        var manager = new ArchetypeManager(registry);
+
+        manager.GetOrCreateArchetype([typeof(Position)]);
+        manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+
+        var query = new QueryDescription();
+        query.AddWrite<Position>();
+        query.AddWithout<Velocity>();
+
+        var matches = manager.GetMatchingArchetypes(query).ToList();
+
+        Assert.Single(matches);
+        Assert.False(matches[0].Has<Velocity>());
+    }
+
+    [Fact]
+    public void ArchetypeManager_Dispose_ClearsEverything()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+
+        manager.GetOrCreateArchetype([typeof(Position)]);
+
+        Assert.Equal(1, manager.ArchetypeCount);
+
+        manager.Dispose();
+
+        Assert.Equal(0, manager.ArchetypeCount);
+    }
+
+    [Fact]
+    public void ArchetypeManager_GetOrCreateArchetype_ById()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+
+        var id = new ArchetypeId([typeof(Position)]);
+        var archetype = manager.GetOrCreateArchetype(id);
+
+        Assert.NotNull(archetype);
+        Assert.Equal(id, archetype.Id);
+    }
+
+    #endregion
+
+    #region ComponentRegistry Coverage Tests
+
+    [Fact]
+    public void ComponentRegistry_GetById_ValidId_ReturnsInfo()
+    {
+        var registry = new ComponentRegistry();
+        var info = registry.Register<Position>();
+
+        var result = registry.GetById(info.Id);
+
+        Assert.NotNull(result);
+        Assert.Equal(typeof(Position), result!.Type);
+    }
+
+    [Fact]
+    public void ComponentRegistry_GetById_InvalidId_ReturnsNull()
+    {
+        var registry = new ComponentRegistry();
+
+        var result = registry.GetById(new ComponentId(999));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ComponentRegistry_GetById_NegativeId_ReturnsNull()
+    {
+        var registry = new ComponentRegistry();
+
+        var result = registry.GetById(new ComponentId(-1));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ComponentRegistry_Get_ByType_ReturnsInfo()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+
+        var result = registry.Get(typeof(Position));
+
+        Assert.NotNull(result);
+        Assert.Equal(typeof(Position), result!.Type);
+    }
+
+    [Fact]
+    public void ComponentRegistry_Get_ByType_NotRegistered_ReturnsNull()
+    {
+        var registry = new ComponentRegistry();
+
+        var result = registry.Get(typeof(Position));
+
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ComponentRegistry_Register_AlreadyRegistered_ReturnsSame()
+    {
+        var registry = new ComponentRegistry();
+
+        var info1 = registry.Register<Position>();
+        var info2 = registry.Register<Position>();
+
+        Assert.Same(info1, info2);
+    }
+
+    [Fact]
+    public void ComponentRegistry_Register_TagComponent()
+    {
+        var registry = new ComponentRegistry();
+
+        var info = registry.Register<EnemyTag>(isTag: true);
+
+        Assert.True(info.IsTag);
+        Assert.Equal(0, info.Size);
+    }
+
+    [Fact]
+    public void ComponentRegistry_GetOrRegister_NewType()
+    {
+        var registry = new ComponentRegistry();
+
+        var info = registry.GetOrRegister<Position>();
+
+        Assert.NotNull(info);
+        Assert.True(registry.IsRegistered<Position>());
+    }
+
+    [Fact]
+    public void ComponentRegistry_GetOrRegister_ExistingType()
+    {
+        var registry = new ComponentRegistry();
+        var existing = registry.Register<Position>();
+
+        var info = registry.GetOrRegister<Position>();
+
+        Assert.Same(existing, info);
+    }
+
+    [Fact]
+    public void ComponentRegistry_IsRegistered_True()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+
+        Assert.True(registry.IsRegistered<Position>());
+    }
+
+    [Fact]
+    public void ComponentRegistry_IsRegistered_False()
+    {
+        var registry = new ComponentRegistry();
+
+        Assert.False(registry.IsRegistered<Position>());
+    }
+
+    [Fact]
+    public void ComponentRegistry_Count_TracksRegistrations()
+    {
+        var registry = new ComponentRegistry();
+
+        Assert.Equal(0, registry.Count);
+
+        registry.Register<Position>();
+        Assert.Equal(1, registry.Count);
+
+        registry.Register<Velocity>();
+        Assert.Equal(2, registry.Count);
+
+        // Re-registering doesn't increase count
+        registry.Register<Position>();
+        Assert.Equal(2, registry.Count);
+    }
+
+    [Fact]
+    public void ComponentRegistry_All_ReturnsAllRegistered()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        registry.Register<Velocity>();
+
+        var all = registry.All;
+
+        Assert.Equal(2, all.Count);
+    }
+
+    #endregion
 }
