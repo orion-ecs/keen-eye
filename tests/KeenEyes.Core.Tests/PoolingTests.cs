@@ -395,4 +395,55 @@ public class PoolingTests
     }
 
     #endregion
+
+    #region Non-Generic ComponentArrayPool Tests
+
+    [Fact]
+    public void ComponentArrayPool_NonGeneric_Rent_ReturnsArray()
+    {
+        var array = ComponentArrayPool.Rent(typeof(TestPosition), 10);
+
+        Assert.NotNull(array);
+        Assert.IsType<TestPosition[]>(array);
+        Assert.True(array.Length >= 10);
+
+        ComponentArrayPool.Return(typeof(TestPosition), array);
+    }
+
+    [Fact]
+    public void ComponentArrayPool_NonGeneric_RentAndReturn_WorksForDifferentTypes()
+    {
+        var posArray = ComponentArrayPool.Rent(typeof(TestPosition), 5);
+        var intArray = ComponentArrayPool.Rent(typeof(int), 8);
+
+        Assert.IsType<TestPosition[]>(posArray);
+        Assert.IsType<int[]>(intArray);
+        Assert.True(posArray.Length >= 5);
+        Assert.True(intArray.Length >= 8);
+
+        ComponentArrayPool.Return(typeof(TestPosition), posArray);
+        ComponentArrayPool.Return(typeof(int), intArray, clearArray: true);
+    }
+
+    [Fact]
+    public void ComponentArrayPool_NonGeneric_Return_WithClear()
+    {
+        var array = ComponentArrayPool.Rent(typeof(TestPosition), 3);
+
+        // Set some values
+        var typedArray = (TestPosition[])array;
+        typedArray[0] = new TestPosition { X = 1, Y = 2 };
+
+        // Return with clear
+        ComponentArrayPool.Return(typeof(TestPosition), array, clearArray: true);
+
+        // Rent again - should be cleared
+        var newArray = ComponentArrayPool.Rent(typeof(TestPosition), 3);
+        var newTyped = (TestPosition[])newArray;
+        Assert.Equal(0, newTyped[0].X);
+
+        ComponentArrayPool.Return(typeof(TestPosition), newArray);
+    }
+
+    #endregion
 }
