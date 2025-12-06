@@ -1079,4 +1079,64 @@ public class CommandBufferTests
     }
 
     #endregion
+
+    #region IEntityBuilder Interface Tests
+
+    [Fact]
+    public void EntityCommands_AsIEntityBuilder_WithComponent_AddsComponent()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Use EntityCommands through the non-generic IEntityBuilder interface
+        IEntityBuilder builder = buffer.Spawn();
+        builder.With(new TestPosition { X = 42f, Y = 84f });
+
+        var entityMap = buffer.Flush(world);
+        var entity = entityMap[-1]; // First placeholder ID
+
+        Assert.True(world.Has<TestPosition>(entity));
+        ref var pos = ref world.Get<TestPosition>(entity);
+        Assert.Equal(42f, pos.X);
+        Assert.Equal(84f, pos.Y);
+    }
+
+    [Fact]
+    public void EntityCommands_AsIEntityBuilder_WithTag_AddsTag()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Use EntityCommands through the non-generic IEntityBuilder interface
+        IEntityBuilder builder = buffer.Spawn();
+        builder.WithTag<TestTag>();
+
+        var entityMap = buffer.Flush(world);
+        var entity = entityMap[-1]; // First placeholder ID
+
+        Assert.True(world.Has<TestTag>(entity));
+    }
+
+    [Fact]
+    public void EntityCommands_AsIEntityBuilder_Chaining_Works()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Chain multiple calls through the interface
+        IEntityBuilder builder = buffer.Spawn();
+        builder
+            .With(new TestPosition { X = 1f, Y = 2f })
+            .With(new TestVelocity { X = 3f, Y = 4f })
+            .WithTag<TestTag>();
+
+        var entityMap = buffer.Flush(world);
+        var entity = entityMap[-1];
+
+        Assert.True(world.Has<TestPosition>(entity));
+        Assert.True(world.Has<TestVelocity>(entity));
+        Assert.True(world.Has<TestTag>(entity));
+    }
+
+    #endregion
 }
