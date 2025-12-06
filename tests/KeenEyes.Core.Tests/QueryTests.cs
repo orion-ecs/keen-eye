@@ -1,0 +1,755 @@
+namespace KeenEyes.Tests;
+
+/// <summary>
+/// Test component for rotation data.
+/// </summary>
+public struct TestRotation : IComponent
+{
+    public float Angle;
+}
+
+/// <summary>
+/// Test tag component for marking entities as frozen.
+/// </summary>
+public struct FrozenTag : ITagComponent;
+
+/// <summary>
+/// Test tag component for marking entities as active.
+/// </summary>
+public struct ActiveTag : ITagComponent;
+
+/// <summary>
+/// Tests for QueryDescription matching logic.
+/// </summary>
+public class QueryDescriptionTests
+{
+    [Fact]
+    public void QueryDescription_NewInstance_HasEmptyCollections()
+    {
+        var description = new QueryDescription();
+
+        Assert.Empty(description.Read);
+        Assert.Empty(description.Write);
+        Assert.Empty(description.With);
+        Assert.Empty(description.Without);
+        Assert.Empty(description.AllRequired);
+    }
+
+    [Fact]
+    public void Matches_ReturnsTrue_WhenEntityHasAllRequiredComponents()
+    {
+        var description = new QueryDescription();
+        description.AddWrite<TestPosition>();
+
+        var entityComponents = new[] { typeof(TestPosition) };
+
+        Assert.True(description.Matches(entityComponents));
+    }
+
+    [Fact]
+    public void Matches_ReturnsFalse_WhenEntityMissingRequiredComponent()
+    {
+        var description = new QueryDescription();
+        description.AddWrite<TestPosition>();
+        description.AddWrite<TestVelocity>();
+
+        var entityComponents = new[] { typeof(TestPosition) }; // Missing TestVelocity
+
+        Assert.False(description.Matches(entityComponents));
+    }
+
+    [Fact]
+    public void Matches_ReturnsFalse_WhenEntityHasExcludedComponent()
+    {
+        var description = new QueryDescription();
+        description.AddWrite<TestPosition>();
+        description.AddWithout<FrozenTag>();
+
+        var entityComponents = new[] { typeof(TestPosition), typeof(FrozenTag) };
+
+        Assert.False(description.Matches(entityComponents));
+    }
+
+    [Fact]
+    public void Matches_ReturnsTrue_WhenEntityDoesNotHaveExcludedComponent()
+    {
+        var description = new QueryDescription();
+        description.AddWrite<TestPosition>();
+        description.AddWithout<FrozenTag>();
+
+        var entityComponents = new[] { typeof(TestPosition) };
+
+        Assert.True(description.Matches(entityComponents));
+    }
+
+    [Fact]
+    public void Matches_ReturnsTrue_WhenEntityHasExtraComponents()
+    {
+        var description = new QueryDescription();
+        description.AddWrite<TestPosition>();
+
+        var entityComponents = new[] { typeof(TestPosition), typeof(TestVelocity), typeof(TestHealth) };
+
+        Assert.True(description.Matches(entityComponents));
+    }
+
+    [Fact]
+    public void AllRequired_CombinesReadWriteAndWith()
+    {
+        var description = new QueryDescription();
+        description.AddRead<TestPosition>();
+        description.AddWrite<TestVelocity>();
+        description.AddWith<TestHealth>();
+
+        var allRequired = description.AllRequired.ToList();
+
+        Assert.Contains(typeof(TestPosition), allRequired);
+        Assert.Contains(typeof(TestVelocity), allRequired);
+        Assert.Contains(typeof(TestHealth), allRequired);
+    }
+
+    [Fact]
+    public void AllRequired_DeduplicatesSameType()
+    {
+        var description = new QueryDescription();
+        description.AddRead<TestPosition>();
+        description.AddWrite<TestPosition>(); // Same type in read and write
+
+        var allRequired = description.AllRequired.ToList();
+
+        // Should only appear once due to Distinct()
+        Assert.Single(allRequired);
+        Assert.Contains(typeof(TestPosition), allRequired);
+    }
+
+    [Fact]
+    public void Matches_EmptyDescription_MatchesAnyEntity()
+    {
+        var description = new QueryDescription();
+
+        var entityComponents = new[] { typeof(TestPosition), typeof(TestVelocity) };
+
+        Assert.True(description.Matches(entityComponents));
+    }
+
+    [Fact]
+    public void Matches_EmptyDescription_MatchesEmptyEntity()
+    {
+        var description = new QueryDescription();
+
+        var entityComponents = Array.Empty<Type>();
+
+        Assert.True(description.Matches(entityComponents));
+    }
+
+    [Fact]
+    public void Matches_WithMultipleExclusions_AllMustBeAbsent()
+    {
+        var description = new QueryDescription();
+        description.AddWrite<TestPosition>();
+        description.AddWithout<FrozenTag>();
+        description.AddWithout<ActiveTag>();
+
+        // Has one excluded component
+        var entityWithFrozen = new[] { typeof(TestPosition), typeof(FrozenTag) };
+        var entityWithActive = new[] { typeof(TestPosition), typeof(ActiveTag) };
+        var entityWithBoth = new[] { typeof(TestPosition), typeof(FrozenTag), typeof(ActiveTag) };
+        var entityWithNeither = new[] { typeof(TestPosition) };
+
+        Assert.False(description.Matches(entityWithFrozen));
+        Assert.False(description.Matches(entityWithActive));
+        Assert.False(description.Matches(entityWithBoth));
+        Assert.True(description.Matches(entityWithNeither));
+    }
+}
+
+/// <summary>
+/// Tests for QueryBuilder fluent API and iteration.
+/// </summary>
+public class QueryBuilderTests
+{
+    #region Single Component Query
+
+    [Fact]
+    public void QueryBuilder_SingleComponent_ReturnsMatchingEntities()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+        var entity3 = world.Spawn()
+            .With(new TestVelocity { X = 3f, Y = 3f })
+            .Build();
+
+        var results = world.Query<TestPosition>().ToList();
+
+        Assert.Equal(2, results.Count);
+        Assert.Contains(entity1, results);
+        Assert.Contains(entity2, results);
+        Assert.DoesNotContain(entity3, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_SingleComponent_With_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition>().With<TestVelocity>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_SingleComponent_Without_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .WithTag<FrozenTag>()
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition>().Without<FrozenTag>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity2, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_SingleComponent_Description_ContainsWriteComponent()
+    {
+        using var world = new World();
+
+        var query = world.Query<TestPosition>();
+
+        Assert.Contains(typeof(TestPosition), query.Description.Write);
+    }
+
+    [Fact]
+    public void QueryBuilder_SingleComponent_World_ReturnsCorrectWorld()
+    {
+        using var world = new World();
+
+        var query = world.Query<TestPosition>();
+
+        Assert.Same(world, query.World);
+    }
+
+    #endregion
+
+    #region Two Component Query
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_ReturnsMatchingEntities()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_With_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity>().With<TestHealth>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_Without_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .WithTag<FrozenTag>()
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity>().Without<FrozenTag>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity2, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_Description_ContainsBothComponents()
+    {
+        using var world = new World();
+
+        var query = world.Query<TestPosition, TestVelocity>();
+
+        Assert.Contains(typeof(TestPosition), query.Description.Write);
+        Assert.Contains(typeof(TestVelocity), query.Description.Write);
+    }
+
+    #endregion
+
+    #region Three Component Query
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_ReturnsMatchingEntities()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_With_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 0f })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 50, Max = 100 })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth>().With<TestRotation>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_Without_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .WithTag<FrozenTag>()
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 50, Max = 100 })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth>().Without<FrozenTag>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity2, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_Description_ContainsAllComponents()
+    {
+        using var world = new World();
+
+        var query = world.Query<TestPosition, TestVelocity, TestHealth>();
+
+        Assert.Contains(typeof(TestPosition), query.Description.Write);
+        Assert.Contains(typeof(TestVelocity), query.Description.Write);
+        Assert.Contains(typeof(TestHealth), query.Description.Write);
+    }
+
+    #endregion
+
+    #region Four Component Query
+
+    [Fact]
+    public void QueryBuilder_FourComponents_ReturnsMatchingEntities()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 45f })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 50, Max = 100 })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_With_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 45f })
+            .WithTag<ActiveTag>()
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 50, Max = 100 })
+            .With(new TestRotation { Angle = 90f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().With<ActiveTag>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_Without_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 45f })
+            .WithTag<FrozenTag>()
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 50, Max = 100 })
+            .With(new TestRotation { Angle = 90f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().Without<FrozenTag>().ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity2, results);
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_Description_ContainsAllComponents()
+    {
+        using var world = new World();
+
+        var query = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>();
+
+        Assert.Contains(typeof(TestPosition), query.Description.Write);
+        Assert.Contains(typeof(TestVelocity), query.Description.Write);
+        Assert.Contains(typeof(TestHealth), query.Description.Write);
+        Assert.Contains(typeof(TestRotation), query.Description.Write);
+    }
+
+    #endregion
+
+    #region Empty Query Results
+
+    [Fact]
+    public void QueryBuilder_ReturnsEmpty_WhenNoEntitiesMatch()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+
+        var results = world.Query<TestPosition>().ToList();
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public void QueryBuilder_ReturnsEmpty_WhenWorldHasNoEntities()
+    {
+        using var world = new World();
+
+        var results = world.Query<TestPosition>().ToList();
+
+        Assert.Empty(results);
+    }
+
+    #endregion
+
+    #region Chained Filtering
+
+    [Fact]
+    public void QueryBuilder_ChainingWithAndWithout_WorksCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .WithTag<ActiveTag>()
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .WithTag<FrozenTag>()
+            .Build();
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .WithTag<ActiveTag>()
+            .Build();
+
+        var results = world.Query<TestPosition>()
+            .With<TestVelocity>()
+            .With<ActiveTag>()
+            .Without<FrozenTag>()
+            .ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    #endregion
+
+    #region IEnumerable Interface
+
+    [Fact]
+    public void QueryBuilder_ImplementsIEnumerable_ForForeach()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+
+        var count = 0;
+        foreach (var entity in world.Query<TestPosition>())
+        {
+            count++;
+        }
+
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public void QueryBuilder_IEnumerableEntity_GetEnumerator_Works()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+
+        IEnumerable<Entity> query = world.Query<TestPosition>();
+        var enumerator = query.GetEnumerator();
+
+        Assert.True(enumerator.MoveNext());
+        Assert.True(enumerator.Current.IsValid);
+        Assert.False(enumerator.MoveNext());
+
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryBuilder_NonGenericIEnumerable_GetEnumerator_Works()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+
+        System.Collections.IEnumerable query = world.Query<TestPosition>();
+        var enumerator = query.GetEnumerator();
+
+        Assert.True(enumerator.MoveNext());
+        Assert.NotNull(enumerator.Current);
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// Tests for QueryEnumerator behavior.
+/// </summary>
+public class QueryEnumeratorTests
+{
+    [Fact]
+    public void QueryEnumerator_Current_ReturnsCurrentEntity()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+
+        var enumerator = world.Query<TestPosition>().GetEnumerator();
+        enumerator.MoveNext();
+
+        Assert.Equal(entity, enumerator.Current);
+    }
+
+    [Fact]
+    public void QueryEnumerator_MoveNext_ReturnsFalse_WhenNoEntities()
+    {
+        using var world = new World();
+
+        var enumerator = world.Query<TestPosition>().GetEnumerator();
+
+        Assert.False(enumerator.MoveNext());
+    }
+
+    [Fact]
+    public void QueryEnumerator_Reset_ThrowsNotSupportedException()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+
+        var enumerator = world.Query<TestPosition>().GetEnumerator();
+        enumerator.MoveNext();
+
+        // Yield-based enumerators don't support Reset
+        Assert.Throws<NotSupportedException>(() => enumerator.Reset());
+
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_Dispose_CanBeCalledMultipleTimes()
+    {
+        using var world = new World();
+
+        var enumerator = world.Query<TestPosition>().GetEnumerator();
+
+        enumerator.Dispose();
+        enumerator.Dispose(); // Should not throw
+    }
+
+    [Fact]
+    public void QueryEnumerator_TwoComponents_Current_ReturnsCurrentEntity()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+
+        var enumerator = world.Query<TestPosition, TestVelocity>().GetEnumerator();
+        enumerator.MoveNext();
+
+        Assert.Equal(entity, enumerator.Current);
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_ThreeComponents_Current_ReturnsCurrentEntity()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+
+        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth>().GetEnumerator();
+        enumerator.MoveNext();
+
+        Assert.Equal(entity, enumerator.Current);
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_FourComponents_Current_ReturnsCurrentEntity()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 45f })
+            .Build();
+
+        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().GetEnumerator();
+        enumerator.MoveNext();
+
+        Assert.Equal(entity, enumerator.Current);
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_IEnumeratorCurrent_ReturnsBoxedEntity()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+
+        System.Collections.IEnumerator enumerator = world.Query<TestPosition>().GetEnumerator();
+        enumerator.MoveNext();
+
+        Assert.Equal(entity, enumerator.Current);
+    }
+}
