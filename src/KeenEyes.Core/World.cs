@@ -6,12 +6,23 @@ namespace KeenEyes;
 /// The world is the container for all entities and their components.
 /// Each world is completely isolated with its own component registry.
 /// </summary>
+/// <remarks>
+/// <para>
+/// World uses an archetype-based storage system for high-performance entity iteration.
+/// Entities with the same component types are stored contiguously in memory,
+/// enabling cache-friendly access patterns.
+/// </para>
+/// <para>
+/// The world manages entity lifecycle, component storage, and system execution.
+/// Use <see cref="Spawn()"/> to create entities and <see cref="Query{T1}"/> to
+/// iterate over entities with specific components.
+/// </para>
+/// </remarks>
 public sealed class World : IDisposable
 {
-    private int nextEntityId;
-    private readonly Dictionary<int, int> entityVersions = [];
-    private readonly Dictionary<int, Dictionary<ComponentId, object>> entityComponents = [];
-    private readonly Dictionary<int, HashSet<Type>> entityComponentTypes = [];
+    private readonly EntityPool entityPool;
+    private readonly ArchetypeManager archetypeManager;
+    private readonly QueryManager queryManager;
     private readonly Dictionary<Type, object> singletons = [];
     private readonly EntityBuilder builder;
     private readonly List<ISystem> systems = [];
@@ -27,10 +38,24 @@ public sealed class World : IDisposable
     public ComponentRegistry Components { get; } = new();
 
     /// <summary>
+    /// Gets the archetype manager for this world.
+    /// Provides access to archetype storage, chunk pooling, and entity location tracking.
+    /// </summary>
+    public ArchetypeManager ArchetypeManager => archetypeManager;
+
+    /// <summary>
+    /// Gets the query manager for this world.
+    /// </summary>
+    internal QueryManager Queries => queryManager;
+
+    /// <summary>
     /// Creates a new ECS world.
     /// </summary>
     public World()
     {
+        entityPool = new EntityPool();
+        archetypeManager = new ArchetypeManager(Components);
+        queryManager = new QueryManager(archetypeManager);
         builder = new EntityBuilder(this);
     }
 
@@ -99,27 +124,20 @@ public sealed class World : IDisposable
                 $"An entity with the name '{name}' already exists in this world.", nameof(name));
         }
 
-        var id = Interlocked.Increment(ref nextEntityId) - 1;
-        var version = 1;
+        // Acquire entity from pool
+        var entity = entityPool.Acquire();
 
-        entityVersions[id] = version;
-        entityComponents[id] = [];
-        entityComponentTypes[id] = [];
-
-        foreach (var (info, data) in components)
-        {
-            entityComponents[id][info.Id] = data;
-            entityComponentTypes[id].Add(info.Type);
-        }
+        // Add to archetype
+        archetypeManager.AddEntity(entity, components);
 
         // Register the entity name if provided
         if (name is not null)
         {
-            entityNames[id] = name;
-            namesToEntityIds[name] = id;
+            entityNames[entity.Id] = name;
+            namesToEntityIds[name] = entity.Id;
         }
 
-        return new Entity(id, version);
+        return entity;
     }
 
     /// <summary>
@@ -134,9 +152,11 @@ public sealed class World : IDisposable
             return false;
         }
 
-        entityVersions[entity.Id]++;
-        entityComponents.Remove(entity.Id);
-        entityComponentTypes.Remove(entity.Id);
+        // Remove from archetype
+        archetypeManager.RemoveEntity(entity);
+
+        // Release entity to pool (increments version)
+        entityPool.Release(entity);
 
         // Clean up entity name mappings if the entity had a name
         if (entityNames.TryGetValue(entity.Id, out var name))
@@ -153,7 +173,7 @@ public sealed class World : IDisposable
     /// </summary>
     public bool IsAlive(Entity entity)
     {
-        return entityVersions.TryGetValue(entity.Id, out var version) && version == entity.Version;
+        return entityPool.IsValid(entity) && archetypeManager.IsTracked(entity);
     }
 
     /// <summary>
@@ -186,14 +206,13 @@ public sealed class World : IDisposable
                 $"Component type {typeof(T).Name} is not registered in this world.");
         }
 
-        if (!entityComponents.TryGetValue(entity.Id, out var components) ||
-            !components.TryGetValue(info.Id, out var boxed))
+        if (!archetypeManager.Has<T>(entity))
         {
             throw new InvalidOperationException(
                 $"Entity {entity} does not have component {typeof(T).Name}.");
         }
 
-        return ref Unsafe.Unbox<T>(boxed);
+        return ref archetypeManager.Get<T>(entity);
     }
 
     /// <summary>
@@ -213,7 +232,7 @@ public sealed class World : IDisposable
     /// this method returns <c>false</c> rather than throwing an exception.
     /// </para>
     /// <para>
-    /// This operation is O(1) for the dictionary-based storage implementation.
+    /// This operation is O(1) for the archetype-based storage implementation.
     /// </para>
     /// <para>
     /// Use this method to conditionally check for components before calling
@@ -254,8 +273,7 @@ public sealed class World : IDisposable
             return false;
         }
 
-        return entityComponents.TryGetValue(entity.Id, out var components) &&
-               components.ContainsKey(info.Id);
+        return archetypeManager.Has<T>(entity);
     }
 
     /// <summary>
@@ -269,8 +287,11 @@ public sealed class World : IDisposable
     /// of the specified type. Use <see cref="Set{T}(Entity, in T)"/> to update existing components.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// After adding a component, the entity will be matched by queries that require that component type.
-    /// This operation is O(1) for the dictionary-based storage in Phase 1.
+    /// This operation migrates the entity to a new archetype, which is O(C) where C is the number
+    /// of components on the entity.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -290,21 +311,10 @@ public sealed class World : IDisposable
             throw new InvalidOperationException($"Entity {entity} is not alive.");
         }
 
-        var info = Components.GetOrRegister<T>();
+        // Register the component type if not already registered
+        Components.GetOrRegister<T>();
 
-        if (!entityComponents.TryGetValue(entity.Id, out var components))
-        {
-            throw new InvalidOperationException($"Entity {entity} is not alive.");
-        }
-
-        if (components.ContainsKey(info.Id))
-        {
-            throw new InvalidOperationException(
-                $"Entity {entity} already has component {typeof(T).Name}. Use Set<T>() to update existing components.");
-        }
-
-        components[info.Id] = component;
-        entityComponentTypes[entity.Id].Add(typeof(T));
+        archetypeManager.AddComponent(entity, in component);
     }
 
     /// <summary>
@@ -337,14 +347,7 @@ public sealed class World : IDisposable
                 $"Component type {typeof(T).Name} is not registered in this world.");
         }
 
-        if (!entityComponents.TryGetValue(entity.Id, out var components) ||
-            !components.ContainsKey(info.Id))
-        {
-            throw new InvalidOperationException(
-                $"Entity {entity} does not have component {typeof(T).Name}. Use Add<T>() to add new components.");
-        }
-
-        components[info.Id] = value;
+        archetypeManager.Set(entity, in value);
     }
 
     /// <summary>
@@ -363,7 +366,7 @@ public sealed class World : IDisposable
     /// </para>
     /// <para>
     /// After removing a component, the entity will no longer be matched by queries that
-    /// require that component type. This operation is O(1) for the dictionary-based storage.
+    /// require that component type. This operation migrates the entity to a new archetype.
     /// </para>
     /// <para>
     /// <strong>Warning:</strong> Removing components from entities during query iteration
@@ -400,17 +403,7 @@ public sealed class World : IDisposable
             return false;
         }
 
-        // Check if entity has the component and remove it
-        if (!entityComponents.TryGetValue(entity.Id, out var components) ||
-            !components.Remove(info.Id))
-        {
-            return false;
-        }
-
-        // Remove from type tracking for query matching
-        entityComponentTypes[entity.Id].Remove(typeof(T));
-
-        return true;
+        return archetypeManager.RemoveComponent<T>(entity);
     }
 
     /// <summary>
@@ -418,11 +411,11 @@ public sealed class World : IDisposable
     /// </summary>
     public IEnumerable<Entity> GetAllEntities()
     {
-        foreach (var (id, version) in entityVersions)
+        foreach (var archetype in archetypeManager.Archetypes)
         {
-            if (entityComponents.ContainsKey(id))
+            foreach (var entity in archetype.Entities)
             {
-                yield return new Entity(id, version);
+                yield return entity;
             }
         }
     }
@@ -516,14 +509,22 @@ public sealed class World : IDisposable
             return Entity.Null;
         }
 
-        // Verify the entity is still alive and return with correct version
-        if (!entityVersions.TryGetValue(entityId, out var version) ||
-            !entityComponents.ContainsKey(entityId))
+        // Get the current version from the pool
+        var version = entityPool.GetVersion(entityId);
+        if (version < 0)
         {
             return Entity.Null;
         }
 
-        return new Entity(entityId, version);
+        var entity = new Entity(entityId, version);
+
+        // Verify the entity is still alive
+        if (!IsAlive(entity))
+        {
+            return Entity.Null;
+        }
+
+        return entity;
     }
 
     /// <summary>
@@ -547,8 +548,7 @@ public sealed class World : IDisposable
     /// this method returns an empty sequence rather than throwing an exception.
     /// </para>
     /// <para>
-    /// The complexity is O(C) where C is the number of component types registered in the world,
-    /// as it iterates through the entity's component dictionary.
+    /// The complexity is O(C) where C is the number of component types on the entity.
     /// </para>
     /// </remarks>
     /// <example>
@@ -574,20 +574,9 @@ public sealed class World : IDisposable
             yield break;
         }
 
-        if (!entityComponents.TryGetValue(entity.Id, out var components))
+        foreach (var component in archetypeManager.GetComponents(entity))
         {
-            yield break;
-        }
-
-        // Iterate through all components on this entity
-        foreach (var (componentId, boxedValue) in components)
-        {
-            // Get the type information from the component registry
-            var info = Components.GetById(componentId);
-            if (info is not null)
-            {
-                yield return (info.Type, boxedValue);
-            }
+            yield return component;
         }
     }
 
@@ -596,14 +585,24 @@ public sealed class World : IDisposable
     /// </summary>
     internal IEnumerable<Entity> GetMatchingEntities(QueryDescription description)
     {
-        foreach (var entity in GetAllEntities())
+        var matchingArchetypes = queryManager.GetMatchingArchetypes(description);
+
+        foreach (var archetype in matchingArchetypes)
         {
-            if (entityComponentTypes.TryGetValue(entity.Id, out var types) &&
-                description.Matches(types))
+            foreach (var entity in archetype.Entities)
             {
                 yield return entity;
             }
         }
+    }
+
+    /// <summary>
+    /// Gets the matching archetypes for a query description.
+    /// Uses cached results when available.
+    /// </summary>
+    internal IReadOnlyList<Archetype> GetMatchingArchetypes(QueryDescription description)
+    {
+        return queryManager.GetMatchingArchetypes(description);
     }
 
     #endregion
@@ -901,6 +900,60 @@ public sealed class World : IDisposable
 
     #endregion
 
+    #region Memory Statistics
+
+    /// <summary>
+    /// Gets memory usage statistics for this world.
+    /// </summary>
+    /// <returns>A snapshot of current memory statistics.</returns>
+    /// <remarks>
+    /// <para>
+    /// Statistics are computed on-demand and represent a snapshot in time.
+    /// They include entity allocations, component storage, and pooling metrics.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var stats = world.GetMemoryStats();
+    /// Console.WriteLine($"Entities: {stats.EntitiesActive} active");
+    /// Console.WriteLine($"Archetypes: {stats.ArchetypeCount}");
+    /// Console.WriteLine($"Cache hit rate: {stats.QueryCacheHitRate:F1}%");
+    /// </code>
+    /// </example>
+    public MemoryStats GetMemoryStats()
+    {
+        // Calculate estimated component bytes
+        long estimatedBytes = 0;
+        foreach (var archetype in archetypeManager.Archetypes)
+        {
+            foreach (var componentType in archetype.ComponentTypes)
+            {
+                var info = Components.Get(componentType);
+                if (info is not null)
+                {
+                    estimatedBytes += (long)info.Size * archetype.Count;
+                }
+            }
+        }
+
+        return new MemoryStats
+        {
+            EntitiesAllocated = entityPool.TotalAllocated,
+            EntitiesActive = entityPool.ActiveCount,
+            EntitiesRecycled = entityPool.AvailableCount,
+            EntityRecycleCount = entityPool.RecycleCount,
+            ArchetypeCount = archetypeManager.ArchetypeCount,
+            ComponentTypeCount = Components.Count,
+            SystemCount = systems.Count,
+            CachedQueryCount = queryManager.CachedQueryCount,
+            QueryCacheHits = queryManager.CacheHits,
+            QueryCacheMisses = queryManager.CacheMisses,
+            EstimatedComponentBytes = estimatedBytes
+        };
+    }
+
+    #endregion
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -909,9 +962,8 @@ public sealed class World : IDisposable
             system.Dispose();
         }
         systems.Clear();
-        entityVersions.Clear();
-        entityComponents.Clear();
-        entityComponentTypes.Clear();
+        archetypeManager.Dispose();
+        entityPool.Clear();
         entityNames.Clear();
         namesToEntityIds.Clear();
         singletons.Clear();
