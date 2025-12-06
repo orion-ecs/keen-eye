@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace KeenEyes;
 
 /// <summary>
@@ -87,13 +89,43 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
-    /// Gets a component from an entity.
+    /// Gets a component from an entity by reference, allowing direct modification.
     /// </summary>
+    /// <typeparam name="T">The component type to retrieve.</typeparam>
+    /// <param name="entity">The entity to get the component from.</param>
+    /// <returns>A reference to the component data for zero-copy access.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the entity is not alive, the component type is not registered,
+    /// or the entity does not have the specified component.
+    /// </exception>
+    /// <example>
+    /// <code>
+    /// ref var position = ref world.Get&lt;Position&gt;(entity);
+    /// position.X += 10; // Modifies the component directly
+    /// </code>
+    /// </example>
     public ref T Get<T>(Entity entity) where T : struct, IComponent
     {
-        // Note: In a real implementation, this would return a ref to the archetype storage
-        // This is a simplified version for demonstration
-        throw new NotImplementedException("Component storage not yet implemented");
+        if (!IsAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        var info = Components.Get<T>();
+        if (info is null)
+        {
+            throw new InvalidOperationException(
+                $"Component type {typeof(T).Name} is not registered in this world.");
+        }
+
+        if (!entityComponents.TryGetValue(entity.Id, out var components) ||
+            !components.TryGetValue(info.Id, out var boxed))
+        {
+            throw new InvalidOperationException(
+                $"Entity {entity} does not have component {typeof(T).Name}.");
+        }
+
+        return ref Unsafe.Unbox<T>(boxed);
     }
 
     /// <summary>
