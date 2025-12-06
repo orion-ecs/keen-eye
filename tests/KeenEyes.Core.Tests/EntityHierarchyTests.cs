@@ -911,5 +911,233 @@ public class EntityHierarchyTests
         Assert.Contains("circular hierarchy", ex.Message);
     }
 
+    [Fact]
+    public void SetParent_ToEntityNull_WhenNoExistingParent_DoesNotThrow()
+    {
+        using var world = new World();
+        var entity = world.Spawn().Build();
+
+        // Should not throw even though entity has no parent
+        world.SetParent(entity, Entity.Null);
+
+        Assert.False(world.GetParent(entity).IsValid);
+    }
+
+    [Fact]
+    public void RemoveChild_LastChild_CleansUpParentChildrenSet()
+    {
+        using var world = new World();
+        var parent = world.Spawn().Build();
+        var child = world.Spawn().Build();
+        world.SetParent(child, parent);
+
+        // Remove the only child - should clean up internal data structures
+        world.RemoveChild(parent, child);
+
+        // Verify parent has no children
+        Assert.Empty(world.GetChildren(parent));
+
+        // Add another child to verify internal state is clean
+        var newChild = world.Spawn().Build();
+        world.SetParent(newChild, parent);
+        Assert.Single(world.GetChildren(parent));
+    }
+
+    [Fact]
+    public void Despawn_LastChild_CleansUpParentChildrenSet()
+    {
+        using var world = new World();
+        var parent = world.Spawn().Build();
+        var child = world.Spawn().Build();
+        world.SetParent(child, parent);
+
+        // Despawn the only child
+        world.Despawn(child);
+
+        // Verify parent has no children
+        Assert.Empty(world.GetChildren(parent));
+
+        // Add another child to verify internal state is clean
+        var newChild = world.Spawn().Build();
+        world.SetParent(newChild, parent);
+        Assert.Single(world.GetChildren(parent));
+    }
+
+    [Fact]
+    public void Despawn_EntityWithNoHierarchy_WorksCorrectly()
+    {
+        using var world = new World();
+        var entity = world.Spawn().Build();
+
+        // Entity has no parent and no children
+        var result = world.Despawn(entity);
+
+        Assert.True(result);
+        Assert.False(world.IsAlive(entity));
+    }
+
+    [Fact]
+    public void GetChildren_AfterChildDespawned_SkipsDeadChild()
+    {
+        using var world = new World();
+        var parent = world.Spawn().Build();
+        var child1 = world.Spawn().Build();
+        var child2 = world.Spawn().Build();
+
+        world.SetParent(child1, parent);
+        world.SetParent(child2, parent);
+
+        // Despawn one child (this cleans up hierarchy)
+        world.Despawn(child1);
+
+        var children = world.GetChildren(parent).ToList();
+        Assert.Single(children);
+        Assert.Equal(child2, children[0]);
+    }
+
+    [Fact]
+    public void GetAncestors_WhenParentDespawned_StopsAtOrphanedPoint()
+    {
+        using var world = new World();
+        var grandparent = world.Spawn().Build();
+        var parent = world.Spawn().Build();
+        var child = world.Spawn().Build();
+
+        world.SetParent(parent, grandparent);
+        world.SetParent(child, parent);
+
+        // Despawn the parent - this orphans the child
+        world.Despawn(parent);
+
+        // Child should now have no ancestors
+        var ancestors = world.GetAncestors(child).ToList();
+        Assert.Empty(ancestors);
+    }
+
+    [Fact]
+    public void GetRoot_WhenParentDespawned_ReturnsSelf()
+    {
+        using var world = new World();
+        var grandparent = world.Spawn().Build();
+        var parent = world.Spawn().Build();
+        var child = world.Spawn().Build();
+
+        world.SetParent(parent, grandparent);
+        world.SetParent(child, parent);
+
+        // Despawn the parent - this orphans the child
+        world.Despawn(parent);
+
+        // Child should now be its own root
+        var root = world.GetRoot(child);
+        Assert.Equal(child, root);
+    }
+
+    [Fact]
+    public void GetDescendants_WhenGrandchildDespawned_SkipsIt()
+    {
+        using var world = new World();
+        var root = world.Spawn().Build();
+        var child = world.Spawn().Build();
+        var grandchild1 = world.Spawn().Build();
+        var grandchild2 = world.Spawn().Build();
+
+        world.SetParent(child, root);
+        world.SetParent(grandchild1, child);
+        world.SetParent(grandchild2, child);
+
+        // Despawn one grandchild
+        world.Despawn(grandchild1);
+
+        var descendants = world.GetDescendants(root).ToList();
+        Assert.Equal(2, descendants.Count);
+        Assert.Contains(child, descendants);
+        Assert.Contains(grandchild2, descendants);
+        Assert.DoesNotContain(grandchild1, descendants);
+    }
+
+    [Fact]
+    public void SetParent_ChangingParent_CleansUpOldParentWhenLastChild()
+    {
+        using var world = new World();
+        var parent1 = world.Spawn().Build();
+        var parent2 = world.Spawn().Build();
+        var child = world.Spawn().Build();
+
+        world.SetParent(child, parent1);
+        Assert.Single(world.GetChildren(parent1));
+
+        // Move child to parent2 - parent1 should have empty children
+        world.SetParent(child, parent2);
+
+        Assert.Empty(world.GetChildren(parent1));
+        Assert.Single(world.GetChildren(parent2));
+
+        // Verify we can add new children to parent1 (internal state is clean)
+        var newChild = world.Spawn().Build();
+        world.SetParent(newChild, parent1);
+        Assert.Single(world.GetChildren(parent1));
+    }
+
+    [Fact]
+    public void DespawnRecursive_WithDeepHierarchy_AllPathsTraversed()
+    {
+        using var world = new World();
+        var root = world.Spawn().Build();
+
+        // Create a balanced tree: root has 2 children, each has 2 children
+        var child1 = world.Spawn().Build();
+        var child2 = world.Spawn().Build();
+        var grandchild1a = world.Spawn().Build();
+        var grandchild1b = world.Spawn().Build();
+        var grandchild2a = world.Spawn().Build();
+        var grandchild2b = world.Spawn().Build();
+
+        world.SetParent(child1, root);
+        world.SetParent(child2, root);
+        world.SetParent(grandchild1a, child1);
+        world.SetParent(grandchild1b, child1);
+        world.SetParent(grandchild2a, child2);
+        world.SetParent(grandchild2b, child2);
+
+        var count = world.DespawnRecursive(root);
+
+        Assert.Equal(7, count);
+        Assert.False(world.IsAlive(root));
+        Assert.False(world.IsAlive(child1));
+        Assert.False(world.IsAlive(child2));
+        Assert.False(world.IsAlive(grandchild1a));
+        Assert.False(world.IsAlive(grandchild1b));
+        Assert.False(world.IsAlive(grandchild2a));
+        Assert.False(world.IsAlive(grandchild2b));
+    }
+
+    [Fact]
+    public void CleanupEntityHierarchy_WithMultipleChildren_OrphansAll()
+    {
+        using var world = new World();
+        var parent = world.Spawn().Build();
+        var child1 = world.Spawn().Build();
+        var child2 = world.Spawn().Build();
+        var child3 = world.Spawn().Build();
+
+        world.SetParent(child1, parent);
+        world.SetParent(child2, parent);
+        world.SetParent(child3, parent);
+
+        // Verify all children are set up
+        Assert.Equal(3, world.GetChildren(parent).Count());
+
+        // Despawn parent - should orphan all children
+        world.Despawn(parent);
+
+        Assert.True(world.IsAlive(child1));
+        Assert.True(world.IsAlive(child2));
+        Assert.True(world.IsAlive(child3));
+        Assert.False(world.GetParent(child1).IsValid);
+        Assert.False(world.GetParent(child2).IsValid);
+        Assert.False(world.GetParent(child3).IsValid);
+    }
+
     #endregion
 }
