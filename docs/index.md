@@ -20,17 +20,19 @@ KeenEyes is a high-performance Entity Component System (ECS) framework for .NET 
 using KeenEyes.Core;
 
 // Create a world
-var world = new World();
+using var world = new World();
 
-// Create an entity with components
-var entity = world.CreateEntity()
-    .WithPosition(10, 20)
-    .WithVelocity(1, 0)
+// Create an entity with components using the fluent builder
+var entity = world.Spawn()
+    .With(new Position { X = 10, Y = 20 })
+    .With(new Velocity { X = 1, Y = 0 })
     .Build();
 
-// Query entities
-foreach (var (pos, vel) in world.Query<Position, Velocity>())
+// Query and process entities
+foreach (var e in world.Query<Position, Velocity>())
 {
+    ref var pos = ref world.Get<Position>(e);
+    ref readonly var vel = ref world.Get<Velocity>(e);
     // Process entities with Position and Velocity
 }
 ```

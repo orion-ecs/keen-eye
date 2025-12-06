@@ -17,12 +17,15 @@ The main entry point is the @KeenEyes.Core.World class:
 using KeenEyes.Core;
 
 // Create an isolated ECS world
-var world = new World();
+using var world = new World();
 
-// Create entities with components
-var entity = world.CreateEntity();
+// Create an entity with components using the fluent builder
+var entity = world.Spawn()
+    .With(new Position { X = 0, Y = 0 })
+    .With(new Velocity { X = 1, Y = 0 })
+    .Build();
 
-// Query entities
+// Query and iterate over matching entities
 foreach (var e in world.Query<Position, Velocity>())
 {
     ref var pos = ref world.Get<Position>(e);
@@ -31,9 +34,6 @@ foreach (var e in world.Query<Position, Velocity>())
     pos.X += vel.X;
     pos.Y += vel.Y;
 }
-
-// Clean up
-world.Dispose();
 ```
 
 ## Key Concepts
