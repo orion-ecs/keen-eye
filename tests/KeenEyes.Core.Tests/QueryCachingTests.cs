@@ -330,4 +330,288 @@ public class QueryCachingTests
     }
 
     #endregion
+
+    #region QueryEnumerator Coverage Tests
+
+    [Fact]
+    public void QueryEnumerator_Current_AfterEnumerationComplete_ReturnsNull()
+    {
+        using var world = new World();
+        world.Spawn().With(new Position()).Build();
+
+        var query = world.Query<Position>();
+        using var enumerator = query.GetEnumerator();
+
+        // Move past the last element
+        while (enumerator.MoveNext())
+        {
+            // Consume all
+        }
+
+        // After enumeration complete, MoveNext returns false
+        Assert.False(enumerator.MoveNext());
+
+        // Current should return Entity.Null when past end
+        Assert.Equal(Entity.Null, enumerator.Current);
+    }
+
+    [Fact]
+    public void QueryEnumerator_IEnumeratorCurrent_ReturnsCorrectEntity()
+    {
+        using var world = new World();
+        var entity = world.Spawn().With(new Position()).Build();
+
+        var query = world.Query<Position>();
+        System.Collections.IEnumerator enumerator = query.GetEnumerator();
+
+        enumerator.MoveNext();
+        object current = enumerator.Current;
+
+        Assert.IsType<Entity>(current);
+        Assert.Equal(entity, (Entity)current);
+    }
+
+    [Fact]
+    public void QueryEnumerator_Reset_AllowsReenumeration()
+    {
+        using var world = new World();
+        world.Spawn().With(new Position()).Build();
+        world.Spawn().With(new Position()).Build();
+
+        var query = world.Query<Position>();
+        using var enumerator = query.GetEnumerator();
+
+        // First enumeration
+        var count1 = 0;
+        while (enumerator.MoveNext())
+        {
+            count1++;
+        }
+
+        // Reset
+        enumerator.Reset();
+
+        // Second enumeration
+        var count2 = 0;
+        while (enumerator.MoveNext())
+        {
+            count2++;
+        }
+
+        Assert.Equal(2, count1);
+        Assert.Equal(2, count2);
+    }
+
+    [Fact]
+    public void QueryEnumerator_Dispose_CanBeCalledMultipleTimes()
+    {
+        using var world = new World();
+        world.Spawn().With(new Position()).Build();
+
+        var query = world.Query<Position>();
+        var enumerator = query.GetEnumerator();
+
+        enumerator.Dispose();
+        enumerator.Dispose(); // Should not throw
+    }
+
+    [Fact]
+    public void QueryEnumerator_TwoComponent_EnumeratesCorrectly()
+    {
+        using var world = new World();
+        world.Spawn().With(new Position()).With(new Velocity()).Build();
+        world.Spawn().With(new Position()).With(new Velocity()).Build();
+        world.Spawn().With(new Position()).Build(); // Won't match
+
+        var count = 0;
+        foreach (var entity in world.Query<Position, Velocity>())
+        {
+            count++;
+        }
+
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public void QueryEnumerator_TwoComponent_Reset_Works()
+    {
+        using var world = new World();
+        world.Spawn().With(new Position()).With(new Velocity()).Build();
+
+        var query = world.Query<Position, Velocity>();
+        using var enumerator = query.GetEnumerator();
+
+        enumerator.MoveNext();
+        enumerator.Reset();
+
+        Assert.True(enumerator.MoveNext());
+    }
+
+    [Fact]
+    public void QueryEnumerator_ThreeComponent_EnumeratesCorrectly()
+    {
+        using var world = new World();
+        world.Spawn().With(new Position()).With(new Velocity()).With(new Health()).Build();
+        world.Spawn().With(new Position()).With(new Velocity()).With(new Health()).Build();
+        world.Spawn().With(new Position()).With(new Velocity()).Build(); // Won't match
+
+        var count = 0;
+        foreach (var entity in world.Query<Position, Velocity, Health>())
+        {
+            count++;
+        }
+
+        Assert.Equal(2, count);
+    }
+
+    [Fact]
+    public void QueryEnumerator_ThreeComponent_Reset_Works()
+    {
+        using var world = new World();
+        world.Spawn().With(new Position()).With(new Velocity()).With(new Health()).Build();
+
+        var query = world.Query<Position, Velocity, Health>();
+        using var enumerator = query.GetEnumerator();
+
+        enumerator.MoveNext();
+        enumerator.Reset();
+
+        Assert.True(enumerator.MoveNext());
+    }
+
+    private struct TestTag : ITagComponent;
+
+    [Fact]
+    public void QueryEnumerator_FourComponent_EnumeratesCorrectly()
+    {
+        using var world = new World();
+        world.Spawn()
+            .With(new Position())
+            .With(new Velocity())
+            .With(new Health())
+            .WithTag<TestTag>()
+            .Build();
+
+        var count = 0;
+        foreach (var entity in world.Query<Position, Velocity, Health, TestTag>())
+        {
+            count++;
+        }
+
+        Assert.Equal(1, count);
+    }
+
+    [Fact]
+    public void QueryEnumerator_FourComponent_Reset_Works()
+    {
+        using var world = new World();
+        world.Spawn()
+            .With(new Position())
+            .With(new Velocity())
+            .With(new Health())
+            .WithTag<TestTag>()
+            .Build();
+
+        var query = world.Query<Position, Velocity, Health, TestTag>();
+        using var enumerator = query.GetEnumerator();
+
+        enumerator.MoveNext();
+        enumerator.Reset();
+
+        Assert.True(enumerator.MoveNext());
+    }
+
+    [Fact]
+    public void QueryEnumerator_EmptyWorld_NoIteration()
+    {
+        using var world = new World();
+
+        var count = 0;
+        foreach (var entity in world.Query<Position>())
+        {
+            count++;
+        }
+
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void QueryEnumerator_EmptyWorld_CurrentReturnsNull()
+    {
+        using var world = new World();
+
+        var query = world.Query<Position>();
+        using var enumerator = query.GetEnumerator();
+
+        Assert.False(enumerator.MoveNext());
+        Assert.Equal(Entity.Null, enumerator.Current);
+    }
+
+    [Fact]
+    public void QueryEnumerator_MultipleArchetypes_EnumeratesAll()
+    {
+        using var world = new World();
+
+        // Create entities in different archetypes
+        world.Spawn().With(new Position()).Build();
+        world.Spawn().With(new Position()).With(new Velocity()).Build();
+        world.Spawn().With(new Position()).With(new Health()).Build();
+
+        var count = 0;
+        foreach (var entity in world.Query<Position>())
+        {
+            count++;
+        }
+
+        Assert.Equal(3, count);
+    }
+
+    #endregion
+
+    #region QueryDescriptor Additional Coverage Tests
+
+    [Fact]
+    public void QueryDescriptor_Default_IsEmpty()
+    {
+        var desc = new QueryDescriptor([], []);
+
+        Assert.Empty(desc.With);
+        Assert.Empty(desc.Without);
+    }
+
+    [Fact]
+    public void QueryDescriptor_Equals_BothEmpty_ReturnsTrue()
+    {
+        var desc1 = new QueryDescriptor([], []);
+        var desc2 = new QueryDescriptor([], []);
+
+        Assert.Equal(desc1, desc2);
+    }
+
+    [Fact]
+    public void QueryDescriptor_Equals_Null_ReturnsFalse()
+    {
+        var desc = new QueryDescriptor([typeof(Position)], []);
+
+        Assert.False(desc.Equals(null));
+    }
+
+    [Fact]
+    public void QueryDescriptor_Equals_Object_ReturnsFalseForWrongType()
+    {
+        var desc = new QueryDescriptor([typeof(Position)], []);
+
+        Assert.False(desc.Equals("not a descriptor"));
+    }
+
+    [Fact]
+    public void QueryDescriptor_DifferentWithoutSets_NotEqual()
+    {
+        var desc1 = new QueryDescriptor([typeof(Position)], [typeof(Velocity)]);
+        var desc2 = new QueryDescriptor([typeof(Position)], [typeof(Health)]);
+
+        Assert.NotEqual(desc1, desc2);
+    }
+
+    #endregion
 }
