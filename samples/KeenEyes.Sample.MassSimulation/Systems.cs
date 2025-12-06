@@ -27,10 +27,25 @@ public class MovementSystem : SystemBase
             pos.Y += vel.Y * deltaTime;
 
             // Wrap around world bounds
-            if (pos.X < 0) pos.X += WorldWidth;
-            if (pos.X >= WorldWidth) pos.X -= WorldWidth;
-            if (pos.Y < 0) pos.Y += WorldHeight;
-            if (pos.Y >= WorldHeight) pos.Y -= WorldHeight;
+            if (pos.X < 0)
+            {
+                pos.X += WorldWidth;
+            }
+
+            if (pos.X >= WorldWidth)
+            {
+                pos.X -= WorldWidth;
+            }
+
+            if (pos.Y < 0)
+            {
+                pos.Y += WorldHeight;
+            }
+
+            if (pos.Y >= WorldHeight)
+            {
+                pos.Y -= WorldHeight;
+            }
         }
     }
 }
@@ -68,7 +83,7 @@ public class LifetimeSystem : SystemBase
 
             if (lifetime.Remaining <= 0)
             {
-                World.AddTag<Dead>(entity);
+                World.Add(entity, new Dead());
             }
         }
     }
