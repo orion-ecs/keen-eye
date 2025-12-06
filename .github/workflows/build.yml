@@ -5,10 +5,22 @@ on:
     branches:
       - main
       - develop
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'docfx.json'
+      - 'LICENSE'
+      - '.github/workflows/docs.yml'
   pull_request:
     branches:
       - main
       - develop
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - 'docfx.json'
+      - 'LICENSE'
+      - '.github/workflows/docs.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
