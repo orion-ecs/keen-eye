@@ -43,13 +43,20 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal --coverage  --report-github  --coverage-output-format cobertura  
+        run: dotnet test --no-build --configuration Release --verbosity normal --coverage --report-github --coverage-output-format cobertura
+
+      - name: Find coverage files
+        id: coverage
+        run: |
+          files=$(find . -name "*.cobertura.xml" -type f | tr '\n' ' ')
+          echo "files=$files" >> $GITHUB_OUTPUT
+          echo "Found coverage files: $files"
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         if: success()
         with:
-          file: ./**/*.cobertura.xml
+          files: ${{ steps.coverage.outputs.files }}
           format: cobertura
         continue-on-error: true
 
