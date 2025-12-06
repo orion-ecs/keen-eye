@@ -1109,12 +1109,12 @@ public class CommandBufferTests
 
         // Use EntityCommands through the non-generic IEntityBuilder interface
         IEntityBuilder builder = buffer.Spawn();
-        builder.WithTag<TestTag>();
+        builder.WithTag<ActiveTag>();
 
         var entityMap = buffer.Flush(world);
         var entity = entityMap[-1]; // First placeholder ID
 
-        Assert.True(world.Has<TestTag>(entity));
+        Assert.True(world.Has<ActiveTag>(entity));
     }
 
     [Fact]
@@ -1128,14 +1128,14 @@ public class CommandBufferTests
         builder
             .With(new TestPosition { X = 1f, Y = 2f })
             .With(new TestVelocity { X = 3f, Y = 4f })
-            .WithTag<TestTag>();
+            .WithTag<ActiveTag>();
 
         var entityMap = buffer.Flush(world);
         var entity = entityMap[-1];
 
         Assert.True(world.Has<TestPosition>(entity));
         Assert.True(world.Has<TestVelocity>(entity));
-        Assert.True(world.Has<TestTag>(entity));
+        Assert.True(world.Has<ActiveTag>(entity));
     }
 
     #endregion
