@@ -43,13 +43,13 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal --collect:"XPlat Code Coverage" --results-directory ./coverage
+        run: dotnet test --no-build --configuration Release --verbosity normal --coverage  --report-github  --coverage-output-format cobertura  
 
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         if: success()
         with:
-          file: ./coverage/**/coverage.cobertura.xml
+          file: ./coverage/**/*.cobertura.xml
           format: cobertura
         continue-on-error: true
 
