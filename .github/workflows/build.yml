@@ -49,7 +49,7 @@ jobs:
         uses: coverallsapp/github-action@v2
         if: success()
         with:
-          file: ./coverage/**/*.cobertura.xml
+          file: ./**/*.cobertura.xml
           format: cobertura
         continue-on-error: true
 
