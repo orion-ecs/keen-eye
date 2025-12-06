@@ -26,7 +26,7 @@ Essential features needed for basic usability.
 - [ ] `World.Set<T>(entity, value)` - update component data
 - [ ] `World.Add<T>(entity, component)` - add component to existing entity
 - [ ] `World.Remove<T>(entity)` - remove component from entity
-- [ ] `World.GetComponents(entity)` - get all components on entity
+- [x] `World.GetComponents(entity)` - get all components on entity
 - [ ] `World.Has<T>(entity)` - check component presence (partial implementation exists)
 - [ ] Entity naming support (`World.Spawn(name)`)
 
