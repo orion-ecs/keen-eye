@@ -84,7 +84,12 @@ jobs:
           echo "Baseline: ${{ steps.config.outputs.baseline }}"
           echo "Timeout: ${{ steps.config.outputs.timeout }} minutes"
 
-      - name: Build PR version
+      - name: Create artifacts directories
+        run: |
+          mkdir -p benchmarks/artifacts/current
+          mkdir -p benchmarks/artifacts/baseline
+
+      - name: Build current version
         run: dotnet build benchmarks/KeenEyes.Benchmarks -c Release
 
       - name: Run current benchmarks
@@ -104,7 +109,10 @@ jobs:
         run: dotnet build benchmarks/KeenEyes.Benchmarks -c Release
 
       - name: Run baseline benchmarks
+        id: baseline_run
         working-directory: benchmarks/KeenEyes.Benchmarks
+        # Continue even if filter matches nothing (new benchmarks in PR)
+        continue-on-error: true
         run: |
           dotnet run -c Release --no-build -- \
             --filter "${{ steps.config.outputs.filter }}" \
@@ -119,7 +127,10 @@ jobs:
       - name: Compare benchmark results
         id: compare
         run: |
-          dotnet run --project tools/BenchmarkCompare \
+          # Rebuild comparison tool after checkout
+          dotnet build tools/BenchmarkCompare -c Release
+
+          dotnet run --project tools/BenchmarkCompare --no-build -c Release \
             -- \
             --baseline benchmarks/artifacts/baseline \
             --current benchmarks/artifacts/current \
