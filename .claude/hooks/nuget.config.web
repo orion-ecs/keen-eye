@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NuGet config for Claude Code web sessions (proxy-restricted environments) -->
+<!-- Copied to parent directory by install-packages.sh to override project config -->
+<configuration>
+  <packageSources>
+    <clear />
+    <!-- Local feed populated by install-packages.sh -->
+    <add key="local-feed" value="/tmp/nuget-feed" />
+    <!-- nuget.org disabled - can't reach it due to proxy/DNS restrictions -->
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="local-feed">
+      <package pattern="*" />
+    </packageSource>
+    <packageSource key="nuget.org">
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
+  <!-- Enable local-feed, disable nuget.org (can't reach it due to proxy/DNS) -->
+  <disabledPackageSources>
+    <clear />
+    <add key="nuget.org" value="true" />
+  </disabledPackageSources>
+</configuration>

@@ -10,6 +10,18 @@ if [[ "$CLAUDE_CODE_REMOTE" != "true" ]]; then
     exit 0
 fi
 
+# Get the script's directory and project root
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
+PARENT_DIR="$(dirname "$PROJECT_ROOT")"
+
+# Copy web nuget.config to parent directory to override project config
+# NuGet searches parent directories, so this applies to all dotnet commands
+if [[ -f "$SCRIPT_DIR/nuget.config.web" ]]; then
+    cp "$SCRIPT_DIR/nuget.config.web" "$PARENT_DIR/nuget.config"
+    echo "Installed nuget.config to $PARENT_DIR (local-feed enabled, nuget.org disabled)"
+fi
+
 CACHE_DIR="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
 FEED_DIR="/tmp/nuget-feed"
 TEMP_DIR="/tmp/nuget-download"
@@ -29,7 +41,8 @@ download_pkg() {
     local url="https://api.nuget.org/v3-flatcontainer/${id}/${version}/${id}.${version}.nupkg"
     local nupkg="$TEMP_DIR/${id}.${version}.nupkg"
 
-    if wget -q -O "$nupkg" "$url" 2>/dev/null; then
+    # Clear no_proxy to ensure we use the proxy (DNS requires proxy in this env)
+    if no_proxy="" NO_PROXY="" wget -q -O "$nupkg" "$url" 2>/dev/null; then
         # Extract to global cache
         mkdir -p "$pkg_dir"
         unzip -q -o "$nupkg" -d "$pkg_dir" 2>/dev/null
