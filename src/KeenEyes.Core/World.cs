@@ -15,6 +15,10 @@ public sealed class World : IDisposable
     private readonly EntityBuilder builder;
     private readonly List<ISystem> systems = [];
 
+    // Entity naming support - bidirectional mapping for O(1) lookups
+    private readonly Dictionary<int, string> entityNames = [];
+    private readonly Dictionary<string, int> namesToEntityIds = [];
+
     /// <summary>
     /// The component registry for this world.
     /// Component IDs are unique per-world, not global.
@@ -42,10 +46,58 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
-    /// Creates an entity directly with the specified components.
+    /// Begins building a new entity with an optional name.
     /// </summary>
-    internal Entity CreateEntity(List<(ComponentInfo Info, object Data)> components)
+    /// <param name="name">
+    /// The optional name for the entity. If provided, must be unique within this world.
+    /// Can be <c>null</c> for unnamed entities.
+    /// </param>
+    /// <returns>A fluent builder for adding components.</returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when a non-null name is already assigned to another entity in this world.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Named entities can be retrieved later using <see cref="GetEntityByName(string)"/>.
+    /// This is useful for debugging, editor tooling, and scenarios where entities need
+    /// human-readable identifiers.
+    /// </para>
+    /// <para>
+    /// Names must be unique within a world. Attempting to create an entity with a name
+    /// that is already in use will throw an <see cref="ArgumentException"/>.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var player = world.Spawn("Player")
+    ///     .With(new Position { X = 0, Y = 0 })
+    ///     .With(new Health { Current = 100, Max = 100 })
+    ///     .Build();
+    ///
+    /// // Later, retrieve by name
+    /// var foundPlayer = world.GetEntityByName("Player");
+    /// </code>
+    /// </example>
+    /// <seealso cref="GetName(Entity)"/>
+    /// <seealso cref="GetEntityByName(string)"/>
+    public EntityBuilder Spawn(string? name)
     {
+        builder.Reset(name);
+        return builder;
+    }
+
+    /// <summary>
+    /// Creates an entity directly with the specified components and optional name.
+    /// </summary>
+    internal Entity CreateEntity(List<(ComponentInfo Info, object Data)> components, string? name = null)
+    {
+        // Validate name uniqueness before creating the entity
+        if (name is not null && namesToEntityIds.ContainsKey(name))
+        {
+            throw new ArgumentException(
+                $"An entity with the name '{name}' already exists in this world.", nameof(name));
+        }
+
         var id = Interlocked.Increment(ref nextEntityId) - 1;
         var version = 1;
 
@@ -57,6 +109,13 @@ public sealed class World : IDisposable
         {
             entityComponents[id][info.Id] = data;
             entityComponentTypes[id].Add(info.Type);
+        }
+
+        // Register the entity name if provided
+        if (name is not null)
+        {
+            entityNames[id] = name;
+            namesToEntityIds[name] = id;
         }
 
         return new Entity(id, version);
@@ -77,6 +136,14 @@ public sealed class World : IDisposable
         entityVersions[entity.Id]++;
         entityComponents.Remove(entity.Id);
         entityComponentTypes.Remove(entity.Id);
+
+        // Clean up entity name mappings if the entity had a name
+        if (entityNames.TryGetValue(entity.Id, out var name))
+        {
+            entityNames.Remove(entity.Id);
+            namesToEntityIds.Remove(name);
+        }
+
         return true;
     }
 
@@ -360,6 +427,105 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
+    /// Gets the name assigned to an entity, if any.
+    /// </summary>
+    /// <param name="entity">The entity to get the name for.</param>
+    /// <returns>
+    /// The name assigned to the entity, or <c>null</c> if the entity has no name
+    /// or is not alive.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This method is safe to call with stale entity handles. A stale handle refers to
+    /// an entity that has been destroyed (via <see cref="Despawn"/>). In such cases,
+    /// this method returns <c>null</c> rather than throwing an exception.
+    /// </para>
+    /// <para>
+    /// This operation is O(1) for the dictionary-based storage implementation.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var player = world.Spawn("Player")
+    ///     .With(new Position { X = 0, Y = 0 })
+    ///     .Build();
+    ///
+    /// var name = world.GetName(player); // Returns "Player"
+    ///
+    /// var unnamed = world.Spawn().Build();
+    /// var noName = world.GetName(unnamed); // Returns null
+    /// </code>
+    /// </example>
+    /// <seealso cref="Spawn(string?)"/>
+    /// <seealso cref="GetEntityByName(string)"/>
+    public string? GetName(Entity entity)
+    {
+        // Return null for stale/invalid entities (safe pattern like Has<T>)
+        if (!IsAlive(entity))
+        {
+            return null;
+        }
+
+        return entityNames.TryGetValue(entity.Id, out var name) ? name : null;
+    }
+
+    /// <summary>
+    /// Finds an entity by its assigned name.
+    /// </summary>
+    /// <param name="name">The name to search for.</param>
+    /// <returns>
+    /// The entity with the specified name, or <see cref="Entity.Null"/> if no entity
+    /// with that name exists in this world.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This operation is O(1) for the dictionary-based storage implementation.
+    /// </para>
+    /// <para>
+    /// Entity names are unique within a world. If you need multiple entities with
+    /// similar identifiers, consider using a naming convention like "Enemy_01", "Enemy_02", etc.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Create a named entity
+    /// world.Spawn("Player")
+    ///     .With(new Position { X = 0, Y = 0 })
+    ///     .Build();
+    ///
+    /// // Later, find it by name
+    /// var player = world.GetEntityByName("Player");
+    /// if (player.IsValid)
+    /// {
+    ///     ref var pos = ref world.Get&lt;Position&gt;(player);
+    ///     Console.WriteLine($"Player at ({pos.X}, {pos.Y})");
+    /// }
+    ///
+    /// // Non-existent name returns Entity.Null
+    /// var notFound = world.GetEntityByName("NonExistent");
+    /// Debug.Assert(!notFound.IsValid);
+    /// </code>
+    /// </example>
+    /// <seealso cref="Spawn(string?)"/>
+    /// <seealso cref="GetName(Entity)"/>
+    public Entity GetEntityByName(string name)
+    {
+        if (!namesToEntityIds.TryGetValue(name, out var entityId))
+        {
+            return Entity.Null;
+        }
+
+        // Verify the entity is still alive and return with correct version
+        if (!entityVersions.TryGetValue(entityId, out var version) ||
+            !entityComponents.ContainsKey(entityId))
+        {
+            return Entity.Null;
+        }
+
+        return new Entity(entityId, version);
+    }
+
+    /// <summary>
     /// Retrieves all components attached to the specified entity for debugging and introspection.
     /// </summary>
     /// <param name="entity">The entity to get components from.</param>
@@ -534,5 +700,7 @@ public sealed class World : IDisposable
         entityVersions.Clear();
         entityComponents.Clear();
         entityComponentTypes.Clear();
+        entityNames.Clear();
+        namesToEntityIds.Clear();
     }
 }
