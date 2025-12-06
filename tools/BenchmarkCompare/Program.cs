@@ -110,7 +110,9 @@ static Dictionary<string, BenchmarkResult> LoadBenchmarkResults(DirectoryInfo di
     }
 
     // Find all JSON report files in the directory tree
-    var jsonFiles = dir.GetFiles("*-report-full.json", SearchOption.AllDirectories)
+    // BenchmarkDotNet exports to *-report-full-compressed.json by default
+    var jsonFiles = dir.GetFiles("*-report-full-compressed.json", SearchOption.AllDirectories)
+        .Concat(dir.GetFiles("*-report-full.json", SearchOption.AllDirectories))
         .Concat(dir.GetFiles("*-report.json", SearchOption.AllDirectories))
         .ToList();
 
