@@ -262,6 +262,105 @@ private World world;
 #pragma warning restore CS8618
 ```
 
+## Code Coverage Requirements
+
+Code coverage is enforced by CI. If coverage drops below the current baseline, the build fails.
+
+### Running Coverage Locally
+
+Use xUnit.net v3 with Microsoft Testing Platform (MTP) to generate coverage reports:
+
+```bash
+dotnet test -- --coverage --coverage-output-format cobertura --coverage-output coverage.xml
+```
+
+This generates Cobertura XML reports in each test project's `bin/Debug/net10.0/TestResults/` directory.
+
+### Coverage Rules
+
+1. **Coverage must not decrease** - CI fails if any PR reduces overall coverage percentage
+2. **New code must be covered** - All new functionality requires corresponding tests
+3. **Edge cases matter** - Cover error paths, boundary conditions, and exceptional flows
+4. **No artificial inflation** - Tests must verify behavior, not just execute code
+
+### Test Quality Standards
+
+Tests are as important as production code. Every test must be:
+
+**Meaningful:**
+- Test actual behavior, not implementation details
+- Verify outcomes, not just that code runs without throwing
+- Cover both happy paths and error conditions
+
+**Well-named:**
+- Use pattern: `MethodName_Scenario_ExpectedResult`
+- Names should describe what is being tested
+- A failing test's name should indicate what went wrong
+
+```csharp
+// ✅ GOOD: Clear, descriptive names
+[Fact]
+public void Despawn_WithValidEntity_RemovesEntityFromWorld()
+
+[Fact]
+public void Get_WithDeadEntity_ThrowsInvalidOperationException()
+
+[Fact]
+public void Query_WithNoMatchingArchetypes_ReturnsEmptyEnumerable()
+
+// ❌ BAD: Vague, unclear names
+[Fact]
+public void TestDespawn()
+
+[Fact]
+public void GetThrows()
+
+[Fact]
+public void QueryWorks()
+```
+
+**Properly organized:**
+- Group related tests using `#region` or separate test classes
+- One test class per unit under test (e.g., `WorldTests`, `QueryEnumeratorTests`)
+- Use nested classes or regions for method-specific tests when appropriate
+
+```csharp
+public class WorldTests
+{
+    #region Spawn Tests
+    [Fact]
+    public void Spawn_CreatesEntity() { ... }
+
+    [Fact]
+    public void Spawn_WithComponents_AddsComponents() { ... }
+    #endregion
+
+    #region Despawn Tests
+    [Fact]
+    public void Despawn_RemovesEntity() { ... }
+    #endregion
+}
+```
+
+**Self-contained:**
+- Each test should be independent (no shared mutable state)
+- Use `using` with `World` instances for proper cleanup
+- Create fresh test data in each test
+
+```csharp
+// ✅ GOOD: Self-contained, isolated test
+[Fact]
+public void Spawn_CreatesEntityWithUniqueId()
+{
+    using var world = new World();
+
+    var entity1 = world.Spawn().Build();
+    var entity2 = world.Spawn().Build();
+
+    Assert.NotEqual(entity1.Id, entity2.Id);
+}
+```
+
 ## Sample & Tutorial Code Quality
 
 **All code is teaching code.** Samples, tutorials, examples, and documentation snippets are as important as production code - often more so.
