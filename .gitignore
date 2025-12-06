@@ -79,3 +79,8 @@ coverage/
 
 # BenchmarkDotNet
 BenchmarkDotNet.Artifacts/
+
+# DocFX
+_site/
+api/*.yml
+api/.manifest

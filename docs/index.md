@@ -37,4 +37,4 @@ foreach (var (pos, vel) in world.Query<Position, Velocity>())
 
 ## API Reference
 
-See the [API Documentation](api/index.md) for detailed reference.
+See the [API Documentation](../api/index.md) for detailed reference.
