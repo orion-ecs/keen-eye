@@ -143,6 +143,46 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
+    /// Sets (replaces) a component value on an entity that already has this component.
+    /// </summary>
+    /// <typeparam name="T">The component type to update.</typeparam>
+    /// <param name="entity">The entity to update the component on.</param>
+    /// <param name="value">The new component value.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the entity is not alive, the component type is not registered,
+    /// or the entity does not have the specified component. Use <see cref="EntityBuilder.With{T}(T)"/>
+    /// to add new components during entity creation.
+    /// </exception>
+    /// <example>
+    /// <code>
+    /// world.Set(entity, new Position { X = 100, Y = 200 });
+    /// </code>
+    /// </example>
+    public void Set<T>(Entity entity, in T value) where T : struct, IComponent
+    {
+        if (!IsAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        var info = Components.Get<T>();
+        if (info is null)
+        {
+            throw new InvalidOperationException(
+                $"Component type {typeof(T).Name} is not registered in this world.");
+        }
+
+        if (!entityComponents.TryGetValue(entity.Id, out var components) ||
+            !components.ContainsKey(info.Id))
+        {
+            throw new InvalidOperationException(
+                $"Entity {entity} does not have component {typeof(T).Name}. Use Add<T>() to add new components.");
+        }
+
+        components[info.Id] = value;
+    }
+
+    /// <summary>
     /// Gets all entities currently alive in this world.
     /// </summary>
     public IEnumerable<Entity> GetAllEntities()
