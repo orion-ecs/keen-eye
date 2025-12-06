@@ -2,19 +2,52 @@
 
 Welcome to the KeenEyes ECS API documentation.
 
-This reference is automatically generated from XML documentation comments in the source code.
+This reference is automatically generated from XML documentation comments in the source code. For tutorials and guides, see the [Documentation](../docs/index.md).
 
 ## Namespaces
 
-- **KeenEyes.Core** - Core ECS types including `World`, `Entity`, components, and queries
-- **KeenEyes.Generators.Attributes** - Attributes for source generator code generation
+### KeenEyes
+
+Core ECS runtime types for building high-performance entity component systems.
+
+| Type | Description |
+|------|-------------|
+| @KeenEyes.World | Main ECS container - manages entities, components, systems, and queries |
+| @KeenEyes.Entity | Lightweight entity handle `(Id, Version)` for staleness detection |
+| @KeenEyes.EntityBuilder | Fluent builder for spawning entities with components |
+| @KeenEyes.IComponent | Marker interface for component structs |
+| @KeenEyes.ITagComponent | Marker interface for zero-size tag components |
+| @KeenEyes.ComponentRegistry | Per-world component type registration |
+| @KeenEyes.Archetype | Storage for entities sharing the same component types |
+| @KeenEyes.ArchetypeManager | Manages archetype lifecycle and entity migrations |
+| @KeenEyes.QueryBuilder`1 | Fluent query builder for filtering entities |
+| @KeenEyes.QueryEnumerator`1 | Cache-friendly query iteration |
+| @KeenEyes.ISystem | Base interface for ECS systems |
+| @KeenEyes.SystemBase | Abstract base class with common system functionality |
+| @KeenEyes.SystemGroup | Groups systems for collective execution |
+| @KeenEyes.CommandBuffer | Queues entity operations for deferred execution |
+| @KeenEyes.EntityPool | Manages entity ID recycling with versioning |
+| @KeenEyes.MemoryStats | Memory usage statistics snapshot |
+
+### KeenEyes.Generators.Attributes
+
+Attributes for Roslyn source generators that reduce boilerplate code.
+
+| Attribute | Description |
+|-----------|-------------|
+| @KeenEyes.ComponentAttribute | Generates `WithComponentName()` fluent builder methods |
+| @KeenEyes.TagComponentAttribute | Generates parameterless tag methods for marker components |
+| @KeenEyes.DefaultValueAttribute | Specifies default values for component fields in builders |
+| @KeenEyes.BuilderIgnoreAttribute | Excludes a field from generated builder parameters |
+| @KeenEyes.QueryAttribute | Generates efficient query iterator structs |
+| @KeenEyes.SystemAttribute | Generates system metadata (Phase, Order, Group) |
 
 ## Getting Started
 
-The main entry point is the @KeenEyes.Core.World class:
+The main entry point is the @KeenEyes.World class:
 
 ```csharp
-using KeenEyes.Core;
+using KeenEyes;
 
 // Create an isolated ECS world
 using var world = new World();
@@ -40,9 +73,146 @@ foreach (var e in world.Query<Position, Velocity>())
 
 | Concept | Description |
 |---------|-------------|
-| **World** | Isolated container for entities, components, and systems |
-| **Entity** | Lightweight ID with version for staleness detection |
-| **Component** | Plain data struct attached to entities |
-| **Query** | Fluent API for filtering and iterating entities |
+| **World** | Isolated container for entities, components, and systems. Each world has its own component registry - no static state. |
+| **Entity** | Lightweight `(Id, Version)` tuple. Version increments on recycle for staleness detection. |
+| **Component** | Plain data struct implementing `IComponent`. Use `ITagComponent` for zero-size markers. |
+| **Archetype** | Internal storage grouping entities with identical component types for cache-friendly iteration. |
+| **Query** | Fluent API for filtering entities: `world.Query<A, B>().With<C>().Without<D>()` |
+| **System** | Logic that processes entities. Inherit from `SystemBase` or implement `ISystem`. |
+| **CommandBuffer** | Queues spawn/despawn/component operations for safe execution outside iteration. |
+| **Singleton** | World-level resources via `SetSingleton<T>()` / `GetSingleton<T>()`. |
 
-Browse the namespace documentation below for detailed API information.
+## Quick Reference
+
+### Entity Operations
+
+```csharp
+// Spawn
+var entity = world.Spawn()
+    .With(new Position { X = 0, Y = 0 })
+    .WithTag<Player>()
+    .Build();
+
+// Check and get components
+if (world.Has<Position>(entity))
+{
+    ref var pos = ref world.Get<Position>(entity);
+    pos.X += 10;
+}
+
+// Add/remove components
+world.Add(entity, new Velocity { X = 1, Y = 0 });
+world.Remove<Velocity>(entity);
+
+// Despawn
+world.Despawn(entity);
+```
+
+### Queries
+
+```csharp
+// Basic query - entities with Position AND Velocity
+foreach (var e in world.Query<Position, Velocity>())
+{
+    ref var pos = ref world.Get<Position>(e);
+    ref readonly var vel = ref world.Get<Velocity>(e);
+}
+
+// Filtered query - with Health, without Dead tag
+foreach (var e in world.Query<Position>().With<Health>().Without<Dead>())
+{
+    // Process living entities with position and health
+}
+```
+
+### Systems
+
+```csharp
+public class MovementSystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        foreach (var entity in World.Query<Position, Velocity>())
+        {
+            ref var pos = ref World.Get<Position>(entity);
+            ref readonly var vel = ref World.Get<Velocity>(entity);
+            pos.X += vel.X * deltaTime;
+            pos.Y += vel.Y * deltaTime;
+        }
+    }
+}
+
+// Register and run
+world.AddSystem<MovementSystem>();
+world.Update(deltaTime);
+```
+
+### Command Buffer (Deferred Operations)
+
+```csharp
+var buffer = new CommandBuffer();
+
+foreach (var entity in world.Query<Health>())
+{
+    ref var health = ref world.Get<Health>(entity);
+    if (health.Current <= 0)
+    {
+        // Queue for later - safe during iteration
+        buffer.Despawn(entity);
+    }
+}
+
+// Execute all queued commands
+buffer.Flush(world);
+```
+
+### Singletons
+
+```csharp
+// Set world-level resource
+world.SetSingleton(new GameConfig { Gravity = 9.8f });
+
+// Retrieve
+ref var config = ref world.GetSingleton<GameConfig>();
+```
+
+## Source Generator Attributes
+
+Reduce boilerplate with source-generated code:
+
+```csharp
+using KeenEyes.Generators.Attributes;
+
+// Generates WithPosition(float x, float y) builder method
+[Component]
+public partial struct Position
+{
+    public float X;
+    public float Y;
+}
+
+// Generates WithPlayer() parameterless method
+[TagComponent]
+public partial struct Player { }
+
+// Use generated methods
+var entity = world.Spawn()
+    .WithPosition(x: 10, y: 20)
+    .WithPlayer()
+    .Build();
+```
+
+## Guides
+
+For in-depth coverage, see the documentation guides:
+
+- [Getting Started](../docs/getting-started.md) - Build your first ECS application
+- [Core Concepts](../docs/concepts.md) - Understand ECS fundamentals
+- [Entities](../docs/entities.md) - Entity lifecycle and management
+- [Components](../docs/components.md) - Component patterns and best practices
+- [Queries](../docs/queries.md) - Filtering and iterating entities
+- [Systems](../docs/systems.md) - System design patterns
+- [Command Buffer](../docs/command-buffer.md) - Safe entity modification during iteration
+- [Singletons](../docs/singletons.md) - World-level resources
+
+Browse the namespace documentation below for detailed API information on each type.
