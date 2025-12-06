@@ -347,7 +347,8 @@ public class EntityNamingTests
 
         Assert.True(entity2.IsValid);
         Assert.Equal("Player", world.GetName(entity2));
-        Assert.NotEqual(entity1.Id, entity2.Id);
+        // With entity pooling, IDs may be recycled but versions will differ
+        Assert.NotEqual(entity1, entity2);
     }
 
     [Fact]
