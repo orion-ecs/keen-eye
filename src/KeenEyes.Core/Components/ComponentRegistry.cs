@@ -83,4 +83,20 @@ public sealed class ComponentRegistry
     {
         return byType.ContainsKey(typeof(T));
     }
+
+    /// <summary>
+    /// Gets the component info by its ID, or null if the ID is invalid.
+    /// </summary>
+    /// <param name="id">The component ID to look up.</param>
+    /// <returns>The component info, or null if the ID is out of range.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public ComponentInfo? GetById(ComponentId id)
+    {
+        var index = id.Value;
+        if (index < 0 || index >= all.Count)
+        {
+            return null;
+        }
+        return all[index];
+    }
 }

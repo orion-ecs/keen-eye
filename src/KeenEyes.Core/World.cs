@@ -360,6 +360,71 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
+    /// Retrieves all components attached to the specified entity for debugging and introspection.
+    /// </summary>
+    /// <param name="entity">The entity to get components from.</param>
+    /// <returns>
+    /// An enumerable of tuples containing the component type and its boxed value.
+    /// Returns an empty sequence if the entity is not alive or has no components.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// <strong>Boxing overhead:</strong> Component values are returned as boxed objects, which
+    /// incurs allocation costs. This method is intended for debugging, editor integration, and
+    /// serialization scenarios where performance is not critical. For performance-sensitive code,
+    /// use <see cref="Get{T}(Entity)"/> or <see cref="Has{T}(Entity)"/> instead.
+    /// </para>
+    /// <para>
+    /// This method is safe to call with stale entity handles. A stale handle refers to
+    /// an entity that has been destroyed (via <see cref="Despawn"/>). In such cases,
+    /// this method returns an empty sequence rather than throwing an exception.
+    /// </para>
+    /// <para>
+    /// The complexity is O(C) where C is the number of component types registered in the world,
+    /// as it iterates through the entity's component dictionary.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Debug: Print all components on an entity
+    /// foreach (var (type, value) in world.GetComponents(entity))
+    /// {
+    ///     Console.WriteLine($"{type.Name}: {value}");
+    /// }
+    ///
+    /// // Serialization: Create a snapshot of entity state
+    /// var snapshot = world.GetComponents(entity)
+    ///     .ToDictionary(c => c.Type.Name, c => c.Value);
+    /// </code>
+    /// </example>
+    /// <seealso cref="Get{T}(Entity)"/>
+    /// <seealso cref="Has{T}(Entity)"/>
+    public IEnumerable<(Type Type, object Value)> GetComponents(Entity entity)
+    {
+        // Return empty for stale/invalid entities (safe pattern like Has<T>)
+        if (!IsAlive(entity))
+        {
+            yield break;
+        }
+
+        if (!entityComponents.TryGetValue(entity.Id, out var components))
+        {
+            yield break;
+        }
+
+        // Iterate through all components on this entity
+        foreach (var (componentId, boxedValue) in components)
+        {
+            // Get the type information from the component registry
+            var info = Components.GetById(componentId);
+            if (info is not null)
+            {
+                yield return (info.Type, boxedValue);
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets all entities matching a query description.
     /// </summary>
     internal IEnumerable<Entity> GetMatchingEntities(QueryDescription description)
