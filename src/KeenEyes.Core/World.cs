@@ -129,17 +129,65 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
-    /// Checks if an entity has a component.
+    /// Checks if an entity has a specific component type.
     /// </summary>
+    /// <typeparam name="T">The component type to check for.</typeparam>
+    /// <param name="entity">The entity to check.</param>
+    /// <returns>
+    /// <c>true</c> if the entity is alive and has the specified component;
+    /// <c>false</c> if the entity is not alive, the component type is not registered,
+    /// or the entity does not have the component.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This method is safe to call with stale entity handles. A stale handle refers to
+    /// an entity that has been destroyed (via <see cref="Despawn"/>). In such cases,
+    /// this method returns <c>false</c> rather than throwing an exception.
+    /// </para>
+    /// <para>
+    /// This operation is O(1) for the dictionary-based storage implementation.
+    /// </para>
+    /// <para>
+    /// Use this method to conditionally check for components before calling
+    /// <see cref="Get{T}(Entity)"/> to avoid exceptions, or use the guard clause
+    /// pattern to skip entities that lack required components.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Conditional component access
+    /// if (world.Has&lt;Velocity&gt;(entity))
+    /// {
+    ///     ref var velocity = ref world.Get&lt;Velocity&gt;(entity);
+    ///     // Process velocity...
+    /// }
+    ///
+    /// // Guard clause pattern
+    /// if (!world.Has&lt;Health&gt;(entity))
+    /// {
+    ///     return; // Skip entities without health
+    /// }
+    /// </code>
+    /// </example>
+    /// <seealso cref="Get{T}(Entity)"/>
+    /// <seealso cref="Add{T}(Entity, in T)"/>
+    /// <seealso cref="Remove{T}(Entity)"/>
     public bool Has<T>(Entity entity) where T : struct, IComponent
     {
-        if (!entityComponents.TryGetValue(entity.Id, out var components))
+        // Check entity validity first - stale handles should return false
+        if (!IsAlive(entity))
         {
             return false;
         }
 
         var info = Components.Get<T>();
-        return info is not null && components.ContainsKey(info.Id);
+        if (info is null)
+        {
+            return false;
+        }
+
+        return entityComponents.TryGetValue(entity.Id, out var components) &&
+               components.ContainsKey(info.Id);
     }
 
     /// <summary>
