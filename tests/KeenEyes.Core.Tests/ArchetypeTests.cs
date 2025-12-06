@@ -1126,20 +1126,6 @@ public class ArchetypeTests
 #pragma warning restore CS0618
 
     [Fact]
-    public void Archetype_GetAllComponentArrays_EmptyArchetype_ReturnsEmptyDict()
-    {
-        var registry = new ComponentRegistry();
-        registry.Register<Position>();
-        var manager = new ArchetypeManager(registry);
-        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
-
-        var arrays = archetype.GetAllComponentArrays();
-
-        // No chunks yet, returns a dict with empty arrays per type
-        Assert.NotNull(arrays);
-    }
-
-    [Fact]
     public void Archetype_Dispose_WithChunkPool_ReturnsChunksToPool()
     {
         var registry = new ComponentRegistry();

@@ -346,27 +346,6 @@ public sealed class Archetype : IDisposable
         sourceChunk.CopyComponentsTo(indexInChunk, destChunk);
     }
 
-    /// <summary>
-    /// Gets all component arrays in the first chunk (for backwards compatibility).
-    /// </summary>
-    internal IReadOnlyDictionary<Type, IComponentArray> GetAllComponentArrays()
-    {
-        if (chunks.Count == 0)
-        {
-            return new Dictionary<Type, IComponentArray>();
-        }
-
-        // This is for backwards compatibility - returns first chunk's arrays
-        var result = new Dictionary<Type, IComponentArray>();
-        foreach (var type in componentTypesList)
-        {
-            var arrayType = typeof(ComponentArray<>).MakeGenericType(type);
-            var array = (IComponentArray)Activator.CreateInstance(arrayType)!;
-            result[type] = array;
-        }
-        return result;
-    }
-
     /// <inheritdoc />
     public void Dispose()
     {
