@@ -17,6 +17,15 @@
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/install-packages.sh"
           }
         ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/scripts/resume-dotnet.sh"
+          }
+        ]
       }
     ]
   }
