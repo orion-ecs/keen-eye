@@ -878,4 +878,33 @@ public class SystemRuntimeControlTests
         world.Update(0.016f);
         Assert.Equal(2, system.UpdateCount); // Incremented
     }
+
+    [Fact]
+    public void BaseOnEnabled_CalledWhenNoOverride()
+    {
+        // TestCountingSystem doesn't override OnEnabled, so base implementation is called
+        using var world = new World();
+        var system = new TestCountingSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false;
+        system.Enabled = true; // Triggers base OnEnabled()
+
+        // Should not throw - base implementation is empty but should be covered
+        Assert.True(system.Enabled);
+    }
+
+    [Fact]
+    public void BaseOnDisabled_CalledWhenNoOverride()
+    {
+        // TestCountingSystem doesn't override OnDisabled, so base implementation is called
+        using var world = new World();
+        var system = new TestCountingSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false; // Triggers base OnDisabled()
+
+        // Should not throw - base implementation is empty but should be covered
+        Assert.False(system.Enabled);
+    }
 }
