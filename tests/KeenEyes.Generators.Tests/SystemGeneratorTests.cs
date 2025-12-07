@@ -268,6 +268,243 @@ public class SystemGeneratorTests
         Assert.Empty(generatedTrees);
     }
 
+    #region Extension Method Generation Tests
+
+    [Fact]
+    public void SystemGenerator_GeneratesWorldExtensionMethod()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System]
+            public partial class MovementSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("public static global::KeenEyes.World AddMovementSystem(this global::KeenEyes.World world)"));
+    }
+
+    [Fact]
+    public void SystemGenerator_GeneratesSystemGroupExtensionMethod()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System]
+            public partial class MovementSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("public static global::KeenEyes.SystemGroup AddMovementSystem(this global::KeenEyes.SystemGroup group)"));
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_UsesCorrectPhaseAndOrder()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System(Phase = KeenEyes.SystemPhase.FixedUpdate, Order = 42)]
+            public partial class PhysicsSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Check World extension uses correct phase and order
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("world.AddSystem<global::TestApp.PhysicsSystem>(global::KeenEyes.SystemPhase.FixedUpdate, order: 42)"));
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_SystemGroupUsesCorrectOrder()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System(Order = 100)]
+            public partial class LateSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Check SystemGroup extension uses correct order
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("group.Add<global::TestApp.LateSystem>(order: 100)"));
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_GeneratesExtensionClass()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System]
+            public partial class InputSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("public static class InputSystemExtensions"));
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_GeneratesXmlDocumentation()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System(Phase = KeenEyes.SystemPhase.Render, Order = 5, Group = "Rendering")]
+            public partial class RenderSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Check XML docs include phase, order, and group info
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("/// <para>Phase: <see cref=\"global::KeenEyes.SystemPhase.Render\"/></para>"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("/// <para>Order: 5</para>"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("/// <para>Group: Rendering</para>"));
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_InGlobalNamespace_GeneratesCorrectly()
+    {
+        var source = """
+            [KeenEyes.System(Phase = KeenEyes.SystemPhase.EarlyUpdate)]
+            public partial class GlobalInputSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("public static class GlobalInputSystemExtensions"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("world.AddSystem<global::GlobalInputSystem>(global::KeenEyes.SystemPhase.EarlyUpdate, order: 0)"));
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_InNestedNamespace_GeneratesCorrectly()
+    {
+        var source = """
+            namespace Game.Systems.AI;
+
+            [KeenEyes.System(Order = -10)]
+            public partial class DecisionSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("namespace Game.Systems.AI;") &&
+            t.Contains("public static class DecisionSystemExtensions"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("world.AddSystem<global::Game.Systems.AI.DecisionSystem>"));
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_WithNegativeOrder_GeneratesCorrectly()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System(Order = -50)]
+            public partial class PrioritySystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("order: -50"));
+    }
+
+    [Fact]
+    public void SystemGenerator_MultipleSystems_GeneratesSeparateExtensionClasses()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System(Phase = KeenEyes.SystemPhase.EarlyUpdate, Order = 0)]
+            public partial class InputSystem { }
+
+            [KeenEyes.System(Phase = KeenEyes.SystemPhase.Update, Order = 10)]
+            public partial class MovementSystem { }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("public static class InputSystemExtensions"));
+        Assert.Contains(generatedTrees, t => t.Contains("public static class MovementSystemExtensions"));
+        Assert.Contains(generatedTrees, t => t.Contains("AddInputSystem"));
+        Assert.Contains(generatedTrees, t => t.Contains("AddMovementSystem"));
+    }
+
+    [Fact]
+    public void SystemGenerator_GeneratesBothPartialAndExtensions()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate two files: one for partial class, one for extensions
+        Assert.Equal(2, generatedTrees.Count);
+
+        // Partial class with static properties
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("partial class TestSystem") &&
+            t.Contains("public static global::KeenEyes.SystemPhase Phase"));
+
+        // Extension class
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("public static class TestSystemExtensions") &&
+            t.Contains("AddTestSystem"));
+    }
+
+    #endregion
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(SystemAttribute).Assembly;

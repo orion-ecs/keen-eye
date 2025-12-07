@@ -6,9 +6,10 @@ namespace KeenEyes;
 /// </summary>
 public class SystemGroup : ISystem
 {
-    private readonly List<ISystem> systems = [];
+    private readonly List<SystemEntry> systems = [];
     private World? world;
     private bool enabled = true;
+    private bool systemsSorted = true;
 
     /// <summary>
     /// Name of this system group.
@@ -31,29 +32,57 @@ public class SystemGroup : ISystem
     }
 
     /// <summary>
-    /// Adds a system to this group.
+    /// Adds a system to this group with specified execution order.
     /// </summary>
-    public SystemGroup Add<T>() where T : ISystem, new()
+    /// <typeparam name="T">The system type to add.</typeparam>
+    /// <param name="order">The execution order within the group. Lower values execute first. Defaults to 0.</param>
+    /// <returns>This group for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Systems within a group are sorted by order value. Systems with lower order values execute first.
+    /// Systems with the same order maintain stable relative ordering.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var updateGroup = new SystemGroup("Update")
+    ///     .Add&lt;MovementSystem&gt;(order: 0)
+    ///     .Add&lt;CollisionSystem&gt;(order: 10)
+    ///     .Add&lt;DamageSystem&gt;(order: 20);
+    /// </code>
+    /// </example>
+    public SystemGroup Add<T>(int order = 0) where T : ISystem, new()
     {
         var system = new T();
         if (world is not null)
         {
             system.Initialize(world);
         }
-        systems.Add(system);
+        systems.Add(new SystemEntry(system, order));
+        systemsSorted = false;
         return this;
     }
 
     /// <summary>
-    /// Adds a system instance to this group.
+    /// Adds a system instance to this group with specified execution order.
     /// </summary>
-    public SystemGroup Add(ISystem system)
+    /// <param name="system">The system instance to add.</param>
+    /// <param name="order">The execution order within the group. Lower values execute first. Defaults to 0.</param>
+    /// <returns>This group for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Use this overload when you need to pass a pre-configured system instance or a system
+    /// that requires constructor parameters.
+    /// </para>
+    /// </remarks>
+    public SystemGroup Add(ISystem system, int order = 0)
     {
         if (world is not null)
         {
             system.Initialize(world);
         }
-        systems.Add(system);
+        systems.Add(new SystemEntry(system, order));
+        systemsSorted = false;
         return this;
     }
 
@@ -64,13 +93,13 @@ public class SystemGroup : ISystem
     /// <returns>The system instance, or null if not found.</returns>
     public T? GetSystem<T>() where T : class, ISystem
     {
-        foreach (var system in systems)
+        foreach (var entry in systems)
         {
-            if (system is T typedSystem)
+            if (entry.System is T typedSystem)
             {
                 return typedSystem;
             }
-            if (system is SystemGroup group)
+            if (entry.System is SystemGroup group)
             {
                 var found = group.GetSystem<T>();
                 if (found is not null)
@@ -86,17 +115,21 @@ public class SystemGroup : ISystem
     public void Initialize(World world)
     {
         this.world = world;
-        foreach (var system in systems)
+        foreach (var entry in systems)
         {
-            system.Initialize(world);
+            entry.System.Initialize(world);
         }
     }
 
     /// <inheritdoc />
     public void Update(float deltaTime)
     {
-        foreach (var system in systems)
+        EnsureSystemsSorted();
+
+        foreach (var entry in systems)
         {
+            var system = entry.System;
+
             if (!system.Enabled)
             {
                 continue;
@@ -118,10 +151,29 @@ public class SystemGroup : ISystem
     /// <inheritdoc />
     public void Dispose()
     {
-        foreach (var system in systems)
+        foreach (var entry in systems)
         {
-            system.Dispose();
+            entry.System.Dispose();
         }
         systems.Clear();
     }
+
+    /// <summary>
+    /// Ensures systems are sorted by order before iteration.
+    /// </summary>
+    private void EnsureSystemsSorted()
+    {
+        if (systemsSorted)
+        {
+            return;
+        }
+
+        systems.Sort((a, b) => a.Order.CompareTo(b.Order));
+        systemsSorted = true;
+    }
+
+    /// <summary>
+    /// Internal record for storing system with its execution order.
+    /// </summary>
+    private sealed record SystemEntry(ISystem System, int Order);
 }

@@ -26,7 +26,8 @@ public sealed class World : IDisposable
     private readonly QueryManager queryManager;
     private readonly Dictionary<Type, object> singletons = [];
     private readonly EntityBuilder builder;
-    private readonly List<ISystem> systems = [];
+    private readonly List<SystemEntry> systems = [];
+    private bool systemsSorted = true;
 
     // Entity naming support - bidirectional mapping for O(1) lookups
     private readonly Dictionary<int, string> entityNames = [];
@@ -1461,23 +1462,67 @@ public sealed class World : IDisposable
     #region Systems
 
     /// <summary>
-    /// Adds a system to this world.
+    /// Adds a system to this world with specified execution phase and order.
     /// </summary>
-    public World AddSystem<T>() where T : ISystem, new()
+    /// <typeparam name="T">The system type to add.</typeparam>
+    /// <param name="phase">The execution phase for this system. Defaults to <see cref="SystemPhase.Update"/>.</param>
+    /// <param name="order">The execution order within the phase. Lower values execute first. Defaults to 0.</param>
+    /// <returns>This world for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Systems are automatically sorted by phase then by order when <see cref="Update"/> is called.
+    /// Systems in earlier phases (e.g., <see cref="SystemPhase.EarlyUpdate"/>) execute before
+    /// systems in later phases (e.g., <see cref="SystemPhase.LateUpdate"/>).
+    /// </para>
+    /// <para>
+    /// Within the same phase, systems with lower order values execute first.
+    /// Systems with the same phase and order maintain stable relative ordering.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// world.AddSystem&lt;InputSystem&gt;(SystemPhase.EarlyUpdate, order: -10)
+    ///      .AddSystem&lt;PhysicsSystem&gt;(SystemPhase.FixedUpdate)
+    ///      .AddSystem&lt;MovementSystem&gt;(SystemPhase.Update, order: 0)
+    ///      .AddSystem&lt;RenderSystem&gt;(SystemPhase.Render);
+    /// </code>
+    /// </example>
+    public World AddSystem<T>(SystemPhase phase = SystemPhase.Update, int order = 0) where T : ISystem, new()
     {
         var system = new T();
         system.Initialize(this);
-        systems.Add(system);
+        systems.Add(new SystemEntry(system, phase, order));
+        systemsSorted = false;
         return this;
     }
 
     /// <summary>
-    /// Adds a system instance to this world.
+    /// Adds a system instance to this world with specified execution phase and order.
     /// </summary>
-    public World AddSystem(ISystem system)
+    /// <param name="system">The system instance to add.</param>
+    /// <param name="phase">The execution phase for this system. Defaults to <see cref="SystemPhase.Update"/>.</param>
+    /// <param name="order">The execution order within the phase. Lower values execute first. Defaults to 0.</param>
+    /// <returns>This world for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Use this overload when you need to pass a pre-configured system instance or a system
+    /// that requires constructor parameters.
+    /// </para>
+    /// <para>
+    /// Systems are automatically sorted by phase then by order when <see cref="Update"/> is called.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var customSystem = new CustomSystem("config");
+    /// world.AddSystem(customSystem, SystemPhase.Update, order: 10);
+    /// </code>
+    /// </example>
+    public World AddSystem(ISystem system, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
         system.Initialize(this);
-        systems.Add(system);
+        systems.Add(new SystemEntry(system, phase, order));
+        systemsSorted = false;
         return this;
     }
 
@@ -1487,7 +1532,8 @@ public sealed class World : IDisposable
     /// <param name="deltaTime">The time elapsed since the last update.</param>
     /// <remarks>
     /// <para>
-    /// Systems are updated in the order they were added. Disabled systems are skipped.
+    /// Systems are executed in order of their phase (earliest first), then by their order
+    /// value within each phase (lowest first). Disabled systems are skipped.
     /// </para>
     /// <para>
     /// For systems derived from <see cref="SystemBase"/>, the following lifecycle methods
@@ -1496,8 +1542,12 @@ public sealed class World : IDisposable
     /// </remarks>
     public void Update(float deltaTime)
     {
-        foreach (var system in systems)
+        EnsureSystemsSorted();
+
+        foreach (var entry in systems)
         {
+            var system = entry.System;
+
             if (!system.Enabled)
             {
                 continue;
@@ -1536,13 +1586,13 @@ public sealed class World : IDisposable
     /// </example>
     public T? GetSystem<T>() where T : class, ISystem
     {
-        foreach (var system in systems)
+        foreach (var entry in systems)
         {
-            if (system is T typedSystem)
+            if (entry.System is T typedSystem)
             {
                 return typedSystem;
             }
-            if (system is SystemGroup group)
+            if (entry.System is SystemGroup group)
             {
                 var found = group.GetSystem<T>();
                 if (found is not null)
@@ -2332,12 +2382,39 @@ public sealed class World : IDisposable
 
     #endregion
 
+    #region System Entry
+
+    /// <summary>
+    /// Internal record for storing system with its execution metadata.
+    /// </summary>
+    private sealed record SystemEntry(ISystem System, SystemPhase Phase, int Order);
+
+    /// <summary>
+    /// Ensures systems are sorted by phase and order before iteration.
+    /// </summary>
+    private void EnsureSystemsSorted()
+    {
+        if (systemsSorted)
+        {
+            return;
+        }
+
+        systems.Sort((a, b) =>
+        {
+            var phaseCompare = a.Phase.CompareTo(b.Phase);
+            return phaseCompare != 0 ? phaseCompare : a.Order.CompareTo(b.Order);
+        });
+        systemsSorted = true;
+    }
+
+    #endregion
+
     /// <inheritdoc />
     public void Dispose()
     {
-        foreach (var system in systems)
+        foreach (var entry in systems)
         {
-            system.Dispose();
+            entry.System.Dispose();
         }
         systems.Clear();
         archetypeManager.Dispose();
