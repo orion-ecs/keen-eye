@@ -216,12 +216,6 @@ public sealed class ArchetypeManager : IDisposable
 
         var (currentArchetype, currentIndex) = location;
 
-        // Check if has the component
-        if (!currentArchetype.Has<T>())
-        {
-            return false;
-        }
-
         // Get or create target archetype
         var newId = currentArchetype.Id.Without<T>();
         var newArchetype = GetOrCreateArchetype(newId);
