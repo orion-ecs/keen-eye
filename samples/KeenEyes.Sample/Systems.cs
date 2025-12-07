@@ -173,3 +173,108 @@ public partial class PhysicsSystem : SystemBase
         }
     }
 }
+
+// =============================================================================
+// PLUGIN EXAMPLES
+// =============================================================================
+// Plugins encapsulate related systems, components, and functionality.
+// They are installed per-world, maintaining isolation between worlds.
+// Use IWorldPlugin interface to create reusable feature packages.
+// =============================================================================
+
+/// <summary>
+/// Example extension class that a plugin might expose.
+/// Extensions allow plugins to provide custom APIs to application code.
+/// The [PluginExtension] attribute generates a typed property on World.
+/// </summary>
+[PluginExtension("DebugStats")]
+public sealed class DebugStats
+{
+    /// <summary>
+    /// Number of entities processed in the last frame.
+    /// </summary>
+    public int EntitiesProcessed { get; set; }
+
+    /// <summary>
+    /// Total update time in milliseconds.
+    /// </summary>
+    public float UpdateTimeMs { get; set; }
+}
+
+/// <summary>
+/// Example debug system that tracks entity statistics.
+/// </summary>
+public class DebugStatsSystem : SystemBase
+{
+    /// <inheritdoc />
+    public override void Update(float deltaTime)
+    {
+        // Access the extension set by our plugin
+        if (World.TryGetExtension<DebugStats>(out var stats))
+        {
+            stats.EntitiesProcessed = World.GetAllEntities().Count();
+            Console.WriteLine($"  DebugStatsSystem: {stats.EntitiesProcessed} entities");
+        }
+    }
+}
+
+/// <summary>
+/// Example plugin that provides debug statistics functionality.
+/// Demonstrates the full plugin lifecycle and extension API.
+/// </summary>
+public class DebugPlugin : IWorldPlugin
+{
+    /// <inheritdoc />
+    public string Name => "Debug";
+
+    /// <inheritdoc />
+    public void Install(PluginContext context)
+    {
+        Console.WriteLine($"  [{Name}Plugin] Installing...");
+
+        // Register systems through the context (tracked for auto-cleanup)
+        context.AddSystem<DebugStatsSystem>(SystemPhase.PostRender, order: 100);
+
+        // Expose an extension API for application code
+        context.SetExtension(new DebugStats());
+
+        Console.WriteLine($"  [{Name}Plugin] Installed");
+    }
+
+    /// <inheritdoc />
+    public void Uninstall(PluginContext context)
+    {
+        Console.WriteLine($"  [{Name}Plugin] Uninstalling...");
+
+        // Remove our extension (systems are auto-removed)
+        context.RemoveExtension<DebugStats>();
+
+        Console.WriteLine($"  [{Name}Plugin] Uninstalled");
+    }
+}
+
+/// <summary>
+/// Example combat plugin that groups combat-related systems.
+/// </summary>
+public class CombatPlugin : IWorldPlugin
+{
+    /// <inheritdoc />
+    public string Name => "Combat";
+
+    /// <inheritdoc />
+    public void Install(PluginContext context)
+    {
+        Console.WriteLine($"  [{Name}Plugin] Installing combat systems...");
+
+        // Register HealthSystem at LateUpdate phase
+        context.AddSystem<HealthSystem>(SystemPhase.LateUpdate, order: 0);
+
+        Console.WriteLine($"  [{Name}Plugin] Installed");
+    }
+
+    /// <inheritdoc />
+    public void Uninstall(PluginContext context)
+    {
+        Console.WriteLine($"  [{Name}Plugin] Uninstalled");
+    }
+}

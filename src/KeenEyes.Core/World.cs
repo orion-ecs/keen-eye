@@ -47,6 +47,12 @@ public sealed class World : IDisposable
     // Change tracking
     private readonly ChangeTracker changeTracker = new();
 
+    // Extensions (plugin-provided APIs)
+    private readonly Dictionary<Type, object> extensions = [];
+
+    // Plugins
+    private readonly Dictionary<string, PluginEntry> plugins = [];
+
     /// <summary>
     /// The component registry for this world.
     /// Component IDs are unique per-world, not global.
@@ -2037,6 +2043,329 @@ public sealed class World : IDisposable
 
     #endregion
 
+    #region Extensions
+
+    /// <summary>
+    /// Sets or updates an extension value for this world.
+    /// </summary>
+    /// <typeparam name="T">The extension type. Must be a reference type.</typeparam>
+    /// <param name="extension">The extension instance to store.</param>
+    /// <remarks>
+    /// <para>
+    /// Extensions are typically set by plugins to expose custom APIs.
+    /// For example, a physics plugin might expose a <c>PhysicsWorld</c> extension
+    /// that provides raycast and collision query methods.
+    /// </para>
+    /// <para>
+    /// If an extension of type <typeparamref name="T"/> already exists, it will be replaced.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // In a plugin:
+    /// world.SetExtension(new PhysicsWorld());
+    ///
+    /// // In application code:
+    /// var physics = world.GetExtension&lt;PhysicsWorld&gt;();
+    /// var hit = physics.Raycast(origin, direction);
+    /// </code>
+    /// </example>
+    /// <seealso cref="GetExtension{T}"/>
+    /// <seealso cref="TryGetExtension{T}"/>
+    /// <seealso cref="HasExtension{T}"/>
+    public void SetExtension<T>(T extension) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(extension);
+        extensions[typeof(T)] = extension;
+    }
+
+    /// <summary>
+    /// Gets an extension by type.
+    /// </summary>
+    /// <typeparam name="T">The extension type to retrieve.</typeparam>
+    /// <returns>The extension instance.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when no extension of type <typeparamref name="T"/> exists in this world.
+    /// Use <see cref="TryGetExtension{T}"/> or <see cref="HasExtension{T}"/> to check
+    /// existence before calling this method if the extension may not exist.
+    /// </exception>
+    /// <example>
+    /// <code>
+    /// var physics = world.GetExtension&lt;PhysicsWorld&gt;();
+    /// var hit = physics.Raycast(origin, direction);
+    /// </code>
+    /// </example>
+    public T GetExtension<T>() where T : class
+    {
+        if (!extensions.TryGetValue(typeof(T), out var extension))
+        {
+            throw new InvalidOperationException(
+                $"No extension of type '{typeof(T).Name}' exists in this world.");
+        }
+        return (T)extension;
+    }
+
+    /// <summary>
+    /// Tries to get an extension by type.
+    /// </summary>
+    /// <typeparam name="T">The extension type to retrieve.</typeparam>
+    /// <param name="extension">When this method returns, contains the extension if found; otherwise, null.</param>
+    /// <returns>True if the extension was found; false otherwise.</returns>
+    /// <example>
+    /// <code>
+    /// if (world.TryGetExtension&lt;PhysicsWorld&gt;(out var physics))
+    /// {
+    ///     var hit = physics.Raycast(origin, direction);
+    /// }
+    /// </code>
+    /// </example>
+    public bool TryGetExtension<T>([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T extension) where T : class
+    {
+        if (extensions.TryGetValue(typeof(T), out var value))
+        {
+            extension = (T)value;
+            return true;
+        }
+        extension = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Checks if an extension of the specified type exists.
+    /// </summary>
+    /// <typeparam name="T">The extension type to check for.</typeparam>
+    /// <returns>True if the extension exists; false otherwise.</returns>
+    public bool HasExtension<T>() where T : class
+    {
+        return extensions.ContainsKey(typeof(T));
+    }
+
+    /// <summary>
+    /// Removes an extension from this world.
+    /// </summary>
+    /// <typeparam name="T">The extension type to remove.</typeparam>
+    /// <returns>True if the extension was found and removed; false otherwise.</returns>
+    public bool RemoveExtension<T>() where T : class
+    {
+        return extensions.Remove(typeof(T));
+    }
+
+    #endregion
+
+    #region Plugins
+
+    /// <summary>
+    /// Installs a plugin into this world.
+    /// </summary>
+    /// <typeparam name="T">The plugin type to install.</typeparam>
+    /// <returns>This world for method chaining.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a plugin with the same name is already installed.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The plugin's <see cref="IWorldPlugin.Install"/> method is called during installation.
+    /// Systems registered by the plugin are tracked and will be automatically removed
+    /// when the plugin is uninstalled.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// world.InstallPlugin&lt;PhysicsPlugin&gt;()
+    ///      .InstallPlugin&lt;RenderingPlugin&gt;();
+    /// </code>
+    /// </example>
+    public World InstallPlugin<T>() where T : IWorldPlugin, new()
+    {
+        var plugin = new T();
+        return InstallPlugin(plugin);
+    }
+
+    /// <summary>
+    /// Installs a plugin instance into this world.
+    /// </summary>
+    /// <param name="plugin">The plugin instance to install.</param>
+    /// <returns>This world for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when plugin is null.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a plugin with the same name is already installed.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// Use this overload when you need to pass a pre-configured plugin instance.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var physics = new PhysicsPlugin(gravity: -9.81f);
+    /// world.InstallPlugin(physics);
+    /// </code>
+    /// </example>
+    public World InstallPlugin(IWorldPlugin plugin)
+    {
+        ArgumentNullException.ThrowIfNull(plugin);
+
+        if (plugins.ContainsKey(plugin.Name))
+        {
+            throw new InvalidOperationException(
+                $"A plugin with name '{plugin.Name}' is already installed in this world.");
+        }
+
+        var context = new PluginContext(this, plugin);
+        plugin.Install(context);
+        plugins[plugin.Name] = new PluginEntry(plugin, context);
+
+        return this;
+    }
+
+    /// <summary>
+    /// Uninstalls a plugin from this world.
+    /// </summary>
+    /// <typeparam name="T">The plugin type to uninstall.</typeparam>
+    /// <returns>True if the plugin was found and uninstalled; false otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// The plugin's <see cref="IWorldPlugin.Uninstall"/> method is called during uninstallation.
+    /// All systems registered by the plugin are automatically removed and disposed.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// world.UninstallPlugin&lt;PhysicsPlugin&gt;();
+    /// </code>
+    /// </example>
+    public bool UninstallPlugin<T>() where T : IWorldPlugin
+    {
+        var entry = plugins.Values.FirstOrDefault(e => e.Plugin is T);
+        if (entry is null)
+        {
+            return false;
+        }
+        return UninstallPluginInternal(entry.Plugin.Name);
+    }
+
+    /// <summary>
+    /// Uninstalls a plugin by name from this world.
+    /// </summary>
+    /// <param name="name">The name of the plugin to uninstall.</param>
+    /// <returns>True if the plugin was found and uninstalled; false otherwise.</returns>
+    public bool UninstallPlugin(string name)
+    {
+        return UninstallPluginInternal(name);
+    }
+
+    /// <summary>
+    /// Gets a plugin of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The plugin type to retrieve.</typeparam>
+    /// <returns>The plugin instance, or null if not found.</returns>
+    /// <example>
+    /// <code>
+    /// var physics = world.GetPlugin&lt;PhysicsPlugin&gt;();
+    /// if (physics is not null)
+    /// {
+    ///     Console.WriteLine($"Physics plugin: {physics.Name}");
+    /// }
+    /// </code>
+    /// </example>
+    public T? GetPlugin<T>() where T : class, IWorldPlugin
+    {
+        foreach (var entry in plugins.Values)
+        {
+            if (entry.Plugin is T typedPlugin)
+            {
+                return typedPlugin;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Gets a plugin by name.
+    /// </summary>
+    /// <param name="name">The name of the plugin to retrieve.</param>
+    /// <returns>The plugin instance, or null if not found.</returns>
+    public IWorldPlugin? GetPlugin(string name)
+    {
+        return plugins.TryGetValue(name, out var entry) ? entry.Plugin : null;
+    }
+
+    /// <summary>
+    /// Checks if a plugin of the specified type is installed.
+    /// </summary>
+    /// <typeparam name="T">The plugin type to check for.</typeparam>
+    /// <returns>True if the plugin is installed; false otherwise.</returns>
+    public bool HasPlugin<T>() where T : IWorldPlugin
+    {
+        return plugins.Values.Any(e => e.Plugin is T);
+    }
+
+    /// <summary>
+    /// Checks if a plugin with the specified name is installed.
+    /// </summary>
+    /// <param name="name">The name of the plugin to check for.</param>
+    /// <returns>True if the plugin is installed; false otherwise.</returns>
+    public bool HasPlugin(string name)
+    {
+        return plugins.ContainsKey(name);
+    }
+
+    /// <summary>
+    /// Gets all installed plugins.
+    /// </summary>
+    /// <returns>An enumerable of all installed plugins.</returns>
+    public IEnumerable<IWorldPlugin> GetPlugins()
+    {
+        return plugins.Values.Select(e => e.Plugin);
+    }
+
+    /// <summary>
+    /// Uninstalls a plugin by name, handling cleanup of registered systems.
+    /// </summary>
+    private bool UninstallPluginInternal(string name)
+    {
+        if (!plugins.TryGetValue(name, out var entry))
+        {
+            return false;
+        }
+
+        // Call the plugin's uninstall hook
+        entry.Plugin.Uninstall(entry.Context);
+
+        // Remove and dispose all systems registered by the plugin
+        foreach (var system in entry.Context.RegisteredSystems)
+        {
+            RemoveSystem(system);
+            system.Dispose();
+        }
+
+        plugins.Remove(name);
+        return true;
+    }
+
+    /// <summary>
+    /// Removes a system from this world.
+    /// </summary>
+    private void RemoveSystem(ISystem system)
+    {
+        for (int i = systems.Count - 1; i >= 0; i--)
+        {
+            if (ReferenceEquals(systems[i].System, system))
+            {
+                systems.RemoveAt(i);
+                systemsSorted = false;
+                return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Internal record for tracking plugin state.
+    /// </summary>
+    private sealed record PluginEntry(IWorldPlugin Plugin, PluginContext Context);
+
+    #endregion
+
     #region Memory Statistics
 
     /// <summary>
@@ -2714,6 +3043,14 @@ public sealed class World : IDisposable
     /// <inheritdoc />
     public void Dispose()
     {
+        // Uninstall all plugins first (this disposes plugin-registered systems)
+        foreach (var name in plugins.Keys.ToList())
+        {
+            UninstallPluginInternal(name);
+        }
+        plugins.Clear();
+
+        // Dispose remaining systems (not registered by plugins)
         foreach (var entry in systems)
         {
             entry.System.Dispose();
@@ -2726,6 +3063,7 @@ public sealed class World : IDisposable
         entityParents.Clear();
         entityChildren.Clear();
         singletons.Clear();
+        extensions.Clear();
         eventBus.Clear();
         componentEvents.Clear();
         entityEvents.Clear();
