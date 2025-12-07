@@ -9,6 +9,8 @@ using KeenEyes.Sample;
 // 2. Query API for iterating entities
 // 3. System registration and execution
 // 4. Multiple isolated worlds
+// 5. Plugin system for modular functionality
+// 6. WorldBuilder for fluent world configuration
 // =============================================================================
 
 Console.WriteLine("KeenEyes ECS - Source Generator Demo");
@@ -173,6 +175,73 @@ world2.Spawn().WithPosition(x: 10, y: 10).WithVelocity().Build();
 Console.WriteLine($"World 1: {world.Components.Count} component types");
 Console.WriteLine($"World 2: {world2.Components.Count} component types");
 Console.WriteLine("Each world has independent component IDs - no shared static state!");
+
+// =============================================================================
+// PART 6: Plugin System
+// =============================================================================
+
+Console.WriteLine("\n[6] Plugin System Demo\n");
+
+// Create a world using WorldBuilder with plugins
+using var pluginWorld = new WorldBuilder()
+    .WithPlugin<DebugPlugin>()        // Installs debug statistics
+    .WithSystem<MovementSystem>()      // Add systems after plugins
+    .Build();
+
+// Create an entity to process
+pluginWorld.Spawn()
+    .WithPosition(x: 0, y: 0)
+    .WithVelocity(x: 1, y: 0)
+    .Build();
+
+Console.WriteLine("\nRunning update with DebugPlugin installed...");
+pluginWorld.Update(0.016f);
+
+// Access the extension using the generated typed property (C# 13 extension members)
+// Instead of: var stats = pluginWorld.GetExtension<DebugStats>();
+// We can now use: pluginWorld.DebugStats
+Console.WriteLine($"\nDebug stats from plugin: {pluginWorld.DebugStats.EntitiesProcessed} entities processed");
+
+// Query installed plugins
+Console.WriteLine($"\nInstalled plugins:");
+foreach (var installedPlugin in pluginWorld.GetPlugins())
+{
+    Console.WriteLine($"  - {installedPlugin.Name}");
+}
+
+// Uninstall a plugin at runtime
+Console.WriteLine("\nUninstalling DebugPlugin...");
+pluginWorld.UninstallPlugin<DebugPlugin>();
+Console.WriteLine($"DebugPlugin still installed? {pluginWorld.HasPlugin<DebugPlugin>()}");
+
+// =============================================================================
+// PART 7: WorldBuilder for Complex Setup
+// =============================================================================
+
+Console.WriteLine("\n[7] WorldBuilder Demo\n");
+
+// WorldBuilder provides a fluent API for complex world configuration
+using var complexWorld = new WorldBuilder()
+    .WithPlugin<CombatPlugin>()                              // Install combat plugin
+    .WithSystem<PlayerInputSystem>(SystemPhase.EarlyUpdate)  // Add input first
+    .WithSystem<MovementSystem>(SystemPhase.Update)          // Then movement
+    .WithSystem<RenderSystem>(SystemPhase.Render)            // Then render
+    .Build();
+
+Console.WriteLine("Created world with WorldBuilder:");
+Console.WriteLine($"  - {complexWorld.GetPlugins().Count()} plugin(s) installed");
+Console.WriteLine($"  - Combat plugin: {complexWorld.HasPlugin<CombatPlugin>()}");
+
+// Add entities and run
+complexWorld.Spawn()
+    .WithPosition(x: 100, y: 50)
+    .WithVelocity(x: 1, y: 0)
+    .WithPlayer()
+    .WithHealth(current: 100, max: 100)
+    .Build();
+
+Console.WriteLine("\nRunning WorldBuilder-created world update...");
+complexWorld.Update(0.016f);
 
 Console.WriteLine("\n" + new string('=', 50));
 Console.WriteLine("Demo complete!");
