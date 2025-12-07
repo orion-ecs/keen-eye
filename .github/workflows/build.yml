@@ -82,24 +82,6 @@ jobs:
           recreate: true
           path: coverage-report/SummaryGithub.md
 
-      - name: Generate coverage report
-        uses: danielpalme/ReportGenerator-GitHub-Action@5
-        with:
-          reports: '**/TestResults/**/*.cobertura.xml'
-          targetdir: coverage-report
-          reporttypes: 'MarkdownSummaryGithub;Cobertura'
-          verbosity: 'Info'
-
-      - name: Add coverage to summary
-        run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
-
-      - name: Add coverage PR comment
-        uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
-        with:
-          recreate: true
-          path: coverage-report/SummaryGithub.md
-
       - name: Upload coverage to Coveralls
         uses: coverallsapp/github-action@v2
         if: success()
