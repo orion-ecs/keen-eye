@@ -27,22 +27,11 @@ public sealed class World : IDisposable
     private readonly SystemManager systemManager;
     private readonly PluginManager pluginManager;
     private readonly SingletonManager singletonManager = new();
-    private readonly EntityBuilder builder;
-
-    // Entity naming support - bidirectional mapping for O(1) lookups
-    private readonly Dictionary<int, string> entityNames = [];
-    private readonly Dictionary<string, int> namesToEntityIds = [];
-
-    // Event system
-    private readonly EventBus eventBus = new();
-    private readonly ComponentEventHandlers componentEvents = new();
-    private readonly EntityEventHandlers entityEvents = new();
-
-    // Change tracking
+    private readonly EntityNamingManager entityNamingManager = new();
+    private readonly EventManager eventManager = new();
     private readonly ChangeTracker changeTracker = new();
-
-    // Extensions (plugin-provided APIs)
     private readonly ExtensionManager extensionManager = new();
+    private readonly EntityBuilder builder;
 
     /// <summary>
     /// The component registry for this world.
@@ -89,7 +78,7 @@ public sealed class World : IDisposable
     /// world.Events.Publish(new DamageEvent(entity, 50));
     /// </code>
     /// </example>
-    public EventBus Events => eventBus;
+    public EventBus Events => eventManager.Bus;
 
     /// <summary>
     /// Creates a new ECS world.
@@ -164,11 +153,7 @@ public sealed class World : IDisposable
     internal Entity CreateEntity(List<(ComponentInfo Info, object Data)> components, string? name = null)
     {
         // Validate name uniqueness before creating the entity
-        if (name is not null && namesToEntityIds.ContainsKey(name))
-        {
-            throw new ArgumentException(
-                $"An entity with the name '{name}' already exists in this world.", nameof(name));
-        }
+        entityNamingManager.ValidateName(name);
 
         // Acquire entity from pool
         var entity = entityPool.Acquire();
@@ -177,14 +162,10 @@ public sealed class World : IDisposable
         archetypeManager.AddEntity(entity, components);
 
         // Register the entity name if provided
-        if (name is not null)
-        {
-            entityNames[entity.Id] = name;
-            namesToEntityIds[name] = entity.Id;
-        }
+        entityNamingManager.RegisterName(entity.Id, name);
 
         // Fire entity created event after entity is fully set up
-        entityEvents.FireCreated(entity, name);
+        eventManager.FireEntityCreated(entity, name);
 
         return entity;
     }
@@ -214,7 +195,7 @@ public sealed class World : IDisposable
         }
 
         // Fire entity destroyed event before cleanup (entity still accessible)
-        entityEvents.FireDestroyed(entity);
+        eventManager.FireEntityDestroyed(entity);
 
         // Clean up hierarchy relationships
         hierarchyManager.CleanupEntity(entity);
@@ -228,12 +209,8 @@ public sealed class World : IDisposable
         // Release entity to pool (increments version)
         entityPool.Release(entity);
 
-        // Clean up entity name mappings if the entity had a name
-        if (entityNames.TryGetValue(entity.Id, out var name))
-        {
-            entityNames.Remove(entity.Id);
-            namesToEntityIds.Remove(name);
-        }
+        // Clean up entity name mappings
+        entityNamingManager.UnregisterName(entity.Id);
 
         return true;
     }
@@ -387,7 +364,7 @@ public sealed class World : IDisposable
         archetypeManager.AddComponent(entity, in component);
 
         // Fire component added event after successful addition
-        componentEvents.FireAdded(entity, in component);
+        eventManager.FireComponentAdded(entity, in component);
     }
 
     /// <summary>
@@ -434,7 +411,7 @@ public sealed class World : IDisposable
         archetypeManager.Set(entity, in value);
 
         // Fire component changed event after successful update
-        componentEvents.FireChanged(entity, in oldValue, in value);
+        eventManager.FireComponentChanged(entity, in oldValue, in value);
 
         // Auto-track dirty if enabled for this component type
         if (changeTracker.IsAutoTrackingEnabled<T>())
@@ -503,7 +480,7 @@ public sealed class World : IDisposable
         }
 
         // Fire component removed event before removal
-        componentEvents.FireRemoved<T>(entity);
+        eventManager.FireComponentRemoved<T>(entity);
 
         return archetypeManager.RemoveComponent<T>(entity);
     }
@@ -562,7 +539,7 @@ public sealed class World : IDisposable
             return null;
         }
 
-        return entityNames.TryGetValue(entity.Id, out var name) ? name : null;
+        return entityNamingManager.GetName(entity.Id);
     }
 
     /// <summary>
@@ -606,7 +583,7 @@ public sealed class World : IDisposable
     /// <seealso cref="GetName(Entity)"/>
     public Entity GetEntityByName(string name)
     {
-        if (!namesToEntityIds.TryGetValue(name, out var entityId))
+        if (!entityNamingManager.TryGetEntityIdByName(name, out var entityId))
         {
             return Entity.Null;
         }
@@ -1906,9 +1883,7 @@ public sealed class World : IDisposable
     /// <seealso cref="OnComponentRemoved{T}(Action{Entity})"/>
     /// <seealso cref="OnComponentChanged{T}(Action{Entity, T, T})"/>
     public EventSubscription OnComponentAdded<T>(Action<Entity, T> handler) where T : struct, IComponent
-    {
-        return componentEvents.OnAdded(handler);
-    }
+        => eventManager.OnComponentAdded(handler);
 
     /// <summary>
     /// Registers a handler to be called when a component of type <typeparamref name="T"/>
@@ -1940,9 +1915,7 @@ public sealed class World : IDisposable
     /// </example>
     /// <seealso cref="OnComponentAdded{T}(Action{Entity, T})"/>
     public EventSubscription OnComponentRemoved<T>(Action<Entity> handler) where T : struct, IComponent
-    {
-        return componentEvents.OnRemoved<T>(handler);
-    }
+        => eventManager.OnComponentRemoved<T>(handler);
 
     /// <summary>
     /// Registers a handler to be called when a component of type <typeparamref name="T"/>
@@ -1981,9 +1954,7 @@ public sealed class World : IDisposable
     /// <seealso cref="OnComponentAdded{T}(Action{Entity, T})"/>
     /// <seealso cref="OnComponentRemoved{T}(Action{Entity})"/>
     public EventSubscription OnComponentChanged<T>(Action<Entity, T, T> handler) where T : struct, IComponent
-    {
-        return componentEvents.OnChanged(handler);
-    }
+        => eventManager.OnComponentChanged(handler);
 
     /// <summary>
     /// Registers a handler to be called when an entity is created.
@@ -2021,9 +1992,7 @@ public sealed class World : IDisposable
     /// </example>
     /// <seealso cref="OnEntityDestroyed(Action{Entity})"/>
     public EventSubscription OnEntityCreated(Action<Entity, string?> handler)
-    {
-        return entityEvents.OnCreated(handler);
-    }
+        => eventManager.OnEntityCreated(handler);
 
     /// <summary>
     /// Registers a handler to be called when an entity is destroyed.
@@ -2054,9 +2023,7 @@ public sealed class World : IDisposable
     /// </example>
     /// <seealso cref="OnEntityCreated(Action{Entity, string?})"/>
     public EventSubscription OnEntityDestroyed(Action<Entity> handler)
-    {
-        return entityEvents.OnDestroyed(handler);
-    }
+        => eventManager.OnEntityDestroyed(handler);
 
     #endregion
 
@@ -2324,14 +2291,11 @@ public sealed class World : IDisposable
         systemManager.DisposeAll();
         archetypeManager.Dispose();
         entityPool.Clear();
-        entityNames.Clear();
-        namesToEntityIds.Clear();
+        entityNamingManager.Clear();
         hierarchyManager.Clear();
         singletonManager.Clear();
         extensionManager.Clear();
-        eventBus.Clear();
-        componentEvents.Clear();
-        entityEvents.Clear();
+        eventManager.Clear();
         changeTracker.Clear();
     }
 
