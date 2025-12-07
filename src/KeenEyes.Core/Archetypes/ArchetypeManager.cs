@@ -268,13 +268,6 @@ public sealed class ArchetypeManager : IDisposable
     internal void Set<T>(Entity entity, in T component) where T : struct, IComponent
     {
         var (archetype, index) = GetEntityLocation(entity);
-
-        if (!archetype.Has<T>())
-        {
-            throw new InvalidOperationException(
-                $"Entity {entity} does not have component {typeof(T).Name}. Use Add<T>() to add new components.");
-        }
-
         archetype.Set(index, in component);
     }
 
