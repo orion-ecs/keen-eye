@@ -246,6 +246,21 @@ When modifying code:
 3. If a test fails, fix the code or update the test with clear reasoning
 4. Never commit code that breaks the build
 
+### No Speculative Features
+
+Do not add speculative or "future nice to have" code unless specifically requested in an issue:
+- Don't add unused methods "in case they're useful later"
+- Don't add extra parameters or overloads for hypothetical use cases
+- Don't add internal APIs that aren't immediately consumed
+- If a feature isn't in the requirements, don't implement it
+
+Speculative code creates:
+- **Maintenance burden** - Code that must be tested, documented, and maintained
+- **Confusion** - Future developers wonder why unused code exists
+- **Tech debt** - Unused abstractions that complicate refactoring
+
+When you think "this might be useful later," stop. Either it's needed now (add it), or it's not (don't add it). YAGNI (You Aren't Gonna Need It).
+
 ### Suppressing Warnings
 
 Only suppress warnings when absolutely necessary:
