@@ -15,17 +15,28 @@ namespace KeenEyes.Events;
 /// </list>
 /// <para>
 /// Dirty flags are tracked per component type. An entity can be marked dirty for one component
-/// type while remaining clean for others. Use <see cref="MarkDirty{T}(Entity)"/> to manually
+/// type while remaining clean for others. Use <see cref="MarkDirty{T}(Entity, Func{Entity, bool})"/> to manually
 /// flag an entity, and <see cref="ClearDirtyFlags{T}()"/> to reset after processing.
 /// </para>
 /// </remarks>
 internal sealed class ChangeTracker
 {
+    private readonly EntityPool entityPool;
+
     // Component type -> set of dirty entity IDs
     private readonly Dictionary<Type, HashSet<int>> dirtyEntities = [];
 
     // Component types with auto-tracking enabled
     private readonly HashSet<Type> autoTrackedTypes = [];
+
+    /// <summary>
+    /// Creates a new change tracker.
+    /// </summary>
+    /// <param name="entityPool">The entity pool for reconstructing entity handles.</param>
+    internal ChangeTracker(EntityPool entityPool)
+    {
+        this.entityPool = entityPool;
+    }
 
     #region Manual Tracking
 
@@ -34,6 +45,10 @@ internal sealed class ChangeTracker
     /// </summary>
     /// <typeparam name="T">The component type to mark dirty.</typeparam>
     /// <param name="entity">The entity to mark as dirty.</param>
+    /// <param name="isAlive">Function to check if the entity is alive.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the entity is not alive.
+    /// </exception>
     /// <remarks>
     /// <para>
     /// This method is idempotent: marking an already-dirty entity has no effect.
@@ -43,7 +58,20 @@ internal sealed class ChangeTracker
     /// and want to track the change for later processing.
     /// </para>
     /// </remarks>
-    public void MarkDirty<T>(Entity entity) where T : struct, IComponent
+    public void MarkDirty<T>(Entity entity, Func<Entity, bool> isAlive) where T : struct, IComponent
+    {
+        if (!isAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        MarkDirtyInternal<T>(entity);
+    }
+
+    /// <summary>
+    /// Marks an entity as dirty without validation (internal use only).
+    /// </summary>
+    internal void MarkDirtyInternal<T>(Entity entity) where T : struct, IComponent
     {
         if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
         {
@@ -55,28 +83,41 @@ internal sealed class ChangeTracker
     }
 
     /// <summary>
-    /// Gets all entity IDs that have been marked dirty for a specific component type.
+    /// Gets all entities that have been marked dirty for a specific component type.
     /// </summary>
     /// <typeparam name="T">The component type to query.</typeparam>
+    /// <param name="isAlive">Function to check if an entity is still alive.</param>
     /// <returns>
-    /// A read-only collection of entity IDs marked dirty for the component type.
-    /// Returns an empty collection if no entities are dirty.
+    /// An enumerable of entities marked dirty for the component type.
+    /// Returns an empty sequence if no entities are dirty.
     /// </returns>
     /// <remarks>
     /// <para>
-    /// The returned collection contains entity IDs, not full <see cref="Entity"/> handles.
-    /// This is because the tracker doesn't have access to entity versions. Use the world's
-    /// entity pool to reconstruct full handles if needed.
+    /// The returned entities are verified to be alive. Any entities that were marked dirty
+    /// but have since been despawned are not included.
     /// </para>
     /// </remarks>
-    public IReadOnlyCollection<int> GetDirtyEntityIds<T>() where T : struct, IComponent
+    public IEnumerable<Entity> GetDirtyEntities<T>(Func<Entity, bool> isAlive) where T : struct, IComponent
     {
         if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
         {
-            return Array.Empty<int>();
+            yield break;
         }
 
-        return entitySet;
+        foreach (var entityId in entitySet)
+        {
+            var version = entityPool.GetVersion(entityId);
+            if (version < 0)
+            {
+                continue;
+            }
+
+            var entity = new Entity(entityId, version);
+            if (isAlive(entity))
+            {
+                yield return entity;
+            }
+        }
     }
 
     /// <summary>
@@ -102,11 +143,18 @@ internal sealed class ChangeTracker
     /// </summary>
     /// <typeparam name="T">The component type to check.</typeparam>
     /// <param name="entity">The entity to check.</param>
+    /// <param name="isAlive">Function to check if an entity is still alive.</param>
     /// <returns>
-    /// <c>true</c> if the entity is marked dirty for the component type; <c>false</c> otherwise.
+    /// <c>true</c> if the entity is marked dirty for the component type;
+    /// <c>false</c> if not dirty or the entity is not alive.
     /// </returns>
-    public bool IsDirty<T>(Entity entity) where T : struct, IComponent
+    public bool IsDirty<T>(Entity entity, Func<Entity, bool> isAlive) where T : struct, IComponent
     {
+        if (!isAlive(entity))
+        {
+            return false;
+        }
+
         if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
         {
             return false;
@@ -130,7 +178,7 @@ internal sealed class ChangeTracker
     /// </para>
     /// <para>
     /// Note: Direct modifications via <see cref="World.Get{T}(Entity)"/> references are
-    /// not automatically tracked. Use <see cref="MarkDirty{T}(Entity)"/> manually in those cases.
+    /// not automatically tracked. Use <see cref="MarkDirty{T}(Entity, Func{Entity, bool})"/> manually in those cases.
     /// </para>
     /// </remarks>
     public void EnableAutoTracking<T>() where T : struct, IComponent
