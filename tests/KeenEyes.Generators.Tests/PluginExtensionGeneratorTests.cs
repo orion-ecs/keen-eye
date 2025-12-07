@@ -294,6 +294,30 @@ public class PluginExtensionGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("namespace KeenEyes;"));
     }
 
+    [Fact]
+    public void PluginExtensionGenerator_WithNullPropertyName_ReportsError()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            #pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type
+            [PluginExtension(null)]
+            #pragma warning restore CS8625
+            public class TestExtension { }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should not generate when property name is null
+        Assert.Empty(generatedTrees);
+
+        // Should report KEEN005 error
+        Assert.Contains(diagnostics, d => d.Id == "KEEN005" && d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(diagnostics, d => d.GetMessage().Contains("TestExtension"));
+    }
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(PluginExtensionAttribute).Assembly;

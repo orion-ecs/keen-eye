@@ -16,6 +16,18 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
 {
     private const string PluginExtensionAttribute = "KeenEyes.PluginExtensionAttribute";
 
+    /// <summary>
+    /// KEEN005: PluginExtension property name cannot be null.
+    /// </summary>
+    public static readonly DiagnosticDescriptor NullPropertyName = new(
+        id: "KEEN005",
+        title: "PluginExtension property name cannot be null",
+        messageFormat: "The property name for [PluginExtension] on '{0}' cannot be null",
+        category: "KeenEyes.Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "The [PluginExtension] attribute requires a non-null property name to generate the World extension property.");
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -24,11 +36,15 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             .ForAttributeWithMetadataName(
                 PluginExtensionAttribute,
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
-                transform: static (ctx, _) => GetExtensionInfo(ctx))
-            .Where(static info => info is not null);
+                transform: static (ctx, _) => GetExtensionResult(ctx));
+
+        // Filter valid extensions for code generation
+        var validExtensions = extensionProvider
+            .Where(static result => result.Info is not null)
+            .Select(static (result, _) => result.Info!);
 
         // Collect all extensions and generate a single file
-        var allExtensions = extensionProvider.Collect();
+        var allExtensions = validExtensions.Collect();
 
         context.RegisterSourceOutput(allExtensions, static (ctx, extensions) =>
         {
@@ -37,42 +53,40 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
                 return;
             }
 
-            var validExtensions = extensions
-                .Where(e => e is not null)
-                .Cast<ExtensionInfo>()
-                .ToImmutableArray();
-
-            if (validExtensions.Length == 0)
-            {
-                return;
-            }
-
-            var source = GenerateWorldExtensions(validExtensions);
+            var source = GenerateWorldExtensions(extensions);
             ctx.AddSource("World.PluginExtensions.g.cs", SourceText.From(source, Encoding.UTF8));
+        });
+
+        // Report diagnostics for invalid usages
+        var diagnostics = extensionProvider
+            .Where(static result => result.Diagnostic is not null)
+            .Select(static (result, _) => result.Diagnostic!);
+
+        context.RegisterSourceOutput(diagnostics, static (ctx, diagnostic) =>
+        {
+            ctx.ReportDiagnostic(diagnostic);
         });
     }
 
-    private static ExtensionInfo? GetExtensionInfo(GeneratorAttributeSyntaxContext context)
+    private static ExtensionResult GetExtensionResult(GeneratorAttributeSyntaxContext context)
     {
-        if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
-        {
-            return null;
-        }
+        // Predicate guarantees ClassDeclarationSyntax, which always has INamedTypeSymbol
+        var typeSymbol = (INamedTypeSymbol)context.TargetSymbol;
 
-        // Get the attribute data
-        var attributeData = context.Attributes.FirstOrDefault(
+        // ForAttributeWithMetadataName guarantees the attribute exists
+        var attributeData = context.Attributes.First(
             a => a.AttributeClass?.ToDisplayString() == PluginExtensionAttribute);
-
-        if (attributeData is null)
-        {
-            return null;
-        }
 
         // Get property name from constructor argument
         if (attributeData.ConstructorArguments.Length == 0 ||
             attributeData.ConstructorArguments[0].Value is not string propertyName)
         {
-            return null;
+            // Report error for null property name
+            var diagnostic = Diagnostic.Create(
+                NullPropertyName,
+                context.TargetNode.GetLocation(),
+                typeSymbol.Name);
+            return new ExtensionResult(null, diagnostic);
         }
 
         // Get Nullable property from named arguments
@@ -85,12 +99,14 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             }
         }
 
-        return new ExtensionInfo(
+        var info = new ExtensionInfo(
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
             propertyName,
             isNullable);
+
+        return new ExtensionResult(info, null);
     }
 
     private static string GenerateWorldExtensions(ImmutableArray<ExtensionInfo> extensions)
@@ -145,6 +161,8 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
 
         return sb.ToString();
     }
+
+    private sealed record ExtensionResult(ExtensionInfo? Info, Diagnostic? Diagnostic);
 
     private sealed record ExtensionInfo(
         string Name,
