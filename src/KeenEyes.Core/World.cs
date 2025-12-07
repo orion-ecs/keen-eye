@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using KeenEyes.Events;
 
 namespace KeenEyes;
@@ -24,20 +23,15 @@ public sealed class World : IDisposable
     private readonly EntityPool entityPool;
     private readonly ArchetypeManager archetypeManager;
     private readonly QueryManager queryManager;
-    private readonly Dictionary<Type, object> singletons = [];
+    private readonly HierarchyManager hierarchyManager;
+    private readonly SystemManager systemManager;
+    private readonly PluginManager pluginManager;
+    private readonly SingletonManager singletonManager = new();
     private readonly EntityBuilder builder;
-    private readonly List<SystemEntry> systems = [];
-    private bool systemsSorted = true;
 
     // Entity naming support - bidirectional mapping for O(1) lookups
     private readonly Dictionary<int, string> entityNames = [];
     private readonly Dictionary<string, int> namesToEntityIds = [];
-
-    // Entity hierarchy support - parent-child relationships
-    // childId -> parentId for O(1) parent lookup
-    private readonly Dictionary<int, int> entityParents = [];
-    // parentId -> set of childIds for O(C) children enumeration where C is child count
-    private readonly Dictionary<int, HashSet<int>> entityChildren = [];
 
     // Event system
     private readonly EventBus eventBus = new();
@@ -48,10 +42,7 @@ public sealed class World : IDisposable
     private readonly ChangeTracker changeTracker = new();
 
     // Extensions (plugin-provided APIs)
-    private readonly Dictionary<Type, object> extensions = [];
-
-    // Plugins
-    private readonly Dictionary<string, PluginEntry> plugins = [];
+    private readonly ExtensionManager extensionManager = new();
 
     /// <summary>
     /// The component registry for this world.
@@ -69,6 +60,11 @@ public sealed class World : IDisposable
     /// Gets the query manager for this world.
     /// </summary>
     internal QueryManager Queries => queryManager;
+
+    /// <summary>
+    /// Gets the entity pool for this world.
+    /// </summary>
+    internal EntityPool EntityPool => entityPool;
 
     /// <summary>
     /// Gets the event bus for publishing and subscribing to custom events.
@@ -103,6 +99,9 @@ public sealed class World : IDisposable
         entityPool = new EntityPool();
         archetypeManager = new ArchetypeManager(Components);
         queryManager = new QueryManager(archetypeManager);
+        hierarchyManager = new HierarchyManager(this);
+        systemManager = new SystemManager(this);
+        pluginManager = new PluginManager(this, systemManager);
         builder = new EntityBuilder(this);
     }
 
@@ -218,7 +217,7 @@ public sealed class World : IDisposable
         entityEvents.FireDestroyed(entity);
 
         // Clean up hierarchy relationships
-        CleanupEntityHierarchy(entity);
+        hierarchyManager.CleanupEntity(entity);
 
         // Remove from change tracking
         changeTracker.RemoveEntity(entity.Id);
@@ -237,37 +236,6 @@ public sealed class World : IDisposable
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Cleans up hierarchy relationships when an entity is being despawned.
-    /// Removes the entity from its parent's children and orphans any children.
-    /// </summary>
-    private void CleanupEntityHierarchy(Entity entity)
-    {
-        // Remove from parent's children set if this entity has a parent
-        if (entityParents.TryGetValue(entity.Id, out var parentId))
-        {
-            entityParents.Remove(entity.Id);
-            if (entityChildren.TryGetValue(parentId, out var siblings))
-            {
-                siblings.Remove(entity.Id);
-                if (siblings.Count == 0)
-                {
-                    entityChildren.Remove(parentId);
-                }
-            }
-        }
-
-        // Orphan all children (remove their parent reference)
-        if (entityChildren.TryGetValue(entity.Id, out var children))
-        {
-            foreach (var childId in children)
-            {
-                entityParents.Remove(childId);
-            }
-            entityChildren.Remove(entity.Id);
-        }
     }
 
     /// <summary>
@@ -786,90 +754,7 @@ public sealed class World : IDisposable
     /// <seealso cref="GetChildren(Entity)"/>
     /// <seealso cref="AddChild(Entity, Entity)"/>
     public void SetParent(Entity child, Entity parent)
-    {
-        if (!IsAlive(child))
-        {
-            throw new InvalidOperationException($"Entity {child} is not alive.");
-        }
-
-        // Handle removing parent (making entity a root)
-        if (!parent.IsValid)
-        {
-            RemoveParentInternal(child);
-            return;
-        }
-
-        if (!IsAlive(parent))
-        {
-            throw new InvalidOperationException($"Parent entity {parent} is not alive.");
-        }
-
-        // Prevent self-parenting
-        if (child.Id == parent.Id)
-        {
-            throw new InvalidOperationException("An entity cannot be its own parent.");
-        }
-
-        // Check for cycles: ensure parent is not a descendant of child
-        if (IsDescendantOf(parent, child))
-        {
-            throw new InvalidOperationException(
-                $"Cannot set entity {parent} as parent of {child} because it would create a circular hierarchy. " +
-                $"Entity {parent} is a descendant of entity {child}.");
-        }
-
-        // Remove from current parent if any
-        RemoveParentInternal(child);
-
-        // Set new parent
-        entityParents[child.Id] = parent.Id;
-
-        // Add to parent's children set
-        if (!entityChildren.TryGetValue(parent.Id, out var children))
-        {
-            children = [];
-            entityChildren[parent.Id] = children;
-        }
-        children.Add(child.Id);
-    }
-
-    /// <summary>
-    /// Removes the parent relationship for an entity without validation.
-    /// </summary>
-    private void RemoveParentInternal(Entity child)
-    {
-        if (entityParents.TryGetValue(child.Id, out var oldParentId))
-        {
-            entityParents.Remove(child.Id);
-            if (entityChildren.TryGetValue(oldParentId, out var siblings))
-            {
-                siblings.Remove(child.Id);
-                if (siblings.Count == 0)
-                {
-                    entityChildren.Remove(oldParentId);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// Checks if a potential descendant is in the descendant tree of an ancestor.
-    /// Used for cycle detection.
-    /// </summary>
-    private bool IsDescendantOf(Entity potentialDescendant, Entity potentialAncestor)
-    {
-        // Walk up the hierarchy from potentialDescendant
-        var currentId = potentialDescendant.Id;
-        while (entityParents.TryGetValue(currentId, out var parentId))
-        {
-            if (parentId == potentialAncestor.Id)
-            {
-                return true;
-            }
-            currentId = parentId;
-        }
-        return false;
-    }
+        => hierarchyManager.SetParent(child, parent);
 
     /// <summary>
     /// Gets the parent of an entity.
@@ -905,34 +790,7 @@ public sealed class World : IDisposable
     /// <seealso cref="SetParent(Entity, Entity)"/>
     /// <seealso cref="GetChildren(Entity)"/>
     public Entity GetParent(Entity entity)
-    {
-        if (!IsAlive(entity))
-        {
-            return Entity.Null;
-        }
-
-        if (!entityParents.TryGetValue(entity.Id, out var parentId))
-        {
-            return Entity.Null;
-        }
-
-        // Get the current version from the pool
-        var version = entityPool.GetVersion(parentId);
-        if (version < 0)
-        {
-            return Entity.Null;
-        }
-
-        var parent = new Entity(parentId, version);
-
-        // Verify the parent is still alive (handles edge case of stale parent reference)
-        if (!IsAlive(parent))
-        {
-            return Entity.Null;
-        }
-
-        return parent;
-    }
+        => hierarchyManager.GetParent(entity);
 
     /// <summary>
     /// Gets all immediate children of an entity.
@@ -974,32 +832,7 @@ public sealed class World : IDisposable
     /// <seealso cref="GetParent(Entity)"/>
     /// <seealso cref="GetDescendants(Entity)"/>
     public IEnumerable<Entity> GetChildren(Entity entity)
-    {
-        if (!IsAlive(entity))
-        {
-            yield break;
-        }
-
-        if (!entityChildren.TryGetValue(entity.Id, out var childIds))
-        {
-            yield break;
-        }
-
-        foreach (var childId in childIds)
-        {
-            var version = entityPool.GetVersion(childId);
-            if (version < 0)
-            {
-                continue;
-            }
-
-            var child = new Entity(childId, version);
-            if (IsAlive(child))
-            {
-                yield return child;
-            }
-        }
-    }
+        => hierarchyManager.GetChildren(entity);
 
     /// <summary>
     /// Adds a child entity to a parent entity.
@@ -1027,14 +860,7 @@ public sealed class World : IDisposable
     /// <seealso cref="SetParent(Entity, Entity)"/>
     /// <seealso cref="RemoveChild(Entity, Entity)"/>
     public void AddChild(Entity parent, Entity child)
-    {
-        if (!IsAlive(parent))
-        {
-            throw new InvalidOperationException($"Parent entity {parent} is not alive.");
-        }
-
-        SetParent(child, parent);
-    }
+        => hierarchyManager.AddChild(parent, child);
 
     /// <summary>
     /// Removes a specific child from a parent entity.
@@ -1068,22 +894,7 @@ public sealed class World : IDisposable
     /// <seealso cref="AddChild(Entity, Entity)"/>
     /// <seealso cref="SetParent(Entity, Entity)"/>
     public bool RemoveChild(Entity parent, Entity child)
-    {
-        if (!IsAlive(parent) || !IsAlive(child))
-        {
-            return false;
-        }
-
-        // Check if child is actually a child of parent
-        if (!entityParents.TryGetValue(child.Id, out var currentParentId) || currentParentId != parent.Id)
-        {
-            return false;
-        }
-
-        // Remove the relationship
-        RemoveParentInternal(child);
-        return true;
-    }
+        => hierarchyManager.RemoveChild(parent, child);
 
     /// <summary>
     /// Gets all descendants of an entity (children, grandchildren, etc.).
@@ -1127,51 +938,7 @@ public sealed class World : IDisposable
     /// <seealso cref="GetChildren(Entity)"/>
     /// <seealso cref="GetAncestors(Entity)"/>
     public IEnumerable<Entity> GetDescendants(Entity entity)
-    {
-        if (!IsAlive(entity))
-        {
-            yield break;
-        }
-
-        // Breadth-first traversal using a queue
-        var queue = new Queue<int>();
-
-        // Start with immediate children
-        if (entityChildren.TryGetValue(entity.Id, out var childIds))
-        {
-            foreach (var childId in childIds)
-            {
-                queue.Enqueue(childId);
-            }
-        }
-
-        while (queue.Count > 0)
-        {
-            var currentId = queue.Dequeue();
-            var version = entityPool.GetVersion(currentId);
-            if (version < 0)
-            {
-                continue;
-            }
-
-            var current = new Entity(currentId, version);
-            if (!IsAlive(current))
-            {
-                continue;
-            }
-
-            yield return current;
-
-            // Add this entity's children to the queue
-            if (entityChildren.TryGetValue(currentId, out var grandchildIds))
-            {
-                foreach (var grandchildId in grandchildIds)
-                {
-                    queue.Enqueue(grandchildId);
-                }
-            }
-        }
-    }
+        => hierarchyManager.GetDescendants(entity);
 
     /// <summary>
     /// Gets all ancestors of an entity (parent, grandparent, etc.).
@@ -1217,31 +984,7 @@ public sealed class World : IDisposable
     /// <seealso cref="GetRoot(Entity)"/>
     /// <seealso cref="GetDescendants(Entity)"/>
     public IEnumerable<Entity> GetAncestors(Entity entity)
-    {
-        if (!IsAlive(entity))
-        {
-            yield break;
-        }
-
-        var currentId = entity.Id;
-        while (entityParents.TryGetValue(currentId, out var parentId))
-        {
-            var version = entityPool.GetVersion(parentId);
-            if (version < 0)
-            {
-                yield break;
-            }
-
-            var parent = new Entity(parentId, version);
-            if (!IsAlive(parent))
-            {
-                yield break;
-            }
-
-            yield return parent;
-            currentId = parentId;
-        }
-    }
+        => hierarchyManager.GetAncestors(entity);
 
     /// <summary>
     /// Gets the root entity of the hierarchy containing the given entity.
@@ -1286,32 +1029,7 @@ public sealed class World : IDisposable
     /// <seealso cref="GetParent(Entity)"/>
     /// <seealso cref="GetAncestors(Entity)"/>
     public Entity GetRoot(Entity entity)
-    {
-        if (!IsAlive(entity))
-        {
-            return Entity.Null;
-        }
-
-        var current = entity;
-        while (entityParents.TryGetValue(current.Id, out var parentId))
-        {
-            var version = entityPool.GetVersion(parentId);
-            if (version < 0)
-            {
-                break;
-            }
-
-            var parent = new Entity(parentId, version);
-            if (!IsAlive(parent))
-            {
-                break;
-            }
-
-            current = parent;
-        }
-
-        return current;
-    }
+        => hierarchyManager.GetRoot(entity);
 
     /// <summary>
     /// Destroys an entity and all its descendants recursively.
@@ -1360,62 +1078,7 @@ public sealed class World : IDisposable
     /// <seealso cref="Despawn(Entity)"/>
     /// <seealso cref="GetDescendants(Entity)"/>
     public int DespawnRecursive(Entity entity)
-    {
-        if (!IsAlive(entity))
-        {
-            return 0;
-        }
-
-        // Collect all entities to despawn (depth-first, children before parents)
-        var toDespawn = new List<Entity>();
-        CollectDescendantsDepthFirst(entity, toDespawn);
-        toDespawn.Add(entity);
-
-        // Despawn all collected entities
-        int count = 0;
-        foreach (var e in toDespawn)
-        {
-            if (Despawn(e))
-            {
-                count++;
-            }
-        }
-
-        return count;
-    }
-
-    /// <summary>
-    /// Collects all descendants in depth-first order (children before parents).
-    /// </summary>
-    private void CollectDescendantsDepthFirst(Entity entity, List<Entity> result)
-    {
-        if (!entityChildren.TryGetValue(entity.Id, out var childIds))
-        {
-            return;
-        }
-
-        // Create a copy of child IDs to avoid modification during iteration
-        var childIdsCopy = childIds.ToArray();
-
-        foreach (var childId in childIdsCopy)
-        {
-            var version = entityPool.GetVersion(childId);
-            if (version < 0)
-            {
-                continue;
-            }
-
-            var child = new Entity(childId, version);
-            if (!IsAlive(child))
-            {
-                continue;
-            }
-
-            // Recurse first (depth-first)
-            CollectDescendantsDepthFirst(child, result);
-            result.Add(child);
-        }
-    }
+        => hierarchyManager.DespawnRecursive(entity);
 
     #endregion
 
@@ -1495,7 +1158,8 @@ public sealed class World : IDisposable
     /// </example>
     public World AddSystem<T>(SystemPhase phase = SystemPhase.Update, int order = 0) where T : ISystem, new()
     {
-        return AddSystem<T>(phase, order, runsBefore: [], runsAfter: []);
+        systemManager.AddSystem<T>(phase, order, runsBefore: [], runsAfter: []);
+        return this;
     }
 
     /// <summary>
@@ -1534,10 +1198,7 @@ public sealed class World : IDisposable
         Type[] runsBefore,
         Type[] runsAfter) where T : ISystem, new()
     {
-        var system = new T();
-        system.Initialize(this);
-        systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
-        systemsSorted = false;
+        systemManager.AddSystem<T>(phase, order, runsBefore, runsAfter);
         return this;
     }
 
@@ -1565,7 +1226,8 @@ public sealed class World : IDisposable
     /// </example>
     public World AddSystem(ISystem system, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
-        return AddSystem(system, phase, order, runsBefore: [], runsAfter: []);
+        systemManager.AddSystem(system, phase, order, runsBefore: [], runsAfter: []);
+        return this;
     }
 
     /// <summary>
@@ -1610,9 +1272,7 @@ public sealed class World : IDisposable
         Type[] runsBefore,
         Type[] runsAfter)
     {
-        system.Initialize(this);
-        systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
-        systemsSorted = false;
+        systemManager.AddSystem(system, phase, order, runsBefore, runsAfter);
         return this;
     }
 
@@ -1631,30 +1291,7 @@ public sealed class World : IDisposable
     /// </para>
     /// </remarks>
     public void Update(float deltaTime)
-    {
-        EnsureSystemsSorted();
-
-        foreach (var entry in systems)
-        {
-            var system = entry.System;
-
-            if (!system.Enabled)
-            {
-                continue;
-            }
-
-            if (system is SystemBase systemBase)
-            {
-                systemBase.InvokeBeforeUpdate(deltaTime);
-                systemBase.Update(deltaTime);
-                systemBase.InvokeAfterUpdate(deltaTime);
-            }
-            else
-            {
-                system.Update(deltaTime);
-            }
-        }
-    }
+        => systemManager.Update(deltaTime);
 
     /// <summary>
     /// Updates only systems in the <see cref="SystemPhase.FixedUpdate"/> phase.
@@ -1697,35 +1334,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public void FixedUpdate(float fixedDeltaTime)
-    {
-        EnsureSystemsSorted();
-
-        foreach (var entry in systems)
-        {
-            if (entry.Phase != SystemPhase.FixedUpdate)
-            {
-                continue;
-            }
-
-            var system = entry.System;
-
-            if (!system.Enabled)
-            {
-                continue;
-            }
-
-            if (system is SystemBase systemBase)
-            {
-                systemBase.InvokeBeforeUpdate(fixedDeltaTime);
-                systemBase.Update(fixedDeltaTime);
-                systemBase.InvokeAfterUpdate(fixedDeltaTime);
-            }
-            else
-            {
-                system.Update(fixedDeltaTime);
-            }
-        }
-    }
+        => systemManager.FixedUpdate(fixedDeltaTime);
 
     /// <summary>
     /// Gets a system of the specified type from this world.
@@ -1746,24 +1355,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public T? GetSystem<T>() where T : class, ISystem
-    {
-        foreach (var entry in systems)
-        {
-            if (entry.System is T typedSystem)
-            {
-                return typedSystem;
-            }
-            if (entry.System is SystemGroup group)
-            {
-                var found = group.GetSystem<T>();
-                if (found is not null)
-                {
-                    return found;
-                }
-            }
-        }
-        return null;
-    }
+        => systemManager.GetSystem<T>();
 
     /// <summary>
     /// Enables a system of the specified type.
@@ -1786,15 +1378,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public bool EnableSystem<T>() where T : class, ISystem
-    {
-        var system = GetSystem<T>();
-        if (system is null)
-        {
-            return false;
-        }
-        system.Enabled = true;
-        return true;
-    }
+        => systemManager.EnableSystem<T>();
 
     /// <summary>
     /// Disables a system of the specified type.
@@ -1820,15 +1404,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public bool DisableSystem<T>() where T : class, ISystem
-    {
-        var system = GetSystem<T>();
-        if (system is null)
-        {
-            return false;
-        }
-        system.Enabled = false;
-        return true;
-    }
+        => systemManager.DisableSystem<T>();
 
     #endregion
 
@@ -1868,9 +1444,7 @@ public sealed class World : IDisposable
     /// <seealso cref="HasSingleton{T}"/>
     /// <seealso cref="RemoveSingleton{T}"/>
     public void SetSingleton<T>(in T value) where T : struct
-    {
-        singletons[typeof(T)] = value;
-    }
+        => singletonManager.SetSingleton(in value);
 
     /// <summary>
     /// Gets a singleton value by reference, allowing direct modification.
@@ -1907,16 +1481,7 @@ public sealed class World : IDisposable
     /// <seealso cref="TryGetSingleton{T}(out T)"/>
     /// <seealso cref="HasSingleton{T}"/>
     public ref T GetSingleton<T>() where T : struct
-    {
-        if (!singletons.TryGetValue(typeof(T), out var boxed))
-        {
-            throw new InvalidOperationException(
-                $"Singleton of type {typeof(T).Name} does not exist in this world. " +
-                $"Use SetSingleton<{typeof(T).Name}>() to add it first.");
-        }
-
-        return ref Unsafe.Unbox<T>(boxed);
-    }
+        => ref singletonManager.GetSingleton<T>();
 
     /// <summary>
     /// Attempts to get a singleton value.
@@ -1958,16 +1523,7 @@ public sealed class World : IDisposable
     /// <seealso cref="GetSingleton{T}"/>
     /// <seealso cref="HasSingleton{T}"/>
     public bool TryGetSingleton<T>(out T value) where T : struct
-    {
-        if (singletons.TryGetValue(typeof(T), out var boxed))
-        {
-            value = (T)boxed;
-            return true;
-        }
-
-        value = default;
-        return false;
-    }
+        => singletonManager.TryGetSingleton(out value);
 
     /// <summary>
     /// Checks if a singleton of the specified type exists in this world.
@@ -1999,9 +1555,7 @@ public sealed class World : IDisposable
     /// <seealso cref="TryGetSingleton{T}(out T)"/>
     /// <seealso cref="SetSingleton{T}(in T)"/>
     public bool HasSingleton<T>() where T : struct
-    {
-        return singletons.ContainsKey(typeof(T));
-    }
+        => singletonManager.HasSingleton<T>();
 
     /// <summary>
     /// Removes a singleton from this world.
@@ -2037,9 +1591,7 @@ public sealed class World : IDisposable
     /// <seealso cref="SetSingleton{T}(in T)"/>
     /// <seealso cref="HasSingleton{T}"/>
     public bool RemoveSingleton<T>() where T : struct
-    {
-        return singletons.Remove(typeof(T));
-    }
+        => singletonManager.RemoveSingleton<T>();
 
     #endregion
 
@@ -2074,10 +1626,7 @@ public sealed class World : IDisposable
     /// <seealso cref="TryGetExtension{T}"/>
     /// <seealso cref="HasExtension{T}"/>
     public void SetExtension<T>(T extension) where T : class
-    {
-        ArgumentNullException.ThrowIfNull(extension);
-        extensions[typeof(T)] = extension;
-    }
+        => extensionManager.SetExtension(extension);
 
     /// <summary>
     /// Gets an extension by type.
@@ -2096,14 +1645,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public T GetExtension<T>() where T : class
-    {
-        if (!extensions.TryGetValue(typeof(T), out var extension))
-        {
-            throw new InvalidOperationException(
-                $"No extension of type '{typeof(T).Name}' exists in this world.");
-        }
-        return (T)extension;
-    }
+        => extensionManager.GetExtension<T>();
 
     /// <summary>
     /// Tries to get an extension by type.
@@ -2120,15 +1662,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public bool TryGetExtension<T>([System.Diagnostics.CodeAnalysis.MaybeNullWhen(false)] out T extension) where T : class
-    {
-        if (extensions.TryGetValue(typeof(T), out var value))
-        {
-            extension = (T)value;
-            return true;
-        }
-        extension = null;
-        return false;
-    }
+        => extensionManager.TryGetExtension(out extension);
 
     /// <summary>
     /// Checks if an extension of the specified type exists.
@@ -2136,9 +1670,7 @@ public sealed class World : IDisposable
     /// <typeparam name="T">The extension type to check for.</typeparam>
     /// <returns>True if the extension exists; false otherwise.</returns>
     public bool HasExtension<T>() where T : class
-    {
-        return extensions.ContainsKey(typeof(T));
-    }
+        => extensionManager.HasExtension<T>();
 
     /// <summary>
     /// Removes an extension from this world.
@@ -2146,9 +1678,7 @@ public sealed class World : IDisposable
     /// <typeparam name="T">The extension type to remove.</typeparam>
     /// <returns>True if the extension was found and removed; false otherwise.</returns>
     public bool RemoveExtension<T>() where T : class
-    {
-        return extensions.Remove(typeof(T));
-    }
+        => extensionManager.RemoveExtension<T>();
 
     #endregion
 
@@ -2177,8 +1707,8 @@ public sealed class World : IDisposable
     /// </example>
     public World InstallPlugin<T>() where T : IWorldPlugin, new()
     {
-        var plugin = new T();
-        return InstallPlugin(plugin);
+        pluginManager.InstallPlugin<T>();
+        return this;
     }
 
     /// <summary>
@@ -2203,18 +1733,7 @@ public sealed class World : IDisposable
     /// </example>
     public World InstallPlugin(IWorldPlugin plugin)
     {
-        ArgumentNullException.ThrowIfNull(plugin);
-
-        if (plugins.ContainsKey(plugin.Name))
-        {
-            throw new InvalidOperationException(
-                $"A plugin with name '{plugin.Name}' is already installed in this world.");
-        }
-
-        var context = new PluginContext(this, plugin);
-        plugin.Install(context);
-        plugins[plugin.Name] = new PluginEntry(plugin, context);
-
+        pluginManager.InstallPlugin(plugin);
         return this;
     }
 
@@ -2235,14 +1754,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public bool UninstallPlugin<T>() where T : IWorldPlugin
-    {
-        var entry = plugins.Values.FirstOrDefault(e => e.Plugin is T);
-        if (entry is null)
-        {
-            return false;
-        }
-        return UninstallPluginInternal(entry.Plugin.Name);
-    }
+        => pluginManager.UninstallPlugin<T>();
 
     /// <summary>
     /// Uninstalls a plugin by name from this world.
@@ -2250,9 +1762,7 @@ public sealed class World : IDisposable
     /// <param name="name">The name of the plugin to uninstall.</param>
     /// <returns>True if the plugin was found and uninstalled; false otherwise.</returns>
     public bool UninstallPlugin(string name)
-    {
-        return UninstallPluginInternal(name);
-    }
+        => pluginManager.UninstallPlugin(name);
 
     /// <summary>
     /// Gets a plugin of the specified type.
@@ -2269,16 +1779,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public T? GetPlugin<T>() where T : class, IWorldPlugin
-    {
-        foreach (var entry in plugins.Values)
-        {
-            if (entry.Plugin is T typedPlugin)
-            {
-                return typedPlugin;
-            }
-        }
-        return null;
-    }
+        => pluginManager.GetPlugin<T>();
 
     /// <summary>
     /// Gets a plugin by name.
@@ -2286,9 +1787,7 @@ public sealed class World : IDisposable
     /// <param name="name">The name of the plugin to retrieve.</param>
     /// <returns>The plugin instance, or null if not found.</returns>
     public IWorldPlugin? GetPlugin(string name)
-    {
-        return plugins.TryGetValue(name, out var entry) ? entry.Plugin : null;
-    }
+        => pluginManager.GetPlugin(name);
 
     /// <summary>
     /// Checks if a plugin of the specified type is installed.
@@ -2296,9 +1795,7 @@ public sealed class World : IDisposable
     /// <typeparam name="T">The plugin type to check for.</typeparam>
     /// <returns>True if the plugin is installed; false otherwise.</returns>
     public bool HasPlugin<T>() where T : IWorldPlugin
-    {
-        return plugins.Values.Any(e => e.Plugin is T);
-    }
+        => pluginManager.HasPlugin<T>();
 
     /// <summary>
     /// Checks if a plugin with the specified name is installed.
@@ -2306,63 +1803,14 @@ public sealed class World : IDisposable
     /// <param name="name">The name of the plugin to check for.</param>
     /// <returns>True if the plugin is installed; false otherwise.</returns>
     public bool HasPlugin(string name)
-    {
-        return plugins.ContainsKey(name);
-    }
+        => pluginManager.HasPlugin(name);
 
     /// <summary>
     /// Gets all installed plugins.
     /// </summary>
     /// <returns>An enumerable of all installed plugins.</returns>
     public IEnumerable<IWorldPlugin> GetPlugins()
-    {
-        return plugins.Values.Select(e => e.Plugin);
-    }
-
-    /// <summary>
-    /// Uninstalls a plugin by name, handling cleanup of registered systems.
-    /// </summary>
-    private bool UninstallPluginInternal(string name)
-    {
-        if (!plugins.TryGetValue(name, out var entry))
-        {
-            return false;
-        }
-
-        // Call the plugin's uninstall hook
-        entry.Plugin.Uninstall(entry.Context);
-
-        // Remove and dispose all systems registered by the plugin
-        foreach (var system in entry.Context.RegisteredSystems)
-        {
-            RemoveSystem(system);
-            system.Dispose();
-        }
-
-        plugins.Remove(name);
-        return true;
-    }
-
-    /// <summary>
-    /// Removes a system from this world.
-    /// </summary>
-    private void RemoveSystem(ISystem system)
-    {
-        for (int i = systems.Count - 1; i >= 0; i--)
-        {
-            if (ReferenceEquals(systems[i].System, system))
-            {
-                systems.RemoveAt(i);
-                systemsSorted = false;
-                return;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Internal record for tracking plugin state.
-    /// </summary>
-    private sealed record PluginEntry(IWorldPlugin Plugin, PluginContext Context);
+        => pluginManager.GetPlugins();
 
     #endregion
 
@@ -2410,7 +1858,7 @@ public sealed class World : IDisposable
             EntityRecycleCount = entityPool.RecycleCount,
             ArchetypeCount = archetypeManager.ArchetypeCount,
             ComponentTypeCount = Components.Count,
-            SystemCount = systems.Count,
+            SystemCount = systemManager.Count,
             CachedQueryCount = queryManager.CachedQueryCount,
             QueryCacheHits = queryManager.CacheHits,
             QueryCacheMisses = queryManager.CacheMisses,
@@ -2866,204 +2314,21 @@ public sealed class World : IDisposable
 
     #endregion
 
-    #region System Entry
-
-    /// <summary>
-    /// Internal record for storing system with its execution metadata.
-    /// </summary>
-    private sealed record SystemEntry(
-        ISystem System,
-        SystemPhase Phase,
-        int Order,
-        Type[] RunsBefore,
-        Type[] RunsAfter);
-
-    /// <summary>
-    /// Ensures systems are sorted by phase and order before iteration.
-    /// Uses topological sorting when RunBefore/RunAfter constraints exist.
-    /// </summary>
-    /// <exception cref="InvalidOperationException">
-    /// Thrown when a cycle is detected in system dependencies (e.g., A runs before B, B runs before A).
-    /// </exception>
-    private void EnsureSystemsSorted()
-    {
-        if (systemsSorted)
-        {
-            return;
-        }
-
-        // Group systems by phase
-        var phaseGroups = systems
-            .GroupBy(s => s.Phase)
-            .OrderBy(g => g.Key)
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        var sortedSystems = new List<SystemEntry>(systems.Count);
-
-        foreach (var phase in phaseGroups.Keys.OrderBy(p => p))
-        {
-            var phaseSystems = phaseGroups[phase];
-            var sorted = TopologicalSortWithCycleDetection(phaseSystems, phase);
-            sortedSystems.AddRange(sorted);
-        }
-
-        systems.Clear();
-        systems.AddRange(sortedSystems);
-        systemsSorted = true;
-    }
-
-    /// <summary>
-    /// Performs topological sort on systems within a phase, respecting RunBefore/RunAfter constraints.
-    /// Falls back to Order-based sorting when no constraints exist.
-    /// </summary>
-    private static List<SystemEntry> TopologicalSortWithCycleDetection(List<SystemEntry> phaseSystems, SystemPhase phase)
-    {
-        // Check for self-cycles (system referencing itself)
-        foreach (var entry in phaseSystems)
-        {
-            var systemType = entry.System.GetType();
-            if (entry.RunsBefore.Contains(systemType) || entry.RunsAfter.Contains(systemType))
-            {
-                throw new InvalidOperationException(
-                    $"Cycle detected in system dependencies for phase {phase}. " +
-                    $"Systems involved: {systemType.Name}");
-            }
-        }
-
-        if (phaseSystems.Count == 1)
-        {
-            return phaseSystems;
-        }
-
-        // Build type-to-entry mapping for systems in this phase
-        var typeToEntry = new Dictionary<Type, SystemEntry>();
-        foreach (var entry in phaseSystems)
-        {
-            var systemType = entry.System.GetType();
-            typeToEntry[systemType] = entry;
-        }
-
-        // Build adjacency list: key must run before all values
-        var graph = new Dictionary<SystemEntry, HashSet<SystemEntry>>();
-        var inDegree = new Dictionary<SystemEntry, int>();
-
-        foreach (var entry in phaseSystems)
-        {
-            graph[entry] = [];
-            inDegree[entry] = 0;
-        }
-
-        // Process RunsBefore constraints: if A.RunsBefore contains B, then A → B (A before B)
-        foreach (var entry in phaseSystems)
-        {
-            foreach (var targetType in entry.RunsBefore)
-            {
-                if (typeToEntry.TryGetValue(targetType, out var targetEntry))
-                {
-                    if (graph[entry].Add(targetEntry))
-                    {
-                        inDegree[targetEntry]++;
-                    }
-                }
-            }
-        }
-
-        // Process RunsAfter constraints: if A.RunsAfter contains B, then B → A (B before A)
-        foreach (var entry in phaseSystems)
-        {
-            foreach (var targetType in entry.RunsAfter)
-            {
-                if (typeToEntry.TryGetValue(targetType, out var targetEntry))
-                {
-                    if (graph[targetEntry].Add(entry))
-                    {
-                        inDegree[entry]++;
-                    }
-                }
-            }
-        }
-
-        // Check if any constraints exist
-        var hasConstraints = phaseSystems.Any(e => e.RunsBefore.Length > 0 || e.RunsAfter.Length > 0);
-        if (!hasConstraints)
-        {
-            // No constraints - use simple Order-based sorting
-            return [.. phaseSystems.OrderBy(e => e.Order)];
-        }
-
-        // Kahn's algorithm with Order-based tiebreaking
-        var result = new List<SystemEntry>(phaseSystems.Count);
-        var available = new List<SystemEntry>();
-
-        // Find all entries with no dependencies
-        foreach (var entry in phaseSystems)
-        {
-            if (inDegree[entry] == 0)
-            {
-                available.Add(entry);
-            }
-        }
-
-        while (available.Count > 0)
-        {
-            // Sort available by Order for stable, deterministic results
-            available.Sort((a, b) => a.Order.CompareTo(b.Order));
-
-            var current = available[0];
-            available.RemoveAt(0);
-            result.Add(current);
-
-            foreach (var neighbor in graph[current])
-            {
-                inDegree[neighbor]--;
-                if (inDegree[neighbor] == 0)
-                {
-                    available.Add(neighbor);
-                }
-            }
-        }
-
-        // If we didn't process all systems, there's a cycle
-        if (result.Count != phaseSystems.Count)
-        {
-            // Find systems involved in the cycle for better error message
-            var cycleParticipants = phaseSystems
-                .Where(e => inDegree[e] > 0)
-                .Select(e => e.System.GetType().Name);
-            throw new InvalidOperationException(
-                $"Cycle detected in system dependencies for phase {phase}. " +
-                $"Systems involved: {string.Join(", ", cycleParticipants)}");
-        }
-
-        return result;
-    }
-
-    #endregion
-
     /// <inheritdoc />
     public void Dispose()
     {
         // Uninstall all plugins first (this disposes plugin-registered systems)
-        foreach (var name in plugins.Keys.ToList())
-        {
-            UninstallPluginInternal(name);
-        }
-        plugins.Clear();
+        pluginManager.UninstallAll();
 
         // Dispose remaining systems (not registered by plugins)
-        foreach (var entry in systems)
-        {
-            entry.System.Dispose();
-        }
-        systems.Clear();
+        systemManager.DisposeAll();
         archetypeManager.Dispose();
         entityPool.Clear();
         entityNames.Clear();
         namesToEntityIds.Clear();
-        entityParents.Clear();
-        entityChildren.Clear();
-        singletons.Clear();
-        extensions.Clear();
+        hierarchyManager.Clear();
+        singletonManager.Clear();
+        extensionManager.Clear();
         eventBus.Clear();
         componentEvents.Clear();
         entityEvents.Clear();
