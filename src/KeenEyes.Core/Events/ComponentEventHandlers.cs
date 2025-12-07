@@ -63,15 +63,6 @@ internal sealed class ComponentEventHandlers
         }
     }
 
-    /// <summary>
-    /// Checks if there are any handlers for component added events of the specified type.
-    /// </summary>
-    internal bool HasAddedHandlers<T>() where T : struct, IComponent
-    {
-        return addedHandlers.TryGetValue(typeof(T), out var handlersObj)
-            && ((List<Action<Entity, T>>)handlersObj).Count > 0;
-    }
-
     #endregion
 
     #region Removed Handlers
@@ -115,15 +106,6 @@ internal sealed class ComponentEventHandlers
         {
             handlerList[i](entity);
         }
-    }
-
-    /// <summary>
-    /// Checks if there are any handlers for component removed events of the specified type.
-    /// </summary>
-    internal bool HasRemovedHandlers<T>() where T : struct, IComponent
-    {
-        return removedHandlers.TryGetValue(typeof(T), out var handlersObj)
-            && ((List<Action<Entity>>)handlersObj).Count > 0;
     }
 
     #endregion
@@ -173,15 +155,6 @@ internal sealed class ComponentEventHandlers
         {
             handlerList[i](entity, oldValue, newValue);
         }
-    }
-
-    /// <summary>
-    /// Checks if there are any handlers for component changed events of the specified type.
-    /// </summary>
-    internal bool HasChangedHandlers<T>() where T : struct, IComponent
-    {
-        return changedHandlers.TryGetValue(typeof(T), out var handlersObj)
-            && ((List<Action<Entity, T, T>>)handlersObj).Count > 0;
     }
 
     #endregion

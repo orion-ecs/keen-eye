@@ -58,14 +58,6 @@ internal sealed class EntityEventHandlers
         }
     }
 
-    /// <summary>
-    /// Checks if there are any handlers for entity created events.
-    /// </summary>
-    internal bool HasCreatedHandlers()
-    {
-        return createdHandlers.Count > 0;
-    }
-
     #endregion
 
     #region Destroyed Handlers
@@ -105,14 +97,6 @@ internal sealed class EntityEventHandlers
         {
             destroyedHandlers[i](entity);
         }
-    }
-
-    /// <summary>
-    /// Checks if there are any handlers for entity destroyed events.
-    /// </summary>
-    internal bool HasDestroyedHandlers()
-    {
-        return destroyedHandlers.Count > 0;
     }
 
     #endregion
