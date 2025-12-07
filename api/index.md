@@ -29,6 +29,15 @@ Core ECS runtime types for building high-performance entity component systems.
 | @KeenEyes.EntityPool | Manages entity ID recycling with versioning |
 | @KeenEyes.MemoryStats | Memory usage statistics snapshot |
 
+### KeenEyes.Events
+
+Types for reactive programming patterns - events, subscriptions, and change tracking.
+
+| Type | Description |
+|------|-------------|
+| @KeenEyes.Events.EventBus | Generic pub/sub event system for custom events |
+| @KeenEyes.Events.EventSubscription | Disposable subscription handle for event cleanup |
+
 ### KeenEyes.Generators.Attributes
 
 Attributes for Roslyn source generators that reduce boilerplate code.
@@ -81,6 +90,9 @@ foreach (var e in world.Query<Position, Velocity>())
 | **System** | Logic that processes entities. Inherit from `SystemBase` or implement `ISystem`. |
 | **CommandBuffer** | Queues spawn/despawn/component operations for safe execution outside iteration. |
 | **Singleton** | World-level resources via `SetSingleton<T>()` / `GetSingleton<T>()`. |
+| **Hierarchy** | Parent-child entity relationships via `SetParent()` / `GetChildren()`. |
+| **Events** | Lifecycle events via `OnEntityCreated()`, `OnComponentAdded<T>()`, etc. |
+| **Change Tracking** | Dirty entity tracking via `MarkDirty<T>()` / `GetDirtyEntities<T>()`. |
 
 ## Quick Reference
 
@@ -176,6 +188,69 @@ world.SetSingleton(new GameConfig { Gravity = 9.8f });
 ref var config = ref world.GetSingleton<GameConfig>();
 ```
 
+### Entity Hierarchy
+
+```csharp
+// Establish parent-child relationship
+world.SetParent(child, parent);
+
+// Query relationships
+var parent = world.GetParent(child);
+foreach (var child in world.GetChildren(parent))
+{
+    // Process children
+}
+
+// Destroy entity and all descendants
+world.DespawnRecursive(rootEntity);
+```
+
+### Events
+
+```csharp
+// Component lifecycle events
+var sub1 = world.OnComponentAdded<Health>((entity, health) =>
+{
+    Console.WriteLine($"Health added to {entity}");
+});
+
+// Entity lifecycle events
+var sub2 = world.OnEntityDestroyed(entity =>
+{
+    Console.WriteLine($"Entity {entity} destroyed");
+});
+
+// Custom events via EventBus
+world.Events.Subscribe<DamageEvent>(evt =>
+{
+    Console.WriteLine($"Damage dealt: {evt.Amount}");
+});
+world.Events.Publish(new DamageEvent(target, 25));
+
+// Cleanup subscriptions
+sub1.Dispose();
+sub2.Dispose();
+```
+
+### Change Tracking
+
+```csharp
+// Mark entity as dirty
+world.MarkDirty<Position>(entity);
+
+// Query dirty entities
+foreach (var e in world.GetDirtyEntities<Position>())
+{
+    SyncToNetwork(e);
+}
+
+// Clear after processing
+world.ClearDirtyFlags<Position>();
+
+// Enable automatic tracking for Set() calls
+world.EnableAutoTracking<Position>();
+```
+
 ## Source Generator Attributes
 
 Reduce boilerplate with source-generated code:
@@ -214,5 +289,8 @@ For in-depth coverage, see the documentation guides:
 - [Systems](../docs/systems.md) - System design patterns
 - [Command Buffer](../docs/command-buffer.md) - Safe entity modification during iteration
 - [Singletons](../docs/singletons.md) - World-level resources
+- [Relationships](../docs/relationships.md) - Parent-child entity hierarchies
+- [Events](../docs/events.md) - Component and entity lifecycle events
+- [Change Tracking](../docs/change-tracking.md) - Track component modifications
 
 Browse the namespace documentation below for detailed API information on each type.
