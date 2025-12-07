@@ -317,22 +317,46 @@ Utilities for testing ECS code.
 
 ---
 
-## Phase 15: Manager Architecture (Optional Refactor)
+## Phase 15: Manager Architecture
 
-Consider splitting `World` into specialized managers for better separation of concerns:
+Refactor `World` into specialized managers for better separation of concerns.
+See [ADR-001](docs/adr/001-world-manager-architecture.md) for the full decision record.
+
+**Status:** In Progress (Issue [#82](https://github.com/orion-ecs/keen-eye/issues/82))
+
+### Current State
+
+The `World` class has grown to 3,000+ lines with 10+ responsibilities, violating SRP.
+
+### Target Architecture
 
 ```
-World (facade)
-├── EntityManager
-├── ComponentManager
-├── SystemManager
-├── QueryManager
-├── PrefabManager
-├── SnapshotManager
-└── MessageManager
+World (facade, ~300-400 lines)
+├── HierarchyManager      - Parent-child entity relationships
+├── SystemManager         - System registration, ordering, execution
+├── PluginManager         - Plugin lifecycle
+├── SingletonManager      - Global resource storage
+├── ExtensionManager      - Plugin-provided APIs
+├── ArchetypeManager      - (existing) Component storage
+├── QueryManager          - (existing) Query caching
+└── ComponentRegistry     - (existing) Component type registry
 ```
 
-This is an architectural decision - the current monolithic `World` may be acceptable for simpler use cases.
+### Extraction Order
+
+- [ ] Extract HierarchyManager (~676 lines)
+- [ ] Extract SystemManager (~365 lines)
+- [ ] Extract PluginManager (~169 lines)
+- [ ] Extract SingletonManager (~209 lines)
+- [ ] Extract ExtensionManager (~107 lines)
+- [ ] Reduce World to thin facade (~300-400 lines)
+
+### Constraints
+
+- Managers are `internal` (not public API)
+- `World` remains the single entry point
+- Public API unchanged - no breaking changes
+- Unit tests added for each manager before extraction
 
 ---
 

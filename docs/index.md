@@ -56,6 +56,10 @@ foreach (var e in world.Query<Position, Velocity>())
 - [Events](events.md) - Component and entity lifecycle events
 - [Change Tracking](change-tracking.md) - Track component modifications
 
+## Architecture Decisions
+
+- [ADR-001: World Manager Architecture](adr/001-world-manager-architecture.md) - Refactoring World into specialized managers
+
 ## API Reference
 
 See the [API Documentation](../api/index.md) for detailed reference.
