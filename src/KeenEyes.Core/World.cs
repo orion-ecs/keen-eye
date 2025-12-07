@@ -1482,14 +1482,141 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
-    /// Updates all systems with the given delta time.
+    /// Updates all enabled systems with the given delta time.
     /// </summary>
+    /// <param name="deltaTime">The time elapsed since the last update.</param>
+    /// <remarks>
+    /// <para>
+    /// Systems are updated in the order they were added. Disabled systems are skipped.
+    /// </para>
+    /// <para>
+    /// For systems derived from <see cref="SystemBase"/>, the following lifecycle methods
+    /// are called in order: <c>OnBeforeUpdate</c>, <c>Update</c>, <c>OnAfterUpdate</c>.
+    /// </para>
+    /// </remarks>
     public void Update(float deltaTime)
     {
         foreach (var system in systems)
         {
-            system.Update(deltaTime);
+            if (!system.Enabled)
+            {
+                continue;
+            }
+
+            if (system is SystemBase systemBase)
+            {
+                systemBase.InvokeBeforeUpdate(deltaTime);
+                systemBase.Update(deltaTime);
+                systemBase.InvokeAfterUpdate(deltaTime);
+            }
+            else
+            {
+                system.Update(deltaTime);
+            }
         }
+    }
+
+    /// <summary>
+    /// Gets a system of the specified type from this world.
+    /// </summary>
+    /// <typeparam name="T">The type of system to retrieve.</typeparam>
+    /// <returns>The system instance, or null if not found.</returns>
+    /// <remarks>
+    /// This method searches for systems by type, including systems nested within
+    /// <see cref="SystemGroup"/> instances.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var physics = world.GetSystem&lt;PhysicsSystem&gt;();
+    /// if (physics is not null)
+    /// {
+    ///     physics.Enabled = false; // Pause physics
+    /// }
+    /// </code>
+    /// </example>
+    public T? GetSystem<T>() where T : class, ISystem
+    {
+        foreach (var system in systems)
+        {
+            if (system is T typedSystem)
+            {
+                return typedSystem;
+            }
+            if (system is SystemGroup group)
+            {
+                var found = group.GetSystem<T>();
+                if (found is not null)
+                {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Enables a system of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type of system to enable.</typeparam>
+    /// <returns>True if the system was found and enabled; false otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// If the system was already enabled, this method has no effect but still returns true.
+    /// </para>
+    /// <para>
+    /// For systems derived from <see cref="SystemBase"/>, the <c>OnEnabled</c> callback
+    /// is invoked when transitioning from disabled to enabled state.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Resume physics simulation
+    /// world.EnableSystem&lt;PhysicsSystem&gt;();
+    /// </code>
+    /// </example>
+    public bool EnableSystem<T>() where T : class, ISystem
+    {
+        var system = GetSystem<T>();
+        if (system is null)
+        {
+            return false;
+        }
+        system.Enabled = true;
+        return true;
+    }
+
+    /// <summary>
+    /// Disables a system of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type of system to disable.</typeparam>
+    /// <returns>True if the system was found and disabled; false otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// Disabled systems are skipped during <see cref="Update"/> calls.
+    /// </para>
+    /// <para>
+    /// If the system was already disabled, this method has no effect but still returns true.
+    /// </para>
+    /// <para>
+    /// For systems derived from <see cref="SystemBase"/>, the <c>OnDisabled</c> callback
+    /// is invoked when transitioning from enabled to disabled state.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Pause physics simulation
+    /// world.DisableSystem&lt;PhysicsSystem&gt;();
+    /// </code>
+    /// </example>
+    public bool DisableSystem<T>() where T : class, ISystem
+    {
+        var system = GetSystem<T>();
+        if (system is null)
+        {
+            return false;
+        }
+        system.Enabled = false;
+        return true;
     }
 
     #endregion
