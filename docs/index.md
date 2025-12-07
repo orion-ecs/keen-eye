@@ -52,6 +52,9 @@ foreach (var e in world.Query<Position, Velocity>())
 - [Systems](systems.md) - System design patterns
 - [Command Buffer](command-buffer.md) - Safe entity modification during iteration
 - [Singletons](singletons.md) - World-level resources
+- [Relationships](relationships.md) - Parent-child entity hierarchies
+- [Events](events.md) - Component and entity lifecycle events
+- [Change Tracking](change-tracking.md) - Track component modifications
 
 ## API Reference
 
