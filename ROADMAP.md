@@ -111,20 +111,21 @@ Reactive patterns for responding to entity/component changes.
 Better control over system execution.
 
 ### 5.1 Lifecycle Hooks
-- [ ] `OnBeforeUpdate()` - runs before entity processing
-- [ ] `OnAfterUpdate()` - runs after entity processing
-- [ ] `OnEnabled()` / `OnDisabled()` callbacks
+- [x] `OnBeforeUpdate()` - runs before entity processing
+- [x] `OnAfterUpdate()` - runs after entity processing
+- [x] `OnEnabled()` / `OnDisabled()` callbacks
 
 ### 5.2 Runtime Control
-- [ ] `system.Enabled` property
-- [ ] `World.EnableSystem<T>()` / `DisableSystem<T>()`
-- [ ] `World.GetSystem<T>()`
+- [x] `system.Enabled` property
+- [x] `World.EnableSystem<T>()` / `DisableSystem<T>()`
+- [x] `World.GetSystem<T>()`
 
 ### 5.3 Execution Order
-- [ ] Priority-based system sorting
-- [ ] `[RunBefore(typeof(OtherSystem))]` attribute
-- [ ] `[RunAfter(typeof(OtherSystem))]` attribute
-- [ ] Fixed update support (separate from variable update)
+- [x] Priority-based system sorting (Phase and Order parameters)
+- [x] `[RunBefore(typeof(OtherSystem))]` attribute
+- [x] `[RunAfter(typeof(OtherSystem))]` attribute
+- [x] Topological sorting with cycle detection
+- [x] `World.FixedUpdate()` method for fixed timestep physics
 
 ---
 
@@ -556,7 +557,7 @@ Optional packages that extend KeenEyes:
 | Entity Hierarchy | 7 | Pending |
 | Event System | 6 | Pending |
 | Change Tracking | 5 | Pending |
-| System Enhancements | 10 | Pending |
+| System Enhancements | 12 | ✅ Complete |
 | Plugin System | 15 | Pending |
 | Inter-System Messaging | 6 | Pending |
 | Prefabs | 6 | Pending |

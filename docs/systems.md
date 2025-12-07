@@ -45,7 +45,8 @@ public class MovementSystem : SystemBase
 
 `SystemBase` provides:
 - `World` property for accessing the world
-- `OnInitialize()` hook for setup
+- Lifecycle hooks (`OnInitialize`, `OnBeforeUpdate`, `OnAfterUpdate`, `OnEnabled`, `OnDisabled`)
+- `Enabled` property for runtime control
 - `Dispose()` for cleanup
 
 ### Implementing ISystem
@@ -111,11 +112,139 @@ while (running)
 }
 ```
 
-Systems execute in registration order.
+### Execution Order
+
+Systems execute based on **phase** and **order**:
+
+1. **Phase** - Which stage of the frame (EarlyUpdate → PostRender)
+2. **Order** - Priority within a phase (lower values run first)
+
+```csharp
+// Specify phase and order when adding systems
+world.AddSystem<InputSystem>(SystemPhase.EarlyUpdate, order: 0);
+world.AddSystem<PhysicsSystem>(SystemPhase.FixedUpdate, order: 0);
+world.AddSystem<MovementSystem>(SystemPhase.Update, order: 10);
+world.AddSystem<AISystem>(SystemPhase.Update, order: 20);
+world.AddSystem<RenderSystem>(SystemPhase.Render, order: 0);
+```
+
+#### System Phases
+
+| Phase | Description |
+|-------|-------------|
+| `EarlyUpdate` | Start of frame - input polling, time updates |
+| `FixedUpdate` | Fixed timestep - physics simulation |
+| `Update` | Main game logic (default phase) |
+| `LateUpdate` | After main update - cameras, cleanup |
+| `Render` | Rendering phase |
+| `PostRender` | After rendering - debug overlays, profiling |
+
+#### Using the [System] Attribute
+
+Declare phase and order metadata with the `[System]` attribute:
+
+```csharp
+[System(Phase = SystemPhase.EarlyUpdate, Order = 0)]
+public partial class InputSystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        // Poll input devices
+    }
+}
+
+[System(Phase = SystemPhase.Update, Order = 10)]
+public partial class MovementSystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        // Process movement
+    }
+}
+
+[System(Phase = SystemPhase.Update, Order = 20, Group = "AI")]
+public partial class AISystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        // AI decision-making runs after movement
+    }
+}
+```
+
+The source generator creates static metadata properties from the attribute. You can also override the attribute values when registering:
+
+```csharp
+// Use attribute defaults
+world.AddSystem<MovementSystem>();
+
+// Override at registration time
+world.AddSystem<MovementSystem>(SystemPhase.LateUpdate, order: 100);
+```
+
+#### System Dependencies with [RunBefore] and [RunAfter]
+
+For explicit ordering constraints between systems, use the `[RunBefore]` and `[RunAfter]` attributes:
+
+```csharp
+[System(Phase = SystemPhase.Update)]
+[RunAfter(typeof(InputSystem))]
+public partial class MovementSystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        // Always runs after InputSystem in the Update phase
+    }
+}
+
+[System(Phase = SystemPhase.Update)]
+[RunBefore(typeof(RenderSystem))]
+[RunAfter(typeof(MovementSystem))]
+public partial class AnimationSystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        // Runs after MovementSystem but before RenderSystem
+    }
+}
+```
+
+You can also specify dependencies at registration time:
+
+```csharp
+world.AddSystem<CollisionSystem>(
+    SystemPhase.Update,
+    order: 0,
+    runsBefore: [typeof(DamageSystem)],
+    runsAfter: [typeof(MovementSystem)]);
+```
+
+**Key points:**
+- Dependencies only apply within the same phase
+- Cross-phase references are ignored (phase order takes precedence)
+- Dependencies override Order values when they conflict
+- Systems use topological sorting to resolve the final execution order
+
+#### Cycle Detection
+
+If system dependencies create a cycle, an `InvalidOperationException` is thrown:
+
+```csharp
+// This will throw - A runs before B, B runs before A
+[System(Phase = SystemPhase.Update)]
+[RunBefore(typeof(SystemB))]
+public partial class SystemA : SystemBase { }
+
+[System(Phase = SystemPhase.Update)]
+[RunBefore(typeof(SystemA))]  // Creates a cycle!
+public partial class SystemB : SystemBase { }
+```
+
+The exception message indicates which phase contains the cycle and which systems are involved.
 
 ### Fixed Update
 
-For physics or other time-sensitive systems:
+For physics or other time-sensitive systems, use `World.FixedUpdate()` which only executes systems in the `FixedUpdate` phase:
 
 ```csharp
 const float fixedDeltaTime = 1f / 60f;  // 60 Hz
@@ -126,13 +255,175 @@ while (running)
     float deltaTime = CalculateDeltaTime();
     accumulator += deltaTime;
 
-    // Fixed update for physics
+    // Run physics at fixed timestep
     while (accumulator >= fixedDeltaTime)
     {
-        world.Update(fixedDeltaTime);
+        world.FixedUpdate(fixedDeltaTime);  // Only FixedUpdate phase systems
         accumulator -= fixedDeltaTime;
     }
+
+    // Run all other systems at variable rate
+    world.Update(deltaTime);  // Runs all phases including FixedUpdate
 }
+```
+
+**Note:** `World.Update()` runs ALL phases (including FixedUpdate). Use `World.FixedUpdate()` when you need to run physics separately at a fixed timestep.
+
+## Lifecycle Hooks
+
+`SystemBase` provides lifecycle hooks for fine-grained control over system execution:
+
+| Hook | When Called |
+|------|-------------|
+| `OnInitialize()` | After system is added to a world |
+| `OnBeforeUpdate(deltaTime)` | Before each `Update()` call |
+| `OnAfterUpdate(deltaTime)` | After each `Update()` call |
+| `OnEnabled()` | When system transitions from disabled to enabled |
+| `OnDisabled()` | When system transitions from enabled to disabled |
+
+### Example: Fixed Timestep Physics
+
+```csharp
+public class PhysicsSystem : SystemBase
+{
+    private float accumulator;
+    private const float FixedTimeStep = 1f / 60f;
+
+    protected override void OnBeforeUpdate(float deltaTime)
+    {
+        // Accumulate time for fixed timestep simulation
+        accumulator += deltaTime;
+    }
+
+    public override void Update(float deltaTime)
+    {
+        // Run physics at fixed timestep
+        while (accumulator >= FixedTimeStep)
+        {
+            SimulatePhysics(FixedTimeStep);
+            accumulator -= FixedTimeStep;
+        }
+    }
+
+    private void SimulatePhysics(float dt)
+    {
+        foreach (var entity in World.Query<Position, Velocity>().Without<Static>())
+        {
+            ref var pos = ref World.Get<Position>(entity);
+            ref readonly var vel = ref World.Get<Velocity>(entity);
+            pos.X += vel.X * dt;
+            pos.Y += vel.Y * dt;
+        }
+    }
+}
+```
+
+### Example: Resource Management
+
+```csharp
+public class AudioSystem : SystemBase
+{
+    private AudioEngine? engine;
+
+    protected override void OnInitialize()
+    {
+        engine = new AudioEngine();
+    }
+
+    protected override void OnEnabled()
+    {
+        engine?.Resume();
+    }
+
+    protected override void OnDisabled()
+    {
+        engine?.Pause();
+    }
+
+    public override void Update(float deltaTime)
+    {
+        engine?.Update(deltaTime);
+    }
+
+    public override void Dispose()
+    {
+        engine?.Dispose();
+        base.Dispose();
+    }
+}
+```
+
+## Runtime Control
+
+Enable or disable systems at runtime for performance optimization or game state management.
+
+### Enabled Property
+
+```csharp
+var system = world.GetSystem<AISystem>();
+system.Enabled = false;  // Pauses AI processing
+
+// Later...
+system.Enabled = true;   // Resumes AI processing
+```
+
+### World API
+
+```csharp
+// Get a system by type
+var physics = world.GetSystem<PhysicsSystem>();
+
+// Enable/disable by type
+world.DisableSystem<RenderSystem>();  // Returns true if found
+world.EnableSystem<RenderSystem>();
+
+// Works with nested SystemGroups
+world.GetSystem<AISystem>();  // Searches all groups recursively
+```
+
+### Pausing Game Systems
+
+```csharp
+public class GamePauseManager
+{
+    private readonly World world;
+    private readonly List<Type> pausableSystems =
+    [
+        typeof(PhysicsSystem),
+        typeof(AISystem),
+        typeof(AnimationSystem)
+    ];
+
+    public void Pause()
+    {
+        world.DisableSystem<PhysicsSystem>();
+        world.DisableSystem<AISystem>();
+        world.DisableSystem<AnimationSystem>();
+    }
+
+    public void Resume()
+    {
+        world.EnableSystem<PhysicsSystem>();
+        world.EnableSystem<AISystem>();
+        world.EnableSystem<AnimationSystem>();
+    }
+}
+```
+
+### SystemGroup Control
+
+Disable an entire group to pause all contained systems:
+
+```csharp
+var combatGroup = new SystemGroup("Combat")
+    .Add<TargetingSystem>()
+    .Add<DamageSystem>()
+    .Add<HealthSystem>();
+
+world.AddSystem(combatGroup);
+
+// Disable all combat systems at once
+combatGroup.Enabled = false;
 ```
 
 ## System Patterns

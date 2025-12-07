@@ -6,14 +6,46 @@ namespace KeenEyes.Sample;
 // Systems process entities that match their queries.
 // Use [System] attribute to add metadata (Phase, Order, Group).
 // The source generator adds static properties for this metadata.
+//
+// Systems support lifecycle hooks:
+// - OnInitialize()     - Called when system is added to a world
+// - OnBeforeUpdate()   - Called before each Update
+// - OnAfterUpdate()    - Called after each Update
+// - OnEnabled()        - Called when system transitions to enabled
+// - OnDisabled()       - Called when system transitions to disabled
+//
+// Use [RunBefore] and [RunAfter] for explicit dependency ordering:
+// - [RunBefore(typeof(OtherSystem))] - This system runs before OtherSystem
+// - [RunAfter(typeof(OtherSystem))]  - This system runs after OtherSystem
 // =============================================================================
 
 /// <summary>
 /// Moves entities by applying velocity to position.
+/// Demonstrates lifecycle hooks for system setup and teardown.
+/// Uses [RunAfter] to ensure this runs after PlayerInputSystem.
 /// </summary>
 [System(Phase = SystemPhase.Update, Order = 0)]
+[RunAfter(typeof(PlayerInputSystem))]
 public partial class MovementSystem : SystemBase
 {
+    private int frameCount;
+
+    /// <summary>
+    /// Called when the system is added to a world.
+    /// </summary>
+    protected override void OnInitialize()
+    {
+        Console.WriteLine("  [MovementSystem] Initialized");
+    }
+
+    /// <summary>
+    /// Called before each Update - useful for accumulating time or resetting state.
+    /// </summary>
+    protected override void OnBeforeUpdate(float deltaTime)
+    {
+        frameCount++;
+    }
+
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
@@ -26,8 +58,32 @@ public partial class MovementSystem : SystemBase
             // pos.X += vel.X * deltaTime;
             // pos.Y += vel.Y * deltaTime;
 
-            Console.WriteLine($"  MovementSystem: Processing {entity}");
+            Console.WriteLine($"  MovementSystem [frame {frameCount}]: Processing {entity}");
         }
+    }
+
+    /// <summary>
+    /// Called after each Update - useful for cleanup or statistics.
+    /// </summary>
+    protected override void OnAfterUpdate(float deltaTime)
+    {
+        // Could log statistics, sync state, etc.
+    }
+
+    /// <summary>
+    /// Called when system is enabled at runtime.
+    /// </summary>
+    protected override void OnEnabled()
+    {
+        Console.WriteLine("  [MovementSystem] Enabled");
+    }
+
+    /// <summary>
+    /// Called when system is disabled at runtime.
+    /// </summary>
+    protected override void OnDisabled()
+    {
+        Console.WriteLine("  [MovementSystem] Disabled");
     }
 }
 
@@ -96,6 +152,24 @@ public partial class HealthSystem : SystemBase
         foreach (var entity in World.Query<Health>().Without<Disabled>())
         {
             Console.WriteLine($"  HealthSystem: Checking health for {entity}");
+        }
+    }
+}
+
+/// <summary>
+/// Physics simulation system.
+/// Runs in FixedUpdate phase for deterministic physics at fixed timestep.
+/// Use World.FixedUpdate() to run this system independently of the main update loop.
+/// </summary>
+[System(Phase = SystemPhase.FixedUpdate, Order = 0)]
+public partial class PhysicsSystem : SystemBase
+{
+    /// <inheritdoc />
+    public override void Update(float deltaTime)
+    {
+        foreach (var entity in World.Query<Position, Velocity>())
+        {
+            Console.WriteLine($"  PhysicsSystem [FixedUpdate]: Simulating physics for {entity}");
         }
     }
 }
