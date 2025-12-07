@@ -1489,9 +1489,48 @@ public sealed class World : IDisposable
     /// </example>
     public World AddSystem<T>(SystemPhase phase = SystemPhase.Update, int order = 0) where T : ISystem, new()
     {
+        return AddSystem<T>(phase, order, runsBefore: [], runsAfter: []);
+    }
+
+    /// <summary>
+    /// Adds a system to this world with specified execution phase, order, and dependency constraints.
+    /// </summary>
+    /// <typeparam name="T">The system type to add.</typeparam>
+    /// <param name="phase">The execution phase for this system.</param>
+    /// <param name="order">The execution order within the phase. Lower values execute first.</param>
+    /// <param name="runsBefore">Types of systems that this system must run before.</param>
+    /// <param name="runsAfter">Types of systems that this system must run after.</param>
+    /// <returns>This world for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// The <paramref name="runsBefore"/> and <paramref name="runsAfter"/> constraints define
+    /// explicit ordering dependencies between systems within the same phase. Systems are sorted
+    /// using topological sorting to respect these constraints.
+    /// </para>
+    /// <para>
+    /// If constraints create a cycle (e.g., A runs before B, B runs before A), an
+    /// <see cref="InvalidOperationException"/> is thrown during the first <see cref="Update"/> call.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // MovementSystem must run after InputSystem and before RenderSystem
+    /// world.AddSystem&lt;MovementSystem&gt;(
+    ///     SystemPhase.Update,
+    ///     order: 0,
+    ///     runsBefore: [typeof(RenderSystem)],
+    ///     runsAfter: [typeof(InputSystem)]);
+    /// </code>
+    /// </example>
+    public World AddSystem<T>(
+        SystemPhase phase,
+        int order,
+        Type[] runsBefore,
+        Type[] runsAfter) where T : ISystem, new()
+    {
         var system = new T();
         system.Initialize(this);
-        systems.Add(new SystemEntry(system, phase, order));
+        systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
         systemsSorted = false;
         return this;
     }
@@ -1520,8 +1559,53 @@ public sealed class World : IDisposable
     /// </example>
     public World AddSystem(ISystem system, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
+        return AddSystem(system, phase, order, runsBefore: [], runsAfter: []);
+    }
+
+    /// <summary>
+    /// Adds a system instance to this world with specified execution phase, order, and dependency constraints.
+    /// </summary>
+    /// <param name="system">The system instance to add.</param>
+    /// <param name="phase">The execution phase for this system.</param>
+    /// <param name="order">The execution order within the phase. Lower values execute first.</param>
+    /// <param name="runsBefore">Types of systems that this system must run before.</param>
+    /// <param name="runsAfter">Types of systems that this system must run after.</param>
+    /// <returns>This world for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Use this overload when you need to pass a pre-configured system instance with explicit
+    /// ordering constraints.
+    /// </para>
+    /// <para>
+    /// The <paramref name="runsBefore"/> and <paramref name="runsAfter"/> constraints define
+    /// explicit ordering dependencies between systems within the same phase. Systems are sorted
+    /// using topological sorting to respect these constraints.
+    /// </para>
+    /// <para>
+    /// If constraints create a cycle (e.g., A runs before B, B runs before A), an
+    /// <see cref="InvalidOperationException"/> is thrown during the first <see cref="Update"/> call.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var customSystem = new CustomSystem("config");
+    /// world.AddSystem(
+    ///     customSystem,
+    ///     SystemPhase.Update,
+    ///     order: 0,
+    ///     runsBefore: [typeof(RenderSystem)],
+    ///     runsAfter: [typeof(InputSystem)]);
+    /// </code>
+    /// </example>
+    public World AddSystem(
+        ISystem system,
+        SystemPhase phase,
+        int order,
+        Type[] runsBefore,
+        Type[] runsAfter)
+    {
         system.Initialize(this);
-        systems.Add(new SystemEntry(system, phase, order));
+        systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
         systemsSorted = false;
         return this;
     }
@@ -1562,6 +1646,77 @@ public sealed class World : IDisposable
             else
             {
                 system.Update(deltaTime);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Updates only systems in the <see cref="SystemPhase.FixedUpdate"/> phase.
+    /// </summary>
+    /// <param name="fixedDeltaTime">The fixed timestep interval.</param>
+    /// <remarks>
+    /// <para>
+    /// This method is intended for fixed-timestep physics and simulation updates that
+    /// should run at a consistent rate regardless of frame rate. Call this method from
+    /// your game loop's fixed update tick.
+    /// </para>
+    /// <para>
+    /// Only systems registered with <see cref="SystemPhase.FixedUpdate"/> will be executed.
+    /// Systems in other phases are not affected by this method.
+    /// </para>
+    /// <para>
+    /// For systems derived from <see cref="SystemBase"/>, the following lifecycle methods
+    /// are called in order: <c>OnBeforeUpdate</c>, <c>Update</c>, <c>OnAfterUpdate</c>.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Typical game loop with fixed timestep
+    /// float accumulator = 0f;
+    /// const float fixedDeltaTime = 1f / 60f;
+    ///
+    /// while (running)
+    /// {
+    ///     float frameTime = GetFrameTime();
+    ///     accumulator += frameTime;
+    ///
+    ///     while (accumulator >= fixedDeltaTime)
+    ///     {
+    ///         world.FixedUpdate(fixedDeltaTime);
+    ///         accumulator -= fixedDeltaTime;
+    ///     }
+    ///
+    ///     world.Update(frameTime);
+    /// }
+    /// </code>
+    /// </example>
+    public void FixedUpdate(float fixedDeltaTime)
+    {
+        EnsureSystemsSorted();
+
+        foreach (var entry in systems)
+        {
+            if (entry.Phase != SystemPhase.FixedUpdate)
+            {
+                continue;
+            }
+
+            var system = entry.System;
+
+            if (!system.Enabled)
+            {
+                continue;
+            }
+
+            if (system is SystemBase systemBase)
+            {
+                systemBase.InvokeBeforeUpdate(fixedDeltaTime);
+                systemBase.Update(fixedDeltaTime);
+                systemBase.InvokeAfterUpdate(fixedDeltaTime);
+            }
+            else
+            {
+                system.Update(fixedDeltaTime);
             }
         }
     }
@@ -2387,11 +2542,20 @@ public sealed class World : IDisposable
     /// <summary>
     /// Internal record for storing system with its execution metadata.
     /// </summary>
-    private sealed record SystemEntry(ISystem System, SystemPhase Phase, int Order);
+    private sealed record SystemEntry(
+        ISystem System,
+        SystemPhase Phase,
+        int Order,
+        Type[] RunsBefore,
+        Type[] RunsAfter);
 
     /// <summary>
     /// Ensures systems are sorted by phase and order before iteration.
+    /// Uses topological sorting when RunBefore/RunAfter constraints exist.
     /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when a cycle is detected in system dependencies (e.g., A runs before B, B runs before A).
+    /// </exception>
     private void EnsureSystemsSorted()
     {
         if (systemsSorted)
@@ -2399,12 +2563,150 @@ public sealed class World : IDisposable
             return;
         }
 
-        systems.Sort((a, b) =>
+        // Group systems by phase
+        var phaseGroups = systems
+            .GroupBy(s => s.Phase)
+            .OrderBy(g => g.Key)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var sortedSystems = new List<SystemEntry>(systems.Count);
+
+        foreach (var phase in phaseGroups.Keys.OrderBy(p => p))
         {
-            var phaseCompare = a.Phase.CompareTo(b.Phase);
-            return phaseCompare != 0 ? phaseCompare : a.Order.CompareTo(b.Order);
-        });
+            var phaseSystems = phaseGroups[phase];
+            var sorted = TopologicalSortWithCycleDetection(phaseSystems, phase);
+            sortedSystems.AddRange(sorted);
+        }
+
+        systems.Clear();
+        systems.AddRange(sortedSystems);
         systemsSorted = true;
+    }
+
+    /// <summary>
+    /// Performs topological sort on systems within a phase, respecting RunBefore/RunAfter constraints.
+    /// Falls back to Order-based sorting when no constraints exist.
+    /// </summary>
+    private static List<SystemEntry> TopologicalSortWithCycleDetection(List<SystemEntry> phaseSystems, SystemPhase phase)
+    {
+        // Check for self-cycles (system referencing itself)
+        foreach (var entry in phaseSystems)
+        {
+            var systemType = entry.System.GetType();
+            if (entry.RunsBefore.Contains(systemType) || entry.RunsAfter.Contains(systemType))
+            {
+                throw new InvalidOperationException(
+                    $"Cycle detected in system dependencies for phase {phase}. " +
+                    $"Systems involved: {systemType.Name}");
+            }
+        }
+
+        if (phaseSystems.Count == 1)
+        {
+            return phaseSystems;
+        }
+
+        // Build type-to-entry mapping for systems in this phase
+        var typeToEntry = new Dictionary<Type, SystemEntry>();
+        foreach (var entry in phaseSystems)
+        {
+            var systemType = entry.System.GetType();
+            typeToEntry[systemType] = entry;
+        }
+
+        // Build adjacency list: key must run before all values
+        var graph = new Dictionary<SystemEntry, HashSet<SystemEntry>>();
+        var inDegree = new Dictionary<SystemEntry, int>();
+
+        foreach (var entry in phaseSystems)
+        {
+            graph[entry] = [];
+            inDegree[entry] = 0;
+        }
+
+        // Process RunsBefore constraints: if A.RunsBefore contains B, then A → B (A before B)
+        foreach (var entry in phaseSystems)
+        {
+            foreach (var targetType in entry.RunsBefore)
+            {
+                if (typeToEntry.TryGetValue(targetType, out var targetEntry))
+                {
+                    if (graph[entry].Add(targetEntry))
+                    {
+                        inDegree[targetEntry]++;
+                    }
+                }
+            }
+        }
+
+        // Process RunsAfter constraints: if A.RunsAfter contains B, then B → A (B before A)
+        foreach (var entry in phaseSystems)
+        {
+            foreach (var targetType in entry.RunsAfter)
+            {
+                if (typeToEntry.TryGetValue(targetType, out var targetEntry))
+                {
+                    if (graph[targetEntry].Add(entry))
+                    {
+                        inDegree[entry]++;
+                    }
+                }
+            }
+        }
+
+        // Check if any constraints exist
+        var hasConstraints = phaseSystems.Any(e => e.RunsBefore.Length > 0 || e.RunsAfter.Length > 0);
+        if (!hasConstraints)
+        {
+            // No constraints - use simple Order-based sorting
+            return [.. phaseSystems.OrderBy(e => e.Order)];
+        }
+
+        // Kahn's algorithm with Order-based tiebreaking
+        var result = new List<SystemEntry>(phaseSystems.Count);
+        var available = new List<SystemEntry>();
+
+        // Find all entries with no dependencies
+        foreach (var entry in phaseSystems)
+        {
+            if (inDegree[entry] == 0)
+            {
+                available.Add(entry);
+            }
+        }
+
+        while (available.Count > 0)
+        {
+            // Sort available by Order for stable, deterministic results
+            available.Sort((a, b) => a.Order.CompareTo(b.Order));
+
+            var current = available[0];
+            available.RemoveAt(0);
+            result.Add(current);
+
+            foreach (var neighbor in graph[current])
+            {
+                inDegree[neighbor]--;
+                if (inDegree[neighbor] == 0)
+                {
+                    available.Add(neighbor);
+                }
+            }
+        }
+
+        // If we didn't process all systems, there's a cycle
+        if (result.Count != phaseSystems.Count)
+        {
+            // Find systems involved in the cycle for better error message
+            var cycleParticipants = phaseSystems
+                .Where(e => inDegree[e] > 0)
+                .Select(e => e.System.GetType().Name);
+            throw new InvalidOperationException(
+                $"Cycle detected in system dependencies for phase {phase}. " +
+                $"Systems involved: {string.Join(", ", cycleParticipants)}");
+        }
+
+        return result;
     }
 
     #endregion

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -14,6 +15,8 @@ namespace KeenEyes.Generators;
 public sealed class SystemGenerator : IIncrementalGenerator
 {
     private const string SystemAttribute = "KeenEyes.SystemAttribute";
+    private const string RunBeforeAttribute = "KeenEyes.RunBeforeAttribute";
+    private const string RunAfterAttribute = "KeenEyes.RunAfterAttribute";
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -49,7 +52,8 @@ public sealed class SystemGenerator : IIncrementalGenerator
             return null;
         }
 
-        var attr = context.Attributes.FirstOrDefault();
+        var attr = context.Attributes.FirstOrDefault(a =>
+            a.AttributeClass?.ToDisplayString() == SystemAttribute);
         if (attr is null)
         {
             return null;
@@ -76,13 +80,38 @@ public sealed class SystemGenerator : IIncrementalGenerator
             }
         }
 
+        // Extract RunBefore and RunAfter attributes
+        var runsBefore = new List<string>();
+        var runsAfter = new List<string>();
+
+        foreach (var attrData in typeSymbol.GetAttributes())
+        {
+            var attrName = attrData.AttributeClass?.ToDisplayString();
+            if (attrName == RunBeforeAttribute && attrData.ConstructorArguments.Length > 0)
+            {
+                if (attrData.ConstructorArguments[0].Value is INamedTypeSymbol targetType)
+                {
+                    runsBefore.Add(targetType.ToDisplayString());
+                }
+            }
+            else if (attrName == RunAfterAttribute && attrData.ConstructorArguments.Length > 0)
+            {
+                if (attrData.ConstructorArguments[0].Value is INamedTypeSymbol targetType)
+                {
+                    runsAfter.Add(targetType.ToDisplayString());
+                }
+            }
+        }
+
         return new SystemInfo(
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
             phase,
             order,
-            group);
+            group,
+            runsBefore,
+            runsAfter);
     }
 
     private static string GenerateSystemPartial(SystemInfo info)
@@ -101,6 +130,16 @@ public sealed class SystemGenerator : IIncrementalGenerator
 
         var groupStr = info.Group is not null ? $"\"{info.Group}\"" : "null";
 
+        // Generate RunsBefore array
+        var runsBeforeStr = info.RunsBefore.Count > 0
+            ? $"[{string.Join(", ", info.RunsBefore.Select(t => $"typeof(global::{t})"))}]"
+            : "[]";
+
+        // Generate RunsAfter array
+        var runsAfterStr = info.RunsAfter.Count > 0
+            ? $"[{string.Join(", ", info.RunsAfter.Select(t => $"typeof(global::{t})"))}]"
+            : "[]";
+
         // Generate partial with metadata properties
         sb.AppendLine($"partial class {info.Name}");
         sb.AppendLine("{");
@@ -112,6 +151,12 @@ public sealed class SystemGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine($"    /// <summary>The system group name, if any.</summary>");
         sb.AppendLine($"    public static string? Group => {groupStr};");
+        sb.AppendLine();
+        sb.AppendLine($"    /// <summary>Systems that this system must run before.</summary>");
+        sb.AppendLine($"    public static global::System.Type[] RunsBefore => {runsBeforeStr};");
+        sb.AppendLine();
+        sb.AppendLine($"    /// <summary>Systems that this system must run after.</summary>");
+        sb.AppendLine($"    public static global::System.Type[] RunsAfter => {runsAfterStr};");
         sb.AppendLine("}");
 
         return sb.ToString();
@@ -136,6 +181,16 @@ public sealed class SystemGenerator : IIncrementalGenerator
             ? $"global::{info.Name}"
             : $"global::{info.Namespace}.{info.Name}";
 
+        // Generate RunsBefore array
+        var runsBeforeStr = info.RunsBefore.Count > 0
+            ? $"new global::System.Type[] {{ {string.Join(", ", info.RunsBefore.Select(t => $"typeof(global::{t})"))} }}"
+            : "global::System.Array.Empty<global::System.Type>()";
+
+        // Generate RunsAfter array
+        var runsAfterStr = info.RunsAfter.Count > 0
+            ? $"new global::System.Type[] {{ {string.Join(", ", info.RunsAfter.Select(t => $"typeof(global::{t})"))} }}"
+            : "global::System.Array.Empty<global::System.Type>()";
+
         sb.AppendLine($"/// <summary>");
         sb.AppendLine($"/// Extension methods for adding <see cref=\"{info.Name}\"/> to worlds and groups.");
         sb.AppendLine($"/// </summary>");
@@ -144,7 +199,7 @@ public sealed class SystemGenerator : IIncrementalGenerator
 
         // World extension method
         sb.AppendLine($"    /// <summary>");
-        sb.AppendLine($"    /// Adds a <see cref=\"{info.Name}\"/> to the world with its configured phase and order.");
+        sb.AppendLine($"    /// Adds a <see cref=\"{info.Name}\"/> to the world with its configured phase, order, and dependency constraints.");
         sb.AppendLine($"    /// </summary>");
         sb.AppendLine($"    /// <param name=\"world\">The world to add the system to.</param>");
         sb.AppendLine($"    /// <returns>The world for method chaining.</returns>");
@@ -158,7 +213,11 @@ public sealed class SystemGenerator : IIncrementalGenerator
         sb.AppendLine($"    /// </remarks>");
         sb.AppendLine($"    public static global::KeenEyes.World Add{info.Name}(this global::KeenEyes.World world)");
         sb.AppendLine($"    {{");
-        sb.AppendLine($"        return world.AddSystem<{fullTypeName}>(global::KeenEyes.SystemPhase.{info.Phase}, order: {info.Order});");
+        sb.AppendLine($"        return world.AddSystem<{fullTypeName}>(");
+        sb.AppendLine($"            global::KeenEyes.SystemPhase.{info.Phase},");
+        sb.AppendLine($"            order: {info.Order},");
+        sb.AppendLine($"            runsBefore: {runsBeforeStr},");
+        sb.AppendLine($"            runsAfter: {runsAfterStr});");
         sb.AppendLine($"    }}");
         sb.AppendLine();
 
@@ -197,5 +256,7 @@ public sealed class SystemGenerator : IIncrementalGenerator
         string FullName,
         SystemPhase Phase,
         int Order,
-        string? Group);
+        string? Group,
+        List<string> RunsBefore,
+        List<string> RunsAfter);
 }
