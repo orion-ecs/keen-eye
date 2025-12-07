@@ -325,7 +325,9 @@ public class SystemGeneratorTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         // Check World extension uses correct phase and order
         Assert.Contains(generatedTrees, t =>
-            t.Contains("world.AddSystem<global::TestApp.PhysicsSystem>(global::KeenEyes.SystemPhase.FixedUpdate, order: 42)"));
+            t.Contains("world.AddSystem<global::TestApp.PhysicsSystem>(") &&
+            t.Contains("global::KeenEyes.SystemPhase.FixedUpdate,") &&
+            t.Contains("order: 42,"));
     }
 
     [Fact]
@@ -407,7 +409,9 @@ public class SystemGeneratorTests
         Assert.Contains(generatedTrees, t =>
             t.Contains("public static class GlobalInputSystemExtensions"));
         Assert.Contains(generatedTrees, t =>
-            t.Contains("world.AddSystem<global::GlobalInputSystem>(global::KeenEyes.SystemPhase.EarlyUpdate, order: 0)"));
+            t.Contains("world.AddSystem<global::GlobalInputSystem>(") &&
+            t.Contains("global::KeenEyes.SystemPhase.EarlyUpdate,") &&
+            t.Contains("order: 0,"));
     }
 
     [Fact]
@@ -501,6 +505,233 @@ public class SystemGeneratorTests
         Assert.Contains(generatedTrees, t =>
             t.Contains("public static class TestSystemExtensions") &&
             t.Contains("AddTestSystem"));
+    }
+
+    #endregion
+
+    #region RunBefore/RunAfter Tests
+
+    [Fact]
+    public void SystemGenerator_WithNoConstraints_GeneratesEmptyArrays()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System]
+            public partial class DefaultSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsBefore => []"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsAfter => []"));
+    }
+
+    [Fact]
+    public void SystemGenerator_WithSingleRunBefore_GeneratesCorrectArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class TargetSystem { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(TargetSystem))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsBefore => [typeof(global::TestApp.TargetSystem)]"));
+    }
+
+    [Fact]
+    public void SystemGenerator_WithSingleRunAfter_GeneratesCorrectArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class TargetSystem { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunAfter(typeof(TargetSystem))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsAfter => [typeof(global::TestApp.TargetSystem)]"));
+    }
+
+    [Fact]
+    public void SystemGenerator_WithMultipleRunBefore_GeneratesCorrectArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Target1 { }
+            public class Target2 { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(Target1))]
+            [KeenEyes.RunBefore(typeof(Target2))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("typeof(global::TestApp.Target1)") &&
+            t.Contains("typeof(global::TestApp.Target2)") &&
+            t.Contains("RunsBefore"));
+    }
+
+    [Fact]
+    public void SystemGenerator_WithMultipleRunAfter_GeneratesCorrectArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Target1 { }
+            public class Target2 { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunAfter(typeof(Target1))]
+            [KeenEyes.RunAfter(typeof(Target2))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("typeof(global::TestApp.Target1)") &&
+            t.Contains("typeof(global::TestApp.Target2)") &&
+            t.Contains("RunsAfter"));
+    }
+
+    [Fact]
+    public void SystemGenerator_WithBothRunBeforeAndRunAfter_GeneratesBothArrays()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class BeforeTarget { }
+            public class AfterTarget { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(BeforeTarget))]
+            [KeenEyes.RunAfter(typeof(AfterTarget))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsBefore => [typeof(global::TestApp.BeforeTarget)]"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsAfter => [typeof(global::TestApp.AfterTarget)]"));
+    }
+
+    [Fact]
+    public void SystemGenerator_WithNestedNamespaceTarget_GeneratesFullyQualifiedType()
+    {
+        var source = """
+            namespace TestApp.Systems;
+
+            public class TargetSystem { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(TargetSystem))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsBefore => [typeof(global::TestApp.Systems.TargetSystem)]"));
+    }
+
+    [Fact]
+    public void SystemGenerator_GeneratesDocumentationForConstraints()
+    {
+        var source = """
+            namespace TestApp;
+
+            [KeenEyes.System]
+            public partial class DocumentedSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("/// <summary>Systems that this system must run before.</summary>"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("/// <summary>Systems that this system must run after.</summary>"));
+    }
+
+    [Fact]
+    public void SystemGenerator_RunBeforeRunAfter_WithAllMetadata_GeneratesComplete()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Before1 { }
+            public class Before2 { }
+            public class After1 { }
+
+            [KeenEyes.System(Phase = KeenEyes.SystemPhase.FixedUpdate, Order = 10, Group = "Physics")]
+            [KeenEyes.RunBefore(typeof(Before1))]
+            [KeenEyes.RunBefore(typeof(Before2))]
+            [KeenEyes.RunAfter(typeof(After1))]
+            public partial class CompleteSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify all metadata is generated
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("Phase => global::KeenEyes.SystemPhase.FixedUpdate"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("Order => 10"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("Group => \"Physics\""));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("typeof(global::TestApp.Before1)") &&
+            t.Contains("typeof(global::TestApp.Before2)"));
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("RunsAfter => [typeof(global::TestApp.After1)]"));
     }
 
     #endregion

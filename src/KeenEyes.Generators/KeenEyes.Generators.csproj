@@ -10,6 +10,9 @@
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
     <IsRoslynComponent>true</IsRoslynComponent>
 
+    <!-- Suppress RS2008 - analyzer release tracking not needed for internal analyzers -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+
     <!-- Package metadata -->
     <PackageId>KeenEyes.Generators</PackageId>
     <Description>Source generators for KeenEyes ECS framework</Description>
