@@ -1125,3 +1125,141 @@ public class TestWorldAccessPlugin : IWorldPlugin
     {
     }
 }
+
+/// <summary>
+/// Tests for PluginContext with dependency constraints.
+/// </summary>
+public class PluginContextDependencyTests
+{
+    [Fact]
+    public void AddSystem_Generic_WithDependencies_RegistersSystem()
+    {
+        using var world = new World();
+        var plugin = new TestDependencyPlugin();
+
+        world.InstallPlugin(plugin);
+        world.Update(0.016f);
+
+        Assert.NotNull(plugin.System);
+        Assert.Equal(1, plugin.System.UpdateCount);
+    }
+
+    [Fact]
+    public void AddSystem_Instance_WithDependencies_RegistersSystem()
+    {
+        using var world = new World();
+        var plugin = new TestInstanceDependencyPlugin();
+
+        world.InstallPlugin(plugin);
+        world.Update(0.016f);
+
+        Assert.NotNull(plugin.System);
+        Assert.Equal(1, plugin.System.UpdateCount);
+    }
+}
+
+/// <summary>
+/// Test plugin that uses AddSystem with dependency constraints.
+/// </summary>
+public class TestDependencyPlugin : IWorldPlugin
+{
+    public string Name => "TestDependency";
+
+    public TestPluginSystem? System { get; private set; }
+
+    public void Install(PluginContext context)
+    {
+        System = context.AddSystem<TestPluginSystem>(
+            SystemPhase.Update,
+            order: 0,
+            runsBefore: [typeof(TestSecondPluginSystem)],
+            runsAfter: []);
+    }
+
+    public void Uninstall(PluginContext context)
+    {
+    }
+}
+
+/// <summary>
+/// Test plugin that uses AddSystem instance overload with dependency constraints.
+/// </summary>
+public class TestInstanceDependencyPlugin : IWorldPlugin
+{
+    public string Name => "TestInstanceDependency";
+
+    public TestPluginSystem? System { get; private set; }
+
+    public void Install(PluginContext context)
+    {
+        System = new TestPluginSystem();
+        context.AddSystem(
+            System,
+            SystemPhase.Update,
+            order: 0,
+            runsBefore: [typeof(TestSecondPluginSystem)],
+            runsAfter: []);
+    }
+
+    public void Uninstall(PluginContext context)
+    {
+    }
+}
+
+/// <summary>
+/// Tests for WorldBuilder with dependency constraints.
+/// </summary>
+public class WorldBuilderDependencyTests
+{
+    [Fact]
+    public void WithSystem_Generic_WithDependencies_RegistersSystem()
+    {
+        using var world = new WorldBuilder()
+            .WithSystem<TestPluginSystem>(
+                SystemPhase.Update,
+                order: 0,
+                runsBefore: [typeof(TestSecondPluginSystem)],
+                runsAfter: [])
+            .Build();
+
+        world.Update(0.016f);
+
+        var system = world.GetSystem<TestPluginSystem>();
+        Assert.NotNull(system);
+        Assert.Equal(1, system.UpdateCount);
+    }
+
+    [Fact]
+    public void WithSystem_Instance_WithDependencies_RegistersSystem()
+    {
+        var system = new TestPluginSystem();
+
+        using var world = new WorldBuilder()
+            .WithSystem(
+                system,
+                SystemPhase.Update,
+                order: 0,
+                runsBefore: [typeof(TestSecondPluginSystem)],
+                runsAfter: [])
+            .Build();
+
+        world.Update(0.016f);
+
+        Assert.Equal(1, system.UpdateCount);
+    }
+
+    [Fact]
+    public void WithSystemGroup_WithPhaseAndOrder_RegistersGroup()
+    {
+        var system = new TestPluginSystem();
+        var group = new SystemGroup("TestGroup").Add(system);
+
+        using var world = new WorldBuilder()
+            .WithSystemGroup(group, SystemPhase.FixedUpdate, order: 5)
+            .Build();
+
+        world.FixedUpdate(0.016f);
+
+        Assert.Equal(1, system.UpdateCount);
+    }
+}
