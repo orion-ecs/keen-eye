@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using KeenEyes.Events;
 
 namespace KeenEyes;
 
@@ -37,6 +38,11 @@ public sealed class World : IDisposable
     // parentId -> set of childIds for O(C) children enumeration where C is child count
     private readonly Dictionary<int, HashSet<int>> entityChildren = [];
 
+    // Event system
+    private readonly EventBus eventBus = new();
+    private readonly ComponentEventHandlers componentEvents = new();
+    private readonly EntityEventHandlers entityEvents = new();
+
     /// <summary>
     /// The component registry for this world.
     /// Component IDs are unique per-world, not global.
@@ -53,6 +59,31 @@ public sealed class World : IDisposable
     /// Gets the query manager for this world.
     /// </summary>
     internal QueryManager Queries => queryManager;
+
+    /// <summary>
+    /// Gets the event bus for publishing and subscribing to custom events.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The event bus provides a generic pub/sub mechanism for user-defined events.
+    /// For built-in lifecycle events (entity creation/destruction, component changes),
+    /// use the dedicated methods like <see cref="OnEntityCreated(Action{Entity, string?})"/>,
+    /// <see cref="OnComponentAdded{T}(Action{Entity, T})"/>, etc.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Define a custom event
+    /// public readonly record struct DamageEvent(Entity Target, int Amount);
+    ///
+    /// // Subscribe
+    /// var sub = world.Events.Subscribe&lt;DamageEvent&gt;(e => Console.WriteLine($"Damage: {e.Amount}"));
+    ///
+    /// // Publish
+    /// world.Events.Publish(new DamageEvent(entity, 50));
+    /// </code>
+    /// </example>
+    public EventBus Events => eventBus;
 
     /// <summary>
     /// Creates a new ECS world.
@@ -143,6 +174,9 @@ public sealed class World : IDisposable
             namesToEntityIds[name] = entity.Id;
         }
 
+        // Fire entity created event after entity is fully set up
+        entityEvents.FireCreated(entity, name);
+
         return entity;
     }
 
@@ -169,6 +203,9 @@ public sealed class World : IDisposable
         {
             return false;
         }
+
+        // Fire entity destroyed event before cleanup (entity still accessible)
+        entityEvents.FireDestroyed(entity);
 
         // Clean up hierarchy relationships
         CleanupEntityHierarchy(entity);
@@ -367,6 +404,9 @@ public sealed class World : IDisposable
         Components.GetOrRegister<T>();
 
         archetypeManager.AddComponent(entity, in component);
+
+        // Fire component added event after successful addition
+        componentEvents.FireAdded(entity, in component);
     }
 
     /// <summary>
@@ -399,7 +439,21 @@ public sealed class World : IDisposable
                 $"Component type {typeof(T).Name} is not registered in this world.");
         }
 
+        // Check if entity has the component before accessing it
+        if (!archetypeManager.Has<T>(entity))
+        {
+            throw new InvalidOperationException(
+                $"Entity {entity} does not have component {typeof(T).Name}. " +
+                $"Use Add<T>() to add it first.");
+        }
+
+        // Capture old value before setting new value (for change event)
+        var oldValue = archetypeManager.Get<T>(entity);
+
         archetypeManager.Set(entity, in value);
+
+        // Fire component changed event after successful update
+        componentEvents.FireChanged(entity, in oldValue, in value);
     }
 
     /// <summary>
@@ -454,6 +508,15 @@ public sealed class World : IDisposable
         {
             return false;
         }
+
+        // Check if entity has the component before attempting removal
+        if (!archetypeManager.Has<T>(entity))
+        {
+            return false;
+        }
+
+        // Fire component removed event before removal
+        componentEvents.FireRemoved<T>(entity);
 
         return archetypeManager.RemoveComponent<T>(entity);
     }
@@ -1684,6 +1747,198 @@ public sealed class World : IDisposable
 
     #endregion
 
+    #region Events
+
+    /// <summary>
+    /// Registers a handler to be called when a component of type <typeparamref name="T"/>
+    /// is added to an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type to watch for additions.</typeparam>
+    /// <param name="handler">
+    /// The handler to invoke when the component is added. Receives the entity
+    /// and the component value that was added.
+    /// </param>
+    /// <returns>
+    /// An <see cref="EventSubscription"/> that can be disposed to unsubscribe the handler.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This event fires after the component has been successfully added to the entity.
+    /// The entity is guaranteed to have the component when the handler is invoked.
+    /// </para>
+    /// <para>
+    /// Component additions occur when calling <see cref="Add{T}(Entity, in T)"/> at runtime
+    /// or when building an entity with <see cref="EntityBuilder.With{T}(T)"/>.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var subscription = world.OnComponentAdded&lt;Health&gt;((entity, health) =>
+    /// {
+    ///     Console.WriteLine($"Entity {entity} now has {health.Current}/{health.Max} health");
+    /// });
+    ///
+    /// // Later, unsubscribe
+    /// subscription.Dispose();
+    /// </code>
+    /// </example>
+    /// <seealso cref="OnComponentRemoved{T}(Action{Entity})"/>
+    /// <seealso cref="OnComponentChanged{T}(Action{Entity, T, T})"/>
+    public EventSubscription OnComponentAdded<T>(Action<Entity, T> handler) where T : struct, IComponent
+    {
+        return componentEvents.OnAdded(handler);
+    }
+
+    /// <summary>
+    /// Registers a handler to be called when a component of type <typeparamref name="T"/>
+    /// is removed from an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type to watch for removals.</typeparam>
+    /// <param name="handler">The handler to invoke when the component is removed.</param>
+    /// <returns>
+    /// An <see cref="EventSubscription"/> that can be disposed to unsubscribe the handler.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This event fires before the component is fully removed. The handler receives only
+    /// the entity, not the component value, because the component data may be in the
+    /// process of being overwritten.
+    /// </para>
+    /// <para>
+    /// Component removals occur when calling <see cref="Remove{T}(Entity)"/> or when
+    /// despawning an entity.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var subscription = world.OnComponentRemoved&lt;Health&gt;(entity =>
+    /// {
+    ///     Console.WriteLine($"Entity {entity} lost its Health component");
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="OnComponentAdded{T}(Action{Entity, T})"/>
+    public EventSubscription OnComponentRemoved<T>(Action<Entity> handler) where T : struct, IComponent
+    {
+        return componentEvents.OnRemoved<T>(handler);
+    }
+
+    /// <summary>
+    /// Registers a handler to be called when a component of type <typeparamref name="T"/>
+    /// is changed on an entity via <see cref="Set{T}(Entity, in T)"/>.
+    /// </summary>
+    /// <typeparam name="T">The component type to watch for changes.</typeparam>
+    /// <param name="handler">
+    /// The handler to invoke when the component is changed. Receives the entity,
+    /// the old component value, and the new component value.
+    /// </param>
+    /// <returns>
+    /// An <see cref="EventSubscription"/> that can be disposed to unsubscribe the handler.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This event is only fired when using <see cref="Set{T}(Entity, in T)"/>.
+    /// Direct modifications via <see cref="Get{T}(Entity)"/> references do not
+    /// trigger this event since there is no way to detect when a reference is modified.
+    /// </para>
+    /// <para>
+    /// This is useful for implementing reactive patterns where systems need to respond
+    /// to specific component value changes, such as health dropping to zero.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var subscription = world.OnComponentChanged&lt;Health&gt;((entity, oldHealth, newHealth) =>
+    /// {
+    ///     if (newHealth.Current &lt;= 0 &amp;&amp; oldHealth.Current &gt; 0)
+    ///     {
+    ///         Console.WriteLine($"Entity {entity} just died!");
+    ///     }
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="OnComponentAdded{T}(Action{Entity, T})"/>
+    /// <seealso cref="OnComponentRemoved{T}(Action{Entity})"/>
+    public EventSubscription OnComponentChanged<T>(Action<Entity, T, T> handler) where T : struct, IComponent
+    {
+        return componentEvents.OnChanged(handler);
+    }
+
+    /// <summary>
+    /// Registers a handler to be called when an entity is created.
+    /// </summary>
+    /// <param name="handler">
+    /// The handler to invoke when an entity is created. Receives the entity
+    /// and its optional name (null if unnamed).
+    /// </param>
+    /// <returns>
+    /// An <see cref="EventSubscription"/> that can be disposed to unsubscribe the handler.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This event fires after the entity has been fully created and added to the world,
+    /// including all initial components from the entity builder.
+    /// </para>
+    /// <para>
+    /// Entity creation events occur when <see cref="EntityBuilder.Build"/> is called.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var subscription = world.OnEntityCreated((entity, name) =>
+    /// {
+    ///     if (name is not null)
+    ///     {
+    ///         Console.WriteLine($"Named entity created: {name}");
+    ///     }
+    ///     else
+    ///     {
+    ///         Console.WriteLine($"Anonymous entity created: {entity}");
+    ///     }
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="OnEntityDestroyed(Action{Entity})"/>
+    public EventSubscription OnEntityCreated(Action<Entity, string?> handler)
+    {
+        return entityEvents.OnCreated(handler);
+    }
+
+    /// <summary>
+    /// Registers a handler to be called when an entity is destroyed.
+    /// </summary>
+    /// <param name="handler">The handler to invoke when an entity is destroyed.</param>
+    /// <returns>
+    /// An <see cref="EventSubscription"/> that can be disposed to unsubscribe the handler.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This event fires at the start of the despawn process, before the entity is removed
+    /// from the world. The entity handle is still valid during the callback and can be
+    /// used to query components.
+    /// </para>
+    /// <para>
+    /// Entity destruction events occur when <see cref="Despawn(Entity)"/> or
+    /// <see cref="DespawnRecursive(Entity)"/> is called.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var subscription = world.OnEntityDestroyed(entity =>
+    /// {
+    ///     var name = world.GetName(entity);
+    ///     Console.WriteLine($"Entity destroyed: {name ?? entity.ToString()}");
+    /// });
+    /// </code>
+    /// </example>
+    /// <seealso cref="OnEntityCreated(Action{Entity, string?})"/>
+    public EventSubscription OnEntityDestroyed(Action<Entity> handler)
+    {
+        return entityEvents.OnDestroyed(handler);
+    }
+
+    #endregion
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -1699,5 +1954,36 @@ public sealed class World : IDisposable
         entityParents.Clear();
         entityChildren.Clear();
         singletons.Clear();
+        eventBus.Clear();
+        componentEvents.Clear();
+        entityEvents.Clear();
     }
+
+    #region Internal Event Firing
+
+    /// <summary>
+    /// Fires the component added event. Called internally after a component is added.
+    /// </summary>
+    internal void FireComponentAdded<T>(Entity entity, in T component) where T : struct, IComponent
+    {
+        componentEvents.FireAdded(entity, in component);
+    }
+
+    /// <summary>
+    /// Fires the component removed event. Called internally before a component is removed.
+    /// </summary>
+    internal void FireComponentRemoved<T>(Entity entity) where T : struct, IComponent
+    {
+        componentEvents.FireRemoved<T>(entity);
+    }
+
+    /// <summary>
+    /// Fires the entity created event. Called internally after an entity is created.
+    /// </summary>
+    internal void FireEntityCreated(Entity entity, string? name)
+    {
+        entityEvents.FireCreated(entity, name);
+    }
+
+    #endregion
 }
