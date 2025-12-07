@@ -164,12 +164,12 @@ Extensibility for physics, networking, rendering, etc.
 
 Decoupled communication between systems.
 
-- [ ] `MessageManager` / `IMessageBus`
-- [ ] `World.Send<T>(message)`
-- [ ] `World.Subscribe<T>(handler)`
-- [ ] `World.Unsubscribe<T>(handler)`
-- [ ] Typed message channels
-- [ ] Broadcast vs targeted messages
+- [x] `MessageManager` / `IMessageBus`
+- [x] `World.Send<T>(message)`
+- [x] `World.Subscribe<T>(handler)`
+- [x] Unsubscription via `IDisposable` (EventSubscription)
+- [x] Typed message channels
+- [x] Message queuing for deferred delivery (`QueueMessage`, `ProcessQueuedMessages`)
 
 ---
 
@@ -583,7 +583,7 @@ Optional packages that extend KeenEyes:
 | Change Tracking | 5 | Pending |
 | System Enhancements | 12 | ✅ Complete |
 | Plugin System | 15 | Pending |
-| Inter-System Messaging | 6 | Pending |
+| Inter-System Messaging | 6 | ✅ Complete |
 | Prefabs | 6 | Pending |
 | Entity Tags | 6 | Pending |
 | Component Validation | 4 | Pending |
