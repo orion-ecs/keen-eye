@@ -32,12 +32,15 @@ This violates the Single Responsibility Principle. The class is difficult to:
 Refactor `World` into a **facade pattern** with specialized internal managers:
 
 ```
-World (facade, ~300-400 lines)
+World (facade, target ~300-400 lines)
 ├── HierarchyManager      - Parent-child entity relationships
 ├── SystemManager         - System registration, ordering, execution
 ├── PluginManager         - Plugin lifecycle
 ├── SingletonManager      - Global resource storage
 ├── ExtensionManager      - Plugin-provided APIs
+├── EntityNamingManager   - Entity name registration and lookup
+├── EventManager          - Component and entity lifecycle events
+├── ChangeTracker         - Dirty flag tracking (enhanced with EntityPool)
 ├── ArchetypeManager      - (existing) Component storage
 ├── QueryManager          - (existing) Query caching
 └── ComponentRegistry     - (existing) Component type registry
@@ -47,11 +50,16 @@ World (facade, ~300-400 lines)
 
 Extract managers in order of size and isolation (largest/cleanest first):
 
-1. **HierarchyManager** (~676 lines) - No dependencies on other inline code
-2. **SystemManager** (~365 lines) - Complex topological sort, well-bounded
-3. **PluginManager** (~169 lines) - Interacts with systems
-4. **SingletonManager** (~209 lines) - Simple key-value pattern
-5. **ExtensionManager** (~107 lines) - Could merge with singletons
+1. ✅ **HierarchyManager** (~676 lines) - No dependencies on other inline code
+2. ✅ **SystemManager** (~365 lines) - Complex topological sort, well-bounded
+3. ✅ **PluginManager** (~169 lines) - Interacts with systems
+4. ✅ **SingletonManager** (~209 lines) - Simple key-value pattern
+5. ✅ **ExtensionManager** (~107 lines) - Plugin-provided APIs
+6. ✅ **EntityNamingManager** (~100 lines) - Entity name registration and lookup
+7. ✅ **EventManager** (~140 lines) - Consolidates EventBus, ComponentEventHandlers, EntityEventHandlers
+8. ✅ **ChangeTracker** (enhanced) - Added EntityPool dependency for entity reconstruction
+
+**Current Status:** World.cs reduced from 3,073 to ~2,272 lines (~26% reduction)
 
 ### Design Constraints
 
