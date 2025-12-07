@@ -29,7 +29,7 @@ public sealed class World : IDisposable
     private readonly SingletonManager singletonManager = new();
     private readonly EntityNamingManager entityNamingManager = new();
     private readonly EventManager eventManager = new();
-    private readonly ChangeTracker changeTracker = new();
+    private readonly ChangeTracker changeTracker;
     private readonly ExtensionManager extensionManager = new();
     private readonly EntityBuilder builder;
 
@@ -91,6 +91,7 @@ public sealed class World : IDisposable
         hierarchyManager = new HierarchyManager(this);
         systemManager = new SystemManager(this);
         pluginManager = new PluginManager(this, systemManager);
+        changeTracker = new ChangeTracker(entityPool);
         builder = new EntityBuilder(this);
     }
 
@@ -416,7 +417,7 @@ public sealed class World : IDisposable
         // Auto-track dirty if enabled for this component type
         if (changeTracker.IsAutoTrackingEnabled<T>())
         {
-            changeTracker.MarkDirty<T>(entity);
+            changeTracker.MarkDirtyInternal<T>(entity);
         }
     }
 
@@ -2067,14 +2068,7 @@ public sealed class World : IDisposable
     /// <seealso cref="ClearDirtyFlags{T}()"/>
     /// <seealso cref="EnableAutoTracking{T}()"/>
     public void MarkDirty<T>(Entity entity) where T : struct, IComponent
-    {
-        if (!IsAlive(entity))
-        {
-            throw new InvalidOperationException($"Entity {entity} is not alive.");
-        }
-
-        changeTracker.MarkDirty<T>(entity);
-    }
+        => changeTracker.MarkDirty<T>(entity, IsAlive);
 
     /// <summary>
     /// Gets all entities that have been marked dirty for a specific component type.
@@ -2111,24 +2105,7 @@ public sealed class World : IDisposable
     /// <seealso cref="MarkDirty{T}(Entity)"/>
     /// <seealso cref="ClearDirtyFlags{T}()"/>
     public IEnumerable<Entity> GetDirtyEntities<T>() where T : struct, IComponent
-    {
-        var dirtyIds = changeTracker.GetDirtyEntityIds<T>();
-
-        foreach (var entityId in dirtyIds)
-        {
-            var version = entityPool.GetVersion(entityId);
-            if (version < 0)
-            {
-                continue;
-            }
-
-            var entity = new Entity(entityId, version);
-            if (IsAlive(entity))
-            {
-                yield return entity;
-            }
-        }
-    }
+        => changeTracker.GetDirtyEntities<T>(IsAlive);
 
     /// <summary>
     /// Clears all dirty flags for a specific component type.
@@ -2183,14 +2160,7 @@ public sealed class World : IDisposable
     /// </code>
     /// </example>
     public bool IsDirty<T>(Entity entity) where T : struct, IComponent
-    {
-        if (!IsAlive(entity))
-        {
-            return false;
-        }
-
-        return changeTracker.IsDirty<T>(entity);
-    }
+        => changeTracker.IsDirty<T>(entity, IsAlive);
 
     /// <summary>
     /// Enables automatic dirty tracking for a component type.
