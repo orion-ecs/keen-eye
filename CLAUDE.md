@@ -112,6 +112,67 @@ dotnet format --verify-no-changes  # Check formatting
 4. **Systems are explicit** - User registers what they need per-world
 5. **Builders are generated** - `WithPosition(x, y)` instead of `With(new Position{...})`
 
+## World Manager Architecture
+
+The `World` class uses a **facade pattern** with specialized internal managers. This keeps `World` as a thin coordinator (~300-400 lines) while delegating to focused managers.
+
+See [ADR-001](docs/adr/001-world-manager-architecture.md) for the full decision record.
+
+### Current Architecture
+
+```
+World (facade)
+├── HierarchyManager      - Parent-child entity relationships
+├── SystemManager         - System registration, ordering, execution
+├── PluginManager         - Plugin lifecycle
+├── SingletonManager      - Global resource storage
+├── ExtensionManager      - Plugin-provided APIs
+├── ArchetypeManager      - Component storage
+├── QueryManager          - Query caching
+└── ComponentRegistry     - Component type registry
+```
+
+### Manager Design Rules
+
+When working with or creating managers:
+
+1. **Managers are `internal`** - Not part of public API; `World` is the only entry point
+2. **Single responsibility** - Each manager owns one concern completely
+3. **Minimal dependencies** - Managers take only what they need (World ref or specific collaborators)
+4. **No circular dependencies** - If A needs B, B cannot need A
+5. **Testable in isolation** - Each manager should be unit-testable without full World
+
+### Adding New Functionality
+
+When adding new features to World:
+
+1. **Identify the owner** - Which manager should own this feature?
+2. **Implement in manager** - Add the logic to the appropriate manager
+3. **Delegate from World** - World methods should be thin pass-throughs
+4. **Test the manager** - Write unit tests for the manager directly
+
+**Good:**
+```csharp
+// In World.cs - thin delegation
+public void SetParent(Entity child, Entity parent)
+    => hierarchyManager.SetParent(child, parent);
+
+// In HierarchyManager.cs - actual logic
+internal void SetParent(Entity child, Entity parent)
+{
+    // All the validation and state management here
+}
+```
+
+**Bad:**
+```csharp
+// In World.cs - logic in World (violates SRP)
+public void SetParent(Entity child, Entity parent)
+{
+    // 50 lines of validation and state management
+}
+```
+
 ## Work Tracking
 
 Agents must track their work to maintain visibility and enable collaboration:
