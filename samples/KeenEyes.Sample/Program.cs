@@ -92,18 +92,58 @@ foreach (var entity in world.Query<Position, Velocity>().With<Enemy>().Without<D
 
 Console.WriteLine("\n[3] Systems Demo\n");
 
-// Manual system registration
+// Manual system registration with phases
+// Note: MovementSystem uses [RunAfter(typeof(PlayerInputSystem))] for explicit ordering
 world
-    .AddSystem<PlayerInputSystem>()
-    .AddSystem<MovementSystem>()
-    .AddSystem<EnemyAISystem>()
-    .AddSystem<HealthSystem>()
-    .AddSystem<RenderSystem>();
+    .AddSystem<PlayerInputSystem>()   // EarlyUpdate phase
+    .AddSystem<PhysicsSystem>()       // FixedUpdate phase
+    .AddSystem<MovementSystem>()      // Update phase (runs after PlayerInputSystem)
+    .AddSystem<EnemyAISystem>()       // Update phase
+    .AddSystem<HealthSystem>()        // LateUpdate phase
+    .AddSystem<RenderSystem>();       // Render phase
 
 Console.WriteLine("Systems registered. Running one update cycle...\n");
 
 // Simulate one frame
 world.Update(deltaTime: 0.016f);
+
+// =============================================================================
+// PART 3b: Runtime System Control
+// =============================================================================
+
+Console.WriteLine("\n[3b] Runtime System Control Demo\n");
+
+// Get a system by type
+var movementSystem = world.GetSystem<MovementSystem>();
+Console.WriteLine($"Retrieved MovementSystem: {movementSystem != null}");
+
+// Disable a system at runtime
+Console.WriteLine("\nDisabling MovementSystem...");
+world.DisableSystem<MovementSystem>();
+
+Console.WriteLine("Running update (MovementSystem disabled)...\n");
+world.Update(deltaTime: 0.016f);
+
+// Re-enable the system
+Console.WriteLine("\nRe-enabling MovementSystem...");
+world.EnableSystem<MovementSystem>();
+
+Console.WriteLine("Running update (MovementSystem enabled)...\n");
+world.Update(deltaTime: 0.016f);
+
+// =============================================================================
+// PART 3c: Fixed Update Demo
+// =============================================================================
+
+Console.WriteLine("\n[3c] Fixed Update Demo\n");
+
+Console.WriteLine("World.FixedUpdate() runs ONLY FixedUpdate phase systems (e.g., PhysicsSystem)");
+Console.WriteLine("Calling FixedUpdate twice at fixed timestep...\n");
+
+world.FixedUpdate(fixedDeltaTime: 1f / 60f);
+world.FixedUpdate(fixedDeltaTime: 1f / 60f);
+
+Console.WriteLine("\nNote: PhysicsSystem ran twice, other systems were not executed.");
 
 // =============================================================================
 // PART 4: Component Registry (per-World)

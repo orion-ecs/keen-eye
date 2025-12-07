@@ -23,8 +23,11 @@ Core ECS runtime types for building high-performance entity component systems.
 | @KeenEyes.QueryBuilder`1 | Fluent query builder for filtering entities |
 | @KeenEyes.QueryEnumerator`1 | Cache-friendly query iteration |
 | @KeenEyes.ISystem | Base interface for ECS systems |
-| @KeenEyes.SystemBase | Abstract base class with common system functionality |
+| @KeenEyes.SystemBase | Abstract base class with lifecycle hooks and runtime control |
 | @KeenEyes.SystemGroup | Groups systems for collective execution |
+| @KeenEyes.SystemPhase | Enum defining execution phases (EarlyUpdate, FixedUpdate, Update, LateUpdate, Render, PostRender) |
+| @KeenEyes.RunBeforeAttribute | Specifies this system must run before another system (topologically sorted) |
+| @KeenEyes.RunAfterAttribute | Specifies this system must run after another system (topologically sorted) |
 | @KeenEyes.CommandBuffer | Queues entity operations for deferred execution |
 | @KeenEyes.EntityPool | Manages entity ID recycling with versioning |
 | @KeenEyes.MemoryStats | Memory usage statistics snapshot |
@@ -87,7 +90,8 @@ foreach (var e in world.Query<Position, Velocity>())
 | **Component** | Plain data struct implementing `IComponent`. Use `ITagComponent` for zero-size markers. |
 | **Archetype** | Internal storage grouping entities with identical component types for cache-friendly iteration. |
 | **Query** | Fluent API for filtering entities: `world.Query<A, B>().With<C>().Without<D>()` |
-| **System** | Logic that processes entities. Inherit from `SystemBase` or implement `ISystem`. |
+| **System** | Logic that processes entities. Inherit from `SystemBase` for lifecycle hooks (`OnBeforeUpdate`, `OnAfterUpdate`, `OnEnabled`, `OnDisabled`) and runtime control. |
+| **SystemPhase** | Execution stage: EarlyUpdate → FixedUpdate → Update → LateUpdate → Render → PostRender. |
 | **CommandBuffer** | Queues spawn/despawn/component operations for safe execution outside iteration. |
 | **Singleton** | World-level resources via `SetSingleton<T>()` / `GetSingleton<T>()`. |
 | **Hierarchy** | Parent-child entity relationships via `SetParent()` / `GetChildren()`. |
@@ -140,8 +144,14 @@ foreach (var e in world.Query<Position>().With<Health>().Without<Dead>())
 ### Systems
 
 ```csharp
-public class MovementSystem : SystemBase
+[System(Phase = SystemPhase.Update, Order = 10)]
+public partial class MovementSystem : SystemBase
 {
+    protected override void OnBeforeUpdate(float deltaTime)
+    {
+        // Called before Update - setup, accumulation, etc.
+    }
+
     public override void Update(float deltaTime)
     {
         foreach (var entity in World.Query<Position, Velocity>())
@@ -152,11 +162,51 @@ public class MovementSystem : SystemBase
             pos.Y += vel.Y * deltaTime;
         }
     }
+
+    protected override void OnAfterUpdate(float deltaTime)
+    {
+        // Called after Update - cleanup, statistics, etc.
+    }
+
+    protected override void OnEnabled()
+    {
+        // Called when system is enabled
+    }
+
+    protected override void OnDisabled()
+    {
+        // Called when system is disabled
+    }
 }
 
-// Register and run
-world.AddSystem<MovementSystem>();
+// Register with phase and order
+world.AddSystem<InputSystem>(SystemPhase.EarlyUpdate, order: 0);
+world.AddSystem<MovementSystem>(SystemPhase.Update, order: 10);
+world.AddSystem<RenderSystem>(SystemPhase.Render, order: 0);
+
+// System dependencies with [RunBefore] and [RunAfter]
+[System(Phase = SystemPhase.Update)]
+[RunAfter(typeof(InputSystem))]
+[RunBefore(typeof(RenderSystem))]
+public partial class AnimationSystem : SystemBase { }
+
+// Or specify at registration time
+world.AddSystem<CollisionSystem>(
+    SystemPhase.Update,
+    order: 0,
+    runsBefore: [typeof(DamageSystem)],
+    runsAfter: [typeof(MovementSystem)]);
+
+// Run all systems (sorted by phase, then dependencies, then order)
 world.Update(deltaTime);
+
+// Run only FixedUpdate phase systems (for physics)
+world.FixedUpdate(fixedDeltaTime);
+
+// Runtime control
+var system = world.GetSystem<MovementSystem>();
+world.DisableSystem<MovementSystem>();  // Pauses the system
+world.EnableSystem<MovementSystem>();   // Resumes the system
 ```
 
 ### Command Buffer (Deferred Operations)
