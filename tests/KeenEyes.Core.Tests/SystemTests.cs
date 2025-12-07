@@ -72,6 +72,7 @@ public class TestNonDefaultConstructorSystem : ISystem
     }
 
     public string Name => name;
+    public bool Enabled { get; set; } = true;
 
     public void Initialize(World world) { }
     public void Update(float deltaTime) { }
@@ -474,5 +475,407 @@ public class WorldSystemTests
         world.Update(0.016f);
 
         Assert.Equal(1, system.UpdateCount);
+    }
+}
+
+/// <summary>
+/// Test system that tracks lifecycle hook invocations.
+/// </summary>
+public class TestLifecycleSystem : SystemBase
+{
+    public int BeforeUpdateCount { get; private set; }
+    public int AfterUpdateCount { get; private set; }
+    public int EnabledCount { get; private set; }
+    public int DisabledCount { get; private set; }
+    public int UpdateCount { get; private set; }
+    public float LastDeltaTime { get; private set; }
+    public List<string> CallOrder { get; } = [];
+
+    protected override void OnBeforeUpdate(float deltaTime)
+    {
+        BeforeUpdateCount++;
+        LastDeltaTime = deltaTime;
+        CallOrder.Add("BeforeUpdate");
+    }
+
+    public override void Update(float deltaTime)
+    {
+        UpdateCount++;
+        CallOrder.Add("Update");
+    }
+
+    protected override void OnAfterUpdate(float deltaTime)
+    {
+        AfterUpdateCount++;
+        CallOrder.Add("AfterUpdate");
+    }
+
+    protected override void OnEnabled()
+    {
+        EnabledCount++;
+        CallOrder.Add("Enabled");
+    }
+
+    protected override void OnDisabled()
+    {
+        DisabledCount++;
+        CallOrder.Add("Disabled");
+    }
+}
+
+/// <summary>
+/// Tests for system lifecycle hooks.
+/// </summary>
+public class SystemLifecycleHookTests
+{
+    [Fact]
+    public void OnBeforeUpdate_CalledBeforeUpdate()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        world.Update(0.016f);
+
+        Assert.Equal(1, system.BeforeUpdateCount);
+        Assert.Equal(1, system.UpdateCount);
+        Assert.Equal(["BeforeUpdate", "Update", "AfterUpdate"], system.CallOrder);
+    }
+
+    [Fact]
+    public void OnAfterUpdate_CalledAfterUpdate()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        world.Update(0.016f);
+
+        Assert.Equal(1, system.AfterUpdateCount);
+        Assert.Equal(["BeforeUpdate", "Update", "AfterUpdate"], system.CallOrder);
+    }
+
+    [Fact]
+    public void OnBeforeUpdate_ReceivesDeltaTime()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        world.Update(0.033f);
+
+        Assert.Equal(0.033f, system.LastDeltaTime, 5);
+    }
+
+    [Fact]
+    public void LifecycleHooks_CalledInCorrectOrder()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        world.Update(0.016f);
+        world.Update(0.016f);
+
+        Assert.Equal(
+            ["BeforeUpdate", "Update", "AfterUpdate", "BeforeUpdate", "Update", "AfterUpdate"],
+            system.CallOrder);
+    }
+
+    [Fact]
+    public void OnEnabled_CalledWhenEnabled()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false;
+        system.Enabled = true;
+
+        Assert.Equal(1, system.EnabledCount);
+    }
+
+    [Fact]
+    public void OnDisabled_CalledWhenDisabled()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false;
+
+        Assert.Equal(1, system.DisabledCount);
+    }
+
+    [Fact]
+    public void OnEnabled_NotCalledWhenAlreadyEnabled()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.Enabled = true; // Already enabled, should not trigger callback
+        system.Enabled = true;
+
+        Assert.Equal(0, system.EnabledCount);
+    }
+
+    [Fact]
+    public void OnDisabled_NotCalledWhenAlreadyDisabled()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false;
+        system.Enabled = false; // Already disabled, should not trigger callback
+
+        Assert.Equal(1, system.DisabledCount);
+    }
+
+    [Fact]
+    public void LifecycleHooks_InSystemGroup_CalledCorrectly()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+        var group = new SystemGroup("TestGroup").Add(system);
+
+        world.AddSystem(group);
+        world.Update(0.016f);
+
+        Assert.Equal(1, system.BeforeUpdateCount);
+        Assert.Equal(1, system.UpdateCount);
+        Assert.Equal(1, system.AfterUpdateCount);
+        Assert.Equal(["BeforeUpdate", "Update", "AfterUpdate"], system.CallOrder);
+    }
+}
+
+/// <summary>
+/// Tests for system runtime control (enable/disable).
+/// </summary>
+public class SystemRuntimeControlTests
+{
+    [Fact]
+    public void Enabled_DefaultsToTrue()
+    {
+        var system = new TestLifecycleSystem();
+
+        Assert.True(system.Enabled);
+    }
+
+    [Fact]
+    public void DisabledSystem_NotUpdated()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false;
+        world.Update(0.016f);
+
+        Assert.Equal(0, system.UpdateCount);
+        Assert.Equal(0, system.BeforeUpdateCount);
+        Assert.Equal(0, system.AfterUpdateCount);
+    }
+
+    [Fact]
+    public void GetSystem_ReturnsSystem()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        var retrieved = world.GetSystem<TestLifecycleSystem>();
+
+        Assert.Same(system, retrieved);
+    }
+
+    [Fact]
+    public void GetSystem_ReturnsNull_WhenNotFound()
+    {
+        using var world = new World();
+
+        var retrieved = world.GetSystem<TestLifecycleSystem>();
+
+        Assert.Null(retrieved);
+    }
+
+    [Fact]
+    public void GetSystem_FindsSystemInGroup()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+        var group = new SystemGroup("TestGroup").Add(system);
+
+        world.AddSystem(group);
+        var retrieved = world.GetSystem<TestLifecycleSystem>();
+
+        Assert.Same(system, retrieved);
+    }
+
+    [Fact]
+    public void GetSystem_FindsSystemInNestedGroups()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+        var innerGroup = new SystemGroup("Inner").Add(system);
+        var outerGroup = new SystemGroup("Outer").Add(innerGroup);
+
+        world.AddSystem(outerGroup);
+        var retrieved = world.GetSystem<TestLifecycleSystem>();
+
+        Assert.Same(system, retrieved);
+    }
+
+    [Fact]
+    public void EnableSystem_EnablesDisabledSystem()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false;
+
+        var result = world.EnableSystem<TestLifecycleSystem>();
+
+        Assert.True(result);
+        Assert.True(system.Enabled);
+    }
+
+    [Fact]
+    public void EnableSystem_ReturnsFalse_WhenNotFound()
+    {
+        using var world = new World();
+
+        var result = world.EnableSystem<TestLifecycleSystem>();
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void DisableSystem_DisablesEnabledSystem()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+
+        var result = world.DisableSystem<TestLifecycleSystem>();
+
+        Assert.True(result);
+        Assert.False(system.Enabled);
+    }
+
+    [Fact]
+    public void DisableSystem_ReturnsFalse_WhenNotFound()
+    {
+        using var world = new World();
+
+        var result = world.DisableSystem<TestLifecycleSystem>();
+
+        Assert.False(result);
+    }
+
+    [Fact]
+    public void EnableSystem_TriggersOnEnabledCallback()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.Enabled = false;
+        system.CallOrder.Clear();
+
+        world.EnableSystem<TestLifecycleSystem>();
+
+        Assert.Contains("Enabled", system.CallOrder);
+    }
+
+    [Fact]
+    public void DisableSystem_TriggersOnDisabledCallback()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+        system.CallOrder.Clear();
+
+        world.DisableSystem<TestLifecycleSystem>();
+
+        Assert.Contains("Disabled", system.CallOrder);
+    }
+
+    [Fact]
+    public void DisabledSystem_InGroup_NotUpdated()
+    {
+        using var world = new World();
+        var system1 = new TestLifecycleSystem();
+        var system2 = new TestLifecycleSystem();
+        var group = new SystemGroup("TestGroup").Add(system1).Add(system2);
+
+        world.AddSystem(group);
+        system1.Enabled = false;
+        world.Update(0.016f);
+
+        Assert.Equal(0, system1.UpdateCount);
+        Assert.Equal(1, system2.UpdateCount);
+    }
+
+    [Fact]
+    public void SystemGroup_Enabled_ControlsEntireGroup()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+        var group = new SystemGroup("TestGroup").Add(system);
+
+        world.AddSystem(group);
+        group.Enabled = false;
+        world.Update(0.016f);
+
+        Assert.Equal(0, system.UpdateCount);
+    }
+
+    [Fact]
+    public void SystemGroup_GetSystem_FindsSystem()
+    {
+        var system = new TestLifecycleSystem();
+        var group = new SystemGroup("TestGroup").Add(system);
+
+        var retrieved = group.GetSystem<TestLifecycleSystem>();
+
+        Assert.Same(system, retrieved);
+    }
+
+    [Fact]
+    public void SystemGroup_GetSystem_ReturnsNull_WhenNotFound()
+    {
+        var group = new SystemGroup("TestGroup");
+
+        var retrieved = group.GetSystem<TestLifecycleSystem>();
+
+        Assert.Null(retrieved);
+    }
+
+    [Fact]
+    public void EnableDisable_Toggle_WorksCorrectly()
+    {
+        using var world = new World();
+        var system = new TestLifecycleSystem();
+
+        world.AddSystem(system);
+
+        // Initial state: enabled
+        world.Update(0.016f);
+        Assert.Equal(1, system.UpdateCount);
+
+        // Disable
+        world.DisableSystem<TestLifecycleSystem>();
+        world.Update(0.016f);
+        Assert.Equal(1, system.UpdateCount); // No change
+
+        // Re-enable
+        world.EnableSystem<TestLifecycleSystem>();
+        world.Update(0.016f);
+        Assert.Equal(2, system.UpdateCount); // Incremented
     }
 }

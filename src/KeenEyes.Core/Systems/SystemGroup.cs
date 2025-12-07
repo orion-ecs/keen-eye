@@ -8,11 +8,19 @@ public class SystemGroup : ISystem
 {
     private readonly List<ISystem> systems = [];
     private World? world;
+    private bool enabled = true;
 
     /// <summary>
     /// Name of this system group.
     /// </summary>
     public string Name { get; }
+
+    /// <inheritdoc />
+    public bool Enabled
+    {
+        get => enabled;
+        set => enabled = value;
+    }
 
     /// <summary>
     /// Creates a new system group.
@@ -49,6 +57,31 @@ public class SystemGroup : ISystem
         return this;
     }
 
+    /// <summary>
+    /// Gets a system of the specified type from this group.
+    /// </summary>
+    /// <typeparam name="T">The type of system to retrieve.</typeparam>
+    /// <returns>The system instance, or null if not found.</returns>
+    public T? GetSystem<T>() where T : class, ISystem
+    {
+        foreach (var system in systems)
+        {
+            if (system is T typedSystem)
+            {
+                return typedSystem;
+            }
+            if (system is SystemGroup group)
+            {
+                var found = group.GetSystem<T>();
+                if (found is not null)
+                {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
     /// <inheritdoc />
     public void Initialize(World world)
     {
@@ -64,7 +97,21 @@ public class SystemGroup : ISystem
     {
         foreach (var system in systems)
         {
-            system.Update(deltaTime);
+            if (!system.Enabled)
+            {
+                continue;
+            }
+
+            if (system is SystemBase systemBase)
+            {
+                systemBase.InvokeBeforeUpdate(deltaTime);
+                systemBase.Update(deltaTime);
+                systemBase.InvokeAfterUpdate(deltaTime);
+            }
+            else
+            {
+                system.Update(deltaTime);
+            }
         }
     }
 
