@@ -45,26 +45,13 @@ internal sealed class ChangeTracker
     /// </remarks>
     public void MarkDirty<T>(Entity entity) where T : struct, IComponent
     {
-        MarkDirtyInternal(typeof(T), entity.Id);
-    }
-
-    /// <summary>
-    /// Marks an entity as dirty for a specific component type (non-generic internal version).
-    /// </summary>
-    internal void MarkDirty(Type componentType, int entityId)
-    {
-        MarkDirtyInternal(componentType, entityId);
-    }
-
-    private void MarkDirtyInternal(Type componentType, int entityId)
-    {
-        if (!dirtyEntities.TryGetValue(componentType, out var entitySet))
+        if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
         {
             entitySet = [];
-            dirtyEntities[componentType] = entitySet;
+            dirtyEntities[typeof(T)] = entitySet;
         }
 
-        entitySet.Add(entityId);
+        entitySet.Add(entity.Id);
     }
 
     /// <summary>
@@ -84,20 +71,7 @@ internal sealed class ChangeTracker
     /// </remarks>
     public IReadOnlyCollection<int> GetDirtyEntityIds<T>() where T : struct, IComponent
     {
-        return GetDirtyEntityIdsInternal(typeof(T));
-    }
-
-    /// <summary>
-    /// Gets all entity IDs marked dirty for a specific component type (non-generic version).
-    /// </summary>
-    internal IReadOnlyCollection<int> GetDirtyEntityIds(Type componentType)
-    {
-        return GetDirtyEntityIdsInternal(componentType);
-    }
-
-    private IReadOnlyCollection<int> GetDirtyEntityIdsInternal(Type componentType)
-    {
-        if (!dirtyEntities.TryGetValue(componentType, out var entitySet))
+        if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
         {
             return Array.Empty<int>();
         }
@@ -117,20 +91,7 @@ internal sealed class ChangeTracker
     /// </remarks>
     public void ClearDirtyFlags<T>() where T : struct, IComponent
     {
-        ClearDirtyFlagsInternal(typeof(T));
-    }
-
-    /// <summary>
-    /// Clears dirty flags for a specific component type (non-generic version).
-    /// </summary>
-    internal void ClearDirtyFlags(Type componentType)
-    {
-        ClearDirtyFlagsInternal(componentType);
-    }
-
-    private void ClearDirtyFlagsInternal(Type componentType)
-    {
-        if (dirtyEntities.TryGetValue(componentType, out var entitySet))
+        if (dirtyEntities.TryGetValue(typeof(T), out var entitySet))
         {
             entitySet.Clear();
         }
@@ -146,49 +107,12 @@ internal sealed class ChangeTracker
     /// </returns>
     public bool IsDirty<T>(Entity entity) where T : struct, IComponent
     {
-        return IsDirtyInternal(typeof(T), entity.Id);
-    }
-
-    /// <summary>
-    /// Checks if an entity is marked dirty for a specific component type (non-generic version).
-    /// </summary>
-    internal bool IsDirty(Type componentType, int entityId)
-    {
-        return IsDirtyInternal(componentType, entityId);
-    }
-
-    private bool IsDirtyInternal(Type componentType, int entityId)
-    {
-        if (!dirtyEntities.TryGetValue(componentType, out var entitySet))
+        if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
         {
             return false;
         }
 
-        return entitySet.Contains(entityId);
-    }
-
-    /// <summary>
-    /// Clears the dirty flag for a specific entity and component type.
-    /// </summary>
-    /// <typeparam name="T">The component type to clear.</typeparam>
-    /// <param name="entity">The entity to clear the flag for.</param>
-    /// <returns>
-    /// <c>true</c> if the entity was dirty and has been cleared;
-    /// <c>false</c> if the entity was not dirty.
-    /// </returns>
-    public bool ClearDirty<T>(Entity entity) where T : struct, IComponent
-    {
-        return ClearDirtyInternal(typeof(T), entity.Id);
-    }
-
-    private bool ClearDirtyInternal(Type componentType, int entityId)
-    {
-        if (!dirtyEntities.TryGetValue(componentType, out var entitySet))
-        {
-            return false;
-        }
-
-        return entitySet.Remove(entityId);
+        return entitySet.Contains(entity.Id);
     }
 
     #endregion
@@ -235,14 +159,6 @@ internal sealed class ChangeTracker
         return autoTrackedTypes.Contains(typeof(T));
     }
 
-    /// <summary>
-    /// Checks if automatic tracking is enabled for a component type (non-generic version).
-    /// </summary>
-    internal bool IsAutoTrackingEnabled(Type componentType)
-    {
-        return autoTrackedTypes.Contains(componentType);
-    }
-
     #endregion
 
     #region Statistics
@@ -261,11 +177,6 @@ internal sealed class ChangeTracker
 
         return entitySet.Count;
     }
-
-    /// <summary>
-    /// Gets the total number of component types that have dirty entities.
-    /// </summary>
-    public int TrackedTypeCount => dirtyEntities.Count(kvp => kvp.Value.Count > 0);
 
     #endregion
 
