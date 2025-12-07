@@ -845,6 +845,41 @@ public class EventSystemTests
 
     #endregion
 
+    #region Has Handlers Tests (Coverage)
+
+    [Fact]
+    public void EventBus_HasHandlers_ReturnsFalseAfterDispose()
+    {
+        using var world = new World();
+
+        var subscription = world.Events.Subscribe<CustomEvent>(_ => { });
+
+        Assert.True(world.Events.HasHandlers<CustomEvent>());
+
+        subscription.Dispose();
+
+        Assert.False(world.Events.HasHandlers<CustomEvent>());
+    }
+
+    [Fact]
+    public void EventBus_GetHandlerCount_DecreasesAfterDispose()
+    {
+        using var world = new World();
+
+        var sub1 = world.Events.Subscribe<CustomEvent>(_ => { });
+        var sub2 = world.Events.Subscribe<CustomEvent>(_ => { });
+
+        Assert.Equal(2, world.Events.GetHandlerCount<CustomEvent>());
+
+        sub1.Dispose();
+        Assert.Equal(1, world.Events.GetHandlerCount<CustomEvent>());
+
+        sub2.Dispose();
+        Assert.Equal(0, world.Events.GetHandlerCount<CustomEvent>());
+    }
+
+    #endregion
+
     #region Test Event Types
 
     private struct CustomEvent

@@ -1959,31 +1959,4 @@ public sealed class World : IDisposable
         entityEvents.Clear();
     }
 
-    #region Internal Event Firing
-
-    /// <summary>
-    /// Fires the component added event. Called internally after a component is added.
-    /// </summary>
-    internal void FireComponentAdded<T>(Entity entity, in T component) where T : struct, IComponent
-    {
-        componentEvents.FireAdded(entity, in component);
-    }
-
-    /// <summary>
-    /// Fires the component removed event. Called internally before a component is removed.
-    /// </summary>
-    internal void FireComponentRemoved<T>(Entity entity) where T : struct, IComponent
-    {
-        componentEvents.FireRemoved<T>(entity);
-    }
-
-    /// <summary>
-    /// Fires the entity created event. Called internally after an entity is created.
-    /// </summary>
-    internal void FireEntityCreated(Entity entity, string? name)
-    {
-        entityEvents.FireCreated(entity, name);
-    }
-
-    #endregion
 }
