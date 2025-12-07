@@ -127,6 +127,8 @@ World (facade)
 ├── PluginManager         - Plugin lifecycle
 ├── SingletonManager      - Global resource storage
 ├── ExtensionManager      - Plugin-provided APIs
+├── EntityNamingManager   - Entity name registration and lookup
+├── EventManager          - Component and entity lifecycle events
 ├── ArchetypeManager      - Component storage
 ├── QueryManager          - Query caching
 └── ComponentRegistry     - Component type registry
