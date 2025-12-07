@@ -129,6 +129,7 @@ World (facade)
 ├── ExtensionManager      - Plugin-provided APIs
 ├── EntityNamingManager   - Entity name registration and lookup
 ├── EventManager          - Component and entity lifecycle events
+├── ChangeTracker         - Dirty flag tracking with entity reconstruction
 ├── ArchetypeManager      - Component storage
 ├── QueryManager          - Query caching
 └── ComponentRegistry     - Component type registry
