@@ -60,12 +60,27 @@ jobs:
       - name: Test
         run: dotnet test --no-build --configuration Release --verbosity normal --coverage --report-github --coverage-output-format cobertura
 
-      - name: Find coverage files
-        id: coverage
-        run: |
-          files=$(find . -name "*.cobertura.xml" -type f | tr '\n' ' ')
-          echo "files=$files" >> $GITHUB_OUTPUT
-          echo "Found coverage files: $files"
+      - name: Generate coverage report
+        uses: danielpalme/ReportGenerator-GitHub-Action@5
+        env:
+          REPORTGENERATOR_LICENSE: ${{ secrets.REPORTGENERATOR_LICENSE }}
+        with:
+          reports: '**/TestResults/**/*.cobertura.xml'
+          targetdir: coverage-report
+          reporttypes: 'MarkdownSummaryGithub;Cobertura'
+          filefilters: '-**/obj/**;-**/*.g.cs;-**/*.generated.cs'
+          classfilters: '-System.*;-Microsoft.*;-*AnonymousType*'
+          verbosity: 'Info'
+
+      - name: Add coverage to summary
+        run: cat coverage-report/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+
+      - name: Add coverage PR comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: coverage-report/SummaryGithub.md
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
@@ -89,7 +104,7 @@ jobs:
         uses: coverallsapp/github-action@v2
         if: success()
         with:
-          files: ${{ steps.coverage.outputs.files }}
+          file: coverage-report/Cobertura.xml
           format: cobertura
         continue-on-error: true
 
