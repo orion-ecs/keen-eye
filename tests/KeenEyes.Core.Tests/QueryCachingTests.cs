@@ -9,24 +9,24 @@ public class QueryCachingTests
 
     private struct Position : IComponent
     {
-        public float X;
-        public float Y;
+        public float X = 0;
+        public float Y = 0;
 
         public Position() { }
     }
 
     private struct Velocity : IComponent
     {
-        public float X;
-        public float Y;
+        public float X = 0;
+        public float Y = 0;
 
         public Velocity() { }
     }
 
     private struct Health : IComponent
     {
-        public int Current;
-        public int Max;
+        public int Current = 0;
+        public int Max = 0;
 
         public Health() { }
     }
