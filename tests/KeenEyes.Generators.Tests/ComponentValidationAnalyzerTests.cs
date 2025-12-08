@@ -337,6 +337,48 @@ public class ComponentValidationAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Fact]
+    public void RequiresComponentWithDelegate_ReportsError()
+    {
+        var source = """
+            namespace TestApp;
+
+            public delegate void MyDelegate();
+
+            [KeenEyes.Component]
+            [KeenEyes.RequiresComponent(typeof(MyDelegate))]
+            public partial struct TestComponent { public int X; }
+            """;
+
+        var diagnostics = RunAnalyzer(source);
+
+        var diagnostic = Assert.Single(diagnostics, d => d.Id == "KEEN011");
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Contains("MyDelegate", diagnostic.GetMessage());
+        Assert.Contains("delegate", diagnostic.GetMessage());
+    }
+
+    [Fact]
+    public void ConflictsWithDelegate_ReportsError()
+    {
+        var source = """
+            namespace TestApp;
+
+            public delegate int Calculator(int a, int b);
+
+            [KeenEyes.Component]
+            [KeenEyes.ConflictsWith(typeof(Calculator))]
+            public partial struct TestComponent { public int X; }
+            """;
+
+        var diagnostics = RunAnalyzer(source);
+
+        var diagnostic = Assert.Single(diagnostics, d => d.Id == "KEEN011");
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Contains("Calculator", diagnostic.GetMessage());
+        Assert.Contains("delegate", diagnostic.GetMessage());
+    }
+
     #endregion
 
     private static IReadOnlyList<Diagnostic> RunAnalyzer(string source)
