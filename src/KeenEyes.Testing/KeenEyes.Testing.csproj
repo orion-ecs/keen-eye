@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Testing</PackageId>
+    <Description>Testing utilities and assertion helpers for KeenEyes ECS framework</Description>
+    <PackageTags>ecs;testing;unit-testing;assertions;test-helpers</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+  </ItemGroup>
+
+</Project>
