@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace KeenEyes.Graphics.Tests;
+namespace KeenEyes.Spatial.Tests;
 
 /// <summary>
 /// Tests for the Transform3D component.

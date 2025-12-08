@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Spatial;
 using Silk.NET.OpenGL;
 
 namespace KeenEyes.Graphics;

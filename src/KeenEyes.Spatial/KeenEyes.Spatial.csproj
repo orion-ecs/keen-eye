@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Spatial</PackageId>
+    <Description>Spatial components for KeenEyes ECS (Transform3D, etc.)</Description>
+    <PackageTags>ecs;spatial;transform;3d;game;framework</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Spatial.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+  </ItemGroup>
+
+</Project>
