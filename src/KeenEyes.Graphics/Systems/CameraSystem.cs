@@ -23,8 +23,8 @@ public sealed class CameraSystem : SystemBase
             graphics.OnResize += HandleResize;
             if (graphics.Window is not null)
             {
-                lastWidth = graphics.Window.Size.X;
-                lastHeight = graphics.Window.Size.Y;
+                lastWidth = graphics.Window.Width;
+                lastHeight = graphics.Window.Height;
             }
         }
     }
@@ -59,8 +59,8 @@ public sealed class CameraSystem : SystemBase
         // This update ensures cameras added after resize are also updated
         if (graphics?.Window is not null)
         {
-            int currentWidth = graphics.Window.Size.X;
-            int currentHeight = graphics.Window.Size.Y;
+            int currentWidth = graphics.Window.Width;
+            int currentHeight = graphics.Window.Height;
 
             if (currentWidth != lastWidth || currentHeight != lastHeight)
             {
