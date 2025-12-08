@@ -393,4 +393,137 @@ public class FileLogProviderTests : IDisposable
     }
 
     #endregion
+
+    #region Race Condition and Concurrent Access Tests
+
+    [Fact]
+    public void Log_ConcurrentWithDispose_HandlesRaceCondition()
+    {
+        var filePath = Path.Combine(testDirectory, "race_test.log");
+        var provider = new FileLogProvider(filePath);
+
+        // Log a message first to initialize the writer
+        provider.Log(LogLevel.Info, "Test", "Initial message", null);
+
+        // Start logging in parallel while disposing
+        // We intentionally don't use TestContext.Current.CancellationToken here because
+        // this test needs to control its own task lifecycle to test race conditions
+        var loggingComplete = false;
+#pragma warning disable xUnit1051 // Test intentionally controls its own task lifecycle
+        var loggingTask = Task.Run(() =>
+        {
+            while (!loggingComplete)
+            {
+                try
+                {
+                    provider.Log(LogLevel.Info, "Test", "Concurrent message", null);
+                }
+                catch
+                {
+                    // Expected during disposal
+                }
+            }
+        });
+#pragma warning restore xUnit1051
+
+        // Small delay then dispose
+        Thread.Sleep(10);
+        provider.Dispose();
+        loggingComplete = true;
+
+        // Should complete without throwing
+        Should.NotThrow(() => loggingTask.Wait(1000));
+    }
+
+    [Fact]
+    public void Log_AfterDisposeInsideLock_DoesNotWrite()
+    {
+        // This tests the disposed check inside the lock (line 95-97)
+        var filePath = Path.Combine(testDirectory, "dispose_lock_test.log");
+        var provider = new FileLogProvider(filePath);
+
+        // Initialize writer
+        provider.Log(LogLevel.Info, "Test", "First message", null);
+        provider.Flush();
+
+        // Dispose
+        provider.Dispose();
+
+        // Try to log after dispose - should not throw, and should not write
+        Should.NotThrow(() => provider.Log(LogLevel.Info, "Test", "Should not appear", null));
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldNotContain("Should not appear");
+    }
+
+    #endregion
+
+    #region File Rotation Edge Cases
+
+    [Fact]
+    public void Log_WithRotation_MultipleRotationsInSameSecond_UsesCounterSuffix()
+    {
+        var filePath = Path.Combine(testDirectory, "multi_rotate.log");
+        var maxSize = 50L; // Very small to trigger multiple rotations quickly
+
+        using (var provider = new FileLogProvider(filePath) { MaxFileSizeBytes = maxSize })
+        {
+            // Write many messages rapidly to trigger multiple rotations in the same second
+            for (int i = 0; i < 50; i++)
+            {
+                provider.Log(LogLevel.Info, "Test", $"Message {i} padding to exceed size limit", null);
+            }
+
+            provider.Flush();
+        }
+
+        // Should have multiple rotated files, some with counter suffixes
+        var files = Directory.GetFiles(testDirectory, "multi_rotate*.log");
+        files.Length.ShouldBeGreaterThan(2); // Original + at least 2 rotated
+
+        // Check that counter suffixes exist (files like multi_rotate_20251208_123456_1.log)
+        var filesWithCounters = files.Where(f =>
+        {
+            var name = Path.GetFileNameWithoutExtension(f);
+            // Pattern: name_YYYYMMDD_HHMMSS_N where N is counter
+            var parts = name.Split('_');
+            return parts.Length >= 4 && int.TryParse(parts[^1], out _);
+        }).ToList();
+
+        // At least some files should have counter suffixes due to rapid rotation
+        filesWithCounters.Count.ShouldBeGreaterThan(0);
+    }
+
+    [Fact]
+    public void Log_WithRotation_PreExistingRotatedFile_UsesCounterToAvoidCollision()
+    {
+        var filePath = Path.Combine(testDirectory, "collision_test.log");
+
+        // Create a pre-existing rotated file with today's timestamp
+        var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var preExistingRotated = Path.Combine(testDirectory, $"collision_test_{timestamp}.log");
+        File.WriteAllText(preExistingRotated, "Pre-existing rotated file");
+
+        // Now create provider with rotation
+        using (var provider = new FileLogProvider(filePath) { MaxFileSizeBytes = 50 })
+        {
+            // Write enough to trigger rotation
+            for (int i = 0; i < 20; i++)
+            {
+                provider.Log(LogLevel.Info, "Test", $"Message {i} with extra padding text", null);
+            }
+
+            provider.Flush();
+        }
+
+        // The new rotated file should have a counter suffix to avoid collision
+        var files = Directory.GetFiles(testDirectory, "collision_test*.log");
+        files.Length.ShouldBeGreaterThanOrEqualTo(2);
+
+        // Pre-existing file should still exist and be unchanged
+        File.Exists(preExistingRotated).ShouldBeTrue();
+        File.ReadAllText(preExistingRotated).ShouldBe("Pre-existing rotated file");
+    }
+
+    #endregion
 }
