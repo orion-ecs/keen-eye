@@ -4,15 +4,34 @@ namespace KeenEyes;
 /// A group of systems that execute together.
 /// Useful for organizing systems by phase or feature.
 /// </summary>
+/// <remarks>
+/// <para>
+/// System groups allow organizing multiple systems that execute as a unit.
+/// Systems within a group are sorted by order value and executed sequentially.
+/// </para>
+/// <para>
+/// Groups can be nested within other groups for hierarchical organization.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// var physicsGroup = new SystemGroup("Physics")
+///     .Add&lt;BroadphaseSystem&gt;(order: 0)
+///     .Add&lt;NarrowphaseSystem&gt;(order: 10)
+///     .Add&lt;SolverSystem&gt;(order: 20);
+///
+/// world.AddSystemGroup(physicsGroup, SystemPhase.FixedUpdate);
+/// </code>
+/// </example>
 public class SystemGroup : ISystem
 {
     private readonly List<SystemEntry> systems = [];
-    private World? world;
+    private IWorld? world;
     private bool enabled = true;
     private bool systemsSorted = true;
 
     /// <summary>
-    /// Name of this system group.
+    /// Gets the name of this system group.
     /// </summary>
     public string Name { get; }
 
@@ -24,8 +43,9 @@ public class SystemGroup : ISystem
     }
 
     /// <summary>
-    /// Creates a new system group.
+    /// Creates a new system group with the specified name.
     /// </summary>
+    /// <param name="name">The name of the group.</param>
     public SystemGroup(string name)
     {
         Name = name;
@@ -38,19 +58,9 @@ public class SystemGroup : ISystem
     /// <param name="order">The execution order within the group. Lower values execute first. Defaults to 0.</param>
     /// <returns>This group for method chaining.</returns>
     /// <remarks>
-    /// <para>
     /// Systems within a group are sorted by order value. Systems with lower order values execute first.
     /// Systems with the same order maintain stable relative ordering.
-    /// </para>
     /// </remarks>
-    /// <example>
-    /// <code>
-    /// var updateGroup = new SystemGroup("Update")
-    ///     .Add&lt;MovementSystem&gt;(order: 0)
-    ///     .Add&lt;CollisionSystem&gt;(order: 10)
-    ///     .Add&lt;DamageSystem&gt;(order: 20);
-    /// </code>
-    /// </example>
     public SystemGroup Add<T>(int order = 0) where T : ISystem, new()
     {
         var system = new T();
@@ -70,10 +80,8 @@ public class SystemGroup : ISystem
     /// <param name="order">The execution order within the group. Lower values execute first. Defaults to 0.</param>
     /// <returns>This group for method chaining.</returns>
     /// <remarks>
-    /// <para>
     /// Use this overload when you need to pass a pre-configured system instance or a system
     /// that requires constructor parameters.
-    /// </para>
     /// </remarks>
     public SystemGroup Add(ISystem system, int order = 0)
     {
@@ -112,7 +120,7 @@ public class SystemGroup : ISystem
     }
 
     /// <inheritdoc />
-    public void Initialize(World world)
+    public void Initialize(IWorld world)
     {
         this.world = world;
         foreach (var entry in systems)
@@ -135,16 +143,7 @@ public class SystemGroup : ISystem
                 continue;
             }
 
-            if (system is SystemBase systemBase)
-            {
-                systemBase.InvokeBeforeUpdate(deltaTime);
-                systemBase.Update(deltaTime);
-                systemBase.InvokeAfterUpdate(deltaTime);
-            }
-            else
-            {
-                system.Update(deltaTime);
-            }
+            system.Update(deltaTime);
         }
     }
 

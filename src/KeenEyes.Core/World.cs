@@ -18,7 +18,7 @@ namespace KeenEyes;
 /// iterate over entities with specific components.
 /// </para>
 /// </remarks>
-public sealed partial class World : IDisposable
+public sealed partial class World : IWorld
 {
     private readonly EntityPool entityPool;
     private readonly ArchetypeManager archetypeManager;

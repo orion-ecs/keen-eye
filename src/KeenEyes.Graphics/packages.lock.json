@@ -106,10 +106,16 @@
         "resolved": "3.4.0",
         "contentHash": "Iy22JopynbOJ32vA0lBhFEzGi65GQJBuJHYBYRBpydrDpNoTiHnjIXfA65Gu+8qsOr/ZEoIF8r9aHCgAXuO6DA=="
       },
-      "keeneyes.core": {
+      "keeneyes.abstractions": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Generators.Attributes": "[1.0.0, )"
+        }
+      },
+      "keeneyes.core": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
       "keeneyes.generators.attributes": {

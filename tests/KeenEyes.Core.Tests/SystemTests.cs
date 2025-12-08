@@ -74,7 +74,7 @@ public class TestNonDefaultConstructorSystem : ISystem
     public string Name => name;
     public bool Enabled { get; set; } = true;
 
-    public void Initialize(World world) { }
+    public void Initialize(IWorld world) { }
     public void Update(float deltaTime) { }
     public void Dispose() { }
 }

@@ -1,38 +1,57 @@
 namespace KeenEyes;
 
 /// <summary>
-/// Interface for ECS systems that process entities.
-/// </summary>
-public interface ISystem : IDisposable
-{
-    /// <summary>
-    /// Gets or sets whether this system is enabled.
-    /// Disabled systems are skipped during world updates.
-    /// </summary>
-    bool Enabled { get; set; }
-
-    /// <summary>
-    /// Called when the system is added to a world.
-    /// </summary>
-    void Initialize(World world);
-
-    /// <summary>
-    /// Called each frame/tick to update the system.
-    /// </summary>
-    void Update(float deltaTime);
-}
-
-/// <summary>
 /// Base class for ECS systems with common functionality.
 /// </summary>
+/// <remarks>
+/// <para>
+/// SystemBase provides a convenient implementation of <see cref="ISystem"/> with
+/// lifecycle hooks for initialization, enabling/disabling, and update phases.
+/// </para>
+/// <para>
+/// Override <see cref="OnInitialize"/> to set up queries and resources,
+/// <see cref="OnBeforeUpdate"/> and <see cref="OnAfterUpdate"/> for pre/post update logic,
+/// and <see cref="Update"/> for the main processing logic.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// public class MovementSystem : SystemBase
+/// {
+///     protected override void OnInitialize()
+///     {
+///         // Set up queries and resources
+///     }
+///
+///     public override void Update(float deltaTime)
+///     {
+///         foreach (var entity in World.Query&lt;Position, Velocity&gt;())
+///         {
+///             ref var pos = ref World.Get&lt;Position&gt;(entity);
+///             ref readonly var vel = ref World.Get&lt;Velocity&gt;(entity);
+///             pos.X += vel.X * deltaTime;
+///             pos.Y += vel.Y * deltaTime;
+///         }
+///     }
+/// }
+/// </code>
+/// </example>
 public abstract class SystemBase : ISystem
 {
     private World? world;
     private bool enabled = true;
 
     /// <summary>
-    /// The world this system operates on.
+    /// Gets the world this system operates on.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This property returns the concrete <see cref="World"/> type, providing full
+    /// access to all world operations including advanced features not available
+    /// through the <see cref="IWorld"/> interface.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">Thrown when accessed before initialization.</exception>
     protected World World => world ?? throw new InvalidOperationException("System not initialized");
 
     /// <inheritdoc />
@@ -58,9 +77,9 @@ public abstract class SystemBase : ISystem
     }
 
     /// <inheritdoc />
-    public virtual void Initialize(World world)
+    public virtual void Initialize(IWorld world)
     {
-        this.world = world;
+        this.world = (World)world;
         OnInitialize();
     }
 

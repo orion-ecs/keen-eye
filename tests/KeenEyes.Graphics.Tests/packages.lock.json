@@ -260,10 +260,16 @@
           "xunit.v3.runner.common": "[3.2.1]"
         }
       },
-      "keeneyes.core": {
+      "keeneyes.abstractions": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Generators.Attributes": "[1.0.0, )"
+        }
+      },
+      "keeneyes.core": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
       "keeneyes.generators.attributes": {
