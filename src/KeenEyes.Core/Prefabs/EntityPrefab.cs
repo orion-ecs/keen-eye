@@ -126,29 +126,6 @@ public sealed class EntityPrefab
         BasePrefab = basePrefabName;
         return this;
     }
-
-    /// <summary>
-    /// Creates a deep copy of this prefab definition.
-    /// </summary>
-    /// <returns>A new prefab with the same components, tags, and base prefab.</returns>
-    internal EntityPrefab Clone()
-    {
-        var clone = new EntityPrefab();
-
-        foreach (var component in components)
-        {
-            clone.components.Add(component);
-        }
-
-        foreach (var tagType in tagTypes)
-        {
-            clone.tagTypes.Add(tagType);
-        }
-
-        clone.BasePrefab = BasePrefab;
-
-        return clone;
-    }
 }
 
 /// <summary>
