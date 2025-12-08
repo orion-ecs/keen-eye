@@ -164,6 +164,27 @@ jobs:
             - Complex code without explanation
             - Outdated comments
 
+            ## Checking for Existing Issues
+
+            Before creating a new issue for any finding, you MUST check if a similar issue already exists:
+
+            1. **Search existing issues** using `gh issue search` or `gh issue list`:
+               - `gh issue list --state open --label "code-review"` - List open review issues
+               - `gh issue search "keyword" --state open` - Search for specific terms
+               - `gh issue view <issue-number>` - View details of a specific issue
+
+            2. **If a matching issue exists**:
+               - Reference the existing issue number in your report (e.g., "See existing issue #123")
+               - Do NOT create a duplicate issue for the same problem
+               - You may add a comment to the existing issue if you have new information
+
+            3. **Only create new issues for**:
+               - Findings that have no existing open issue
+               - Significantly different manifestations of a known problem
+               - New occurrences in different files/locations (if not covered by existing issue)
+
+            This prevents issue sprawl and keeps the repository clean.
+
             ## Output Format
 
             Create a GitHub issue with your findings using `gh issue create`. The issue should:
@@ -175,13 +196,17 @@ jobs:
             2. **Labels**: `code-review`, `automated`
             3. **Body** should include:
                - Executive summary (1-2 paragraphs)
+               - **Related Existing Issues** section (if any findings match existing issues)
+                 - List issue numbers with brief description
+                 - Note if you added comments to any existing issues
                - Findings organized by severity (Critical, High, Medium, Low)
                - Each finding should include:
                  - File path and line number(s)
                  - Description of the issue
                  - Suggested fix or improvement
                  - Code snippet if helpful
-               - Metrics summary (files reviewed, issues found by category)
+                 - Reference to existing issue if applicable (e.g., "Related: #123")
+               - Metrics summary (files reviewed, issues found by category, existing issues referenced)
 
             **IMPORTANT - How to Create the Issue:**
             To avoid shell escaping issues with backticks and code blocks:
@@ -211,7 +236,7 @@ jobs:
             - `samples/` - Example code (check for anti-patterns users might copy)
             - `benchmarks/` - Performance benchmarks
 
-          claude_args: '--allowed-tools "Write,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"'
+          claude_args: '--allowed-tools "Write,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue search:*),Bash(gh issue comment:*),Bash(gh label create:*)"'
 
       - name: Ensure labels exist
         if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
