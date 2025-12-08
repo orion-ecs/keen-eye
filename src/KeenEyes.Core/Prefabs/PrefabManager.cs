@@ -52,17 +52,6 @@ internal sealed class PrefabManager
     }
 
     /// <summary>
-    /// Gets a registered prefab by name.
-    /// </summary>
-    /// <param name="name">The name of the prefab to retrieve.</param>
-    /// <returns>The prefab definition, or <c>null</c> if not found.</returns>
-    internal EntityPrefab? Get(string name)
-    {
-        ArgumentNullException.ThrowIfNull(name);
-        return prefabs.GetValueOrDefault(name);
-    }
-
-    /// <summary>
     /// Checks if a prefab with the given name is registered.
     /// </summary>
     /// <param name="name">The name to check.</param>
@@ -221,13 +210,5 @@ internal sealed class PrefabManager
     internal IEnumerable<string> GetAllPrefabNames()
     {
         return prefabs.Keys;
-    }
-
-    /// <summary>
-    /// Clears all registered prefabs.
-    /// </summary>
-    internal void Clear()
-    {
-        prefabs.Clear();
     }
 }

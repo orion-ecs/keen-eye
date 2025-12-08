@@ -520,6 +520,21 @@ public class PrefabTests
         Assert.True(world.Has<EnemyTag>(entity));
     }
 
+    [Fact]
+    public void EntityPrefab_WithTag_CalledTwiceWithSameType_DoesNotDuplicate()
+    {
+        using var world = new World();
+        var prefab = new EntityPrefab()
+            .WithTag<EnemyTag>()
+            .WithTag<EnemyTag>(); // Call again - should not add duplicate
+
+        world.RegisterPrefab("Test", prefab);
+        var entity = world.SpawnFromPrefab("Test").Build();
+
+        // Entity should still have the tag (just once)
+        Assert.True(world.Has<EnemyTag>(entity));
+    }
+
     #endregion
 
     #region Query Integration Tests
