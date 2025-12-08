@@ -695,4 +695,96 @@ public class ComponentValidationTests
     }
 
     #endregion
+
+    #region Validation Caching Tests
+
+    [Fact]
+    public void Validation_CachesValidationInfo_ForSameComponentType()
+    {
+        using var world = new World();
+
+        // Create multiple entities with the same constrained component
+        // This exercises the validation cache (GetOrCreateValidationInfo)
+        var entity1 = world.Spawn()
+            .With(new Transform { X = 0, Y = 0 })
+            .Build();
+
+        var entity2 = world.Spawn()
+            .With(new Transform { X = 1, Y = 1 })
+            .Build();
+
+        // Add Renderable (requires Transform) to both - second call should use cache
+        world.Add(entity1, new Renderable { TextureId = "a.png" });
+        world.Add(entity2, new Renderable { TextureId = "b.png" });
+
+        Assert.True(world.Has<Renderable>(entity1));
+        Assert.True(world.Has<Renderable>(entity2));
+    }
+
+    [Fact]
+    public void Validation_ComponentWithNoConstraints_CachesEmptyInfo()
+    {
+        using var world = new World();
+
+        // Add Health (no constraints) multiple times to exercise cache
+        var entity1 = world.Spawn().Build();
+        var entity2 = world.Spawn().Build();
+
+        world.Add(entity1, new Health { Current = 100, Max = 100 });
+        world.Add(entity2, new Health { Current = 50, Max = 100 });
+
+        Assert.True(world.Has<Health>(entity1));
+        Assert.True(world.Has<Health>(entity2));
+    }
+
+    #endregion
+
+    #region Multiple Validators Tests
+
+    [Fact]
+    public void Validation_MultipleComponentsWithConstraints_AllValidated()
+    {
+        using var world = new World();
+
+        // Build entity with multiple constrained components
+        var entity = world.Spawn()
+            .With(new Transform { X = 0, Y = 0 })
+            .With(new Renderable { TextureId = "test.png" })
+            .With(new Sprite { Layer = 1 })  // Requires both Transform and Renderable
+            .Build();
+
+        Assert.True(world.Has<Transform>(entity));
+        Assert.True(world.Has<Renderable>(entity));
+        Assert.True(world.Has<Sprite>(entity));
+    }
+
+    [Fact]
+    public void Validation_MultipleCustomValidators_AllExecuted()
+    {
+        using var world = new World();
+        var healthValidated = false;
+        var transformValidated = false;
+
+        world.RegisterValidator<Health>((w, e, h) =>
+        {
+            healthValidated = true;
+            return true;
+        });
+
+        world.RegisterValidator<Transform>((w, e, t) =>
+        {
+            transformValidated = true;
+            return true;
+        });
+
+        var entity = world.Spawn()
+            .With(new Transform { X = 0, Y = 0 })
+            .With(new Health { Current = 100, Max = 100 })
+            .Build();
+
+        Assert.True(healthValidated);
+        Assert.True(transformValidated);
+    }
+
+    #endregion
 }
