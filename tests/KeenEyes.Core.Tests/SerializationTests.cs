@@ -892,6 +892,127 @@ public class SerializationTests
         Assert.Single(restored!.Entities);
     }
 
+    [Fact]
+    public void RestoreSnapshot_WithWorkingAotSerializer_UsesSerializerType()
+    {
+        using var world1 = new World();
+        world1.Spawn("Test")
+            .With(new SerializablePosition { X = 15, Y = 25 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var json = SnapshotManager.ToJson(snapshot);
+        var loadedSnapshot = SnapshotManager.FromJson(json);
+
+        using var world2 = new World();
+
+        // Use a working AOT serializer that returns the correct type
+        var aotSerializer = new WorkingAotSerializer();
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, serializer: aotSerializer);
+
+        // The serializer was used for type resolution
+        Assert.True(aotSerializer.GetTypeCalled);
+        Assert.Single(entityMap);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithDeserializingAotSerializer_UsesDeserializedValue()
+    {
+        using var world1 = new World();
+        world1.Spawn("Test")
+            .With(new SerializablePosition { X = 100, Y = 200 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var json = SnapshotManager.ToJson(snapshot);
+        var loadedSnapshot = SnapshotManager.FromJson(json);
+
+        using var world2 = new World();
+
+        // Use an AOT serializer that actually deserializes
+        var aotSerializer = new DeserializingAotSerializer();
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, serializer: aotSerializer);
+
+        Assert.True(aotSerializer.DeserializeCalled);
+        Assert.Single(entityMap);
+
+        // Verify the deserialized values
+        var entity = world2.GetEntityByName("Test");
+        ref var pos = ref world2.Get<SerializablePosition>(entity);
+        Assert.Equal(100f, pos.X);
+        Assert.Equal(200f, pos.Y);
+    }
+
+    [Fact]
+    public void SerializedComponent_WithExpression_CreatesCopy()
+    {
+        var original = new SerializedComponent
+        {
+            TypeName = "Test.Component",
+            Data = new { X = 1 },
+            IsTag = false
+        };
+
+        var copy = original with { IsTag = true };
+
+        Assert.Equal(original.TypeName, copy.TypeName);
+        Assert.Equal(original.Data, copy.Data);
+        Assert.True(copy.IsTag);
+        Assert.False(original.IsTag);
+    }
+
+    [Fact]
+    public void SerializedEntity_WithExpression_CreatesCopy()
+    {
+        var original = new SerializedEntity
+        {
+            Id = 1,
+            Name = "Original",
+            Components = new List<SerializedComponent>(),
+            ParentId = null
+        };
+
+        var copy = original with { Name = "Copy", ParentId = 5 };
+
+        Assert.Equal(original.Id, copy.Id);
+        Assert.Equal("Copy", copy.Name);
+        Assert.Equal(5, copy.ParentId);
+        Assert.Null(original.ParentId);
+    }
+
+    [Fact]
+    public void SerializedSingleton_WithExpression_CreatesCopy()
+    {
+        var original = new SerializedSingleton
+        {
+            TypeName = "Test.Singleton",
+            Data = new { Value = 42 }
+        };
+
+        var copy = original with { TypeName = "Modified.Singleton" };
+
+        Assert.Equal("Modified.Singleton", copy.TypeName);
+        Assert.Equal(original.Data, copy.Data);
+    }
+
+    [Fact]
+    public void WorldSnapshot_WithExpression_CreatesCopy()
+    {
+        var original = new WorldSnapshot
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Entities = new List<SerializedEntity>(),
+            Singletons = new List<SerializedSingleton>(),
+            Version = 1
+        };
+
+        var copy = original with { Version = 2 };
+
+        Assert.Equal(2, copy.Version);
+        Assert.Equal(1, original.Version);
+        Assert.Equal(original.Timestamp, copy.Timestamp);
+    }
+
     #endregion
 }
 
@@ -923,5 +1044,71 @@ internal sealed class MockComponentSerializer : IComponentSerializer
     {
         GetTypeCalled = true;
         return null; // Return null to fall back to other resolvers
+    }
+}
+
+/// <summary>
+/// AOT serializer that returns valid types but doesn't deserialize.
+/// Used to test the type resolution AOT path.
+/// </summary>
+internal sealed class WorkingAotSerializer : IComponentSerializer
+{
+    public bool GetTypeCalled { get; private set; }
+
+    public bool IsSerializable(Type type) => type == typeof(SerializablePosition);
+    public bool IsSerializable(string typeName) => typeName.Contains("SerializablePosition");
+
+    public object? Deserialize(string typeName, System.Text.Json.JsonElement json)
+    {
+        return null; // Fall back to reflection for actual deserialization
+    }
+
+    public System.Text.Json.JsonElement? Serialize(Type type, object value) => null;
+
+    public Type? GetType(string typeName)
+    {
+        GetTypeCalled = true;
+        if (typeName.Contains("SerializablePosition"))
+        {
+            return typeof(SerializablePosition);
+        }
+        return null;
+    }
+}
+
+/// <summary>
+/// AOT serializer that actually deserializes components.
+/// Used to test the full AOT deserialization path.
+/// </summary>
+internal sealed class DeserializingAotSerializer : IComponentSerializer
+{
+    public bool GetTypeCalled { get; private set; }
+    public bool DeserializeCalled { get; private set; }
+
+    public bool IsSerializable(Type type) => type == typeof(SerializablePosition);
+    public bool IsSerializable(string typeName) => typeName.Contains("SerializablePosition");
+
+    public object? Deserialize(string typeName, System.Text.Json.JsonElement json)
+    {
+        DeserializeCalled = true;
+        if (typeName.Contains("SerializablePosition"))
+        {
+            var x = json.TryGetProperty("x", out var xProp) ? xProp.GetSingle() : 0f;
+            var y = json.TryGetProperty("y", out var yProp) ? yProp.GetSingle() : 0f;
+            return new SerializablePosition { X = x, Y = y };
+        }
+        return null;
+    }
+
+    public System.Text.Json.JsonElement? Serialize(Type type, object value) => null;
+
+    public Type? GetType(string typeName)
+    {
+        GetTypeCalled = true;
+        if (typeName.Contains("SerializablePosition"))
+        {
+            return typeof(SerializablePosition);
+        }
+        return null;
     }
 }
