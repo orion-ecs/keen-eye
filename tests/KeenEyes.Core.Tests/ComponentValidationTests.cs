@@ -576,4 +576,123 @@ public class ComponentValidationTests
     }
 
     #endregion
+
+    #region Custom Validator in EntityBuilder Tests
+
+    [Fact]
+    public void EntityBuilder_WithCustomValidator_ValidatorPasses_Succeeds()
+    {
+        using var world = new World();
+
+        // Register validator that checks Current <= Max
+        world.RegisterValidator<Health>((w, e, h) => h.Current <= h.Max);
+
+        // Build entity with valid Health component
+        var entity = world.Spawn()
+            .With(new Health { Current = 50, Max = 100 })
+            .Build();
+
+        Assert.True(world.Has<Health>(entity));
+        var health = world.Get<Health>(entity);
+        Assert.Equal(50, health.Current);
+    }
+
+    [Fact]
+    public void EntityBuilder_WithCustomValidator_ValidatorFails_ThrowsValidationException()
+    {
+        using var world = new World();
+
+        // Register validator that checks Current <= Max
+        world.RegisterValidator<Health>((w, e, h) => h.Current <= h.Max);
+
+        // Build entity with invalid Health component (Current > Max)
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            world.Spawn()
+                .With(new Health { Current = 150, Max = 100 })
+                .Build());
+
+        Assert.Equal(typeof(Health), ex.ComponentType);
+        Assert.Contains("Custom validation failed", ex.Message);
+    }
+
+    #endregion
+
+    #region ValidationMode.DebugOnly Tests
+
+    [Fact]
+    public void ValidationMode_DebugOnly_ValidatesInDebugBuild()
+    {
+        using var world = new World();
+        world.ValidationMode = ValidationMode.DebugOnly;
+
+        var entity = world.Spawn().Build();
+
+        // In debug build, this should validate and throw
+        // In release build, this should skip validation
+#if DEBUG
+        Assert.Throws<ComponentValidationException>(() =>
+            world.Add(entity, new Renderable { TextureId = "test.png" }));
+#else
+        // In release, validation is skipped so this should succeed
+        world.Add(entity, new Renderable { TextureId = "test.png" });
+        Assert.True(world.Has<Renderable>(entity));
+#endif
+    }
+
+    #endregion
+
+    #region Additional ComponentValidationException Tests
+
+    [Fact]
+    public void ComponentValidationException_WithInnerException_ContainsAllProperties()
+    {
+        var innerEx = new InvalidOperationException("Inner error");
+        var ex = new ComponentValidationException("Test message", typeof(Transform), innerEx);
+
+        Assert.Equal(typeof(Transform), ex.ComponentType);
+        Assert.Equal("Test message", ex.Message);
+        Assert.Same(innerEx, ex.InnerException);
+        Assert.Null(ex.Entity);
+    }
+
+    #endregion
+
+    #region RegisterValidator Edge Cases
+
+    [Fact]
+    public void RegisterValidator_WithNullValidator_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.RegisterValidator<Health>(null!));
+    }
+
+    #endregion
+
+    #region HasComponent Edge Cases
+
+    [Fact]
+    public void HasComponent_WithNullType_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+        var entity = world.Spawn().Build();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.HasComponent(entity, null!));
+    }
+
+    [Fact]
+    public void HasComponent_WithUnregisteredType_ReturnsFalse()
+    {
+        using var world = new World();
+        var entity = world.Spawn()
+            .With(new Transform { X = 0, Y = 0 })
+            .Build();
+
+        // Use a type that's not registered as a component
+        Assert.False(world.HasComponent(entity, typeof(string)));
+    }
+
+    #endregion
 }
