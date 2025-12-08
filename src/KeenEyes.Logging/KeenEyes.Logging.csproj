@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Logging</PackageId>
+    <Description>Pluggable logging system with multiple providers for KeenEyes ECS framework</Description>
+    <PackageTags>ecs;logging;diagnostics;console;file;debug</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Logging.Tests" />
+  </ItemGroup>
+
+</Project>
