@@ -91,8 +91,8 @@ public sealed class DebugLogProvider : ILogProvider
         var sb = new StringBuilder();
         sb.Append('[').Append(timestamp).Append("] ");
         sb.Append(levelText).Append(' ');
-        sb.Append('[').Append(category).Append("] ");
-        sb.Append(message);
+        sb.Append('[').Append(Sanitize(category)).Append("] ");
+        sb.Append(Sanitize(message));
 
         if (IncludeProperties && properties != null && properties.Count > 0)
         {
@@ -106,13 +106,30 @@ public sealed class DebugLogProvider : ILogProvider
                 }
 
                 first = false;
-                sb.Append(kvp.Key).Append('=');
-                sb.Append(kvp.Value?.ToString() ?? "null");
+                sb.Append(Sanitize(kvp.Key)).Append('=');
+                sb.Append(Sanitize(kvp.Value?.ToString() ?? "null"));
             }
 
             sb.Append('}');
         }
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Sanitizes a string to prevent log injection attacks by replacing newlines and control characters.
+    /// </summary>
+    private static string Sanitize(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value ?? string.Empty;
+        }
+
+        // Replace newlines and carriage returns to prevent log injection
+        return value
+            .Replace("\r\n", "\\r\\n", StringComparison.Ordinal)
+            .Replace("\n", "\\n", StringComparison.Ordinal)
+            .Replace("\r", "\\r", StringComparison.Ordinal);
     }
 }

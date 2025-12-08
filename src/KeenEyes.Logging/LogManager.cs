@@ -247,9 +247,10 @@ public sealed class LogManager : IDisposable
                 {
                     provider.Log(level, category, message, mergedProperties);
                 }
-                catch
+                catch (Exception)
                 {
-                    // Swallow exceptions from providers to prevent logging from disrupting application flow
+                    // Intentionally swallow exceptions from providers to prevent logging from disrupting application flow.
+                    // Logging infrastructure must not throw exceptions that could crash the application.
                 }
             }
         }
@@ -335,9 +336,9 @@ public sealed class LogManager : IDisposable
             {
                 provider.Flush();
             }
-            catch
+            catch (Exception)
             {
-                // Swallow flush exceptions
+                // Intentionally swallow flush exceptions - logging infrastructure must not throw.
             }
         }
     }
@@ -361,9 +362,9 @@ public sealed class LogManager : IDisposable
                 {
                     provider.Dispose();
                 }
-                catch
+                catch (Exception)
                 {
-                    // Swallow disposal exceptions
+                    // Intentionally swallow disposal exceptions - logging infrastructure must not throw.
                 }
             }
 
