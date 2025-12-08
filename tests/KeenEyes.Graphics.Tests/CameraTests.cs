@@ -1,5 +1,7 @@
 using System.Numerics;
 
+using KeenEyes.Spatial;
+
 namespace KeenEyes.Graphics.Tests;
 
 /// <summary>

@@ -114,6 +114,12 @@
       },
       "keeneyes.generators.attributes": {
         "type": "Project"
+      },
+      "keeneyes.spatial": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Core": "[1.0.0, )"
+        }
       }
     }
   }
