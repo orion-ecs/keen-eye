@@ -1,0 +1,386 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace KeenEyes.Serialization;
+
+/// <summary>
+/// Provides functionality for creating, serializing, and restoring world snapshots.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The SnapshotManager is the central handler for world persistence. It captures
+/// the complete state of a world including all entities, components, hierarchy
+/// relationships, and singletons.
+/// </para>
+/// <para>
+/// Snapshots can be serialized to JSON format for storage and later restored.
+/// The serialization uses <see cref="System.Text.Json"/> for efficient processing.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// // Create a snapshot of the current world state
+/// var snapshot = SnapshotManager.CreateSnapshot(world);
+///
+/// // Serialize to JSON
+/// var json = SnapshotManager.ToJson(snapshot);
+///
+/// // Save to file
+/// File.WriteAllText("save.json", json);
+///
+/// // Later, load and restore
+/// var loadedJson = File.ReadAllText("save.json");
+/// var loadedSnapshot = SnapshotManager.FromJson(loadedJson);
+/// SnapshotManager.RestoreSnapshot(world, loadedSnapshot, typeResolver);
+/// </code>
+/// </example>
+public static class SnapshotManager
+{
+    private static readonly JsonSerializerOptions defaultJsonOptions = new()
+    {
+        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        IncludeFields = true  // Required to serialize/deserialize struct fields
+    };
+
+    /// <summary>
+    /// Creates a snapshot of the current world state.
+    /// </summary>
+    /// <param name="world">The world to capture.</param>
+    /// <param name="metadata">Optional metadata to include in the snapshot.</param>
+    /// <returns>A snapshot containing all entities, components, hierarchy, and singletons.</returns>
+    /// <remarks>
+    /// <para>
+    /// The snapshot captures:
+    /// <list type="bullet">
+    /// <item><description>All entities and their IDs</description></item>
+    /// <item><description>All components attached to each entity</description></item>
+    /// <item><description>Entity names (if assigned)</description></item>
+    /// <item><description>Parent-child hierarchy relationships</description></item>
+    /// <item><description>All world singletons</description></item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// The operation iterates through all archetypes and entities, boxing component
+    /// values for serialization. This is not intended for use in performance-critical
+    /// hot paths.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="world"/> is null.</exception>
+    public static WorldSnapshot CreateSnapshot(World world, IReadOnlyDictionary<string, object>? metadata = null)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+
+        var entities = new List<SerializedEntity>();
+
+        // Collect all entities with their components and hierarchy info
+        foreach (var entity in world.GetAllEntities())
+        {
+            var components = new List<SerializedComponent>();
+
+            foreach (var (type, value) in world.GetComponents(entity))
+            {
+                var info = world.Components.Get(type);
+                components.Add(new SerializedComponent
+                {
+                    TypeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name,
+                    Data = value,
+                    IsTag = info?.IsTag ?? false
+                });
+            }
+
+            var parent = world.GetParent(entity);
+
+            entities.Add(new SerializedEntity
+            {
+                Id = entity.Id,
+                Name = world.GetName(entity),
+                Components = components,
+                ParentId = parent.IsValid ? parent.Id : null
+            });
+        }
+
+        // Collect singletons
+        var singletons = new List<SerializedSingleton>();
+        foreach (var (type, value) in world.GetAllSingletons())
+        {
+            singletons.Add(new SerializedSingleton
+            {
+                TypeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name,
+                Data = value
+            });
+        }
+
+        return new WorldSnapshot
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Entities = entities,
+            Singletons = singletons,
+            Metadata = metadata
+        };
+    }
+
+    /// <summary>
+    /// Restores a world from a snapshot.
+    /// </summary>
+    /// <param name="world">The world to restore into. Will be cleared before restoration.</param>
+    /// <param name="snapshot">The snapshot to restore from.</param>
+    /// <param name="typeResolver">
+    /// A function that resolves type names to CLR types. Required for deserializing
+    /// components and singletons. If null, uses <see cref="Type.GetType(string)"/>.
+    /// </param>
+    /// <param name="serializer">
+    /// Optional component serializer for AOT-compatible deserialization. When provided,
+    /// uses the generated serializer instead of reflection. Pass an instance of
+    /// the generated <c>ComponentSerializationRegistry</c> for AOT scenarios.
+    /// </param>
+    /// <returns>
+    /// A dictionary mapping original entity IDs from the snapshot to newly created entities.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This method first clears the world using <see cref="World.Clear"/>, then
+    /// recreates all entities with their components. Entity IDs in the restored
+    /// world may differ from the original IDs in the snapshot.
+    /// </para>
+    /// <para>
+    /// Hierarchy relationships are reconstructed after all entities are created.
+    /// </para>
+    /// <para>
+    /// For AOT compatibility, provide an <see cref="IComponentSerializer"/> implementation.
+    /// The source generator creates <c>ComponentSerializationRegistry</c> which implements
+    /// this interface for components marked with <c>[Component(Serializable = true)]</c>.
+    /// </para>
+    /// <para>
+    /// When no serializer is provided, reflection-based deserialization is used as a fallback.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="world"/> or <paramref name="snapshot"/> is null.
+    /// </exception>
+    public static Dictionary<int, Entity> RestoreSnapshot(
+        World world,
+        WorldSnapshot snapshot,
+        Func<string, Type?>? typeResolver = null,
+        IComponentSerializer? serializer = null)
+    {
+        ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(snapshot);
+
+        // Use serializer's type resolver if available, otherwise fallback
+        Func<string, Type?> resolveType = typeName =>
+        {
+            // Try serializer first (AOT path)
+            if (serializer is not null)
+            {
+                var type = serializer.GetType(typeName);
+                if (type is not null)
+                {
+                    return type;
+                }
+            }
+
+            // Try provided resolver
+            if (typeResolver is not null)
+            {
+                return typeResolver(typeName);
+            }
+
+            // Default fallback
+            return Type.GetType(typeName);
+        };
+
+        // Clear the world before restoration
+        world.Clear();
+
+        // Map from snapshot entity ID to new entity
+        var entityMap = new Dictionary<int, Entity>();
+
+        // First pass: Create all entities with their components
+        foreach (var serializedEntity in snapshot.Entities)
+        {
+            var builder = world.Spawn(serializedEntity.Name);
+
+            foreach (var component in serializedEntity.Components)
+            {
+                var type = resolveType(component.TypeName);
+                if (type is null)
+                {
+                    // Type not found - skip this component
+                    continue;
+                }
+
+                // Ensure type is registered
+                var info = world.Components.Get(type);
+                if (info is null)
+                {
+                    // Try to register the component type dynamically
+                    // This uses reflection to call Register<T>
+                    info = RegisterComponentByReflection(world, type, component.IsTag);
+                    if (info is null)
+                    {
+                        continue;
+                    }
+                }
+
+                // Convert the data to the correct type if needed
+                var value = ConvertComponentData(component.Data, type, serializer);
+                if (value is not null)
+                {
+                    builder.WithBoxed(info, value);
+                }
+            }
+
+            var entity = builder.Build();
+            entityMap[serializedEntity.Id] = entity;
+        }
+
+        // Second pass: Restore hierarchy relationships
+        foreach (var serializedEntity in snapshot.Entities)
+        {
+            if (serializedEntity.ParentId.HasValue &&
+                entityMap.TryGetValue(serializedEntity.Id, out var child) &&
+                entityMap.TryGetValue(serializedEntity.ParentId.Value, out var parent))
+            {
+                world.SetParent(child, parent);
+            }
+        }
+
+        // Restore singletons
+        foreach (var singleton in snapshot.Singletons)
+        {
+            var type = resolveType(singleton.TypeName);
+            if (type is null)
+            {
+                continue;
+            }
+
+            var value = ConvertComponentData(singleton.Data, type, serializer);
+            if (value is not null)
+            {
+                SetSingletonByReflection(world, type, value);
+            }
+        }
+
+        return entityMap;
+    }
+
+    /// <summary>
+    /// Serializes a snapshot to JSON format.
+    /// </summary>
+    /// <param name="snapshot">The snapshot to serialize.</param>
+    /// <param name="options">Optional JSON serializer options. If null, uses default options.</param>
+    /// <returns>A JSON string representing the snapshot.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="snapshot"/> is null.</exception>
+    public static string ToJson(WorldSnapshot snapshot, JsonSerializerOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        return JsonSerializer.Serialize(snapshot, options ?? defaultJsonOptions);
+    }
+
+    /// <summary>
+    /// Deserializes a snapshot from JSON format.
+    /// </summary>
+    /// <param name="json">The JSON string to deserialize.</param>
+    /// <param name="options">Optional JSON serializer options. If null, uses default options.</param>
+    /// <returns>The deserialized snapshot.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
+    /// <exception cref="JsonException">Thrown when the JSON is invalid.</exception>
+    public static WorldSnapshot? FromJson(string json, JsonSerializerOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(json);
+        return JsonSerializer.Deserialize<WorldSnapshot>(json, options ?? defaultJsonOptions);
+    }
+
+    /// <summary>
+    /// Gets the default JSON serializer options used by the snapshot manager.
+    /// </summary>
+    /// <returns>A copy of the default options that can be customized.</returns>
+    public static JsonSerializerOptions GetdefaultJsonOptions()
+    {
+        return new JsonSerializerOptions(defaultJsonOptions);
+    }
+
+    private static ComponentInfo? RegisterComponentByReflection(World world, Type type, bool isTag)
+    {
+        // Use reflection to call world.Components.Register<T>(isTag)
+        var registryType = typeof(ComponentRegistry);
+        var method = registryType.GetMethod(nameof(ComponentRegistry.Register), [typeof(bool)]);
+
+        if (method is null)
+        {
+            return null;
+        }
+
+        var genericMethod = method.MakeGenericMethod(type);
+        return genericMethod.Invoke(world.Components, [isTag]) as ComponentInfo;
+    }
+
+    private static void SetSingletonByReflection(World world, Type type, object value)
+    {
+        // Use reflection to call world.SetSingleton<T>(value)
+        var worldType = typeof(World);
+        var method = worldType.GetMethod(nameof(World.SetSingleton));
+
+        if (method is null)
+        {
+            return;
+        }
+
+        var genericMethod = method.MakeGenericMethod(type);
+        genericMethod.Invoke(world, [value]);
+    }
+
+    private static object? ConvertComponentData(object data, Type targetType, IComponentSerializer? serializer)
+    {
+        if (data is null)
+        {
+            return null;
+        }
+
+        // If the data is already the correct type, return it
+        if (targetType.IsInstanceOfType(data))
+        {
+            return data;
+        }
+
+        // If the data is a JsonElement (from deserialization), try AOT serializer first
+        if (data is JsonElement jsonElement)
+        {
+            // Try provided serializer (AOT path - no reflection)
+            if (serializer is not null)
+            {
+                var typeName = targetType.AssemblyQualifiedName ?? targetType.FullName ?? targetType.Name;
+                var aotResult = serializer.Deserialize(typeName, jsonElement);
+                if (aotResult is not null)
+                {
+                    return aotResult;
+                }
+
+                // Also try with full name
+                if (targetType.FullName is not null)
+                {
+                    aotResult = serializer.Deserialize(targetType.FullName, jsonElement);
+                    if (aotResult is not null)
+                    {
+                        return aotResult;
+                    }
+                }
+            }
+
+            // Fall back to reflection-based deserialization
+            return JsonSerializer.Deserialize(jsonElement.GetRawText(), targetType, defaultJsonOptions);
+        }
+
+        // Try direct conversion for primitive types
+        try
+        {
+            return Convert.ChangeType(data, targetType);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}

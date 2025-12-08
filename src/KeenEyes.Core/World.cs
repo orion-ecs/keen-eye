@@ -553,6 +553,60 @@ public sealed class World : IDisposable
     }
 
     /// <summary>
+    /// Clears all entities, components, singletons, and hierarchy data from this world.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method resets the world to an empty state while keeping registered systems,
+    /// plugins, and event subscriptions intact. It is primarily used for restoring from
+    /// snapshots where the world state needs to be cleared before recreation.
+    /// </para>
+    /// <para>
+    /// After clearing, entity IDs start fresh from 0. Any existing entity handles
+    /// become stale and will return false for <see cref="IsAlive(Entity)"/>.
+    /// </para>
+    /// <para>
+    /// Note that this method does NOT clear:
+    /// <list type="bullet">
+    /// <item><description>Registered systems</description></item>
+    /// <item><description>Installed plugins</description></item>
+    /// <item><description>Event subscriptions</description></item>
+    /// <item><description>Extensions</description></item>
+    /// <item><description>The component registry</description></item>
+    /// </list>
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Clear world before restoring from snapshot
+    /// world.Clear();
+    ///
+    /// // Recreate entities from saved data
+    /// foreach (var savedEntity in snapshot.Entities)
+    /// {
+    ///     world.Spawn(savedEntity.Name)
+    ///         .With(savedEntity.Position)
+    ///         .Build();
+    /// }
+    /// </code>
+    /// </example>
+    /// <seealso cref="KeenEyes.Serialization.SnapshotManager"/>
+    public void Clear()
+    {
+        // Clear all entity-related state
+        archetypeManager.Clear();
+        entityPool.Clear();
+        entityNamingManager.Clear();
+        hierarchyManager.Clear();
+        singletonManager.Clear();
+        changeTracker.Clear();
+        messageManager.Clear();
+
+        // Invalidate query cache since all entities are gone
+        queryManager.InvalidateCache();
+    }
+
+    /// <summary>
     /// Gets the name assigned to an entity, if any.
     /// </summary>
     /// <param name="entity">The entity to get the name for.</param>
@@ -2020,6 +2074,30 @@ public sealed class World : IDisposable
     /// <seealso cref="HasSingleton{T}"/>
     public bool RemoveSingleton<T>() where T : struct
         => singletonManager.RemoveSingleton<T>();
+
+    /// <summary>
+    /// Gets all singletons stored in this world.
+    /// </summary>
+    /// <returns>
+    /// An enumerable of tuples containing each singleton's type and boxed value.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This method is primarily intended for serialization and debugging scenarios.
+    /// Values are boxed, so avoid using this in performance-critical paths.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Snapshot all singletons for serialization
+    /// var singletonSnapshot = world.GetAllSingletons()
+    ///     .ToDictionary(s => s.Type.FullName, s => s.Value);
+    /// </code>
+    /// </example>
+    /// <seealso cref="SetSingleton{T}(in T)"/>
+    /// <seealso cref="GetSingleton{T}"/>
+    public IEnumerable<(Type Type, object Value)> GetAllSingletons()
+        => singletonManager.GetAllSingletons();
 
     #endregion
 

@@ -92,6 +92,33 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     }
 
     /// <summary>
+    /// Adds a component to the entity being built using a boxed value.
+    /// </summary>
+    /// <param name="info">The component info from the component registry.</param>
+    /// <param name="value">The boxed component value.</param>
+    /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method is primarily intended for serialization and deserialization scenarios
+    /// where the component type is not known at compile time. For normal usage, prefer
+    /// the generic <see cref="With{T}(T)"/> method.
+    /// </para>
+    /// <para>
+    /// The value must be assignable to the component type specified in the info.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="info"/> or <paramref name="value"/> is null.
+    /// </exception>
+    public EntityBuilder WithBoxed(ComponentInfo info, object value)
+    {
+        ArgumentNullException.ThrowIfNull(info);
+        ArgumentNullException.ThrowIfNull(value);
+        components.Add((info, value));
+        return this;
+    }
+
+    /// <summary>
     /// Builds the entity and adds it to the world.
     /// </summary>
     /// <returns>The created entity.</returns>

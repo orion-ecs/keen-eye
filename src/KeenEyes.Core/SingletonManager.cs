@@ -95,4 +95,22 @@ internal sealed class SingletonManager
     {
         singletons.Clear();
     }
+
+    /// <summary>
+    /// Gets all singletons as type-value pairs.
+    /// </summary>
+    /// <returns>An enumerable of all singleton types and their boxed values.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method is primarily intended for serialization and debugging scenarios.
+    /// Values are boxed, so avoid using this in performance-critical paths.
+    /// </para>
+    /// </remarks>
+    internal IEnumerable<(Type Type, object Value)> GetAllSingletons()
+    {
+        foreach (var kvp in singletons)
+        {
+            yield return (kvp.Key, kvp.Value);
+        }
+    }
 }
