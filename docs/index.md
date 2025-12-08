@@ -50,6 +50,8 @@ foreach (var e in world.Query<Position, Velocity>())
 - [Components](components.md) - Component patterns and best practices
 - [Queries](queries.md) - Filtering and iterating entities
 - [Systems](systems.md) - System design patterns
+- [Messaging](messaging.md) - Inter-system communication patterns
+- [Plugins](plugins.md) - Modular extensions and feature packaging
 - [Command Buffer](command-buffer.md) - Safe entity modification during iteration
 - [Singletons](singletons.md) - World-level resources
 - [Relationships](relationships.md) - Parent-child entity hierarchies

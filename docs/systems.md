@@ -537,9 +537,39 @@ public class AISystem : SystemBase
 
 ### Inter-System Communication
 
-Systems can communicate through:
+Systems can communicate through several mechanisms:
 
-1. **Singletons** - World-level shared state:
+1. **Messaging** - Decoupled publish-subscribe communication:
+
+```csharp
+// Define a message type
+public readonly record struct DamageMessage(Entity Target, int Amount, Entity Source);
+
+// Subscribe to messages (typically in OnInitialize)
+private EventSubscription? damageSub;
+
+protected override void OnInitialize()
+{
+    damageSub = World.Subscribe<DamageMessage>(HandleDamage);
+}
+
+private void HandleDamage(DamageMessage msg)
+{
+    ref var health = ref World.Get<Health>(msg.Target);
+    health.Current -= msg.Amount;
+}
+
+// Send messages from another system
+World.Send(new DamageMessage(target, 25, attacker));
+
+// Or queue for deferred processing
+World.QueueMessage(new DamageMessage(target, 25, attacker));
+World.ProcessQueuedMessages();  // Process all queued messages
+```
+
+See the [Messaging Guide](messaging.md) for comprehensive coverage.
+
+2. **Singletons** - World-level shared state:
 
 ```csharp
 // InputSystem writes
@@ -549,7 +579,7 @@ World.SetSingleton(new InputState { MoveDirection = dir });
 ref readonly var input = ref World.GetSingleton<InputState>();
 ```
 
-2. **Components** - Entity-level data:
+3. **Components** - Entity-level data:
 
 ```csharp
 // DamageSystem adds damage events
@@ -565,7 +595,7 @@ foreach (var entity in World.Query<Health, DamageEvent>())
 }
 ```
 
-3. **Tags** - State flags:
+4. **Tags** - State flags:
 
 ```csharp
 // CombatSystem marks entity
@@ -689,6 +719,7 @@ public class TimerSystem : SystemBase
 
 ## Next Steps
 
+- [Messaging Guide](messaging.md) - Inter-system communication patterns
 - [Queries Guide](queries.md) - Query patterns for systems
 - [Command Buffer](command-buffer.md) - Deferred entity operations
 - [Singletons Guide](singletons.md) - World-level resources

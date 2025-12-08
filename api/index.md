@@ -95,6 +95,8 @@ foreach (var e in world.Query<Position, Velocity>())
 | **CommandBuffer** | Queues spawn/despawn/component operations for safe execution outside iteration. |
 | **Singleton** | World-level resources via `SetSingleton<T>()` / `GetSingleton<T>()`. |
 | **Hierarchy** | Parent-child entity relationships via `SetParent()` / `GetChildren()`. |
+| **Messaging** | Inter-system communication via `Send<T>()` / `Subscribe<T>()` with immediate or queued delivery. |
+| **Plugin** | Modular extensions via `IWorldPlugin` with `Install()` / `Uninstall()` lifecycle and Extension API. |
 | **Events** | Lifecycle events via `OnEntityCreated()`, `OnComponentAdded<T>()`, etc. |
 | **Change Tracking** | Dirty entity tracking via `MarkDirty<T>()` / `GetDirtyEntities<T>()`. |
 
@@ -255,6 +257,37 @@ foreach (var child in world.GetChildren(parent))
 world.DespawnRecursive(rootEntity);
 ```
 
+### Messaging (Inter-System Communication)
+
+```csharp
+// Define message types (struct recommended for zero-allocation)
+public readonly record struct DamageMessage(Entity Target, int Amount, Entity Source);
+
+// Subscribe to messages
+var subscription = world.Subscribe<DamageMessage>(msg =>
+{
+    ref var health = ref world.Get<Health>(msg.Target);
+    health.Current -= msg.Amount;
+});
+
+// Send immediately to all subscribers
+world.Send(new DamageMessage(target, 25, attacker));
+
+// Or queue for deferred processing
+world.QueueMessage(new DamageMessage(target, 25, attacker));
+world.ProcessQueuedMessages();  // Process all queued messages
+
+// Check if anyone is listening (optimization)
+if (world.HasMessageSubscribers<ExpensiveMessage>())
+{
+    var data = ComputeExpensiveData();
+    world.Send(new ExpensiveMessage(data));
+}
+
+// Unsubscribe
+subscription.Dispose();
+```
+
 ### Events
 
 ```csharp
@@ -301,6 +334,48 @@ world.ClearDirtyFlags<Position>();
 world.EnableAutoTracking<Position>();
 ```
 
+### Plugins
+
+```csharp
+// Create plugin
+public class PhysicsPlugin : IWorldPlugin
+{
+    public string Name => "Physics";
+
+    public void Install(PluginContext context)
+    {
+        context.AddSystem<GravitySystem>(SystemPhase.FixedUpdate, order: 0);
+        context.SetExtension(new PhysicsWorld(context.World));
+    }
+
+    public void Uninstall(PluginContext context)
+    {
+        context.RemoveExtension<PhysicsWorld>();
+    }
+}
+
+// Install via WorldBuilder
+using var world = new WorldBuilder()
+    .WithPlugin<PhysicsPlugin>()
+    .Build();
+
+// Or install directly
+world.InstallPlugin<PhysicsPlugin>();
+
+// Query plugins
+if (world.HasPlugin<PhysicsPlugin>())
+{
+    var plugin = world.GetPlugin<PhysicsPlugin>();
+}
+
+// Access extensions
+var physics = world.GetExtension<PhysicsWorld>();
+physics.SetGravity(9.8f);
+
+// Uninstall
+world.UninstallPlugin<PhysicsPlugin>();
+```
+
 ## Source Generator Attributes
 
 Reduce boilerplate with source-generated code:
@@ -337,6 +412,8 @@ For in-depth coverage, see the documentation guides:
 - [Components](../docs/components.md) - Component patterns and best practices
 - [Queries](../docs/queries.md) - Filtering and iterating entities
 - [Systems](../docs/systems.md) - System design patterns
+- [Messaging](../docs/messaging.md) - Inter-system communication patterns
+- [Plugins](../docs/plugins.md) - Modular extensions and feature packaging
 - [Command Buffer](../docs/command-buffer.md) - Safe entity modification during iteration
 - [Singletons](../docs/singletons.md) - World-level resources
 - [Relationships](../docs/relationships.md) - Parent-child entity hierarchies
