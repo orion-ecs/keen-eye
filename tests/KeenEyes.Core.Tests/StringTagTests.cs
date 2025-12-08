@@ -657,6 +657,42 @@ public class StringTagTests
     }
 
     [Fact]
+    public void QueryBuilder_WithTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition>().WithTag("").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_WithTag_WhitespaceTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition>().WithTag("   ").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_WithoutTag_NullTag_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.Query<TagTestPosition>().WithoutTag(null!).ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_WithoutTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition>().WithoutTag("").ToList());
+    }
+
+    [Fact]
     public void QueryBuilder_WithTag_NoMatchingEntities_ReturnsEmpty()
     {
         using var world = new World();

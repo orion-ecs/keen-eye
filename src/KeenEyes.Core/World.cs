@@ -2929,6 +2929,7 @@ public sealed class World : IDisposable
         eventManager.Clear();
         messageManager.Clear();
         changeTracker.Clear();
+        tagManager.Clear();
     }
 
 }
