@@ -577,7 +577,7 @@ public class SerializationGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (_, generatedTrees) = RunGenerator(source);
 
         // Should not generate for classes
         Assert.DoesNotContain(generatedTrees, t => t.Contains("ComponentSerializer"));
@@ -621,8 +621,8 @@ public class SerializationGeneratorTests
 
         // Add runtime assembly references
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
-        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "System.Runtime.dll")));
-        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "netstandard.dll")));
+        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
+        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",

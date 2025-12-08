@@ -321,7 +321,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        _ = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
 
         var restoredEntity = world2.GetEntityByName("Player");
         Assert.True(restoredEntity.IsValid);
@@ -840,7 +840,7 @@ public class SerializationTests
 
         // Use a mock serializer
         var mockSerializer = new MockComponentSerializer();
-        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, serializer: mockSerializer);
+        _ = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, serializer: mockSerializer);
 
         // The mock serializer was called
         Assert.True(mockSerializer.GetTypeCalled);
