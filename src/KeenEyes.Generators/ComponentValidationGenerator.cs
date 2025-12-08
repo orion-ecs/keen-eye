@@ -77,21 +77,17 @@ public sealed class ComponentValidationGenerator : IIncrementalGenerator
         {
             var attrClass = attribute.AttributeClass?.ToDisplayString();
 
-            if (attrClass == RequiresComponentAttribute)
+            if (attrClass == RequiresComponentAttribute &&
+                attribute.ConstructorArguments.Length > 0 &&
+                attribute.ConstructorArguments[0].Value is INamedTypeSymbol requiredType)
             {
-                if (attribute.ConstructorArguments.Length > 0 &&
-                    attribute.ConstructorArguments[0].Value is INamedTypeSymbol requiredType)
-                {
-                    requires.Add(requiredType.ToDisplayString());
-                }
+                requires.Add(requiredType.ToDisplayString());
             }
-            else if (attrClass == ConflictsWithAttribute)
+            else if (attrClass == ConflictsWithAttribute &&
+                attribute.ConstructorArguments.Length > 0 &&
+                attribute.ConstructorArguments[0].Value is INamedTypeSymbol conflictType)
             {
-                if (attribute.ConstructorArguments.Length > 0 &&
-                    attribute.ConstructorArguments[0].Value is INamedTypeSymbol conflictType)
-                {
-                    conflicts.Add(conflictType.ToDisplayString());
-                }
+                conflicts.Add(conflictType.ToDisplayString());
             }
         }
 
