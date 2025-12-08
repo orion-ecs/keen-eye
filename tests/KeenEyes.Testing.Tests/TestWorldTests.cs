@@ -158,7 +158,7 @@ public class TestWorldTests
     {
         using var testWorld = new TestWorldBuilder().Build();
 
-        var entities = testWorld.CreateEntities(5, i => new TestPosition { X = i, Y = i * 2 });
+        var entities = testWorld.CreateEntities(5, i => new TestPosition { X = i, Y = (float)i * 2 });
 
         entities.Length.ShouldBe(5);
         testWorld.GetEntityCount().ShouldBe(5);
