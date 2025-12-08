@@ -1,0 +1,437 @@
+using System.Reflection;
+using System.Runtime.CompilerServices;
+
+namespace KeenEyes;
+
+/// <summary>
+/// Delegate for custom component validators.
+/// </summary>
+/// <typeparam name="T">The component type being validated.</typeparam>
+/// <param name="world">The world containing the entity.</param>
+/// <param name="entity">The entity being validated.</param>
+/// <param name="component">The component data being added.</param>
+/// <returns><c>true</c> if validation passes; <c>false</c> otherwise.</returns>
+public delegate bool ComponentValidator<T>(World world, Entity entity, T component) where T : struct, IComponent;
+
+/// <summary>
+/// Manages component validation constraints including dependencies, conflicts, and custom validators.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The validation manager reads <see cref="RequiresComponentAttribute"/> and
+/// <see cref="ConflictsWithAttribute"/> from component types and caches the results
+/// for efficient runtime validation.
+/// </para>
+/// <para>
+/// Validation can be controlled using <see cref="ValidationMode"/>:
+/// <list type="bullet">
+/// <item><description><see cref="ValidationMode.Enabled"/> - Always validate (default)</description></item>
+/// <item><description><see cref="ValidationMode.Disabled"/> - Skip all validation</description></item>
+/// <item><description><see cref="ValidationMode.DebugOnly"/> - Only validate when DEBUG is defined</description></item>
+/// </list>
+/// </para>
+/// </remarks>
+internal sealed class ComponentValidationManager
+{
+    private readonly World world;
+    private readonly Dictionary<Type, ComponentValidationInfo> validationCache = [];
+    private readonly Dictionary<Type, Delegate> customValidators = [];
+
+    /// <summary>
+    /// Gets or sets the validation mode for this manager.
+    /// </summary>
+    public ValidationMode Mode { get; set; } = ValidationMode.Enabled;
+
+    /// <summary>
+    /// Creates a new component validation manager for the specified world.
+    /// </summary>
+    /// <param name="world">The world this manager belongs to.</param>
+    public ComponentValidationManager(World world)
+    {
+        this.world = world;
+    }
+
+    /// <summary>
+    /// Registers a custom validator for a component type.
+    /// </summary>
+    /// <typeparam name="T">The component type to validate.</typeparam>
+    /// <param name="validator">The validation delegate.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="validator"/> is null.</exception>
+    public void RegisterValidator<T>(ComponentValidator<T> validator) where T : struct, IComponent
+    {
+        ArgumentNullException.ThrowIfNull(validator);
+        customValidators[typeof(T)] = validator;
+    }
+
+    /// <summary>
+    /// Removes the custom validator for a component type.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <returns><c>true</c> if a validator was removed; <c>false</c> if no validator was registered.</returns>
+    public bool UnregisterValidator<T>() where T : struct, IComponent
+    {
+        return customValidators.Remove(typeof(T));
+    }
+
+    /// <summary>
+    /// Validates a component being added to an existing entity.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="entity">The entity receiving the component.</param>
+    /// <param name="component">The component data.</param>
+    /// <exception cref="ComponentValidationException">Thrown when validation fails.</exception>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public void ValidateAdd<T>(Entity entity, in T component) where T : struct, IComponent
+    {
+        if (!ShouldValidate())
+        {
+            return;
+        }
+
+        var type = typeof(T);
+        var info = GetOrCreateValidationInfo(type);
+
+        // Check required components
+        ValidateRequirements(entity, type, info);
+
+        // Check conflicting components
+        ValidateConflicts(entity, type, info);
+
+        // Run custom validator if registered
+        ValidateCustom(entity, in component);
+    }
+
+    /// <summary>
+    /// Validates a set of components being added during entity creation.
+    /// </summary>
+    /// <param name="components">The components being added.</param>
+    /// <exception cref="ComponentValidationException">Thrown when validation fails.</exception>
+    public void ValidateBuild(IReadOnlyList<(ComponentInfo Info, object Data)> components)
+    {
+        if (!ShouldValidate())
+        {
+            return;
+        }
+
+        // Build a set of component types being added for cross-validation
+        var componentTypes = new HashSet<Type>();
+        foreach (var (info, _) in components)
+        {
+            componentTypes.Add(info.Type);
+        }
+
+        // Validate each component
+        foreach (var (info, _) in components)
+        {
+            var validationInfo = GetOrCreateValidationInfo(info.Type);
+
+            // Check requirements against the set of components being added
+            ValidateRequirementsBuild(info.Type, validationInfo, componentTypes);
+
+            // Check conflicts against the set of components being added
+            ValidateConflictsBuild(info.Type, validationInfo, componentTypes);
+        }
+    }
+
+    /// <summary>
+    /// Validates a set of components being added during entity creation, including custom validators.
+    /// </summary>
+    /// <param name="entity">The newly created entity.</param>
+    /// <param name="components">The components that were added.</param>
+    /// <exception cref="ComponentValidationException">Thrown when custom validation fails.</exception>
+    public void ValidateBuildCustom(Entity entity, IReadOnlyList<(ComponentInfo Info, object Data)> components)
+    {
+        if (!ShouldValidate())
+        {
+            return;
+        }
+
+        // Run custom validators for each component
+        foreach (var (info, data) in components)
+        {
+            if (customValidators.TryGetValue(info.Type, out var validator))
+            {
+                // Use reflection to invoke the typed validator
+                var validateMethod = typeof(ComponentValidationManager)
+                    .GetMethod(nameof(InvokeCustomValidator), BindingFlags.NonPublic | BindingFlags.Instance)!
+                    .MakeGenericMethod(info.Type);
+
+                var result = (bool)validateMethod.Invoke(this, [entity, data, validator])!;
+                if (!result)
+                {
+                    throw new ComponentValidationException(
+                        $"Custom validation failed for component '{info.Type.Name}' on entity {entity}.",
+                        info.Type,
+                        entity);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the cached validation info for a component type, or creates and caches it.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private ComponentValidationInfo GetOrCreateValidationInfo(Type componentType)
+    {
+        if (validationCache.TryGetValue(componentType, out var info))
+        {
+            return info;
+        }
+
+        info = CreateValidationInfo(componentType);
+        validationCache[componentType] = info;
+        return info;
+    }
+
+    /// <summary>
+    /// Creates validation info by reading attributes from the component type.
+    /// First tries generated metadata, then falls back to reflection.
+    /// </summary>
+    private static ComponentValidationInfo CreateValidationInfo(Type componentType)
+    {
+        // Try to use generated metadata first (faster, no reflection)
+        if (TryGetGeneratedConstraints(componentType, out var generatedRequired, out var generatedConflicts))
+        {
+            return new ComponentValidationInfo(generatedRequired, generatedConflicts);
+        }
+
+        // Fall back to reflection for non-generated components
+        var requires = new List<Type>();
+        var conflicts = new List<Type>();
+
+        // Read RequiresComponentAttribute instances
+        var requiresAttrs = componentType.GetCustomAttributes<RequiresComponentAttribute>();
+        foreach (var attr in requiresAttrs)
+        {
+            requires.Add(attr.RequiredType);
+        }
+
+        // Read ConflictsWithAttribute instances
+        var conflictsAttrs = componentType.GetCustomAttributes<ConflictsWithAttribute>();
+        foreach (var attr in conflictsAttrs)
+        {
+            conflicts.Add(attr.ConflictingType);
+        }
+
+        return new ComponentValidationInfo(
+            requires.Count > 0 ? [.. requires] : [],
+            conflicts.Count > 0 ? [.. conflicts] : []);
+    }
+
+    /// <summary>
+    /// Validates required components are present on an existing entity.
+    /// </summary>
+    private void ValidateRequirements(Entity entity, Type componentType, ComponentValidationInfo info)
+    {
+        foreach (var requiredType in info.RequiredComponents)
+        {
+            if (!world.HasComponent(entity, requiredType))
+            {
+                throw new ComponentValidationException(
+                    $"Component '{componentType.Name}' requires '{requiredType.Name}' to be present on entity {entity}.",
+                    componentType,
+                    entity);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates no conflicting components are present on an existing entity.
+    /// </summary>
+    private void ValidateConflicts(Entity entity, Type componentType, ComponentValidationInfo info)
+    {
+        foreach (var conflictType in info.ConflictingComponents)
+        {
+            if (world.HasComponent(entity, conflictType))
+            {
+                throw new ComponentValidationException(
+                    $"Component '{componentType.Name}' conflicts with '{conflictType.Name}' which is present on entity {entity}.",
+                    componentType,
+                    entity);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates required components are present in the build set.
+    /// </summary>
+    private static void ValidateRequirementsBuild(Type componentType, ComponentValidationInfo info, HashSet<Type> componentTypes)
+    {
+        foreach (var requiredType in info.RequiredComponents)
+        {
+            if (!componentTypes.Contains(requiredType))
+            {
+                throw new ComponentValidationException(
+                    $"Component '{componentType.Name}' requires '{requiredType.Name}' to be present. " +
+                    $"Add '{requiredType.Name}' to the entity builder before '{componentType.Name}'.",
+                    componentType);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Validates no conflicting components are present in the build set.
+    /// </summary>
+    private static void ValidateConflictsBuild(Type componentType, ComponentValidationInfo info, HashSet<Type> componentTypes)
+    {
+        foreach (var conflictType in info.ConflictingComponents)
+        {
+            if (componentTypes.Contains(conflictType) && conflictType != componentType)
+            {
+                throw new ComponentValidationException(
+                    $"Component '{componentType.Name}' conflicts with '{conflictType.Name}'. " +
+                    $"These components cannot be added to the same entity.",
+                    componentType);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Runs the custom validator for a component.
+    /// </summary>
+    private void ValidateCustom<T>(Entity entity, in T component) where T : struct, IComponent
+    {
+        if (customValidators.TryGetValue(typeof(T), out var validator))
+        {
+            var typedValidator = (ComponentValidator<T>)validator;
+            if (!typedValidator(world, entity, component))
+            {
+                throw new ComponentValidationException(
+                    $"Custom validation failed for component '{typeof(T).Name}' on entity {entity}.",
+                    typeof(T),
+                    entity);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Invokes a custom validator using reflection for build-time validation.
+    /// </summary>
+    private bool InvokeCustomValidator<T>(Entity entity, object data, Delegate validator) where T : struct, IComponent
+    {
+        var typedValidator = (ComponentValidator<T>)validator;
+        var component = (T)data;
+        return typedValidator(world, entity, component);
+    }
+
+    /// <summary>
+    /// Determines if validation should be performed based on the current mode.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool ShouldValidate()
+    {
+        return Mode switch
+        {
+            ValidationMode.Enabled => true,
+            ValidationMode.Disabled => false,
+            ValidationMode.DebugOnly => IsDebugBuild(),
+            _ => true
+        };
+    }
+
+    /// <summary>
+    /// Checks if this is a debug build.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static bool IsDebugBuild()
+    {
+#if DEBUG
+        return true;
+#else
+        return false;
+#endif
+    }
+
+    /// <summary>
+    /// Cached reference to the generated ComponentValidationMetadata type.
+    /// Null if the type doesn't exist (no generated code available).
+    /// </summary>
+    private static Type? generatedMetadataType;
+    private static MethodInfo? tryGetConstraintsMethod;
+    private static bool generatedMetadataChecked;
+
+    /// <summary>
+    /// Attempts to get validation constraints from generated metadata.
+    /// </summary>
+    /// <param name="componentType">The component type to look up.</param>
+    /// <param name="required">Output array of required component types.</param>
+    /// <param name="conflicts">Output array of conflicting component types.</param>
+    /// <returns><c>true</c> if generated metadata was found; <c>false</c> otherwise.</returns>
+    private static bool TryGetGeneratedConstraints(Type componentType, out Type[] required, out Type[] conflicts)
+    {
+        required = [];
+        conflicts = [];
+
+        // Check for generated metadata type on first call
+        if (!generatedMetadataChecked)
+        {
+            generatedMetadataChecked = true;
+
+            // Look for the generated type in all loaded assemblies
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                try
+                {
+                    generatedMetadataType = assembly.GetType("KeenEyes.ComponentValidationMetadata");
+                    if (generatedMetadataType != null)
+                    {
+                        tryGetConstraintsMethod = generatedMetadataType.GetMethod(
+                            "TryGetConstraints",
+                            BindingFlags.Public | BindingFlags.Static,
+                            [typeof(Type), typeof(Type[]).MakeByRefType(), typeof(Type[]).MakeByRefType()]);
+                        break;
+                    }
+                }
+                catch
+                {
+                    // Ignore assemblies that can't be inspected
+                }
+            }
+        }
+
+        if (tryGetConstraintsMethod == null)
+        {
+            return false;
+        }
+
+        // Invoke TryGetConstraints(componentType, out required, out conflicts)
+        var parameters = new object?[] { componentType, null, null };
+        var result = (bool)tryGetConstraintsMethod.Invoke(null, parameters)!;
+
+        if (result)
+        {
+            required = (Type[])parameters[1]!;
+            conflicts = (Type[])parameters[2]!;
+        }
+
+        return result;
+    }
+}
+
+/// <summary>
+/// Cached validation information for a component type.
+/// </summary>
+internal readonly struct ComponentValidationInfo
+{
+    /// <summary>
+    /// Types that must be present on the entity when this component is added.
+    /// </summary>
+    public Type[] RequiredComponents { get; }
+
+    /// <summary>
+    /// Types that cannot coexist with this component on the same entity.
+    /// </summary>
+    public Type[] ConflictingComponents { get; }
+
+    /// <summary>
+    /// Whether this component has any validation constraints.
+    /// </summary>
+    public bool HasConstraints => RequiredComponents.Length > 0 || ConflictingComponents.Length > 0;
+
+    public ComponentValidationInfo(Type[] requiredComponents, Type[] conflictingComponents)
+    {
+        RequiredComponents = requiredComponents;
+        ConflictingComponents = conflictingComponents;
+    }
+}

@@ -254,6 +254,21 @@ public sealed class ArchetypeManager : IDisposable
     }
 
     /// <summary>
+    /// Checks if an entity has a specific component type by runtime type.
+    /// </summary>
+    /// <param name="entity">The entity.</param>
+    /// <param name="componentType">The component type to check for.</param>
+    /// <returns>True if the entity has the component.</returns>
+    internal bool Has(Entity entity, Type componentType)
+    {
+        if (!entityLocations.TryGetValue(entity.Id, out var location))
+        {
+            return false;
+        }
+        return location.Archetype.Has(componentType);
+    }
+
+    /// <summary>
     /// Sets a component value for an entity.
     /// </summary>
     /// <typeparam name="T">The component type.</typeparam>
