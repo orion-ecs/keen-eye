@@ -185,9 +185,11 @@ internal sealed class PrefabManager
     {
         if (component.IsTag)
         {
-            // Use reflection to call WithTag<T>()
+            // Use reflection to call WithTag<T>() - must find the generic overload
+            // since there's also a WithTag(string) overload for string tags
             var withTagMethod = typeof(EntityBuilder)
-                .GetMethod(nameof(EntityBuilder.WithTag))!
+                .GetMethods()
+                .First(m => m.Name == nameof(EntityBuilder.WithTag) && m.IsGenericMethodDefinition)
                 .MakeGenericMethod(component.Type);
 
             withTagMethod.Invoke(builder, null);
