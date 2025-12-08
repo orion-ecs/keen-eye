@@ -1,4 +1,4 @@
-using KeenEyes.Graphics;
+using KeenEyes.Testing;
 
 namespace KeenEyes.Graphics.Tests;
 
@@ -46,6 +46,7 @@ public class GraphicsPluginTests
 
         world.InstallPlugin(plugin);
 
+        world.ShouldHavePlugin<GraphicsPlugin>();
         Assert.True(world.HasExtension<GraphicsContext>());
     }
 
@@ -122,8 +123,11 @@ public class GraphicsPluginTests
         var plugin = new GraphicsPlugin();
 
         world.InstallPlugin(plugin);
+        world.ShouldHavePlugin<GraphicsPlugin>();
+
         world.UninstallPlugin<GraphicsPlugin>();
 
+        world.ShouldNotHavePlugin<GraphicsPlugin>();
         Assert.False(world.HasExtension<GraphicsContext>());
     }
 
