@@ -33,7 +33,10 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         // Generate the serialization registry only if there are serializable components
         context.RegisterSourceOutput(collected, static (ctx, components) =>
         {
-            var validComponents = components.Where(c => c is not null).ToImmutableArray();
+            var validComponents = components
+                .Where(c => c is not null)
+                .Select(c => c!)
+                .ToImmutableArray();
 
             // Don't generate anything if there are no serializable components
             // This avoids conflicts when multiple projects reference KeenEyes.Core
@@ -42,24 +45,19 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 return;
             }
 
-            var source = GenerateSerializationRegistry(validComponents!);
+            var source = GenerateSerializationRegistry(validComponents);
             ctx.AddSource("ComponentSerializer.g.cs", SourceText.From(source, Encoding.UTF8));
         });
     }
 
     private static SerializableComponentInfo? GetSerializableComponentInfo(GeneratorAttributeSyntaxContext context)
     {
-        if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
-        {
-            return null;
-        }
+        // TargetSymbol is guaranteed to be INamedTypeSymbol because we filter for StructDeclarationSyntax
+        var typeSymbol = (INamedTypeSymbol)context.TargetSymbol;
 
         // Check for Serializable = true in attribute
-        var attr = context.Attributes.FirstOrDefault();
-        if (attr is null)
-        {
-            return null;
-        }
+        // Attributes is guaranteed non-empty because we use ForAttributeWithMetadataName
+        var attr = context.Attributes.First();
 
         var serializableArg = attr.NamedArguments
             .FirstOrDefault(a => a.Key == "Serializable");
@@ -119,7 +117,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         };
     }
 
-    private static string GenerateSerializationRegistry(ImmutableArray<SerializableComponentInfo?> components)
+    private static string GenerateSerializationRegistry(ImmutableArray<SerializableComponentInfo> components)
     {
         var sb = new StringBuilder();
 
@@ -158,11 +156,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var component in components)
         {
-            if (component is null)
-            {
-                continue;
-            }
-
             sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = Deserialize_{component.Name},");
             sb.AppendLine($"            [\"{component.FullName}\"] = Deserialize_{component.Name},");
         }
@@ -174,11 +167,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var component in components)
         {
-            if (component is null)
-            {
-                continue;
-            }
-
             sb.AppendLine($"            [typeof({component.FullName})] = value => Serialize_{component.Name}(({component.FullName})value),");
         }
 
@@ -189,11 +177,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var component in components)
         {
-            if (component is null)
-            {
-                continue;
-            }
-
             sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = typeof({component.FullName}),");
             sb.AppendLine($"            [\"{component.FullName}\"] = typeof({component.FullName}),");
         }
@@ -205,11 +188,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var component in components)
         {
-            if (component is null)
-            {
-                continue;
-            }
-
             sb.AppendLine($"            typeof({component.FullName}),");
         }
 
@@ -262,11 +240,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         // Generate individual serialization/deserialization methods
         foreach (var component in components)
         {
-            if (component is null)
-            {
-                continue;
-            }
-
             GenerateComponentMethods(sb, component);
         }
 
