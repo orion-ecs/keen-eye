@@ -178,18 +178,16 @@ internal sealed class TagManager
             return;
         }
 
-        // Remove entity from all tag reverse indexes
-        foreach (var tag in tags)
+        // Remove entity from all tag reverse indexes (only process tags that exist in reverse index)
+        foreach (var tag in tags.Where(t => tagToEntities.ContainsKey(t)))
         {
-            if (tagToEntities.TryGetValue(tag, out var entities))
-            {
-                entities.Remove(entityId);
+            var entities = tagToEntities[tag];
+            entities.Remove(entityId);
 
-                // Clean up empty entity set
-                if (entities.Count == 0)
-                {
-                    tagToEntities.Remove(tag);
-                }
+            // Clean up empty entity set
+            if (entities.Count == 0)
+            {
+                tagToEntities.Remove(tag);
             }
         }
 

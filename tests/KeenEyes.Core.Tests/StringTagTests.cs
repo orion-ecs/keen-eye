@@ -798,7 +798,7 @@ public class StringTagTests
     }
 
     [Fact]
-    public void GetTags_ReturnsCollectionNotAffectedByExternalChanges()
+    public void GetTags_ReturnsLiveCollection()
     {
         using var world = new World();
         var entity = world.Spawn().Build();
@@ -807,13 +807,13 @@ public class StringTagTests
         world.AddTag(entity, "Tag2");
 
         var tags = world.GetTags(entity);
-        var initialCount = tags.Count;
+        Assert.Equal(2, tags.Count);
 
         world.AddTag(entity, "Tag3");
 
         // The returned collection reflects internal state changes
         // (it's a live view of the HashSet)
-        Assert.Equal(3, world.GetTags(entity).Count);
+        Assert.Equal(3, tags.Count);
     }
 
     [Fact]
