@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.0.11205.157
@@ -61,6 +61,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Testing.Tests", "tests\KeenEyes.Testing.Tests\KeenEyes.Testing.Tests.csproj", "{8D3780E4-057D-4C22-B186-A066667EB778}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Graphics", "src\KeenEyes.Graphics\KeenEyes.Graphics.csproj", "{FA11BBA8-09FF-473F-9DA0-6F4E2E5224B4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Graphics.Tests", "tests\KeenEyes.Graphics.Tests\KeenEyes.Graphics.Tests.csproj", "{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -240,6 +242,18 @@ Global
 		{FA11BBA8-09FF-473F-9DA0-6F4E2E5224B4}.Release|x64.Build.0 = Release|Any CPU
 		{FA11BBA8-09FF-473F-9DA0-6F4E2E5224B4}.Release|x86.ActiveCfg = Release|Any CPU
 		{FA11BBA8-09FF-473F-9DA0-6F4E2E5224B4}.Release|x86.Build.0 = Release|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Debug|x64.Build.0 = Debug|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Debug|x86.Build.0 = Debug|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Release|x64.ActiveCfg = Release|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Release|x64.Build.0 = Release|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Release|x86.ActiveCfg = Release|Any CPU
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -260,6 +274,7 @@ Global
 		{9443131D-B027-4FA5-955B-ED4FDFF5D02C} = {D4E5F678-90AB-CDEF-1234-567890123456}
 		{8D3780E4-057D-4C22-B186-A066667EB778} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{FA11BBA8-09FF-473F-9DA0-6F4E2E5224B4} = {D4E5F678-90AB-CDEF-1234-567890123456}
+		{847ECC27-B6CC-4A3E-89B6-E92B51715E9A} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {074345D4-2E9C-4743-8915-67A2DA09075C}

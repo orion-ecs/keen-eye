@@ -1,5 +1,4 @@
 using System.Numerics;
-using KeenEyes.Graphics;
 
 namespace KeenEyes.Graphics.Tests;
 

@@ -279,6 +279,12 @@
           "Silk.NET.Windowing": "[2.22.0, )"
         }
       },
+      "keeneyes.testing": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Core": "[1.0.0, )"
+        }
+      },
       "Silk.NET.Input": {
         "type": "CentralTransitive",
         "requested": "[2.22.0, )",
