@@ -224,7 +224,8 @@ public class EntityAssertionsTests
         var entity = world.Spawn().With(new TestPosition { X = 10, Y = 20 }).Build();
 
         Should.NotThrow(() =>
-            entity.ShouldHaveComponentMatching<TestPosition>(world, p => p.X == 10 && p.Y == 20));
+            entity.ShouldHaveComponentMatching<TestPosition>(world, p =>
+                Math.Abs(p.X - 10f) < 1e-5f && Math.Abs(p.Y - 20f) < 1e-5f));
     }
 
     [Fact]
@@ -234,7 +235,7 @@ public class EntityAssertionsTests
         var entity = world.Spawn().With(new TestPosition { X = 10, Y = 20 }).Build();
 
         var ex = Should.Throw<AssertionException>(() =>
-            entity.ShouldHaveComponentMatching<TestPosition>(world, p => p.X == 999));
+            entity.ShouldHaveComponentMatching<TestPosition>(world, p => Math.Abs(p.X - 999f) < 1e-5f));
         ex.Message.ShouldContain("matching predicate");
     }
 
