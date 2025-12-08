@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Graphics.Backend;
 
 namespace KeenEyes.Graphics;
 
@@ -8,7 +9,7 @@ namespace KeenEyes.Graphics;
 internal sealed class ShaderData : IDisposable
 {
     /// <summary>
-    /// The OpenGL shader program handle.
+    /// The shader program handle.
     /// </summary>
     public uint Handle { get; init; }
 
@@ -47,9 +48,9 @@ internal sealed class ShaderManager : IDisposable
     private bool disposed;
 
     /// <summary>
-    /// Silk.NET OpenGL context. Set during initialization.
+    /// Graphics device for GPU operations. Set during initialization.
     /// </summary>
-    public Silk.NET.OpenGL.GL? GL { get; set; }
+    public IGraphicsDevice? Device { get; set; }
 
     /// <summary>
     /// Compiles and links a shader program from vertex and fragment source.
@@ -60,35 +61,34 @@ internal sealed class ShaderManager : IDisposable
     /// <exception cref="InvalidOperationException">Thrown when shader compilation fails.</exception>
     public int CreateShader(string vertexSource, string fragmentSource)
     {
-        if (GL is null)
+        if (Device is null)
         {
-            throw new InvalidOperationException("ShaderManager not initialized with GL context");
+            throw new InvalidOperationException("ShaderManager not initialized with graphics device");
         }
 
-        uint vertexShader = CompileShader(Silk.NET.OpenGL.ShaderType.VertexShader, vertexSource);
-        uint fragmentShader = CompileShader(Silk.NET.OpenGL.ShaderType.FragmentShader, fragmentSource);
+        uint vertexShader = CompileShader(ShaderType.Vertex, vertexSource);
+        uint fragmentShader = CompileShader(ShaderType.Fragment, fragmentSource);
 
-        uint program = GL.CreateProgram();
-        GL.AttachShader(program, vertexShader);
-        GL.AttachShader(program, fragmentShader);
-        GL.LinkProgram(program);
+        uint program = Device.CreateProgram();
+        Device.AttachShader(program, vertexShader);
+        Device.AttachShader(program, fragmentShader);
+        Device.LinkProgram(program);
 
         // Check for linking errors
-        GL.GetProgram(program, Silk.NET.OpenGL.ProgramPropertyARB.LinkStatus, out int linkStatus);
-        if (linkStatus == 0)
+        if (!Device.GetProgramLinkStatus(program))
         {
-            string infoLog = GL.GetProgramInfoLog(program);
-            GL.DeleteProgram(program);
-            GL.DeleteShader(vertexShader);
-            GL.DeleteShader(fragmentShader);
+            string infoLog = Device.GetProgramInfoLog(program);
+            Device.DeleteProgram(program);
+            Device.DeleteShader(vertexShader);
+            Device.DeleteShader(fragmentShader);
             throw new InvalidOperationException($"Shader program linking failed: {infoLog}");
         }
 
         // Clean up shader objects (they're now part of the program)
-        GL.DetachShader(program, vertexShader);
-        GL.DetachShader(program, fragmentShader);
-        GL.DeleteShader(vertexShader);
-        GL.DeleteShader(fragmentShader);
+        Device.DetachShader(program, vertexShader);
+        Device.DetachShader(program, fragmentShader);
+        Device.DeleteShader(vertexShader);
+        Device.DeleteShader(fragmentShader);
 
         var shaderData = new ShaderData
         {
@@ -104,17 +104,16 @@ internal sealed class ShaderManager : IDisposable
         return id;
     }
 
-    private uint CompileShader(Silk.NET.OpenGL.ShaderType type, string source)
+    private uint CompileShader(ShaderType type, string source)
     {
-        uint shader = GL!.CreateShader(type);
-        GL.ShaderSource(shader, source);
-        GL.CompileShader(shader);
+        uint shader = Device!.CreateShader(type);
+        Device.ShaderSource(shader, source);
+        Device.CompileShader(shader);
 
-        GL.GetShader(shader, Silk.NET.OpenGL.ShaderParameterName.CompileStatus, out int compileStatus);
-        if (compileStatus == 0)
+        if (!Device.GetShaderCompileStatus(shader))
         {
-            string infoLog = GL.GetShaderInfoLog(shader);
-            GL.DeleteShader(shader);
+            string infoLog = Device.GetShaderInfoLog(shader);
+            Device.DeleteShader(shader);
             throw new InvalidOperationException($"Shader compilation failed ({type}): {infoLog}");
         }
 
@@ -135,7 +134,7 @@ internal sealed class ShaderManager : IDisposable
 
         foreach (string name in commonUniforms)
         {
-            int location = GL!.GetUniformLocation(shader.Handle, name);
+            int location = Device!.GetUniformLocation(shader.Handle, name);
             if (location >= 0)
             {
                 shader.UniformLocations[name] = location;
@@ -171,12 +170,12 @@ internal sealed class ShaderManager : IDisposable
             return cachedLocation;
         }
 
-        if (GL is null)
+        if (Device is null)
         {
             return -1;
         }
 
-        int location = GL.GetUniformLocation(shader.Handle, name);
+        int location = Device.GetUniformLocation(shader.Handle, name);
         if (location >= 0)
         {
             shader.UniformLocations[name] = location;
@@ -190,15 +189,9 @@ internal sealed class ShaderManager : IDisposable
     public void SetUniform(int shaderId, string name, in Matrix4x4 value)
     {
         int location = GetUniformLocation(shaderId, name);
-        if (location >= 0 && GL is not null)
+        if (location >= 0 && Device is not null)
         {
-            unsafe
-            {
-                fixed (float* ptr = &value.M11)
-                {
-                    GL.UniformMatrix4(location, 1, false, ptr);
-                }
-            }
+            Device.UniformMatrix4(location, value);
         }
     }
 
@@ -208,9 +201,9 @@ internal sealed class ShaderManager : IDisposable
     public void SetUniform(int shaderId, string name, in Vector4 value)
     {
         int location = GetUniformLocation(shaderId, name);
-        if (location >= 0 && GL is not null)
+        if (location >= 0 && Device is not null)
         {
-            GL.Uniform4(location, value.X, value.Y, value.Z, value.W);
+            Device.Uniform4(location, value.X, value.Y, value.Z, value.W);
         }
     }
 
@@ -220,9 +213,9 @@ internal sealed class ShaderManager : IDisposable
     public void SetUniform(int shaderId, string name, in Vector3 value)
     {
         int location = GetUniformLocation(shaderId, name);
-        if (location >= 0 && GL is not null)
+        if (location >= 0 && Device is not null)
         {
-            GL.Uniform3(location, value.X, value.Y, value.Z);
+            Device.Uniform3(location, value.X, value.Y, value.Z);
         }
     }
 
@@ -232,9 +225,9 @@ internal sealed class ShaderManager : IDisposable
     public void SetUniform(int shaderId, string name, float value)
     {
         int location = GetUniformLocation(shaderId, name);
-        if (location >= 0 && GL is not null)
+        if (location >= 0 && Device is not null)
         {
-            GL.Uniform1(location, value);
+            Device.Uniform1(location, value);
         }
     }
 
@@ -244,9 +237,9 @@ internal sealed class ShaderManager : IDisposable
     public void SetUniform(int shaderId, string name, int value)
     {
         int location = GetUniformLocation(shaderId, name);
-        if (location >= 0 && GL is not null)
+        if (location >= 0 && Device is not null)
         {
-            GL.Uniform1(location, value);
+            Device.Uniform1(location, value);
         }
     }
 
@@ -267,7 +260,7 @@ internal sealed class ShaderManager : IDisposable
 
     private void DeleteShaderData(ShaderData data)
     {
-        GL?.DeleteProgram(data.Handle);
+        Device?.DeleteProgram(data.Handle);
     }
 
     /// <inheritdoc />

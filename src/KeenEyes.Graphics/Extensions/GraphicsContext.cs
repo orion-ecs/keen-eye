@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Graphics.Backend;
 using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
@@ -90,7 +91,7 @@ public sealed class GraphicsContext : IDisposable
     private readonly ShaderManager shaderManager;
 
     private IWindow? window;
-    private GL? gl;
+    private IGraphicsDevice? device;
     private bool disposed;
     private bool initialized;
 
@@ -120,9 +121,9 @@ public sealed class GraphicsContext : IDisposable
     public IWindow? Window => window;
 
     /// <summary>
-    /// Gets the OpenGL context, if initialized.
+    /// Gets the graphics device, if initialized.
     /// </summary>
-    internal GL? GL => gl;
+    internal IGraphicsDevice? Device => device;
 
     /// <summary>
     /// Gets whether the graphics context has been initialized.
@@ -200,12 +201,13 @@ public sealed class GraphicsContext : IDisposable
 
     private void OnWindowLoad()
     {
-        gl = window!.CreateOpenGL();
+        var gl = window!.CreateOpenGL();
+        device = new OpenGLDevice(gl);
 
-        // Initialize resource managers
-        meshManager.GL = gl;
-        textureManager.GL = gl;
-        shaderManager.GL = gl;
+        // Initialize resource managers with the device
+        meshManager.Device = device;
+        textureManager.Device = device;
+        shaderManager.Device = device;
 
         // Create built-in resources
         CreateBuiltInResources();
@@ -216,7 +218,7 @@ public sealed class GraphicsContext : IDisposable
 
     private void OnWindowResize(Silk.NET.Maths.Vector2D<int> size)
     {
-        gl?.Viewport(0, 0, (uint)size.X, (uint)size.Y);
+        device?.Viewport(0, 0, (uint)size.X, (uint)size.Y);
         OnResize?.Invoke(size.X, size.Y);
     }
 
@@ -462,13 +464,13 @@ public sealed class GraphicsContext : IDisposable
     /// <param name="color">The clear color.</param>
     public void Clear(Vector4 color)
     {
-        if (gl is null)
+        if (device is null)
         {
             return;
         }
 
-        gl.ClearColor(color.X, color.Y, color.Z, color.W);
-        gl.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+        device.ClearColor(color.X, color.Y, color.Z, color.W);
+        device.Clear(ClearMask.ColorBuffer | ClearMask.DepthBuffer);
     }
 
     /// <summary>
@@ -484,7 +486,7 @@ public sealed class GraphicsContext : IDisposable
     /// </summary>
     public void EnableDepthTest()
     {
-        gl?.Enable(EnableCap.DepthTest);
+        device?.Enable(RenderCapability.DepthTest);
     }
 
     /// <summary>
@@ -492,7 +494,7 @@ public sealed class GraphicsContext : IDisposable
     /// </summary>
     public void DisableDepthTest()
     {
-        gl?.Disable(EnableCap.DepthTest);
+        device?.Disable(RenderCapability.DepthTest);
     }
 
     /// <summary>
@@ -500,8 +502,8 @@ public sealed class GraphicsContext : IDisposable
     /// </summary>
     public void EnableCulling()
     {
-        gl?.Enable(EnableCap.CullFace);
-        gl?.CullFace(TriangleFace.Back);
+        device?.Enable(RenderCapability.CullFace);
+        device?.CullFace(CullFaceMode.Back);
     }
 
     /// <summary>
@@ -509,7 +511,7 @@ public sealed class GraphicsContext : IDisposable
     /// </summary>
     public void DisableCulling()
     {
-        gl?.Disable(EnableCap.CullFace);
+        device?.Disable(RenderCapability.CullFace);
     }
 
     /// <summary>
@@ -521,7 +523,7 @@ public sealed class GraphicsContext : IDisposable
     /// <param name="height">The viewport height.</param>
     public void SetViewport(int x, int y, int width, int height)
     {
-        gl?.Viewport(x, y, (uint)width, (uint)height);
+        device?.Viewport(x, y, (uint)width, (uint)height);
     }
 
     #endregion
@@ -540,7 +542,7 @@ public sealed class GraphicsContext : IDisposable
         textureManager.Dispose();
         shaderManager.Dispose();
 
-        gl?.Dispose();
+        device?.Dispose();
         window?.Dispose();
     }
 }
