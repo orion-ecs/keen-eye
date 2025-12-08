@@ -1,7 +1,7 @@
 #!/bin/bash
 # NuGet Package Installer for Proxy-Restricted Environments (Claude Code Web)
-# This script downloads NuGet packages via wget (which works through the proxy)
-# and extracts them directly to the global packages cache.
+# This script parses packages.lock.json files and downloads NuGet packages via wget
+# (which works through the proxy) and extracts them directly to the global packages cache.
 #
 # Usage: Runs automatically as a SessionStart hook on Claude Code web.
 
@@ -58,151 +58,49 @@ download_pkg() {
 
 echo "Installing NuGet packages for KeenEyes (proxy workaround)..."
 
-# Core Roslyn packages
-download_pkg "Microsoft.CodeAnalysis.Analyzers" "3.11.0"
-download_pkg "Microsoft.CodeAnalysis.CSharp" "5.0.0"
-download_pkg "Microsoft.CodeAnalysis.Common" "5.0.0"
-download_pkg "Microsoft.CodeAnalysis.CSharp.Workspaces" "5.0.0"
-download_pkg "Microsoft.CodeAnalysis.Workspaces.Common" "5.0.0"
-download_pkg "Microsoft.CodeAnalysis.NetAnalyzers" "9.0.0"
+# Parse all packages.lock.json files and extract unique package/version pairs
+# Skip entries with type "Project" (project references, not NuGet packages)
+packages=$(find "$PROJECT_ROOT" -name "packages.lock.json" -type f -exec cat {} \; | \
+    grep -E '"resolved"|"type"' | \
+    paste - - | \
+    grep -v '"Project"' | \
+    sed -n 's/.*"resolved": "\([^"]*\)".*/\1/p' | \
+    sort -u)
 
-# Roslyn testing packages
-download_pkg "Microsoft.CodeAnalysis.Analyzer.Testing" "1.1.2"
-download_pkg "Microsoft.CodeAnalysis.CSharp.SourceGenerators.Testing" "1.1.2"
-download_pkg "Microsoft.CodeAnalysis.SourceGenerators.Testing" "1.1.2"
+# We need both name and version, so let's use a different approach with a temp file
+PACKAGES_FILE="$TEMP_DIR/packages.txt"
+> "$PACKAGES_FILE"
 
-# Testing framework packages
-download_pkg "GitHubActionsTestLogger" "3.0.1"
-download_pkg "Microsoft.NET.Test.Sdk" "18.0.1"
-download_pkg "Microsoft.Testing.Platform" "2.0.2"
-download_pkg "Microsoft.Testing.Platform.MSBuild" "2.0.2"
-download_pkg "Microsoft.Testing.Extensions.CodeCoverage" "18.1.0"
-download_pkg "Microsoft.Testing.Extensions.TrxReport" "2.0.2"
-download_pkg "Microsoft.Testing.Extensions.TrxReport.Abstractions" "2.0.2"
-download_pkg "Microsoft.Testing.Extensions.Telemetry" "2.0.2"
+for lockfile in $(find "$PROJECT_ROOT" -name "packages.lock.json" -type f); do
+    # Use a simple state machine to extract package name, type, and version
+    # jq would be cleaner but may not be available
+    python3 - "$lockfile" >> "$PACKAGES_FILE" 2>/dev/null << 'PYTHON_SCRIPT'
+import json
+import sys
 
-# xUnit v3 packages
-download_pkg "xunit.v3" "3.2.1"
-download_pkg "xunit.v3.assert" "3.2.1"
-download_pkg "xunit.v3.core" "3.2.1"
-download_pkg "xunit.v3.common" "3.2.1"
-download_pkg "xunit.v3.extensibility.core" "3.2.1"
-download_pkg "xunit.v3.runner.common" "3.2.1"
-download_pkg "xunit.v3.runner.inproc.console" "3.2.1"
-download_pkg "xunit.v3.mtp-v2" "3.2.1"
-download_pkg "xunit.v3.core.mtp-v2" "3.2.1"
-download_pkg "xunit.runner.visualstudio" "3.1.5"
-download_pkg "xunit.analyzers" "1.26.0"
+with open(sys.argv[1]) as f:
+    data = json.load(f)
 
-# Test utilities
-download_pkg "Shouldly" "4.3.0"
-download_pkg "Moq" "4.20.72"
-download_pkg "DiffEngine" "15.5.3"
-download_pkg "DiffPlex" "1.7.2"
-download_pkg "EmptyFiles" "8.5.0"
+for framework, deps in data.get("dependencies", {}).items():
+    for pkg_name, pkg_info in deps.items():
+        pkg_type = pkg_info.get("type", "")
+        resolved = pkg_info.get("resolved", "")
+        # Skip project references
+        if pkg_type == "Project" or not resolved:
+            continue
+        print(f"{pkg_name} {resolved}")
+PYTHON_SCRIPT
+done
 
-# Analyzers
-download_pkg "SonarAnalyzer.CSharp" "10.4.0.108396"
+# Sort and dedupe, then download each package
+sort -u "$PACKAGES_FILE" | while read -r pkg version; do
+    if [[ -n "$pkg" && -n "$version" ]]; then
+        download_pkg "$pkg" "$version"
+    fi
+done
 
-# BenchmarkDotNet packages
-download_pkg "BenchmarkDotNet" "0.14.0"
-download_pkg "BenchmarkDotNet.Annotations" "0.14.0"
-download_pkg "Perfolizer" "0.3.17"
-download_pkg "CommandLineParser" "2.9.1"
-download_pkg "Iced" "1.21.0"
-download_pkg "Gee.External.Capstone" "2.3.0"
-download_pkg "Microsoft.Diagnostics.Tracing.TraceEvent" "3.1.9"
-download_pkg "Microsoft.Diagnostics.NETCore.Client" "0.2.410101"
-download_pkg "Microsoft.Diagnostics.Runtime" "2.2.332302"
-download_pkg "Microsoft.DotNet.PlatformAbstractions" "3.1.6"
-download_pkg "Microsoft.NETCore.Portable.Compatibility" "1.0.2"
-download_pkg "Microsoft.Extensions.Logging" "9.0.0"
-download_pkg "Microsoft.Extensions.Logging.Abstractions" "9.0.0"
-download_pkg "Microsoft.Extensions.DependencyInjection" "9.0.0"
-download_pkg "Microsoft.Extensions.DependencyInjection.Abstractions" "9.0.0"
-download_pkg "Microsoft.Extensions.Options" "9.0.0"
-download_pkg "Microsoft.Extensions.Primitives" "9.0.0"
-download_pkg "Microsoft.NETCore.Runtime.CoreCLR" "1.0.2"
-download_pkg "System.Security.Cryptography.X509Certificates" "4.3.0"
-download_pkg "System.Security.Cryptography.Algorithms" "4.3.0"
-download_pkg "System.Security.Cryptography.Encoding" "4.3.0"
-download_pkg "System.Security.Cryptography.Primitives" "4.3.0"
-download_pkg "System.Security.Cryptography.Cng" "5.0.0"
-download_pkg "System.Net.Http" "4.3.4"
-download_pkg "System.Net.Sockets" "4.3.0"
-download_pkg "System.Net.NameResolution" "4.3.0"
-download_pkg "System.Net.Primitives" "4.3.0"
-download_pkg "System.IO.FileSystem" "4.3.0"
-download_pkg "System.IO.FileSystem.Primitives" "4.3.0"
-download_pkg "System.Globalization.Calendars" "4.3.0"
-download_pkg "System.Console" "4.3.0"
-download_pkg "runtime.native.System" "4.3.0"
-download_pkg "System.IO.Compression" "4.3.0"
-download_pkg "System.Xml.ReaderWriter" "4.3.0"
-download_pkg "System.Xml.XDocument" "4.3.0"
-download_pkg "System.Linq" "4.3.0"
-download_pkg "System.Linq.Expressions" "4.3.0"
-download_pkg "System.ObjectModel" "4.3.0"
-download_pkg "System.Runtime.Serialization.Primitives" "4.3.0"
-download_pkg "System.Runtime.Numerics" "4.3.0"
-download_pkg "System.Dynamic.Runtime" "4.3.0"
-download_pkg "Microsoft.NETCore.Jit" "1.0.2"
-download_pkg "Microsoft.NETCore.Windows.ApiSets" "1.0.1"
-download_pkg "runtime.native.System.Net.Http" "4.3.0"
-download_pkg "runtime.native.System.Security.Cryptography.Apple" "4.3.0"
-download_pkg "runtime.native.System.Security.Cryptography.OpenSsl" "4.3.0"
-download_pkg "runtime.native.System.IO.Compression" "4.3.0"
-
-# VS Composition (for Roslyn testing)
-download_pkg "Microsoft.VisualStudio.Composition" "17.0.46"
-download_pkg "Microsoft.VisualStudio.Composition.Analyzers" "17.0.46"
-download_pkg "Microsoft.VisualStudio.Validation" "17.8.8"
-
-# NuGet packages (for Roslyn testing)
-download_pkg "NuGet.Common" "6.11.0"
-download_pkg "NuGet.Configuration" "6.11.0"
-download_pkg "NuGet.Frameworks" "6.11.0"
-download_pkg "NuGet.Packaging" "6.11.0"
-download_pkg "NuGet.Protocol" "6.11.0"
-download_pkg "NuGet.Resolver" "6.11.0"
-download_pkg "NuGet.Versioning" "6.11.0"
-
-# Common transitive dependencies
-download_pkg "NETStandard.Library" "2.0.3"
-download_pkg "Microsoft.NETCore.Platforms" "1.1.0"
-download_pkg "Microsoft.DiaSymReader" "2.0.0"
-download_pkg "Microsoft.Extensions.DependencyModel" "9.0.0"
-download_pkg "Microsoft.ApplicationInsights" "2.23.0"
-download_pkg "Microsoft.Bcl.AsyncInterfaces" "9.0.0"
-download_pkg "Microsoft.Win32.Registry" "5.0.0"
-download_pkg "Newtonsoft.Json" "13.0.3"
-download_pkg "Castle.Core" "5.1.1"
-download_pkg "Humanizer.Core" "2.14.1"
-
-# System.* packages
-download_pkg "System.Buffers" "4.6.0"
-download_pkg "System.Memory" "4.6.0"
-download_pkg "System.Numerics.Vectors" "4.6.0"
-download_pkg "System.Threading.Tasks.Extensions" "4.6.0"
-download_pkg "System.Runtime.CompilerServices.Unsafe" "6.1.0"
-download_pkg "System.Collections.Immutable" "9.0.0"
-download_pkg "System.Reflection.Metadata" "9.0.0"
-download_pkg "System.Reflection.TypeExtensions" "4.7.0"
-download_pkg "System.Text.Encoding.CodePages" "8.0.0"
-download_pkg "System.Diagnostics.EventLog" "8.0.0"
-download_pkg "System.Management" "9.0.0"
-download_pkg "System.CodeDom" "9.0.0"
-download_pkg "System.ComponentModel.Composition" "9.0.0"
-download_pkg "System.Security.Cryptography.Pkcs" "9.0.0"
-download_pkg "System.Security.Cryptography.ProtectedData" "9.0.0"
-
-# System.Composition packages
-download_pkg "System.Composition" "9.0.0"
-download_pkg "System.Composition.AttributedModel" "9.0.0"
-download_pkg "System.Composition.Convention" "9.0.0"
-download_pkg "System.Composition.Hosting" "9.0.0"
-download_pkg "System.Composition.Runtime" "9.0.0"
-download_pkg "System.Composition.TypedParts" "9.0.0"
+# Clean up
+rm -f "$PACKAGES_FILE"
 
 count=$(find "$CACHE_DIR" -maxdepth 2 -mindepth 2 -type d 2>/dev/null | wc -l)
 echo "Package installation complete! ($count packages in $CACHE_DIR)"
