@@ -1,0 +1,222 @@
+name: Claude Nightly Code Review
+
+on:
+  schedule:
+    # Run at 2:00 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual triggering for testing
+    inputs:
+      focus_area:
+        description: 'Optional: Focus area for the review (e.g., "security", "performance", "all")'
+        required: false
+        default: 'all'
+
+jobs:
+  nightly-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for comprehensive analysis
+
+      - name: Check for recent changes
+        id: check-changes
+        run: |
+          # Check if there have been any commits in the last 24 hours
+          COMMITS_LAST_DAY=$(git log --oneline --since="24 hours ago" | wc -l)
+          echo "commits_last_day=$COMMITS_LAST_DAY" >> $GITHUB_OUTPUT
+
+          if [ "$COMMITS_LAST_DAY" -eq 0 ]; then
+            echo "No commits in the last 24 hours"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found $COMMITS_LAST_DAY commits in the last 24 hours"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Determine if this is an on-demand run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "is_on_demand=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_on_demand=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if no changes (scheduled runs only)
+        if: steps.check-changes.outputs.has_changes == 'false' && github.event_name == 'schedule'
+        run: |
+          echo "::notice::Skipping nightly review - no changes in the last 24 hours"
+          exit 0
+
+      - name: Run Claude Nightly Code Review
+        if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            # Nightly Code Review - Full Repository Analysis
+
+            You are conducting a comprehensive nightly code review of the KeenEyes ECS repository.
+            Focus area: ${{ github.event.inputs.focus_area || 'all' }}
+
+            ## Project Philosophy & Requirements
+
+            **CRITICAL**: KeenEyes is a **high-performance C# ECS framework for .NET 10**. All reviews MUST enforce:
+
+            ### Type Safety (Highest Priority)
+            - **Nullable reference types enabled** - No null reference warnings
+            - **No object boxing** - Use generics to avoid boxing value types
+            - **Ref returns** - Use `ref` and `ref readonly` for zero-copy component access
+            - **Struct components** - Components must be value types (structs)
+            - **Readonly where possible** - Use `readonly struct` and `readonly record struct`
+            - **Generic constraints** - Enforce `where T : struct, IComponent` appropriately
+
+            ### ECS Architecture Principles (Critical)
+            - **No static state** - All state must be instance-based per World
+            - **Composition over inheritance** - Entities are composition of components
+            - **Data-oriented design** - Components are pure data (structs), systems are pure logic
+            - **No behavior in components** - Components should not have methods (except property accessors)
+            - **Systems query for intent** - Use component presence to express intent, not fields
+            - **World isolation** - Each World is completely independent (component IDs are per-world)
+            - **Explicit registration** - Users explicitly add systems to worlds, no auto-registration
+            - **Manager facade pattern** - World delegates to internal managers
+
+            ### Anti-Patterns to Flag
+            - Components with business logic methods
+            - Systems that don't use queries (operating on single entities)
+            - Tight coupling between components
+            - God entities with too many components
+            - Static or module-level mutable state
+            - Inheritance hierarchies in entities
+            - Object allocations in hot paths
+            - Boxing of value types
+            - Missing `ref` returns for component access
+            - Logic in World.cs that should be in managers
+
+            ## Review Scope
+
+            Analyze the entire codebase looking for:
+
+            ### 1. Type Safety Violations (CRITICAL)
+            - Nullable reference type warnings
+            - Missing generic constraints
+            - Object boxing in component operations
+            - Missing `ref` or `ref readonly` for performance
+            - Unsafe casts or conversions
+
+            ### 2. ECS Architecture Violations (HIGH)
+            - Components with methods (behavior in data)
+            - Static state anywhere in the codebase
+            - Systems not using the query system
+            - Entity-specific logic instead of component queries
+            - Inheritance hierarchies instead of composition
+            - World.cs containing logic that belongs in managers
+
+            ### 3. Code Smells
+            - Dead code or unused members
+            - Overly complex methods (high cyclomatic complexity)
+            - Code duplication
+            - Long parameter lists
+            - Classes doing too much (violating SRP)
+            - Magic numbers without constants
+            - Poor naming conventions
+            - Missing XML documentation on public APIs
+
+            ### 4. Potential Bugs
+            - Null/undefined reference risks
+            - Off-by-one errors
+            - Race conditions in async code
+            - Uncaught exceptions
+            - Incorrect loop conditions
+            - Memory leaks (event subscriptions, disposables)
+            - Entity staleness (using despawned entities)
+
+            ### 5. Security Issues
+            - Input validation gaps
+            - Injection vulnerabilities
+            - Unsafe deserialization
+            - Exposed sensitive data
+
+            ### 6. Performance Issues
+            - Unnecessary allocations in hot paths
+            - Missing struct readonly modifiers
+            - Inefficient LINQ in performance-critical code
+            - Missing pooling for frequently created objects
+            - Cache-unfriendly data layouts
+            - Redundant computations
+
+            ### 7. Architecture & Design
+            - SOLID principle violations
+            - Circular dependencies
+            - Tight coupling between managers
+            - Missing abstractions
+            - Inconsistent patterns across codebase
+
+            ### 8. Documentation & Maintainability
+            - Missing XML documentation on public APIs
+            - Complex code without explanation
+            - Outdated comments
+
+            ## Output Format
+
+            Create a GitHub issue with your findings using `gh issue create`. The issue should:
+
+            1. **Title**: Use one of the following formats based on trigger type:
+               - For scheduled runs: "Nightly Code Review - [DATE]"
+               - For on-demand runs: "On-Demand Code Review - [DATE]"
+               This run was triggered by: ${{ github.event_name }} (workflow_dispatch = on-demand, schedule = nightly)
+            2. **Labels**: `code-review`, `automated`
+            3. **Body** should include:
+               - Executive summary (1-2 paragraphs)
+               - Findings organized by severity (Critical, High, Medium, Low)
+               - Each finding should include:
+                 - File path and line number(s)
+                 - Description of the issue
+                 - Suggested fix or improvement
+                 - Code snippet if helpful
+               - Metrics summary (files reviewed, issues found by category)
+
+            **IMPORTANT - How to Create the Issue:**
+            To avoid shell escaping issues with backticks and code blocks:
+            1. Use the `Write` tool to create a file (e.g., `review-report.md`) with the full markdown report
+            2. Use `gh issue create --title "..." --label "code-review,automated" --body-file review-report.md`
+            3. DO NOT try to embed markdown with code blocks directly in the command
+            4. Always use `--body-file` for the report content
+
+            ## Guidelines
+
+            - **CRITICAL**: Prioritize ECS architecture violations and performance issues
+            - Use the repository's CLAUDE.md for project-specific conventions
+            - Focus on actionable findings with clear remediation steps
+            - Prioritize issues that could cause bugs or performance problems
+            - Skip obj/, bin/, and other build artifacts
+            - Be specific - include file paths and line numbers
+            - Group related issues together
+            - **Samples matter**: Flag anti-patterns in samples/ as HIGH priority (users will copy these)
+            - If no significant issues are found, still create an issue with a brief "all clear" summary
+
+            ## Key Directories to Review
+
+            - `src/KeenEyes.Core/` - Core ECS runtime framework
+            - `src/KeenEyes.Generators/` - Roslyn source generators
+            - `src/KeenEyes.Generators.Attributes/` - Generator attributes
+            - `tests/` - Unit and integration tests
+            - `samples/` - Example code (check for anti-patterns users might copy)
+            - `benchmarks/` - Performance benchmarks
+
+          claude_args: '--allowed-tools "Write,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"'
+
+      - name: Ensure labels exist
+        if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "code-review" --description "Automated code review findings" --color "7057ff" --force || true
+          gh label create "automated" --description "Automatically generated" --color "bfdadc" --force || true

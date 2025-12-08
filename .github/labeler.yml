@@ -1,0 +1,55 @@
+# Configuration for actions/labeler
+# Labels PRs based on changed files
+
+# Core ECS framework changes
+core:
+  - changed-files:
+      - any-glob-to-any-file: 'src/KeenEyes.Core/**/*'
+
+# Source generator changes
+generators:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/KeenEyes.Generators/**/*'
+          - 'src/KeenEyes.Generators.Attributes/**/*'
+
+# Test changes
+tests:
+  - changed-files:
+      - any-glob-to-any-file: 'tests/**/*'
+
+# Documentation changes
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**/*'
+          - '**/*.md'
+          - 'docfx.json'
+
+# Sample/example changes
+samples:
+  - changed-files:
+      - any-glob-to-any-file: 'samples/**/*'
+
+# Benchmark changes
+benchmarks:
+  - changed-files:
+      - any-glob-to-any-file: 'benchmarks/**/*'
+
+# CI/CD changes
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**/*'
+          - '.claude/**/*'
+
+# Build configuration changes
+build:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.csproj'
+          - '**/*.sln'
+          - 'Directory.Build.props'
+          - 'Directory.Packages.props'
+          - 'global.json'
+          - 'NuGet.Config'
