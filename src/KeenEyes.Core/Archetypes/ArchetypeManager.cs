@@ -404,8 +404,20 @@ public sealed class ArchetypeManager : IDisposable
         return true;
     }
 
-    /// <inheritdoc />
-    public void Dispose()
+    /// <summary>
+    /// Clears all archetypes and entity locations, returning all chunks to the pool.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method resets the archetype manager to its initial state while keeping
+    /// the chunk pool for reuse. This is useful for scenarios like restoring from
+    /// a snapshot where the world state needs to be cleared before recreation.
+    /// </para>
+    /// <para>
+    /// Unlike <see cref="Dispose"/>, this method leaves the manager in a usable state.
+    /// </para>
+    /// </remarks>
+    public void Clear()
     {
         foreach (var archetype in archetypeList)
         {
@@ -414,6 +426,13 @@ public sealed class ArchetypeManager : IDisposable
         archetypes.Clear();
         archetypeList.Clear();
         entityLocations.Clear();
+        // Keep the chunk pool - chunks will be returned to it by archetype.Dispose()
+    }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        Clear();
         chunkPool.Clear();
     }
 }
