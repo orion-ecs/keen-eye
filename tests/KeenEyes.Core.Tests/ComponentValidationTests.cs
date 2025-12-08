@@ -442,7 +442,7 @@ public class ComponentValidationTests
         {
             // Count existing Health components
             int count = 0;
-            foreach (var e in w.Query<Health>())
+            foreach (var _ in w.Query<Health>())
             {
                 count++;
             }

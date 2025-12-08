@@ -224,15 +224,16 @@ internal sealed class ComponentValidationManager
     /// </summary>
     private void ValidateRequirements(Entity entity, Type componentType, ComponentValidationInfo info)
     {
-        foreach (var requiredType in info.RequiredComponents)
+        var missingRequired = info.RequiredComponents
+            .Where(requiredType => !world.HasComponent(entity, requiredType))
+            .FirstOrDefault();
+
+        if (missingRequired != null)
         {
-            if (!world.HasComponent(entity, requiredType))
-            {
-                throw new ComponentValidationException(
-                    $"Component '{componentType.Name}' requires '{requiredType.Name}' to be present on entity {entity}.",
-                    componentType,
-                    entity);
-            }
+            throw new ComponentValidationException(
+                $"Component '{componentType.Name}' requires '{missingRequired.Name}' to be present on entity {entity}.",
+                componentType,
+                entity);
         }
     }
 
@@ -241,15 +242,16 @@ internal sealed class ComponentValidationManager
     /// </summary>
     private void ValidateConflicts(Entity entity, Type componentType, ComponentValidationInfo info)
     {
-        foreach (var conflictType in info.ConflictingComponents)
+        var presentConflict = info.ConflictingComponents
+            .Where(conflictType => world.HasComponent(entity, conflictType))
+            .FirstOrDefault();
+
+        if (presentConflict != null)
         {
-            if (world.HasComponent(entity, conflictType))
-            {
-                throw new ComponentValidationException(
-                    $"Component '{componentType.Name}' conflicts with '{conflictType.Name}' which is present on entity {entity}.",
-                    componentType,
-                    entity);
-            }
+            throw new ComponentValidationException(
+                $"Component '{componentType.Name}' conflicts with '{presentConflict.Name}' which is present on entity {entity}.",
+                componentType,
+                entity);
         }
     }
 
@@ -258,15 +260,16 @@ internal sealed class ComponentValidationManager
     /// </summary>
     private static void ValidateRequirementsBuild(Type componentType, ComponentValidationInfo info, HashSet<Type> componentTypes)
     {
-        foreach (var requiredType in info.RequiredComponents)
+        var missingRequired = info.RequiredComponents
+            .Where(requiredType => !componentTypes.Contains(requiredType))
+            .FirstOrDefault();
+
+        if (missingRequired != null)
         {
-            if (!componentTypes.Contains(requiredType))
-            {
-                throw new ComponentValidationException(
-                    $"Component '{componentType.Name}' requires '{requiredType.Name}' to be present. " +
-                    $"Add '{requiredType.Name}' to the entity builder before '{componentType.Name}'.",
-                    componentType);
-            }
+            throw new ComponentValidationException(
+                $"Component '{componentType.Name}' requires '{missingRequired.Name}' to be present. " +
+                $"Add '{missingRequired.Name}' to the entity builder before '{componentType.Name}'.",
+                componentType);
         }
     }
 
@@ -275,15 +278,16 @@ internal sealed class ComponentValidationManager
     /// </summary>
     private static void ValidateConflictsBuild(Type componentType, ComponentValidationInfo info, HashSet<Type> componentTypes)
     {
-        foreach (var conflictType in info.ConflictingComponents)
+        var presentConflict = info.ConflictingComponents
+            .Where(conflictType => componentTypes.Contains(conflictType) && conflictType != componentType)
+            .FirstOrDefault();
+
+        if (presentConflict != null)
         {
-            if (componentTypes.Contains(conflictType) && conflictType != componentType)
-            {
-                throw new ComponentValidationException(
-                    $"Component '{componentType.Name}' conflicts with '{conflictType.Name}'. " +
-                    $"These components cannot be added to the same entity.",
-                    componentType);
-            }
+            throw new ComponentValidationException(
+                $"Component '{componentType.Name}' conflicts with '{presentConflict.Name}'. " +
+                $"These components cannot be added to the same entity.",
+                componentType);
         }
     }
 
