@@ -19,6 +19,23 @@ public struct TagTestVelocity : IComponent
 }
 
 /// <summary>
+/// Third test component for string tag tests.
+/// </summary>
+public struct TagTestHealth : IComponent
+{
+    public int Current;
+    public int Max;
+}
+
+/// <summary>
+/// Fourth test component for string tag tests.
+/// </summary>
+public struct TagTestDamage : IComponent
+{
+    public int Amount;
+}
+
+/// <summary>
 /// Tests for string-based entity tagging functionality.
 /// </summary>
 public class StringTagTests
@@ -849,6 +866,461 @@ public class StringTagTests
 
         Assert.Single(result);
         Assert.Contains(movingEnemy, result);
+    }
+
+    #endregion
+
+    #region Multi-Component QueryBuilder Tag Coverage Tests
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_WithoutTag_ExcludesEntities()
+    {
+        using var world = new World();
+
+        var movingEnemy = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .Build();
+        var movingPlayer = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .Build();
+
+        world.AddTag(movingEnemy, "Enemy");
+        world.AddTag(movingPlayer, "Player");
+
+        var nonEnemies = world.Query<TagTestPosition, TagTestVelocity>()
+            .WithoutTag("Enemy")
+            .ToList();
+
+        Assert.Single(nonEnemies);
+        Assert.Contains(movingPlayer, nonEnemies);
+        Assert.DoesNotContain(movingEnemy, nonEnemies);
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_WithTag_NullTag_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity>().WithTag(null!).ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_WithTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity>().WithTag("").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_WithoutTag_NullTag_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity>().WithoutTag(null!).ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_WithoutTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity>().WithoutTag("   ").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_TwoComponents_CombinedTagFilters_Works()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .Build();
+        var entity3 = world.Spawn()
+            .With(new TagTestPosition { X = 3, Y = 3 })
+            .With(new TagTestVelocity { X = 1, Y = 1 })
+            .Build();
+
+        world.AddTag(entity1, "Hostile");
+        world.AddTag(entity1, "Boss");
+        world.AddTag(entity2, "Hostile");
+        world.AddTag(entity3, "Friendly");
+
+        var hostileNonBosses = world.Query<TagTestPosition, TagTestVelocity>()
+            .WithTag("Hostile")
+            .WithoutTag("Boss")
+            .ToList();
+
+        Assert.Single(hostileNonBosses);
+        Assert.Contains(entity2, hostileNonBosses);
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_WithTag_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var fullEntity = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .With(new TagTestHealth { Current = 100, Max = 100 })
+            .Build();
+        var otherEntity = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .With(new TagTestHealth { Current = 50, Max = 50 })
+            .Build();
+
+        world.AddTag(fullEntity, "Target");
+        world.AddTag(otherEntity, "Ignored");
+
+        var result = world.Query<TagTestPosition, TagTestVelocity, TagTestHealth>()
+            .WithTag("Target")
+            .ToList();
+
+        Assert.Single(result);
+        Assert.Contains(fullEntity, result);
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_WithoutTag_ExcludesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .With(new TagTestHealth { Current = 100, Max = 100 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .With(new TagTestHealth { Current = 50, Max = 50 })
+            .Build();
+
+        world.AddTag(entity1, "Excluded");
+
+        var result = world.Query<TagTestPosition, TagTestVelocity, TagTestHealth>()
+            .WithoutTag("Excluded")
+            .ToList();
+
+        Assert.Single(result);
+        Assert.Contains(entity2, result);
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_WithTag_NullTag_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth>().WithTag(null!).ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_WithTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth>().WithTag("").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_WithoutTag_NullTag_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth>().WithoutTag(null!).ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_WithoutTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth>().WithoutTag("   ").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_ThreeComponents_CombinedTagFilters_Works()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .With(new TagTestHealth { Current = 100, Max = 100 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .With(new TagTestHealth { Current = 50, Max = 50 })
+            .Build();
+
+        world.AddTag(entity1, "Active");
+        world.AddTag(entity1, "Protected");
+        world.AddTag(entity2, "Active");
+
+        var activeUnprotected = world.Query<TagTestPosition, TagTestVelocity, TagTestHealth>()
+            .WithTag("Active")
+            .WithoutTag("Protected")
+            .ToList();
+
+        Assert.Single(activeUnprotected);
+        Assert.Contains(entity2, activeUnprotected);
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_WithTag_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var fullEntity = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .With(new TagTestHealth { Current = 100, Max = 100 })
+            .With(new TagTestDamage { Amount = 10 })
+            .Build();
+        var otherEntity = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .With(new TagTestHealth { Current = 50, Max = 50 })
+            .With(new TagTestDamage { Amount = 5 })
+            .Build();
+
+        world.AddTag(fullEntity, "Boss");
+        world.AddTag(otherEntity, "Minion");
+
+        var bosses = world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+            .WithTag("Boss")
+            .ToList();
+
+        Assert.Single(bosses);
+        Assert.Contains(fullEntity, bosses);
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_WithoutTag_ExcludesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .With(new TagTestHealth { Current = 100, Max = 100 })
+            .With(new TagTestDamage { Amount = 10 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .With(new TagTestHealth { Current = 50, Max = 50 })
+            .With(new TagTestDamage { Amount = 5 })
+            .Build();
+
+        world.AddTag(entity1, "Invulnerable");
+
+        var vulnerables = world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+            .WithoutTag("Invulnerable")
+            .ToList();
+
+        Assert.Single(vulnerables);
+        Assert.Contains(entity2, vulnerables);
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_WithTag_NullTag_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+                .WithTag(null!).ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_WithTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+                .WithTag("").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_WithoutTag_NullTag_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+                .WithoutTag(null!).ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_WithoutTag_EmptyTag_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+                .WithoutTag("   ").ToList());
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_CombinedTagFilters_Works()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .With(new TagTestHealth { Current = 100, Max = 100 })
+            .With(new TagTestDamage { Amount = 10 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .With(new TagTestHealth { Current = 50, Max = 50 })
+            .With(new TagTestDamage { Amount = 5 })
+            .Build();
+
+        world.AddTag(entity1, "Elite");
+        world.AddTag(entity1, "Shielded");
+        world.AddTag(entity2, "Elite");
+
+        var eliteUnshielded = world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+            .WithTag("Elite")
+            .WithoutTag("Shielded")
+            .ToList();
+
+        Assert.Single(eliteUnshielded);
+        Assert.Contains(entity2, eliteUnshielded);
+    }
+
+    [Fact]
+    public void QueryBuilder_FourComponents_MultipleWithTags_AllRequired()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .With(new TagTestVelocity { X = 1, Y = 0 })
+            .With(new TagTestHealth { Current = 100, Max = 100 })
+            .With(new TagTestDamage { Amount = 10 })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TagTestPosition { X = 2, Y = 2 })
+            .With(new TagTestVelocity { X = 0, Y = 1 })
+            .With(new TagTestHealth { Current = 50, Max = 50 })
+            .With(new TagTestDamage { Amount = 5 })
+            .Build();
+
+        world.AddTag(entity1, "TagA");
+        world.AddTag(entity1, "TagB");
+        world.AddTag(entity2, "TagA"); // Missing TagB
+
+        var result = world.Query<TagTestPosition, TagTestVelocity, TagTestHealth, TagTestDamage>()
+            .WithTag("TagA")
+            .WithTag("TagB")
+            .ToList();
+
+        Assert.Single(result);
+        Assert.Contains(entity1, result);
+    }
+
+    #endregion
+
+    #region TagManager Edge Cases
+
+    [Fact]
+    public void Despawn_EntityWithTagsNotInReverseIndex_DoesNotThrow()
+    {
+        // This tests an edge case where entityTags has a tag
+        // but tagToEntities might not (defensive code path)
+        using var world = new World();
+        var entity = world.Spawn().Build();
+
+        world.AddTag(entity, "Tag1");
+        world.AddTag(entity, "Tag2");
+
+        // Despawn should clean up without issues
+        world.Despawn(entity);
+
+        Assert.False(world.HasTag(entity, "Tag1"));
+        Assert.False(world.HasTag(entity, "Tag2"));
+    }
+
+    [Fact]
+    public void RemoveTag_LastEntityWithTag_CleansUpTagIndex()
+    {
+        using var world = new World();
+        var entity1 = world.Spawn().Build();
+        var entity2 = world.Spawn().Build();
+
+        world.AddTag(entity1, "SharedTag");
+        world.AddTag(entity2, "SharedTag");
+
+        // Remove from both - should clean up the tag index entirely
+        world.RemoveTag(entity1, "SharedTag");
+        world.RemoveTag(entity2, "SharedTag");
+
+        // Query should return empty
+        var result = world.QueryByTag("SharedTag").ToList();
+        Assert.Empty(result);
+
+        // Adding again should work
+        world.AddTag(entity1, "SharedTag");
+        Assert.True(world.HasTag(entity1, "SharedTag"));
+    }
+
+    [Fact]
+    public void GetEntitiesWithTag_AfterRemovingLastEntity_ReturnsEmpty()
+    {
+        using var world = new World();
+        var entity = world.Spawn().Build();
+
+        world.AddTag(entity, "UniqueTag");
+        world.RemoveTag(entity, "UniqueTag");
+
+        var result = world.QueryByTag("UniqueTag").ToList();
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void Despawn_EntityWithManyTags_CleansUpAllReverseIndexes()
+    {
+        using var world = new World();
+        var entity = world.Spawn().Build();
+
+        // Add many tags
+        for (int i = 0; i < 20; i++)
+        {
+            world.AddTag(entity, $"Tag{i}");
+        }
+
+        world.Despawn(entity);
+
+        // All tags should be cleaned up
+        for (int i = 0; i < 20; i++)
+        {
+            var result = world.QueryByTag($"Tag{i}").ToList();
+            Assert.Empty(result);
+        }
     }
 
     #endregion
