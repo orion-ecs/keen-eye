@@ -46,4 +46,4 @@ jobs:
             actions: read
             pull-requests: write
             issues: write
-          claude_args: '--allowed-tools "Write,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*),Bash(gh pr:*),Bash(gh sub-issue:*)"'
+          claude_args: '--allowed-tools "Write,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh issue edit:*),Bash(gh issue view:*),Bash(gh label create:*),Bash(gh pr list:*),Bash(gh pr create:*),Bash(gh pr view:*),Bash(gh pr status:*),Bash(gh sub-issue add:*),Bash(gh sub-issue create:*)"'
