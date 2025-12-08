@@ -1245,7 +1245,67 @@ public class StringTagTests
 
     #endregion
 
+    #region QueryDescription Coverage
+
+    [Fact]
+    public void QueryDescription_HasStringTagFilters_TrueWhenWithTagAdded()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .Build();
+
+        var query = world.Query<TagTestPosition>().WithTag("SomeTag");
+
+        Assert.True(query.Description.HasStringTagFilters);
+    }
+
+    [Fact]
+    public void QueryDescription_HasStringTagFilters_TrueWhenWithoutTagAdded()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .Build();
+
+        var query = world.Query<TagTestPosition>().WithoutTag("SomeTag");
+
+        Assert.True(query.Description.HasStringTagFilters);
+    }
+
+    [Fact]
+    public void QueryDescription_HasStringTagFilters_FalseWhenNoTagFilters()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TagTestPosition { X = 1, Y = 1 })
+            .Build();
+
+        var query = world.Query<TagTestPosition>();
+
+        Assert.False(query.Description.HasStringTagFilters);
+    }
+
+    #endregion
+
     #region TagManager Edge Cases
+
+    [Fact]
+    public void Despawn_EntityWithNoTags_DoesNotThrow()
+    {
+        // Tests RemoveAllTags early return when entity has no tags
+        using var world = new World();
+        var entity = world.Spawn().Build();
+
+        // Entity has no tags - despawn should handle this gracefully
+        world.Despawn(entity);
+
+        // Verify entity is gone (no exception thrown)
+        Assert.False(world.IsAlive(entity));
+    }
 
     [Fact]
     public void Despawn_EntityWithTagsNotInReverseIndex_DoesNotThrow()
