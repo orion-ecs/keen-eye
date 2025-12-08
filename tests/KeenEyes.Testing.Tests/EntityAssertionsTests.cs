@@ -213,6 +213,15 @@ public class EntityAssertionsTests
         ex.Message.ShouldContain("to not have tag");
     }
 
+    [Fact]
+    public void ShouldNotHaveTag_TestWorld_Succeeds()
+    {
+        using var testWorld = new TestWorldBuilder().Build();
+        var entity = testWorld.World.Spawn().Build();
+
+        Should.NotThrow(() => entity.ShouldNotHaveTag<ActiveTag>(testWorld));
+    }
+
     #endregion
 
     #region ShouldHaveComponentMatching Tests

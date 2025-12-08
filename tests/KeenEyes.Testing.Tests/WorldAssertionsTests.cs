@@ -168,6 +168,14 @@ public class WorldAssertionsTests
         ex.Message.ShouldContain("to not have plugin");
     }
 
+    [Fact]
+    public void ShouldNotHavePlugin_TestWorld_Succeeds()
+    {
+        using var testWorld = new TestWorldBuilder().Build();
+
+        Should.NotThrow(() => testWorld.ShouldNotHavePlugin<TestPlugin>());
+    }
+
     #endregion
 
     #region ShouldContainEntitiesWith Tests
