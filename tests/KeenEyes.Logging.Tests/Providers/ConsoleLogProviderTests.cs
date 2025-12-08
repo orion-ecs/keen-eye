@@ -200,4 +200,166 @@ public class ConsoleLogProviderTests
 
         Should.NotThrow(() => provider.Log(LogLevel.Info, "Test", "Message", null));
     }
+
+    #region Sanitization Tests
+
+    [Fact]
+    public void Log_WithNewlineInMessage_SanitizesNewlines()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+
+        provider.Log(LogLevel.Info, "Test", "Line1\nLine2", null);
+
+        var written = output.ToString();
+        written.ShouldContain("Line1\\nLine2");
+        written.ShouldNotContain("Line1\nLine2");
+    }
+
+    [Fact]
+    public void Log_WithCarriageReturnInMessage_SanitizesCarriageReturns()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+
+        provider.Log(LogLevel.Info, "Test", "Line1\rLine2", null);
+
+        var written = output.ToString();
+        written.ShouldContain("Line1\\rLine2");
+    }
+
+    [Fact]
+    public void Log_WithCrLfInMessage_SanitizesCrLf()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+
+        provider.Log(LogLevel.Info, "Test", "Line1\r\nLine2", null);
+
+        var written = output.ToString();
+        written.ShouldContain("Line1\\r\\nLine2");
+    }
+
+    [Fact]
+    public void Log_WithNewlineInCategory_SanitizesCategory()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+
+        provider.Log(LogLevel.Info, "Cat\negory", "Message", null);
+
+        var written = output.ToString();
+        written.ShouldContain("[Cat\\negory]");
+    }
+
+    [Fact]
+    public void Log_WithNewlineInPropertyKey_SanitizesPropertyKey()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+        var properties = new Dictionary<string, object?> { ["Key\nWith\nNewlines"] = "Value" };
+
+        provider.Log(LogLevel.Info, "Test", "Message", properties);
+
+        var written = output.ToString();
+        written.ShouldContain("Key\\nWith\\nNewlines=Value");
+    }
+
+    [Fact]
+    public void Log_WithNewlineInPropertyValue_SanitizesPropertyValue()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+        var properties = new Dictionary<string, object?> { ["Key"] = "Value\nWith\nNewlines" };
+
+        provider.Log(LogLevel.Info, "Test", "Message", properties);
+
+        var written = output.ToString();
+        written.ShouldContain("Key=Value\\nWith\\nNewlines");
+    }
+
+    [Fact]
+    public void Log_WithEmptyMessage_HandlesGracefully()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+
+        Should.NotThrow(() => provider.Log(LogLevel.Info, "Test", "", null));
+    }
+
+    [Fact]
+    public void Log_WithEmptyCategory_HandlesGracefully()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+
+        Should.NotThrow(() => provider.Log(LogLevel.Info, "", "Message", null));
+    }
+
+    #endregion
+
+    #region Multiple Properties Tests
+
+    [Fact]
+    public void Log_WithMultipleProperties_FormatsAllProperties()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+        var properties = new Dictionary<string, object?>
+        {
+            ["Key1"] = "Value1",
+            ["Key2"] = "Value2",
+            ["Key3"] = "Value3"
+        };
+
+        provider.Log(LogLevel.Info, "Test", "Message", properties);
+
+        var written = output.ToString();
+        written.ShouldContain("Key1=Value1");
+        written.ShouldContain("Key2=Value2");
+        written.ShouldContain("Key3=Value3");
+    }
+
+    [Fact]
+    public void Log_WithNullPropertyValue_FormatsAsNull()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+        var properties = new Dictionary<string, object?> { ["NullKey"] = null };
+
+        provider.Log(LogLevel.Info, "Test", "Message", properties);
+
+        var written = output.ToString();
+        written.ShouldContain("NullKey=null");
+    }
+
+    #endregion
+
+    #region Unknown Level Tests
+
+    [Fact]
+    public void Log_WithUnknownLevel_FormatsAsQuestionMarks()
+    {
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = false };
+
+        provider.Log((LogLevel)99, "Test", "Message", null);
+
+        // Unknown levels >= Error go to error output
+        var written = error.ToString();
+        written.ShouldContain("???");
+    }
+
+    #endregion
 }

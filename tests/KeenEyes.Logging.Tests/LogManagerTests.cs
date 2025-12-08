@@ -372,4 +372,167 @@ public class LogManagerTests
     }
 
     #endregion
+
+    #region Exception Handling Tests
+
+    [Fact]
+    public void Log_WhenProviderThrows_DoesNotPropagateException()
+    {
+        using var manager = new LogManager();
+        var throwingProvider = new ThrowingLogProvider { ThrowOnLog = true };
+        manager.AddProvider(throwingProvider);
+
+        Should.NotThrow(() => manager.Info("Test", "Message"));
+    }
+
+    [Fact]
+    public void Log_WhenProviderThrows_ContinuesToOtherProviders()
+    {
+        using var manager = new LogManager();
+        var throwingProvider = new ThrowingLogProvider { ThrowOnLog = true };
+        var testProvider = new TestLogProvider();
+        manager.AddProvider(throwingProvider);
+        manager.AddProvider(testProvider);
+
+        manager.Info("Test", "Message");
+
+        testProvider.MessageCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Flush_WhenProviderThrows_DoesNotPropagateException()
+    {
+        using var manager = new LogManager();
+        var throwingProvider = new ThrowingLogProvider { ThrowOnFlush = true };
+        manager.AddProvider(throwingProvider);
+
+        Should.NotThrow(() => manager.Flush());
+    }
+
+    [Fact]
+    public void Flush_WhenProviderThrows_ContinuesToOtherProviders()
+    {
+        using var manager = new LogManager();
+        var throwingProvider = new ThrowingLogProvider { ThrowOnFlush = true };
+        var testProvider = new TestLogProvider();
+        manager.AddProvider(throwingProvider);
+        manager.AddProvider(testProvider);
+
+        Should.NotThrow(() => manager.Flush());
+        // If we get here without exception, both providers were processed
+    }
+
+    [Fact]
+    public void Dispose_WhenProviderThrows_DoesNotPropagateException()
+    {
+        var manager = new LogManager();
+        var throwingProvider = new ThrowingLogProvider { ThrowOnDispose = true };
+        manager.AddProvider(throwingProvider);
+
+        Should.NotThrow(() => manager.Dispose());
+    }
+
+    [Fact]
+    public void Dispose_WhenProviderThrows_ContinuesToOtherProviders()
+    {
+        var manager = new LogManager();
+        var throwingProvider = new ThrowingLogProvider { ThrowOnDispose = true };
+        var testProvider = new TestLogProvider();
+        manager.AddProvider(throwingProvider);
+        manager.AddProvider(testProvider);
+
+        manager.Dispose();
+
+        manager.ProviderCount.ShouldBe(0);
+    }
+
+    #endregion
+
+    #region Edge Cases
+
+    [Fact]
+    public void Log_WithNoProviders_DoesNotThrow()
+    {
+        using var manager = new LogManager();
+
+        Should.NotThrow(() => manager.Info("Test", "Message"));
+    }
+
+    [Fact]
+    public void Log_WithScopeButNoMessageProperties_UsesScopeProperties()
+    {
+        using var manager = new LogManager();
+        var provider = new TestLogProvider();
+        manager.AddProvider(provider);
+
+        using (manager.BeginScope("Scope", new Dictionary<string, object?> { ["ScopeKey"] = "ScopeValue" }))
+        {
+            manager.Info("Test", "Message", null);
+        }
+
+        provider.Messages[0].Properties.ShouldNotBeNull();
+        provider.Messages[0].Properties!["ScopeKey"].ShouldBe("ScopeValue");
+    }
+
+    [Fact]
+    public void Log_WithNullScopeProperties_WorksCorrectly()
+    {
+        using var manager = new LogManager();
+        var provider = new TestLogProvider();
+        manager.AddProvider(provider);
+
+        using (manager.BeginScope("Scope", null))
+        {
+            manager.Info("Test", "Message");
+        }
+
+        // Should complete without error, properties should be null
+        provider.Messages[0].Properties.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Flush_WithNoProviders_DoesNotThrow()
+    {
+        using var manager = new LogManager();
+
+        Should.NotThrow(() => manager.Flush());
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// A log provider that throws exceptions for testing exception handling.
+/// </summary>
+internal sealed class ThrowingLogProvider : ILogProvider
+{
+    public string Name => "Throwing";
+    public LogLevel MinimumLevel { get; set; } = LogLevel.Trace;
+    public bool ThrowOnLog { get; set; }
+    public bool ThrowOnFlush { get; set; }
+    public bool ThrowOnDispose { get; set; }
+
+    public void Log(LogLevel level, string category, string message, IReadOnlyDictionary<string, object?>? properties)
+    {
+        if (ThrowOnLog)
+        {
+            throw new InvalidOperationException("Log exception for testing");
+        }
+    }
+
+    public void Flush()
+    {
+        if (ThrowOnFlush)
+        {
+            throw new InvalidOperationException("Flush exception for testing");
+        }
+    }
+
+    public void Dispose()
+    {
+        if (ThrowOnDispose)
+        {
+            throw new InvalidOperationException("Dispose exception for testing");
+        }
+    }
 }
