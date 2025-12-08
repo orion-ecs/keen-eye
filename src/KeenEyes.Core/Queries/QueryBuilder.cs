@@ -11,6 +11,8 @@ public sealed class QueryDescription
     private readonly List<Type> write = [];
     private readonly List<Type> with = [];
     private readonly List<Type> without = [];
+    private readonly List<string> withStringTags = [];
+    private readonly List<string> withoutStringTags = [];
 
     /// <summary>Components that will be read (ref readonly).</summary>
     public IReadOnlyList<Type> Read => read;
@@ -24,13 +26,24 @@ public sealed class QueryDescription
     /// <summary>Components that must NOT be present.</summary>
     public IReadOnlyList<Type> Without => without;
 
+    /// <summary>String tags that must be present.</summary>
+    public IReadOnlyList<string> WithStringTags => withStringTags;
+
+    /// <summary>String tags that must NOT be present.</summary>
+    public IReadOnlyList<string> WithoutStringTags => withoutStringTags;
+
     /// <summary>All components that must be present (Read + Write + With).</summary>
     public IEnumerable<Type> AllRequired => read.Concat(write).Concat(with).Distinct();
+
+    /// <summary>Whether any string tag filters are applied.</summary>
+    public bool HasStringTagFilters => withStringTags.Count > 0 || withoutStringTags.Count > 0;
 
     internal void AddRead<T>() where T : struct, IComponent => read.Add(typeof(T));
     internal void AddWrite<T>() where T : struct, IComponent => write.Add(typeof(T));
     internal void AddWith<T>() where T : struct, IComponent => with.Add(typeof(T));
     internal void AddWithout<T>() where T : struct, IComponent => without.Add(typeof(T));
+    internal void AddWithStringTag(string tag) => withStringTags.Add(tag);
+    internal void AddWithoutStringTag(string tag) => withoutStringTags.Add(tag);
 
     /// <summary>
     /// Checks if an entity with the given components matches this query.
@@ -98,6 +111,28 @@ public readonly struct QueryBuilder<T1> : IEnumerable<Entity>
         return new QueryBuilder<T1>(world, description);
     }
 
+    /// <summary>Requires the entity to have this string tag.</summary>
+    /// <param name="tag">The string tag that must be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1> WithTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithStringTag(tag);
+        return new QueryBuilder<T1>(world, description);
+    }
+
+    /// <summary>Excludes entities that have this string tag.</summary>
+    /// <param name="tag">The string tag that must NOT be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1> WithoutTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithoutStringTag(tag);
+        return new QueryBuilder<T1>(world, description);
+    }
+
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
@@ -108,6 +143,15 @@ public readonly struct QueryBuilder<T1> : IEnumerable<Entity>
     public QueryEnumerator<T1> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    private static void ValidateTag(string tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            throw new ArgumentException("Tag cannot be empty or whitespace.", nameof(tag));
+        }
+    }
 }
 
 /// <summary>
@@ -148,6 +192,28 @@ public readonly struct QueryBuilder<T1, T2> : IEnumerable<Entity>
         return new QueryBuilder<T1, T2>(world, description);
     }
 
+    /// <summary>Requires the entity to have this string tag.</summary>
+    /// <param name="tag">The string tag that must be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1, T2> WithTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithStringTag(tag);
+        return new QueryBuilder<T1, T2>(world, description);
+    }
+
+    /// <summary>Excludes entities that have this string tag.</summary>
+    /// <param name="tag">The string tag that must NOT be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1, T2> WithoutTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithoutStringTag(tag);
+        return new QueryBuilder<T1, T2>(world, description);
+    }
+
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
@@ -155,6 +221,15 @@ public readonly struct QueryBuilder<T1, T2> : IEnumerable<Entity>
     public QueryEnumerator<T1, T2> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    private static void ValidateTag(string tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            throw new ArgumentException("Tag cannot be empty or whitespace.", nameof(tag));
+        }
+    }
 }
 
 /// <summary>
@@ -197,6 +272,28 @@ public readonly struct QueryBuilder<T1, T2, T3> : IEnumerable<Entity>
         return new QueryBuilder<T1, T2, T3>(world, description);
     }
 
+    /// <summary>Requires the entity to have this string tag.</summary>
+    /// <param name="tag">The string tag that must be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1, T2, T3> WithTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithStringTag(tag);
+        return new QueryBuilder<T1, T2, T3>(world, description);
+    }
+
+    /// <summary>Excludes entities that have this string tag.</summary>
+    /// <param name="tag">The string tag that must NOT be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1, T2, T3> WithoutTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithoutStringTag(tag);
+        return new QueryBuilder<T1, T2, T3>(world, description);
+    }
+
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
@@ -204,6 +301,15 @@ public readonly struct QueryBuilder<T1, T2, T3> : IEnumerable<Entity>
     public QueryEnumerator<T1, T2, T3> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    private static void ValidateTag(string tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            throw new ArgumentException("Tag cannot be empty or whitespace.", nameof(tag));
+        }
+    }
 }
 
 /// <summary>
@@ -248,6 +354,28 @@ public readonly struct QueryBuilder<T1, T2, T3, T4> : IEnumerable<Entity>
         return new QueryBuilder<T1, T2, T3, T4>(world, description);
     }
 
+    /// <summary>Requires the entity to have this string tag.</summary>
+    /// <param name="tag">The string tag that must be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1, T2, T3, T4> WithTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithStringTag(tag);
+        return new QueryBuilder<T1, T2, T3, T4>(world, description);
+    }
+
+    /// <summary>Excludes entities that have this string tag.</summary>
+    /// <param name="tag">The string tag that must NOT be present.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    public QueryBuilder<T1, T2, T3, T4> WithoutTag(string tag)
+    {
+        ValidateTag(tag);
+        description.AddWithoutStringTag(tag);
+        return new QueryBuilder<T1, T2, T3, T4>(world, description);
+    }
+
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
@@ -255,4 +383,13 @@ public readonly struct QueryBuilder<T1, T2, T3, T4> : IEnumerable<Entity>
     public QueryEnumerator<T1, T2, T3, T4> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    private static void ValidateTag(string tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            throw new ArgumentException("Tag cannot be empty or whitespace.", nameof(tag));
+        }
+    }
 }
