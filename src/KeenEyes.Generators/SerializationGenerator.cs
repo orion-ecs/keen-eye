@@ -277,8 +277,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
     private static void GenerateComponentMethods(StringBuilder sb, SerializableComponentInfo component)
     {
-        var camelCaseName = ToCamelCase(component.Name);
-
         // Deserialize method
         sb.AppendLine($"    private static object Deserialize_{component.Name}(JsonElement json)");
         sb.AppendLine("    {");
