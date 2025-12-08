@@ -42,7 +42,6 @@ public sealed class RenderSystem : SystemBase
         var gl = graphics.GL;
 
         // Find active camera
-        Entity cameraEntity = default;
         Camera camera = default;
         Transform3D cameraTransform = default;
         bool foundCamera = false;
@@ -50,7 +49,6 @@ public sealed class RenderSystem : SystemBase
         // Prefer main camera tag
         foreach (var entity in World.Query<Camera, Transform3D, MainCameraTag>())
         {
-            cameraEntity = entity;
             camera = World.Get<Camera>(entity);
             cameraTransform = World.Get<Transform3D>(entity);
             foundCamera = true;
@@ -62,7 +60,6 @@ public sealed class RenderSystem : SystemBase
         {
             foreach (var entity in World.Query<Camera, Transform3D>())
             {
-                cameraEntity = entity;
                 camera = World.Get<Camera>(entity);
                 cameraTransform = World.Get<Transform3D>(entity);
                 foundCamera = true;
