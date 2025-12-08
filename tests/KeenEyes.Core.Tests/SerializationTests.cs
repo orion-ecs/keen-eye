@@ -716,4 +716,212 @@ public class SerializationTests
     }
 
     #endregion
+
+    #region Additional Coverage Tests
+
+    [Fact]
+    public void GetDefaultJsonOptions_ReturnsValidOptions()
+    {
+        var options = SnapshotManager.GetdefaultJsonOptions();
+
+        Assert.NotNull(options);
+        Assert.True(options.WriteIndented);
+        Assert.True(options.IncludeFields);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithCustomTypeResolver_UsesResolver()
+    {
+        using var world1 = new World();
+        world1.Spawn("Test")
+            .With(new SerializablePosition { X = 10, Y = 20 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var json = SnapshotManager.ToJson(snapshot);
+        var loadedSnapshot = SnapshotManager.FromJson(json);
+
+        using var world2 = new World();
+
+        // Custom type resolver that maps type names
+        Type? CustomResolver(string typeName)
+        {
+            if (typeName.Contains("SerializablePosition"))
+            {
+                return typeof(SerializablePosition);
+            }
+            return Type.GetType(typeName);
+        }
+
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, CustomResolver);
+
+        Assert.Single(entityMap);
+        var entity = world2.GetEntityByName("Test");
+        Assert.True(entity.IsValid);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithUnknownComponentType_SkipsComponent()
+    {
+        // Create a snapshot with a fake component type that won't resolve
+        var fakeSnapshot = new WorldSnapshot
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Entities = new List<SerializedEntity>
+            {
+                new SerializedEntity
+                {
+                    Id = 1,
+                    Name = "TestEntity",
+                    Components = new List<SerializedComponent>
+                    {
+                        new SerializedComponent
+                        {
+                            TypeName = "NonExistent.FakeComponent, FakeAssembly",
+                            Data = new { X = 1, Y = 2 },
+                            IsTag = false
+                        }
+                    }
+                }
+            },
+            Singletons = new List<SerializedSingleton>()
+        };
+
+        using var world = new World();
+
+        // Should not throw - just skip the unknown component
+        var entityMap = SnapshotManager.RestoreSnapshot(world, fakeSnapshot);
+
+        Assert.Single(entityMap);
+        var entity = world.GetEntityByName("TestEntity");
+        Assert.True(entity.IsValid);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithUnknownSingletonType_SkipsSingleton()
+    {
+        var fakeSnapshot = new WorldSnapshot
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Entities = new List<SerializedEntity>(),
+            Singletons = new List<SerializedSingleton>
+            {
+                new SerializedSingleton
+                {
+                    TypeName = "NonExistent.FakeSingleton, FakeAssembly",
+                    Data = new { Value = 42 }
+                }
+            }
+        };
+
+        using var world = new World();
+
+        // Should not throw - just skip the unknown singleton
+        var entityMap = SnapshotManager.RestoreSnapshot(world, fakeSnapshot);
+
+        Assert.Empty(entityMap);
+        // World should not have any singletons
+        Assert.Empty(world.GetAllSingletons());
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithMockSerializer_UsesAotPath()
+    {
+        using var world1 = new World();
+        world1.Spawn("Test")
+            .With(new SerializablePosition { X = 5, Y = 10 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var json = SnapshotManager.ToJson(snapshot);
+        var loadedSnapshot = SnapshotManager.FromJson(json);
+
+        using var world2 = new World();
+
+        // Use a mock serializer
+        var mockSerializer = new MockComponentSerializer();
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, serializer: mockSerializer);
+
+        // The mock serializer was called
+        Assert.True(mockSerializer.GetTypeCalled);
+    }
+
+    [Fact]
+    public void ToJson_WithCustomOptions_UsesProvidedOptions()
+    {
+        using var world = new World();
+        world.Spawn("Test")
+            .With(new SerializablePosition { X = 1, Y = 2 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world);
+
+        var customOptions = new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = false,
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            IncludeFields = true
+        };
+
+        var json = SnapshotManager.ToJson(snapshot, customOptions);
+
+        // Non-indented JSON should not have newlines within the object
+        Assert.DoesNotContain("\n  ", json);
+    }
+
+    [Fact]
+    public void FromJson_WithCustomOptions_UsesProvidedOptions()
+    {
+        using var world = new World();
+        world.Spawn("Test")
+            .With(new SerializablePosition { X = 1, Y = 2 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var json = SnapshotManager.ToJson(snapshot);
+
+        var customOptions = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            IncludeFields = true
+        };
+
+        var restored = SnapshotManager.FromJson(json, customOptions);
+
+        Assert.NotNull(restored);
+        Assert.Single(restored!.Entities);
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// Mock component serializer for testing the AOT serialization path.
+/// </summary>
+internal sealed class MockComponentSerializer : IComponentSerializer
+{
+    public bool GetTypeCalled { get; private set; }
+    public bool DeserializeCalled { get; private set; }
+    public bool SerializeCalled { get; private set; }
+
+    public bool IsSerializable(Type type) => false;
+    public bool IsSerializable(string typeName) => false;
+
+    public object? Deserialize(string typeName, System.Text.Json.JsonElement json)
+    {
+        DeserializeCalled = true;
+        return null; // Return null to fall back to reflection
+    }
+
+    public System.Text.Json.JsonElement? Serialize(Type type, object value)
+    {
+        SerializeCalled = true;
+        return null;
+    }
+
+    public Type? GetType(string typeName)
+    {
+        GetTypeCalled = true;
+        return null; // Return null to fall back to other resolvers
+    }
 }
