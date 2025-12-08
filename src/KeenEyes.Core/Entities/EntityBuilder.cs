@@ -23,6 +23,17 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     public EntityBuilder With<T>(T component) where T : struct, IComponent
     {
         var info = world.Components.GetOrRegister<T>();
+
+        // Remove existing component of same type to support overrides
+        for (int i = components.Count - 1; i >= 0; i--)
+        {
+            if (components[i].Info.Type == typeof(T))
+            {
+                components.RemoveAt(i);
+                break;
+            }
+        }
+
         components.Add((info, component));
         return this;
     }
