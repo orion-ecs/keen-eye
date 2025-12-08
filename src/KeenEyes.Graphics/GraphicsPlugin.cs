@@ -88,10 +88,11 @@ public sealed class GraphicsPlugin : IWorldPlugin
     }
 
     /// <inheritdoc />
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         // Create and register the graphics context
-        graphics = new GraphicsContext(context.World, config);
+        var world = (World)context.World;
+        graphics = new GraphicsContext(world, config);
         context.SetExtension(graphics);
 
         // Register systems
@@ -100,7 +101,7 @@ public sealed class GraphicsPlugin : IWorldPlugin
     }
 
     /// <inheritdoc />
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         // Remove extension
         context.RemoveExtension<GraphicsContext>();

@@ -228,7 +228,7 @@ public class DebugPlugin : IWorldPlugin
     public string Name => "Debug";
 
     /// <inheritdoc />
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         Console.WriteLine($"  [{Name}Plugin] Installing...");
 
@@ -242,7 +242,7 @@ public class DebugPlugin : IWorldPlugin
     }
 
     /// <inheritdoc />
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         Console.WriteLine($"  [{Name}Plugin] Uninstalling...");
 
@@ -262,7 +262,7 @@ public class CombatPlugin : IWorldPlugin
     public string Name => "Combat";
 
     /// <inheritdoc />
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         Console.WriteLine($"  [{Name}Plugin] Installing combat systems...");
 
@@ -273,7 +273,7 @@ public class CombatPlugin : IWorldPlugin
     }
 
     /// <inheritdoc />
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         Console.WriteLine($"  [{Name}Plugin] Uninstalled");
     }

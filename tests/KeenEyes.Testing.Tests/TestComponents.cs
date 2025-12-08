@@ -46,12 +46,12 @@ public class TestPlugin : IWorldPlugin
     public bool WasInstalled { get; private set; }
     public bool WasUninstalled { get; private set; }
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         WasInstalled = true;
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         WasUninstalled = true;
     }

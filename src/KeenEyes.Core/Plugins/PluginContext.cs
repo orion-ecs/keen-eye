@@ -17,27 +17,34 @@ namespace KeenEyes;
 /// </remarks>
 /// <example>
 /// <code>
-/// public void Install(PluginContext context)
+/// public void Install(IPluginContext context)
 /// {
 ///     // Register systems - these are tracked for automatic cleanup
 ///     context.AddSystem&lt;PhysicsSystem&gt;(SystemPhase.FixedUpdate);
 ///
 ///     // Expose a custom API through extensions
-///     context.SetExtension(new PhysicsWorld(context.World));
+///     context.SetExtension(new PhysicsWorld());
 ///
-///     // Access the world directly if needed
+///     // Access the world directly if needed (cast if concrete World is required)
 ///     context.World.SetSingleton(new PhysicsSettings { Gravity = -9.81f });
 /// }
 /// </code>
 /// </example>
-public sealed class PluginContext
+public sealed class PluginContext : IPluginContext
 {
     private readonly List<ISystem> registeredSystems = [];
 
     /// <summary>
     /// Gets the world that the plugin is being installed into or uninstalled from.
     /// </summary>
+    /// <remarks>
+    /// This property returns the concrete <see cref="World"/> type for full access
+    /// to all world operations.
+    /// </remarks>
     public World World { get; }
+
+    /// <inheritdoc />
+    IWorld IPluginContext.World => World;
 
     /// <summary>
     /// Gets the plugin that this context is for.
@@ -60,25 +67,7 @@ public sealed class PluginContext
         Plugin = plugin;
     }
 
-    /// <summary>
-    /// Registers a system with the world at the specified phase and order.
-    /// </summary>
-    /// <typeparam name="T">The system type to register.</typeparam>
-    /// <param name="phase">The execution phase for this system. Defaults to <see cref="SystemPhase.Update"/>.</param>
-    /// <param name="order">The execution order within the phase. Lower values execute first. Defaults to 0.</param>
-    /// <returns>The created system instance.</returns>
-    /// <remarks>
-    /// <para>
-    /// Systems registered through this method are tracked and will be automatically
-    /// removed and disposed when the plugin is uninstalled.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// context.AddSystem&lt;PhysicsSystem&gt;(SystemPhase.FixedUpdate, order: 0);
-    /// context.AddSystem&lt;CollisionSystem&gt;(SystemPhase.FixedUpdate, order: 10);
-    /// </code>
-    /// </example>
+    /// <inheritdoc />
     public T AddSystem<T>(SystemPhase phase = SystemPhase.Update, int order = 0)
         where T : ISystem, new()
     {
@@ -87,21 +76,7 @@ public sealed class PluginContext
         return system;
     }
 
-    /// <summary>
-    /// Registers a system with the world at the specified phase, order, and dependency constraints.
-    /// </summary>
-    /// <typeparam name="T">The system type to register.</typeparam>
-    /// <param name="phase">The execution phase for this system.</param>
-    /// <param name="order">The execution order within the phase. Lower values execute first.</param>
-    /// <param name="runsBefore">Types of systems that this system must run before.</param>
-    /// <param name="runsAfter">Types of systems that this system must run after.</param>
-    /// <returns>The created system instance.</returns>
-    /// <remarks>
-    /// <para>
-    /// Systems registered through this method are tracked and will be automatically
-    /// removed and disposed when the plugin is uninstalled.
-    /// </para>
-    /// </remarks>
+    /// <inheritdoc />
     public T AddSystem<T>(
         SystemPhase phase,
         int order,
@@ -114,44 +89,14 @@ public sealed class PluginContext
         return system;
     }
 
-    /// <summary>
-    /// Registers a system instance with the world at the specified phase and order.
-    /// </summary>
-    /// <param name="system">The system instance to register.</param>
-    /// <param name="phase">The execution phase for this system. Defaults to <see cref="SystemPhase.Update"/>.</param>
-    /// <param name="order">The execution order within the phase. Lower values execute first. Defaults to 0.</param>
-    /// <returns>The system instance for chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// Use this overload when you need to pass a pre-configured system instance or a system
-    /// that requires constructor parameters.
-    /// </para>
-    /// <para>
-    /// Systems registered through this method are tracked and will be automatically
-    /// removed and disposed when the plugin is uninstalled.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// var physics = new PhysicsSystem(gravity: -9.81f);
-    /// context.AddSystem(physics, SystemPhase.FixedUpdate);
-    /// </code>
-    /// </example>
+    /// <inheritdoc />
     public ISystem AddSystem(ISystem system, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
         AddSystemInternal(system, phase, order, [], []);
         return system;
     }
 
-    /// <summary>
-    /// Registers a system instance with the world at the specified phase, order, and dependency constraints.
-    /// </summary>
-    /// <param name="system">The system instance to register.</param>
-    /// <param name="phase">The execution phase for this system.</param>
-    /// <param name="order">The execution order within the phase. Lower values execute first.</param>
-    /// <param name="runsBefore">Types of systems that this system must run before.</param>
-    /// <param name="runsAfter">Types of systems that this system must run after.</param>
-    /// <returns>The system instance for chaining.</returns>
+    /// <inheritdoc />
     public ISystem AddSystem(
         ISystem system,
         SystemPhase phase,
@@ -163,76 +108,20 @@ public sealed class PluginContext
         return system;
     }
 
-    /// <summary>
-    /// Registers a system group with the world at the specified phase and order.
-    /// </summary>
-    /// <param name="group">The system group to register.</param>
-    /// <param name="phase">The execution phase for this group. Defaults to <see cref="SystemPhase.Update"/>.</param>
-    /// <param name="order">The execution order within the phase. Lower values execute first. Defaults to 0.</param>
-    /// <returns>The system group for chaining.</returns>
-    /// <remarks>
-    /// <para>
-    /// System groups allow organizing multiple systems that execute together.
-    /// The group and all its contained systems are tracked for automatic cleanup.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// var physicsGroup = new SystemGroup("Physics")
-    ///     .Add&lt;BroadphaseSystem&gt;(order: 0)
-    ///     .Add&lt;NarrowphaseSystem&gt;(order: 10);
-    /// context.AddSystemGroup(physicsGroup, SystemPhase.FixedUpdate);
-    /// </code>
-    /// </example>
+    /// <inheritdoc />
     public SystemGroup AddSystemGroup(SystemGroup group, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
         AddSystemInternal(group, phase, order, [], []);
         return group;
     }
 
-    /// <summary>
-    /// Sets an extension value that can be retrieved by other code.
-    /// </summary>
-    /// <typeparam name="T">The extension type.</typeparam>
-    /// <param name="extension">The extension instance to store.</param>
-    /// <remarks>
-    /// <para>
-    /// Extensions allow plugins to expose custom APIs to application code.
-    /// For example, a physics plugin might expose a <c>PhysicsWorld</c> extension
-    /// that provides raycast and collision query methods.
-    /// </para>
-    /// <para>
-    /// Extensions are stored in the world and can be retrieved using
-    /// <see cref="World.GetExtension{T}"/> or <see cref="World.TryGetExtension{T}"/>.
-    /// </para>
-    /// </remarks>
-    /// <example>
-    /// <code>
-    /// // In plugin Install method:
-    /// context.SetExtension(new PhysicsWorld(context.World));
-    ///
-    /// // In application code:
-    /// var physics = world.GetExtension&lt;PhysicsWorld&gt;();
-    /// var hit = physics.Raycast(origin, direction);
-    /// </code>
-    /// </example>
+    /// <inheritdoc />
     public void SetExtension<T>(T extension) where T : class
     {
         World.SetExtension(extension);
     }
 
-    /// <summary>
-    /// Removes an extension from the world.
-    /// </summary>
-    /// <typeparam name="T">The extension type to remove.</typeparam>
-    /// <returns>True if the extension was found and removed; false otherwise.</returns>
-    /// <remarks>
-    /// <para>
-    /// Call this during <see cref="IWorldPlugin.Uninstall"/> if your extension
-    /// requires explicit cleanup. Extensions are automatically removed when
-    /// <see cref="World.RemoveExtension{T}"/> is called.
-    /// </para>
-    /// </remarks>
+    /// <inheritdoc />
     public bool RemoveExtension<T>() where T : class
     {
         return World.RemoveExtension<T>();

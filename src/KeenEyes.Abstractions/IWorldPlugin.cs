@@ -21,7 +21,7 @@ namespace KeenEyes;
 /// {
 ///     public string Name => "Physics";
 ///
-///     public void Install(PluginContext context)
+///     public void Install(IPluginContext context)
 ///     {
 ///         // Register physics systems
 ///         context.AddSystem&lt;BroadphaseSystem&gt;(SystemPhase.FixedUpdate, order: 0);
@@ -32,7 +32,7 @@ namespace KeenEyes;
 ///         context.SetExtension(new PhysicsWorld());
 ///     }
 ///
-///     public void Uninstall(PluginContext context)
+///     public void Uninstall(IPluginContext context)
 ///     {
 ///         // Cleanup is handled automatically
 ///     }
@@ -57,13 +57,11 @@ public interface IWorldPlugin
     /// The plugin context providing access to system registration and extension APIs.
     /// </param>
     /// <remarks>
-    /// <para>
     /// Use this method to register systems, set up extensions, and perform any
     /// initialization the plugin requires. Systems registered through the context
     /// are tracked and will be automatically cleaned up on uninstall.
-    /// </para>
     /// </remarks>
-    void Install(PluginContext context);
+    void Install(IPluginContext context);
 
     /// <summary>
     /// Called when the plugin is uninstalled from a world.
@@ -72,11 +70,9 @@ public interface IWorldPlugin
     /// The plugin context providing access to cleanup operations.
     /// </param>
     /// <remarks>
-    /// <para>
     /// Use this method to perform any custom cleanup beyond what is automatically
     /// handled. Systems registered during installation are automatically removed
     /// and disposed.
-    /// </para>
     /// </remarks>
-    void Uninstall(PluginContext context);
+    void Uninstall(IPluginContext context);
 }

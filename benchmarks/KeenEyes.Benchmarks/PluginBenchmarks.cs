@@ -9,12 +9,12 @@ public class SimplePlugin : IWorldPlugin
 {
     public string Name => "Simple";
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         context.AddSystem<MovementSystem>(SystemPhase.Update);
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         // Systems auto-removed
     }
@@ -27,7 +27,7 @@ public class ComplexPlugin : IWorldPlugin
 {
     public string Name => "Complex";
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         context.AddSystem<MovementSystem>(SystemPhase.Update, order: 0);
         context.AddSystem<HealthDecaySystem>(SystemPhase.Update, order: 10);
@@ -35,7 +35,7 @@ public class ComplexPlugin : IWorldPlugin
         context.SetExtension(new PluginStats());
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         context.RemoveExtension<PluginStats>();
     }
@@ -302,12 +302,12 @@ public class NumberedPlugin : IWorldPlugin
 
     public string Name => $"Plugin_{number}";
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         // Minimal install
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         // Minimal uninstall
     }
