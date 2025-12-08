@@ -21,8 +21,8 @@ public class ArchetypeTests
 
     private struct Health : IComponent
     {
-        public int Current;
-        public int Max;
+        public int Current = 0;
+        public int Max = 0;
 
         public Health() { }
     }

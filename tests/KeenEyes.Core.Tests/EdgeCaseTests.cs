@@ -16,19 +16,25 @@ public class EdgeCaseTests
 
     private struct Velocity : IComponent
     {
-        public float X;
-        public float Y;
+        public float X = 0;
+        public float Y = 0;
+
+        public Velocity() { }
     }
 
     private struct Health : IComponent
     {
-        public int Current;
-        public int Max;
+        public int Current = 0;
+        public int Max = 0;
+
+        public Health() { }
     }
 
     private struct Rotation : IComponent
     {
-        public float Angle;
+        public float Angle = 0;
+
+        public Rotation() { }
     }
 
     private struct EnemyTag : ITagComponent;
