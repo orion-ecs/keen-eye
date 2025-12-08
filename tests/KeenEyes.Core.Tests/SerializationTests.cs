@@ -61,9 +61,9 @@ public class SerializationTests
     public void CreateSnapshot_CapturesAllEntities()
     {
         using var world = new World();
-        var entity1 = world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
-        var entity2 = world.Spawn().With(new SerializablePosition { X = 3, Y = 4 }).Build();
-        var entity3 = world.Spawn().With(new SerializablePosition { X = 5, Y = 6 }).Build();
+        world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
+        world.Spawn().With(new SerializablePosition { X = 3, Y = 4 }).Build();
+        world.Spawn().With(new SerializablePosition { X = 5, Y = 6 }).Build();
 
         var snapshot = SnapshotManager.CreateSnapshot(world);
 
@@ -181,7 +181,7 @@ public class SerializationTests
     public void CreateSnapshot_CapturesTagComponents()
     {
         using var world = new World();
-        var entity = world.Spawn()
+        world.Spawn()
             .With(new SerializablePosition { X = 0, Y = 0 })
             .WithTag<SerializableTag>()
             .Build();
@@ -433,8 +433,8 @@ public class SerializationTests
         var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
 
         Assert.Single(entityMap);
-        Assert.True(entityMap.ContainsKey(original.Id));
-        Assert.True(world2.IsAlive(entityMap[original.Id]));
+        Assert.True(entityMap.TryGetValue(original.Id, out var restoredEntity));
+        Assert.True(world2.IsAlive(restoredEntity));
     }
 
     #endregion
@@ -705,7 +705,7 @@ public class SerializationTests
         for (int i = 0; i < 1000; i++)
         {
             world.Spawn($"Entity{i}")
-                .With(new SerializablePosition { X = i, Y = i * 2 })
+                .With(new SerializablePosition { X = i, Y = i * 2f })
                 .With(new SerializableHealth { Current = i % 100, Max = 100 })
                 .Build();
         }

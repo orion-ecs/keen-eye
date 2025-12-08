@@ -237,11 +237,10 @@ public static class SnapshotManager
         }
 
         // Second pass: Restore hierarchy relationships
-        foreach (var serializedEntity in snapshot.Entities)
+        foreach (var serializedEntity in snapshot.Entities.Where(e => e.ParentId.HasValue))
         {
-            if (serializedEntity.ParentId.HasValue &&
-                entityMap.TryGetValue(serializedEntity.Id, out var child) &&
-                entityMap.TryGetValue(serializedEntity.ParentId.Value, out var parent))
+            if (entityMap.TryGetValue(serializedEntity.Id, out var child) &&
+                entityMap.TryGetValue(serializedEntity.ParentId!.Value, out var parent))
             {
                 world.SetParent(child, parent);
             }
@@ -378,7 +377,7 @@ public static class SnapshotManager
         {
             return Convert.ChangeType(data, targetType);
         }
-        catch
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
         {
             return null;
         }
