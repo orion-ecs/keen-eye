@@ -212,17 +212,8 @@ public static class SnapshotManager
                 }
 
                 // Ensure type is registered
-                var info = world.Components.Get(type);
-                if (info is null)
-                {
-                    // Try to register the component type dynamically
-                    // This uses reflection to call Register<T>
-                    info = RegisterComponentByReflection(world, type, component.IsTag);
-                    if (info is null)
-                    {
-                        continue;
-                    }
-                }
+                var info = world.Components.Get(type)
+                    ?? RegisterComponentByReflection(world, type, component.IsTag);
 
                 // Convert the data to the correct type if needed
                 var value = ConvertComponentData(component.Data, type, serializer);
@@ -301,32 +292,20 @@ public static class SnapshotManager
         return new JsonSerializerOptions(defaultJsonOptions);
     }
 
-    private static ComponentInfo? RegisterComponentByReflection(World world, Type type, bool isTag)
+    private static ComponentInfo RegisterComponentByReflection(World world, Type type, bool isTag)
     {
         // Use reflection to call world.Components.Register<T>(isTag)
         var registryType = typeof(ComponentRegistry);
-        var method = registryType.GetMethod(nameof(ComponentRegistry.Register), [typeof(bool)]);
-
-        if (method is null)
-        {
-            return null;
-        }
-
+        var method = registryType.GetMethod(nameof(ComponentRegistry.Register), [typeof(bool)])!;
         var genericMethod = method.MakeGenericMethod(type);
-        return genericMethod.Invoke(world.Components, [isTag]) as ComponentInfo;
+        return (ComponentInfo)genericMethod.Invoke(world.Components, [isTag])!;
     }
 
     private static void SetSingletonByReflection(World world, Type type, object value)
     {
         // Use reflection to call world.SetSingleton<T>(value)
         var worldType = typeof(World);
-        var method = worldType.GetMethod(nameof(World.SetSingleton));
-
-        if (method is null)
-        {
-            return;
-        }
-
+        var method = worldType.GetMethod(nameof(World.SetSingleton))!;
         var genericMethod = method.MakeGenericMethod(type);
         genericMethod.Invoke(world, [value]);
     }
