@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using Silk.NET.OpenGL;
 
@@ -6,6 +7,7 @@ namespace KeenEyes.Graphics.Backend;
 /// <summary>
 /// OpenGL implementation of <see cref="IGraphicsDevice"/> using Silk.NET.
 /// </summary>
+[ExcludeFromCodeCoverage(Justification = "Requires real GPU context; logic tested via MockGraphicsDevice")]
 public sealed class OpenGLDevice : IGraphicsDevice
 {
     private readonly GL gl;
