@@ -1,7 +1,5 @@
 using System.Numerics;
 using KeenEyes.Graphics.Backend;
-using Silk.NET.OpenGL;
-using Silk.NET.Windowing;
 
 namespace KeenEyes.Graphics;
 
@@ -89,8 +87,9 @@ public sealed class GraphicsContext : IDisposable
     private readonly MeshManager meshManager;
     private readonly TextureManager textureManager;
     private readonly ShaderManager shaderManager;
+    private readonly IGraphicsWindow? injectedWindow;
 
-    private IWindow? window;
+    private IGraphicsWindow? window;
     private IGraphicsDevice? device;
     private bool disposed;
     private bool initialized;
@@ -118,7 +117,7 @@ public sealed class GraphicsContext : IDisposable
     /// <summary>
     /// Gets the current window, if initialized.
     /// </summary>
-    public IWindow? Window => window;
+    public IGraphicsWindow? Window => window;
 
     /// <summary>
     /// Gets the graphics device, if initialized.
@@ -160,9 +159,21 @@ public sealed class GraphicsContext : IDisposable
     /// <param name="world">The ECS world.</param>
     /// <param name="config">The graphics configuration.</param>
     public GraphicsContext(World world, GraphicsConfig? config = null)
+        : this(world, config, null)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new graphics context with an injected window (for testing).
+    /// </summary>
+    /// <param name="world">The ECS world.</param>
+    /// <param name="config">The graphics configuration.</param>
+    /// <param name="window">The graphics window to use. If null, a real window will be created.</param>
+    internal GraphicsContext(World world, GraphicsConfig? config, IGraphicsWindow? window)
     {
         this.world = world;
         this.config = config ?? new GraphicsConfig();
+        injectedWindow = window;
         meshManager = new MeshManager();
         textureManager = new TextureManager();
         shaderManager = new ShaderManager();
@@ -182,27 +193,16 @@ public sealed class GraphicsContext : IDisposable
             return;
         }
 
-        var windowOptions = WindowOptions.Default with
-        {
-            Size = new Silk.NET.Maths.Vector2D<int>(config.WindowWidth, config.WindowHeight),
-            Title = config.WindowTitle,
-            VSync = config.VSync,
-            WindowBorder = config.Resizable ? WindowBorder.Resizable : WindowBorder.Fixed,
-            WindowState = config.Fullscreen ? WindowState.Fullscreen : WindowState.Normal,
-            FramesPerSecond = config.TargetFps > 0 ? config.TargetFps : 0,
-            UpdatesPerSecond = config.TargetFps > 0 ? config.TargetFps : 0
-        };
-
-        window = Silk.NET.Windowing.Window.Create(windowOptions);
-        window.Load += OnWindowLoad;
-        window.Resize += OnWindowResize;
-        window.Closing += OnWindowClosing;
+        // Use injected window (for testing) or create a real one
+        window = injectedWindow ?? new SilkNetWindow(config);
+        window.OnLoad += OnWindowLoad;
+        window.OnResize += OnWindowResize;
+        window.OnClosing += OnWindowClosing;
     }
 
     private void OnWindowLoad()
     {
-        var gl = window!.CreateOpenGL();
-        device = new OpenGLDevice(gl);
+        device = window!.CreateDevice();
 
         // Initialize resource managers with the device
         meshManager.Device = device;
@@ -216,10 +216,10 @@ public sealed class GraphicsContext : IDisposable
         OnLoad?.Invoke();
     }
 
-    private void OnWindowResize(Silk.NET.Maths.Vector2D<int> size)
+    private void OnWindowResize(int width, int height)
     {
-        device?.Viewport(0, 0, (uint)size.X, (uint)size.Y);
-        OnResize?.Invoke(size.X, size.Y);
+        device?.Viewport(0, 0, (uint)width, (uint)height);
+        OnResize?.Invoke(width, height);
     }
 
     private void OnWindowClosing()
