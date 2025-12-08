@@ -1013,6 +1013,65 @@ public class SerializationTests
         Assert.Equal(original.Timestamp, copy.Timestamp);
     }
 
+    [Fact]
+    public void RestoreSnapshot_WithoutJsonRoundTrip_RestoresDirectly()
+    {
+        // Create snapshot and restore directly without JSON serialization
+        using var world1 = new World();
+        world1.Spawn("Direct")
+            .With(new SerializablePosition { X = 42, Y = 84 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1);
+
+        // Restore directly without JSON round-trip - data is already correct type
+        using var world2 = new World();
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, snapshot);
+
+        Assert.Single(entityMap);
+        var entity = world2.GetEntityByName("Direct");
+        Assert.True(entity.IsValid);
+
+        ref var pos = ref world2.Get<SerializablePosition>(entity);
+        Assert.Equal(42f, pos.X);
+        Assert.Equal(84f, pos.Y);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithInvalidDataType_ThrowsInvalidOperationException()
+    {
+        // Create a snapshot with a data type that can't be converted
+        var invalidSnapshot = new WorldSnapshot
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Entities = new List<SerializedEntity>
+            {
+                new SerializedEntity
+                {
+                    Id = 1,
+                    Name = "Invalid",
+                    Components = new List<SerializedComponent>
+                    {
+                        new SerializedComponent
+                        {
+                            TypeName = typeof(SerializablePosition).AssemblyQualifiedName!,
+                            Data = "not a position", // Wrong type - string instead of Position or JsonElement
+                            IsTag = false
+                        }
+                    }
+                }
+            },
+            Singletons = new List<SerializedSingleton>()
+        };
+
+        using var world = new World();
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            SnapshotManager.RestoreSnapshot(world, invalidSnapshot));
+
+        Assert.Contains("Cannot convert data", ex.Message);
+    }
+
     #endregion
 }
 

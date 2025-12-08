@@ -312,12 +312,7 @@ public static class SnapshotManager
 
     private static object? ConvertComponentData(object data, Type targetType, IComponentSerializer? serializer)
     {
-        if (data is null)
-        {
-            return null;
-        }
-
-        // If the data is already the correct type, return it
+        // If the data is already the correct type, return it (direct restore without JSON round-trip)
         if (targetType.IsInstanceOfType(data))
         {
             return data;
@@ -351,14 +346,10 @@ public static class SnapshotManager
             return JsonSerializer.Deserialize(jsonElement.GetRawText(), targetType, defaultJsonOptions);
         }
 
-        // Try direct conversion for primitive types
-        try
-        {
-            return Convert.ChangeType(data, targetType);
-        }
-        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
-        {
-            return null;
-        }
+        // Data is neither the target type nor JsonElement
+        // This can only happen with manually constructed snapshots using unsupported data types
+        throw new InvalidOperationException(
+            $"Cannot convert data of type '{data.GetType().FullName}' to '{targetType.FullName}'. " +
+            "Data must be either the target type or a JsonElement from JSON deserialization.");
     }
 }
