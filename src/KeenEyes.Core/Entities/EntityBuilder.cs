@@ -7,6 +7,7 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
 {
     private readonly World world;
     private readonly List<(ComponentInfo Info, object Data)> components = [];
+    private readonly List<string> stringTags = [];
     private string? name;
 
     internal EntityBuilder(World world)
@@ -47,12 +48,64 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     }
 
     /// <summary>
+    /// Adds a string tag to be applied to the entity when built.
+    /// </summary>
+    /// <param name="tag">The string tag to add. Cannot be null, empty, or whitespace.</param>
+    /// <returns>This builder for method chaining.</returns>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
+    /// <remarks>
+    /// <para>
+    /// String tags provide runtime-flexible tagging that complements type-safe tag components.
+    /// Use <see cref="WithTag{T}()"/> for compile-time type-safe tags, or this method for
+    /// runtime-determined tags from data files, editors, or dynamic content.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var enemy = world.Spawn()
+    ///     .With(new Position { X = 0, Y = 0 })
+    ///     .WithTag("Enemy")
+    ///     .WithTag("Hostile")
+    ///     .Build();
+    ///
+    /// // Check tags later
+    /// if (world.HasTag(enemy, "Hostile"))
+    /// {
+    ///     // Handle hostile entity
+    /// }
+    /// </code>
+    /// </example>
+    /// <seealso cref="WithTag{T}()"/>
+    /// <seealso cref="World.AddTag(Entity, string)"/>
+    public EntityBuilder WithTag(string tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+
+        if (string.IsNullOrWhiteSpace(tag))
+        {
+            throw new ArgumentException("Tag cannot be empty or whitespace.", nameof(tag));
+        }
+
+        stringTags.Add(tag);
+        return this;
+    }
+
+    /// <summary>
     /// Builds the entity and adds it to the world.
     /// </summary>
     /// <returns>The created entity.</returns>
     public Entity Build()
     {
-        return world.CreateEntity(components, name);
+        var entity = world.CreateEntity(components, name);
+
+        // Apply string tags after entity creation
+        foreach (var tag in stringTags)
+        {
+            world.AddTag(entity, tag);
+        }
+
+        return entity;
     }
 
     // Explicit interface implementations for non-generic interface
@@ -62,12 +115,14 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     internal void Reset()
     {
         components.Clear();
+        stringTags.Clear();
         name = null;
     }
 
     internal void Reset(string? entityName)
     {
         components.Clear();
+        stringTags.Clear();
         name = entityName;
     }
 }

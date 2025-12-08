@@ -11,6 +11,9 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
 {
     private readonly World world;
     private readonly IReadOnlyList<Archetype> archetypes;
+    private readonly IReadOnlyList<string> withStringTags;
+    private readonly IReadOnlyList<string> withoutStringTags;
+    private readonly bool hasStringTagFilters;
     private int archetypeIndex;
     private int entityIndex;
 
@@ -18,6 +21,9 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
     {
         this.world = world;
         archetypes = world.GetMatchingArchetypes(description);
+        withStringTags = description.WithStringTags;
+        withoutStringTags = description.WithoutStringTags;
+        hasStringTagFilters = description.HasStringTagFilters;
         archetypeIndex = 0;
         entityIndex = -1;
     }
@@ -47,6 +53,15 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
 
             if (entityIndex < archetype.Count)
             {
+                // Check string tag filters if any
+                if (hasStringTagFilters)
+                {
+                    var entity = archetype.GetEntity(entityIndex);
+                    if (!MatchesStringTags(entity))
+                    {
+                        continue; // Skip this entity, try next
+                    }
+                }
                 return true;
             }
 
@@ -56,6 +71,29 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
         }
 
         return false;
+    }
+
+    private readonly bool MatchesStringTags(Entity entity)
+    {
+        // Check required tags
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // Check excluded tags
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
@@ -82,6 +120,9 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
 {
     private readonly World world;
     private readonly IReadOnlyList<Archetype> archetypes;
+    private readonly IReadOnlyList<string> withStringTags;
+    private readonly IReadOnlyList<string> withoutStringTags;
+    private readonly bool hasStringTagFilters;
     private int archetypeIndex;
     private int entityIndex;
 
@@ -89,6 +130,9 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
     {
         this.world = world;
         archetypes = world.GetMatchingArchetypes(description);
+        withStringTags = description.WithStringTags;
+        withoutStringTags = description.WithoutStringTags;
+        hasStringTagFilters = description.HasStringTagFilters;
         archetypeIndex = 0;
         entityIndex = -1;
     }
@@ -118,6 +162,15 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
 
             if (entityIndex < archetype.Count)
             {
+                // Check string tag filters if any
+                if (hasStringTagFilters)
+                {
+                    var entity = archetype.GetEntity(entityIndex);
+                    if (!MatchesStringTags(entity))
+                    {
+                        continue; // Skip this entity, try next
+                    }
+                }
                 return true;
             }
 
@@ -127,6 +180,29 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
         }
 
         return false;
+    }
+
+    private readonly bool MatchesStringTags(Entity entity)
+    {
+        // Check required tags
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // Check excluded tags
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
@@ -154,6 +230,9 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
 {
     private readonly World world;
     private readonly IReadOnlyList<Archetype> archetypes;
+    private readonly IReadOnlyList<string> withStringTags;
+    private readonly IReadOnlyList<string> withoutStringTags;
+    private readonly bool hasStringTagFilters;
     private int archetypeIndex;
     private int entityIndex;
 
@@ -161,6 +240,9 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
     {
         this.world = world;
         archetypes = world.GetMatchingArchetypes(description);
+        withStringTags = description.WithStringTags;
+        withoutStringTags = description.WithoutStringTags;
+        hasStringTagFilters = description.HasStringTagFilters;
         archetypeIndex = 0;
         entityIndex = -1;
     }
@@ -190,6 +272,15 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
 
             if (entityIndex < archetype.Count)
             {
+                // Check string tag filters if any
+                if (hasStringTagFilters)
+                {
+                    var entity = archetype.GetEntity(entityIndex);
+                    if (!MatchesStringTags(entity))
+                    {
+                        continue; // Skip this entity, try next
+                    }
+                }
                 return true;
             }
 
@@ -199,6 +290,29 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
         }
 
         return false;
+    }
+
+    private readonly bool MatchesStringTags(Entity entity)
+    {
+        // Check required tags
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // Check excluded tags
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
@@ -227,6 +341,9 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
 {
     private readonly World world;
     private readonly IReadOnlyList<Archetype> archetypes;
+    private readonly IReadOnlyList<string> withStringTags;
+    private readonly IReadOnlyList<string> withoutStringTags;
+    private readonly bool hasStringTagFilters;
     private int archetypeIndex;
     private int entityIndex;
 
@@ -234,6 +351,9 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
     {
         this.world = world;
         archetypes = world.GetMatchingArchetypes(description);
+        withStringTags = description.WithStringTags;
+        withoutStringTags = description.WithoutStringTags;
+        hasStringTagFilters = description.HasStringTagFilters;
         archetypeIndex = 0;
         entityIndex = -1;
     }
@@ -263,6 +383,15 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
 
             if (entityIndex < archetype.Count)
             {
+                // Check string tag filters if any
+                if (hasStringTagFilters)
+                {
+                    var entity = archetype.GetEntity(entityIndex);
+                    if (!MatchesStringTags(entity))
+                    {
+                        continue; // Skip this entity, try next
+                    }
+                }
                 return true;
             }
 
@@ -272,6 +401,29 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
         }
 
         return false;
+    }
+
+    private readonly bool MatchesStringTags(Entity entity)
+    {
+        // Check required tags
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // Check excluded tags
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
