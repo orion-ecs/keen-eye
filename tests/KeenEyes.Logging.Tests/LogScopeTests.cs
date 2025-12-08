@@ -1,3 +1,5 @@
+using KeenEyes.Logging.Providers;
+
 namespace KeenEyes.Logging.Tests;
 
 public class LogScopeTests
@@ -67,5 +69,81 @@ public class LogScopeTests
         // We test this by logging and checking the merged properties
         inner.Name.ShouldBe("Inner");
         outer.Name.ShouldBe("Outer");
+    }
+
+    [Fact]
+    public void NestedScope_ParentHasProperties_ChildHasNull_InheritsParentProperties()
+    {
+        using var manager = new LogManager();
+        var provider = new TestLogProvider();
+        manager.AddProvider(provider);
+
+        using (manager.BeginScope("Parent", new Dictionary<string, object?> { ["ParentKey"] = "ParentValue" }))
+        using (manager.BeginScope("Child", null))
+        {
+            manager.Info("Test", "Message");
+        }
+
+        provider.Messages[0].Properties.ShouldNotBeNull();
+        provider.Messages[0].Properties!["ParentKey"].ShouldBe("ParentValue");
+    }
+
+    [Fact]
+    public void NestedScope_ParentHasNullProperties_ChildHasProperties_UsesChildProperties()
+    {
+        using var manager = new LogManager();
+        var provider = new TestLogProvider();
+        manager.AddProvider(provider);
+
+        using (manager.BeginScope("Parent", null))
+        using (manager.BeginScope("Child", new Dictionary<string, object?> { ["ChildKey"] = "ChildValue" }))
+        {
+            manager.Info("Test", "Message");
+        }
+
+        provider.Messages[0].Properties.ShouldNotBeNull();
+        provider.Messages[0].Properties!["ChildKey"].ShouldBe("ChildValue");
+    }
+
+    [Fact]
+    public void NestedScope_BothHaveProperties_MergesWithChildPrecedence()
+    {
+        using var manager = new LogManager();
+        var provider = new TestLogProvider();
+        manager.AddProvider(provider);
+
+        using (manager.BeginScope("Parent", new Dictionary<string, object?> { ["Key"] = "Parent", ["OnlyParent"] = "P" }))
+        using (manager.BeginScope("Child", new Dictionary<string, object?> { ["Key"] = "Child", ["OnlyChild"] = "C" }))
+        {
+            manager.Info("Test", "Message");
+        }
+
+        var props = provider.Messages[0].Properties;
+        props.ShouldNotBeNull();
+        props!["Key"].ShouldBe("Child"); // Child overrides
+        props["OnlyParent"].ShouldBe("P");
+        props["OnlyChild"].ShouldBe("C");
+    }
+
+    [Fact]
+    public void Scope_DisposingOutOfOrder_HandlesGracefully()
+    {
+        using var manager = new LogManager();
+        var provider = new TestLogProvider();
+        manager.AddProvider(provider);
+
+        var outer = manager.BeginScope("Outer", new Dictionary<string, object?> { ["Outer"] = "1" });
+        var inner = manager.BeginScope("Inner", new Dictionary<string, object?> { ["Inner"] = "2" });
+
+        // Dispose outer first (out of order)
+        outer.Dispose();
+
+        // Inner scope should still work
+        manager.Info("Test", "Message");
+
+        // The inner scope properties should still be there
+        provider.Messages[0].Properties.ShouldNotBeNull();
+
+        inner.Dispose();
     }
 }

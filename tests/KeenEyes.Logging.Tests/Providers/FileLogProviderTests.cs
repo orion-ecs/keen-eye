@@ -245,4 +245,152 @@ public class FileLogProviderTests : IDisposable
         var content = File.ReadAllText(filePath);
         content.ShouldContain(expectedAbbreviation);
     }
+
+    #region Sanitization Tests
+
+    [Fact]
+    public void Log_WithNewlineInMessage_SanitizesNewlines()
+    {
+        var filePath = Path.Combine(testDirectory, "sanitize_test.log");
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log(LogLevel.Info, "Test", "Line1\nLine2", null);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("Line1\\nLine2");
+    }
+
+    [Fact]
+    public void Log_WithCarriageReturnInMessage_SanitizesCarriageReturns()
+    {
+        var filePath = Path.Combine(testDirectory, "sanitize_cr_test.log");
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log(LogLevel.Info, "Test", "Line1\rLine2", null);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("Line1\\rLine2");
+    }
+
+    [Fact]
+    public void Log_WithCrLfInMessage_SanitizesCrLf()
+    {
+        var filePath = Path.Combine(testDirectory, "sanitize_crlf_test.log");
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log(LogLevel.Info, "Test", "Line1\r\nLine2", null);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("Line1\\r\\nLine2");
+    }
+
+    [Fact]
+    public void Log_WithNewlineInCategory_SanitizesCategory()
+    {
+        var filePath = Path.Combine(testDirectory, "sanitize_cat_test.log");
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log(LogLevel.Info, "Cat\negory", "Message", null);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("[Cat\\negory]");
+    }
+
+    [Fact]
+    public void Log_WithNewlineInPropertyValue_SanitizesPropertyValue()
+    {
+        var filePath = Path.Combine(testDirectory, "sanitize_prop_test.log");
+        var properties = new Dictionary<string, object?> { ["Key"] = "Value\nWith\nNewlines" };
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log(LogLevel.Info, "Test", "Message", properties);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("Key=Value\\nWith\\nNewlines");
+    }
+
+    #endregion
+
+    #region Edge Cases
+
+    [Fact]
+    public void Log_WithEmptyMessage_HandlesGracefully()
+    {
+        var filePath = Path.Combine(testDirectory, "empty_msg_test.log");
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            Should.NotThrow(() => provider.Log(LogLevel.Info, "Test", "", null));
+            provider.Flush();
+        }
+    }
+
+    [Fact]
+    public void Log_WithMultipleProperties_FormatsAllProperties()
+    {
+        var filePath = Path.Combine(testDirectory, "multi_prop_test.log");
+        var properties = new Dictionary<string, object?>
+        {
+            ["Key1"] = "Value1",
+            ["Key2"] = "Value2"
+        };
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log(LogLevel.Info, "Test", "Message", properties);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("Key1=Value1");
+        content.ShouldContain("Key2=Value2");
+    }
+
+    [Fact]
+    public void Log_WithNullPropertyValue_FormatsAsNull()
+    {
+        var filePath = Path.Combine(testDirectory, "null_prop_test.log");
+        var properties = new Dictionary<string, object?> { ["NullKey"] = null };
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log(LogLevel.Info, "Test", "Message", properties);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("NullKey=null");
+    }
+
+    [Fact]
+    public void Log_WithUnknownLevel_FormatsAsQuestionMarks()
+    {
+        var filePath = Path.Combine(testDirectory, "unknown_level_test.log");
+
+        using (var provider = new FileLogProvider(filePath))
+        {
+            provider.Log((LogLevel)99, "Test", "Message", null);
+            provider.Flush();
+        }
+
+        var content = File.ReadAllText(filePath);
+        content.ShouldContain("???");
+    }
+
+    #endregion
 }
