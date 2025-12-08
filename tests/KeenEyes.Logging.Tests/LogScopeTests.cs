@@ -146,4 +146,39 @@ public class LogScopeTests
 
         inner.Dispose();
     }
+
+    [Fact]
+    public void Scope_PropertiesProperty_ReturnsPassedProperties()
+    {
+        using var manager = new LogManager();
+        var props = new Dictionary<string, object?> { ["Key"] = "Value" };
+
+        using var scope = manager.BeginScope("Test", props);
+
+        // Access internal Properties property directly
+        scope.Properties.ShouldBe(props);
+    }
+
+    [Fact]
+    public void Scope_PropertiesProperty_ReturnsNullWhenNoPropertiesPassed()
+    {
+        using var manager = new LogManager();
+
+        using var scope = manager.BeginScope("Test", null);
+
+        scope.Properties.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Scope_ParentProperty_ReturnsParentScope()
+    {
+        using var manager = new LogManager();
+
+        using var outer = manager.BeginScope("Outer");
+        using var inner = manager.BeginScope("Inner");
+
+        // Access internal Parent property directly
+        inner.Parent.ShouldBe(outer);
+        outer.Parent.ShouldBeNull();
+    }
 }

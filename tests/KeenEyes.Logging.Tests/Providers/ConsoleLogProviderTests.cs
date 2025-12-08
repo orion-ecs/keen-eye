@@ -362,4 +362,144 @@ public class ConsoleLogProviderTests
     }
 
     #endregion
+
+    #region Colored Output Tests
+
+    [Fact]
+    public void Log_WithColorsEnabled_UsesActualConsoleOut()
+    {
+        // Capture the original console output
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+
+        try
+        {
+            using var capturedOut = new StringWriter();
+            using var capturedError = new StringWriter();
+            Console.SetOut(capturedOut);
+            Console.SetError(capturedError);
+
+            // Create provider using actual Console.Out/Console.Error (default constructor)
+            using var provider = new ConsoleLogProvider();
+
+            // Log at Info level (goes to stdout with colors)
+            provider.Log(LogLevel.Info, "Test", "Colored message", null);
+
+            var written = capturedOut.ToString();
+            written.ShouldContain("Colored message");
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
+    public void Log_WithColorsEnabled_UsesActualConsoleError()
+    {
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+
+        try
+        {
+            using var capturedOut = new StringWriter();
+            using var capturedError = new StringWriter();
+            Console.SetOut(capturedOut);
+            Console.SetError(capturedError);
+
+            using var provider = new ConsoleLogProvider();
+
+            // Log at Error level (goes to stderr with colors)
+            provider.Log(LogLevel.Error, "Test", "Error with colors", null);
+
+            var written = capturedError.ToString();
+            written.ShouldContain("Error with colors");
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Theory]
+    [InlineData(LogLevel.Trace)]
+    [InlineData(LogLevel.Debug)]
+    [InlineData(LogLevel.Info)]
+    [InlineData(LogLevel.Warning)]
+    [InlineData(LogLevel.Error)]
+    [InlineData(LogLevel.Fatal)]
+    public void Log_AllLevels_WithColorsEnabled_CoverColorMapping(LogLevel level)
+    {
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+
+        try
+        {
+            using var capturedOut = new StringWriter();
+            using var capturedError = new StringWriter();
+            Console.SetOut(capturedOut);
+            Console.SetError(capturedError);
+
+            using var provider = new ConsoleLogProvider(); // Colors enabled by default
+
+            provider.Log(level, "Test", $"Message at {level}", null);
+
+            // Check appropriate stream received the message
+            var expectedStream = level >= LogLevel.Error ? capturedError : capturedOut;
+            expectedStream.ToString().ShouldContain($"Message at {level}");
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
+    public void Log_WithUnknownLevel_WithColorsEnabled_UsesDefaultColor()
+    {
+        var originalOut = Console.Out;
+        var originalError = Console.Error;
+
+        try
+        {
+            using var capturedOut = new StringWriter();
+            using var capturedError = new StringWriter();
+            Console.SetOut(capturedOut);
+            Console.SetError(capturedError);
+
+            using var provider = new ConsoleLogProvider(); // Colors enabled
+
+            // Unknown level 99 >= Error (4), so goes to error stream
+            provider.Log((LogLevel)99, "Test", "Unknown level colored", null);
+
+            var written = capturedError.ToString();
+            written.ShouldContain("Unknown level colored");
+            written.ShouldContain("???");
+        }
+        finally
+        {
+            Console.SetOut(originalOut);
+            Console.SetError(originalError);
+        }
+    }
+
+    [Fact]
+    public void Log_WithColorsEnabledButCustomWriter_DoesNotUseColors()
+    {
+        // When using custom writers (not Console.Out/Error), colors should be disabled
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var provider = new ConsoleLogProvider(output, error) { UseColors = true };
+
+        // Even though UseColors is true, custom writers should skip color code
+        provider.Log(LogLevel.Info, "Test", "No colors here", null);
+
+        var written = output.ToString();
+        written.ShouldContain("No colors here");
+    }
+
+    #endregion
 }
