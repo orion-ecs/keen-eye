@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Runtime.InteropServices;
+using KeenEyes.Graphics.Backend;
 
 namespace KeenEyes.Graphics;
 
@@ -58,17 +60,17 @@ public struct Vertex
 internal sealed class MeshData : IDisposable
 {
     /// <summary>
-    /// The OpenGL Vertex Array Object handle.
+    /// The Vertex Array Object handle.
     /// </summary>
     public uint Vao { get; init; }
 
     /// <summary>
-    /// The OpenGL Vertex Buffer Object handle.
+    /// The Vertex Buffer Object handle.
     /// </summary>
     public uint Vbo { get; init; }
 
     /// <summary>
-    /// The OpenGL Element Buffer Object handle.
+    /// The Element Buffer Object handle.
     /// </summary>
     public uint Ebo { get; init; }
 
@@ -112,9 +114,9 @@ internal sealed class MeshManager : IDisposable
     private bool disposed;
 
     /// <summary>
-    /// Silk.NET OpenGL context. Set during initialization.
+    /// Graphics device for GPU operations. Set during initialization.
     /// </summary>
-    public Silk.NET.OpenGL.GL? GL { get; set; }
+    public IGraphicsDevice? Device { get; set; }
 
     /// <summary>
     /// Creates a new mesh from vertex and index data.
@@ -124,79 +126,43 @@ internal sealed class MeshManager : IDisposable
     /// <returns>The mesh resource handle.</returns>
     public int CreateMesh(ReadOnlySpan<Vertex> vertices, ReadOnlySpan<uint> indices)
     {
-        if (GL is null)
+        if (Device is null)
         {
-            throw new InvalidOperationException("MeshManager not initialized with GL context");
+            throw new InvalidOperationException("MeshManager not initialized with graphics device");
         }
 
-        uint vao = GL.GenVertexArray();
-        uint vbo = GL.GenBuffer();
-        uint ebo = GL.GenBuffer();
+        uint vao = Device.GenVertexArray();
+        uint vbo = Device.GenBuffer();
+        uint ebo = Device.GenBuffer();
 
-        GL.BindVertexArray(vao);
+        Device.BindVertexArray(vao);
 
         // Upload vertex data
-        GL.BindBuffer(Silk.NET.OpenGL.BufferTargetARB.ArrayBuffer, vbo);
-        unsafe
-        {
-            fixed (Vertex* ptr = vertices)
-            {
-                GL.BufferData(
-                    Silk.NET.OpenGL.BufferTargetARB.ArrayBuffer,
-                    (nuint)(vertices.Length * Vertex.SizeInBytes),
-                    ptr,
-                    Silk.NET.OpenGL.BufferUsageARB.StaticDraw);
-            }
-        }
+        Device.BindBuffer(BufferTarget.ArrayBuffer, vbo);
+        Device.BufferData(BufferTarget.ArrayBuffer, MemoryMarshal.AsBytes(vertices), BufferUsage.StaticDraw);
 
         // Upload index data
-        GL.BindBuffer(Silk.NET.OpenGL.BufferTargetARB.ElementArrayBuffer, ebo);
-        unsafe
-        {
-            fixed (uint* ptr = indices)
-            {
-                GL.BufferData(
-                    Silk.NET.OpenGL.BufferTargetARB.ElementArrayBuffer,
-                    (nuint)(indices.Length * sizeof(uint)),
-                    ptr,
-                    Silk.NET.OpenGL.BufferUsageARB.StaticDraw);
-            }
-        }
+        Device.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
+        Device.BufferData(BufferTarget.ElementArrayBuffer, MemoryMarshal.AsBytes(indices), BufferUsage.StaticDraw);
 
         // Set up vertex attributes
         // Position (location 0)
-        GL.EnableVertexAttribArray(0);
-        unsafe
-        {
-            GL.VertexAttribPointer(0, 3, Silk.NET.OpenGL.VertexAttribPointerType.Float, false,
-                (uint)Vertex.SizeInBytes, (void*)0);
-        }
+        Device.EnableVertexAttribArray(0);
+        Device.VertexAttribPointer(0, 3, VertexAttribType.Float, false, (uint)Vertex.SizeInBytes, 0);
 
         // Normal (location 1)
-        GL.EnableVertexAttribArray(1);
-        unsafe
-        {
-            GL.VertexAttribPointer(1, 3, Silk.NET.OpenGL.VertexAttribPointerType.Float, false,
-                (uint)Vertex.SizeInBytes, (void*)(3 * sizeof(float)));
-        }
+        Device.EnableVertexAttribArray(1);
+        Device.VertexAttribPointer(1, 3, VertexAttribType.Float, false, (uint)Vertex.SizeInBytes, 3 * sizeof(float));
 
         // TexCoord (location 2)
-        GL.EnableVertexAttribArray(2);
-        unsafe
-        {
-            GL.VertexAttribPointer(2, 2, Silk.NET.OpenGL.VertexAttribPointerType.Float, false,
-                (uint)Vertex.SizeInBytes, (void*)(6 * sizeof(float)));
-        }
+        Device.EnableVertexAttribArray(2);
+        Device.VertexAttribPointer(2, 2, VertexAttribType.Float, false, (uint)Vertex.SizeInBytes, 6 * sizeof(float));
 
         // Color (location 3)
-        GL.EnableVertexAttribArray(3);
-        unsafe
-        {
-            GL.VertexAttribPointer(3, 4, Silk.NET.OpenGL.VertexAttribPointerType.Float, false,
-                (uint)Vertex.SizeInBytes, (void*)(8 * sizeof(float)));
-        }
+        Device.EnableVertexAttribArray(3);
+        Device.VertexAttribPointer(3, 4, VertexAttribType.Float, false, (uint)Vertex.SizeInBytes, 8 * sizeof(float));
 
-        GL.BindVertexArray(0);
+        Device.BindVertexArray(0);
 
         var meshData = new MeshData
         {
@@ -240,14 +206,14 @@ internal sealed class MeshManager : IDisposable
 
     private void DeleteMeshData(MeshData data)
     {
-        if (GL is null)
+        if (Device is null)
         {
             return;
         }
 
-        GL.DeleteVertexArray(data.Vao);
-        GL.DeleteBuffer(data.Vbo);
-        GL.DeleteBuffer(data.Ebo);
+        Device.DeleteVertexArray(data.Vao);
+        Device.DeleteBuffer(data.Vbo);
+        Device.DeleteBuffer(data.Ebo);
     }
 
     /// <inheritdoc />

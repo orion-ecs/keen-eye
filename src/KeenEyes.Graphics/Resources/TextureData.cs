@@ -1,3 +1,5 @@
+using KeenEyes.Graphics.Backend;
+
 namespace KeenEyes.Graphics;
 
 /// <summary>
@@ -53,7 +55,7 @@ public enum TextureWrap
 internal sealed class TextureData : IDisposable
 {
     /// <summary>
-    /// The OpenGL texture handle.
+    /// The texture handle.
     /// </summary>
     public uint Handle { get; init; }
 
@@ -102,9 +104,9 @@ internal sealed class TextureManager : IDisposable
     private bool disposed;
 
     /// <summary>
-    /// Silk.NET OpenGL context. Set during initialization.
+    /// Graphics device for GPU operations. Set during initialization.
     /// </summary>
-    public Silk.NET.OpenGL.GL? GL { get; set; }
+    public IGraphicsDevice? Device { get; set; }
 
     /// <summary>
     /// Creates a texture from raw RGBA pixel data.
@@ -122,76 +124,49 @@ internal sealed class TextureManager : IDisposable
         TextureFilter filter = TextureFilter.Linear,
         TextureWrap wrap = TextureWrap.Repeat)
     {
-        if (GL is null)
+        if (Device is null)
         {
-            throw new InvalidOperationException("TextureManager not initialized with GL context");
+            throw new InvalidOperationException("TextureManager not initialized with graphics device");
         }
 
-        uint handle = GL.GenTexture();
-        GL.BindTexture(Silk.NET.OpenGL.TextureTarget.Texture2D, handle);
+        uint handle = Device.GenTexture();
+        Device.BindTexture(Backend.TextureTarget.Texture2D, handle);
 
         // Upload texture data
-        unsafe
-        {
-            fixed (byte* ptr = data)
-            {
-                GL.TexImage2D(
-                    Silk.NET.OpenGL.TextureTarget.Texture2D,
-                    0,
-                    Silk.NET.OpenGL.InternalFormat.Rgba,
-                    (uint)width,
-                    (uint)height,
-                    0,
-                    Silk.NET.OpenGL.PixelFormat.Rgba,
-                    Silk.NET.OpenGL.PixelType.UnsignedByte,
-                    ptr);
-            }
-        }
+        Device.TexImage2D(Backend.TextureTarget.Texture2D, 0, width, height, data);
 
         // Set filtering
         var (minFilter, magFilter) = filter switch
         {
-            TextureFilter.Nearest => (
-                Silk.NET.OpenGL.TextureMinFilter.Nearest,
-                Silk.NET.OpenGL.TextureMagFilter.Nearest),
-            TextureFilter.Linear => (
-                Silk.NET.OpenGL.TextureMinFilter.Linear,
-                Silk.NET.OpenGL.TextureMagFilter.Linear),
-            TextureFilter.Trilinear => (
-                Silk.NET.OpenGL.TextureMinFilter.LinearMipmapLinear,
-                Silk.NET.OpenGL.TextureMagFilter.Linear),
-            _ => (
-                Silk.NET.OpenGL.TextureMinFilter.Linear,
-                Silk.NET.OpenGL.TextureMagFilter.Linear)
+            TextureFilter.Nearest => (TextureMinFilter.Nearest, TextureMagFilter.Nearest),
+            TextureFilter.Linear => (TextureMinFilter.Linear, TextureMagFilter.Linear),
+            TextureFilter.Trilinear => (TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear),
+            _ => (TextureMinFilter.Linear, TextureMagFilter.Linear)
         };
 
-        GL.TexParameter(Silk.NET.OpenGL.TextureTarget.Texture2D,
-            Silk.NET.OpenGL.TextureParameterName.TextureMinFilter, (int)minFilter);
-        GL.TexParameter(Silk.NET.OpenGL.TextureTarget.Texture2D,
-            Silk.NET.OpenGL.TextureParameterName.TextureMagFilter, (int)magFilter);
+        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.MinFilter, (int)minFilter);
+        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.MagFilter, (int)magFilter);
 
         // Set wrapping
         var wrapMode = wrap switch
         {
-            TextureWrap.Repeat => Silk.NET.OpenGL.TextureWrapMode.Repeat,
-            TextureWrap.MirroredRepeat => Silk.NET.OpenGL.TextureWrapMode.MirroredRepeat,
-            TextureWrap.ClampToEdge => Silk.NET.OpenGL.TextureWrapMode.ClampToEdge,
-            TextureWrap.ClampToBorder => Silk.NET.OpenGL.TextureWrapMode.ClampToBorder,
-            _ => Silk.NET.OpenGL.TextureWrapMode.Repeat
+            TextureWrap.Repeat => Backend.TextureWrapMode.Repeat,
+            TextureWrap.MirroredRepeat => Backend.TextureWrapMode.MirroredRepeat,
+            TextureWrap.ClampToEdge => Backend.TextureWrapMode.ClampToEdge,
+            TextureWrap.ClampToBorder => Backend.TextureWrapMode.ClampToBorder,
+            _ => Backend.TextureWrapMode.Repeat
         };
 
-        GL.TexParameter(Silk.NET.OpenGL.TextureTarget.Texture2D,
-            Silk.NET.OpenGL.TextureParameterName.TextureWrapS, (int)wrapMode);
-        GL.TexParameter(Silk.NET.OpenGL.TextureTarget.Texture2D,
-            Silk.NET.OpenGL.TextureParameterName.TextureWrapT, (int)wrapMode);
+        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.WrapS, (int)wrapMode);
+        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.WrapT, (int)wrapMode);
 
         // Generate mipmaps for trilinear filtering
         if (filter == TextureFilter.Trilinear)
         {
-            GL.GenerateMipmap(Silk.NET.OpenGL.TextureTarget.Texture2D);
+            Device.GenerateMipmap(Backend.TextureTarget.Texture2D);
         }
 
-        GL.BindTexture(Silk.NET.OpenGL.TextureTarget.Texture2D, 0);
+        Device.BindTexture(Backend.TextureTarget.Texture2D, 0);
 
         var textureData = new TextureData
         {
@@ -248,7 +223,7 @@ internal sealed class TextureManager : IDisposable
 
     private void DeleteTextureData(TextureData data)
     {
-        GL?.DeleteTexture(data.Handle);
+        Device?.DeleteTexture(data.Handle);
     }
 
     /// <inheritdoc />

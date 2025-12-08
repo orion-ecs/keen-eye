@@ -1,6 +1,6 @@
 using System.Numerics;
+using KeenEyes.Graphics.Backend;
 using KeenEyes.Spatial;
-using Silk.NET.OpenGL;
 
 namespace KeenEyes.Graphics;
 
@@ -35,12 +35,12 @@ public sealed class RenderSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        if (graphics?.GL is null || !graphics.IsInitialized)
+        if (graphics?.Device is null || !graphics.IsInitialized)
         {
             return;
         }
 
-        var gl = graphics.GL;
+        var device = graphics.Device;
 
         // Find active camera
         Camera camera = default;
@@ -81,23 +81,23 @@ public sealed class RenderSystem : SystemBase
         // Clear screen
         if (camera.ClearColorBuffer || camera.ClearDepthBuffer)
         {
-            ClearBufferMask clearMask = 0;
+            ClearMask clearMask = 0;
             if (camera.ClearColorBuffer)
             {
-                gl.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
-                clearMask |= ClearBufferMask.ColorBufferBit;
+                device.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
+                clearMask |= ClearMask.ColorBuffer;
             }
             if (camera.ClearDepthBuffer)
             {
-                clearMask |= ClearBufferMask.DepthBufferBit;
+                clearMask |= ClearMask.DepthBuffer;
             }
-            gl.Clear(clearMask);
+            device.Clear(clearMask);
         }
 
         // Enable depth testing and culling
-        gl.Enable(EnableCap.DepthTest);
-        gl.Enable(EnableCap.CullFace);
-        gl.CullFace(TriangleFace.Back);
+        device.Enable(RenderCapability.DepthTest);
+        device.Enable(RenderCapability.CullFace);
+        device.CullFace(CullFaceMode.Back);
 
         // Collect light data
         Vector3 lightDirection = -Vector3.UnitY;
@@ -169,7 +169,7 @@ public sealed class RenderSystem : SystemBase
 
             if (currentShaderId != shaderId)
             {
-                gl.UseProgram(shaderData.Handle);
+                device.UseProgram(shaderData.Handle);
                 currentShaderId = shaderId;
 
                 // Set per-frame uniforms
@@ -185,8 +185,8 @@ public sealed class RenderSystem : SystemBase
             var textureData = graphics.TextureManager.GetTexture(textureId);
             if (textureData is not null && currentTextureId != textureId)
             {
-                gl.ActiveTexture(TextureUnit.Texture0);
-                gl.BindTexture(TextureTarget.Texture2D, textureData.Handle);
+                device.ActiveTexture(TextureUnit.Texture0);
+                device.BindTexture(TextureTarget.Texture2D, textureData.Handle);
                 graphics.ShaderManager.SetUniform(shaderId, "uTexture", 0);
                 currentTextureId = textureId;
             }
@@ -198,20 +198,13 @@ public sealed class RenderSystem : SystemBase
             graphics.ShaderManager.SetUniform(shaderId, "uEmissive", emissive);
 
             // Draw mesh
-            gl.BindVertexArray(meshData.Vao);
-            unsafe
-            {
-                gl.DrawElements(
-                    PrimitiveType.Triangles,
-                    (uint)meshData.IndexCount,
-                    DrawElementsType.UnsignedInt,
-                    null);
-            }
+            device.BindVertexArray(meshData.Vao);
+            device.DrawElements(PrimitiveType.Triangles, (uint)meshData.IndexCount, IndexType.UnsignedInt);
         }
 
         // Cleanup
-        gl.BindVertexArray(0);
-        gl.UseProgram(0);
+        device.BindVertexArray(0);
+        device.UseProgram(0);
     }
 
     /// <inheritdoc />
