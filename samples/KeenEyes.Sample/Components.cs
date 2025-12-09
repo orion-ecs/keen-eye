@@ -36,6 +36,12 @@ public partial struct Velocity
 /// <summary>
 /// Entity health with current and max values.
 /// </summary>
+/// <remarks>
+/// This component follows ECS principles by containing only data.
+/// Computed properties like Percentage are implemented as extension properties
+/// (see HealthExtensions.cs) to keep the component as pure data while maintaining
+/// convenient access patterns.
+/// </remarks>
 [Component]
 public partial struct Health
 {
@@ -45,9 +51,6 @@ public partial struct Health
     public float Max;
     /// <summary>Whether this entity is immune to damage.</summary>
     public bool Invulnerable;
-
-    /// <summary>Gets the health percentage (0-1).</summary>
-    public readonly float Percentage => Max > 0 ? Current / Max : 0;
 }
 
 /// <summary>
