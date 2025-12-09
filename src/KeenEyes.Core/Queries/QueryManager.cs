@@ -144,8 +144,6 @@ public sealed class QueryManager
     private void OnArchetypeCreated(Archetype archetype)
     {
         // Incremental invalidation: only invalidate queries that could match the new archetype
-        var toInvalidate = new List<QueryDescriptor>();
-
         foreach (var (descriptor, cachedArchetypes) in cache)
         {
             // If the new archetype matches this query, we need to invalidate
