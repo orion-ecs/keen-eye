@@ -57,6 +57,16 @@ foreach (var e in world.Query<Position, Velocity>())
 - [Relationships](relationships.md) - Parent-child entity hierarchies
 - [Events](events.md) - Component and entity lifecycle events
 - [Change Tracking](change-tracking.md) - Track component modifications
+- [Prefabs](prefabs.md) - Reusable entity templates
+- [String Tags](string-tags.md) - Runtime-flexible entity tagging
+- [Component Validation](component-validation.md) - Enforce component constraints
+- [Serialization](serialization.md) - Save and restore world state
+- [Logging](logging.md) - Pluggable logging system
+
+### Libraries
+- [Abstractions](abstractions.md) - Lightweight interfaces for plugin development
+- [Spatial](spatial.md) - 3D transform components with System.Numerics
+- [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
 
 ## Architecture Decisions
 

@@ -1,0 +1,143 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "Microsoft.DotNet.PlatformAbstractions": {
+        "type": "Transitive",
+        "resolved": "3.1.6",
+        "contentHash": "jek4XYaQ/PGUwDKKhwR8K47Uh1189PFzMeLqO83mXrXQVIpARZCcfuDedH50YDTepBkfijCZN5U/vZi++erxtg=="
+      },
+      "Microsoft.Extensions.DependencyModel": {
+        "type": "Transitive",
+        "resolved": "9.0.0",
+        "contentHash": "saxr2XzwgDU77LaQfYFXmddEDRUKHF4DaGMZkNB3qjdVSZlax3//dGJagJkKrGMIPNZs2jVFXITyCCR6UHJNdA=="
+      },
+      "Silk.NET.Core": {
+        "type": "Transitive",
+        "resolved": "2.22.0",
+        "contentHash": "XbDilPmvsQIrvxZkeVCNNX3LyRtA3hN6UykAiyZjlu/JkYh68U3WQummpP+j7jsxlX8s/pOrrU3vbN8LnMl0VA==",
+        "dependencies": {
+          "Microsoft.DotNet.PlatformAbstractions": "3.1.6",
+          "Microsoft.Extensions.DependencyModel": "8.0.0"
+        }
+      },
+      "Silk.NET.GLFW": {
+        "type": "Transitive",
+        "resolved": "2.22.0",
+        "contentHash": "I1u6CmwwtD+5OIHditbMBVHRQUHZWhfW3Z38mvydxwkZpAvjs5BCxyen6ecOVpbYD6I0EOjZ42M3IsaZbwiYUg==",
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0",
+          "Ultz.Native.GLFW": "3.4.0"
+        }
+      },
+      "Silk.NET.Input.Common": {
+        "type": "Transitive",
+        "resolved": "2.22.0",
+        "contentHash": "DZy30akJABBmTnn8OICik0TFEuXrkd7YCQvoq+oh50eJzXt8JgEYYa+sJYBib/Phs5WULZg/QR7fM8Gi1G3tXg==",
+        "dependencies": {
+          "Silk.NET.Windowing.Common": "2.22.0"
+        }
+      },
+      "Silk.NET.Input.Glfw": {
+        "type": "Transitive",
+        "resolved": "2.22.0",
+        "contentHash": "LZPZT1e/RxnjKfkqlp2Wp8KJFP1Av/ErTCZ00EzZpFR1lhUSBgSmgJwXg6XlWoEJHyeJcsXV688zjoEe6YW0BA==",
+        "dependencies": {
+          "Silk.NET.Input.Common": "2.22.0",
+          "Silk.NET.Windowing.Glfw": "2.22.0"
+        }
+      },
+      "Silk.NET.Windowing.Common": {
+        "type": "Transitive",
+        "resolved": "2.22.0",
+        "contentHash": "ynasHSQ4jGrmpn/07UagE3qVNRLzWvg+fbM8uHI0d5LF95y++Kuno42QLkP/UEruC1YovI+NRhMfGJy0gDQaZg==",
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0",
+          "Silk.NET.Maths": "2.22.0"
+        }
+      },
+      "Silk.NET.Windowing.Glfw": {
+        "type": "Transitive",
+        "resolved": "2.22.0",
+        "contentHash": "hBNxNSLvx/jdfvbU6oCsXcgLfqf9hMlEc6Mq/rllJ0eUTLloacuOZHTM8V702QGf7hOR+Mo4bTFqTqBnC0CM7g==",
+        "dependencies": {
+          "Silk.NET.GLFW": "2.22.0",
+          "Silk.NET.Windowing.Common": "2.22.0"
+        }
+      },
+      "Ultz.Native.GLFW": {
+        "type": "Transitive",
+        "resolved": "3.4.0",
+        "contentHash": "Iy22JopynbOJ32vA0lBhFEzGi65GQJBuJHYBYRBpydrDpNoTiHnjIXfA65Gu+8qsOr/ZEoIF8r9aHCgAXuO6DA=="
+      },
+      "keeneyes.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Generators.Attributes": "[1.0.0, )"
+        }
+      },
+      "keeneyes.core": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.generators.attributes": {
+        "type": "Project"
+      },
+      "keeneyes.graphics": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Spatial": "[1.0.0, )",
+          "Silk.NET.Input": "[2.22.0, )",
+          "Silk.NET.Maths": "[2.22.0, )",
+          "Silk.NET.OpenGL": "[2.22.0, )",
+          "Silk.NET.Windowing": "[2.22.0, )"
+        }
+      },
+      "keeneyes.spatial": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Core": "[1.0.0, )"
+        }
+      },
+      "Silk.NET.Input": {
+        "type": "CentralTransitive",
+        "requested": "[2.22.0, )",
+        "resolved": "2.22.0",
+        "contentHash": "1gqbKHrKpBv2Vk983kVpMqXL4Uj36NaUIQ2YbQosFVa3pXJE8UMGiWqKtaeoMqnzItusZ1WYgDHKge37EvNm/w==",
+        "dependencies": {
+          "Silk.NET.Input.Common": "2.22.0",
+          "Silk.NET.Input.Glfw": "2.22.0"
+        }
+      },
+      "Silk.NET.Maths": {
+        "type": "CentralTransitive",
+        "requested": "[2.22.0, )",
+        "resolved": "2.22.0",
+        "contentHash": "W9b5UlUGCu5Ywb5f8ZyIWJ475ucY+mT/nEiSTo3JH098VxHaZS/02bYr9f29VWBaJhh3DwMkfxQvgTyXzTrHyw=="
+      },
+      "Silk.NET.OpenGL": {
+        "type": "CentralTransitive",
+        "requested": "[2.22.0, )",
+        "resolved": "2.22.0",
+        "contentHash": "AmbtflPvaGWw7fHEHrcFTd54OTAj0bemzx4WV2ELJdW2NBPSvtyz31nhyuBVTml20+NtW4Z3yhDGUpM6uouVDQ==",
+        "dependencies": {
+          "Silk.NET.Core": "2.22.0",
+          "Silk.NET.Maths": "2.22.0"
+        }
+      },
+      "Silk.NET.Windowing": {
+        "type": "CentralTransitive",
+        "requested": "[2.22.0, )",
+        "resolved": "2.22.0",
+        "contentHash": "yKGe/8REdm+T43LdtfUpFUx9eQARwx6wTmEoJ2bANVGQPCvWYC2Qi1+haT6n63dyNIX+iJWKg4++F4TFjg0/Fw==",
+        "dependencies": {
+          "Silk.NET.Windowing.Common": "2.22.0",
+          "Silk.NET.Windowing.Glfw": "2.22.0"
+        }
+      }
+    }
+  }
+}
