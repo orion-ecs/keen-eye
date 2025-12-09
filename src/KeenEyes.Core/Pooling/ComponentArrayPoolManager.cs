@@ -18,7 +18,7 @@ namespace KeenEyes;
 /// Always track the actual count of elements separately from the array length.
 /// </para>
 /// </remarks>
-internal sealed class ComponentArrayPoolManager
+public sealed class ComponentArrayPoolManager
 {
     private long totalRented;
     private long totalReturned;
