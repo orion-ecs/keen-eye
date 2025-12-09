@@ -9,6 +9,10 @@ namespace KeenEyes.Testing;
 /// in unit tests. They follow FluentAssertions-style patterns and throw
 /// descriptive exceptions on failure.
 /// </para>
+/// <para>
+/// The assertions accept <see cref="IWorld"/> for maximum flexibility, allowing
+/// them to work with any world implementation.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -29,7 +33,7 @@ public static class EntityAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The entity for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when the entity is not alive.</exception>
-    public static Entity ShouldBeAlive(this Entity entity, World world, string? because = null)
+    public static Entity ShouldBeAlive(this Entity entity, IWorld world, string? because = null)
     {
         ArgumentNullException.ThrowIfNull(world);
 
@@ -65,7 +69,7 @@ public static class EntityAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The entity for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when the entity is still alive.</exception>
-    public static Entity ShouldBeDead(this Entity entity, World world, string? because = null)
+    public static Entity ShouldBeDead(this Entity entity, IWorld world, string? because = null)
     {
         ArgumentNullException.ThrowIfNull(world);
 
@@ -102,7 +106,7 @@ public static class EntityAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The entity for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when the entity does not have the component.</exception>
-    public static Entity ShouldHaveComponent<T>(this Entity entity, World world, string? because = null)
+    public static Entity ShouldHaveComponent<T>(this Entity entity, IWorld world, string? because = null)
         where T : struct, IComponent
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -142,7 +146,7 @@ public static class EntityAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The entity for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when the entity has the component.</exception>
-    public static Entity ShouldNotHaveComponent<T>(this Entity entity, World world, string? because = null)
+    public static Entity ShouldNotHaveComponent<T>(this Entity entity, IWorld world, string? because = null)
         where T : struct, IComponent
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -182,7 +186,7 @@ public static class EntityAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The entity for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when the entity does not have the tag.</exception>
-    public static Entity ShouldHaveTag<T>(this Entity entity, World world, string? because = null)
+    public static Entity ShouldHaveTag<T>(this Entity entity, IWorld world, string? because = null)
         where T : struct, ITagComponent
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -223,7 +227,7 @@ public static class EntityAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The entity for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when the entity has the tag.</exception>
-    public static Entity ShouldNotHaveTag<T>(this Entity entity, World world, string? because = null)
+    public static Entity ShouldNotHaveTag<T>(this Entity entity, IWorld world, string? because = null)
         where T : struct, ITagComponent
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -267,7 +271,7 @@ public static class EntityAssertions
     /// <exception cref="AssertionException">Thrown when the component doesn't match the predicate.</exception>
     public static Entity ShouldHaveComponentMatching<T>(
         this Entity entity,
-        World world,
+        IWorld world,
         Func<T, bool> predicate,
         string? because = null)
         where T : struct, IComponent

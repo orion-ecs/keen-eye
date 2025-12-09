@@ -1,13 +1,18 @@
 namespace KeenEyes.Testing;
 
 /// <summary>
-/// Fluent assertion extensions for <see cref="World"/> validation in tests.
+/// Fluent assertion extensions for <see cref="World"/> and <see cref="IWorld"/> validation in tests.
 /// </summary>
 /// <remarks>
 /// <para>
 /// These extensions provide a fluent, readable syntax for asserting world state
 /// in unit tests. They follow FluentAssertions-style patterns and throw
 /// descriptive exceptions on failure.
+/// </para>
+/// <para>
+/// Query-based assertions accept <see cref="IWorld"/> for maximum flexibility.
+/// Methods that require World-specific features (like plugin checks) accept
+/// the concrete <see cref="World"/> type.
 /// </para>
 /// </remarks>
 /// <example>
@@ -205,7 +210,7 @@ public static class WorldAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The world for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when no matching entities exist.</exception>
-    public static World ShouldContainEntitiesWith<T1>(this World world, string? because = null)
+    public static IWorld ShouldContainEntitiesWith<T1>(this IWorld world, string? because = null)
         where T1 : struct, IComponent
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -229,7 +234,7 @@ public static class WorldAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The world for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when no matching entities exist.</exception>
-    public static World ShouldContainEntitiesWith<T1, T2>(this World world, string? because = null)
+    public static IWorld ShouldContainEntitiesWith<T1, T2>(this IWorld world, string? because = null)
         where T1 : struct, IComponent
         where T2 : struct, IComponent
     {
@@ -253,7 +258,7 @@ public static class WorldAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The world for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when matching entities exist.</exception>
-    public static World ShouldNotContainEntitiesWith<T1>(this World world, string? because = null)
+    public static IWorld ShouldNotContainEntitiesWith<T1>(this IWorld world, string? because = null)
         where T1 : struct, IComponent
     {
         ArgumentNullException.ThrowIfNull(world);
@@ -278,7 +283,7 @@ public static class WorldAssertions
     /// <param name="because">Optional reason for the assertion.</param>
     /// <returns>The world for method chaining.</returns>
     /// <exception cref="AssertionException">Thrown when the count doesn't match.</exception>
-    public static World ShouldContainExactlyWith<T1>(this World world, int expectedCount, string? because = null)
+    public static IWorld ShouldContainExactlyWith<T1>(this IWorld world, int expectedCount, string? because = null)
         where T1 : struct, IComponent
     {
         ArgumentNullException.ThrowIfNull(world);
