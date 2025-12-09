@@ -36,7 +36,7 @@ namespace KeenEyes;
 /// }
 /// </code>
 /// </example>
-public abstract class SystemBase : ISystem
+public abstract class SystemBase : ISystem, ISystemLifecycle
 {
     private World? world;
     private bool enabled = true;
@@ -128,6 +128,12 @@ public abstract class SystemBase : ISystem
     /// </summary>
     /// <param name="deltaTime">The time elapsed since the last update.</param>
     internal void InvokeAfterUpdate(float deltaTime) => OnAfterUpdate(deltaTime);
+
+    /// <inheritdoc />
+    void ISystemLifecycle.OnBeforeUpdate(float deltaTime) => OnBeforeUpdate(deltaTime);
+
+    /// <inheritdoc />
+    void ISystemLifecycle.OnAfterUpdate(float deltaTime) => OnAfterUpdate(deltaTime);
 
     /// <inheritdoc />
     public abstract void Update(float deltaTime);
