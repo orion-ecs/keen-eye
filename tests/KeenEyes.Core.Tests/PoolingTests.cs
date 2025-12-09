@@ -335,8 +335,10 @@ public class PoolingTests
 
     private struct TestVelocity : IComponent
     {
+#pragma warning disable CS0649 // Field is never assigned - only used for type registration tests
         public float X;
         public float Y;
+#pragma warning restore CS0649
 
         public TestVelocity() { }
     }
