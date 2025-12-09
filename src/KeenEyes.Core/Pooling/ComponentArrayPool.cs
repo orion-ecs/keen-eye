@@ -80,12 +80,50 @@ public static class ComponentArrayPool<T> where T : struct
 
 /// <summary>
 /// Non-generic helper for ComponentArrayPool operations.
-/// Provides reflection-based access for dynamic component types.
+/// Provides AOT-compatible access for dynamic component types using explicit registration.
 /// </summary>
+/// <remarks>
+/// <para>
+/// This class uses explicit delegate registration to avoid reflection, making it compatible with
+/// Native AOT compilation. Component types must be registered via <see cref="Register{T}"/>
+/// before using the non-generic Rent/Return methods.
+/// </para>
+/// <para>
+/// For AOT scenarios, call <see cref="Register{T}"/> during startup for all component types
+/// that will be used dynamically. Generic <see cref="ComponentArrayPool{T}"/> can be used
+/// directly without registration.
+/// </para>
+/// </remarks>
 public static class ComponentArrayPool
 {
-    private static readonly Dictionary<Type, object> rentMethods = [];
-    private static readonly Dictionary<Type, object> returnMethods = [];
+    private delegate Array RentDelegate(int minimumLength);
+    private delegate void ReturnDelegate(Array array, bool clearArray);
+
+    private static readonly Dictionary<Type, RentDelegate> rentDelegates = [];
+    private static readonly Dictionary<Type, ReturnDelegate> returnDelegates = [];
+    private static readonly object lockObj = new();
+
+    /// <summary>
+    /// Registers a component type for non-generic pool access.
+    /// </summary>
+    /// <typeparam name="T">The component type to register.</typeparam>
+    /// <remarks>
+    /// This method should be called during initialization for all component types that will
+    /// be accessed via the non-generic <see cref="Rent"/> and <see cref="Return"/> methods.
+    /// This is required for AOT compatibility.
+    /// </remarks>
+    public static void Register<T>() where T : struct
+    {
+        var type = typeof(T);
+        lock (lockObj)
+        {
+            if (!rentDelegates.ContainsKey(type))
+            {
+                rentDelegates[type] = static minLength => ComponentArrayPool<T>.Rent(minLength);
+                returnDelegates[type] = static (array, clear) => ComponentArrayPool<T>.Return((T[])array, clear);
+            }
+        }
+    }
 
     /// <summary>
     /// Rents an array for the specified component type.
@@ -93,11 +131,24 @@ public static class ComponentArrayPool
     /// <param name="componentType">The component type.</param>
     /// <param name="minimumLength">The minimum required length.</param>
     /// <returns>A boxed array of the appropriate type.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the component type has not been registered via <see cref="Register{T}"/>.
+    /// </exception>
+    /// <remarks>
+    /// For AOT compatibility, the component type must be registered via <see cref="Register{T}"/>
+    /// before calling this method. For known types at compile time, use <see cref="ComponentArrayPool{T}.Rent"/>
+    /// directly instead.
+    /// </remarks>
     public static Array Rent(Type componentType, int minimumLength)
     {
-        var poolType = typeof(ComponentArrayPool<>).MakeGenericType(componentType);
-        var rentMethod = poolType.GetMethod("Rent")!;
-        return (Array)rentMethod.Invoke(null, [minimumLength])!;
+        if (!rentDelegates.TryGetValue(componentType, out var rentDelegate))
+        {
+            throw new InvalidOperationException(
+                $"Component type {componentType.Name} has not been registered with ComponentArrayPool. " +
+                $"Call ComponentArrayPool.Register<{componentType.Name}>() before using non-generic Rent/Return methods.");
+        }
+
+        return rentDelegate(minimumLength);
     }
 
     /// <summary>
@@ -106,10 +157,23 @@ public static class ComponentArrayPool
     /// <param name="componentType">The component type.</param>
     /// <param name="array">The array to return.</param>
     /// <param name="clearArray">Whether to clear the array contents.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the component type has not been registered via <see cref="Register{T}"/>.
+    /// </exception>
+    /// <remarks>
+    /// For AOT compatibility, the component type must be registered via <see cref="Register{T}"/>
+    /// before calling this method. For known types at compile time, use <see cref="ComponentArrayPool{T}.Return"/>
+    /// directly instead.
+    /// </remarks>
     public static void Return(Type componentType, Array array, bool clearArray = false)
     {
-        var poolType = typeof(ComponentArrayPool<>).MakeGenericType(componentType);
-        var returnMethod = poolType.GetMethod("Return")!;
-        returnMethod.Invoke(null, [array, clearArray]);
+        if (!returnDelegates.TryGetValue(componentType, out var returnDelegate))
+        {
+            throw new InvalidOperationException(
+                $"Component type {componentType.Name} has not been registered with ComponentArrayPool. " +
+                $"Call ComponentArrayPool.Register<{componentType.Name}>() before using non-generic Rent/Return methods.");
+        }
+
+        returnDelegate(array, clearArray);
     }
 }
