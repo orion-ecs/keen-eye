@@ -84,6 +84,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Sample.Graphics", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Common", "src\KeenEyes.Common\KeenEyes.Common.csproj", "{BA9C9F20-CD3D-499F-BE77-B325192948E4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Common.Tests", "tests\KeenEyes.Common.Tests\KeenEyes.Common.Tests.csproj", "{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -394,6 +396,18 @@ Global
 		{BA9C9F20-CD3D-499F-BE77-B325192948E4}.Release|x64.Build.0 = Release|Any CPU
 		{BA9C9F20-CD3D-499F-BE77-B325192948E4}.Release|x86.ActiveCfg = Release|Any CPU
 		{BA9C9F20-CD3D-499F-BE77-B325192948E4}.Release|x86.Build.0 = Release|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Debug|x64.Build.0 = Debug|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Debug|x86.Build.0 = Debug|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Release|x64.ActiveCfg = Release|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Release|x64.Build.0 = Release|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Release|x86.ActiveCfg = Release|Any CPU
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -425,6 +439,7 @@ Global
 		{7EC3A6D2-5B29-4C6B-B277-77084DC1B12A} = {F6789012-CDEF-1234-5678-901234567890}
 		{CA3580BC-946C-42DA-B3F8-AAC461FA5223} = {F6789012-CDEF-1234-5678-901234567890}
 		{BA9C9F20-CD3D-499F-BE77-B325192948E4} = {D4E5F678-90AB-CDEF-1234-567890123456}
+		{D1E2F3A4-B5C6-7890-ABCD-EF1234567899} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {074345D4-2E9C-4743-8915-67A2DA09075C}

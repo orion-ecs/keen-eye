@@ -1,6 +1,6 @@
 using System.Numerics;
-using KeenEyes.Graphics.Tests.Mocks;
 using KeenEyes.Common;
+using KeenEyes.Graphics.Tests.Mocks;
 
 namespace KeenEyes.Graphics.Tests;
 
