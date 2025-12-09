@@ -1,13 +1,15 @@
-# Spatial Library
+# Spatial Components
 
-The `KeenEyes.Spatial` library provides 3D spatial components using `System.Numerics` for SIMD-accelerated math operations.
+The `KeenEyes.Common` library provides common 3D spatial components using `System.Numerics` for SIMD-accelerated math operations.
+
+> **Note**: Transform3D was moved from `KeenEyes.Spatial` to `KeenEyes.Common` to avoid forcing dependencies on spatial partitioning features. Update your using statements to `using KeenEyes.Common;`.
 
 ## Transform3D
 
 The primary component for 3D positioning, rotation, and scaling:
 
 ```csharp
-using KeenEyes.Spatial;
+using KeenEyes.Common;
 using System.Numerics;
 
 // Create with explicit values
@@ -58,7 +60,7 @@ Matrix4x4 worldMatrix = transform.ToMatrix();
 
 ```csharp
 using KeenEyes;
-using KeenEyes.Spatial;
+using KeenEyes.Common;
 
 var entity = world.Spawn()
     .With(new Transform3D(
@@ -120,7 +122,7 @@ Transform3D is used by the graphics plugin for positioning cameras, lights, and 
 
 ```csharp
 using KeenEyes.Graphics;
-using KeenEyes.Spatial;
+using KeenEyes.Common;
 
 // Camera with transform
 world.Spawn()
