@@ -92,6 +92,7 @@ public sealed class GraphicsContext : IDisposable
     private IGraphicsWindow? window;
     private IGraphicsDevice? device;
     private bool disposed;
+    private bool gpuResourcesDisposed;
     private bool initialized;
 
     /// <summary>
@@ -149,6 +150,22 @@ public sealed class GraphicsContext : IDisposable
     /// </summary>
     public event Action? OnClosing;
 
+    /// <summary>
+    /// Event raised each frame for updates.
+    /// </summary>
+    /// <remarks>
+    /// The delta time is provided in seconds.
+    /// </remarks>
+    public event Action<double>? OnUpdate;
+
+    /// <summary>
+    /// Event raised each frame for rendering.
+    /// </summary>
+    /// <remarks>
+    /// The delta time is provided in seconds.
+    /// </remarks>
+    public event Action<double>? OnRender;
+
     internal MeshManager MeshManager => meshManager;
     internal TextureManager TextureManager => textureManager;
     internal ShaderManager ShaderManager => shaderManager;
@@ -198,6 +215,8 @@ public sealed class GraphicsContext : IDisposable
         window.OnLoad += OnWindowLoad;
         window.OnResize += OnWindowResize;
         window.OnClosing += OnWindowClosing;
+        window.OnUpdate += OnWindowUpdate;
+        window.OnRender += OnWindowRender;
     }
 
     private void OnWindowLoad()
@@ -225,6 +244,20 @@ public sealed class GraphicsContext : IDisposable
     private void OnWindowClosing()
     {
         OnClosing?.Invoke();
+
+        // Dispose GPU resources while the OpenGL context is still valid
+        // If we wait until Dispose() is called, the context may already be destroyed
+        DisposeGpuResources();
+    }
+
+    private void OnWindowUpdate(double deltaTime)
+    {
+        OnUpdate?.Invoke(deltaTime);
+    }
+
+    private void OnWindowRender(double deltaTime)
+    {
+        OnRender?.Invoke(deltaTime);
     }
 
     private void CreateBuiltInResources()
@@ -528,6 +561,21 @@ public sealed class GraphicsContext : IDisposable
 
     #endregion
 
+    private void DisposeGpuResources()
+    {
+        if (gpuResourcesDisposed)
+        {
+            return;
+        }
+
+        gpuResourcesDisposed = true;
+
+        // Dispose GPU resources (requires active OpenGL context)
+        meshManager.Dispose();
+        textureManager.Dispose();
+        shaderManager.Dispose();
+    }
+
     /// <inheritdoc />
     public void Dispose()
     {
@@ -538,9 +586,8 @@ public sealed class GraphicsContext : IDisposable
 
         disposed = true;
 
-        meshManager.Dispose();
-        textureManager.Dispose();
-        shaderManager.Dispose();
+        // Clean up GPU resources if not already done in OnWindowClosing
+        DisposeGpuResources();
 
         device?.Dispose();
         window?.Dispose();
