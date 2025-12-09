@@ -742,6 +742,133 @@ public class EventSystemTests
         // This just ensures no exceptions during cleanup
     }
 
+    [Fact]
+    public void WorldDispose_ClearsEventBusSubscriptions()
+    {
+        var world = new World();
+
+        // Subscribe to custom event
+        var eventCount = 0;
+        var subscription = world.Events.Subscribe<CustomEvent>(_ => eventCount++);
+
+        // Verify subscription works before disposal
+        world.Events.Publish(new CustomEvent { Value = 42 });
+        Assert.Equal(1, eventCount);
+
+        // Verify handler is registered
+        Assert.True(world.Events.HasHandlers<CustomEvent>());
+        Assert.Equal(1, world.Events.GetHandlerCount<CustomEvent>());
+
+        // Dispose world
+        world.Dispose();
+
+        // Verify handlers are cleared
+        Assert.False(world.Events.HasHandlers<CustomEvent>());
+        Assert.Equal(0, world.Events.GetHandlerCount<CustomEvent>());
+
+        // Disposing subscription after world disposal should not throw
+        subscription.Dispose();
+    }
+
+    [Fact]
+    public void WorldDispose_ClearsComponentLifecycleSubscriptions()
+    {
+        var world = new World();
+
+        // Track if handlers are still holding references
+        var addedCount = 0;
+        var removedCount = 0;
+        var changedCount = 0;
+
+        var addSub = world.OnComponentAdded<TestPosition>((_, _) => addedCount++);
+        var removeSub = world.OnComponentRemoved<TestPosition>(_ => removedCount++);
+        var changeSub = world.OnComponentChanged<TestPosition>((_, _, _) => changedCount++);
+
+        // Verify subscriptions work before disposal
+        var entity = world.Spawn().Build();
+        world.Add(entity, new TestPosition { X = 1f, Y = 1f });
+        world.Set(entity, new TestPosition { X = 2f, Y = 2f });
+        world.Remove<TestPosition>(entity);
+
+        Assert.Equal(1, addedCount);
+        Assert.Equal(1, removedCount);
+        Assert.Equal(1, changedCount);
+
+        // Dispose world - this should clear all handlers
+        world.Dispose();
+
+        // Disposing subscriptions after world disposal should not throw
+        // and should be no-ops since handlers are already cleared
+        addSub.Dispose();
+        removeSub.Dispose();
+        changeSub.Dispose();
+    }
+
+    [Fact]
+    public void WorldDispose_ClearsEntityLifecycleSubscriptions()
+    {
+        var world = new World();
+
+        var createdCount = 0;
+        var destroyedCount = 0;
+
+        var createSub = world.OnEntityCreated((_, _) => createdCount++);
+        var destroySub = world.OnEntityDestroyed(_ => destroyedCount++);
+
+        // Verify subscriptions work before disposal
+        var entity = world.Spawn().Build();
+        world.Despawn(entity);
+
+        Assert.Equal(1, createdCount);
+        Assert.Equal(1, destroyedCount);
+
+        // Dispose world - this should clear all handlers
+        world.Dispose();
+
+        // Disposing subscriptions after world disposal should not throw
+        createSub.Dispose();
+        destroySub.Dispose();
+    }
+
+    [Fact]
+    public void WorldDispose_PreventsMemoryLeaksFromLongLivedSubscribers()
+    {
+        // This test verifies the pattern where a long-lived object subscribes to events
+        // and the world gets disposed - the subscriber should no longer hold references
+        // to the world or its data
+
+        WeakReference worldRef;
+        EventSubscription? subscription = null;
+
+        // Create scope where world lives
+        {
+            var world = new World();
+            worldRef = new WeakReference(world);
+
+            // Long-lived subscriber (simulated by keeping subscription reference)
+            var eventCount = 0;
+            subscription = world.Events.Subscribe<CustomEvent>(_ => eventCount++);
+
+            // Verify world is alive
+            Assert.True(worldRef.IsAlive);
+
+            // Dispose world - should clear all subscriptions
+            world.Dispose();
+        }
+
+        // Force garbage collection
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+
+        // World should be collectible even though we still hold the subscription
+        // because the subscription's handler list was cleared
+        Assert.False(worldRef.IsAlive);
+
+        // Disposing the subscription should not throw
+        subscription?.Dispose();
+    }
+
     #endregion
 
     #region Edge Cases

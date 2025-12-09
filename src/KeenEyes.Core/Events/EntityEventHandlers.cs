@@ -102,8 +102,23 @@ internal sealed class EntityEventHandlers
     #endregion
 
     /// <summary>
-    /// Clears all registered handlers.
+    /// Clears all registered entity lifecycle handlers.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is called during world disposal to ensure all entity event
+    /// subscriptions are properly cleaned up. After calling this method:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>All "entity created" handlers are removed</description></item>
+    /// <item><description>All "entity destroyed" handlers are removed</description></item>
+    /// <item><description>Existing <see cref="EventSubscription"/> objects become no-ops when disposed</description></item>
+    /// </list>
+    /// <para>
+    /// This prevents potential memory leaks from subscribers holding references to entities
+    /// after world disposal.
+    /// </para>
+    /// </remarks>
     internal void Clear()
     {
         createdHandlers.Clear();

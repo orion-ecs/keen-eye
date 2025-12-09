@@ -141,8 +141,24 @@ internal sealed class EventManager
     #endregion
 
     /// <summary>
-    /// Clears all event handlers.
+    /// Clears all event handlers for all event types.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is called during <see cref="World.Dispose()"/> to ensure all event
+    /// subscriptions are properly cleaned up. After calling this method:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>All custom event handlers registered via <see cref="EventBus"/> are removed</description></item>
+    /// <item><description>All component lifecycle handlers (added, removed, changed) are removed</description></item>
+    /// <item><description>All entity lifecycle handlers (created, destroyed) are removed</description></item>
+    /// <item><description>Existing <see cref="EventSubscription"/> objects become no-ops when disposed</description></item>
+    /// </list>
+    /// <para>
+    /// This prevents potential memory leaks from long-lived subscribers holding references
+    /// to the world or its components after disposal.
+    /// </para>
+    /// </remarks>
     internal void Clear()
     {
         eventBus.Clear();
