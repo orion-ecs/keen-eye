@@ -1,6 +1,6 @@
 using System.Numerics;
 
-namespace KeenEyes.Spatial;
+namespace KeenEyes.Common;
 
 /// <summary>
 /// 3D transformation component containing position, rotation, and scale.

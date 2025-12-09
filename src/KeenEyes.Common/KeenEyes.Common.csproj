@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Common</PackageId>
+    <Description>Common components shared across KeenEyes ECS plugins (Transform, Velocity, SpatialBounds)</Description>
+    <PackageTags>ecs;components;transform;spatial;velocity;game;framework</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Common.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

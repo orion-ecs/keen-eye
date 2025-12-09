@@ -203,6 +203,12 @@
           "KeenEyes.Generators.Attributes": "[1.0.0, )"
         }
       },
+      "keeneyes.common": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.core": {
         "type": "Project",
         "dependencies": {
@@ -215,6 +221,7 @@
       "keeneyes.spatial": {
         "type": "Project",
         "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
           "KeenEyes.Core": "[1.0.0, )"
         }
       },

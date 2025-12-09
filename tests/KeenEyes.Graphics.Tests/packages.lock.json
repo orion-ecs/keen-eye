@@ -107,8 +107,8 @@
       },
       "Microsoft.Extensions.DependencyModel": {
         "type": "Transitive",
-        "resolved": "9.0.0",
-        "contentHash": "saxr2XzwgDU77LaQfYFXmddEDRUKHF4DaGMZkNB3qjdVSZlax3//dGJagJkKrGMIPNZs2jVFXITyCCR6UHJNdA=="
+        "resolved": "8.0.0",
+        "contentHash": "NSmDw3K0ozNDgShSIpsZcbFIzBX4w28nDag+TfaQujkXGazBm+lid5onlWoCBy4VsLxqnnKjEBbGSJVWJMf43g=="
       },
       "Microsoft.Testing.Extensions.Telemetry": {
         "type": "Transitive",
@@ -266,6 +266,12 @@
           "KeenEyes.Generators.Attributes": "[1.0.0, )"
         }
       },
+      "keeneyes.common": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.core": {
         "type": "Project",
         "dependencies": {
@@ -278,18 +284,12 @@
       "keeneyes.graphics": {
         "type": "Project",
         "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
           "KeenEyes.Core": "[1.0.0, )",
-          "KeenEyes.Spatial": "[1.0.0, )",
           "Silk.NET.Input": "[2.22.0, )",
           "Silk.NET.Maths": "[2.22.0, )",
           "Silk.NET.OpenGL": "[2.22.0, )",
           "Silk.NET.Windowing": "[2.22.0, )"
-        }
-      },
-      "keeneyes.spatial": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Core": "[1.0.0, )"
         }
       },
       "keeneyes.testing": {

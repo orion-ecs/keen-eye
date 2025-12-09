@@ -7,7 +7,7 @@ using System.Numerics;
 using KeenEyes;
 using KeenEyes.Graphics;
 using KeenEyes.Sample.Graphics;
-using KeenEyes.Spatial;
+using KeenEyes.Common;
 
 Console.WriteLine("KeenEyes Graphics Sample");
 Console.WriteLine("========================");

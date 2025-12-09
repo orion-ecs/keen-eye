@@ -88,10 +88,10 @@ while (!graphics.ShouldClose)
 
 ### Transform3D
 
-From `KeenEyes.Spatial`, defines position, rotation, and scale:
+From `KeenEyes.Common`, defines position, rotation, and scale:
 
 ```csharp
-using KeenEyes.Spatial;
+using KeenEyes.Common;
 
 world.Spawn()
     .With(new Transform3D(
@@ -361,7 +361,7 @@ graphics.OnClosing += () =>
 ```csharp
 using KeenEyes;
 using KeenEyes.Graphics;
-using KeenEyes.Spatial;
+using KeenEyes.Common;
 using System.Numerics;
 
 // Create world with graphics
@@ -446,4 +446,4 @@ The plugin registers these systems automatically:
 - **Silk.NET** - OpenGL/Vulkan bindings (.NET Foundation)
 - **Silk.NET.Windowing** - Cross-platform windowing
 - **System.Numerics** - SIMD-accelerated math
-- **KeenEyes.Spatial** - Transform3D component
+- **KeenEyes.Common** - Transform3D component

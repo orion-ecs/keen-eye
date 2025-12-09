@@ -45,8 +45,8 @@
       },
       "Microsoft.Extensions.DependencyModel": {
         "type": "Transitive",
-        "resolved": "9.0.0",
-        "contentHash": "saxr2XzwgDU77LaQfYFXmddEDRUKHF4DaGMZkNB3qjdVSZlax3//dGJagJkKrGMIPNZs2jVFXITyCCR6UHJNdA=="
+        "resolved": "8.0.0",
+        "contentHash": "NSmDw3K0ozNDgShSIpsZcbFIzBX4w28nDag+TfaQujkXGazBm+lid5onlWoCBy4VsLxqnnKjEBbGSJVWJMf43g=="
       },
       "Silk.NET.Core": {
         "type": "Transitive",
@@ -112,6 +112,12 @@
           "KeenEyes.Generators.Attributes": "[1.0.0, )"
         }
       },
+      "keeneyes.common": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.core": {
         "type": "Project",
         "dependencies": {
@@ -120,12 +126,6 @@
       },
       "keeneyes.generators.attributes": {
         "type": "Project"
-      },
-      "keeneyes.spatial": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Core": "[1.0.0, )"
-        }
       }
     }
   }

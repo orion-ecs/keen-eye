@@ -1,6 +1,6 @@
 using System.Numerics;
 
-using KeenEyes.Spatial;
+using KeenEyes.Common;
 
 namespace KeenEyes.Graphics;
 
