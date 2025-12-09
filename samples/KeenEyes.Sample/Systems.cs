@@ -52,11 +52,11 @@ public partial class MovementSystem : SystemBase
         // Using the fluent query API
         foreach (var entity in World.Query<Position, Velocity>())
         {
-            // In a full implementation, we'd access components via ref:
-            // ref var pos = ref World.Get<Position>(entity);
-            // ref readonly var vel = ref World.Get<Velocity>(entity);
-            // pos.X += vel.X * deltaTime;
-            // pos.Y += vel.Y * deltaTime;
+            // Access components via ref for zero-copy modification
+            ref var pos = ref World.Get<Position>(entity);
+            ref readonly var vel = ref World.Get<Velocity>(entity);
+            pos.X += vel.X * deltaTime;
+            pos.Y += vel.Y * deltaTime;
 
             Console.WriteLine($"  MovementSystem [frame {frameCount}]: Processing {entity}");
         }
