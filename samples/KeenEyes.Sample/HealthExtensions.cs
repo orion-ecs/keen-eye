@@ -28,12 +28,11 @@ public static class HealthExtensions
         /// Returns 0 if Max is 0 or negative to avoid division by zero.
         /// </summary>
         /// <remarks>
-        /// This is a readonly computed property that derives a value from the
-        /// component's data fields. It contains no mutable state and performs
-        /// a simple calculation.
+        /// This is a computed property that derives a value from the component's
+        /// data fields. It contains no mutable state and performs a simple calculation.
         ///
         /// This pattern demonstrates when computed properties are acceptable in ECS:
-        /// - The property is readonly (no state mutation)
+        /// - The property has no side effects (no state mutation)
         /// - The calculation is trivial (no complex logic)
         /// - It's purely derived from existing fields
         /// - Performance: inlined, no allocation
@@ -57,6 +56,6 @@ public static class HealthExtensions
         /// }
         /// </code>
         /// </example>
-        public readonly float Percentage => health.Max > 0 ? health.Current / health.Max : 0;
+        public float Percentage => health.Max > 0 ? health.Current / health.Max : 0;
     }
 }
