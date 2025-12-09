@@ -72,6 +72,24 @@ foreach (var e in world.Query<Position, Velocity>())
 
 - [ADR-001: World Manager Architecture](adr/001-world-manager-architecture.md) - Refactoring World into specialized managers
 
+## Research
+
+Technical research reports for future features and integrations:
+
+### Graphics & Rendering
+- [OpenGL C# Bindings](research/opengl-csharp-bindings.md) - Evaluate OpenGL binding libraries for .NET
+- [Shader Management](research/shader-management.md) - Shader compilation, caching, and hot reload
+- [Windowing & Input](research/windowing-input.md) - Cross-platform window and input handling
+
+### Engine Features
+- [Framework Editor](research/framework-editor.md) - Feasibility study for building an ECS editor
+- [Asset Loading](research/asset-loading.md) - Asset pipeline and resource management
+- [Audio Systems](research/audio-systems.md) - Audio playback and spatial sound
+- [Game Math Libraries](research/game-math-libraries.md) - Vector, matrix, and math library options
+
+### Deployment
+- [Cross-Platform Deployment](research/cross-platform-deployment.md) - Publishing to Windows, Linux, macOS
+
 ## API Reference
 
 See the [API Documentation](../api/index.md) for detailed reference.
