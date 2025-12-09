@@ -137,7 +137,7 @@ The source generator creates a `ComponentSerializationRegistry` class that handl
 Customize JSON serialization:
 
 ```csharp
-var options = SnapshotManager.GetdefaultJsonOptions();
+var options = SnapshotManager.GetDefaultJsonOptions();
 options.WriteIndented = false;  // Compact JSON
 options.PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower;
 

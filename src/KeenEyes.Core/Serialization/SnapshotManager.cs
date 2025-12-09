@@ -287,7 +287,7 @@ public static class SnapshotManager
     /// Gets the default JSON serializer options used by the snapshot manager.
     /// </summary>
     /// <returns>A copy of the default options that can be customized.</returns>
-    public static JsonSerializerOptions GetdefaultJsonOptions()
+    public static JsonSerializerOptions GetDefaultJsonOptions()
     {
         return new JsonSerializerOptions(defaultJsonOptions);
     }

@@ -722,7 +722,7 @@ public class SerializationTests
     [Fact]
     public void GetDefaultJsonOptions_ReturnsValidOptions()
     {
-        var options = SnapshotManager.GetdefaultJsonOptions();
+        var options = SnapshotManager.GetDefaultJsonOptions();
 
         Assert.NotNull(options);
         Assert.True(options.WriteIndented);
