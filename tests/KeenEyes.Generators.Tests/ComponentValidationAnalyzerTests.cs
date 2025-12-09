@@ -384,6 +384,7 @@ public class ComponentValidationAnalyzerTests
     private static IReadOnlyList<Diagnostic> RunAnalyzer(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
+        var abstractionsAssembly = typeof(KeenEyes.IComponent).Assembly;
         var coreAssembly = typeof(KeenEyes.World).Assembly;
 
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
@@ -393,6 +394,7 @@ public class ComponentValidationAnalyzerTests
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
             MetadataReference.CreateFromFile(attributesAssembly.Location),
+            MetadataReference.CreateFromFile(abstractionsAssembly.Location),
             MetadataReference.CreateFromFile(coreAssembly.Location),
         };
 

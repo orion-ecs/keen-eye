@@ -59,7 +59,7 @@ public class SystemOrderingAnalyzerTests
             public class OtherSystem : KeenEyes.ISystem
             {
                 public bool Enabled { get; set; }
-                public void Initialize(KeenEyes.World world) { }
+                public void Initialize(KeenEyes.IWorld world) { }
                 public void Update(float deltaTime) { }
                 public void Dispose() { }
             }
@@ -171,7 +171,7 @@ public class SystemOrderingAnalyzerTests
             public class ValidClass : KeenEyes.ISystem
             {
                 public bool Enabled { get; set; }
-                public void Initialize(KeenEyes.World world) { }
+                public void Initialize(KeenEyes.IWorld world) { }
                 public void Update(float deltaTime) { }
                 public void Dispose() { }
             }
@@ -199,7 +199,7 @@ public class SystemOrderingAnalyzerTests
             public class OtherSystem : KeenEyes.ISystem
             {
                 public bool Enabled { get; set; }
-                public void Initialize(KeenEyes.World world) { }
+                public void Initialize(KeenEyes.IWorld world) { }
                 public void Update(float deltaTime) { }
                 public void Dispose() { }
             }
@@ -224,7 +224,7 @@ public class SystemOrderingAnalyzerTests
             public class OtherSystem : KeenEyes.ISystem
             {
                 public bool Enabled { get; set; }
-                public void Initialize(KeenEyes.World world) { }
+                public void Initialize(KeenEyes.IWorld world) { }
                 public void Update(float deltaTime) { }
                 public void Dispose() { }
             }
@@ -249,7 +249,7 @@ public class SystemOrderingAnalyzerTests
             public class OtherSystem : KeenEyes.ISystem
             {
                 public bool Enabled { get; set; }
-                public void Initialize(KeenEyes.World world) { }
+                public void Initialize(KeenEyes.IWorld world) { }
                 public void Update(float deltaTime) { }
                 public void Dispose() { }
             }
@@ -317,7 +317,7 @@ public class SystemOrderingAnalyzerTests
             public class ValidSystem : KeenEyes.ISystem
             {
                 public bool Enabled { get; set; }
-                public void Initialize(KeenEyes.World world) { }
+                public void Initialize(KeenEyes.IWorld world) { }
                 public void Update(float deltaTime) { }
                 public void Dispose() { }
             }
@@ -410,7 +410,7 @@ public class SystemOrderingAnalyzerTests
             public class OtherSystem : KeenEyes.ISystem
             {
                 public bool Enabled { get; set; }
-                public void Initialize(KeenEyes.World world) { }
+                public void Initialize(KeenEyes.IWorld world) { }
                 public void Update(float deltaTime) { }
                 public void Dispose() { }
             }
@@ -455,6 +455,7 @@ public class SystemOrderingAnalyzerTests
     private static IReadOnlyList<Diagnostic> RunAnalyzer(string source)
     {
         var attributesAssembly = typeof(SystemAttribute).Assembly;
+        var abstractionsAssembly = typeof(KeenEyes.ISystem).Assembly;
         var coreAssembly = typeof(KeenEyes.World).Assembly;
 
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
@@ -464,6 +465,7 @@ public class SystemOrderingAnalyzerTests
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
             MetadataReference.CreateFromFile(attributesAssembly.Location),
+            MetadataReference.CreateFromFile(abstractionsAssembly.Location),
             MetadataReference.CreateFromFile(coreAssembly.Location),
         };
 
