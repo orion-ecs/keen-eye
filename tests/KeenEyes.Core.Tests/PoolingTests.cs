@@ -333,6 +333,14 @@ public class PoolingTests
         public TestPosition() { }
     }
 
+    private struct TestVelocity : IComponent
+    {
+        public float X;
+        public float Y;
+
+        public TestVelocity() { }
+    }
+
     [Fact]
     public void World_EntityRecycling_WorksCorrectly()
     {
@@ -401,6 +409,9 @@ public class PoolingTests
     [Fact]
     public void ComponentArrayPool_NonGeneric_Rent_ReturnsArray()
     {
+        // Register type for AOT compatibility
+        ComponentArrayPool.Register<TestPosition>();
+
         var array = ComponentArrayPool.Rent(typeof(TestPosition), 10);
 
         Assert.NotNull(array);
@@ -413,6 +424,10 @@ public class PoolingTests
     [Fact]
     public void ComponentArrayPool_NonGeneric_RentAndReturn_WorksForDifferentTypes()
     {
+        // Register types for AOT compatibility
+        ComponentArrayPool.Register<TestPosition>();
+        ComponentArrayPool.Register<int>();
+
         var posArray = ComponentArrayPool.Rent(typeof(TestPosition), 5);
         var intArray = ComponentArrayPool.Rent(typeof(int), 8);
 
@@ -428,6 +443,9 @@ public class PoolingTests
     [Fact]
     public void ComponentArrayPool_NonGeneric_Return_WithClear()
     {
+        // Register type for AOT compatibility
+        ComponentArrayPool.Register<TestPosition>();
+
         var array = ComponentArrayPool.Rent(typeof(TestPosition), 3);
 
         // Set some values
@@ -443,6 +461,31 @@ public class PoolingTests
         Assert.Equal(0, newTyped[0].X);
 
         ComponentArrayPool.Return(typeof(TestPosition), newArray);
+    }
+
+    [Fact]
+    public void ComponentArrayPool_NonGeneric_ThrowsWhenTypeNotRegistered()
+    {
+        // Don't register TestVelocity
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            ComponentArrayPool.Rent(typeof(TestVelocity), 10));
+
+        Assert.Contains("has not been registered", exception.Message);
+        Assert.Contains("TestVelocity", exception.Message);
+    }
+
+    [Fact]
+    public void ComponentArrayPool_Register_AllowsMultipleCalls()
+    {
+        // Multiple registrations should be safe (idempotent)
+        ComponentArrayPool.Register<TestPosition>();
+        ComponentArrayPool.Register<TestPosition>();
+        ComponentArrayPool.Register<TestPosition>();
+
+        var array = ComponentArrayPool.Rent(typeof(TestPosition), 5);
+        Assert.NotNull(array);
+        ComponentArrayPool.Return(typeof(TestPosition), array);
     }
 
     #endregion
