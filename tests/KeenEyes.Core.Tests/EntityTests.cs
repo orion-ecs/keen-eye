@@ -12,7 +12,7 @@ public class EntityTests
     }
 
     [Fact]
-    public void Entity_Null_IsNotValid()
+    public void Entity_Null_IsValid_ReturnsFalse()
     {
         var nullEntity = Entity.Null;
 
@@ -20,7 +20,7 @@ public class EntityTests
     }
 
     [Fact]
-    public void Entity_WithValidId_IsValid()
+    public void Entity_WithNonNegativeId_IsValid_ReturnsTrue()
     {
         var entity = new Entity(0, 1);
 
