@@ -3,6 +3,31 @@ namespace KeenEyes;
 /// <summary>
 /// Fluent builder for creating entities with components.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Performance Note:</strong> Components are temporarily boxed during entity construction.
+/// This incurs one heap allocation per component added via <see cref="With{T}(T)"/>. However,
+/// entity creation is typically not a performance-critical path in ECS applications. Once built,
+/// components are stored unboxed in archetype arrays for zero-copy access during iteration.
+/// </para>
+/// <para>
+/// The boxing overhead only affects the entity creation path. Query iteration and system processing
+/// (the hot paths in ECS) operate directly on unboxed component data in contiguous archetype storage
+/// with zero allocations.
+/// </para>
+/// <para>
+/// If batch entity creation becomes a bottleneck, consider:
+/// </para>
+/// <list type="bullet">
+/// <item><description>Creating entities in larger batches during initialization rather than per-frame</description></item>
+/// <item><description>Using object pooling for frequently created/destroyed entity types</description></item>
+/// <item><description>Profiling to confirm entity creation is actually the bottleneck (not queries/systems)</description></item>
+/// </list>
+/// <para>
+/// This design trade-off prioritizes API ergonomics and simplicity while maintaining excellent
+/// performance where it matters most: query iteration and system execution.
+/// </para>
+/// </remarks>
 public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
 {
     private readonly World world;
@@ -20,7 +45,23 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     /// </summary>
     public World World => world;
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Adds a component to the entity being built.
+    /// </summary>
+    /// <typeparam name="T">The component type to add.</typeparam>
+    /// <param name="component">The component data to add.</param>
+    /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method temporarily boxes the struct component during entity construction. The component
+    /// is unboxed when copied to archetype storage during <see cref="Build()"/>, where it is stored
+    /// in contiguous unboxed arrays for efficient iteration.
+    /// </para>
+    /// <para>
+    /// If called multiple times with the same component type, only the last value is used.
+    /// This allows overriding component values during builder configuration.
+    /// </para>
+    /// </remarks>
     public EntityBuilder With<T>(T component) where T : struct, IComponent
     {
         var info = world.Components.GetOrRegister<T>();
@@ -39,7 +80,22 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
         return this;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Adds a tag component to the entity being built.
+    /// </summary>
+    /// <typeparam name="T">The tag component type to add.</typeparam>
+    /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Tag components are marker types with no data. They are used for filtering entities in queries
+    /// (e.g., <c>world.Query&lt;Position&gt;().With&lt;EnemyTag&gt;()</c>).
+    /// </para>
+    /// <para>
+    /// Like <see cref="With{T}(T)"/>, this method temporarily boxes a default struct value during
+    /// entity construction. For tag components, this is typically a zero-byte struct, making the
+    /// allocation overhead minimal.
+    /// </para>
+    /// </remarks>
     public EntityBuilder WithTag<T>() where T : struct, ITagComponent
     {
         var info = world.Components.GetOrRegister<T>(isTag: true);
