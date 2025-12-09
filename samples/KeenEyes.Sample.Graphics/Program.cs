@@ -84,41 +84,27 @@ graphics.OnClosing += () =>
     Console.WriteLine("Window closing...");
 };
 
-// Initialize and run the graphics
-graphics.Initialize();
+// Handle render events - this is called each frame by Silk.NET
+graphics.OnRender += (deltaTime) =>
+{
+    if (sceneReady)
+    {
+        // Update the world (runs all systems including render)
+        world.Update((float)deltaTime);
+    }
+};
 
-// Main loop - run until window is closed
-Console.WriteLine("Starting main loop...");
-var lastTime = DateTime.UtcNow;
+// Initialize and run the graphics (blocks until window closes)
+Console.WriteLine("Starting graphics...");
 
 try
 {
-    while (!graphics.ShouldClose)
-    {
-        // Calculate delta time
-        var currentTime = DateTime.UtcNow;
-        var deltaTime = (float)(currentTime - lastTime).TotalSeconds;
-        lastTime = currentTime;
-
-        // Cap delta time to prevent physics issues
-        deltaTime = Math.Min(deltaTime, 0.1f);
-
-        // Process window events
-        graphics.ProcessEvents();
-
-        if (sceneReady)
-        {
-            // Update the world (runs all systems including render)
-            world.Update(deltaTime);
-
-            // Swap buffers to display the frame
-            graphics.SwapBuffers();
-        }
-    }
+    graphics.Initialize();
+    graphics.Run(); // This blocks until the window is closed
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"Error during main loop: {ex.Message}");
+    Console.WriteLine($"Error running graphics: {ex.Message}");
     Console.WriteLine("This sample requires a display. Make sure you're running in a graphical environment.");
 }
 

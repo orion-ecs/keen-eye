@@ -39,9 +39,18 @@ public class GraphicsContextTests : IDisposable
     public void Initialize_CalledTwice_OnlyInitializesOnce()
     {
         context.Initialize();
-        context.Initialize();
 
-        // Should not throw or cause issues
+        // Trigger load to set initialized flag
+        mockWindow.SimulateLoad();
+        Assert.True(context.IsInitialized);
+
+        // Call Initialize again - should return early without re-initializing
+        var windowBefore = context.Window;
+        context.Initialize();
+        var windowAfter = context.Window;
+
+        // Window should be the same instance (not recreated)
+        Assert.Same(windowBefore, windowAfter);
         Assert.NotNull(context.Window);
     }
 
@@ -387,6 +396,46 @@ public class GraphicsContextTests : IDisposable
 
     #endregion
 
+    #region Update and Render Tests
+
+    [Fact]
+    public void OnUpdate_RaisesWhenSimulated()
+    {
+        bool updateRaised = false;
+        double receivedDelta = 0;
+        context.OnUpdate += (dt) =>
+        {
+            updateRaised = true;
+            receivedDelta = dt;
+        };
+
+        context.Initialize();
+        mockWindow.SimulateUpdate(0.016);
+
+        Assert.True(updateRaised);
+        Assert.Equal(0.016, receivedDelta);
+    }
+
+    [Fact]
+    public void OnRender_RaisesWhenSimulated()
+    {
+        bool renderRaised = false;
+        double receivedDelta = 0;
+        context.OnRender += (dt) =>
+        {
+            renderRaised = true;
+            receivedDelta = dt;
+        };
+
+        context.Initialize();
+        mockWindow.SimulateRender(0.016);
+
+        Assert.True(renderRaised);
+        Assert.Equal(0.016, receivedDelta);
+    }
+
+    #endregion
+
     #region Dispose Tests
 
     [Fact]
@@ -398,6 +447,52 @@ public class GraphicsContextTests : IDisposable
         // Should not throw
         context.Dispose();
         context.Dispose();
+    }
+
+    [Fact]
+    public void Closing_DisposesGpuResources()
+    {
+        context.Initialize();
+        mockWindow.SimulateLoad();
+
+        // Create some GPU resources
+        int meshId = context.CreateCube();
+        int textureId = context.CreateSolidColorTexture(255, 255, 255);
+        int shaderId = context.CreateShader(
+            "#version 330\nvoid main() { }",
+            "#version 330\nout vec4 c;\nvoid main() { c = vec4(1); }");
+
+        mockWindow.MockDevice.Calls.Clear();
+
+        // Simulate window closing
+        mockWindow.SimulateClosing();
+
+        // GPU resources should be disposed (meshes, textures, shaders deleted)
+        Assert.Contains(mockWindow.MockDevice.Calls, c => c.StartsWith("DeleteVertexArray"));
+        Assert.Contains(mockWindow.MockDevice.Calls, c => c.StartsWith("DeleteBuffer"));
+        Assert.Contains(mockWindow.MockDevice.Calls, c => c.StartsWith("DeleteTexture"));
+        Assert.Contains(mockWindow.MockDevice.Calls, c => c.StartsWith("DeleteProgram"));
+    }
+
+    [Fact]
+    public void Dispose_AfterClosing_DoesNotDoubleDisposeGpuResources()
+    {
+        context.Initialize();
+        mockWindow.SimulateLoad();
+
+        // Create GPU resources
+        int meshId = context.CreateCube();
+
+        // Simulate window closing (disposes GPU resources)
+        mockWindow.SimulateClosing();
+        mockWindow.MockDevice.Calls.Clear();
+
+        // Dispose context (should not dispose GPU resources again)
+        context.Dispose();
+
+        // Should not have any new delete calls for GPU resources
+        Assert.DoesNotContain(mockWindow.MockDevice.Calls, c => c.StartsWith("DeleteVertexArray"));
+        Assert.DoesNotContain(mockWindow.MockDevice.Calls, c => c.StartsWith("DeleteBuffer"));
     }
 
     #endregion

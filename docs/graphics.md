@@ -48,15 +48,32 @@ graphics.Initialize();
 
 ### Main Loop
 
-Two options for running the main loop:
+**Recommended: Event-driven pattern**
 
-**Blocking loop:**
+The recommended approach is to use Silk.NET's event-driven pattern with `OnRender`:
+
 ```csharp
-graphics.Run();  // Blocks until window closes
+// Handle rendering each frame
+graphics.OnRender += (deltaTime) =>
+{
+    // Update world and render
+    world.Update((float)deltaTime);
+};
+
+// Start the window (blocks until closed)
+graphics.Initialize();
+graphics.Run();
 ```
 
-**Manual control:**
+This pattern ensures proper resource cleanup and follows Silk.NET best practices.
+
+**Alternative: Manual control**
+
+For advanced scenarios requiring custom loop control:
+
 ```csharp
+graphics.Initialize();
+
 while (!graphics.ShouldClose)
 {
     graphics.ProcessEvents();
@@ -64,6 +81,8 @@ while (!graphics.ShouldClose)
     graphics.SwapBuffers();
 }
 ```
+
+⚠️ **Warning**: The manual control pattern requires careful handling of cleanup and may cause issues with GPU resource disposal on window close. Use the event-driven pattern unless you have specific requirements.
 
 ## Components
 
@@ -296,22 +315,46 @@ graphics.SetViewport(0, 0, 1920, 1080);
 
 ## Events
 
+GraphicsContext provides several events for window and rendering lifecycle:
+
 ```csharp
+// Called once when the window and OpenGL context are ready
 graphics.OnLoad += () =>
 {
     Console.WriteLine("Graphics initialized");
+    // Create meshes, textures, shaders here
 };
 
+// Called each frame for game logic updates
+graphics.OnUpdate += (deltaTime) =>
+{
+    Console.WriteLine($"Update: {deltaTime}s");
+    // Update game logic (optional - can use OnRender instead)
+};
+
+// Called each frame for rendering
+graphics.OnRender += (deltaTime) =>
+{
+    Console.WriteLine($"Render: {deltaTime}s");
+    // Render the scene - call world.Update() here
+};
+
+// Called when the window is resized
 graphics.OnResize += (width, height) =>
 {
     Console.WriteLine($"Window resized to {width}x{height}");
+    // Update camera aspect ratios
 };
 
+// Called when the window is about to close
 graphics.OnClosing += () =>
 {
     Console.WriteLine("Window closing");
+    // GPU resources are automatically disposed here
 };
 ```
+
+**Note**: For most applications, use `OnRender` to call `world.Update()`. The `OnUpdate` and `OnRender` events are called at the same frequency, but `OnRender` is the standard place for game loop logic in Silk.NET applications.
 
 ## Complete Example
 
@@ -326,7 +369,8 @@ var config = new GraphicsConfig
 {
     WindowWidth = 1280,
     WindowHeight = 720,
-    WindowTitle = "Cube Demo"
+    WindowTitle = "Cube Demo",
+    VSync = true
 };
 
 using var world = new World();
@@ -334,6 +378,10 @@ world.InstallPlugin(new GraphicsPlugin(config));
 
 var graphics = world.GetExtension<GraphicsContext>();
 
+// Track scene initialization
+bool sceneReady = false;
+
+// Called when graphics are initialized
 graphics.OnLoad += () =>
 {
     // Create camera
@@ -357,9 +405,31 @@ graphics.OnLoad += () =>
         .With(new Renderable(cubeMesh, 0))
         .With(Material.Default)
         .Build();
+
+    sceneReady = true;
 };
 
-// Run the application
+// Update camera aspect ratio on resize
+graphics.OnResize += (width, height) =>
+{
+    foreach (var entity in world.Query<Camera>())
+    {
+        ref var camera = ref world.Get<Camera>(entity);
+        camera.AspectRatio = (float)width / height;
+    }
+};
+
+// Render each frame
+graphics.OnRender += (deltaTime) =>
+{
+    if (sceneReady)
+    {
+        // Update world (runs all systems including render)
+        world.Update((float)deltaTime);
+    }
+};
+
+// Run the application (blocks until window closes)
 graphics.Initialize();
 graphics.Run();
 ```
