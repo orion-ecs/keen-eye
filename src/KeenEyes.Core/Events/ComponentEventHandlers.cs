@@ -160,8 +160,24 @@ internal sealed class ComponentEventHandlers
     #endregion
 
     /// <summary>
-    /// Clears all registered handlers.
+    /// Clears all registered component lifecycle handlers.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is called during world disposal to ensure all component event
+    /// subscriptions are properly cleaned up. After calling this method:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>All "component added" handlers for all component types are removed</description></item>
+    /// <item><description>All "component removed" handlers for all component types are removed</description></item>
+    /// <item><description>All "component changed" handlers for all component types are removed</description></item>
+    /// <item><description>Existing <see cref="EventSubscription"/> objects become no-ops when disposed</description></item>
+    /// </list>
+    /// <para>
+    /// This prevents potential memory leaks from subscribers holding references to components
+    /// or entities after world disposal.
+    /// </para>
+    /// </remarks>
     internal void Clear()
     {
         addedHandlers.Clear();

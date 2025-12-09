@@ -164,9 +164,16 @@ public sealed class EventBus
     /// Removes all handlers for all event types.
     /// </summary>
     /// <remarks>
-    /// This method is typically called during world disposal to clean up all subscriptions.
-    /// After calling this method, existing <see cref="EventSubscription"/> objects will
-    /// have no effect when disposed.
+    /// <para>
+    /// This method is called during world disposal to clean up all subscriptions and prevent
+    /// memory leaks from long-lived subscribers. After calling this method:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>All event handlers for all event types are removed</description></item>
+    /// <item><description>Publishing events will have no effect (no handlers to invoke)</description></item>
+    /// <item><description>Existing <see cref="EventSubscription"/> objects become no-ops when disposed</description></item>
+    /// <item><description>Subscribers no longer hold references to the world or its data</description></item>
+    /// </list>
     /// </remarks>
     internal void Clear()
     {
