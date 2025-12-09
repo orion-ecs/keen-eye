@@ -133,7 +133,7 @@ public class CameraTests
     {
         var camera = Camera.CreatePerspective(60f, 16f / 9f, 0.1f, 1000f);
 
-        var matrix = camera.GetProjectionMatrix();
+        var matrix = camera.ProjectionMatrix();
 
         // Matrix should not be identity (it should have been transformed)
         Assert.NotEqual(Matrix4x4.Identity, matrix);
@@ -146,7 +146,7 @@ public class CameraTests
     {
         var camera = Camera.CreateOrthographic(5f, 16f / 9f, 0.1f, 1000f);
 
-        var matrix = camera.GetProjectionMatrix();
+        var matrix = camera.ProjectionMatrix();
 
         // Matrix should not be identity
         Assert.NotEqual(Matrix4x4.Identity, matrix);
@@ -158,7 +158,7 @@ public class CameraTests
     public void GetProjectionMatrix_Perspective_ProjectsPointCorrectly()
     {
         var camera = Camera.CreatePerspective(90f, 1f, 1f, 100f);
-        var matrix = camera.GetProjectionMatrix();
+        var matrix = camera.ProjectionMatrix();
 
         // Point at the center of the view frustum
         var point = new Vector4(0, 0, -10, 1);
@@ -175,7 +175,7 @@ public class CameraTests
     public void GetProjectionMatrix_Orthographic_ProjectsPointCorrectly()
     {
         var camera = Camera.CreateOrthographic(5f, 1f, 0.1f, 100f);
-        var matrix = camera.GetProjectionMatrix();
+        var matrix = camera.ProjectionMatrix();
 
         // Point at the center
         var point = new Vector4(0, 0, -50, 1);
@@ -193,9 +193,10 @@ public class CameraTests
     [Fact]
     public void GetViewMatrix_IdentityTransform_ReturnsExpectedMatrix()
     {
+        var camera = Camera.CreatePerspective(60f, 16f / 9f, 0.1f, 1000f);
         var transform = Transform3D.Identity;
 
-        var viewMatrix = Camera.GetViewMatrix(transform);
+        var viewMatrix = camera.ViewMatrix(transform);
 
         // View matrix should transform world-to-camera
         // With identity transform, looking down -Z, the view matrix
@@ -206,12 +207,13 @@ public class CameraTests
     [Fact]
     public void GetViewMatrix_TranslatedCamera_HasCorrectInverse()
     {
+        var camera = Camera.CreatePerspective(60f, 16f / 9f, 0.1f, 1000f);
         var transform = new Transform3D(
             new Vector3(10, 0, 0),
             Quaternion.Identity,
             Vector3.One);
 
-        var viewMatrix = Camera.GetViewMatrix(transform);
+        var viewMatrix = camera.ViewMatrix(transform);
 
         // A point at the camera position should transform to origin
         var cameraPos = new Vector4(10, 0, 0, 1);
@@ -225,8 +227,9 @@ public class CameraTests
     [Fact]
     public void GetViewMatrix_PointInFrontOfCamera_HasNegativeZ()
     {
+        var camera = Camera.CreatePerspective(60f, 16f / 9f, 0.1f, 1000f);
         var transform = Transform3D.Identity;
-        var viewMatrix = Camera.GetViewMatrix(transform);
+        var viewMatrix = camera.ViewMatrix(transform);
 
         // Point 10 units in front of camera (negative world Z)
         var worldPoint = new Vector4(0, 0, -10, 1);

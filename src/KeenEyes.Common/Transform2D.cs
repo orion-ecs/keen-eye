@@ -48,25 +48,4 @@ public struct Transform2D : IComponent
     /// Creates a new transform at the origin with zero rotation and unit scale.
     /// </summary>
     public static Transform2D Identity => new(Vector2.Zero, 0f, Vector2.One);
-
-    /// <summary>
-    /// Computes the 3x2 transformation matrix (Scale * Rotation * Translation).
-    /// </summary>
-    /// <returns>The world transformation matrix.</returns>
-    public readonly Matrix3x2 ToMatrix()
-    {
-        return Matrix3x2.CreateScale(Scale) *
-               Matrix3x2.CreateRotation(Rotation) *
-               Matrix3x2.CreateTranslation(Position);
-    }
-
-    /// <summary>
-    /// Gets the forward direction vector (unit vector in the direction of rotation).
-    /// </summary>
-    public readonly Vector2 Forward => new((float)Math.Cos(Rotation), (float)Math.Sin(Rotation));
-
-    /// <summary>
-    /// Gets the right direction vector (perpendicular to forward, 90 degrees clockwise).
-    /// </summary>
-    public readonly Vector2 Right => new((float)Math.Sin(Rotation), -(float)Math.Cos(Rotation));
 }

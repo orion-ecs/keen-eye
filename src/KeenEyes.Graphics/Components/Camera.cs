@@ -147,40 +147,6 @@ public struct Camera : IComponent
             ClearDepthBuffer = true
         };
     }
-
-    /// <summary>
-    /// Computes the projection matrix for this camera.
-    /// </summary>
-    /// <returns>The projection matrix.</returns>
-    public readonly Matrix4x4 GetProjectionMatrix()
-    {
-        return Projection switch
-        {
-            ProjectionType.Perspective => Matrix4x4.CreatePerspectiveFieldOfView(
-                FieldOfView * (MathF.PI / 180f),
-                AspectRatio,
-                NearPlane,
-                FarPlane),
-            ProjectionType.Orthographic => Matrix4x4.CreateOrthographic(
-                OrthographicSize * 2f * AspectRatio,
-                OrthographicSize * 2f,
-                NearPlane,
-                FarPlane),
-            _ => Matrix4x4.Identity
-        };
-    }
-
-    /// <summary>
-    /// Computes the view matrix from a transform.
-    /// </summary>
-    /// <param name="transform">The camera's transform.</param>
-    /// <returns>The view matrix.</returns>
-    public static Matrix4x4 GetViewMatrix(in Transform3D transform)
-    {
-        var forward = transform.Forward;
-        var up = transform.Up;
-        return Matrix4x4.CreateLookAt(transform.Position, transform.Position + forward, up);
-    }
 }
 
 /// <summary>

@@ -60,7 +60,7 @@ public class SpatialBoundsTests
     {
         var bounds = new SpatialBounds(new Vector3(0, 0, 0), new Vector3(10, 20, 30));
 
-        var center = bounds.Center;
+        var center = bounds.Center();
 
         Assert.Equal(5f, center.X, Epsilon);
         Assert.Equal(10f, center.Y, Epsilon);
@@ -72,7 +72,7 @@ public class SpatialBoundsTests
     {
         var bounds = new SpatialBounds(new Vector3(0, 0, 0), new Vector3(10, 20, 30));
 
-        var extents = bounds.Extents;
+        var extents = bounds.Extents();
 
         Assert.Equal(5f, extents.X, Epsilon);
         Assert.Equal(10f, extents.Y, Epsilon);
@@ -84,7 +84,7 @@ public class SpatialBoundsTests
     {
         var bounds = new SpatialBounds(new Vector3(0, 0, 0), new Vector3(10, 20, 30));
 
-        var size = bounds.Size;
+        var size = bounds.Size();
 
         Assert.Equal(10f, size.X, Epsilon);
         Assert.Equal(20f, size.Y, Epsilon);
@@ -183,7 +183,7 @@ public class SpatialBoundsTests
         var bounds = new SpatialBounds(new Vector3(5, 5, 5), new Vector3(10, 10, 10));
         var point = new Vector3(2, 6, 6);
 
-        bounds.Encapsulate(point);
+        bounds = bounds.Encapsulate(point);
 
         Assert.Equal(new Vector3(2, 5, 5), bounds.Min);
         Assert.Equal(new Vector3(10, 10, 10), bounds.Max);
@@ -195,7 +195,7 @@ public class SpatialBoundsTests
         var bounds = new SpatialBounds(new Vector3(5, 5, 5), new Vector3(10, 10, 10));
         var point = new Vector3(6, 6, 15);
 
-        bounds.Encapsulate(point);
+        bounds = bounds.Encapsulate(point);
 
         Assert.Equal(new Vector3(5, 5, 5), bounds.Min);
         Assert.Equal(new Vector3(10, 10, 15), bounds.Max);
@@ -207,7 +207,7 @@ public class SpatialBoundsTests
         var bounds = new SpatialBounds(new Vector3(5, 5, 5), new Vector3(10, 10, 10));
         var point = new Vector3(7, 7, 7);
 
-        bounds.Encapsulate(point);
+        bounds = bounds.Encapsulate(point);
 
         Assert.Equal(new Vector3(5, 5, 5), bounds.Min);
         Assert.Equal(new Vector3(10, 10, 10), bounds.Max);
@@ -223,7 +223,7 @@ public class SpatialBoundsTests
         var bounds1 = new SpatialBounds(new Vector3(5, 5, 5), new Vector3(10, 10, 10));
         var bounds2 = new SpatialBounds(new Vector3(2, 8, 8), new Vector3(12, 15, 9));
 
-        bounds1.Encapsulate(bounds2);
+        bounds1 = bounds1.Encapsulate(bounds2);
 
         Assert.Equal(new Vector3(2, 5, 5), bounds1.Min);
         Assert.Equal(new Vector3(12, 15, 10), bounds1.Max);
@@ -235,7 +235,7 @@ public class SpatialBoundsTests
         var outer = new SpatialBounds(new Vector3(0, 0, 0), new Vector3(10, 10, 10));
         var inner = new SpatialBounds(new Vector3(2, 2, 2), new Vector3(8, 8, 8));
 
-        outer.Encapsulate(inner);
+        outer = outer.Encapsulate(inner);
 
         Assert.Equal(new Vector3(0, 0, 0), outer.Min);
         Assert.Equal(new Vector3(10, 10, 10), outer.Max);

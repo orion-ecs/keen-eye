@@ -76,7 +76,7 @@ public class Transform3DTests
     {
         var transform = Transform3D.Identity;
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
 
         Assert.True(AreMatricesEqual(Matrix4x4.Identity, matrix));
     }
@@ -87,7 +87,7 @@ public class Transform3DTests
         var position = new Vector3(10, 20, 30);
         var transform = new Transform3D(position, Quaternion.Identity, Vector3.One);
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
 
         Assert.Equal(position.X, matrix.M41, Epsilon);
         Assert.Equal(position.Y, matrix.M42, Epsilon);
@@ -100,7 +100,7 @@ public class Transform3DTests
         var scale = new Vector3(2, 3, 4);
         var transform = new Transform3D(Vector3.Zero, Quaternion.Identity, scale);
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
 
         // For a scale-only matrix, the diagonal elements reflect the scale
         Assert.Equal(scale.X, matrix.M11, Epsilon);
@@ -116,7 +116,7 @@ public class Transform3DTests
             Quaternion.Identity,
             new Vector3(2, 2, 2));
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
         var point = new Vector3(1, 0, 0);
         var transformed = Vector3.Transform(point, matrix);
 
@@ -135,7 +135,7 @@ public class Transform3DTests
     {
         var transform = Transform3D.Identity;
 
-        var forward = transform.Forward;
+        var forward = transform.Forward();
 
         Assert.Equal(0f, forward.X, Epsilon);
         Assert.Equal(0f, forward.Y, Epsilon);
@@ -147,7 +147,7 @@ public class Transform3DTests
     {
         var transform = Transform3D.Identity;
 
-        var right = transform.Right;
+        var right = transform.Right();
 
         Assert.Equal(1f, right.X, Epsilon);
         Assert.Equal(0f, right.Y, Epsilon);
@@ -159,7 +159,7 @@ public class Transform3DTests
     {
         var transform = Transform3D.Identity;
 
-        var up = transform.Up;
+        var up = transform.Up();
 
         Assert.Equal(0f, up.X, Epsilon);
         Assert.Equal(1f, up.Y, Epsilon);
@@ -173,7 +173,7 @@ public class Transform3DTests
         var rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI / 2f);
         var transform = new Transform3D(Vector3.Zero, rotation, Vector3.One);
 
-        var forward = transform.Forward;
+        var forward = transform.Forward();
 
         Assert.Equal(-1f, forward.X, Epsilon);
         Assert.Equal(0f, forward.Y, Epsilon);
@@ -186,9 +186,9 @@ public class Transform3DTests
         var rotation = Quaternion.CreateFromYawPitchRoll(1f, 0.5f, 0.25f);
         var transform = new Transform3D(Vector3.Zero, rotation, Vector3.One);
 
-        var forward = transform.Forward;
-        var right = transform.Right;
-        var up = transform.Up;
+        var forward = transform.Forward();
+        var right = transform.Right();
+        var up = transform.Up();
 
         // Dot products should be zero for orthogonal vectors
         Assert.Equal(0f, Vector3.Dot(forward, right), Epsilon);
@@ -202,9 +202,9 @@ public class Transform3DTests
         var rotation = Quaternion.CreateFromYawPitchRoll(1f, 0.5f, 0.25f);
         var transform = new Transform3D(Vector3.Zero, rotation, Vector3.One);
 
-        Assert.Equal(1f, transform.Forward.Length(), Epsilon);
-        Assert.Equal(1f, transform.Right.Length(), Epsilon);
-        Assert.Equal(1f, transform.Up.Length(), Epsilon);
+        Assert.Equal(1f, transform.Forward().Length(), Epsilon);
+        Assert.Equal(1f, transform.Right().Length(), Epsilon);
+        Assert.Equal(1f, transform.Up().Length(), Epsilon);
     }
 
     #endregion
