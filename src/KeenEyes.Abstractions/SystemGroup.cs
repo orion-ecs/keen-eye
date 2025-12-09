@@ -143,7 +143,17 @@ public class SystemGroup : ISystem
                 continue;
             }
 
-            system.Update(deltaTime);
+            // Call lifecycle hooks if the system supports them
+            if (system is ISystemLifecycle lifecycle)
+            {
+                lifecycle.OnBeforeUpdate(deltaTime);
+                system.Update(deltaTime);
+                lifecycle.OnAfterUpdate(deltaTime);
+            }
+            else
+            {
+                system.Update(deltaTime);
+            }
         }
     }
 
