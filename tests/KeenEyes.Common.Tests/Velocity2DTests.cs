@@ -47,7 +47,7 @@ public class Velocity2DTests
     {
         var velocity = Velocity2D.Zero;
 
-        Assert.Equal(0f, velocity.Magnitude);
+        Assert.Equal(0f, velocity.Magnitude());
     }
 
     #endregion
@@ -59,7 +59,7 @@ public class Velocity2DTests
     {
         var velocity = new Velocity2D(3, 4);
 
-        Assert.Equal(5f, velocity.Magnitude, Epsilon);
+        Assert.Equal(5f, velocity.Magnitude(), Epsilon);
     }
 
     [Fact]
@@ -67,7 +67,7 @@ public class Velocity2DTests
     {
         var velocity = new Velocity2D(-3, -4);
 
-        Assert.Equal(5f, velocity.Magnitude, Epsilon);
+        Assert.Equal(5f, velocity.Magnitude(), Epsilon);
     }
 
     [Fact]
@@ -75,7 +75,7 @@ public class Velocity2DTests
     {
         var velocity = new Velocity2D(3, 4);
 
-        Assert.Equal(25f, velocity.MagnitudeSquared, Epsilon);
+        Assert.Equal(25f, velocity.MagnitudeSquared(), Epsilon);
     }
 
     [Fact]
@@ -84,8 +84,8 @@ public class Velocity2DTests
         // This test verifies that MagnitudeSquared and Magnitude are consistent
         var velocity = new Velocity2D(5, 12);
 
-        var magnitude = velocity.Magnitude;
-        var magnitudeSquared = velocity.MagnitudeSquared;
+        var magnitude = velocity.Magnitude();
+        var magnitudeSquared = velocity.MagnitudeSquared();
 
         Assert.Equal(magnitude * magnitude, magnitudeSquared, Epsilon);
     }
@@ -95,7 +95,7 @@ public class Velocity2DTests
     {
         var velocity = Velocity2D.Zero;
 
-        Assert.Equal(0f, velocity.MagnitudeSquared);
+        Assert.Equal(0f, velocity.MagnitudeSquared());
     }
 
     #endregion
@@ -117,11 +117,11 @@ public class Velocity2DTests
     public void Value_AfterModification_UpdatesMagnitude()
     {
         var velocity = new Velocity2D(3, 4);
-        Assert.Equal(5f, velocity.Magnitude, Epsilon);
+        Assert.Equal(5f, velocity.Magnitude(), Epsilon);
 
         velocity.Value = new Vector2(5, 12);
 
-        Assert.Equal(13f, velocity.Magnitude, Epsilon);
+        Assert.Equal(13f, velocity.Magnitude(), Epsilon);
     }
 
     #endregion

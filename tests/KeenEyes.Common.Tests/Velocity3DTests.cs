@@ -48,7 +48,7 @@ public class Velocity3DTests
     {
         var velocity = Velocity3D.Zero;
 
-        Assert.Equal(0f, velocity.Magnitude);
+        Assert.Equal(0f, velocity.Magnitude());
     }
 
     #endregion
@@ -61,7 +61,7 @@ public class Velocity3DTests
         // Using 3-4-5 triangle in 3D: sqrt(2^2 + 3^2 + 6^2) = sqrt(4 + 9 + 36) = sqrt(49) = 7
         var velocity = new Velocity3D(2, 3, 6);
 
-        Assert.Equal(7f, velocity.Magnitude, Epsilon);
+        Assert.Equal(7f, velocity.Magnitude(), Epsilon);
     }
 
     [Fact]
@@ -69,7 +69,7 @@ public class Velocity3DTests
     {
         var velocity = new Velocity3D(-2, -3, -6);
 
-        Assert.Equal(7f, velocity.Magnitude, Epsilon);
+        Assert.Equal(7f, velocity.Magnitude(), Epsilon);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class Velocity3DTests
     {
         var velocity = new Velocity3D(2, 3, 6);
 
-        Assert.Equal(49f, velocity.MagnitudeSquared, Epsilon);
+        Assert.Equal(49f, velocity.MagnitudeSquared(), Epsilon);
     }
 
     [Fact]
@@ -86,8 +86,8 @@ public class Velocity3DTests
         // This test verifies that MagnitudeSquared and Magnitude are consistent
         var velocity = new Velocity3D(1, 2, 2);
 
-        var magnitude = velocity.Magnitude;
-        var magnitudeSquared = velocity.MagnitudeSquared;
+        var magnitude = velocity.Magnitude();
+        var magnitudeSquared = velocity.MagnitudeSquared();
 
         Assert.Equal(magnitude * magnitude, magnitudeSquared, Epsilon);
     }
@@ -97,7 +97,7 @@ public class Velocity3DTests
     {
         var velocity = Velocity3D.Zero;
 
-        Assert.Equal(0f, velocity.MagnitudeSquared);
+        Assert.Equal(0f, velocity.MagnitudeSquared());
     }
 
     #endregion
@@ -120,11 +120,11 @@ public class Velocity3DTests
     public void Value_AfterModification_UpdatesMagnitude()
     {
         var velocity = new Velocity3D(2, 3, 6);
-        Assert.Equal(7f, velocity.Magnitude, Epsilon);
+        Assert.Equal(7f, velocity.Magnitude(), Epsilon);
 
         velocity.Value = new Vector3(0, 0, 5);
 
-        Assert.Equal(5f, velocity.Magnitude, Epsilon);
+        Assert.Equal(5f, velocity.Magnitude(), Epsilon);
     }
 
     #endregion

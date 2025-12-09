@@ -49,30 +49,4 @@ public struct Transform3D : IComponent
     /// Creates a new transform at the origin with identity rotation and unit scale.
     /// </summary>
     public static Transform3D Identity => new(Vector3.Zero, Quaternion.Identity, Vector3.One);
-
-    /// <summary>
-    /// Computes the 4x4 transformation matrix (Scale * Rotation * Translation).
-    /// </summary>
-    /// <returns>The world transformation matrix.</returns>
-    public readonly Matrix4x4 ToMatrix()
-    {
-        return Matrix4x4.CreateScale(Scale) *
-               Matrix4x4.CreateFromQuaternion(Rotation) *
-               Matrix4x4.CreateTranslation(Position);
-    }
-
-    /// <summary>
-    /// Gets the forward direction vector (negative Z-axis after rotation).
-    /// </summary>
-    public readonly Vector3 Forward => Vector3.Transform(-Vector3.UnitZ, Rotation);
-
-    /// <summary>
-    /// Gets the right direction vector (positive X-axis after rotation).
-    /// </summary>
-    public readonly Vector3 Right => Vector3.Transform(Vector3.UnitX, Rotation);
-
-    /// <summary>
-    /// Gets the up direction vector (positive Y-axis after rotation).
-    /// </summary>
-    public readonly Vector3 Up => Vector3.Transform(Vector3.UnitY, Rotation);
 }

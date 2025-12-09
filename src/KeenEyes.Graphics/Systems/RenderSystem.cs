@@ -75,8 +75,8 @@ public sealed class RenderSystem : SystemBase
         }
 
         // Calculate camera matrices
-        Matrix4x4 viewMatrix = Camera.GetViewMatrix(cameraTransform);
-        Matrix4x4 projectionMatrix = camera.GetProjectionMatrix();
+        Matrix4x4 viewMatrix = camera.ViewMatrix(cameraTransform);
+        Matrix4x4 projectionMatrix = camera.ProjectionMatrix();
 
         // Clear screen
         if (camera.ClearColorBuffer || camera.ClearDepthBuffer)
@@ -111,7 +111,7 @@ public sealed class RenderSystem : SystemBase
 
             if (light.Type == LightType.Directional)
             {
-                lightDirection = lightTransform.Forward;
+                lightDirection = lightTransform.Forward();
                 lightColor = light.Color;
                 lightIntensity = light.Intensity;
                 break; // Use first directional light
@@ -192,7 +192,7 @@ public sealed class RenderSystem : SystemBase
             }
 
             // Set per-object uniforms
-            Matrix4x4 modelMatrix = transform.ToMatrix();
+            Matrix4x4 modelMatrix = transform.Matrix();
             graphics.ShaderManager.SetUniform(shaderId, "uModel", modelMatrix);
             graphics.ShaderManager.SetUniform(shaderId, "uColor", color);
             graphics.ShaderManager.SetUniform(shaderId, "uEmissive", emissive);

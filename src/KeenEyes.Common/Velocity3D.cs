@@ -40,17 +40,4 @@ public struct Velocity3D : IComponent
     /// Gets a velocity of zero (no movement).
     /// </summary>
     public static Velocity3D Zero => new(Vector3.Zero);
-
-    /// <summary>
-    /// Gets the magnitude (speed) of the velocity vector.
-    /// </summary>
-    public readonly float Magnitude => Value.Length();
-
-    /// <summary>
-    /// Gets the squared magnitude (avoids square root calculation).
-    /// </summary>
-    /// <remarks>
-    /// Useful for performance-sensitive comparisons where relative magnitude is sufficient.
-    /// </remarks>
-    public readonly float MagnitudeSquared => Value.LengthSquared();
 }

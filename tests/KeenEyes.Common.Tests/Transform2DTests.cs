@@ -75,7 +75,7 @@ public class Transform2DTests
     {
         var transform = Transform2D.Identity;
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
 
         Assert.True(AreMatricesEqual(Matrix3x2.Identity, matrix));
     }
@@ -86,7 +86,7 @@ public class Transform2DTests
         var position = new Vector2(10, 20);
         var transform = new Transform2D(position, 0f, Vector2.One);
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
 
         Assert.Equal(position.X, matrix.M31, Epsilon);
         Assert.Equal(position.Y, matrix.M32, Epsilon);
@@ -98,7 +98,7 @@ public class Transform2DTests
         var scale = new Vector2(2, 3);
         var transform = new Transform2D(Vector2.Zero, 0f, scale);
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
 
         // For a scale-only matrix, the diagonal elements reflect the scale
         Assert.Equal(scale.X, matrix.M11, Epsilon);
@@ -113,7 +113,7 @@ public class Transform2DTests
             0f,
             new Vector2(2, 2));
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
         var point = new Vector2(1, 0);
         var transformed = Vector2.Transform(point, matrix);
 
@@ -131,7 +131,7 @@ public class Transform2DTests
             MathF.PI / 2f,
             Vector2.One);
 
-        var matrix = transform.ToMatrix();
+        var matrix = transform.Matrix();
         var point = new Vector2(1, 0);
         var transformed = Vector2.Transform(point, matrix);
 
@@ -149,7 +149,7 @@ public class Transform2DTests
     {
         var transform = Transform2D.Identity;
 
-        var forward = transform.Forward;
+        var forward = transform.Forward();
 
         Assert.Equal(1f, forward.X, Epsilon);
         Assert.Equal(0f, forward.Y, Epsilon);
@@ -160,7 +160,7 @@ public class Transform2DTests
     {
         var transform = Transform2D.Identity;
 
-        var right = transform.Right;
+        var right = transform.Right();
 
         Assert.Equal(0f, right.X, Epsilon);
         Assert.Equal(-1f, right.Y, Epsilon);
@@ -173,7 +173,7 @@ public class Transform2DTests
         var rotation = MathF.PI / 2f;
         var transform = new Transform2D(Vector2.Zero, rotation, Vector2.One);
 
-        var forward = transform.Forward;
+        var forward = transform.Forward();
 
         Assert.True(MathF.Abs(forward.X) < Epsilon);
         Assert.Equal(1f, forward.Y, Epsilon);
@@ -186,7 +186,7 @@ public class Transform2DTests
         var rotation = MathF.PI / 2f;
         var transform = new Transform2D(Vector2.Zero, rotation, Vector2.One);
 
-        var right = transform.Right;
+        var right = transform.Right();
 
         Assert.Equal(1f, right.X, Epsilon);
         Assert.True(MathF.Abs(right.Y) < Epsilon);
@@ -198,8 +198,8 @@ public class Transform2DTests
         var rotation = 1.2345f; // Arbitrary rotation
         var transform = new Transform2D(Vector2.Zero, rotation, Vector2.One);
 
-        var forward = transform.Forward;
-        var right = transform.Right;
+        var forward = transform.Forward();
+        var right = transform.Right();
 
         // Dot product should be zero for orthogonal vectors
         Assert.Equal(0f, Vector2.Dot(forward, right), Epsilon);
@@ -211,8 +211,8 @@ public class Transform2DTests
         var rotation = 1.2345f; // Arbitrary rotation
         var transform = new Transform2D(Vector2.Zero, rotation, Vector2.One);
 
-        Assert.Equal(1f, transform.Forward.Length(), Epsilon);
-        Assert.Equal(1f, transform.Right.Length(), Epsilon);
+        Assert.Equal(1f, transform.Forward().Length(), Epsilon);
+        Assert.Equal(1f, transform.Right().Length(), Epsilon);
     }
 
     #endregion
