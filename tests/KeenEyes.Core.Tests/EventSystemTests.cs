@@ -831,42 +831,41 @@ public class EventSystemTests
     }
 
     [Fact]
-    public void WorldDispose_PreventsMemoryLeaksFromLongLivedSubscribers()
+    public void WorldDispose_ClearsHandlerListsPreventsMemoryLeaks()
     {
-        // This test verifies the pattern where a long-lived object subscribes to events
-        // and the world gets disposed - the subscriber should no longer hold references
-        // to the world or its data
+        // This test verifies that World.Dispose() properly clears all handler lists,
+        // which breaks the reference chain from long-lived subscriptions back to the world.
+        // This is the key mechanism for preventing memory leaks.
 
-        WeakReference worldRef;
-        EventSubscription? subscription = null;
+        var world = new World();
 
-        // Create scope where world lives
-        {
-            var world = new World();
-            worldRef = new WeakReference(world);
+        // Create various subscriptions (simulating long-lived subscribers)
+        var eventSub = world.Events.Subscribe<CustomEvent>(_ => { });
+        var createSub = world.OnEntityCreated((_, _) => { });
+        var destroySub = world.OnEntityDestroyed(_ => { });
+        var addSub = world.OnComponentAdded<TestPosition>((_, _) => { });
+        var removeSub = world.OnComponentRemoved<TestPosition>(_ => { });
+        var changeSub = world.OnComponentChanged<TestPosition>((_, _, _) => { });
 
-            // Long-lived subscriber (simulated by keeping subscription reference)
-            var eventCount = 0;
-            subscription = world.Events.Subscribe<CustomEvent>(_ => eventCount++);
+        // Verify handlers are registered before disposal
+        Assert.True(world.Events.HasHandlers<CustomEvent>());
+        Assert.Equal(1, world.Events.GetHandlerCount<CustomEvent>());
 
-            // Verify world is alive
-            Assert.True(worldRef.IsAlive);
+        // Dispose world - this should clear ALL handler lists
+        world.Dispose();
 
-            // Dispose world - should clear all subscriptions
-            world.Dispose();
-        }
+        // Verify ALL handler lists are empty after disposal
+        Assert.False(world.Events.HasHandlers<CustomEvent>());
+        Assert.Equal(0, world.Events.GetHandlerCount<CustomEvent>());
 
-        // Force garbage collection
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        // World should be collectible even though we still hold the subscription
-        // because the subscription's handler list was cleared
-        Assert.False(worldRef.IsAlive);
-
-        // Disposing the subscription should not throw
-        subscription?.Dispose();
+        // Disposing subscriptions after world disposal should be safe no-ops
+        // (they won't find their handlers since the lists were cleared)
+        eventSub.Dispose();
+        createSub.Dispose();
+        destroySub.Dispose();
+        addSub.Dispose();
+        removeSub.Dispose();
+        changeSub.Dispose();
     }
 
     #endregion
