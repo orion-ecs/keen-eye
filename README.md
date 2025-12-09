@@ -1,5 +1,12 @@
 # KeenEyes
 
+[![Build and Test](https://github.com/orion-ecs/keen-eye/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/orion-ecs/keen-eye/actions/workflows/build.yml)
+[![Coverage Status](https://coveralls.io/repos/github/orion-ecs/keen-eye/badge.svg)](https://coveralls.io/github/orion-ecs/keen-eye)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![GitHub issues](https://img.shields.io/github/issues/orion-ecs/keen-eye)](https://github.com/orion-ecs/keen-eye/issues)
+[![GitHub stars](https://img.shields.io/github/stars/orion-ecs/keen-eye)](https://github.com/orion-ecs/keen-eye/stargazers)
+
 A high-performance Entity Component System (ECS) framework for .NET 10.
 
 This is a C# reimplementation of [OrionECS](https://github.com/tyevco/OrionECS), designed to leverage modern .NET features for maximum performance and developer experience.
