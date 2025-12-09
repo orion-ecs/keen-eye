@@ -99,6 +99,9 @@ foreach (var e in world.Query<Position, Velocity>())
 | **Plugin** | Modular extensions via `IWorldPlugin` with `Install()` / `Uninstall()` lifecycle and Extension API. |
 | **Events** | Lifecycle events via `OnEntityCreated()`, `OnComponentAdded<T>()`, etc. |
 | **Change Tracking** | Dirty entity tracking via `MarkDirty<T>()` / `GetDirtyEntities<T>()`. |
+| **Prefabs** | Reusable entity templates via `RegisterPrefab()` / `SpawnFromPrefab()` with inheritance support. |
+| **String Tags** | Runtime-flexible tagging via `AddTag()` / `HasTag()` / `QueryByTag()` for data-driven workflows. |
+| **Component Validation** | Enforce component dependencies and conflicts via `[RequiresComponent]` / `[ConflictsWith]` attributes. |
 
 ## Quick Reference
 
@@ -376,6 +379,97 @@ physics.SetGravity(9.8f);
 world.UninstallPlugin<PhysicsPlugin>();
 ```
 
+### Prefabs
+
+```csharp
+// Define reusable entity templates
+var enemyPrefab = new EntityPrefab()
+    .With(new Position { X = 0, Y = 0 })
+    .With(new Health { Current = 100, Max = 100 })
+    .WithTag<EnemyTag>();
+
+world.RegisterPrefab("Enemy", enemyPrefab);
+
+// Spawn from prefab
+var enemy = world.SpawnFromPrefab("Enemy").Build();
+
+// Override components when spawning
+var strongEnemy = world.SpawnFromPrefab("Enemy")
+    .With(new Health { Current = 200, Max = 200 })
+    .Build();
+
+// Prefab inheritance
+var bossEnemyPrefab = new EntityPrefab()
+    .Extends("Enemy")
+    .With(new Health { Current = 500, Max = 500 })
+    .WithTag<BossTag>();
+
+world.RegisterPrefab("BossEnemy", bossEnemyPrefab);
+```
+
+### String Tags
+
+```csharp
+// Add runtime tags
+world.AddTag(entity, "Enemy");
+world.AddTag(entity, "Hostile");
+
+// Check tags
+if (world.HasTag(entity, "Boss"))
+{
+    // Special boss handling
+}
+
+// Query by tag
+foreach (var e in world.QueryByTag("Enemy"))
+{
+    // Process all enemies
+}
+
+// Combine with component queries
+foreach (var e in world.Query<Position>()
+    .WithTag("Enemy")
+    .WithoutTag("Dead"))
+{
+    // Process living enemies with position
+}
+```
+
+### Component Validation
+
+```csharp
+// Enforce component dependencies with attributes
+[Component]
+[RequiresComponent(typeof(Transform))]
+public partial struct RigidBody
+{
+    public float Mass;
+}
+
+// Mutual exclusion
+[Component]
+[ConflictsWith(typeof(DynamicBody))]
+public partial struct StaticBody { }
+
+// This throws - Transform is required
+var entity = world.Spawn()
+    .With(new RigidBody { Mass = 1.0f })
+    .Build();
+
+// This works
+var entity = world.Spawn()
+    .With(new Transform())
+    .With(new RigidBody { Mass = 1.0f })
+    .Build();
+
+// Custom validators
+world.RegisterValidator<Health>((world, entity, health) =>
+    health.Current >= 0 && health.Current <= health.Max);
+
+// Control validation mode
+world.ValidationMode = ValidationMode.DebugOnly;
+```
+
 ## Source Generator Attributes
 
 Reduce boilerplate with source-generated code:
@@ -419,5 +513,9 @@ For in-depth coverage, see the documentation guides:
 - [Relationships](../docs/relationships.md) - Parent-child entity hierarchies
 - [Events](../docs/events.md) - Component and entity lifecycle events
 - [Change Tracking](../docs/change-tracking.md) - Track component modifications
+- [Prefabs](../docs/prefabs.md) - Reusable entity templates with inheritance
+- [String Tags](../docs/string-tags.md) - Runtime-flexible entity tagging
+- [Component Validation](../docs/component-validation.md) - Enforce component constraints
+- [Serialization](../docs/serialization.md) - Save and load world state
 
 Browse the namespace documentation below for detailed API information on each type.
