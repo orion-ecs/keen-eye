@@ -197,3 +197,7 @@ dotnet_diagnostic.IDE0161.severity = warning
 
 # CA diagnostics
 dotnet_diagnostic.CA1852.severity = warning
+
+# CS diagnostics
+# CS1591: Missing XML comment for publicly visible type or member
+dotnet_diagnostic.CS1591.severity = warning
