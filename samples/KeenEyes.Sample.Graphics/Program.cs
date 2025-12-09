@@ -5,9 +5,9 @@
 
 using System.Numerics;
 using KeenEyes;
+using KeenEyes.Common;
 using KeenEyes.Graphics;
 using KeenEyes.Sample.Graphics;
-using KeenEyes.Common;
 
 Console.WriteLine("KeenEyes Graphics Sample");
 Console.WriteLine("========================");
