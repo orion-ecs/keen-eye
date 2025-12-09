@@ -534,39 +534,41 @@ public class InternalApiTests
 
     #endregion
 
-    #region ComponentArrayPool - Static Pool Behavior
+    #region ComponentArrayPoolManager - Per-World Pool Behavior
 
     [Fact]
-    public void ComponentArrayPool_RentAndReturn_TracksStats()
+    public void ComponentArrayPoolManager_RentAndReturn_TracksStats()
     {
-        var beforeRented = ComponentArrayPool<Position>.TotalRented;
-        var beforeReturned = ComponentArrayPool<Position>.TotalReturned;
+        using var world = new World();
+        var beforeRented = world.ArrayPools.TotalRented;
+        var beforeReturned = world.ArrayPools.TotalReturned;
 
         // Rent an array
-        var array = ComponentArrayPool<Position>.Rent(16);
+        var array = world.ArrayPools.Rent<Position>(16);
         Assert.NotNull(array);
         Assert.True(array.Length >= 16);
 
         // Verify rental was tracked
-        Assert.Equal(beforeRented + 1, ComponentArrayPool<Position>.TotalRented);
+        Assert.Equal(beforeRented + 1, world.ArrayPools.TotalRented);
 
         // Return it
-        ComponentArrayPool<Position>.Return(array);
+        world.ArrayPools.Return(array);
 
         // Verify return was tracked
-        Assert.Equal(beforeReturned + 1, ComponentArrayPool<Position>.TotalReturned);
+        Assert.Equal(beforeReturned + 1, world.ArrayPools.TotalReturned);
     }
 
     [Fact]
-    public void ComponentArrayPool_OutstandingCount_TracksActiveRentals()
+    public void ComponentArrayPoolManager_OutstandingCount_TracksActiveRentals()
     {
-        var before = ComponentArrayPool<Velocity>.OutstandingCount;
+        using var world = new World();
+        var before = world.ArrayPools.OutstandingCount;
 
-        var array = ComponentArrayPool<Velocity>.Rent(16);
-        Assert.Equal(before + 1, ComponentArrayPool<Velocity>.OutstandingCount);
+        var array = world.ArrayPools.Rent<Velocity>(16);
+        Assert.Equal(before + 1, world.ArrayPools.OutstandingCount);
 
-        ComponentArrayPool<Velocity>.Return(array);
-        Assert.Equal(before, ComponentArrayPool<Velocity>.OutstandingCount);
+        world.ArrayPools.Return(array);
+        Assert.Equal(before, world.ArrayPools.OutstandingCount);
     }
 
     #endregion

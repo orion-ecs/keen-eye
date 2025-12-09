@@ -869,28 +869,29 @@ public class EdgeCaseTests
 
     #endregion
 
-    #region ComponentArrayPool - Pool Statistics Tests
+    #region ComponentArrayPoolManager - Pool Statistics Tests
 
     [Fact]
-    public void ComponentArrayPool_OutstandingCount_TracksCorrectly()
+    public void ComponentArrayPoolManager_OutstandingCount_TracksCorrectly()
     {
-        var beforeRented = ComponentArrayPool<long>.TotalRented;
-        var beforeReturned = ComponentArrayPool<long>.TotalReturned;
+        using var world = new World();
+        var beforeRented = world.ArrayPools.TotalRented;
+        var beforeReturned = world.ArrayPools.TotalReturned;
 
-        var array1 = ComponentArrayPool<long>.Rent(10);
-        var array2 = ComponentArrayPool<long>.Rent(20);
+        var array1 = world.ArrayPools.Rent<long>(10);
+        var array2 = world.ArrayPools.Rent<long>(20);
 
-        Assert.Equal(beforeRented + 2, ComponentArrayPool<long>.TotalRented);
-        Assert.Equal(beforeReturned, ComponentArrayPool<long>.TotalReturned);
+        Assert.Equal(beforeRented + 2, world.ArrayPools.TotalRented);
+        Assert.Equal(beforeReturned, world.ArrayPools.TotalReturned);
 
-        var outstanding = ComponentArrayPool<long>.OutstandingCount;
-        Assert.True(outstanding >= 2);
+        var outstanding = world.ArrayPools.OutstandingCount;
+        Assert.Equal(2, outstanding);
 
-        ComponentArrayPool<long>.Return(array1);
-        ComponentArrayPool<long>.Return(array2);
+        world.ArrayPools.Return(array1);
+        world.ArrayPools.Return(array2);
 
-        Assert.Equal(beforeRented + 2, ComponentArrayPool<long>.TotalRented);
-        Assert.Equal(beforeReturned + 2, ComponentArrayPool<long>.TotalReturned);
+        Assert.Equal(beforeRented + 2, world.ArrayPools.TotalRented);
+        Assert.Equal(beforeReturned + 2, world.ArrayPools.TotalReturned);
     }
 
     #endregion

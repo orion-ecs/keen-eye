@@ -194,21 +194,23 @@ public class PoolingTests
     [Fact]
     public void ComponentArrayPool_Rent_ReturnsArray()
     {
-        var array = ComponentArrayPool<int>.Rent(10);
+        using var world = new World();
+        var array = world.ArrayPools.Rent<int>(10);
 
         Assert.NotNull(array);
         Assert.True(array.Length >= 10);
 
-        ComponentArrayPool<int>.Return(array);
+        world.ArrayPools.Return(array);
     }
 
     [Fact]
     public void ComponentArrayPool_Return_ClearsIfRequested()
     {
-        var array = ComponentArrayPool<int>.Rent(10);
+        using var world = new World();
+        var array = world.ArrayPools.Rent<int>(10);
         array[0] = 42;
 
-        ComponentArrayPool<int>.Return(array, clearArray: true);
+        world.ArrayPools.Return(array, clearArray: true);
 
         // After return, array should be cleared (but we can't verify directly)
         // The test mainly ensures no exception is thrown
@@ -217,26 +219,28 @@ public class PoolingTests
     [Fact]
     public void ComponentArrayPool_TotalRented_TracksRentals()
     {
-        var before = ComponentArrayPool<double>.TotalRented;
+        using var world = new World();
+        var before = world.ArrayPools.TotalRented;
 
-        var array1 = ComponentArrayPool<double>.Rent(10);
-        var array2 = ComponentArrayPool<double>.Rent(20);
+        var array1 = world.ArrayPools.Rent<double>(10);
+        var array2 = world.ArrayPools.Rent<double>(20);
 
-        Assert.Equal(before + 2, ComponentArrayPool<double>.TotalRented);
+        Assert.Equal(before + 2, world.ArrayPools.TotalRented);
 
-        ComponentArrayPool<double>.Return(array1);
-        ComponentArrayPool<double>.Return(array2);
+        world.ArrayPools.Return(array1);
+        world.ArrayPools.Return(array2);
     }
 
     [Fact]
     public void ComponentArrayPool_TotalReturned_TracksReturns()
     {
-        var before = ComponentArrayPool<float>.TotalReturned;
+        using var world = new World();
+        var before = world.ArrayPools.TotalReturned;
 
-        var array = ComponentArrayPool<float>.Rent(10);
-        ComponentArrayPool<float>.Return(array);
+        var array = world.ArrayPools.Rent<float>(10);
+        world.ArrayPools.Return(array);
 
-        Assert.Equal(before + 1, ComponentArrayPool<float>.TotalReturned);
+        Assert.Equal(before + 1, world.ArrayPools.TotalReturned);
     }
 
     #endregion
@@ -411,67 +415,75 @@ public class PoolingTests
     [Fact]
     public void ComponentArrayPool_NonGeneric_Rent_ReturnsArray()
     {
-        // Register type for AOT compatibility
-        ComponentArrayPool.Register<TestPosition>();
+        using var world = new World();
 
-        var array = ComponentArrayPool.Rent(typeof(TestPosition), 10);
+        // Register type for AOT compatibility
+        ComponentArrayPoolManager.Register<TestPosition>();
+
+        var array = world.ArrayPools.Rent(typeof(TestPosition), 10);
 
         Assert.NotNull(array);
         Assert.IsType<TestPosition[]>(array);
         Assert.True(array.Length >= 10);
 
-        ComponentArrayPool.Return(typeof(TestPosition), array);
+        world.ArrayPools.Return(typeof(TestPosition), array);
     }
 
     [Fact]
     public void ComponentArrayPool_NonGeneric_RentAndReturn_WorksForDifferentTypes()
     {
-        // Register types for AOT compatibility
-        ComponentArrayPool.Register<TestPosition>();
-        ComponentArrayPool.Register<int>();
+        using var world = new World();
 
-        var posArray = ComponentArrayPool.Rent(typeof(TestPosition), 5);
-        var intArray = ComponentArrayPool.Rent(typeof(int), 8);
+        // Register types for AOT compatibility
+        ComponentArrayPoolManager.Register<TestPosition>();
+        ComponentArrayPoolManager.Register<int>();
+
+        var posArray = world.ArrayPools.Rent(typeof(TestPosition), 5);
+        var intArray = world.ArrayPools.Rent(typeof(int), 8);
 
         Assert.IsType<TestPosition[]>(posArray);
         Assert.IsType<int[]>(intArray);
         Assert.True(posArray.Length >= 5);
         Assert.True(intArray.Length >= 8);
 
-        ComponentArrayPool.Return(typeof(TestPosition), posArray);
-        ComponentArrayPool.Return(typeof(int), intArray, clearArray: true);
+        world.ArrayPools.Return(typeof(TestPosition), posArray);
+        world.ArrayPools.Return(typeof(int), intArray, clearArray: true);
     }
 
     [Fact]
     public void ComponentArrayPool_NonGeneric_Return_WithClear()
     {
-        // Register type for AOT compatibility
-        ComponentArrayPool.Register<TestPosition>();
+        using var world = new World();
 
-        var array = ComponentArrayPool.Rent(typeof(TestPosition), 3);
+        // Register type for AOT compatibility
+        ComponentArrayPoolManager.Register<TestPosition>();
+
+        var array = world.ArrayPools.Rent(typeof(TestPosition), 3);
 
         // Set some values
         var typedArray = (TestPosition[])array;
         typedArray[0] = new TestPosition { X = 1, Y = 2 };
 
         // Return with clear
-        ComponentArrayPool.Return(typeof(TestPosition), array, clearArray: true);
+        world.ArrayPools.Return(typeof(TestPosition), array, clearArray: true);
 
         // Rent again - should be cleared
-        var newArray = ComponentArrayPool.Rent(typeof(TestPosition), 3);
+        var newArray = world.ArrayPools.Rent(typeof(TestPosition), 3);
         var newTyped = (TestPosition[])newArray;
         Assert.Equal(0, newTyped[0].X);
 
-        ComponentArrayPool.Return(typeof(TestPosition), newArray);
+        world.ArrayPools.Return(typeof(TestPosition), newArray);
     }
 
     [Fact]
     public void ComponentArrayPool_NonGeneric_ThrowsWhenTypeNotRegistered()
     {
+        using var world = new World();
+
         // Don't register TestVelocity
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            ComponentArrayPool.Rent(typeof(TestVelocity), 10));
+            world.ArrayPools.Rent(typeof(TestVelocity), 10));
 
         Assert.Contains("has not been registered", exception.Message);
         Assert.Contains("TestVelocity", exception.Message);
@@ -480,14 +492,54 @@ public class PoolingTests
     [Fact]
     public void ComponentArrayPool_Register_AllowsMultipleCalls()
     {
-        // Multiple registrations should be safe (idempotent)
-        ComponentArrayPool.Register<TestPosition>();
-        ComponentArrayPool.Register<TestPosition>();
-        ComponentArrayPool.Register<TestPosition>();
+        using var world = new World();
 
-        var array = ComponentArrayPool.Rent(typeof(TestPosition), 5);
+        // Multiple registrations should be safe (idempotent)
+        ComponentArrayPoolManager.Register<TestPosition>();
+        ComponentArrayPoolManager.Register<TestPosition>();
+        ComponentArrayPoolManager.Register<TestPosition>();
+
+        var array = world.ArrayPools.Rent(typeof(TestPosition), 5);
         Assert.NotNull(array);
-        ComponentArrayPool.Return(typeof(TestPosition), array);
+        world.ArrayPools.Return(typeof(TestPosition), array);
+    }
+
+    [Fact]
+    public void ComponentArrayPool_PerWorld_IsolatesStatistics()
+    {
+        // Test that each World has independent pool statistics
+        using var world1 = new World();
+        using var world2 = new World();
+
+        // World1: Rent 2 arrays
+        var array1a = world1.ArrayPools.Rent<int>(10);
+        var array1b = world1.ArrayPools.Rent<int>(20);
+
+        // World2: Rent 3 arrays
+        var array2a = world2.ArrayPools.Rent<int>(10);
+        var array2b = world2.ArrayPools.Rent<int>(20);
+        var array2c = world2.ArrayPools.Rent<int>(30);
+
+        // Verify independent counts
+        Assert.Equal(2, world1.ArrayPools.TotalRented);
+        Assert.Equal(3, world2.ArrayPools.TotalRented);
+        Assert.Equal(2, world1.ArrayPools.OutstandingCount);
+        Assert.Equal(3, world2.ArrayPools.OutstandingCount);
+
+        // Return arrays
+        world1.ArrayPools.Return(array1a);
+        world2.ArrayPools.Return(array2a);
+        world2.ArrayPools.Return(array2b);
+
+        // Verify returns are independent
+        Assert.Equal(1, world1.ArrayPools.TotalReturned);
+        Assert.Equal(2, world2.ArrayPools.TotalReturned);
+        Assert.Equal(1, world1.ArrayPools.OutstandingCount);
+        Assert.Equal(1, world2.ArrayPools.OutstandingCount);
+
+        // Clean up
+        world1.ArrayPools.Return(array1b);
+        world2.ArrayPools.Return(array2c);
     }
 
     #endregion
