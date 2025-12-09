@@ -35,6 +35,7 @@ public sealed partial class World : IWorld
     private readonly PrefabManager prefabManager;
     private readonly TagManager tagManager = new();
     private readonly ComponentValidationManager validationManager;
+    private readonly ComponentArrayPoolManager arrayPoolManager = new();
     private readonly EntityBuilder builder;
 
     /// <summary>
@@ -58,6 +59,12 @@ public sealed partial class World : IWorld
     /// Gets the entity pool for this world.
     /// </summary>
     internal EntityPool EntityPool => entityPool;
+
+    /// <summary>
+    /// Gets the array pool manager for this world.
+    /// Provides pooled arrays for component storage with per-world statistics tracking.
+    /// </summary>
+    public ComponentArrayPoolManager ArrayPools => arrayPoolManager;
 
     /// <summary>
     /// Gets the event bus for publishing and subscribing to custom events.
@@ -119,5 +126,6 @@ public sealed partial class World : IWorld
         messageManager.Clear();
         changeTracker.Clear();
         tagManager.Clear();
+        arrayPoolManager.Clear();
     }
 }

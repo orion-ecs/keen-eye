@@ -4,53 +4,61 @@ using System.Runtime.CompilerServices;
 namespace KeenEyes;
 
 /// <summary>
+/// Per-world manager for pooled component arrays.
 /// Provides pooled arrays for component storage, reducing garbage collection pressure.
 /// Uses .NET's built-in ArrayPool&lt;T&gt;.Shared for efficient memory reuse.
 /// </summary>
-/// <typeparam name="T">The component type.</typeparam>
 /// <remarks>
 /// <para>
-/// This pool is a thin wrapper around <see cref="ArrayPool{T}.Shared"/> that provides
-/// ECS-specific functionality and tracking. It can be used independently of the
-/// archetype system for custom storage scenarios.
+/// This manager is instance-based, with one instance per World. Each World has its own
+/// independent pool statistics and tracking, enabling true multi-world isolation.
 /// </para>
 /// <para>
 /// Rented arrays may be larger than requested due to ArrayPool's bucketing strategy.
 /// Always track the actual count of elements separately from the array length.
 /// </para>
 /// </remarks>
-public static class ComponentArrayPool<T> where T : struct
+internal sealed class ComponentArrayPoolManager
 {
-    private static long totalRented;
-    private static long totalReturned;
+    private long totalRented;
+    private long totalReturned;
+
+    private delegate Array RentDelegate(int minimumLength);
+    private delegate void ReturnDelegate(Array array, bool clearArray);
+
+    // Static delegate cache for AOT - shared across all worlds but doesn't affect behavior
+    private static readonly Dictionary<Type, RentDelegate> rentDelegates = [];
+    private static readonly Dictionary<Type, ReturnDelegate> returnDelegates = [];
+    private static readonly object lockObj = new();
 
     /// <summary>
     /// Gets the total number of arrays rented from this pool.
     /// </summary>
-    public static long TotalRented => Interlocked.Read(ref totalRented);
+    public long TotalRented => Interlocked.Read(ref totalRented);
 
     /// <summary>
     /// Gets the total number of arrays returned to this pool.
     /// </summary>
-    public static long TotalReturned => Interlocked.Read(ref totalReturned);
+    public long TotalReturned => Interlocked.Read(ref totalReturned);
 
     /// <summary>
     /// Gets the number of arrays currently rented (not returned).
     /// </summary>
-    public static long OutstandingCount => TotalRented - TotalReturned;
+    public long OutstandingCount => TotalRented - TotalReturned;
 
     /// <summary>
     /// Rents an array of at least the specified minimum length.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
     /// <param name="minimumLength">The minimum required length.</param>
     /// <returns>An array of at least the specified length.</returns>
     /// <remarks>
     /// The returned array may be longer than requested. Track the actual
     /// element count separately. When done, return the array using
-    /// <see cref="Return(T[], bool)"/>.
+    /// <see cref="Return{T}(T[], bool)"/>.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static T[] Rent(int minimumLength)
+    public T[] Rent<T>(int minimumLength) where T : struct
     {
         Interlocked.Increment(ref totalRented);
         return ArrayPool<T>.Shared.Rent(minimumLength);
@@ -59,6 +67,7 @@ public static class ComponentArrayPool<T> where T : struct
     /// <summary>
     /// Returns an array to the pool.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
     /// <param name="array">The array to return.</param>
     /// <param name="clearArray">Whether to clear the array contents before returning.</param>
     /// <remarks>
@@ -71,37 +80,11 @@ public static class ComponentArrayPool<T> where T : struct
     /// </para>
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Return(T[] array, bool clearArray = false)
+    public void Return<T>(T[] array, bool clearArray = false) where T : struct
     {
         ArrayPool<T>.Shared.Return(array, clearArray);
         Interlocked.Increment(ref totalReturned);
     }
-}
-
-/// <summary>
-/// Non-generic helper for ComponentArrayPool operations.
-/// Provides AOT-compatible access for dynamic component types using explicit registration.
-/// </summary>
-/// <remarks>
-/// <para>
-/// This class uses explicit delegate registration to avoid reflection, making it compatible with
-/// Native AOT compilation. Component types must be registered via <see cref="Register{T}"/>
-/// before using the non-generic Rent/Return methods.
-/// </para>
-/// <para>
-/// For AOT scenarios, call <see cref="Register{T}"/> during startup for all component types
-/// that will be used dynamically. Generic <see cref="ComponentArrayPool{T}"/> can be used
-/// directly without registration.
-/// </para>
-/// </remarks>
-public static class ComponentArrayPool
-{
-    private delegate Array RentDelegate(int minimumLength);
-    private delegate void ReturnDelegate(Array array, bool clearArray);
-
-    private static readonly Dictionary<Type, RentDelegate> rentDelegates = [];
-    private static readonly Dictionary<Type, ReturnDelegate> returnDelegates = [];
-    private static readonly object lockObj = new();
 
     /// <summary>
     /// Registers a component type for non-generic pool access.
@@ -109,7 +92,7 @@ public static class ComponentArrayPool
     /// <typeparam name="T">The component type to register.</typeparam>
     /// <remarks>
     /// This method should be called during initialization for all component types that will
-    /// be accessed via the non-generic <see cref="Rent"/> and <see cref="Return"/> methods.
+    /// be accessed via the non-generic <see cref="Rent(Type, int)"/> and <see cref="Return(Type, Array, bool)"/> methods.
     /// This is required for AOT compatibility.
     /// </remarks>
     public static void Register<T>() where T : struct
@@ -119,8 +102,9 @@ public static class ComponentArrayPool
         {
             if (!rentDelegates.ContainsKey(type))
             {
-                rentDelegates[type] = static minLength => ComponentArrayPool<T>.Rent(minLength);
-                returnDelegates[type] = static (array, clear) => ComponentArrayPool<T>.Return((T[])array, clear);
+                // Create delegates that use ArrayPool<T>.Shared directly
+                rentDelegates[type] = static minLength => ArrayPool<T>.Shared.Rent(minLength);
+                returnDelegates[type] = static (array, clear) => ArrayPool<T>.Shared.Return((T[])array, clear);
             }
         }
     }
@@ -136,18 +120,19 @@ public static class ComponentArrayPool
     /// </exception>
     /// <remarks>
     /// For AOT compatibility, the component type must be registered via <see cref="Register{T}"/>
-    /// before calling this method. For known types at compile time, use <see cref="ComponentArrayPool{T}.Rent"/>
+    /// before calling this method. For known types at compile time, use <see cref="Rent{T}(int)"/>
     /// directly instead.
     /// </remarks>
-    public static Array Rent(Type componentType, int minimumLength)
+    public Array Rent(Type componentType, int minimumLength)
     {
         if (!rentDelegates.TryGetValue(componentType, out var rentDelegate))
         {
             throw new InvalidOperationException(
-                $"Component type {componentType.Name} has not been registered with ComponentArrayPool. " +
-                $"Call ComponentArrayPool.Register<{componentType.Name}>() before using non-generic Rent/Return methods.");
+                $"Component type {componentType.Name} has not been registered with ComponentArrayPoolManager. " +
+                $"Call ComponentArrayPoolManager.Register<{componentType.Name}>() before using non-generic Rent/Return methods.");
         }
 
+        Interlocked.Increment(ref totalRented);
         return rentDelegate(minimumLength);
     }
 
@@ -162,18 +147,29 @@ public static class ComponentArrayPool
     /// </exception>
     /// <remarks>
     /// For AOT compatibility, the component type must be registered via <see cref="Register{T}"/>
-    /// before calling this method. For known types at compile time, use <see cref="ComponentArrayPool{T}.Return"/>
+    /// before calling this method. For known types at compile time, use <see cref="Return{T}(T[], bool)"/>
     /// directly instead.
     /// </remarks>
-    public static void Return(Type componentType, Array array, bool clearArray = false)
+    public void Return(Type componentType, Array array, bool clearArray = false)
     {
         if (!returnDelegates.TryGetValue(componentType, out var returnDelegate))
         {
             throw new InvalidOperationException(
-                $"Component type {componentType.Name} has not been registered with ComponentArrayPool. " +
-                $"Call ComponentArrayPool.Register<{componentType.Name}>() before using non-generic Rent/Return methods.");
+                $"Component type {componentType.Name} has not been registered with ComponentArrayPoolManager. " +
+                $"Call ComponentArrayPoolManager.Register<{componentType.Name}>() before using non-generic Rent/Return methods.");
         }
 
         returnDelegate(array, clearArray);
+        Interlocked.Increment(ref totalReturned);
+    }
+
+    /// <summary>
+    /// Clears all statistics for this pool manager.
+    /// Called during World disposal.
+    /// </summary>
+    internal void Clear()
+    {
+        Interlocked.Exchange(ref totalRented, 0);
+        Interlocked.Exchange(ref totalReturned, 0);
     }
 }
