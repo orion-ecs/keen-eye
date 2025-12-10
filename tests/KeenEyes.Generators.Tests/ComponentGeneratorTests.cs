@@ -206,7 +206,9 @@ public class ComponentGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         // Verify builder method is generated (signature may vary with no parameters)
-        Assert.Contains(generatedTrees, t => t.Contains("WithEmpty(this EntityBuilder builder"));
+        // Should have both generic and non-generic versions
+        Assert.Contains(generatedTrees, t => t.Contains("WithEmpty<TSelf>(this TSelf builder"));
+        Assert.Contains(generatedTrees, t => t.Contains("WithEmpty(this global::KeenEyes.IEntityBuilder builder"));
         Assert.Contains(generatedTrees, t => t.Contains("new TestApp.Empty"));
     }
 

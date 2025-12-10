@@ -332,6 +332,62 @@ public class NetworkPlugin : IWorldPlugin
 }
 ```
 
+## Using Command Buffers in Plugins
+
+Plugins can use command buffers for deferred entity operations through the `ICommandBuffer` interface, available in `KeenEyes.Abstractions`:
+
+```csharp
+using KeenEyes;
+
+public class SpawnerSystem : ISystem
+{
+    private readonly ICommandBuffer buffer = new CommandBuffer();
+    private IWorld? world;
+    private float timer;
+
+    public void Initialize(IWorld world)
+    {
+        this.world = world;
+    }
+
+    public void Update(float deltaTime)
+    {
+        if (world is null) return;
+
+        timer -= deltaTime;
+        if (timer <= 0)
+        {
+            timer = 1.0f;
+
+            // Queue entity spawns safely during iteration
+            foreach (var spawner in world.Query<Position>().With<Spawner>())
+            {
+                ref readonly var pos = ref world.Get<Position>(spawner);
+
+                buffer.Spawn()
+                    .With(new Position { X = pos.X, Y = pos.Y })
+                    .With(new Velocity { X = 1, Y = 0 });
+            }
+
+            // Execute all queued spawns
+            buffer.Flush(world);
+        }
+    }
+
+    public void Dispose() { }
+    public bool Enabled { get; set; } = true;
+}
+```
+
+### Benefits for Plugins
+
+- **No Core dependency** - `ICommandBuffer` is in `KeenEyes.Abstractions`
+- **Safe iteration** - Prevents iterator invalidation when spawning/despawning during queries
+- **Batch execution** - All queued operations execute atomically via `Flush()`
+- **Zero reflection** - Uses delegate capture for type-safe, high-performance command execution
+
+See the [Command Buffer Guide](command-buffer.md) for detailed usage patterns and the [Abstractions Guide](abstractions.md) for interface documentation.
+
 ## World Isolation
 
 Each world has completely isolated plugins:

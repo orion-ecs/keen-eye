@@ -271,7 +271,7 @@ public partial class SpawnerSystem : SystemBase
         {
             var request = pendingSpawns.Dequeue();
 
-            var enemy = ((World)World).Spawn()
+            var enemy = World.Spawn()
                 .WithPosition(request.X, request.Y)
                 .WithHealth(request.Health, request.Health)
                 .WithEnemy()

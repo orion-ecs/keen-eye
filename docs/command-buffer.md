@@ -358,6 +358,86 @@ catch
 | Reading component values | ❌ No (use `ref readonly`) |
 | After iteration is complete | ❌ No (direct operations are fine) |
 
+## Using CommandBuffer in Plugins
+
+The command buffer system is available through the `ICommandBuffer` interface in the `KeenEyes.Abstractions` package, allowing plugins to queue entity operations without depending on `KeenEyes.Core`:
+
+```csharp
+using KeenEyes;
+
+public class MySystem : ISystem
+{
+    private readonly ICommandBuffer buffer = new CommandBuffer();
+    private IWorld? world;
+
+    public void Initialize(IWorld world)
+    {
+        this.world = world;
+    }
+
+    public void Update(float deltaTime)
+    {
+        if (world is null) return;
+
+        // Use ICommandBuffer interface for plugin compatibility
+        foreach (var entity in world.Query<Health>())
+        {
+            ref readonly var health = ref world.Get<Health>(entity);
+            if (health.Current <= 0)
+            {
+                buffer.Despawn(entity);
+            }
+        }
+
+        buffer.Flush(world);
+    }
+
+    public void Dispose() { }
+    public bool Enabled { get; set; } = true;
+}
+```
+
+### Interface Benefits
+
+- **Plugin compatibility** - Works through `IWorld` without `KeenEyes.Core` dependency
+- **Testability** - Can mock `ICommandBuffer` for unit tests
+- **Decoupling** - Plugins don't depend on concrete `CommandBuffer` implementation
+
+## Performance: Zero-Reflection Design
+
+The command buffer uses **delegate capture** instead of reflection for type information:
+
+```csharp
+// Component value and type info captured at registration time (cold path)
+buffer.AddComponent(entity, new Health { Current = 100, Max = 100 });
+
+// Internally: Stored as delegate that captures the component
+Action<IWorld, Entity> action = (world, e) => world.Add(e, component);
+
+// Execution (hot path): Direct delegate invocation, no reflection
+action(world, entity);
+```
+
+### Why This Matters
+
+**Traditional reflection approach (slow):**
+```csharp
+// ❌ Reflection on every command execution
+var method = typeof(World).GetMethod("Add").MakeGenericMethod(componentType);
+method.Invoke(world, new object[] { entity, component });
+```
+
+**Delegate capture approach (fast):**
+```csharp
+// ✅ Type info captured once at registration, direct invocation at execution
+commands.Add(new AddComponentCommand(entity, (w, e) => w.Add(e, component)));
+```
+
+Benefits:
+- **Zero reflection overhead** in command execution (hot path)
+- **Type safety** preserved through generics
+- **Predictable performance** - no hidden costs from reflection
+
 ## Thread Safety
 
 `CommandBuffer` is **not thread-safe**. Each system should use its own buffer, or access must be synchronized externally.
@@ -365,5 +445,6 @@ catch
 ## Next Steps
 
 - [Systems Guide](systems.md) - Using buffers in systems
+- [Abstractions Guide](abstractions.md) - Using command buffers in plugins
 - [Entities Guide](entities.md) - Entity lifecycle
 - [Queries Guide](queries.md) - Query patterns

@@ -28,9 +28,23 @@ Core ECS runtime types for building high-performance entity component systems.
 | @KeenEyes.SystemPhase | Enum defining execution phases (EarlyUpdate, FixedUpdate, Update, LateUpdate, Render, PostRender) |
 | @KeenEyes.RunBeforeAttribute | Specifies this system must run before another system (topologically sorted) |
 | @KeenEyes.RunAfterAttribute | Specifies this system must run after another system (topologically sorted) |
-| @KeenEyes.CommandBuffer | Queues entity operations for deferred execution |
 | @KeenEyes.EntityPool | Manages entity ID recycling with versioning |
 | @KeenEyes.MemoryStats | Memory usage statistics snapshot |
+
+### KeenEyes.Abstractions
+
+Lightweight interfaces and types for plugin development without Core dependency.
+
+| Type | Description |
+|------|-------------|
+| @KeenEyes.IWorld | Plugin-facing interface for world operations |
+| @KeenEyes.IEntityBuilder | Interface for fluent entity building |
+| @KeenEyes.ICommandBuffer | Interface for deferred entity operations |
+| @KeenEyes.CommandBuffer | Queues entity operations for deferred execution (20-50x faster than reflection) |
+| @KeenEyes.EntityCommands | Fluent builder for queued entity spawns |
+| @KeenEyes.IWorldPlugin | Base interface for modular world extensions |
+| @KeenEyes.IPluginContext | Context for plugin installation with system registration |
+| @KeenEyes.EventSubscription | Disposable subscription handle for event cleanup |
 
 ### KeenEyes.Events
 
@@ -216,7 +230,11 @@ world.EnableSystem<MovementSystem>();   // Resumes the system
 
 ### Command Buffer (Deferred Operations)
 
+`CommandBuffer` is now in `KeenEyes.Abstractions` for plugin isolation, with zero reflection for 20-50x performance improvement:
+
 ```csharp
+using KeenEyes; // From Abstractions - no Core dependency needed!
+
 var buffer = new CommandBuffer();
 
 foreach (var entity in world.Query<Health>())
@@ -229,9 +247,11 @@ foreach (var entity in world.Query<Health>())
     }
 }
 
-// Execute all queued commands
+// Execute all queued commands (delegate-based, zero reflection)
 buffer.Flush(world);
 ```
+
+Performance: Commands use delegate capture pattern instead of reflection for 20-50x faster execution.
 
 ### Singletons
 

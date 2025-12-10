@@ -216,6 +216,49 @@ public partial struct Player { }
 world.Spawn().WithPlayer().Build();
 ```
 
+### Generated Extension Methods
+
+The component generator creates **two versions** of each extension method for maximum compatibility:
+
+```csharp
+// Generic version for type-safe fluent chaining
+public static TSelf WithPosition<TSelf>(this TSelf builder, float x, float y)
+    where TSelf : IEntityBuilder<TSelf>
+
+// Non-generic version for interface usage
+public static IEntityBuilder WithPosition(this IEntityBuilder builder, float x, float y)
+```
+
+This dual-generation enables:
+- **Type-safe chaining** with concrete `EntityBuilder` type
+- **Interface compatibility** for plugins using `IWorld.Spawn()` or `CommandBuffer.Spawn()`
+- **Automatic overload resolution** - C# picks the best match automatically
+
+**Usage examples:**
+
+```csharp
+// Works with IWorld interface (plugins)
+IWorld world = GetWorld();
+world.Spawn()
+    .WithPosition(10, 20)  // Uses non-generic overload
+    .WithVelocity(1, 0)
+    .Build();
+
+// Works with concrete World type (applications)
+using var world = new World();
+world.Spawn()
+    .WithPosition(10, 20)  // Uses generic overload (better type safety)
+    .WithVelocity(1, 0)
+    .Build();
+
+// Works with CommandBuffer
+var buffer = new CommandBuffer();
+buffer.Spawn()
+    .WithPosition(5, 5)    // Uses generic overload
+    .WithEnemy();
+buffer.Flush(world);
+```
+
 ## Component Access Patterns
 
 ### Mutable Access
