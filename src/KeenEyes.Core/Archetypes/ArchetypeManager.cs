@@ -15,13 +15,15 @@ namespace KeenEyes;
 /// to a new archetype, copying shared components and updating all bookkeeping.
 /// </para>
 /// </remarks>
-public sealed class ArchetypeManager : IDisposable
+/// <param name="componentRegistry">The component registry for type information.</param>
+/// <param name="chunkPool">Optional chunk pool for chunk reuse. If null, a new pool is created.</param>
+public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkPool? chunkPool = null) : IDisposable
 {
-    private readonly ComponentRegistry componentRegistry;
+    private readonly ComponentRegistry componentRegistry = componentRegistry;
     private readonly Dictionary<ArchetypeId, Archetype> archetypes = [];
     private readonly Dictionary<int, (Archetype Archetype, int Index)> entityLocations = [];
     private readonly List<Archetype> archetypeList = [];
-    private readonly ChunkPool chunkPool;
+    private readonly ChunkPool chunkPool = chunkPool ?? new ChunkPool();
 
     /// <summary>
     /// Event raised when a new archetype is created.
@@ -48,17 +50,6 @@ public sealed class ArchetypeManager : IDisposable
     /// Gets the chunk pool used by this manager.
     /// </summary>
     public ChunkPool ChunkPool => chunkPool;
-
-    /// <summary>
-    /// Creates a new ArchetypeManager with the specified component registry.
-    /// </summary>
-    /// <param name="componentRegistry">The component registry for type information.</param>
-    /// <param name="chunkPool">Optional chunk pool for chunk reuse. If null, a new pool is created.</param>
-    public ArchetypeManager(ComponentRegistry componentRegistry, ChunkPool? chunkPool = null)
-    {
-        this.componentRegistry = componentRegistry;
-        this.chunkPool = chunkPool ?? new ChunkPool();
-    }
 
     /// <summary>
     /// Gets or creates an archetype for the specified component types.

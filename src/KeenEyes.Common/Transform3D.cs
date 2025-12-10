@@ -15,35 +15,25 @@ namespace KeenEyes.Common;
 /// components if only subsets are frequently accessed.
 /// </para>
 /// </remarks>
-public struct Transform3D : IComponent
+/// <param name="position">The world position.</param>
+/// <param name="rotation">The rotation quaternion.</param>
+/// <param name="scale">The scale.</param>
+public struct Transform3D(Vector3 position, Quaternion rotation, Vector3 scale) : IComponent
 {
     /// <summary>
     /// The world position of the entity.
     /// </summary>
-    public Vector3 Position;
+    public Vector3 Position = position;
 
     /// <summary>
     /// The rotation of the entity as a quaternion.
     /// </summary>
-    public Quaternion Rotation;
+    public Quaternion Rotation = rotation;
 
     /// <summary>
     /// The scale of the entity.
     /// </summary>
-    public Vector3 Scale;
-
-    /// <summary>
-    /// Creates a new transform with the specified values.
-    /// </summary>
-    /// <param name="position">The world position.</param>
-    /// <param name="rotation">The rotation quaternion.</param>
-    /// <param name="scale">The scale.</param>
-    public Transform3D(Vector3 position, Quaternion rotation, Vector3 scale)
-    {
-        Position = position;
-        Rotation = rotation;
-        Scale = scale;
-    }
+    public Vector3 Scale = scale;
 
     /// <summary>
     /// Creates a new transform at the origin with identity rotation and unit scale.

@@ -39,24 +39,16 @@ namespace KeenEyes;
 /// }
 /// </code>
 /// </example>
+/// <param name="requiredType">The type of component that must be present on the entity.</param>
+/// <exception cref="ArgumentNullException">Thrown when <paramref name="requiredType"/> is null.</exception>
 [AttributeUsage(AttributeTargets.Struct, Inherited = false, AllowMultiple = true)]
 [ExcludeFromCodeCoverage]
-public sealed class RequiresComponentAttribute : Attribute
+public sealed class RequiresComponentAttribute(Type requiredType) : Attribute
 {
     /// <summary>
     /// Gets the type of the required component.
     /// </summary>
-    public Type RequiredType { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="RequiresComponentAttribute"/> class.
-    /// </summary>
-    /// <param name="requiredType">The type of component that must be present on the entity.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="requiredType"/> is null.</exception>
-    public RequiresComponentAttribute(Type requiredType)
-    {
-        RequiredType = requiredType ?? throw new ArgumentNullException(nameof(requiredType));
-    }
+    public Type RequiredType { get; } = requiredType ?? throw new ArgumentNullException(nameof(requiredType));
 }
 
 /// <summary>
@@ -93,24 +85,16 @@ public sealed class RequiresComponentAttribute : Attribute
 /// }
 /// </code>
 /// </example>
+/// <param name="conflictingType">The type of component that cannot coexist with this component.</param>
+/// <exception cref="ArgumentNullException">Thrown when <paramref name="conflictingType"/> is null.</exception>
 [AttributeUsage(AttributeTargets.Struct, Inherited = false, AllowMultiple = true)]
 [ExcludeFromCodeCoverage]
-public sealed class ConflictsWithAttribute : Attribute
+public sealed class ConflictsWithAttribute(Type conflictingType) : Attribute
 {
     /// <summary>
     /// Gets the type of the conflicting component.
     /// </summary>
-    public Type ConflictingType { get; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ConflictsWithAttribute"/> class.
-    /// </summary>
-    /// <param name="conflictingType">The type of component that cannot coexist with this component.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="conflictingType"/> is null.</exception>
-    public ConflictsWithAttribute(Type conflictingType)
-    {
-        ConflictingType = conflictingType ?? throw new ArgumentNullException(nameof(conflictingType));
-    }
+    public Type ConflictingType { get; } = conflictingType ?? throw new ArgumentNullException(nameof(conflictingType));
 }
 
 /// <summary>

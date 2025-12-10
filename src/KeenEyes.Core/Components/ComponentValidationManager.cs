@@ -31,9 +31,10 @@ public delegate bool ComponentValidator<T>(World world, Entity entity, T compone
 /// </list>
 /// </para>
 /// </remarks>
-internal sealed class ComponentValidationManager
+/// <param name="world">The world this manager belongs to.</param>
+internal sealed class ComponentValidationManager(World world)
 {
-    private readonly World world;
+    private readonly World world = world;
     private readonly Dictionary<Type, ComponentValidationInfo> validationCache = [];
     private readonly Dictionary<Type, Delegate> customValidators = [];
 
@@ -41,15 +42,6 @@ internal sealed class ComponentValidationManager
     /// Gets or sets the validation mode for this manager.
     /// </summary>
     public ValidationMode Mode { get; set; } = ValidationMode.Enabled;
-
-    /// <summary>
-    /// Creates a new component validation manager for the specified world.
-    /// </summary>
-    /// <param name="world">The world this manager belongs to.</param>
-    public ComponentValidationManager(World world)
-    {
-        this.world = world;
-    }
 
     /// <summary>
     /// Registers a custom validator for a component type.
@@ -416,26 +408,22 @@ internal sealed class ComponentValidationManager
 /// <summary>
 /// Cached validation information for a component type.
 /// </summary>
-internal readonly struct ComponentValidationInfo
+/// <param name="requiredComponents">Types that must be present on the entity when this component is added.</param>
+/// <param name="conflictingComponents">Types that cannot coexist with this component on the same entity.</param>
+internal readonly struct ComponentValidationInfo(Type[] requiredComponents, Type[] conflictingComponents)
 {
     /// <summary>
     /// Types that must be present on the entity when this component is added.
     /// </summary>
-    public Type[] RequiredComponents { get; }
+    public Type[] RequiredComponents { get; } = requiredComponents;
 
     /// <summary>
     /// Types that cannot coexist with this component on the same entity.
     /// </summary>
-    public Type[] ConflictingComponents { get; }
+    public Type[] ConflictingComponents { get; } = conflictingComponents;
 
     /// <summary>
     /// Whether this component has any validation constraints.
     /// </summary>
     public bool HasConstraints => RequiredComponents.Length > 0 || ConflictingComponents.Length > 0;
-
-    public ComponentValidationInfo(Type[] requiredComponents, Type[] conflictingComponents)
-    {
-        RequiredComponents = requiredComponents;
-        ConflictingComponents = conflictingComponents;
-    }
 }

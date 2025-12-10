@@ -7,20 +7,12 @@ namespace KeenEyes.Graphics.Backend;
 /// <summary>
 /// OpenGL implementation of <see cref="IGraphicsDevice"/> using Silk.NET.
 /// </summary>
+/// <param name="gl">The Silk.NET OpenGL context.</param>
 [ExcludeFromCodeCoverage(Justification = "Requires real GPU context; logic tested via MockGraphicsDevice")]
-public sealed class OpenGLDevice : IGraphicsDevice
+public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
 {
-    private readonly GL gl;
+    private readonly GL gl = gl ?? throw new ArgumentNullException(nameof(gl));
     private bool disposed;
-
-    /// <summary>
-    /// Creates a new OpenGL device wrapper.
-    /// </summary>
-    /// <param name="gl">The Silk.NET OpenGL context.</param>
-    public OpenGLDevice(GL gl)
-    {
-        this.gl = gl ?? throw new ArgumentNullException(nameof(gl));
-    }
 
     #region Buffer Operations
 

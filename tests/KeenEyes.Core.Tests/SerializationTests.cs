@@ -744,7 +744,7 @@ public class SerializationTests
         using var world2 = new World();
 
         // Custom type resolver that maps type names
-        Type? CustomResolver(string typeName)
+        static Type? CustomResolver(string typeName)
         {
             if (typeName.Contains("SerializablePosition"))
             {

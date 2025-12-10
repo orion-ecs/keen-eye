@@ -8,18 +8,10 @@ namespace KeenEyes;
 /// After execution, the mapping from placeholder to real entity is stored in the entity map,
 /// allowing subsequent commands to reference the newly created entity.
 /// </remarks>
-internal sealed class SpawnCommand : ICommand
+/// <param name="entityCommands">The entity commands builder containing component configuration.</param>
+internal sealed class SpawnCommand(EntityCommands entityCommands) : ICommand
 {
-    private readonly EntityCommands entityCommands;
-
-    /// <summary>
-    /// Creates a new spawn command.
-    /// </summary>
-    /// <param name="entityCommands">The entity commands builder containing component configuration.</param>
-    public SpawnCommand(EntityCommands entityCommands)
-    {
-        this.entityCommands = entityCommands;
-    }
+    private readonly EntityCommands entityCommands = entityCommands;
 
     /// <inheritdoc />
     public void Execute(IWorld world, Dictionary<int, Entity> entityMap)

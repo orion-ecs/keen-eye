@@ -107,9 +107,10 @@ public class Velocity3DTests
     [Fact]
     public void Value_CanBeModified()
     {
-        var velocity = new Velocity3D(10, 20, 30);
-
-        velocity.Value = new Vector3(40, 50, 60);
+        var velocity = new Velocity3D(10, 20, 30)
+        {
+            Value = new Vector3(40, 50, 60)
+        };
 
         Assert.Equal(40f, velocity.Value.X);
         Assert.Equal(50f, velocity.Value.Y);

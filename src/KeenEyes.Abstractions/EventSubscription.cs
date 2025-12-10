@@ -26,19 +26,11 @@ namespace KeenEyes;
 /// subscription.Dispose();
 /// </code>
 /// </example>
-public sealed class EventSubscription : IDisposable
+/// <param name="unsubscribe">The action to execute when disposing this subscription.</param>
+public sealed class EventSubscription(Action unsubscribe) : IDisposable
 {
-    private readonly Action unsubscribeAction;
+    private readonly Action unsubscribeAction = unsubscribe;
     private bool disposed;
-
-    /// <summary>
-    /// Creates a new event subscription with the specified unsubscribe action.
-    /// </summary>
-    /// <param name="unsubscribe">The action to execute when disposing this subscription.</param>
-    public EventSubscription(Action unsubscribe)
-    {
-        unsubscribeAction = unsubscribe;
-    }
 
     /// <summary>
     /// Unsubscribes from the event by removing the handler.

@@ -29,14 +29,15 @@ namespace KeenEyes;
 /// var hit = world.Physics.Raycast(origin, direction);
 /// </code>
 /// </example>
+/// <param name="propertyName">The name of the property to generate on World.</param>
 [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
 [ExcludeFromCodeCoverage]
-public sealed class PluginExtensionAttribute : Attribute
+public sealed class PluginExtensionAttribute(string propertyName) : Attribute
 {
     /// <summary>
     /// Gets the property name to generate on World.
     /// </summary>
-    public string PropertyName { get; }
+    public string PropertyName { get; } = propertyName;
 
     /// <summary>
     /// Gets or sets whether the extension property is nullable.
@@ -44,13 +45,4 @@ public sealed class PluginExtensionAttribute : Attribute
     /// When false (default), accessing the property throws if the extension is not registered.
     /// </summary>
     public bool Nullable { get; set; }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="PluginExtensionAttribute"/> class.
-    /// </summary>
-    /// <param name="propertyName">The name of the property to generate on World.</param>
-    public PluginExtensionAttribute(string propertyName)
-    {
-        PropertyName = propertyName;
-    }
 }

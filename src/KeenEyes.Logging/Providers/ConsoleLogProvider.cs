@@ -25,34 +25,22 @@ namespace KeenEyes.Logging.Providers;
 /// logManager.AddProvider(console);
 /// </code>
 /// </example>
-public sealed class ConsoleLogProvider : ILogProvider
+public sealed class ConsoleLogProvider(TextWriter output, TextWriter errorOutput) : ILogProvider
 {
     private readonly Lock consoleLock = new();
-    private readonly TextWriter output;
-    private readonly TextWriter errorOutput;
+    private readonly TextWriter output = output ?? throw new ArgumentNullException(nameof(output));
+    private readonly TextWriter errorOutput = errorOutput ?? throw new ArgumentNullException(nameof(errorOutput));
     private bool disposed;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConsoleLogProvider"/> class.
     /// </summary>
+    /// <remarks>
+    /// This constructor uses the default console output and error streams.
+    /// </remarks>
     public ConsoleLogProvider()
         : this(Console.Out, Console.Error)
     {
-    }
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ConsoleLogProvider"/> class
-    /// with custom output streams.
-    /// </summary>
-    /// <param name="output">The output stream for non-error messages.</param>
-    /// <param name="errorOutput">The output stream for error and fatal messages.</param>
-    /// <remarks>
-    /// This constructor is primarily useful for testing or redirecting output.
-    /// </remarks>
-    public ConsoleLogProvider(TextWriter output, TextWriter errorOutput)
-    {
-        this.output = output ?? throw new ArgumentNullException(nameof(output));
-        this.errorOutput = errorOutput ?? throw new ArgumentNullException(nameof(errorOutput));
     }
 
     /// <inheritdoc />
