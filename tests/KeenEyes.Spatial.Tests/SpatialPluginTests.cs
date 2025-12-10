@@ -80,23 +80,25 @@ public class SpatialPluginTests : IDisposable
     }
 
     [Fact]
-    public void Install_QuadtreeStrategy_ThrowsNotImplementedException()
+    public void Install_QuadtreeStrategy_Succeeds()
     {
         world = new World();
         var config = new SpatialConfig { Strategy = SpatialStrategy.Quadtree };
 
-        var ex = Assert.Throws<ArgumentException>(() => new SpatialPlugin(config));
-        Assert.Contains("Quadtree", ex.Message);
+        world.InstallPlugin(new SpatialPlugin(config));
+
+        Assert.True(world.HasExtension<SpatialQueryApi>());
     }
 
     [Fact]
-    public void Install_OctreeStrategy_ThrowsNotImplementedException()
+    public void Install_OctreeStrategy_Succeeds()
     {
         world = new World();
         var config = new SpatialConfig { Strategy = SpatialStrategy.Octree };
 
-        var ex = Assert.Throws<ArgumentException>(() => new SpatialPlugin(config));
-        Assert.Contains("Octree", ex.Message);
+        world.InstallPlugin(new SpatialPlugin(config));
+
+        Assert.True(world.HasExtension<SpatialQueryApi>());
     }
 
     #endregion

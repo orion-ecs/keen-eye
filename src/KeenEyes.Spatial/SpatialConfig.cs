@@ -15,7 +15,15 @@ public sealed class SpatialConfig
     /// </summary>
     public GridConfig Grid { get; init; } = new();
 
-    // Future: QuadtreeConfig and OctreeConfig will be added in Phase 2
+    /// <summary>
+    /// Configuration for quadtree-based partitioning (used when Strategy is Quadtree).
+    /// </summary>
+    public QuadtreeConfig Quadtree { get; init; } = new();
+
+    /// <summary>
+    /// Configuration for octree-based partitioning (used when Strategy is Octree).
+    /// </summary>
+    public OctreeConfig Octree { get; init; } = new();
 
     /// <summary>
     /// Validates the configuration and returns any errors.
@@ -26,8 +34,8 @@ public sealed class SpatialConfig
         return Strategy switch
         {
             SpatialStrategy.Grid => Grid.Validate(),
-            SpatialStrategy.Quadtree => "Quadtree strategy not yet implemented (coming in Phase 2)",
-            SpatialStrategy.Octree => "Octree strategy not yet implemented (coming in Phase 2)",
+            SpatialStrategy.Quadtree => Quadtree.Validate(),
+            SpatialStrategy.Octree => Octree.Validate(),
             _ => $"Unknown spatial strategy: {Strategy}"
         };
     }

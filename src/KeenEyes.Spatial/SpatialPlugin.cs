@@ -92,10 +92,8 @@ public sealed class SpatialPlugin : IWorldPlugin
         ISpatialPartitioner partitioner = config.Strategy switch
         {
             SpatialStrategy.Grid => new GridPartitioner(config.Grid),
-            SpatialStrategy.Quadtree => throw new NotImplementedException(
-                "Quadtree strategy coming in Phase 2"),
-            SpatialStrategy.Octree => throw new NotImplementedException(
-                "Octree strategy coming in Phase 2"),
+            SpatialStrategy.Quadtree => new QuadtreePartitioner(config.Quadtree),
+            SpatialStrategy.Octree => new OctreePartitioner(config.Octree),
             _ => throw new ArgumentException($"Unknown spatial strategy: {config.Strategy}")
         };
 
