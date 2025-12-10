@@ -20,6 +20,9 @@
     },
     {
       "pattern": "^https://www\\.gamedev\\.net/"
+    },
+    {
+      "pattern": "^https://dotnet\\.libhunt\\.com/"
     }
   ],
   "replacementPatterns": [
