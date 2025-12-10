@@ -266,14 +266,42 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
             }
 
             // Add entities from this node that are actually within bounds
-            foreach (var entity in Entities)
+            // Use SIMD for bulk filtering when there are enough entities
+            if (Entities.Count >= 8)
             {
-                if (entityPositions.TryGetValue(entity, out var pos) &&
-                    pos.X >= min.X && pos.X <= max.X &&
-                    pos.Y >= min.Y && pos.Y <= max.Y &&
-                    pos.Z >= min.Z && pos.Z <= max.Z)
+                // Extract positions into array for SIMD processing
+                var entityArray = Entities.ToArray();
+                var positions = new Vector3[entityArray.Length];
+                for (int i = 0; i < entityArray.Length; i++)
                 {
-                    results.Add(entity);
+                    if (entityPositions.TryGetValue(entityArray[i], out var pos))
+                    {
+                        positions[i] = pos;
+                    }
+                }
+
+                // SIMD-accelerated AABB filtering
+                var indices = new List<int>();
+                SimdHelpers.FilterByAABBSIMD(positions, min, max, indices);
+
+                // Add filtered entities
+                foreach (var index in indices)
+                {
+                    results.Add(entityArray[index]);
+                }
+            }
+            else
+            {
+                // Scalar fallback for small entity counts
+                foreach (var entity in Entities)
+                {
+                    if (entityPositions.TryGetValue(entity, out var pos) &&
+                        pos.X >= min.X && pos.X <= max.X &&
+                        pos.Y >= min.Y && pos.Y <= max.Y &&
+                        pos.Z >= min.Z && pos.Z <= max.Z)
+                    {
+                        results.Add(entity);
+                    }
                 }
             }
 
