@@ -1,9 +1,8 @@
 using BenchmarkDotNet.Attributes;
 using KeenEyes.Common;
-using KeenEyes.Spatial;
 using System.Numerics;
 
-namespace KeenEyes.Benchmarks;
+namespace KeenEyes.Spatial.Benchmarks;
 
 /// <summary>
 /// Benchmarks for spatial partitioning queries and updates.
