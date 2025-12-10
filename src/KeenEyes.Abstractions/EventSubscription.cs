@@ -1,4 +1,4 @@
-namespace KeenEyes.Events;
+namespace KeenEyes;
 
 /// <summary>
 /// Represents a subscription to an event that can be unsubscribed by disposing.
@@ -35,7 +35,7 @@ public sealed class EventSubscription : IDisposable
     /// Creates a new event subscription with the specified unsubscribe action.
     /// </summary>
     /// <param name="unsubscribe">The action to execute when disposing this subscription.</param>
-    internal EventSubscription(Action unsubscribe)
+    public EventSubscription(Action unsubscribe)
     {
         unsubscribeAction = unsubscribe;
     }

@@ -1,5 +1,3 @@
-using KeenEyes.Events;
-
 namespace KeenEyes;
 
 /// <summary>

@@ -20,7 +20,7 @@ public sealed class CameraSystem : SystemBase
     {
         if (World.TryGetExtension<GraphicsContext>(out graphics))
         {
-            graphics.OnResize += HandleResize;
+            graphics!.OnResize += HandleResize;
             if (graphics.Window is not null)
             {
                 lastWidth = graphics.Window.Width;

@@ -8,6 +8,16 @@ public sealed partial class World
     /// Begins building a new entity.
     /// </summary>
     /// <returns>A fluent builder for adding components.</returns>
+    IEntityBuilder IWorld.Spawn()
+    {
+        builder.Reset();
+        return builder;
+    }
+
+    /// <summary>
+    /// Begins building a new entity.
+    /// </summary>
+    /// <returns>A fluent builder for adding components.</returns>
     public EntityBuilder Spawn()
     {
         builder.Reset();
@@ -56,6 +66,22 @@ public sealed partial class World
     }
 
     /// <summary>
+    /// Ensures the event dispatcher is set up for a component type.
+    /// Uses lazy initialization - dispatcher is created once per type on first use.
+    /// No reflection needed - setup function stored during component registration.
+    /// </summary>
+    private void EnsureEventDispatcher(ComponentInfo info)
+    {
+        if (info.FireAddedBoxed != null)
+        {
+            return; // Already set up
+        }
+
+        // Call the setup function stored during registration (no reflection)
+        info.SetupDispatcher?.Invoke(info, eventManager.ComponentEvents);
+    }
+
+    /// <summary>
     /// Creates an entity directly with the specified components and optional name.
     /// </summary>
     internal Entity CreateEntity(List<(ComponentInfo Info, object Data)> components, string? name = null)
@@ -77,6 +103,16 @@ public sealed partial class World
 
         // Run custom validators after entity is created (they need access to entity)
         validationManager.ValidateBuildCustom(entity, components);
+
+        // Fire component added events for each component
+        foreach (var (info, data) in components)
+        {
+            // Ensure dispatcher is set up (lazy initialization, once per component type)
+            EnsureEventDispatcher(info);
+
+            // Call the type-specific dispatcher delegate (no reflection, minimal overhead)
+            info.FireAddedBoxed?.Invoke(eventManager.ComponentEvents, entity, data);
+        }
 
         // Fire entity created event after entity is fully set up
         eventManager.FireEntityCreated(entity, name);

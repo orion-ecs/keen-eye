@@ -22,6 +22,19 @@ public sealed class ComponentInfo
     /// <summary>The name of the component type.</summary>
     public string Name => Type.Name;
 
+    /// <summary>
+    /// Delegate that fires ComponentAdded events with boxed data for this component type.
+    /// Created lazily on first entity creation with this component type.
+    /// This avoids per-handler lambda allocations while maintaining type safety.
+    /// </summary>
+    internal Action<Events.ComponentEventHandlers, Entity, object>? FireAddedBoxed { get; set; }
+
+    /// <summary>
+    /// Setup function that initializes FireAddedBoxed delegate.
+    /// Stored once per component type during registration, avoiding reflection in entity creation.
+    /// </summary>
+    internal Action<ComponentInfo, Events.ComponentEventHandlers>? SetupDispatcher { get; set; }
+
     internal ComponentInfo(ComponentId id, Type type, int size, bool isTag)
     {
         Id = id;

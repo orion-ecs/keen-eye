@@ -1,5 +1,3 @@
-using KeenEyes.Events;
-
 namespace KeenEyes;
 
 public sealed partial class World
@@ -47,6 +45,9 @@ public sealed partial class World
     /// <seealso cref="HasMessageSubscribers{T}()"/>
     public void Send<T>(in T message)
         => messageManager.Send(in message);
+
+    /// <inheritdoc />
+    void IWorld.Send<T>(T message) => Send(in message);
 
     /// <summary>
     /// Subscribes a handler to messages of the specified type.

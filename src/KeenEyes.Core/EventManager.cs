@@ -30,6 +30,11 @@ internal sealed class EventManager
     /// </summary>
     internal EventBus Bus => eventBus;
 
+    /// <summary>
+    /// Gets the component event handlers for internal use (e.g., firing events during entity creation).
+    /// </summary>
+    internal ComponentEventHandlers ComponentEvents => componentEvents;
+
     #region Component Events
 
     /// <summary>

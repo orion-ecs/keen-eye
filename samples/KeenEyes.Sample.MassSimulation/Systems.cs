@@ -154,7 +154,7 @@ public class SpawnerSystem : SystemBase
         {
             var hasGravity = random.NextDouble() < 0.3; // 30% chance of gravity
 
-            var builder = World.Spawn()
+            var builder = ((World)World).Spawn()
                 .WithPosition(
                     x: (float)(random.NextDouble() * WorldWidth),
                     y: (float)(random.NextDouble() * WorldHeight))

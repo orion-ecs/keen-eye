@@ -1,5 +1,4 @@
 using BenchmarkDotNet.Attributes;
-using KeenEyes.Events;
 
 namespace KeenEyes.Benchmarks;
 

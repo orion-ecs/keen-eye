@@ -127,6 +127,12 @@ public sealed class PluginContext : IPluginContext
         return World.RemoveExtension<T>();
     }
 
+    /// <inheritdoc />
+    public void RegisterComponent<T>(bool isTag = false) where T : struct, IComponent
+    {
+        World.Components.GetOrRegister<T>(isTag);
+    }
+
     /// <summary>
     /// Registers a system internally and tracks it for cleanup.
     /// </summary>

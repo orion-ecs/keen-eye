@@ -19,6 +19,11 @@ public interface IWorld : IDisposable
     #region Entity Operations
 
     /// <summary>
+    /// Gets the total number of entities in the world.
+    /// </summary>
+    int EntityCount { get; }
+
+    /// <summary>
     /// Checks if an entity is alive (not despawned).
     /// </summary>
     /// <param name="entity">The entity to check.</param>
@@ -31,6 +36,35 @@ public interface IWorld : IDisposable
     /// <param name="entity">The entity to despawn.</param>
     /// <returns>True if the entity was despawned; false if it wasn't alive.</returns>
     bool Despawn(Entity entity);
+
+    /// <summary>
+    /// Creates an entity builder for constructing a new entity.
+    /// </summary>
+    /// <returns>An entity builder for fluent entity construction.</returns>
+    IEntityBuilder Spawn();
+
+    /// <summary>
+    /// Adds a component to an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type to add.</typeparam>
+    /// <param name="entity">The entity to add the component to.</param>
+    /// <param name="component">The component value to add.</param>
+    void Add<T>(Entity entity, in T component) where T : struct, IComponent;
+
+    /// <summary>
+    /// Sets or replaces a component on an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type to set.</typeparam>
+    /// <param name="entity">The entity to set the component on.</param>
+    /// <param name="component">The component value to set.</param>
+    /// <remarks>
+    /// <para>
+    /// If the entity already has the component, it is replaced and <see cref="OnComponentChanged{T}"/>
+    /// events are fired. If the entity doesn't have the component, it is added and
+    /// <see cref="OnComponentAdded{T}"/> events are fired.
+    /// </para>
+    /// </remarks>
+    void Set<T>(Entity entity, in T component) where T : struct, IComponent;
 
     #endregion
 
@@ -69,16 +103,16 @@ public interface IWorld : IDisposable
     /// Creates a query for entities with a single component type.
     /// </summary>
     /// <typeparam name="T1">The required component type.</typeparam>
-    /// <returns>An enumerable of entities matching the query.</returns>
-    IEnumerable<Entity> Query<T1>() where T1 : struct, IComponent;
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
+    IQueryBuilder<T1> Query<T1>() where T1 : struct, IComponent;
 
     /// <summary>
     /// Creates a query for entities with two component types.
     /// </summary>
     /// <typeparam name="T1">The first required component type.</typeparam>
     /// <typeparam name="T2">The second required component type.</typeparam>
-    /// <returns>An enumerable of entities matching the query.</returns>
-    IEnumerable<Entity> Query<T1, T2>()
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
+    IQueryBuilder<T1, T2> Query<T1, T2>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent;
 
@@ -88,8 +122,8 @@ public interface IWorld : IDisposable
     /// <typeparam name="T1">The first required component type.</typeparam>
     /// <typeparam name="T2">The second required component type.</typeparam>
     /// <typeparam name="T3">The third required component type.</typeparam>
-    /// <returns>An enumerable of entities matching the query.</returns>
-    IEnumerable<Entity> Query<T1, T2, T3>()
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
+    IQueryBuilder<T1, T2, T3> Query<T1, T2, T3>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent
         where T3 : struct, IComponent;
@@ -101,12 +135,144 @@ public interface IWorld : IDisposable
     /// <typeparam name="T2">The second required component type.</typeparam>
     /// <typeparam name="T3">The third required component type.</typeparam>
     /// <typeparam name="T4">The fourth required component type.</typeparam>
-    /// <returns>An enumerable of entities matching the query.</returns>
-    IEnumerable<Entity> Query<T1, T2, T3, T4>()
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
+    IQueryBuilder<T1, T2, T3, T4> Query<T1, T2, T3, T4>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent
         where T3 : struct, IComponent
         where T4 : struct, IComponent;
+
+    #endregion
+
+    #region Change Tracking Operations
+
+    /// <summary>
+    /// Enables automatic dirty flagtracking for a component type.
+    /// </summary>
+    /// <typeparam name="T">The component type to track.</typeparam>
+    /// <remarks>
+    /// <para>
+    /// When enabled, any modifications to components of this type will automatically
+    /// mark the entity as dirty. Use <see cref="GetDirtyEntities{T}"/> to retrieve
+    /// entities with modified components and <see cref="ClearDirtyFlags{T}"/> to
+    /// reset the dirty flags after processing.
+    /// </para>
+    /// </remarks>
+    void EnableAutoTracking<T>() where T : struct, IComponent;
+
+    /// <summary>
+    /// Disables automatic dirty flag tracking for a component type.
+    /// </summary>
+    /// <typeparam name="T">The component type to stop tracking.</typeparam>
+    void DisableAutoTracking<T>() where T : struct, IComponent;
+
+    /// <summary>
+    /// Gets all entities with dirty (modified) components of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The component type to check for modifications.</typeparam>
+    /// <returns>An enumerable of entities with modified components.</returns>
+    /// <remarks>
+    /// <para>
+    /// Entities are marked dirty when their components are modified after
+    /// <see cref="EnableAutoTracking{T}"/> is called for that component type.
+    /// Use <see cref="ClearDirtyFlags{T}"/> after processing to reset the dirty state.
+    /// </para>
+    /// </remarks>
+    IEnumerable<Entity> GetDirtyEntities<T>() where T : struct, IComponent;
+
+    /// <summary>
+    /// Clears dirty flags for all entities with the specified component type.
+    /// </summary>
+    /// <typeparam name="T">The component type to clear dirty flags for.</typeparam>
+    /// <remarks>
+    /// <para>
+    /// Call this after processing dirty entities with <see cref="GetDirtyEntities{T}"/>
+    /// to reset the dirty state for the next frame.
+    /// </para>
+    /// </remarks>
+    void ClearDirtyFlags<T>() where T : struct, IComponent;
+
+    #endregion
+
+    #region Event Operations
+
+    /// <summary>
+    /// Subscribes to component added events.
+    /// </summary>
+    /// <typeparam name="T">The component type to monitor.</typeparam>
+    /// <param name="handler">The callback to invoke when a component is added.</param>
+    /// <returns>A subscription that can be disposed to unsubscribe.</returns>
+    /// <remarks>
+    /// <para>
+    /// The handler is invoked immediately when a component is added to an entity.
+    /// The callback receives the entity and the component value.
+    /// </para>
+    /// </remarks>
+    EventSubscription OnComponentAdded<T>(Action<Entity, T> handler) where T : struct, IComponent;
+
+    /// <summary>
+    /// Subscribes to component removed events.
+    /// </summary>
+    /// <typeparam name="T">The component type to monitor.</typeparam>
+    /// <param name="handler">The callback to invoke when a component is removed.</param>
+    /// <returns>A subscription that can be disposed to unsubscribe.</returns>
+    /// <remarks>
+    /// <para>
+    /// The handler is invoked immediately after a component is removed from an entity.
+    /// The component data is no longer accessible at this point.
+    /// </para>
+    /// </remarks>
+    EventSubscription OnComponentRemoved<T>(Action<Entity> handler) where T : struct, IComponent;
+
+    /// <summary>
+    /// Subscribes to component changed events.
+    /// </summary>
+    /// <typeparam name="T">The component type to monitor.</typeparam>
+    /// <param name="handler">The callback to invoke when a component is changed via Set().</param>
+    /// <returns>A subscription that can be disposed to unsubscribe.</returns>
+    /// <remarks>
+    /// <para>
+    /// The handler is invoked when a component is changed using <see cref="IWorld.Set{T}"/>.
+    /// Direct modifications via <see cref="Get{T}"/> do not trigger this event since
+    /// there is no way to detect reference-based mutations.
+    /// </para>
+    /// <para>
+    /// The callback receives the entity, the old component value, and the new component value.
+    /// </para>
+    /// </remarks>
+    EventSubscription OnComponentChanged<T>(Action<Entity, T, T> handler) where T : struct, IComponent;
+
+    #endregion
+
+    #region Entity Lifecycle Events
+
+    /// <summary>
+    /// Registers a handler to be called when an entity is created.
+    /// </summary>
+    /// <param name="handler">
+    /// The handler to invoke when an entity is created. Receives the entity and its optional name
+    /// (null if unnamed).
+    /// </param>
+    /// <returns>A subscription that can be disposed to unsubscribe.</returns>
+    /// <remarks>
+    /// <para>
+    /// The handler is invoked after the entity is fully constructed with all its initial components.
+    /// </para>
+    /// </remarks>
+    EventSubscription OnEntityCreated(Action<Entity, string?> handler);
+
+    /// <summary>
+    /// Registers a handler to be called when an entity is destroyed.
+    /// </summary>
+    /// <param name="handler">The handler to invoke when an entity is destroyed.</param>
+    /// <returns>A subscription that can be disposed to unsubscribe.</returns>
+    /// <remarks>
+    /// <para>
+    /// The handler is invoked before the entity is removed from the world. The entity and its
+    /// components are still accessible at this point for cleanup operations.
+    /// </para>
+    /// </remarks>
+    EventSubscription OnEntityDestroyed(Action<Entity> handler);
 
     #endregion
 
@@ -134,6 +300,42 @@ public interface IWorld : IDisposable
     /// <typeparam name="T">The extension type.</typeparam>
     /// <returns>True if the extension is registered; false otherwise.</returns>
     bool HasExtension<T>() where T : class;
+
+    #endregion
+
+    #region Messaging Operations
+
+    /// <summary>
+    /// Sends a message to all subscribers immediately.
+    /// </summary>
+    /// <typeparam name="T">The message type.</typeparam>
+    /// <param name="message">The message to send.</param>
+    void Send<T>(T message);
+
+    /// <summary>
+    /// Subscribes to messages of the specified type.
+    /// </summary>
+    /// <typeparam name="T">The message type to subscribe to.</typeparam>
+    /// <param name="handler">The callback to invoke when a message is received.</param>
+    /// <returns>A subscription that can be disposed to unsubscribe.</returns>
+    EventSubscription Subscribe<T>(Action<T> handler);
+
+    /// <summary>
+    /// Checks if there are any subscribers for the specified message type.
+    /// </summary>
+    /// <typeparam name="T">The message type.</typeparam>
+    /// <returns>True if there are subscribers; false otherwise.</returns>
+    bool HasMessageSubscribers<T>();
+
+    #endregion
+
+    #region Additional Entity Operations
+
+    /// <summary>
+    /// Gets all entities currently alive in this world.
+    /// </summary>
+    /// <returns>An enumerable of all alive entities.</returns>
+    IEnumerable<Entity> GetAllEntities();
 
     #endregion
 }

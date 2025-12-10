@@ -78,7 +78,7 @@ public sealed class QueryDescription
 /// Fluent builder for constructing queries.
 /// </summary>
 /// <typeparam name="T1">First component type.</typeparam>
-public readonly struct QueryBuilder<T1> : IEnumerable<Entity>
+public readonly struct QueryBuilder<T1> : IQueryBuilder<T1>
     where T1 : struct, IComponent
 {
     private readonly World world;
@@ -144,6 +144,12 @@ public readonly struct QueryBuilder<T1> : IEnumerable<Entity>
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    // Explicit interface implementations to return IQueryBuilder
+    IQueryBuilder<T1> IQueryBuilder<T1>.With<TWith>() => With<TWith>();
+    IQueryBuilder<T1> IQueryBuilder<T1>.Without<TWithout>() => Without<TWithout>();
+    IQueryBuilder<T1> IQueryBuilder<T1>.WithTag(string tag) => WithTag(tag);
+    IQueryBuilder<T1> IQueryBuilder<T1>.WithoutTag(string tag) => WithoutTag(tag);
+
     private static void ValidateTag(string tag)
     {
         ArgumentNullException.ThrowIfNull(tag);
@@ -157,7 +163,7 @@ public readonly struct QueryBuilder<T1> : IEnumerable<Entity>
 /// <summary>
 /// Fluent builder for constructing queries with two component types.
 /// </summary>
-public readonly struct QueryBuilder<T1, T2> : IEnumerable<Entity>
+public readonly struct QueryBuilder<T1, T2> : IQueryBuilder<T1, T2>
     where T1 : struct, IComponent
     where T2 : struct, IComponent
 {
@@ -222,6 +228,12 @@ public readonly struct QueryBuilder<T1, T2> : IEnumerable<Entity>
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    // Explicit interface implementations to return IQueryBuilder
+    IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.With<TWith>() => With<TWith>();
+    IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.Without<TWithout>() => Without<TWithout>();
+    IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.WithTag(string tag) => WithTag(tag);
+    IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.WithoutTag(string tag) => WithoutTag(tag);
+
     private static void ValidateTag(string tag)
     {
         ArgumentNullException.ThrowIfNull(tag);
@@ -235,7 +247,7 @@ public readonly struct QueryBuilder<T1, T2> : IEnumerable<Entity>
 /// <summary>
 /// Fluent builder for constructing queries with three component types.
 /// </summary>
-public readonly struct QueryBuilder<T1, T2, T3> : IEnumerable<Entity>
+public readonly struct QueryBuilder<T1, T2, T3> : IQueryBuilder<T1, T2, T3>
     where T1 : struct, IComponent
     where T2 : struct, IComponent
     where T3 : struct, IComponent
@@ -302,6 +314,12 @@ public readonly struct QueryBuilder<T1, T2, T3> : IEnumerable<Entity>
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    // Explicit interface implementations to return IQueryBuilder
+    IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.With<TWith>() => With<TWith>();
+    IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.Without<TWithout>() => Without<TWithout>();
+    IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.WithTag(string tag) => WithTag(tag);
+    IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.WithoutTag(string tag) => WithoutTag(tag);
+
     private static void ValidateTag(string tag)
     {
         ArgumentNullException.ThrowIfNull(tag);
@@ -315,7 +333,7 @@ public readonly struct QueryBuilder<T1, T2, T3> : IEnumerable<Entity>
 /// <summary>
 /// Fluent builder for constructing queries with four component types.
 /// </summary>
-public readonly struct QueryBuilder<T1, T2, T3, T4> : IEnumerable<Entity>
+public readonly struct QueryBuilder<T1, T2, T3, T4> : IQueryBuilder<T1, T2, T3, T4>
     where T1 : struct, IComponent
     where T2 : struct, IComponent
     where T3 : struct, IComponent
@@ -383,6 +401,12 @@ public readonly struct QueryBuilder<T1, T2, T3, T4> : IEnumerable<Entity>
     public QueryEnumerator<T1, T2, T3, T4> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+    // Explicit interface implementations to return IQueryBuilder
+    IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.With<TWith>() => With<TWith>();
+    IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.Without<TWithout>() => Without<TWithout>();
+    IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.WithTag(string tag) => WithTag(tag);
+    IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.WithoutTag(string tag) => WithoutTag(tag);
 
     private static void ValidateTag(string tag)
     {

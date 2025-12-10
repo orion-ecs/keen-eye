@@ -45,6 +45,11 @@ public sealed partial class World : IWorld
     public ComponentRegistry Components { get; } = new();
 
     /// <summary>
+    /// Gets the total number of entities in the world.
+    /// </summary>
+    public int EntityCount => archetypeManager.EntityCount;
+
+    /// <summary>
     /// Gets the archetype manager for this world.
     /// Provides access to archetype storage, chunk pooling, and entity location tracking.
     /// </summary>

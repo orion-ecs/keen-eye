@@ -82,7 +82,7 @@ public sealed class GraphicsConfig
 [PluginExtension("Graphics")]
 public sealed class GraphicsContext : IDisposable
 {
-    private readonly World world;
+    private readonly IWorld world;
     private readonly GraphicsConfig config;
     private readonly MeshManager meshManager;
     private readonly TextureManager textureManager;
@@ -175,7 +175,7 @@ public sealed class GraphicsContext : IDisposable
     /// </summary>
     /// <param name="world">The ECS world.</param>
     /// <param name="config">The graphics configuration.</param>
-    public GraphicsContext(World world, GraphicsConfig? config = null)
+    public GraphicsContext(IWorld world, GraphicsConfig? config = null)
         : this(world, config, null)
     {
     }
@@ -186,7 +186,7 @@ public sealed class GraphicsContext : IDisposable
     /// <param name="world">The ECS world.</param>
     /// <param name="config">The graphics configuration.</param>
     /// <param name="window">The graphics window to use. If null, a real window will be created.</param>
-    internal GraphicsContext(World world, GraphicsConfig? config, IGraphicsWindow? window)
+    internal GraphicsContext(IWorld world, GraphicsConfig? config, IGraphicsWindow? window)
     {
         this.world = world;
         this.config = config ?? new GraphicsConfig();

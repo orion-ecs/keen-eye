@@ -1,5 +1,3 @@
-using KeenEyes.Events;
-
 namespace KeenEyes.Sample.Messaging;
 
 // =============================================================================
@@ -273,7 +271,7 @@ public partial class SpawnerSystem : SystemBase
         {
             var request = pendingSpawns.Dequeue();
 
-            var enemy = World.Spawn()
+            var enemy = ((World)World).Spawn()
                 .WithPosition(request.X, request.Y)
                 .WithHealth(request.Health, request.Health)
                 .WithEnemy()
@@ -312,7 +310,7 @@ public partial class AnalyticsSystem : SystemBase
         // This optimization prevents expensive work when no one cares
         if (World.HasMessageSubscribers<AnalyticsMessage>())
         {
-            var entityCount = World.ArchetypeManager.EntityCount;
+            var entityCount = World.EntityCount;
             var aliveEnemies = World.Query<Position>().With<Enemy>().Without<Dead>().Count();
 
             World.Send(new AnalyticsMessage(frameCount, entityCount, aliveEnemies));

@@ -91,8 +91,7 @@ public sealed class GraphicsPlugin : IWorldPlugin
     public void Install(IPluginContext context)
     {
         // Create and register the graphics context
-        var world = (World)context.World;
-        graphics = new GraphicsContext(world, config);
+        graphics = new GraphicsContext(context.World, config);
         context.SetExtension(graphics);
 
         // Register systems

@@ -69,7 +69,7 @@ public partial class MovementSystem : SystemBase
             }
         }
 
-        buffer.Flush(World);
+        buffer.Flush((World)World);
     }
 }
 
@@ -173,7 +173,7 @@ public partial class HealthSystem : SystemBase
             }
         }
 
-        buffer.Flush(World);
+        buffer.Flush((World)World);
     }
 }
 
@@ -202,7 +202,7 @@ public partial class LifetimeSystem : SystemBase
             }
         }
 
-        buffer.Flush(World);
+        buffer.Flush((World)World);
     }
 }
 
@@ -352,7 +352,7 @@ public partial class SpawnerSystem : SystemBase
                 break;
         }
 
-        World.Spawn()
+        ((World)World).Spawn()
             .WithPosition(x: x, y: y)
             .WithVelocity(x: vx, y: vy)
             .WithHealth(current: health, max: health)
@@ -437,7 +437,7 @@ public partial class ShootingSystem : SystemBase
         }
 
         // Flush all queued spawns
-        buffer.Flush(World);
+        buffer.Flush((World)World);
     }
 }
 
@@ -518,6 +518,6 @@ public partial class EnemyShootingSystem : SystemBase
         }
 
         // Flush all queued spawns
-        buffer.Flush(World);
+        buffer.Flush((World)World);
     }
 }

@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Spatial\KeenEyes.Spatial.csproj" />
   </ItemGroup>
 
 </Project>
