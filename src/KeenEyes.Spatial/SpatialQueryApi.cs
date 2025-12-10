@@ -186,6 +186,67 @@ public sealed class SpatialQueryApi : IDisposable
     }
 
     /// <summary>
+    /// Queries all entities within a view frustum (camera-based culling).
+    /// </summary>
+    /// <param name="frustum">The view frustum to query.</param>
+    /// <returns>An enumerable of entities within the frustum (broadphase candidates).</returns>
+    /// <remarks>
+    /// <para>
+    /// This is a broadphase query - it may return entities slightly outside the frustum.
+    /// Use <see cref="Frustum.Contains"/> or <see cref="Frustum.Intersects(Vector3, Vector3)"/>
+    /// for exact containment tests.
+    /// </para>
+    /// <para>
+    /// Frustum culling is typically used for rendering optimization - only entities
+    /// visible to the camera are returned. Use <see cref="Frustum.FromMatrix"/> to create
+    /// a frustum from a view-projection matrix.
+    /// </para>
+    /// <para>
+    /// Only entities with the <see cref="KeenEyes.Spatial.SpatialIndexed"/> tag are returned.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var spatial = world.GetExtension&lt;SpatialQueryApi&gt;();
+    /// var viewProj = camera.ViewMatrix * camera.ProjectionMatrix;
+    /// var frustum = Frustum.FromMatrix(viewProj);
+    ///
+    /// foreach (var entity in spatial.QueryFrustum(frustum))
+    /// {
+    ///     // Render entities visible to the camera
+    ///     ref readonly var transform = ref world.Get&lt;Transform3D&gt;(entity);
+    ///     RenderEntity(entity, transform);
+    /// }
+    /// </code>
+    /// </example>
+    public IEnumerable<Entity> QueryFrustum(Frustum frustum)
+    {
+        return partitioner.QueryFrustum(frustum);
+    }
+
+    /// <summary>
+    /// Queries all entities within a view frustum, filtered by component type.
+    /// </summary>
+    /// <typeparam name="T">The component type to filter by.</typeparam>
+    /// <param name="frustum">The view frustum to query.</param>
+    /// <returns>An enumerable of entities within the frustum that have component T.</returns>
+    /// <remarks>
+    /// This is a convenience method that combines frustum culling with component filtering.
+    /// Useful for rendering only entities of specific types (e.g., renderables, particles).
+    /// </remarks>
+    public IEnumerable<Entity> QueryFrustum<T>(Frustum frustum)
+        where T : struct, IComponent
+    {
+        foreach (var entity in QueryFrustum(frustum))
+        {
+            if (world.Has<T>(entity))
+            {
+                yield return entity;
+            }
+        }
+    }
+
+    /// <summary>
     /// Gets the total number of entities currently in the spatial index.
     /// </summary>
     public int EntityCount => partitioner.EntityCount;
