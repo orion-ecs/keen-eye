@@ -360,7 +360,7 @@ public class RemoveComponentTests
         {
             world.Add(entity, new TestPosition { X = i, Y = i });
             Assert.True(world.Has<TestPosition>(entity));
-            Assert.Equal((float)i, world.Get<TestPosition>(entity).X);
+            Assert.Equal(i, world.Get<TestPosition>(entity).X);
 
             Assert.True(world.Remove<TestPosition>(entity));
             Assert.False(world.Has<TestPosition>(entity));

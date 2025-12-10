@@ -29,7 +29,7 @@ public sealed class ComponentArrayPoolManager
     // Static delegate cache for AOT - shared across all worlds but doesn't affect behavior
     private static readonly Dictionary<Type, RentDelegate> rentDelegates = [];
     private static readonly Dictionary<Type, ReturnDelegate> returnDelegates = [];
-    private static readonly object lockObj = new();
+    private static readonly Lock lockObj = new();
 
     /// <summary>
     /// Gets the total number of arrays rented from this pool.

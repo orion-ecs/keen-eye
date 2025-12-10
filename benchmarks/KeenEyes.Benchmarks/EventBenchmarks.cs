@@ -91,9 +91,6 @@ public class ComponentEventBenchmarks
     private World world = null!;
     private Entity entity = default;
     private readonly List<EventSubscription> subscriptions = [];
-    private int addedCount;
-    private int removedCount;
-    private int changedCount;
 
     [Params(0, 1, 5)]
     public int HandlerCount { get; set; }
@@ -106,16 +103,12 @@ public class ComponentEventBenchmarks
             .With(new Position { X = 0, Y = 0 })
             .Build();
 
-        addedCount = 0;
-        removedCount = 0;
-        changedCount = 0;
-
-        // Subscribe handlers
+        // Subscribe handlers (minimal work to measure event overhead)
         for (var i = 0; i < HandlerCount; i++)
         {
-            subscriptions.Add(world.OnComponentAdded<Health>((_, _) => addedCount++));
-            subscriptions.Add(world.OnComponentRemoved<Health>(_ => removedCount++));
-            subscriptions.Add(world.OnComponentChanged<Health>((_, _, _) => changedCount++));
+            subscriptions.Add(world.OnComponentAdded<Health>((_, _) => { }));
+            subscriptions.Add(world.OnComponentRemoved<Health>(_ => { }));
+            subscriptions.Add(world.OnComponentChanged<Health>((_, _, _) => { }));
         }
     }
 
@@ -172,8 +165,6 @@ public class EntityEventBenchmarks
 {
     private World world = null!;
     private readonly List<EventSubscription> subscriptions = [];
-    private int createdCount;
-    private int destroyedCount;
 
     [Params(0, 1, 5)]
     public int HandlerCount { get; set; }
@@ -183,14 +174,11 @@ public class EntityEventBenchmarks
     {
         world = new World();
 
-        createdCount = 0;
-        destroyedCount = 0;
-
-        // Subscribe handlers
+        // Subscribe handlers (minimal work to measure event overhead)
         for (var i = 0; i < HandlerCount; i++)
         {
-            subscriptions.Add(world.OnEntityCreated((_, _) => createdCount++));
-            subscriptions.Add(world.OnEntityDestroyed(_ => destroyedCount++));
+            subscriptions.Add(world.OnEntityCreated((_, _) => { }));
+            subscriptions.Add(world.OnEntityDestroyed(_ => { }));
         }
     }
 

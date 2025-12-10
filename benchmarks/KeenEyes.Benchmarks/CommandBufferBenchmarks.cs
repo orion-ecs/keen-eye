@@ -196,7 +196,7 @@ public class CommandBufferFlushBenchmarks
         // Mix of spawn, add, set, and despawn
         for (var i = 0; i < CommandCount / 4; i++)
         {
-            var cmd = buffer.Spawn()
+            buffer.Spawn()
                 .With(new Position { X = i, Y = i });
         }
 

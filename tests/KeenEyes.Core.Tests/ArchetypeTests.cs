@@ -690,7 +690,6 @@ public class ArchetypeTests
     public void ComponentArray_CapacityGrows_WhenNeeded()
     {
         var array = new ComponentArray<Position>(2);
-        var initialCapacity = array.Capacity;
 
         // Add enough to trigger growth
         for (int i = 0; i < 20; i++)

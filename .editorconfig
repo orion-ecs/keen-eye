@@ -191,13 +191,32 @@ dotnet_naming_style.pascal_case.capitalization = pascal_case
 dotnet_naming_style.camel_case.capitalization = camel_case
 
 # IDE diagnostics
+dotnet_diagnostic.IDE0001.severity = warning
+dotnet_diagnostic.IDE0002.severity = warning
+dotnet_diagnostic.IDE0004.severity = warning
 dotnet_diagnostic.IDE0005.severity = warning
+dotnet_diagnostic.IDE0017.severity = warning
+dotnet_diagnostic.IDE0028.severity = warning
+dotnet_diagnostic.IDE0035.severity = warning
+dotnet_diagnostic.IDE0044.severity = warning
+dotnet_diagnostic.IDE0049.severity = warning
+dotnet_diagnostic.IDE0051.severity = warning
+dotnet_diagnostic.IDE0052.severity = warning
 dotnet_diagnostic.IDE0055.severity = warning
+dotnet_diagnostic.IDE0056.severity = warning
+dotnet_diagnostic.IDE0057.severity = warning
+dotnet_diagnostic.IDE0059.severity = warning
+dotnet_diagnostic.IDE0062.severity = warning
 dotnet_diagnostic.IDE0161.severity = warning
+dotnet_diagnostic.IDE0250.severity = warning
+dotnet_diagnostic.IDE0251.severity = warning
+dotnet_diagnostic.IDE0290.severity = warning
+dotnet_diagnostic.IDE0320.severity = warning
+dotnet_diagnostic.IDE0330.severity = warning
 
 # CA diagnostics
 dotnet_diagnostic.CA1852.severity = warning
-
+dotnet_diagnostic.CS0219.severity = warning
 # CS diagnostics
 # CS1591: Missing XML comment for publicly visible type or member
 dotnet_diagnostic.CS1591.severity = warning
