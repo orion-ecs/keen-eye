@@ -36,6 +36,9 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     // Track entity positions for redistribution during subdivision
     private readonly Dictionary<Entity, Vector3> entityPositions = [];
 
+    // Pool for child node arrays (8 elements for octree)
+    private readonly ArrayPool<OctreeNode>? nodePool;
+
     private int entityCount;
 
     /// <summary>
@@ -52,6 +55,9 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         }
 
         this.config = config;
+
+        // Initialize node pool if pooling is enabled
+        nodePool = config.UseNodePooling ? ArrayPool<OctreeNode>.Shared : null;
 
         // Create root node spanning the entire world bounds
         root = new OctreeNode(config.WorldMin, config.WorldMax, depth: 0);
@@ -127,7 +133,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     /// <inheritdoc/>
     public void Clear()
     {
-        root.Clear();
+        root.Clear(nodePool);
         entityNodes.Clear();
         entityPositions.Clear();
         entityCount = 0;
@@ -204,18 +210,41 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         var childDepth = node.Depth + 1;
 
         // Create eight child nodes (octants)
-        node.Children = [
+        OctreeNode[] children;
+        if (nodePool != null)
+        {
+            // Rent from pool and manually initialize each element
+            children = nodePool.Rent(8);
             // Bottom four (z < mid)
-            new OctreeNode(node.Min, mid, childDepth),                                                    // 0: ---
-            new OctreeNode(new Vector3(mid.X, node.Min.Y, node.Min.Z), new Vector3(node.Max.X, mid.Y, mid.Z), childDepth), // 1: +--
-            new OctreeNode(new Vector3(node.Min.X, mid.Y, node.Min.Z), new Vector3(mid.X, node.Max.Y, mid.Z), childDepth), // 2: -+-
-            new OctreeNode(new Vector3(mid.X, mid.Y, node.Min.Z), new Vector3(node.Max.X, node.Max.Y, mid.Z), childDepth), // 3: ++-
+            children[0] = new OctreeNode(node.Min, mid, childDepth);                                                    // 0: ---
+            children[1] = new OctreeNode(new Vector3(mid.X, node.Min.Y, node.Min.Z), new Vector3(node.Max.X, mid.Y, mid.Z), childDepth); // 1: +--
+            children[2] = new OctreeNode(new Vector3(node.Min.X, mid.Y, node.Min.Z), new Vector3(mid.X, node.Max.Y, mid.Z), childDepth); // 2: -+-
+            children[3] = new OctreeNode(new Vector3(mid.X, mid.Y, node.Min.Z), new Vector3(node.Max.X, node.Max.Y, mid.Z), childDepth); // 3: ++-
             // Top four (z >= mid)
-            new OctreeNode(new Vector3(node.Min.X, node.Min.Y, mid.Z), new Vector3(mid.X, mid.Y, node.Max.Z), childDepth), // 4: --+
-            new OctreeNode(new Vector3(mid.X, node.Min.Y, mid.Z), new Vector3(node.Max.X, mid.Y, node.Max.Z), childDepth), // 5: +-+
-            new OctreeNode(new Vector3(node.Min.X, mid.Y, mid.Z), new Vector3(mid.X, node.Max.Y, node.Max.Z), childDepth), // 6: -++
-            new OctreeNode(mid, node.Max, childDepth)                                                     // 7: +++
-        ];
+            children[4] = new OctreeNode(new Vector3(node.Min.X, node.Min.Y, mid.Z), new Vector3(mid.X, mid.Y, node.Max.Z), childDepth); // 4: --+
+            children[5] = new OctreeNode(new Vector3(mid.X, node.Min.Y, mid.Z), new Vector3(node.Max.X, mid.Y, node.Max.Z), childDepth); // 5: +-+
+            children[6] = new OctreeNode(new Vector3(node.Min.X, mid.Y, mid.Z), new Vector3(mid.X, node.Max.Y, node.Max.Z), childDepth); // 6: -++
+            children[7] = new OctreeNode(mid, node.Max, childDepth);                                                     // 7: +++
+            node.Children = children;
+            node.IsPooled = true;
+        }
+        else
+        {
+            // Direct allocation (no pooling)
+            node.Children = [
+                // Bottom four (z < mid)
+                new OctreeNode(node.Min, mid, childDepth),                                                    // 0: ---
+                new OctreeNode(new Vector3(mid.X, node.Min.Y, node.Min.Z), new Vector3(node.Max.X, mid.Y, mid.Z), childDepth), // 1: +--
+                new OctreeNode(new Vector3(node.Min.X, mid.Y, node.Min.Z), new Vector3(mid.X, node.Max.Y, mid.Z), childDepth), // 2: -+-
+                new OctreeNode(new Vector3(mid.X, mid.Y, node.Min.Z), new Vector3(node.Max.X, node.Max.Y, mid.Z), childDepth), // 3: ++-
+                // Top four (z >= mid)
+                new OctreeNode(new Vector3(node.Min.X, node.Min.Y, mid.Z), new Vector3(mid.X, mid.Y, node.Max.Z), childDepth), // 4: --+
+                new OctreeNode(new Vector3(mid.X, node.Min.Y, mid.Z), new Vector3(node.Max.X, mid.Y, node.Max.Z), childDepth), // 5: +-+
+                new OctreeNode(new Vector3(node.Min.X, mid.Y, mid.Z), new Vector3(mid.X, node.Max.Y, node.Max.Z), childDepth), // 6: -++
+                new OctreeNode(mid, node.Max, childDepth)                                                     // 7: +++
+            ];
+            node.IsPooled = false;
+        }
 
         // Redistribute entities to children
         var entitiesToRedistribute = node.Entities.ToList();
@@ -243,6 +272,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         public int Depth { get; } = depth;
         public HashSet<Entity> Entities { get; } = [];
         public OctreeNode[]? Children { get; set; }
+        public bool IsPooled { get; set; }
         public bool IsSubdivided => Children != null;
 
         /// <summary>
@@ -381,9 +411,10 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
             // Recursively query children if subdivided
             if (IsSubdivided)
             {
-                foreach (var child in Children!)
+                // Only iterate over the first 8 children (pooled arrays may be larger)
+                for (int i = 0; i < 8; i++)
                 {
-                    child.QueryBounds(min, max, results, entityPositions);
+                    Children![i].QueryBounds(min, max, results, entityPositions);
                 }
             }
         }
@@ -414,9 +445,10 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
             // Recursively query children if subdivided
             if (IsSubdivided)
             {
-                foreach (var child in Children!)
+                // Only iterate over the first 8 children (pooled arrays may be larger)
+                for (int i = 0; i < 8; i++)
                 {
-                    child.QueryFrustum(frustum, results, entityPositions);
+                    Children![i].QueryFrustum(frustum, results, entityPositions);
                 }
             }
         }
@@ -434,17 +466,26 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         /// <summary>
         /// Clears all entities and children from this node.
         /// </summary>
-        public void Clear()
+        public void Clear(ArrayPool<OctreeNode>? pool)
         {
             Entities.Clear();
 
             if (IsSubdivided)
             {
-                foreach (var child in Children!)
+                // Recursively clear children first (only first 8 elements for octree)
+                for (int i = 0; i < 8; i++)
                 {
-                    child.Clear();
+                    Children![i].Clear(pool);
                 }
+
+                // Return pooled array to pool
+                if (IsPooled && pool != null)
+                {
+                    pool.Return(Children!, clearArray: false);
+                }
+
                 Children = null;
+                IsPooled = false;
             }
         }
     }

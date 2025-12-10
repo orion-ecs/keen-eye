@@ -37,6 +37,9 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     // Track entity positions for redistribution during subdivision
     private readonly Dictionary<Entity, Vector2> entityPositions = [];
 
+    // Pool for child node arrays (4 elements for quadtree)
+    private readonly ArrayPool<QuadtreeNode>? nodePool;
+
     private int entityCount;
 
     /// <summary>
@@ -53,6 +56,9 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         }
 
         this.config = config;
+
+        // Initialize node pool if pooling is enabled
+        nodePool = config.UseNodePooling ? ArrayPool<QuadtreeNode>.Shared : null;
 
         // Create root node spanning the entire world bounds
         root = new QuadtreeNode(
@@ -138,7 +144,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     /// <inheritdoc/>
     public void Clear()
     {
-        root.Clear();
+        root.Clear(nodePool);
         entityNodes.Clear();
         entityPositions.Clear();
         entityCount = 0;
@@ -216,12 +222,29 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         var childDepth = node.Depth + 1;
 
         // Create four child nodes (NW, NE, SW, SE)
-        node.Children = [
-            new QuadtreeNode(node.Min, new Vector2(midX, midZ), childDepth),                    // NW
-            new QuadtreeNode(new Vector2(midX, node.Min.Y), new Vector2(node.Max.X, midZ), childDepth), // NE
-            new QuadtreeNode(new Vector2(node.Min.X, midZ), new Vector2(midX, node.Max.Y), childDepth), // SW
-            new QuadtreeNode(new Vector2(midX, midZ), node.Max, childDepth)                     // SE
-        ];
+        QuadtreeNode[] children;
+        if (nodePool != null)
+        {
+            // Rent from pool and manually initialize each element
+            children = nodePool.Rent(4);
+            children[0] = new QuadtreeNode(node.Min, new Vector2(midX, midZ), childDepth);                    // NW
+            children[1] = new QuadtreeNode(new Vector2(midX, node.Min.Y), new Vector2(node.Max.X, midZ), childDepth); // NE
+            children[2] = new QuadtreeNode(new Vector2(node.Min.X, midZ), new Vector2(midX, node.Max.Y), childDepth); // SW
+            children[3] = new QuadtreeNode(new Vector2(midX, midZ), node.Max, childDepth);                     // SE
+            node.Children = children;
+            node.IsPooled = true;
+        }
+        else
+        {
+            // Direct allocation (no pooling)
+            node.Children = [
+                new QuadtreeNode(node.Min, new Vector2(midX, midZ), childDepth),                    // NW
+                new QuadtreeNode(new Vector2(midX, node.Min.Y), new Vector2(node.Max.X, midZ), childDepth), // NE
+                new QuadtreeNode(new Vector2(node.Min.X, midZ), new Vector2(midX, node.Max.Y), childDepth), // SW
+                new QuadtreeNode(new Vector2(midX, midZ), node.Max, childDepth)                     // SE
+            ];
+            node.IsPooled = false;
+        }
 
         // Redistribute entities to children
         var entitiesToRedistribute = node.Entities.ToList();
@@ -249,6 +272,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         public int Depth { get; } = depth;
         public HashSet<Entity> Entities { get; } = [];
         public QuadtreeNode[]? Children { get; set; }
+        public bool IsPooled { get; set; }
         public bool IsSubdivided => Children != null;
 
         /// <summary>
@@ -387,9 +411,10 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
             // Recursively query children if subdivided
             if (IsSubdivided)
             {
-                foreach (var child in Children!)
+                // Only iterate over the first 4 children (pooled arrays may be larger)
+                for (int i = 0; i < 4; i++)
                 {
-                    child.QueryBounds(min, max, results, entityPositions);
+                    Children![i].QueryBounds(min, max, results, entityPositions);
                 }
             }
         }
@@ -426,9 +451,10 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
             // Recursively query children if subdivided
             if (IsSubdivided)
             {
-                foreach (var child in Children!)
+                // Only iterate over the first 4 children (pooled arrays may be larger)
+                for (int i = 0; i < 4; i++)
                 {
-                    child.QueryFrustum(frustum, results, entityPositions);
+                    Children![i].QueryFrustum(frustum, results, entityPositions);
                 }
             }
         }
@@ -444,17 +470,26 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         /// <summary>
         /// Clears all entities and children from this node.
         /// </summary>
-        public void Clear()
+        public void Clear(ArrayPool<QuadtreeNode>? pool)
         {
             Entities.Clear();
 
             if (IsSubdivided)
             {
-                foreach (var child in Children!)
+                // Recursively clear children first (only first 4 elements for quadtree)
+                for (int i = 0; i < 4; i++)
                 {
-                    child.Clear();
+                    Children![i].Clear(pool);
                 }
+
+                // Return pooled array to pool
+                if (IsPooled && pool != null)
+                {
+                    pool.Return(Children!, clearArray: false);
+                }
+
                 Children = null;
+                IsPooled = false;
             }
         }
     }

@@ -105,6 +105,28 @@ public sealed class QuadtreeConfig
     public bool DeterministicMode { get; init; } = false;
 
     /// <summary>
+    /// When true, uses ArrayPool to reuse node arrays during subdivision operations.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Node pooling reduces allocation overhead during tree subdivision by reusing
+    /// child node arrays. When a node subdivides, it allocates a 4-element array for
+    /// its children. With pooling enabled, these arrays are rented from ArrayPool&lt;QuadtreeNode&gt;
+    /// and returned when the node is cleared.
+    /// </para>
+    /// <para>
+    /// This is most beneficial in dynamic scenes where entities frequently move between
+    /// nodes, causing repeated subdivision and clearing operations. The performance
+    /// benefit increases with the frequency of structural changes to the tree.
+    /// </para>
+    /// <para>
+    /// Memory pooling is safe to use in all scenarios and has minimal overhead when
+    /// the tree structure is stable. Default is true for optimal performance.
+    /// </para>
+    /// </remarks>
+    public bool UseNodePooling { get; init; } = true;
+
+    /// <summary>
     /// Validates the configuration and returns any errors.
     /// </summary>
     /// <returns>An error message if invalid, or null if valid.</returns>
