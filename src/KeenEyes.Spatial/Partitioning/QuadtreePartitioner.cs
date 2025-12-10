@@ -102,7 +102,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
 
         var results = new HashSet<Entity>();
         root.QueryBounds(min, max, results, entityPositions);
-        return results;
+        return MaybeSortResults(results);
     }
 
     /// <inheritdoc/>
@@ -113,7 +113,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
 
         var results = new HashSet<Entity>();
         root.QueryBounds(min2D, max2D, results, entityPositions);
-        return results;
+        return MaybeSortResults(results);
     }
 
     /// <inheritdoc/>
@@ -123,7 +123,8 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         var node = root.FindLeafNode(point2D);
 
         // Return all entities in the leaf node (broadphase query)
-        return node?.Entities.ToList() ?? Enumerable.Empty<Entity>();
+        var entities = node?.Entities.ToList() ?? Enumerable.Empty<Entity>();
+        return MaybeSortResults(entities);
     }
 
     /// <inheritdoc/>
@@ -131,7 +132,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     {
         var results = new HashSet<Entity>();
         root.QueryFrustum(frustum, results, entityPositions);
-        return results;
+        return MaybeSortResults(results);
     }
 
     /// <inheritdoc/>
@@ -147,6 +148,20 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     public void Dispose()
     {
         Clear();
+    }
+
+    /// <summary>
+    /// Returns query results, sorted by entity ID if deterministic mode is enabled.
+    /// </summary>
+    private IEnumerable<Entity> MaybeSortResults(IEnumerable<Entity> results)
+    {
+        if (!config.DeterministicMode)
+        {
+            return results;
+        }
+
+        // Sort by entity ID for deterministic ordering
+        return results.OrderBy(e => e.Id).ThenBy(e => e.Version);
     }
 
     /// <summary>
