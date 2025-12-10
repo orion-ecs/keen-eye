@@ -212,7 +212,7 @@ public class DebugStatsSystem : SystemBase
         // Access the extension set by our plugin
         if (World.TryGetExtension<DebugStats>(out var stats))
         {
-            stats!.EntitiesProcessed = World.GetAllEntities().Count();
+            stats!.EntitiesProcessed = World.EntityCount;
             Console.WriteLine($"  DebugStatsSystem: {stats.EntitiesProcessed} entities");
         }
     }
