@@ -7,20 +7,36 @@ on:
       - develop
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - 'api/**'
+      - '**/*.md'
       - 'docfx.json'
+      - 'toc.yml'
+      - 'index.md'
       - 'LICENSE'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.gitattributes'
       - '.github/workflows/docs.yml'
+      - '.github/labeler.yml'
+      - '.github/dependabot.yml'
   pull_request:
     branches:
       - main
       - develop
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - 'api/**'
+      - '**/*.md'
       - 'docfx.json'
+      - 'toc.yml'
+      - 'index.md'
       - 'LICENSE'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.gitattributes'
       - '.github/workflows/docs.yml'
+      - '.github/labeler.yml'
+      - '.github/dependabot.yml'
   workflow_dispatch:
     inputs:
       benchmark_filter:
