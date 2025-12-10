@@ -18,10 +18,10 @@ public class SimdHelpersTests
             new(300, 0, 300)
         };
 
-        var results = new List<int>();
-        SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, 10f * 10f, results);
+        Span<int> results = stackalloc int[10];
+        int count = SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, 10f * 10f, results);
 
-        Assert.Empty(results);
+        Assert.Equal(0, count);
     }
 
     [Fact]
@@ -35,14 +35,14 @@ public class SimdHelpersTests
             new(4, 0, 4)
         };
 
-        var results = new List<int>();
-        SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, 100f * 100f, results);
+        Span<int> results = stackalloc int[10];
+        int count = SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, 100f * 100f, results);
 
-        Assert.Equal(4, results.Count);
-        Assert.Contains(0, results);
-        Assert.Contains(1, results);
-        Assert.Contains(2, results);
-        Assert.Contains(3, results);
+        Assert.Equal(4, count);
+        Assert.Contains(0, results[..count].ToArray());
+        Assert.Contains(1, results[..count].ToArray());
+        Assert.Contains(2, results[..count].ToArray());
+        Assert.Contains(3, results[..count].ToArray());
     }
 
     [Fact]
@@ -56,13 +56,13 @@ public class SimdHelpersTests
             new(100, 0, 100) // Outside range
         };
 
-        var results = new List<int>();
+        Span<int> results = stackalloc int[10];
         var radiusSquared = 10f * 10f; // radius = 10
-        SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, radiusSquared, results);
+        int count = SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, radiusSquared, results);
 
-        Assert.Equal(2, results.Count);
-        Assert.Contains(0, results); // (5,0,0) is within range
-        Assert.Contains(2, results); // (3,0,4) is within range
+        Assert.Equal(2, count);
+        Assert.Contains(0, results[..count].ToArray()); // (5,0,0) is within range
+        Assert.Contains(2, results[..count].ToArray()); // (3,0,4) is within range
     }
 
     [Fact]
@@ -75,15 +75,15 @@ public class SimdHelpersTests
             positions[i] = new Vector3(i * 2, 0, 0);
         }
 
-        var results = new List<int>();
+        Span<int> results = stackalloc int[20];
         var radiusSquared = 15f * 15f;
-        SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, radiusSquared, results);
+        int count = SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, radiusSquared, results);
 
         // Should match indices 0-7 (positions 0, 2, 4, 6, 8, 10, 12, 14 are within radius 15)
-        Assert.Equal(8, results.Count);
+        Assert.Equal(8, count);
         for (int i = 0; i < 8; i++)
         {
-            Assert.Contains(i, results);
+            Assert.Contains(i, results[..count].ToArray());
         }
     }
 
@@ -97,14 +97,14 @@ public class SimdHelpersTests
             new(300, 300, 300)
         };
 
-        var results = new List<int>();
-        SimdHelpers.FilterByAABBSIMD(
+        Span<int> results = stackalloc int[10];
+        int count = SimdHelpers.FilterByAABBSIMD(
             positions,
             new Vector3(-10, -10, -10),
             new Vector3(10, 10, 10),
             results);
 
-        Assert.Empty(results);
+        Assert.Equal(0, count);
     }
 
     [Fact]
@@ -118,18 +118,18 @@ public class SimdHelpersTests
             new(2, 3, 4)
         };
 
-        var results = new List<int>();
-        SimdHelpers.FilterByAABBSIMD(
+        Span<int> results = stackalloc int[10];
+        int count = SimdHelpers.FilterByAABBSIMD(
             positions,
             new Vector3(0, 0, 0),
             new Vector3(10, 10, 10),
             results);
 
-        Assert.Equal(4, results.Count);
-        Assert.Contains(0, results);
-        Assert.Contains(1, results);
-        Assert.Contains(2, results);
-        Assert.Contains(3, results);
+        Assert.Equal(4, count);
+        Assert.Contains(0, results[..count].ToArray());
+        Assert.Contains(1, results[..count].ToArray());
+        Assert.Contains(2, results[..count].ToArray());
+        Assert.Contains(3, results[..count].ToArray());
     }
 
     [Fact]
@@ -145,17 +145,17 @@ public class SimdHelpersTests
             new(5, 5, 15)      // Outside (Z too large)
         };
 
-        var results = new List<int>();
-        SimdHelpers.FilterByAABBSIMD(
+        Span<int> results = stackalloc int[10];
+        int count = SimdHelpers.FilterByAABBSIMD(
             positions,
             new Vector3(0, 0, 0),
             new Vector3(10, 10, 10),
             results);
 
-        Assert.Equal(3, results.Count);
-        Assert.Contains(0, results); // (5,5,5) inside
-        Assert.Contains(2, results); // (0,0,0) on min boundary
-        Assert.Contains(3, results); // (10,10,10) on max boundary
+        Assert.Equal(3, count);
+        Assert.Contains(0, results[..count].ToArray()); // (5,5,5) inside
+        Assert.Contains(2, results[..count].ToArray()); // (0,0,0) on min boundary
+        Assert.Contains(3, results[..count].ToArray()); // (10,10,10) on max boundary
     }
 
     [Fact]
@@ -168,18 +168,18 @@ public class SimdHelpersTests
             positions[i] = new Vector3(i, i, i);
         }
 
-        var results = new List<int>();
-        SimdHelpers.FilterByAABBSIMD(
+        Span<int> results = stackalloc int[20];
+        int count = SimdHelpers.FilterByAABBSIMD(
             positions,
             new Vector3(5, 5, 5),
             new Vector3(15, 15, 15),
             results);
 
         // Should match indices 5-15 (positions where all coords are between 5 and 15)
-        Assert.Equal(11, results.Count);
+        Assert.Equal(11, count);
         for (int i = 5; i <= 15; i++)
         {
-            Assert.Contains(i, results);
+            Assert.Contains(i, results[..count].ToArray());
         }
     }
 
@@ -200,8 +200,8 @@ public class SimdHelpersTests
         var radiusSquared = 100f * 100f;
 
         // Get SIMD results
-        var simdResults = new List<int>();
-        SimdHelpers.FilterByDistanceSIMD(positions, center, radiusSquared, simdResults);
+        Span<int> simdResults = stackalloc int[100];
+        int simdCount = SimdHelpers.FilterByDistanceSIMD(positions, center, radiusSquared, simdResults);
 
         // Get scalar results (reference implementation)
         var scalarResults = new List<int>();
@@ -214,10 +214,10 @@ public class SimdHelpersTests
         }
 
         // Results should match
-        Assert.Equal(scalarResults.Count, simdResults.Count);
+        Assert.Equal(scalarResults.Count, simdCount);
         foreach (var index in scalarResults)
         {
-            Assert.Contains(index, simdResults);
+            Assert.Contains(index, simdResults[..simdCount].ToArray());
         }
     }
 
@@ -238,8 +238,8 @@ public class SimdHelpersTests
         var max = new Vector3(100, 100, 100);
 
         // Get SIMD results
-        var simdResults = new List<int>();
-        SimdHelpers.FilterByAABBSIMD(positions, min, max, simdResults);
+        Span<int> simdResults = stackalloc int[100];
+        int simdCount = SimdHelpers.FilterByAABBSIMD(positions, min, max, simdResults);
 
         // Get scalar results (reference implementation)
         var scalarResults = new List<int>();
@@ -255,10 +255,10 @@ public class SimdHelpersTests
         }
 
         // Results should match
-        Assert.Equal(scalarResults.Count, simdResults.Count);
+        Assert.Equal(scalarResults.Count, simdCount);
         foreach (var index in scalarResults)
         {
-            Assert.Contains(index, simdResults);
+            Assert.Contains(index, simdResults[..simdCount].ToArray());
         }
     }
 }

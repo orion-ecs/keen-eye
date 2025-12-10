@@ -78,9 +78,9 @@ public class SimdBenchmarks
     [Benchmark]
     public int DistanceFilter_SIMD()
     {
-        var results = new List<int>();
-        SimdHelpers.FilterByDistanceSIMD(positions, queryCenter, radiusSquared, results);
-        return results.Count;
+        Span<int> results = stackalloc int[1000];
+        int count = SimdHelpers.FilterByDistanceSIMD(positions, queryCenter, radiusSquared, results);
+        return count;
     }
 
     #endregion
@@ -107,9 +107,9 @@ public class SimdBenchmarks
     [Benchmark]
     public int AABBFilter_SIMD()
     {
-        var results = new List<int>();
-        SimdHelpers.FilterByAABBSIMD(positions, aabbMin, aabbMax, results);
-        return results.Count;
+        Span<int> results = stackalloc int[1000];
+        int count = SimdHelpers.FilterByAABBSIMD(positions, aabbMin, aabbMax, results);
+        return count;
     }
 
     #endregion
@@ -147,16 +147,15 @@ public class SimdBenchmarks
     public int MultipleDistanceQueries_SIMD()
     {
         int totalCount = 0;
-        var results = new List<int>();
+        Span<int> results = stackalloc int[1000];
 
         // Perform 10 queries at different positions
         for (int q = 0; q < 10; q++)
         {
             var center = new Vector3(q * 200f, q * 200f, q * 200f);
-            results.Clear();
 
-            SimdHelpers.FilterByDistanceSIMD(positions, center, radiusSquared, results);
-            totalCount += results.Count;
+            int count = SimdHelpers.FilterByDistanceSIMD(positions, center, radiusSquared, results);
+            totalCount += count;
         }
 
         return totalCount;

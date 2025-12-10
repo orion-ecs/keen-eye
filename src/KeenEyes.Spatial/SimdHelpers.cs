@@ -34,37 +34,38 @@ public static class SimdHelpers
     /// <param name="positions">Array of entity positions.</param>
     /// <param name="center">The center point to measure distance from.</param>
     /// <param name="radiusSquared">The squared radius threshold.</param>
-    /// <param name="results">List to add indices of entities within range.</param>
+    /// <param name="results">Span to write indices of entities within range.</param>
+    /// <returns>The number of matching indices written to results.</returns>
     /// <remarks>
     /// This processes positions in batches of 4 using SIMD instructions when available,
     /// falling back to scalar processing otherwise. Compares squared distances to avoid
-    /// expensive sqrt operations.
+    /// expensive sqrt operations. Completely allocation-free when used with stackalloc.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void FilterByDistanceSIMD(
+    public static int FilterByDistanceSIMD(
         ReadOnlySpan<Vector3> positions,
         Vector3 center,
         float radiusSquared,
-        List<int> results)
+        Span<int> results)
     {
         if (Sse.IsSupported && positions.Length >= 4)
         {
-            FilterByDistanceSIMD_SSE(positions, center, radiusSquared, results);
+            return FilterByDistanceSIMD_SSE(positions, center, radiusSquared, results);
         }
         else
         {
-            FilterByDistanceScalar(positions, center, radiusSquared, results);
+            return FilterByDistanceScalar(positions, center, radiusSquared, results);
         }
     }
 
     /// <summary>
     /// SSE-optimized distance filtering (processes 4 positions at a time).
     /// </summary>
-    private static void FilterByDistanceSIMD_SSE(
+    private static int FilterByDistanceSIMD_SSE(
         ReadOnlySpan<Vector3> positions,
         Vector3 center,
         float radiusSquared,
-        List<int> results)
+        Span<int> results)
     {
         var centerX = Vector128.Create(center.X);
         var centerY = Vector128.Create(center.Y);
@@ -72,6 +73,7 @@ public static class SimdHelpers
         var radiusSq = Vector128.Create(radiusSquared);
 
         int i = 0;
+        int resultCount = 0;
         int vecCount = positions.Length / 4;
 
         // Process 4 positions at a time with SIMD
@@ -121,7 +123,7 @@ public static class SimdHelpers
                 {
                     if (distances[j] <= radiusSquared)
                     {
-                        results.Add(baseIndex + j);
+                        results[resultCount++] = baseIndex + j;
                     }
                 }
             }
@@ -135,29 +137,33 @@ public static class SimdHelpers
             var distSq = Vector3.DistanceSquared(positions[i], center);
             if (distSq <= radiusSquared)
             {
-                results.Add(i);
+                results[resultCount++] = i;
             }
         }
+
+        return resultCount;
     }
 
     /// <summary>
     /// Scalar fallback for distance filtering.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void FilterByDistanceScalar(
+    private static int FilterByDistanceScalar(
         ReadOnlySpan<Vector3> positions,
         Vector3 center,
         float radiusSquared,
-        List<int> results)
+        Span<int> results)
     {
+        int resultCount = 0;
         for (int i = 0; i < positions.Length; i++)
         {
             var distSq = Vector3.DistanceSquared(positions[i], center);
             if (distSq <= radiusSquared)
             {
-                results.Add(i);
+                results[resultCount++] = i;
             }
         }
+        return resultCount;
     }
 
     /// <summary>
@@ -166,32 +172,36 @@ public static class SimdHelpers
     /// <param name="positions">Array of entity positions.</param>
     /// <param name="min">Minimum corner of query AABB.</param>
     /// <param name="max">Maximum corner of query AABB.</param>
-    /// <param name="results">List to add indices of entities within AABB.</param>
+    /// <param name="results">Span to write indices of entities within AABB.</param>
+    /// <returns>The number of matching indices written to results.</returns>
+    /// <remarks>
+    /// Completely allocation-free when used with stackalloc.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void FilterByAABBSIMD(
+    public static int FilterByAABBSIMD(
         ReadOnlySpan<Vector3> positions,
         Vector3 min,
         Vector3 max,
-        List<int> results)
+        Span<int> results)
     {
         if (Sse.IsSupported && positions.Length >= 4)
         {
-            FilterByAABBSIMD_SSE(positions, min, max, results);
+            return FilterByAABBSIMD_SSE(positions, min, max, results);
         }
         else
         {
-            FilterByAABBScalar(positions, min, max, results);
+            return FilterByAABBScalar(positions, min, max, results);
         }
     }
 
     /// <summary>
     /// SSE-optimized AABB filtering (processes 4 positions at a time).
     /// </summary>
-    private static void FilterByAABBSIMD_SSE(
+    private static int FilterByAABBSIMD_SSE(
         ReadOnlySpan<Vector3> positions,
         Vector3 min,
         Vector3 max,
-        List<int> results)
+        Span<int> results)
     {
         var minX = Vector128.Create(min.X);
         var minY = Vector128.Create(min.Y);
@@ -201,6 +211,7 @@ public static class SimdHelpers
         var maxZ = Vector128.Create(max.Z);
 
         int i = 0;
+        int resultCount = 0;
         int vecCount = positions.Length / 4;
 
         // Process 4 positions at a time with SIMD
@@ -252,7 +263,7 @@ public static class SimdHelpers
                 {
                     if ((moveMask & (1 << j)) != 0)
                     {
-                        results.Add(baseIndex + j);
+                        results[resultCount++] = baseIndex + j;
                     }
                 }
             }
@@ -268,21 +279,24 @@ public static class SimdHelpers
                 pos.Y >= min.Y && pos.Y <= max.Y &&
                 pos.Z >= min.Z && pos.Z <= max.Z)
             {
-                results.Add(i);
+                results[resultCount++] = i;
             }
         }
+
+        return resultCount;
     }
 
     /// <summary>
     /// Scalar fallback for AABB filtering.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static void FilterByAABBScalar(
+    private static int FilterByAABBScalar(
         ReadOnlySpan<Vector3> positions,
         Vector3 min,
         Vector3 max,
-        List<int> results)
+        Span<int> results)
     {
+        int resultCount = 0;
         for (int i = 0; i < positions.Length; i++)
         {
             var pos = positions[i];
@@ -290,8 +304,9 @@ public static class SimdHelpers
                 pos.Y >= min.Y && pos.Y <= max.Y &&
                 pos.Z >= min.Z && pos.Z <= max.Z)
             {
-                results.Add(i);
+                results[resultCount++] = i;
             }
         }
+        return resultCount;
     }
 }
