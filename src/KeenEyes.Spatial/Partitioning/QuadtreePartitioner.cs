@@ -145,18 +145,26 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     /// </summary>
     private void UpdateInternal(Entity entity, Vector2 position, (Vector2 min, Vector2 max)? bounds)
     {
-        // Remove from old node if already indexed
+        // Store entity position for potential redistribution during subdivision
+        entityPositions[entity] = position;
+
+        // Check if entity is already indexed and still fits in its current node
         if (entityNodes.TryGetValue(entity, out var oldNode))
         {
+            // For loose quadtrees, check if entity is still within loose bounds
+            if (config.UseLooseBounds && oldNode.ContainsPointLoose(position, config.LoosenessFactor))
+            {
+                // Entity is still within loose bounds, no need to move
+                return;
+            }
+
+            // Entity needs to move - remove from old node
             oldNode.Entities.Remove(entity);
         }
         else
         {
             entityCount++;
         }
-
-        // Store entity position for potential redistribution during subdivision
-        entityPositions[entity] = position;
 
         // Find the appropriate node for this entity
         var targetNode = root.FindLeafNode(position);
@@ -218,6 +226,18 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         public HashSet<Entity> Entities { get; } = [];
         public QuadtreeNode[]? Children { get; set; }
         public bool IsSubdivided => Children != null;
+
+        /// <summary>
+        /// Checks if a point is within the loose bounds of this node.
+        /// </summary>
+        public bool ContainsPointLoose(Vector2 point, float loosenessFactor)
+        {
+            var expansion = ((Max - Min) * (loosenessFactor - 1.0f)) * 0.5f;
+            var looseMin = Min - expansion;
+            var looseMax = Max + expansion;
+            return point.X >= looseMin.X && point.X <= looseMax.X &&
+                   point.Y >= looseMin.Y && point.Y <= looseMax.Y;
+        }
 
         /// <summary>
         /// Finds the leaf node that should contain the given point.

@@ -39,6 +39,38 @@ public sealed class QuadtreeConfig
     public int MaxEntitiesPerNode { get; init; } = 8;
 
     /// <summary>
+    /// Whether to use loose bounds for the quadtree (reduces updates for moving entities).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Loose quadtrees expand node bounds by a configurable factor, allowing entities
+    /// to move within a larger region without needing to be reassigned to different nodes.
+    /// This significantly reduces the cost of updates for dynamic scenes at the expense
+    /// of slightly less efficient queries.
+    /// </para>
+    /// <para>
+    /// Use loose bounds when:
+    /// - Entities move frequently
+    /// - Movement is relatively small compared to node size
+    /// - Query performance is less critical than update performance
+    /// </para>
+    /// <para>
+    /// Default is false (tight bounds) for optimal query performance.
+    /// </para>
+    /// </remarks>
+    public bool UseLooseBounds { get; init; } = false;
+
+    /// <summary>
+    /// The factor by which node bounds are expanded when using loose bounds.
+    /// </summary>
+    /// <remarks>
+    /// A factor of 2.0 means each node's bounds are doubled in size (1.0 expansion in each direction).
+    /// Higher values reduce update frequency but increase query candidate count.
+    /// Typical values: 1.5 - 3.0. Only used when UseLooseBounds is true.
+    /// </remarks>
+    public float LoosenessFactor { get; init; } = 2.0f;
+
+    /// <summary>
     /// The minimum corner of the quadtree's root bounds (X and Z used for 2D).
     /// </summary>
     /// <remarks>
@@ -75,6 +107,11 @@ public sealed class QuadtreeConfig
         if (WorldMin.X >= WorldMax.X || WorldMin.Z >= WorldMax.Z)
         {
             return "WorldMin must be less than WorldMax in X and Z dimensions";
+        }
+
+        if (UseLooseBounds && (LoosenessFactor < 1.0f || LoosenessFactor > 10.0f))
+        {
+            return $"LoosenessFactor must be between 1.0 and 10.0, got {LoosenessFactor}";
         }
 
         return null;
