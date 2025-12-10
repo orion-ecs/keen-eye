@@ -197,6 +197,34 @@ internal sealed class GridPartitioner : ISpatialPartitioner
     }
 
     /// <inheritdoc/>
+    public IEnumerable<Entity> QueryFrustum(Frustum frustum)
+    {
+        // For grid partitioner, we approximate the frustum with an AABB
+        // by testing the 8 corners of each cell against the frustum
+        var results = new HashSet<Entity>();
+
+        // Iterate all cells (this is inefficient but correct for grid)
+        // A better approach would be to calculate frustum bounds first
+        foreach (var kvp in grid)
+        {
+            var (x, y, z) = kvp.Key;
+            var cellMin = new Vector3(x * cellSize, y * cellSize, z * cellSize);
+            var cellMax = cellMin + new Vector3(cellSize, cellSize, cellSize);
+
+            // Test if cell AABB intersects frustum
+            if (frustum.Intersects(cellMin, cellMax))
+            {
+                foreach (var entity in kvp.Value)
+                {
+                    results.Add(entity);
+                }
+            }
+        }
+
+        return results;
+    }
+
+    /// <inheritdoc/>
     public void Clear()
     {
         grid.Clear();

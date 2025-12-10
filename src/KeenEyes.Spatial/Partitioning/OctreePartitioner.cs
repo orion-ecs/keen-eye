@@ -116,6 +116,14 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     }
 
     /// <inheritdoc/>
+    public IEnumerable<Entity> QueryFrustum(Frustum frustum)
+    {
+        var results = new HashSet<Entity>();
+        root.QueryFrustum(frustum, results, entityPositions);
+        return results;
+    }
+
+    /// <inheritdoc/>
     public void Clear()
     {
         root.Clear();
@@ -359,6 +367,39 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
                 foreach (var child in Children!)
                 {
                     child.QueryBounds(min, max, results, entityPositions);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Queries entities within a frustum (broadphase).
+        /// </summary>
+        public void QueryFrustum(Frustum frustum, HashSet<Entity> results, Dictionary<Entity, Vector3> entityPositions)
+        {
+            // Early out if node doesn't intersect frustum
+            if (!frustum.Intersects(Min, Max))
+            {
+                return;
+            }
+
+            // Add entities from this node that are within frustum
+            foreach (var entity in Entities)
+            {
+                if (entityPositions.TryGetValue(entity, out var pos))
+                {
+                    if (frustum.Contains(pos))
+                    {
+                        results.Add(entity);
+                    }
+                }
+            }
+
+            // Recursively query children if subdivided
+            if (IsSubdivided)
+            {
+                foreach (var child in Children!)
+                {
+                    child.QueryFrustum(frustum, results, entityPositions);
                 }
             }
         }
