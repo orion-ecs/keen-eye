@@ -15,28 +15,19 @@ namespace KeenEyes.Common;
 /// All coordinates in Max should be greater than or equal to those in Min.
 /// </para>
 /// </remarks>
-public struct SpatialBounds : IComponent
+/// <param name="min">The minimum corner.</param>
+/// <param name="max">The maximum corner.</param>
+public struct SpatialBounds(Vector3 min, Vector3 max) : IComponent
 {
     /// <summary>
     /// The minimum corner of the bounding box (lowest X, Y, Z coordinates).
     /// </summary>
-    public Vector3 Min;
+    public Vector3 Min = min;
 
     /// <summary>
     /// The maximum corner of the bounding box (highest X, Y, Z coordinates).
     /// </summary>
-    public Vector3 Max;
-
-    /// <summary>
-    /// Creates a new bounding box with the specified min and max corners.
-    /// </summary>
-    /// <param name="min">The minimum corner.</param>
-    /// <param name="max">The maximum corner.</param>
-    public SpatialBounds(Vector3 min, Vector3 max)
-    {
-        Min = min;
-        Max = max;
-    }
+    public Vector3 Max = max;
 
     /// <summary>
     /// Creates a bounding box centered at a position with the specified extents.

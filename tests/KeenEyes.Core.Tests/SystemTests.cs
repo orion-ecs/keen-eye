@@ -62,14 +62,10 @@ public class TestMovementSystem : SystemBase
 /// <summary>
 /// Test system without parameterless constructor for error testing.
 /// </summary>
-public class TestNonDefaultConstructorSystem : ISystem
+/// <param name="name">The system name.</param>
+public class TestNonDefaultConstructorSystem(string name) : ISystem
 {
-    private readonly string name;
-
-    public TestNonDefaultConstructorSystem(string name)
-    {
-        this.name = name;
-    }
+    private readonly string name = name;
 
     public string Name => name;
     public bool Enabled { get; set; } = true;

@@ -23,7 +23,8 @@ namespace KeenEyes;
 /// world.AddSystemGroup(physicsGroup, SystemPhase.FixedUpdate);
 /// </code>
 /// </example>
-public class SystemGroup : ISystem
+/// <param name="name">The name of the group.</param>
+public class SystemGroup(string name) : ISystem
 {
     private readonly List<SystemEntry> systems = [];
     private IWorld? world;
@@ -33,22 +34,13 @@ public class SystemGroup : ISystem
     /// <summary>
     /// Gets the name of this system group.
     /// </summary>
-    public string Name { get; }
+    public string Name { get; } = name;
 
     /// <inheritdoc />
     public bool Enabled
     {
         get => enabled;
         set => enabled = value;
-    }
-
-    /// <summary>
-    /// Creates a new system group with the specified name.
-    /// </summary>
-    /// <param name="name">The name of the group.</param>
-    public SystemGroup(string name)
-    {
-        Name = name;
     }
 
     /// <summary>

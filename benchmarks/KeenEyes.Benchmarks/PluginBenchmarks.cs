@@ -291,14 +291,10 @@ public class PluginEnumerationBenchmarks
 /// <summary>
 /// Numbered plugin for enumeration benchmarks.
 /// </summary>
-public class NumberedPlugin : IWorldPlugin
+/// <param name="number">The plugin number.</param>
+public class NumberedPlugin(int number) : IWorldPlugin
 {
-    private readonly int number;
-
-    public NumberedPlugin(int number)
-    {
-        this.number = number;
-    }
+    private readonly int number = number;
 
     public string Name => $"Plugin_{number}";
 

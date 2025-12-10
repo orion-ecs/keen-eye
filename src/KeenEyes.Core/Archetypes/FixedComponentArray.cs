@@ -8,9 +8,10 @@ namespace KeenEyes;
 /// a simple pre-allocated array for predictable memory layout.
 /// </summary>
 /// <typeparam name="T">The component type to store.</typeparam>
-public sealed class FixedComponentArray<T> : IComponentArray where T : struct
+/// <param name="capacity">The fixed capacity.</param>
+public sealed class FixedComponentArray<T>(int capacity) : IComponentArray where T : struct
 {
-    private readonly T[] data;
+    private readonly T[] data = new T[capacity];
     private int count;
 
     /// <inheritdoc />
@@ -20,17 +21,7 @@ public sealed class FixedComponentArray<T> : IComponentArray where T : struct
     public int Count => count;
 
     /// <inheritdoc />
-    public int Capacity { get; }
-
-    /// <summary>
-    /// Creates a new fixed-capacity component array.
-    /// </summary>
-    /// <param name="capacity">The fixed capacity.</param>
-    public FixedComponentArray(int capacity)
-    {
-        Capacity = capacity;
-        data = new T[capacity];
-    }
+    public int Capacity { get; } = capacity;
 
     /// <summary>
     /// Gets a reference to the component at the specified index.

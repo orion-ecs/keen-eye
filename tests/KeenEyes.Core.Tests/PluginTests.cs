@@ -132,14 +132,10 @@ public class TestExtensionPlugin : IWorldPlugin
 /// <summary>
 /// Test plugin with configurable name.
 /// </summary>
-public class TestConfigurablePlugin : IWorldPlugin
+/// <param name="name">The plugin name.</param>
+public class TestConfigurablePlugin(string name) : IWorldPlugin
 {
-    private readonly string name;
-
-    public TestConfigurablePlugin(string name)
-    {
-        this.name = name;
-    }
+    private readonly string name = name;
 
     public string Name => name;
 
@@ -405,16 +401,12 @@ public class PluginSystemRegistrationTests
 /// <summary>
 /// Helper system for tracking update order.
 /// </summary>
-public class TestOrderTrackingSystem : SystemBase
+/// <param name="name">The system name.</param>
+/// <param name="order">The list to track execution order.</param>
+public class TestOrderTrackingSystem(string name, List<string> order) : SystemBase
 {
-    private readonly string name;
-    private readonly List<string> order;
-
-    public TestOrderTrackingSystem(string name, List<string> order)
-    {
-        this.name = name;
-        this.order = order;
-    }
+    private readonly string name = name;
+    private readonly List<string> order = order;
 
     public override void Update(float deltaTime)
     {
@@ -425,16 +417,12 @@ public class TestOrderTrackingSystem : SystemBase
 /// <summary>
 /// Test plugin that registers systems in specific order.
 /// </summary>
-public class TestOrderedPlugin : IWorldPlugin
+/// <param name="system1">The first system to register.</param>
+/// <param name="system2">The second system to register.</param>
+public class TestOrderedPlugin(ISystem system1, ISystem system2) : IWorldPlugin
 {
-    private readonly ISystem system1;
-    private readonly ISystem system2;
-
-    public TestOrderedPlugin(ISystem system1, ISystem system2)
-    {
-        this.system1 = system1;
-        this.system2 = system2;
-    }
+    private readonly ISystem system1 = system1;
+    private readonly ISystem system2 = system2;
 
     public string Name => "TestOrdered";
 
@@ -452,14 +440,10 @@ public class TestOrderedPlugin : IWorldPlugin
 /// <summary>
 /// Test plugin that registers a system group.
 /// </summary>
-public class TestGroupPlugin : IWorldPlugin
+/// <param name="group">The system group to register.</param>
+public class TestGroupPlugin(SystemGroup group) : IWorldPlugin
 {
-    private readonly SystemGroup group;
-
-    public TestGroupPlugin(SystemGroup group)
-    {
-        this.group = group;
-    }
+    private readonly SystemGroup group = group;
 
     public string Name => "TestGroup";
 
@@ -941,16 +925,12 @@ public class WorldBuilderTests
 /// <summary>
 /// Test plugin for tracking install order.
 /// </summary>
-public class TestTrackingPlugin : IWorldPlugin
+/// <param name="name">The plugin name.</param>
+/// <param name="installOrder">The list to track install order.</param>
+public class TestTrackingPlugin(string name, List<string> installOrder) : IWorldPlugin
 {
-    private readonly string name;
-    private readonly List<string> installOrder;
-
-    public TestTrackingPlugin(string name, List<string> installOrder)
-    {
-        this.name = name;
-        this.installOrder = installOrder;
-    }
+    private readonly string name = name;
+    private readonly List<string> installOrder = installOrder;
 
     public string Name => name;
 

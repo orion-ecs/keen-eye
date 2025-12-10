@@ -61,9 +61,10 @@ namespace KeenEyes.Graphics;
 /// }
 /// </code>
 /// </example>
-public sealed class GraphicsPlugin : IWorldPlugin
+/// <param name="config">The graphics configuration.</param>
+public sealed class GraphicsPlugin(GraphicsConfig config) : IWorldPlugin
 {
-    private readonly GraphicsConfig config;
+    private readonly GraphicsConfig config = config;
     private GraphicsContext? graphics;
 
     /// <summary>
@@ -76,15 +77,6 @@ public sealed class GraphicsPlugin : IWorldPlugin
     /// </summary>
     public GraphicsPlugin() : this(new GraphicsConfig())
     {
-    }
-
-    /// <summary>
-    /// Creates a new graphics plugin with the specified configuration.
-    /// </summary>
-    /// <param name="config">The graphics configuration.</param>
-    public GraphicsPlugin(GraphicsConfig config)
-    {
-        this.config = config;
     }
 
     /// <inheritdoc />

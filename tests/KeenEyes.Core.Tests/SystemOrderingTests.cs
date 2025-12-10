@@ -3,16 +3,12 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Test system that records when it was updated for ordering verification.
 /// </summary>
-public class OrderTrackingSystem : SystemBase
+/// <param name="executionLog">The list to track execution order.</param>
+/// <param name="name">The system name.</param>
+public class OrderTrackingSystem(List<string> executionLog, string name) : SystemBase
 {
-    private readonly List<string> executionLog;
-    private readonly string name;
-
-    public OrderTrackingSystem(List<string> executionLog, string name)
-    {
-        this.executionLog = executionLog;
-        this.name = name;
-    }
+    private readonly List<string> executionLog = executionLog;
+    private readonly string name = name;
 
     public override void Update(float deltaTime)
     {
@@ -832,14 +828,9 @@ public class SystemDependencyOrderingTests
 
     #region Helper Systems
 
-    private sealed class SystemB : SystemBase
+    private sealed class SystemB(List<string> log) : SystemBase
     {
-        private readonly List<string> log;
-
-        public SystemB(List<string> log)
-        {
-            this.log = log;
-        }
+        private readonly List<string> log = log;
 
         public override void Update(float deltaTime)
         {
@@ -847,14 +838,9 @@ public class SystemDependencyOrderingTests
         }
     }
 
-    private sealed class SystemC : SystemBase
+    private sealed class SystemC(List<string> log) : SystemBase
     {
-        private readonly List<string> log;
-
-        public SystemC(List<string> log)
-        {
-            this.log = log;
-        }
+        private readonly List<string> log = log;
 
         public override void Update(float deltaTime)
         {
@@ -862,14 +848,9 @@ public class SystemDependencyOrderingTests
         }
     }
 
-    private sealed class SystemD : SystemBase
+    private sealed class SystemD(List<string> log) : SystemBase
     {
-        private readonly List<string> log;
-
-        public SystemD(List<string> log)
-        {
-            this.log = log;
-        }
+        private readonly List<string> log = log;
 
         public override void Update(float deltaTime)
         {
@@ -1021,14 +1002,9 @@ public class FixedUpdateTests
         Assert.Equal(["OnBeforeUpdate", "Update", "OnAfterUpdate"], log);
     }
 
-    private sealed class LifecycleTrackingSystem : SystemBase
+    private sealed class LifecycleTrackingSystem(List<string> log) : SystemBase
     {
-        private readonly List<string> log;
-
-        public LifecycleTrackingSystem(List<string> log)
-        {
-            this.log = log;
-        }
+        private readonly List<string> log = log;
 
         protected override void OnBeforeUpdate(float deltaTime)
         {
@@ -1060,14 +1036,9 @@ public class FixedUpdateTests
         Assert.Equal(["DirectUpdate"], log);
     }
 
-    private sealed class DirectISystemImplementation : ISystem
+    private sealed class DirectISystemImplementation(List<string> log) : ISystem
     {
-        private readonly List<string> log;
-
-        public DirectISystemImplementation(List<string> log)
-        {
-            this.log = log;
-        }
+        private readonly List<string> log = log;
 
         public bool Enabled { get; set; } = true;
 

@@ -105,9 +105,10 @@ public class Velocity2DTests
     [Fact]
     public void Value_CanBeModified()
     {
-        var velocity = new Velocity2D(10, 20);
-
-        velocity.Value = new Vector2(30, 40);
+        var velocity = new Velocity2D(10, 20)
+        {
+            Value = new Vector2(30, 40)
+        };
 
         Assert.Equal(30f, velocity.Value.X);
         Assert.Equal(40f, velocity.Value.Y);

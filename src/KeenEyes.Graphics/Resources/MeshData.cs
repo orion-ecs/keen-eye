@@ -7,46 +7,31 @@ namespace KeenEyes.Graphics;
 /// <summary>
 /// Represents a vertex with position, normal, and texture coordinates.
 /// </summary>
-public struct Vertex
+/// <param name="position">The vertex position in local space.</param>
+/// <param name="normal">The vertex normal for lighting calculations.</param>
+/// <param name="texCoord">The texture coordinates (UV).</param>
+/// <param name="color">The vertex color (RGBA). Defaults to white (Vector4.One) if not specified.</param>
+public struct Vertex(Vector3 position, Vector3 normal, Vector2 texCoord, Vector4 color = default)
 {
     /// <summary>
     /// The vertex position in local space.
     /// </summary>
-    public Vector3 Position;
+    public Vector3 Position = position;
 
     /// <summary>
     /// The vertex normal for lighting calculations.
     /// </summary>
-    public Vector3 Normal;
+    public Vector3 Normal = normal;
 
     /// <summary>
     /// The texture coordinates (UV).
     /// </summary>
-    public Vector2 TexCoord;
+    public Vector2 TexCoord = texCoord;
 
     /// <summary>
     /// The vertex color (RGBA).
     /// </summary>
-    public Vector4 Color;
-
-    /// <summary>
-    /// Creates a new vertex with the specified attributes.
-    /// </summary>
-    public Vertex(Vector3 position, Vector3 normal, Vector2 texCoord, Vector4 color)
-    {
-        Position = position;
-        Normal = normal;
-        TexCoord = texCoord;
-        Color = color;
-    }
-
-    /// <summary>
-    /// Creates a vertex with position, normal, and UV (white color).
-    /// </summary>
-    public Vertex(Vector3 position, Vector3 normal, Vector2 texCoord)
-        : this(position, normal, texCoord, Vector4.One)
-    {
-    }
+    public Vector4 Color = color == default ? Vector4.One : color;
 
     /// <summary>
     /// The size of the vertex structure in bytes.

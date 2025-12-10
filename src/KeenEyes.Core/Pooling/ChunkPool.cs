@@ -16,10 +16,11 @@ namespace KeenEyes;
 /// recently returned chunks are more likely to still be in cache.
 /// </para>
 /// </remarks>
-public sealed class ChunkPool
+/// <param name="maxChunksPerArchetype">Maximum chunks to pool per archetype.</param>
+public sealed class ChunkPool(int maxChunksPerArchetype = 64)
 {
     private readonly ConcurrentDictionary<ArchetypeId, ConcurrentStack<ArchetypeChunk>> pools = new();
-    private readonly int maxChunksPerArchetype;
+    private readonly int maxChunksPerArchetype = maxChunksPerArchetype;
 
     private long totalRented;
     private long totalReturned;
@@ -77,15 +78,6 @@ public sealed class ChunkPool
             }
             return 1.0 - ((double)created / rented);
         }
-    }
-
-    /// <summary>
-    /// Creates a new chunk pool.
-    /// </summary>
-    /// <param name="maxChunksPerArchetype">Maximum chunks to pool per archetype.</param>
-    public ChunkPool(int maxChunksPerArchetype = 64)
-    {
-        this.maxChunksPerArchetype = maxChunksPerArchetype;
     }
 
     /// <summary>
