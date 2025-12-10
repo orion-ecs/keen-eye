@@ -1075,7 +1075,7 @@ The framework provides approximately **90% of the infrastructure** needed for a 
 
 ### Editor Architecture References
 - [Unity Editor Scripting Documentation](https://docs.unity3d.com/Manual/ExtendingTheEditor.html)
-- [Godot Editor Architecture](https://docs.godotengine.org/en/stable/contributing/development/editor/index.html)
+- [Godot Editor Tutorials](https://docs.godotengine.org/en/stable/tutorials/editor/index.html)
 - [Flecs ECS Explorer](https://github.com/flecs-hub/explorer)
 
 ---

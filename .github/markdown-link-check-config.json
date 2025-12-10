@@ -11,6 +11,15 @@
     },
     {
       "pattern": "^#"
+    },
+    {
+      "pattern": "^https://stackoverflow\\.com/"
+    },
+    {
+      "pattern": "^https://[a-z]+\\.stackexchange\\.com/"
+    },
+    {
+      "pattern": "^https://www\\.gamedev\\.net/"
     }
   ],
   "replacementPatterns": [

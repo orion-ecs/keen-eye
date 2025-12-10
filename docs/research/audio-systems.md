@@ -719,10 +719,9 @@ Use **MiniAudio** if:
 ## Sources
 
 ### Official Resources
-- [OpenAL Soft](https://www.openal-soft.org/)
 - [OpenAL Soft GitHub](https://github.com/kcat/openal-soft)
 - [OpenAL Programmer's Guide](https://www.openal.org/documentation/OpenAL_Programmers_Guide.pdf)
-- [OpenAL Soft Effects Extension Guide](https://openal-soft.org/misc-downloads/Effects%20Extension%20Guide.pdf)
+- [OpenAL Soft Programmer's Guide (Wiki)](https://github.com/kcat/openal-soft/wiki/Programmer's-Guide)
 - [OpenAL Soft HRTF Documentation](https://github.com/kcat/openal-soft/blob/master/docs/hrtf.txt)
 
 ### NuGet Packages
