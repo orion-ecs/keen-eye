@@ -174,7 +174,7 @@ public class StrategyComparisonBenchmarks
         var center = new Vector3(500, 500, 500);
 
         var count = 0;
-        foreach (var entity in spatial!.QueryRadius(center, radius))
+        foreach (var _ in spatial!.QueryRadius(center, radius))
         {
             count++;
         }
@@ -191,7 +191,7 @@ public class StrategyComparisonBenchmarks
         var center = new Vector3(500, 500, 500);
 
         var count = 0;
-        foreach (var entity in spatial!.QueryRadius(center, radius))
+        foreach (var _ in spatial!.QueryRadius(center, radius))
         {
             count++;
         }
@@ -208,7 +208,7 @@ public class StrategyComparisonBenchmarks
         var center = new Vector3(0, 0, 0);
 
         var count = 0;
-        foreach (var entity in spatial!.QueryRadius(center, radius))
+        foreach (var _ in spatial!.QueryRadius(center, radius))
         {
             count++;
         }
@@ -230,10 +230,10 @@ public class StrategyComparisonBenchmarks
         {
             var x = (i % 5) * 500f;
             var y = (i / 5 % 5) * 500f;
-            var z = (i / 25) * 500f;
+            var z = (i / 25f) * 500f;
             var position = new Vector3(x, y, z);
 
-            foreach (var entity in spatial!.QueryRadius(position, radius))
+            foreach (var _ in spatial!.QueryRadius(position, radius))
             {
                 totalCount++;
             }
@@ -252,7 +252,7 @@ public class StrategyComparisonBenchmarks
         var max = new Vector3(800, 800, 800);
 
         var count = 0;
-        foreach (var entity in spatial!.QueryBounds(min, max))
+        foreach (var _ in spatial!.QueryBounds(min, max))
         {
             count++;
         }
