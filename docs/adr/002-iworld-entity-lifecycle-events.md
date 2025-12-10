@@ -125,6 +125,28 @@ public interface IWorld
 
 This maintains plugin isolation while providing necessary event hooks for stateful plugins like SpatialPlugin.
 
+### Supporting Architecture Changes
+
+To expose these methods through IWorld, several types needed to move to the Abstractions package:
+
+1. **EventSubscription** - Return type for all event subscription methods
+   - Moved from `KeenEyes.Core.Events` → `KeenEyes.Abstractions`
+   - Required for IWorld event methods to compile
+
+2. **IEntityBuilder** - Return type for `IWorld.Spawn()`
+   - Moved from `KeenEyes.Core.Entities` → `KeenEyes.Abstractions`
+   - Plugins can now use the builder pattern without referencing Core
+
+3. **SystemBase** - Base class for plugin systems
+   - Moved from `KeenEyes.Core.Systems` → `KeenEyes.Abstractions`
+   - Plugins can extend SystemBase without referencing Core implementation
+
+4. **IQueryBuilder** - Return types for `IWorld.Query<T>()` methods
+   - New interfaces added to `KeenEyes.Abstractions`
+   - Enables fluent query API through IWorld interface
+
+**Design principle:** If a type appears in IWorld's signature, it must be in Abstractions. This ensures plugins can depend only on the abstractions package and remain decoupled from Core implementation details.
+
 ### Implementation Strategy
 
 1. **Expose entity events in EventManager** (already existed internally):
@@ -219,11 +241,13 @@ Wait for more plugin use cases before expanding IWorld:
 
 ### Positive
 
+- **Complete plugin isolation** - Plugins no longer need to reference KeenEyes.Core
 - **Plugins can react to entity lifecycle** without internal World access
 - **SpatialPlugin works correctly** - entities indexed on creation, removed on destruction
 - **Consistent event model** - both entities and components have lifecycle events
 - **No reflection overhead** - component events use delegate-per-type pattern (see ADR-003)
 - **Symmetric API** - creation and destruction both have events
+- **Cleaner abstractions** - All IWorld signature types now in Abstractions package
 
 ### Negative
 
@@ -293,8 +317,13 @@ All 2114 tests passing with 0 warnings.
 - Commit: "Complete IWorld event system + fire component events during entity creation"
 - Files changed:
   - `src/KeenEyes.Abstractions/IWorld.cs` - Added `Set<T>`, `OnComponentChanged<T>`, `OnEntityCreated`, `OnEntityDestroyed`
+  - `src/KeenEyes.Abstractions/EventSubscription.cs` - Moved from Core (IWorld signature type)
+  - `src/KeenEyes.Abstractions/IEntityBuilder.cs` - Moved from Core (IWorld.Spawn() return type)
+  - `src/KeenEyes.Abstractions/SystemBase.cs` - Moved from Core (plugin base class)
+  - `src/KeenEyes.Abstractions/IQueryBuilder.cs` - New (IWorld.Query() return types)
   - `src/KeenEyes.Core/World.Entities.cs` - Fire component/entity events during creation
   - `src/KeenEyes.Core/EventManager.cs` - Expose entity event subscriptions
+  - `src/KeenEyes.Core/ComponentRegistry.cs` - Add IComponent constraint, setup event dispatchers
   - `src/KeenEyes.Spatial/Systems/SpatialUpdateSystem.cs` - Subscribe to entity destroyed
 
 ### IWorld Evolution
