@@ -269,6 +269,26 @@ public class CameraTests
 
     #endregion
 
+    #region Edge Case Tests
+
+    [Fact]
+    public void ProjectionMatrix_InvalidProjectionType_ReturnsIdentity()
+    {
+        // Create camera with valid projection type
+        var camera = Camera.CreatePerspective(60f, 16f / 9f, 0.1f, 1000f);
+
+        // Manually set an invalid projection type (cast from int)
+        // This tests the default case in the switch statement
+        camera = camera with { Projection = (ProjectionType)999 };
+
+        var matrix = camera.ProjectionMatrix();
+
+        // Should return identity matrix for unknown projection types
+        Assert.Equal(Matrix4x4.Identity, matrix);
+    }
+
+    #endregion
+
     private static bool IsValidViewMatrix(Matrix4x4 matrix)
     {
         // A valid view matrix should be invertible

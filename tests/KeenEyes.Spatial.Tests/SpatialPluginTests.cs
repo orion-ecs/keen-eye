@@ -401,4 +401,180 @@ public class SpatialPluginTests : IDisposable
     }
 
     #endregion
+
+    #region Event Handler Tests
+
+    [Fact]
+    public void Plugin_IndexesEntityWithSpatialBounds()
+    {
+        world = new World();
+        world.InstallPlugin(new SpatialPlugin());
+
+        var spatial = world.GetExtension<SpatialQueryApi>();
+
+        // Create entity with Transform3D and SpatialBounds
+        var entity = world.Spawn()
+            .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
+            .With(new SpatialBounds(new Vector3(-1, -1, -1), new Vector3(1, 1, 1)))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+
+        // Entity should be indexed
+        Assert.Equal(1, spatial.EntityCount);
+        var results = spatial.QueryRadius(Vector3.Zero, 50f).ToList();
+        Assert.Contains(entity, results);
+    }
+
+    [Fact]
+    public void Plugin_AddingSpatialIndexedTag_IndexesEntity()
+    {
+        world = new World();
+        world.InstallPlugin(new SpatialPlugin());
+
+        var spatial = world.GetExtension<SpatialQueryApi>();
+
+        // Create entity with Transform3D but without SpatialIndexed tag
+        var entity = world.Spawn()
+            .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
+            .Build();
+
+        world.Update(0.016f);
+        Assert.Equal(0, spatial.EntityCount);
+
+        // Add SpatialIndexed tag - should trigger OnComponentAdded handler
+        world.Add(entity, new SpatialIndexed());
+
+        // Entity should be indexed immediately (no need for Update)
+        Assert.Equal(1, spatial.EntityCount);
+        var results = spatial.QueryRadius(Vector3.Zero, 50f).ToList();
+        Assert.Contains(entity, results);
+    }
+
+    [Fact]
+    public void Plugin_RemovingSpatialIndexedTag_RemovesFromIndex()
+    {
+        world = new World();
+        world.InstallPlugin(new SpatialPlugin());
+
+        var spatial = world.GetExtension<SpatialQueryApi>();
+
+        var entity = world.Spawn()
+            .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+        Assert.Equal(1, spatial.EntityCount);
+
+        // Remove SpatialIndexed tag - should trigger OnComponentRemoved handler
+        world.Remove<SpatialIndexed>(entity);
+
+        // Entity should be removed from index immediately
+        Assert.Equal(0, spatial.EntityCount);
+    }
+
+    [Fact]
+    public void Plugin_DespawnNonIndexedEntity_DoesNotThrow()
+    {
+        world = new World();
+        world.InstallPlugin(new SpatialPlugin());
+
+        var spatial = world.GetExtension<SpatialQueryApi>();
+
+        // Create entity without SpatialIndexed tag
+        var entity = world.Spawn()
+            .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
+            .Build();
+
+        world.Update(0.016f);
+        Assert.Equal(0, spatial.EntityCount);
+
+        // Despawn should not throw even though entity is not indexed
+        world.Despawn(entity);
+
+        // Still no entities in index
+        Assert.Equal(0, spatial.EntityCount);
+    }
+
+    [Fact]
+    public void Plugin_UpdateWithoutSpatialIndexedTag_IgnoresEntity()
+    {
+        world = new World();
+        world.InstallPlugin(new SpatialPlugin());
+
+        var spatial = world.GetExtension<SpatialQueryApi>();
+
+        // Create entity with Transform3D but no SpatialIndexed tag
+        var entity = world.Spawn()
+            .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
+            .Build();
+
+        world.Update(0.016f);
+        Assert.Equal(0, spatial.EntityCount);
+
+        // Modify transform - should mark as dirty
+        world.Set(entity, new Transform3D(new Vector3(100, 0, 0), Quaternion.Identity, Vector3.One));
+        world.Update(0.016f);
+
+        // Entity should still not be indexed (filtered out in Update)
+        Assert.Equal(0, spatial.EntityCount);
+    }
+
+    [Fact]
+    public void Plugin_AddingSpatialIndexedToEntityWithoutTransform_DoesNotIndex()
+    {
+        world = new World();
+        world.InstallPlugin(new SpatialPlugin());
+
+        var spatial = world.GetExtension<SpatialQueryApi>();
+
+        // Create entity without Transform3D
+        var entity = world.Spawn().Build();
+
+        // Add SpatialIndexed tag - should not index because no Transform3D
+        world.Add(entity, new SpatialIndexed());
+
+        // Entity should not be indexed
+        Assert.Equal(0, spatial.EntityCount);
+    }
+
+    #endregion
+
+    #region Strategy Validation Tests
+
+    [Fact]
+    public void SpatialConfig_Validate_UnknownStrategy_ReturnsError()
+    {
+        // Create config with invalid strategy value (cast from int)
+        var config = new SpatialConfig
+        {
+            Strategy = (SpatialStrategy)999
+        };
+
+        var error = config.Validate();
+
+        Assert.NotNull(error);
+        Assert.Contains("Unknown spatial strategy", error);
+        Assert.Contains("999", error);
+    }
+
+    [Fact]
+    public void Install_UnknownStrategy_ThrowsArgumentException()
+    {
+        world = new World();
+
+        // Create config with invalid strategy value (cast from int)
+        var config = new SpatialConfig
+        {
+            Strategy = (SpatialStrategy)999
+        };
+
+        // Plugin constructor should throw because validation fails
+        var ex = Assert.Throws<ArgumentException>(() => new SpatialPlugin(config));
+        Assert.Contains("Unknown spatial strategy", ex.Message);
+    }
+
+    #endregion
 }
