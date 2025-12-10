@@ -171,8 +171,8 @@ public class SpatialBenchmarks
         // Perform 100 small queries at different positions
         for (int i = 0; i < 100; i++)
         {
-            var x = (i % 10) * 100f;
-            var z = (i / 10) * 100f;
+            var x = i % 10 * 100f;
+            var z = i / 10 * 100f;  // Integer division intended (grid positions 0-9)
             var position = new Vector3(x, 0, z);
 
             foreach (var entity in spatial.QueryRadius(position, radius))
