@@ -99,6 +99,10 @@ sort -u "$PACKAGES_FILE" | while read -r pkg version; do
     fi
 done
 
+# Download dotnet tools (from .config/dotnet-tools.json)
+# These are needed for husky and other tooling
+download_pkg "husky" "0.8.0"
+
 # Clean up
 rm -f "$PACKAGES_FILE"
 
