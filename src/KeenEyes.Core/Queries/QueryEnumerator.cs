@@ -29,7 +29,7 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public Entity Current
+    public readonly Entity Current
     {
         get
         {
@@ -41,7 +41,7 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
         }
     }
 
-    object IEnumerator.Current => Current;
+    readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
     public bool MoveNext()
@@ -90,7 +90,7 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    public readonly void Dispose()
     {
         // No resources to dispose
     }
@@ -124,7 +124,7 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public Entity Current
+    public readonly Entity Current
     {
         get
         {
@@ -136,7 +136,7 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
         }
     }
 
-    object IEnumerator.Current => Current;
+    readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
     public bool MoveNext()
@@ -185,7 +185,7 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    public readonly void Dispose()
     {
         // No resources to dispose
     }
@@ -220,7 +220,7 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public Entity Current
+    public readonly Entity Current
     {
         get
         {
@@ -232,7 +232,7 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
         }
     }
 
-    object IEnumerator.Current => Current;
+    readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
     public bool MoveNext()
@@ -281,7 +281,7 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    public readonly void Dispose()
     {
         // No resources to dispose
     }
@@ -317,7 +317,7 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public Entity Current
+    public readonly Entity Current
     {
         get
         {
@@ -329,7 +329,7 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
         }
     }
 
-    object IEnumerator.Current => Current;
+    readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
     public bool MoveNext()
@@ -378,7 +378,7 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
     }
 
     /// <inheritdoc />
-    public void Dispose()
+    public readonly void Dispose()
     {
         // No resources to dispose
     }

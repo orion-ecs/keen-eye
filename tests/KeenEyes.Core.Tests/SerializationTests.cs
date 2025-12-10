@@ -767,24 +767,24 @@ public class SerializationTests
         var fakeSnapshot = new WorldSnapshot
         {
             Timestamp = DateTimeOffset.UtcNow,
-            Entities = new List<SerializedEntity>
-            {
+            Entities =
+            [
                 new SerializedEntity
                 {
                     Id = 1,
                     Name = "TestEntity",
-                    Components = new List<SerializedComponent>
-                    {
+                    Components =
+                    [
                         new SerializedComponent
                         {
                             TypeName = "NonExistent.FakeComponent, FakeAssembly",
                             Data = new { X = 1, Y = 2 },
                             IsTag = false
                         }
-                    }
+                    ]
                 }
-            },
-            Singletons = new List<SerializedSingleton>()
+            ],
+            Singletons = []
         };
 
         using var world = new World();
@@ -803,15 +803,15 @@ public class SerializationTests
         var fakeSnapshot = new WorldSnapshot
         {
             Timestamp = DateTimeOffset.UtcNow,
-            Entities = new List<SerializedEntity>(),
-            Singletons = new List<SerializedSingleton>
-            {
+            Entities = [],
+            Singletons =
+            [
                 new SerializedSingleton
                 {
                     TypeName = "NonExistent.FakeSingleton, FakeAssembly",
                     Data = new { Value = 42 }
                 }
-            }
+            ]
         };
 
         using var world = new World();
@@ -968,7 +968,7 @@ public class SerializationTests
         {
             Id = 1,
             Name = "Original",
-            Components = new List<SerializedComponent>(),
+            Components = [],
             ParentId = null
         };
 
@@ -1001,8 +1001,8 @@ public class SerializationTests
         var original = new WorldSnapshot
         {
             Timestamp = DateTimeOffset.UtcNow,
-            Entities = new List<SerializedEntity>(),
-            Singletons = new List<SerializedSingleton>(),
+            Entities = [],
+            Singletons = [],
             Version = 1
         };
 
@@ -1044,24 +1044,24 @@ public class SerializationTests
         var invalidSnapshot = new WorldSnapshot
         {
             Timestamp = DateTimeOffset.UtcNow,
-            Entities = new List<SerializedEntity>
-            {
+            Entities =
+            [
                 new SerializedEntity
                 {
                     Id = 1,
                     Name = "Invalid",
-                    Components = new List<SerializedComponent>
-                    {
+                    Components =
+                    [
                         new SerializedComponent
                         {
                             TypeName = typeof(SerializablePosition).AssemblyQualifiedName!,
                             Data = "not a position", // Wrong type - string instead of Position or JsonElement
                             IsTag = false
                         }
-                    }
+                    ]
                 }
-            },
-            Singletons = new List<SerializedSingleton>()
+            ],
+            Singletons = []
         };
 
         using var world = new World();

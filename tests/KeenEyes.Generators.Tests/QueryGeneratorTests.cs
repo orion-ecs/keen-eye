@@ -390,7 +390,7 @@ public class QueryGeneratorTests
             public partial class NotAStructQuery { }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (_, generatedTrees) = RunGenerator(source);
 
         // The attribute should not apply to classes, so no output
         Assert.Empty(generatedTrees);

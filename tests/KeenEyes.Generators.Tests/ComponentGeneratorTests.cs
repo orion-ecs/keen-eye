@@ -537,7 +537,7 @@ public class ComponentGeneratorTests
             public partial class NotAStruct { }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (_, generatedTrees) = RunGenerator(source);
 
         // Should not generate for classes
         Assert.Empty(generatedTrees);

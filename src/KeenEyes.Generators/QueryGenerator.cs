@@ -142,8 +142,6 @@ public sealed class QueryGenerator : IIncrementalGenerator
 
             if (methodName is not null)
             {
-                // For ref types, we need to extract the underlying type
-                var componentType = field.ComponentType;
                 sb.AppendLine($"        // {field.Name}: {field.AccessType}");
             }
         }

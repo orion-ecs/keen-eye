@@ -28,15 +28,14 @@ namespace KeenEyes.Spatial.Partitioning;
 /// </remarks>
 internal sealed class GridPartitioner : ISpatialPartitioner
 {
-    private readonly GridConfig config;
     private readonly float cellSize;
     private readonly float invCellSize; // 1 / cellSize for faster division
 
     // Grid storage: cell coordinates → entities in that cell
-    private readonly Dictionary<(int x, int y, int z), HashSet<Entity>> grid = new();
+    private readonly Dictionary<(int x, int y, int z), HashSet<Entity>> grid = [];
 
     // Entity tracking: entity → list of cells it occupies
-    private readonly Dictionary<Entity, List<(int x, int y, int z)>> entityCells = new();
+    private readonly Dictionary<Entity, List<(int x, int y, int z)>> entityCells = [];
 
     // Entity count
     private int entityCount;
@@ -54,7 +53,6 @@ internal sealed class GridPartitioner : ISpatialPartitioner
             throw new ArgumentException($"Invalid GridConfig: {error}", nameof(config));
         }
 
-        this.config = config;
         cellSize = config.CellSize;
         invCellSize = 1f / cellSize;
     }
@@ -132,7 +130,6 @@ internal sealed class GridPartitioner : ISpatialPartitioner
 
         // Use HashSet to deduplicate entities that appear in multiple cells
         var results = new HashSet<Entity>();
-        var radiusSq = radius * radius;
 
         for (int x = minCell.x; x <= maxCell.x; x++)
         {
@@ -262,7 +259,7 @@ internal sealed class GridPartitioner : ISpatialPartitioner
         {
             if (!grid.TryGetValue(newCell, out var entitiesInCell))
             {
-                entitiesInCell = new HashSet<Entity>();
+                entitiesInCell = [];
                 grid[newCell] = entitiesInCell;
             }
             entitiesInCell.Add(entity);

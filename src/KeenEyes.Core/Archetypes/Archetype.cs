@@ -137,7 +137,7 @@ public sealed class Archetype : IDisposable
             return null;
         }
 
-        var (chunkIndex, indexInChunk) = location;
+        var (chunkIndex, _) = location;
         var chunk = chunks[chunkIndex];
 
         // Remove from chunk

@@ -262,7 +262,7 @@ public class SystemGeneratorTests
             public partial struct NotAClassSystem { }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (_, generatedTrees) = RunGenerator(source);
 
         // The attribute should not apply to structs, so no output
         Assert.Empty(generatedTrees);

@@ -700,7 +700,7 @@ public class PoolingTests
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
 
         var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]);
-        var chunk2 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        _ = pool.Rent(archetypeId, [typeof(TestPosition)]);
         pool.Return(chunk1);
 
         var stats = pool.GetStats();

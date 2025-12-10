@@ -126,7 +126,7 @@ public class SpatialPluginTests : IDisposable
         var spatial = world.GetExtension<SpatialQueryApi>();
 
         // Add entity to index
-        var entity = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
             .WithTag<SpatialIndexed>()
             .Build();
@@ -152,7 +152,7 @@ public class SpatialPluginTests : IDisposable
         world.InstallPlugin(new SpatialPlugin());
 
         // Create entity with transform and spatial tag
-        var entity = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
             .WithTag<SpatialIndexed>()
             .Build();
@@ -227,7 +227,7 @@ public class SpatialPluginTests : IDisposable
         var spatial = world.GetExtension<SpatialQueryApi>();
 
         // Create entity
-        var entity = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
             .WithTag<SpatialIndexed>()
             .Build();
