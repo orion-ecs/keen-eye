@@ -90,6 +90,22 @@ public sealed class OctreeConfig
     public Vector3 WorldMax { get; init; } = new(10000, 10000, 10000);
 
     /// <summary>
+    /// When true, ensures query results are returned in a stable, deterministic order.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Deterministic mode guarantees that repeated queries with the same input
+    /// will return results in the same order, which is essential for networked games
+    /// and replay systems where behavior must be reproducible.
+    /// </para>
+    /// <para>
+    /// Results are sorted by entity ID when deterministic mode is enabled.
+    /// This adds a small performance cost (~10-20% slower queries) but ensures consistency.
+    /// </para>
+    /// </remarks>
+    public bool DeterministicMode { get; init; } = false;
+
+    /// <summary>
     /// Validates the configuration and returns any errors.
     /// </summary>
     /// <returns>An error message if invalid, or null if valid.</returns>
