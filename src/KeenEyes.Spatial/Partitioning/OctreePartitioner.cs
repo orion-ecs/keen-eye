@@ -314,14 +314,14 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
                     }
                 }
 
-                // SIMD-accelerated AABB filtering
-                var indices = new List<int>(count / 2);
-                SimdHelpers.FilterByAABBSIMD(positionSpan, min, max, indices);
+                // SIMD-accelerated AABB filtering (zero-allocation with stackalloc)
+                Span<int> indices = stackalloc int[count];
+                int matchCount = SimdHelpers.FilterByAABBSIMD(positionSpan, min, max, indices);
 
                 // Add filtered entities
-                foreach (var index in indices)
+                for (int i = 0; i < matchCount; i++)
                 {
-                    results.Add(entitySpan[index]);
+                    results.Add(entitySpan[indices[i]]);
                 }
             }
             else if (count > 128)
@@ -329,12 +329,14 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
                 // ArrayPool for large arrays (reusable, zero allocation amortized)
                 var rentedEntities = ArrayPool<Entity>.Shared.Rent(count);
                 var rentedPositions = ArrayPool<Vector3>.Shared.Rent(count);
+                var rentedIndices = ArrayPool<int>.Shared.Rent(count);
 
                 try
                 {
                     Entities.CopyTo(rentedEntities, 0);
                     var entitySpan = rentedEntities.AsSpan(0, count);
                     var positionSpan = rentedPositions.AsSpan(0, count);
+                    var indicesSpan = rentedIndices.AsSpan(0, count);
 
                     // Extract positions
                     for (int i = 0; i < count; i++)
@@ -345,20 +347,20 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
                         }
                     }
 
-                    // SIMD-accelerated AABB filtering
-                    var indices = new List<int>(count / 2);
-                    SimdHelpers.FilterByAABBSIMD(positionSpan, min, max, indices);
+                    // SIMD-accelerated AABB filtering (zero-allocation with pooled arrays)
+                    int matchCount = SimdHelpers.FilterByAABBSIMD(positionSpan, min, max, indicesSpan);
 
                     // Add filtered entities
-                    foreach (var index in indices)
+                    for (int i = 0; i < matchCount; i++)
                     {
-                        results.Add(entitySpan[index]);
+                        results.Add(entitySpan[indicesSpan[i]]);
                     }
                 }
                 finally
                 {
                     ArrayPool<Entity>.Shared.Return(rentedEntities);
                     ArrayPool<Vector3>.Shared.Return(rentedPositions);
+                    ArrayPool<int>.Shared.Return(rentedIndices);
                 }
             }
             else
