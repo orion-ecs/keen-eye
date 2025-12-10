@@ -108,6 +108,26 @@ internal interface ISpatialPartitioner : IDisposable
     IEnumerable<Entity> QueryPoint(Vector3 point);
 
     /// <summary>
+    /// Queries all entities within a view frustum.
+    /// </summary>
+    /// <param name="frustum">The view frustum to query.</param>
+    /// <returns>An enumerable of entities within the frustum (broadphase candidates).</returns>
+    /// <remarks>
+    /// <para>
+    /// This is a broadphase query optimized for camera visibility culling.
+    /// It may return false positives (entities outside the frustum).
+    /// Callers should perform narrowphase frustum tests if exact results are required.
+    /// </para>
+    /// <para>
+    /// Results are unordered and may contain duplicates in some implementations.
+    /// </para>
+    /// <para>
+    /// Use <see cref="Frustum.FromMatrix"/> to create a frustum from a view-projection matrix.
+    /// </para>
+    /// </remarks>
+    IEnumerable<Entity> QueryFrustum(Frustum frustum);
+
+    /// <summary>
     /// Gets the total number of entities currently indexed.
     /// </summary>
     int EntityCount { get; }

@@ -127,6 +127,14 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     }
 
     /// <inheritdoc/>
+    public IEnumerable<Entity> QueryFrustum(Frustum frustum)
+    {
+        var results = new HashSet<Entity>();
+        root.QueryFrustum(frustum, results, entityPositions);
+        return results;
+    }
+
+    /// <inheritdoc/>
     public void Clear()
     {
         root.Clear();
@@ -365,6 +373,45 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
                 foreach (var child in Children!)
                 {
                     child.QueryBounds(min, max, results, entityPositions);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Queries entities within a frustum (broadphase).
+        /// </summary>
+        public void QueryFrustum(Frustum frustum, HashSet<Entity> results, Dictionary<Entity, Vector2> entityPositions)
+        {
+            // Convert 2D quadtree bounds to 3D AABB for frustum testing
+            // Use Y range that covers reasonable height values
+            var min3D = new Vector3(Min.X, -1000, Min.Y);
+            var max3D = new Vector3(Max.X, 1000, Max.Y);
+
+            // Early out if node doesn't intersect frustum
+            if (!frustum.Intersects(min3D, max3D))
+            {
+                return;
+            }
+
+            // Add entities from this node that are within frustum
+            foreach (var entity in Entities)
+            {
+                if (entityPositions.TryGetValue(entity, out var pos2D))
+                {
+                    var pos3D = new Vector3(pos2D.X, 0, pos2D.Y);
+                    if (frustum.Contains(pos3D))
+                    {
+                        results.Add(entity);
+                    }
+                }
+            }
+
+            // Recursively query children if subdivided
+            if (IsSubdivided)
+            {
+                foreach (var child in Children!)
+                {
+                    child.QueryFrustum(frustum, results, entityPositions);
                 }
             }
         }
