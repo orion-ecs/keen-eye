@@ -1,6 +1,6 @@
+using System.Numerics;
 using BenchmarkDotNet.Attributes;
 using KeenEyes.Common;
-using System.Numerics;
 
 namespace KeenEyes.Spatial.Benchmarks;
 
