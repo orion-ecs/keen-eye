@@ -30,6 +30,7 @@ internal sealed class GridPartitioner : ISpatialPartitioner
 {
     private readonly float cellSize;
     private readonly float invCellSize; // 1 / cellSize for faster division
+    private readonly bool deterministicMode;
 
     // Grid storage: cell coordinates → entities in that cell
     private readonly Dictionary<(int x, int y, int z), HashSet<Entity>> grid = [];
@@ -55,6 +56,7 @@ internal sealed class GridPartitioner : ISpatialPartitioner
 
         cellSize = config.CellSize;
         invCellSize = 1f / cellSize;
+        deterministicMode = config.DeterministicMode;
     }
 
     /// <inheritdoc/>
@@ -151,7 +153,7 @@ internal sealed class GridPartitioner : ISpatialPartitioner
             }
         }
 
-        return results;
+        return MaybeSortResults(results);
     }
 
     /// <inheritdoc/>
@@ -180,7 +182,7 @@ internal sealed class GridPartitioner : ISpatialPartitioner
             }
         }
 
-        return results;
+        return MaybeSortResults(results);
     }
 
     /// <inheritdoc/>
@@ -190,7 +192,8 @@ internal sealed class GridPartitioner : ISpatialPartitioner
 
         if (grid.TryGetValue(cell, out var entitiesInCell))
         {
-            return entitiesInCell.ToList(); // Return copy to avoid collection modification issues
+            var copy = entitiesInCell.ToList(); // Return copy to avoid collection modification issues
+            return MaybeSortResults(copy);
         }
 
         return Enumerable.Empty<Entity>();
@@ -221,7 +224,7 @@ internal sealed class GridPartitioner : ISpatialPartitioner
             }
         }
 
-        return results;
+        return MaybeSortResults(results);
     }
 
     /// <inheritdoc/>
@@ -236,6 +239,20 @@ internal sealed class GridPartitioner : ISpatialPartitioner
     public void Dispose()
     {
         Clear();
+    }
+
+    /// <summary>
+    /// Returns query results, sorted by entity ID if deterministic mode is enabled.
+    /// </summary>
+    private IEnumerable<Entity> MaybeSortResults(IEnumerable<Entity> results)
+    {
+        if (!deterministicMode)
+        {
+            return results;
+        }
+
+        // Sort by entity ID for deterministic ordering
+        return results.OrderBy(e => e.Id).ThenBy(e => e.Version);
     }
 
     /// <summary>
