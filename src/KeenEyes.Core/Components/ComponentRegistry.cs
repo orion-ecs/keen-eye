@@ -30,7 +30,7 @@ public sealed class ComponentRegistry
     /// <param name="isTag">Whether this is a tag component.</param>
     /// <returns>The component info for this type.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ComponentInfo Register<T>(bool isTag = false) where T : struct
+    public ComponentInfo Register<T>(bool isTag = false) where T : struct, IComponent
     {
         var type = typeof(T);
 
@@ -41,7 +41,15 @@ public sealed class ComponentRegistry
 
         var id = new ComponentId(nextId++);
         var size = isTag ? 0 : ComponentMeta<T>.Size;
-        var info = new ComponentInfo(id, type, size, isTag);
+        var info = new ComponentInfo(id, type, size, isTag)
+        {
+            // Store setup function that knows how to create the dispatcher for this component type
+            // This avoids reflection during entity creation (cold path setup, hot path usage)
+            SetupDispatcher = (self, handlers) =>
+            {
+                self.FireAddedBoxed = (h, e, obj) => h.FireAdded(e, (T)obj);
+            }
+        };
 
         byType[type] = info;
         all.Add(info);
@@ -70,7 +78,7 @@ public sealed class ComponentRegistry
     /// Gets or registers a component type.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ComponentInfo GetOrRegister<T>(bool isTag = false) where T : struct
+    public ComponentInfo GetOrRegister<T>(bool isTag = false) where T : struct, IComponent
     {
         return Get<T>() ?? Register<T>(isTag);
     }

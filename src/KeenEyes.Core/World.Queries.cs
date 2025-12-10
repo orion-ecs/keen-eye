@@ -51,16 +51,16 @@ public sealed partial class World
     #region IWorld Query Implementations
 
     /// <inheritdoc />
-    IEnumerable<Entity> IWorld.Query<T1>() => Query<T1>();
+    IQueryBuilder<T1> IWorld.Query<T1>() => Query<T1>();
 
     /// <inheritdoc />
-    IEnumerable<Entity> IWorld.Query<T1, T2>() => Query<T1, T2>();
+    IQueryBuilder<T1, T2> IWorld.Query<T1, T2>() => Query<T1, T2>();
 
     /// <inheritdoc />
-    IEnumerable<Entity> IWorld.Query<T1, T2, T3>() => Query<T1, T2, T3>();
+    IQueryBuilder<T1, T2, T3> IWorld.Query<T1, T2, T3>() => Query<T1, T2, T3>();
 
     /// <inheritdoc />
-    IEnumerable<Entity> IWorld.Query<T1, T2, T3, T4>() => Query<T1, T2, T3, T4>();
+    IQueryBuilder<T1, T2, T3, T4> IWorld.Query<T1, T2, T3, T4>() => Query<T1, T2, T3, T4>();
 
     #endregion
 }

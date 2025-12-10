@@ -13,6 +13,11 @@ namespace KeenEyes;
 /// <see cref="OnBeforeUpdate"/> and <see cref="OnAfterUpdate"/> for pre/post update logic,
 /// and <see cref="Update"/> for the main processing logic.
 /// </para>
+/// <para>
+/// The <see cref="World"/> property provides access to the <see cref="IWorld"/> interface.
+/// Systems that need access to concrete World features (like change tracking or events)
+/// can cast to the concrete World type in <see cref="OnInitialize"/>.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -38,7 +43,7 @@ namespace KeenEyes;
 /// </example>
 public abstract class SystemBase : ISystem, ISystemLifecycle
 {
-    private World? world;
+    private IWorld? world;
     private bool enabled = true;
 
     /// <summary>
@@ -46,13 +51,13 @@ public abstract class SystemBase : ISystem, ISystemLifecycle
     /// </summary>
     /// <remarks>
     /// <para>
-    /// This property returns the concrete <see cref="World"/> type, providing full
-    /// access to all world operations including advanced features not available
-    /// through the <see cref="IWorld"/> interface.
+    /// This property returns the <see cref="IWorld"/> interface. Systems that need
+    /// access to concrete World features (like change tracking, events, or hierarchy)
+    /// can cast to the concrete World type in <see cref="OnInitialize"/>.
     /// </para>
     /// </remarks>
     /// <exception cref="InvalidOperationException">Thrown when accessed before initialization.</exception>
-    protected World World => world ?? throw new InvalidOperationException("System not initialized");
+    protected IWorld World => world ?? throw new InvalidOperationException("System not initialized");
 
     /// <inheritdoc />
     public bool Enabled
@@ -79,7 +84,7 @@ public abstract class SystemBase : ISystem, ISystemLifecycle
     /// <inheritdoc />
     public virtual void Initialize(IWorld world)
     {
-        this.world = (World)world;
+        this.world = world;
         OnInitialize();
     }
 
@@ -117,17 +122,17 @@ public abstract class SystemBase : ISystem, ISystemLifecycle
 
     /// <summary>
     /// Invokes the <see cref="OnBeforeUpdate"/> lifecycle hook.
-    /// Called by <see cref="World.Update"/> before the main update.
+    /// Called by the world before the main update.
     /// </summary>
     /// <param name="deltaTime">The time elapsed since the last update.</param>
-    internal void InvokeBeforeUpdate(float deltaTime) => OnBeforeUpdate(deltaTime);
+    public void InvokeBeforeUpdate(float deltaTime) => OnBeforeUpdate(deltaTime);
 
     /// <summary>
     /// Invokes the <see cref="OnAfterUpdate"/> lifecycle hook.
-    /// Called by <see cref="World.Update"/> after the main update.
+    /// Called by the world after the main update.
     /// </summary>
     /// <param name="deltaTime">The time elapsed since the last update.</param>
-    internal void InvokeAfterUpdate(float deltaTime) => OnAfterUpdate(deltaTime);
+    public void InvokeAfterUpdate(float deltaTime) => OnAfterUpdate(deltaTime);
 
     /// <inheritdoc />
     void ISystemLifecycle.OnBeforeUpdate(float deltaTime) => OnBeforeUpdate(deltaTime);

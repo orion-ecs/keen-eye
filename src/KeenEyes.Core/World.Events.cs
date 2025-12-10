@@ -1,5 +1,3 @@
-using KeenEyes.Events;
-
 namespace KeenEyes;
 
 public sealed partial class World

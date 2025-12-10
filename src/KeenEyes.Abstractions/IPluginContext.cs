@@ -121,4 +121,18 @@ public interface IPluginContext
     /// <typeparam name="T">The extension type to remove.</typeparam>
     /// <returns>True if the extension was found and removed; false otherwise.</returns>
     bool RemoveExtension<T>() where T : class;
+
+    /// <summary>
+    /// Registers a component type with the world.
+    /// </summary>
+    /// <typeparam name="T">The component type to register.</typeparam>
+    /// <param name="isTag">Whether this component is a tag (zero-size) component.</param>
+    /// <remarks>
+    /// <para>
+    /// Component types are typically registered automatically when first used, but plugins
+    /// may need to register components explicitly if they use dynamic component access or
+    /// need to ensure a component type is available.
+    /// </para>
+    /// </remarks>
+    void RegisterComponent<T>(bool isTag = false) where T : struct, IComponent;
 }
