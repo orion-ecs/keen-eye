@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Numerics;
 using KeenEyes.Common;
 
@@ -269,35 +270,84 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
             }
 
             // Add entities from this node that are actually within bounds
-            // Use SIMD for bulk filtering when there are enough entities
-            if (Entities.Count >= 8)
+            // Use SIMD for bulk filtering when there are enough entities (threshold: 16)
+            var count = Entities.Count;
+            if (count >= 16 && count <= 128)
             {
-                // Extract positions into array for SIMD processing
-                var entityArray = Entities.ToArray();
-                var positions = new Vector3[entityArray.Length];
-                for (int i = 0; i < entityArray.Length; i++)
+                // Stack allocation for small-medium arrays (zero heap allocation)
+                Span<Entity> entitySpan = stackalloc Entity[count];
+                Span<Vector3> positionSpan = stackalloc Vector3[count];
+
+                // Copy entities to span
+                int idx = 0;
+                foreach (var entity in Entities)
                 {
-                    if (entityPositions.TryGetValue(entityArray[i], out var pos2D))
+                    entitySpan[idx++] = entity;
+                }
+
+                // Extract positions
+                for (int i = 0; i < count; i++)
+                {
+                    if (entityPositions.TryGetValue(entitySpan[i], out var pos2D))
                     {
-                        positions[i] = new Vector3(pos2D.X, 0, pos2D.Y);
+                        positionSpan[i] = new Vector3(pos2D.X, 0, pos2D.Y);
                     }
                 }
 
                 // SIMD-accelerated AABB filtering
-                var indices = new List<int>();
+                var indices = new List<int>(count / 2);
                 var min3D = new Vector3(min.X, -1000, min.Y);
                 var max3D = new Vector3(max.X, 1000, max.Y);
-                SimdHelpers.FilterByAABBSIMD(positions, min3D, max3D, indices);
+                SimdHelpers.FilterByAABBSIMD(positionSpan, min3D, max3D, indices);
 
                 // Add filtered entities
                 foreach (var index in indices)
                 {
-                    results.Add(entityArray[index]);
+                    results.Add(entitySpan[index]);
+                }
+            }
+            else if (count > 128)
+            {
+                // ArrayPool for large arrays (reusable, zero allocation amortized)
+                var rentedEntities = ArrayPool<Entity>.Shared.Rent(count);
+                var rentedPositions = ArrayPool<Vector3>.Shared.Rent(count);
+
+                try
+                {
+                    Entities.CopyTo(rentedEntities, 0);
+                    var entitySpan = rentedEntities.AsSpan(0, count);
+                    var positionSpan = rentedPositions.AsSpan(0, count);
+
+                    // Extract positions
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (entityPositions.TryGetValue(entitySpan[i], out var pos2D))
+                        {
+                            positionSpan[i] = new Vector3(pos2D.X, 0, pos2D.Y);
+                        }
+                    }
+
+                    // SIMD-accelerated AABB filtering
+                    var indices = new List<int>(count / 2);
+                    var min3D = new Vector3(min.X, -1000, min.Y);
+                    var max3D = new Vector3(max.X, 1000, max.Y);
+                    SimdHelpers.FilterByAABBSIMD(positionSpan, min3D, max3D, indices);
+
+                    // Add filtered entities
+                    foreach (var index in indices)
+                    {
+                        results.Add(entitySpan[index]);
+                    }
+                }
+                finally
+                {
+                    ArrayPool<Entity>.Shared.Return(rentedEntities);
+                    ArrayPool<Vector3>.Shared.Return(rentedPositions);
                 }
             }
             else
             {
-                // Scalar fallback for small entity counts
+                // Scalar path for small entity counts (< 16)
                 foreach (var entity in Entities)
                 {
                     if (entityPositions.TryGetValue(entity, out var pos) &&
