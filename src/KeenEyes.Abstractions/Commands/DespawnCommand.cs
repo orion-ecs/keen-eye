@@ -33,7 +33,7 @@ internal sealed class DespawnCommand : ICommand
     }
 
     /// <inheritdoc />
-    public void Execute(World world, Dictionary<int, Entity> entityMap)
+    public void Execute(IWorld world, Dictionary<int, Entity> entityMap)
     {
         var entity = ResolveEntity(entityMap);
         if (entity.IsValid)

@@ -214,7 +214,17 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             if (info.IsTag)
             {
                 // Tag component - no parameters
-                sb.AppendLine($"    public static EntityBuilder With{info.Name}(this EntityBuilder builder)");
+                // Generic version for fluent chaining
+                sb.AppendLine($"    public static TSelf With{info.Name}<TSelf>(this TSelf builder)");
+                sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
+                sb.AppendLine($"    {{");
+                sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
+                sb.AppendLine($"    }}");
+                sb.AppendLine();
+
+                // Non-generic version for interface usage
+                sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
+                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{info.Name}(this global::KeenEyes.IEntityBuilder builder)");
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
                 sb.AppendLine($"    }}");
@@ -247,7 +257,17 @@ public sealed class ComponentGenerator : IIncrementalGenerator
                 var paramList = string.Join(", ", parameters);
                 var assignList = string.Join(", ", assignments);
 
-                sb.AppendLine($"    public static EntityBuilder With{info.Name}(this EntityBuilder builder, {paramList})");
+                // Generic version for fluent chaining
+                sb.AppendLine($"    public static TSelf With{info.Name}<TSelf>(this TSelf builder, {paramList})");
+                sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
+                sb.AppendLine($"    {{");
+                sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
+                sb.AppendLine($"    }}");
+                sb.AppendLine();
+
+                // Non-generic version for interface usage
+                sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
+                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{info.Name}(this global::KeenEyes.IEntityBuilder builder, {paramList})");
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
                 sb.AppendLine($"    }}");

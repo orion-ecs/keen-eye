@@ -44,6 +44,13 @@ public interface IWorld : IDisposable
     IEntityBuilder Spawn();
 
     /// <summary>
+    /// Creates an entity builder for constructing a new named entity.
+    /// </summary>
+    /// <param name="name">The optional name for the entity. If provided, must be unique within the world.</param>
+    /// <returns>An entity builder for fluent entity construction.</returns>
+    IEntityBuilder Spawn(string? name);
+
+    /// <summary>
     /// Adds a component to an entity.
     /// </summary>
     /// <typeparam name="T">The component type to add.</typeparam>

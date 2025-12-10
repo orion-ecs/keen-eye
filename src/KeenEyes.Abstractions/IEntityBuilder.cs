@@ -20,6 +20,12 @@ public interface IEntityBuilder
     /// <typeparam name="T">The tag component type.</typeparam>
     /// <returns>This builder for chaining.</returns>
     IEntityBuilder WithTag<T>() where T : struct, ITagComponent;
+
+    /// <summary>
+    /// Builds the entity and adds it to the world.
+    /// </summary>
+    /// <returns>The created entity.</returns>
+    Entity Build();
 }
 
 /// <summary>

@@ -11,39 +11,34 @@ internal sealed class SetComponentCommand : ICommand
 {
     private readonly Entity targetEntity;
     private readonly int? placeholderId;
-    private readonly Type componentType;
-    private readonly object componentValue;
+    private readonly Action<IWorld, Entity> setAction;
 
     /// <summary>
     /// Creates a set component command for an existing entity.
     /// </summary>
     /// <param name="entity">The entity to set the component on.</param>
-    /// <param name="componentType">The component type.</param>
-    /// <param name="value">The new component value.</param>
-    public SetComponentCommand(Entity entity, Type componentType, object value)
+    /// <param name="setAction">Delegate that sets the component on the world.</param>
+    public SetComponentCommand(Entity entity, Action<IWorld, Entity> setAction)
     {
         targetEntity = entity;
         placeholderId = null;
-        this.componentType = componentType;
-        componentValue = value;
+        this.setAction = setAction;
     }
 
     /// <summary>
     /// Creates a set component command for a placeholder entity.
     /// </summary>
     /// <param name="placeholderId">The placeholder ID of the entity.</param>
-    /// <param name="componentType">The component type.</param>
-    /// <param name="value">The new component value.</param>
-    public SetComponentCommand(int placeholderId, Type componentType, object value)
+    /// <param name="setAction">Delegate that sets the component on the world.</param>
+    public SetComponentCommand(int placeholderId, Action<IWorld, Entity> setAction)
     {
         targetEntity = Entity.Null;
         this.placeholderId = placeholderId;
-        this.componentType = componentType;
-        componentValue = value;
+        this.setAction = setAction;
     }
 
     /// <inheritdoc />
-    public void Execute(World world, Dictionary<int, Entity> entityMap)
+    public void Execute(IWorld world, Dictionary<int, Entity> entityMap)
     {
         var entity = ResolveEntity(entityMap);
         if (!entity.IsValid || !world.IsAlive(entity))
@@ -51,10 +46,8 @@ internal sealed class SetComponentCommand : ICommand
             return;
         }
 
-        // Use reflection to call the generic Set<T> method
-        var setMethod = typeof(World).GetMethod(nameof(World.Set))!
-            .MakeGenericMethod(componentType);
-        setMethod.Invoke(world, [entity, componentValue]);
+        // Invoke the stored delegate (no reflection)
+        setAction(world, entity);
     }
 
     private Entity ResolveEntity(Dictionary<int, Entity> entityMap)

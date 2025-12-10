@@ -2,7 +2,7 @@ namespace KeenEyes;
 
 /// <summary>
 /// Represents a deferred operation to be executed on a world.
-/// Commands are queued in a <see cref="CommandBuffer"/> and executed atomically via <see cref="CommandBuffer.Flush"/>.
+/// Commands are queued in a <see cref="ICommandBuffer"/> and executed atomically via <see cref="ICommandBuffer.Flush"/>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -26,5 +26,5 @@ internal interface ICommand
     /// Commands that create entities should add their mapping here.
     /// Commands that reference entities should resolve placeholders through this map.
     /// </param>
-    void Execute(World world, Dictionary<int, Entity> entityMap);
+    void Execute(IWorld world, Dictionary<int, Entity> entityMap);
 }

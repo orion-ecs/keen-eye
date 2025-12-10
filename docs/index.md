@@ -76,6 +76,8 @@ foreach (var e in world.Query<Position, Velocity>())
 ## Architecture Decisions
 
 - [ADR-001: World Manager Architecture](adr/001-world-manager-architecture.md) - Refactoring World into specialized managers
+- [ADR-002: Complete IWorld Event System](adr/002-iworld-entity-lifecycle-events.md) - Entity lifecycle events and complete IWorld interface
+- [ADR-003: CommandBuffer Abstraction](adr/003-command-buffer-abstraction.md) - Plugin isolation and reflection elimination (20-50x performance boost)
 
 ## Research
 

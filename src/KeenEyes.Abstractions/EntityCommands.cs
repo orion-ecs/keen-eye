@@ -1,15 +1,15 @@
 namespace KeenEyes;
 
 /// <summary>
-/// Fluent builder for configuring a spawned entity in a <see cref="CommandBuffer"/>.
+/// Fluent builder for configuring a spawned entity in a command buffer.
 /// </summary>
 /// <remarks>
 /// <para>
-/// EntityCommands is returned by <see cref="CommandBuffer.Spawn()"/> and allows
+/// EntityCommands is returned by <see cref="ICommandBuffer.Spawn()"/> and allows
 /// chaining component additions before the entity is actually created.
 /// </para>
 /// <para>
-/// The entity is not created until <see cref="CommandBuffer.Flush"/> is called.
+/// The entity is not created until <see cref="ICommandBuffer.Flush"/> is called.
 /// This enables safe entity creation during system iteration.
 /// </para>
 /// </remarks>
@@ -25,22 +25,32 @@ namespace KeenEyes;
 /// </example>
 public sealed class EntityCommands : IEntityBuilder<EntityCommands>
 {
-    private readonly SpawnCommand spawnCommand;
-
-    internal EntityCommands(SpawnCommand spawnCommand)
-    {
-        this.spawnCommand = spawnCommand;
-    }
-
     /// <summary>
     /// Gets the placeholder ID for this entity.
     /// This can be used to reference the entity in subsequent commands before it is created.
     /// </summary>
     /// <remarks>
     /// The placeholder ID is a negative value that will be mapped to the real entity
-    /// after <see cref="CommandBuffer.Flush"/> is called.
+    /// after command buffer flush is called.
     /// </remarks>
-    public int PlaceholderId => spawnCommand.PlaceholderId;
+    public int PlaceholderId { get; }
+
+    /// <summary>
+    /// Gets the optional name for this entity.
+    /// </summary>
+    public string? Name { get; }
+
+    /// <summary>
+    /// Gets the list of component addition delegates.
+    /// Each delegate takes an IEntityBuilder and returns the modified builder.
+    /// </summary>
+    internal List<Func<IEntityBuilder, IEntityBuilder>> ComponentAdders { get; } = [];
+
+    internal EntityCommands(int placeholderId, string? name = null)
+    {
+        PlaceholderId = placeholderId;
+        Name = name;
+    }
 
     /// <summary>
     /// Adds a component to the entity being built.
@@ -50,7 +60,7 @@ public sealed class EntityCommands : IEntityBuilder<EntityCommands>
     /// <returns>This builder for chaining.</returns>
     public EntityCommands With<T>(T component) where T : struct, IComponent
     {
-        spawnCommand.Components.Add((typeof(T), component, false));
+        ComponentAdders.Add(builder => builder.With(component));
         return this;
     }
 
@@ -61,8 +71,19 @@ public sealed class EntityCommands : IEntityBuilder<EntityCommands>
     /// <returns>This builder for chaining.</returns>
     public EntityCommands WithTag<T>() where T : struct, ITagComponent
     {
-        spawnCommand.Components.Add((typeof(T), default(T)!, true));
+        ComponentAdders.Add(builder => builder.WithTag<T>());
         return this;
+    }
+
+    /// <summary>
+    /// Not supported on EntityCommands. Use CommandBuffer.Flush() instead.
+    /// </summary>
+    /// <exception cref="NotSupportedException">Always thrown - entities are created during Flush().</exception>
+    public Entity Build()
+    {
+        throw new NotSupportedException(
+            "EntityCommands cannot build entities directly. " +
+            "Call CommandBuffer.Flush(world) to execute all queued commands and create entities.");
     }
 
     // Explicit interface implementations for non-generic interface

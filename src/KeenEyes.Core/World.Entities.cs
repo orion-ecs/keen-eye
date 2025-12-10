@@ -15,6 +15,17 @@ public sealed partial class World
     }
 
     /// <summary>
+    /// Begins building a new entity with an optional name.
+    /// </summary>
+    /// <param name="name">The optional name for the entity.</param>
+    /// <returns>A fluent builder for adding components.</returns>
+    IEntityBuilder IWorld.Spawn(string? name)
+    {
+        builder.Reset(name);
+        return builder;
+    }
+
+    /// <summary>
     /// Begins building a new entity.
     /// </summary>
     /// <returns>A fluent builder for adding components.</returns>

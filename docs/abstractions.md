@@ -32,6 +32,10 @@ The `IWorld` interface defines essential world operations that systems and plugi
 ```csharp
 public interface IWorld : IDisposable
 {
+    // Entity spawning
+    IEntityBuilder Spawn();
+    IEntityBuilder Spawn(string? name);
+
     // Entity operations
     bool IsAlive(Entity entity);
     bool Despawn(Entity entity);
@@ -40,6 +44,8 @@ public interface IWorld : IDisposable
     ref T Get<T>(Entity entity) where T : struct, IComponent;
     bool Has<T>(Entity entity) where T : struct, IComponent;
     bool Remove<T>(Entity entity) where T : struct, IComponent;
+    void Add<T>(Entity entity, T component) where T : struct, IComponent;
+    void Set<T>(Entity entity, T component) where T : struct, IComponent;
 
     // Query operations
     IEnumerable<Entity> Query<T1>() where T1 : struct, IComponent;
@@ -54,7 +60,7 @@ public interface IWorld : IDisposable
 }
 ```
 
-For advanced operations not covered by `IWorld`, systems can cast to the concrete `World` type when necessary.
+The interface provides complete functionality for most plugin needs, including entity spawning and component operations.
 
 ### IWorldPlugin
 
@@ -123,6 +129,60 @@ public interface IComponent;
 public interface ITagComponent : IComponent;
 ```
 
+### ICommandBuffer
+
+Interface for queuing deferred entity operations:
+
+```csharp
+public interface ICommandBuffer
+{
+    int Count { get; }
+
+    // Entity spawning
+    EntityCommands Spawn();
+    EntityCommands Spawn(string? name);
+
+    // Entity operations
+    void Despawn(Entity entity);
+    void Despawn(int placeholderId);
+
+    // Component operations
+    void AddComponent<T>(Entity entity, T component) where T : struct, IComponent;
+    void AddComponent<T>(int placeholderId, T component) where T : struct, IComponent;
+    void RemoveComponent<T>(Entity entity) where T : struct, IComponent;
+    void RemoveComponent<T>(int placeholderId) where T : struct, IComponent;
+    void SetComponent<T>(Entity entity, T component) where T : struct, IComponent;
+    void SetComponent<T>(int placeholderId, T component) where T : struct, IComponent;
+
+    // Execution
+    Dictionary<int, Entity> Flush(IWorld world);
+    void Clear();
+}
+```
+
+### IEntityBuilder
+
+Interface for building entities with components:
+
+```csharp
+public interface IEntityBuilder
+{
+    IEntityBuilder With<T>(T component) where T : struct, IComponent;
+    IEntityBuilder WithTag<T>() where T : struct, ITagComponent;
+    Entity Build();
+}
+
+// Generic version for type-safe fluent chaining
+public interface IEntityBuilder<out TSelf> : IEntityBuilder
+    where TSelf : IEntityBuilder<TSelf>
+{
+    new TSelf With<T>(T component) where T : struct, IComponent;
+    new TSelf WithTag<T>() where T : struct, ITagComponent;
+}
+```
+
+The generic version enables type-safe method chaining while the non-generic version allows usage through the interface.
+
 ## Types
 
 ### Entity
@@ -136,6 +196,26 @@ public readonly record struct Entity(int Id, int Version)
     public bool IsValid => Id >= 0;
 }
 ```
+
+### EntityCommands
+
+A fluent builder for queuing entity spawns in command buffers:
+
+```csharp
+public sealed class EntityCommands : IEntityBuilder<EntityCommands>
+{
+    public int PlaceholderId { get; }
+    public string? Name { get; }
+
+    public EntityCommands With<T>(T component) where T : struct, IComponent;
+    public EntityCommands WithTag<T>() where T : struct, ITagComponent;
+
+    // Build() not supported - must use CommandBuffer.Flush()
+    Entity Build();
+}
+```
+
+Used via `CommandBuffer.Spawn()` to queue entity creation with components.
 
 ### SystemGroup
 
@@ -330,12 +410,86 @@ public void Initialize(IWorld world)
 
 This approach keeps your plugin's core logic decoupled while still allowing access to advanced features when necessary.
 
+## Using Command Buffers in Plugins
+
+Plugins can use command buffers for deferred entity operations without depending on `KeenEyes.Core`:
+
+```csharp
+using KeenEyes;
+
+public class SpawnerSystem : ISystem
+{
+    private readonly ICommandBuffer buffer = new CommandBuffer();
+    private IWorld? world;
+
+    public void Initialize(IWorld world)
+    {
+        this.world = world;
+    }
+
+    public void Update(float deltaTime)
+    {
+        if (world is null) return;
+
+        // Queue spawns
+        buffer.Spawn()
+            .With(new Position { X = 0, Y = 0 })
+            .With(new Velocity { X = 1, Y = 0 });
+
+        // Queue component additions
+        foreach (var entity in world.Query<Health>())
+        {
+            ref readonly var health = ref world.Get<Health>(entity);
+            if (health.Current <= 0)
+            {
+                buffer.AddComponent(entity, new Dead());
+            }
+        }
+
+        // Execute all queued operations
+        buffer.Flush(world);
+    }
+
+    public void Dispose() { }
+    public bool Enabled { get; set; } = true;
+}
+```
+
+See the [Command Buffer Guide](command-buffer.md) for detailed usage patterns and best practices.
+
+## Generated Extension Methods
+
+Component generator creates extension methods that work seamlessly with `IEntityBuilder`:
+
+```csharp
+[Component]
+public partial struct Position
+{
+    public float X;
+    public float Y;
+}
+
+// Generated methods work with both generic and non-generic builders:
+
+// Generic version (type-safe chaining)
+public static TSelf WithPosition<TSelf>(this TSelf builder, float x, float y)
+    where TSelf : IEntityBuilder<TSelf>
+
+// Non-generic version (interface usage)
+public static IEntityBuilder WithPosition(this IEntityBuilder builder, float x, float y)
+```
+
+This dual-generation enables:
+- **Type-safe chaining** with concrete types (`EntityBuilder`, `EntityCommands`)
+- **Interface compatibility** for plugin usage through `IWorld.Spawn()` and `CommandBuffer.Spawn()`
+
 ## Package Contents
 
 The `KeenEyes.Abstractions` package includes:
 
-- **Interfaces**: `IWorld`, `IWorldPlugin`, `IPluginContext`, `ISystem`, `ISystemLifecycle`, `IComponent`, `ITagComponent`
-- **Types**: `Entity`, `SystemGroup`
+- **Interfaces**: `IWorld`, `IWorldPlugin`, `IPluginContext`, `ISystem`, `ISystemLifecycle`, `IComponent`, `ITagComponent`, `ICommandBuffer`, `IEntityBuilder`, `IEntityBuilder<TSelf>`
+- **Types**: `Entity`, `EntityCommands`, `SystemGroup`
 - **Enums**: `SystemPhase` (via `KeenEyes.Generators.Attributes` dependency)
+- **Internal**: `ICommand` (command execution interface)
 
 The package has minimal dependencies, making it ideal for library authors who want to keep their dependency footprint small.
