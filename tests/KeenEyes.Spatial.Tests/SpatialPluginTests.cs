@@ -391,7 +391,7 @@ public class SpatialPluginTests : IDisposable
         // Update entity position many times
         for (int i = 0; i < 100; i++)
         {
-            world.Set(entity, new Transform3D(new Vector3(i * 10, 0, 0), Quaternion.Identity, Vector3.One));
+            world.Set(entity, new Transform3D(new Vector3(i * 10f, 0, 0), Quaternion.Identity, Vector3.One));
             world.Update(0.016f);
         }
 
