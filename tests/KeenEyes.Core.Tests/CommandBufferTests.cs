@@ -789,6 +789,19 @@ public class CommandBufferTests
         }
     }
 
+    [Fact]
+    public void EdgeCase_EntityCommandsBuild_ThrowsNotSupportedException()
+    {
+        var buffer = new CommandBuffer();
+        var entityCommands = buffer.Spawn().With(new TestPosition { X = 0f, Y = 0f });
+
+        // EntityCommands cannot build entities directly - must use CommandBuffer.Flush()
+        var ex = Assert.Throws<NotSupportedException>(() => entityCommands.Build());
+
+        Assert.Contains("EntityCommands cannot build entities directly", ex.Message);
+        Assert.Contains("CommandBuffer.Flush(world)", ex.Message);
+    }
+
     #endregion
 
     #region Performance Awareness Tests
