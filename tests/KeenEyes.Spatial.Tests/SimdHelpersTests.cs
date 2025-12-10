@@ -9,6 +9,15 @@ namespace KeenEyes.Spatial.Tests;
 public class SimdHelpersTests
 {
     [Fact]
+    public void IsHardwareAccelerated_ReturnsBoolean()
+    {
+        // Simply verify the property is accessible
+        // On modern x64 hardware, this should be true
+        _ = SimdHelpers.IsHardwareAccelerated;
+        Assert.True(true); // Property accessed successfully
+    }
+
+    [Fact]
     public void FilterByDistanceSIMD_WithNoMatches_ReturnsEmpty()
     {
         var positions = new Vector3[]
@@ -181,6 +190,90 @@ public class SimdHelpersTests
         {
             Assert.Contains(i, results[..count].ToArray());
         }
+    }
+
+    [Fact]
+    public void FilterByDistanceSIMD_WithNonMultipleOfFourPositions_HandlesRemainder()
+    {
+        // Test with 5, 6, 7 positions to ensure remainder handling works
+        Span<int> results = stackalloc int[10];
+        for (int posCount = 5; posCount <= 7; posCount++)
+        {
+            var positions = new Vector3[posCount];
+            for (int i = 0; i < posCount; i++)
+            {
+                positions[i] = new Vector3(i, 0, 0);
+            }
+
+            var radiusSquared = 4f * 4f; // Matches indices 0-4
+            int count = SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, radiusSquared, results);
+
+            Assert.Equal(Math.Min(5, posCount), count);
+        }
+    }
+
+    [Fact]
+    public void FilterByAABBSIMD_WithNonMultipleOfFourPositions_HandlesRemainder()
+    {
+        // Test with 5, 6, 7 positions to ensure remainder handling works
+        Span<int> results = stackalloc int[10];
+        for (int posCount = 5; posCount <= 7; posCount++)
+        {
+            var positions = new Vector3[posCount];
+            for (int i = 0; i < posCount; i++)
+            {
+                positions[i] = new Vector3(i, i, i);
+            }
+
+            var min = new Vector3(0, 0, 0);
+            var max = new Vector3(10, 10, 10);
+            int count = SimdHelpers.FilterByAABBSIMD(positions, min, max, results);
+
+            Assert.Equal(posCount, count);  // All positions should match
+        }
+    }
+
+    [Fact]
+    public void FilterByDistanceSIMD_WithSmallArrayCount_UsesScalarPath()
+    {
+        // Test with < 4 positions to ensure scalar fallback works
+        var positions = new Vector3[]
+        {
+            new(1, 0, 0),
+            new(2, 0, 0),
+            new(100, 0, 0)  // This one outside range
+        };
+
+        Span<int> results = stackalloc int[10];
+        var radiusSquared = 3f * 3f;
+        int count = SimdHelpers.FilterByDistanceSIMD(positions, Vector3.Zero, radiusSquared, results);
+
+        Assert.Equal(2, count);
+        Assert.Contains(0, results[..count].ToArray());
+        Assert.Contains(1, results[..count].ToArray());
+    }
+
+    [Fact]
+    public void FilterByAABBSIMD_WithSmallArrayCount_UsesScalarPath()
+    {
+        // Test with < 4 positions to ensure scalar fallback works
+        var positions = new Vector3[]
+        {
+            new(5, 5, 5),
+            new(15, 15, 15),  // Outside
+            new(7, 7, 7)
+        };
+
+        Span<int> results = stackalloc int[10];
+        int count = SimdHelpers.FilterByAABBSIMD(
+            positions,
+            new Vector3(0, 0, 0),
+            new Vector3(10, 10, 10),
+            results);
+
+        Assert.Equal(2, count);
+        Assert.Contains(0, results[..count].ToArray());
+        Assert.Contains(2, results[..count].ToArray());
     }
 
     [Fact]

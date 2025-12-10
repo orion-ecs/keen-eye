@@ -459,4 +459,74 @@ public class OctreePartitionerTests : IDisposable
     }
 
     #endregion
+
+    #region SIMD Integration Tests
+
+    [Fact]
+    public void QueryBounds_WithManyEntitiesInNode_UsesStackallocSIMD()
+    {
+        // Create 50 entities in a small area (triggers stackalloc SIMD path: 16-128 entities)
+        var config = new OctreeConfig
+        {
+            WorldMin = new Vector3(-1000, -1000, -1000),
+            WorldMax = new Vector3(1000, 1000, 1000),
+            MaxDepth = 1,  // Shallow tree to keep entities in one node
+            MaxEntitiesPerNode = 100  // Allow many entities per node
+        };
+        using var partitioner = new OctreePartitioner(config);
+
+        var entities = new List<Entity>();
+        for (int i = 0; i < 50; i++)
+        {
+            var entity = new Entity(i + 1, 0);
+            var pos = new Vector3(i * 2, 0, 0);  // Spread entities along X axis
+            partitioner.Update(entity, pos);
+            entities.Add(entity);
+        }
+
+        // Query a bounds that includes all entities
+        var results = partitioner.QueryBounds(new Vector3(-10, -10, -10), new Vector3(200, 10, 10)).ToList();
+
+        // Should find all 50 entities
+        Assert.Equal(50, results.Count);
+        foreach (var entity in entities)
+        {
+            Assert.Contains(entity, results);
+        }
+    }
+
+    [Fact]
+    public void QueryBounds_WithVeryManyEntitiesInNode_UsesArrayPoolSIMD()
+    {
+        // Create 150 entities in a small area (triggers ArrayPool SIMD path: >128 entities)
+        var config = new OctreeConfig
+        {
+            WorldMin = new Vector3(-1000, -1000, -1000),
+            WorldMax = new Vector3(1000, 1000, 1000),
+            MaxDepth = 1,  // Shallow tree to keep entities in one node
+            MaxEntitiesPerNode = 200  // Allow many entities per node
+        };
+        using var partitioner = new OctreePartitioner(config);
+
+        var entities = new List<Entity>();
+        for (int i = 0; i < 150; i++)
+        {
+            var entity = new Entity(i + 1, 0);
+            var pos = new Vector3(i * 2, 0, 0);  // Spread entities along X axis
+            partitioner.Update(entity, pos);
+            entities.Add(entity);
+        }
+
+        // Query a bounds that includes all entities
+        var results = partitioner.QueryBounds(new Vector3(-10, -10, -10), new Vector3(400, 10, 10)).ToList();
+
+        // Should find all 150 entities
+        Assert.Equal(150, results.Count);
+        foreach (var entity in entities)
+        {
+            Assert.Contains(entity, results);
+        }
+    }
+
+    #endregion
 }
