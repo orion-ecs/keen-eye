@@ -293,7 +293,7 @@ public sealed class Archetype : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has<T>() where T : struct, IComponent
     {
-        return componentTypesList.Contains(typeof(T));
+        return Has(typeof(T));
     }
 
     /// <summary>
@@ -302,7 +302,32 @@ public sealed class Archetype : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has(Type type)
     {
-        return componentTypesList.Contains(type);
+        // Binary search since componentTypesList is sorted by FullName
+        var left = 0;
+        var right = componentTypesList.Length - 1;
+        var targetName = type.FullName;
+
+        while (left <= right)
+        {
+            var mid = left + (right - left) / 2;
+            var comparison = string.CompareOrdinal(componentTypesList[mid].FullName, targetName);
+
+            if (comparison == 0)
+            {
+                return true;
+            }
+
+            if (comparison < 0)
+            {
+                left = mid + 1;
+            }
+            else
+            {
+                right = mid - 1;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
