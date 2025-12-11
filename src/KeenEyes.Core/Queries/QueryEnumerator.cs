@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Runtime.CompilerServices;
 
 namespace KeenEyes;
 
@@ -31,6 +32,7 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
     /// <inheritdoc />
     public readonly Entity Current
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             if (archetypeIndex < archetypes.Count)
@@ -44,6 +46,7 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
     readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext()
     {
         while (archetypeIndex < archetypes.Count)
@@ -140,6 +143,7 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
     /// <inheritdoc />
     public readonly Entity Current
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             if (archetypeIndex < archetypes.Count)
@@ -153,6 +157,7 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
     readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext()
     {
         while (archetypeIndex < archetypes.Count)
@@ -250,6 +255,7 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
     /// <inheritdoc />
     public readonly Entity Current
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             if (archetypeIndex < archetypes.Count)
@@ -263,6 +269,7 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
     readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext()
     {
         while (archetypeIndex < archetypes.Count)
@@ -361,6 +368,7 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
     /// <inheritdoc />
     public readonly Entity Current
     {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         get
         {
             if (archetypeIndex < archetypes.Count)
@@ -374,6 +382,7 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
     readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext()
     {
         while (archetypeIndex < archetypes.Count)
