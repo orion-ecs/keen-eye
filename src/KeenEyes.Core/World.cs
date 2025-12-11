@@ -41,6 +41,24 @@ public sealed partial class World : IWorld
     private readonly EntityBuilder builder;
 
     /// <summary>
+    /// Unique identifier for this world instance.
+    /// </summary>
+    /// <remarks>
+    /// This identifier is useful for distinguishing between multiple worlds in the same process,
+    /// such as in client-server scenarios or multi-scene games.
+    /// </remarks>
+    public Guid Id { get; } = Guid.NewGuid();
+
+    /// <summary>
+    /// Optional name for this world, useful for debugging and logging.
+    /// </summary>
+    /// <remarks>
+    /// When working with multiple worlds, setting meaningful names like "Client", "Server",
+    /// or "MainMenu" helps with debugging and tracing issues.
+    /// </remarks>
+    public string? Name { get; set; }
+
+    /// <summary>
     /// The component registry for this world.
     /// Component IDs are unique per-world, not global.
     /// </summary>

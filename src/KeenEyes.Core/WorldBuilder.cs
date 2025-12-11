@@ -1,13 +1,21 @@
 namespace KeenEyes;
 
 /// <summary>
-/// Fluent builder for configuring and creating <see cref="World"/> instances.
+/// Fluent builder for configuring and creating independent <see cref="World"/> instances.
 /// </summary>
 /// <remarks>
 /// <para>
-/// WorldBuilder provides a convenient way to configure a world with plugins,
-/// systems, and other settings before creating it. This is useful for setting
-/// up complex worlds with multiple plugins and configurations.
+/// WorldBuilder enables creating multiple worlds with the same configuration.
+/// Each call to <see cref="Build"/> creates a completely independent world instance
+/// with its own component registry, entity pool, and system instances.
+/// </para>
+/// <para>
+/// This is useful for:
+/// <list type="bullet">
+/// <item>Client-server simulations (separate worlds for client and server)</item>
+/// <item>Test isolation (each test gets a fresh world)</item>
+/// <item>Multi-scene games (separate worlds for menu, gameplay, etc.)</item>
+/// </list>
 /// </para>
 /// <para>
 /// The builder pattern allows for fluent chaining of configuration options,
@@ -16,11 +24,19 @@ namespace KeenEyes;
 /// </remarks>
 /// <example>
 /// <code>
-/// var world = new WorldBuilder()
-///     .WithPlugin&lt;PhysicsPlugin&gt;()
-///     .WithPlugin&lt;RenderingPlugin&gt;()
-///     .WithSystem&lt;GameplaySystem&gt;(SystemPhase.Update)
-///     .Build();
+/// // Create a reusable builder
+/// var builder = new WorldBuilder()
+///     .WithSystem&lt;MovementSystem&gt;(SystemPhase.Update)
+///     .WithSystem&lt;PhysicsSystem&gt;(SystemPhase.FixedUpdate);
+///
+/// // Create independent worlds
+/// var clientWorld = builder.Build();
+/// clientWorld.Name = "Client";
+///
+/// var serverWorld = builder.Build();
+/// serverWorld.Name = "Server";
+///
+/// // Completely isolated - different component IDs, entity IDs, system instances
 /// </code>
 /// </example>
 public sealed class WorldBuilder

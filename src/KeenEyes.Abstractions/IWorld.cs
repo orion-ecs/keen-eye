@@ -16,6 +16,28 @@ namespace KeenEyes;
 /// </remarks>
 public interface IWorld : IDisposable
 {
+    #region World Identification
+
+    /// <summary>
+    /// Unique identifier for this world instance.
+    /// </summary>
+    /// <remarks>
+    /// This identifier is useful for distinguishing between multiple worlds in the same process,
+    /// such as in client-server scenarios or multi-scene games.
+    /// </remarks>
+    Guid Id { get; }
+
+    /// <summary>
+    /// Optional name for this world, useful for debugging and logging.
+    /// </summary>
+    /// <remarks>
+    /// When working with multiple worlds, setting meaningful names like "Client", "Server",
+    /// or "MainMenu" helps with debugging and tracing issues.
+    /// </remarks>
+    string? Name { get; set; }
+
+    #endregion
+
     #region Entity Operations
 
     /// <summary>
