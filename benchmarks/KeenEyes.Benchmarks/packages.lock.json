@@ -20,6 +20,12 @@
           "System.Management": "9.0.5"
         }
       },
+      "SonarAnalyzer.CSharp": {
+        "type": "Direct",
+        "requested": "[10.16.1.129956, )",
+        "resolved": "10.16.1.129956",
+        "contentHash": "XjMarxz00Xc+GD8JGYut1swL0RIw2iwfBhltEITsxsqC/MDLjK+8dk58fPYkS+YPwtdqzkU4VUuSqX3qrN2HYA=="
+      },
       "BenchmarkDotNet.Annotations": {
         "type": "Transitive",
         "resolved": "0.15.8",
@@ -158,12 +164,6 @@
           "KeenEyes.Generators.Attributes": "[1.0.0, )"
         }
       },
-      "keeneyes.common": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Abstractions": "[1.0.0, )"
-        }
-      },
       "keeneyes.core": {
         "type": "Project",
         "dependencies": {
@@ -172,12 +172,6 @@
       },
       "keeneyes.generators.attributes": {
         "type": "Project"
-      },
-      "keeneyes.spatial": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Common": "[1.0.0, )"
-        }
       },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "CentralTransitive",
