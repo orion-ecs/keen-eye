@@ -17,15 +17,18 @@ internal sealed class SystemManager
 {
     private readonly List<SystemEntry> systems = [];
     private readonly World world;
+    private readonly SystemHookManager hookManager;
     private bool systemsSorted = true;
 
     /// <summary>
     /// Creates a new system manager for the specified world.
     /// </summary>
     /// <param name="world">The world that owns this system manager.</param>
-    internal SystemManager(World world)
+    /// <param name="hookManager">The hook manager for invoking system hooks.</param>
+    internal SystemManager(World world, SystemHookManager hookManager)
     {
         this.world = world;
+        this.hookManager = hookManager;
     }
 
     /// <summary>
@@ -85,6 +88,9 @@ internal sealed class SystemManager
                 continue;
             }
 
+            // Invoke before hooks
+            hookManager.InvokeBeforeHooks(system, deltaTime, entry.Phase);
+
             if (system is SystemBase systemBase)
             {
                 systemBase.InvokeBeforeUpdate(deltaTime);
@@ -95,6 +101,9 @@ internal sealed class SystemManager
             {
                 system.Update(deltaTime);
             }
+
+            // Invoke after hooks
+            hookManager.InvokeAfterHooks(system, deltaTime, entry.Phase);
         }
     }
 
@@ -120,6 +129,9 @@ internal sealed class SystemManager
                 continue;
             }
 
+            // Invoke before hooks
+            hookManager.InvokeBeforeHooks(system, fixedDeltaTime, entry.Phase);
+
             if (system is SystemBase systemBase)
             {
                 systemBase.InvokeBeforeUpdate(fixedDeltaTime);
@@ -130,6 +142,9 @@ internal sealed class SystemManager
             {
                 system.Update(fixedDeltaTime);
             }
+
+            // Invoke after hooks
+            hookManager.InvokeAfterHooks(system, fixedDeltaTime, entry.Phase);
         }
     }
 

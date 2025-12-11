@@ -25,6 +25,7 @@ public sealed partial class World : IWorld
     private readonly QueryManager queryManager;
     private readonly HierarchyManager hierarchyManager;
     private readonly SystemManager systemManager;
+    private readonly SystemHookManager systemHookManager = new();
     private readonly PluginManager pluginManager;
     private readonly SingletonManager singletonManager = new();
     private readonly EntityNamingManager entityNamingManager = new();
@@ -105,7 +106,7 @@ public sealed partial class World : IWorld
         archetypeManager = new ArchetypeManager(Components);
         queryManager = new QueryManager(archetypeManager);
         hierarchyManager = new HierarchyManager(this);
-        systemManager = new SystemManager(this);
+        systemManager = new SystemManager(this, systemHookManager);
         pluginManager = new PluginManager(this, systemManager);
         changeTracker = new ChangeTracker(entityPool);
         prefabManager = new PrefabManager(this);
@@ -132,5 +133,6 @@ public sealed partial class World : IWorld
         changeTracker.Clear();
         tagManager.Clear();
         arrayPoolManager.Clear();
+        systemHookManager.Clear();
     }
 }

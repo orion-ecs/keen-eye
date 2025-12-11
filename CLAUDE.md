@@ -619,6 +619,91 @@ Ask these questions:
 4. Am I relying on implicit behavior?
 5. Would this work with 10,000 entities?
 
+## System Hooks
+
+Global system hooks enable cross-cutting concerns like profiling, logging, and metrics collection without modifying individual systems.
+
+### Hook Patterns
+
+**Profiling:**
+```csharp
+var profiler = new Dictionary<string, float>();
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) => /* Start timer */,
+    afterHook: (system, dt) => profiler[system.GetType().Name] = /* elapsed time */
+);
+```
+
+**Logging:**
+```csharp
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) => logger.Debug($"Starting {system.GetType().Name}"),
+    afterHook: (system, dt) => logger.Debug($"Finished {system.GetType().Name}")
+);
+```
+
+**Conditional Execution:**
+```csharp
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) =>
+    {
+        if (system is IDebugSystem && !debugMode)
+            system.Enabled = false;
+    },
+    afterHook: null
+);
+```
+
+**Phase Filtering:**
+```csharp
+// Hook only executes for systems in the FixedUpdate phase
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) => /* ... */,
+    afterHook: null,
+    phase: SystemPhase.FixedUpdate
+);
+```
+
+### Plugin Integration
+
+Plugins can register hooks during installation and clean them up during uninstall:
+
+```csharp
+public class ProfilingPlugin : IWorldPlugin
+{
+    public string Name => "Profiling";
+    private EventSubscription? hookSubscription;
+
+    public void Install(IPluginContext context)
+    {
+        hookSubscription = context.World.AddSystemHook(
+            beforeHook: (system, dt) => /* Start profiling */,
+            afterHook: (system, dt) => /* End profiling */
+        );
+    }
+
+    public void Uninstall(IPluginContext context)
+    {
+        hookSubscription?.Dispose();
+    }
+}
+```
+
+### Performance Considerations
+
+- **No hooks registered**: Minimal overhead (~2-3ns per system, just an empty check)
+- **With hooks**: Overhead scales linearly with number of hooks
+- **Phase filtering**: Use phase filters to reduce unnecessary hook invocations
+- **Hook execution order**: Hooks execute in registration order (before hooks → system → after hooks)
+
+### Best Practices
+
+1. **Always dispose subscriptions**: Use `EventSubscription.Dispose()` to unregister hooks when no longer needed
+2. **Keep hooks lightweight**: Avoid expensive operations in hooks; they run for every system execution
+3. **Use phase filtering**: If hooks only apply to specific phases, use the phase parameter to reduce overhead
+4. **Plugin cleanup**: Plugins should always dispose their hook subscriptions in `Uninstall()`
+5. **Exception handling**: Hook exceptions propagate to the caller; handle errors appropriately
+
 ## Claude Code Web Sessions
 
 Claude Code web environments have proxy restrictions that prevent NuGet from authenticating properly. A SessionStart hook automatically handles this.
