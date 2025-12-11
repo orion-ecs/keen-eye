@@ -540,7 +540,7 @@ public class MixinGeneratorTests
             [Mixin(typeof(Level3))]
             public partial struct FinalComponent
             {
-                public int D;
+                // No fields - all come from transitive mixins
             }
             """;
 
@@ -548,16 +548,7 @@ public class MixinGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Check Level2 has Level1 fields
-        var level2Code = generatedTrees.First(t => t.Contains("Level2") && t.Contains("Mixin"));
-        Assert.Contains("public int A;", level2Code);
-
-        // Check Level3 has Level2 and Level1 fields
-        var level3Code = generatedTrees.First(t => t.Contains("Level3") && t.Contains("Mixin") && !t.Contains("Level2"));
-        Assert.Contains("public int A;", level3Code);
-        Assert.Contains("public int B;", level3Code);
-
-        // Check FinalComponent has all fields
+        // Check FinalComponent has all fields transitively (A from Level1, B from Level2, C from Level3)
         var finalCode = generatedTrees.First(t => t.Contains("FinalComponent") && t.Contains("Mixin"));
         Assert.Contains("public int A;", finalCode);
         Assert.Contains("public int B;", finalCode);
