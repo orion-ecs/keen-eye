@@ -208,13 +208,11 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
         // Check if implements IComponent interface directly
         var iComponentType = compilation.GetTypeByMetadataName(IComponentInterface);
-        if (iComponentType is not null)
-        {
-            if (typeSymbol.AllInterfaces.Any(iface =>
+        if (iComponentType is not null &&
+            typeSymbol.AllInterfaces.Any(iface =>
                 SymbolEqualityComparer.Default.Equals(iface, iComponentType)))
-            {
-                return true;
-            }
+        {
+            return true;
         }
 
         return false;
