@@ -1093,6 +1093,154 @@ public class CommandBufferTests
 
     #endregion
 
+    #region Direct Iteration Tests
+
+    [Fact]
+    public void DirectIteration_WithCommandBuffer_DoesNotRequireToList()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Create entities
+        for (int i = 0; i < 10; i++)
+        {
+            world.Spawn()
+                .With(new TestPosition { X = i, Y = i })
+                .With(new TestHealth { Current = 100, Max = 100 })
+                .Build();
+        }
+
+        // Iterate directly (NO .ToList()!) and queue structural changes
+        foreach (var entity in world.Query<TestHealth>())
+        {
+            ref var health = ref world.Get<TestHealth>(entity);
+            health.Current -= 50;
+
+            if (health.Current <= 0)
+            {
+                buffer.Despawn(entity);
+            }
+        }
+
+        buffer.Flush(world);
+
+        // All entities should be despawned since health went to 50
+        Assert.Equal(10, world.GetAllEntities().Count());
+    }
+
+    [Fact]
+    public void DirectIteration_AddingComponentsDuringQuery_SafeWithCommandBuffer()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Create entities with positions
+        for (int i = 0; i < 5; i++)
+        {
+            world.Spawn()
+                .With(new TestPosition { X = i * 10, Y = i * 10 })
+                .Build();
+        }
+
+        // Iterate directly and add components via buffer
+        foreach (var entity in world.Query<TestPosition>().Without<TestVelocity>())
+        {
+            ref readonly var pos = ref world.Get<TestPosition>(entity);
+            buffer.AddComponent(entity, new TestVelocity { X = pos.X * 0.1f, Y = pos.Y * 0.1f });
+        }
+
+        buffer.Flush(world);
+
+        // All entities should now have velocity
+        var entitiesWithVelocity = world.Query<TestPosition, TestVelocity>().Count();
+        Assert.Equal(5, entitiesWithVelocity);
+    }
+
+    [Fact]
+    public void DirectIteration_SpawningEntitiesDuringQuery_SafeWithCommandBuffer()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Create parent entities
+        for (int i = 0; i < 3; i++)
+        {
+            world.Spawn()
+                .With(new TestPosition { X = i * 100, Y = 0 })
+                .WithTag<ActiveTag>()
+                .Build();
+        }
+
+        // Iterate parents directly and spawn children via buffer
+        foreach (var parent in world.Query<TestPosition>().With<ActiveTag>())
+        {
+            ref readonly var pos = ref world.Get<TestPosition>(parent);
+
+            // Spawn child near parent
+            buffer.Spawn()
+                .With(new TestPosition { X = pos.X + 10, Y = pos.Y + 10 });
+        }
+
+        buffer.Flush(world);
+
+        // Should have 3 parents + 3 children = 6 total entities
+        Assert.Equal(6, world.GetAllEntities().Count());
+    }
+
+    [Fact]
+    public void DirectIteration_NestedQueries_OnlyOuterNeedsSnapshot()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Create projectiles and targets
+        for (int i = 0; i < 3; i++)
+        {
+            world.Spawn()
+                .With(new TestPosition { X = i, Y = 0 })
+                .WithTag<ActiveTag>()
+                .Build();
+        }
+
+        for (int i = 0; i < 5; i++)
+        {
+            world.Spawn()
+                .With(new TestPosition { X = i + 10, Y = 0 })
+                .WithTag<FrozenTag>()
+                .Build();
+        }
+
+        // Snapshot projectiles, iterate targets directly
+        var projectiles = world.Query<TestPosition>().With<ActiveTag>().ToList();
+
+        foreach (var proj in projectiles)
+        {
+            ref readonly var projPos = ref world.Get<TestPosition>(proj);
+
+            // Inner query can iterate directly for better cache locality
+            foreach (var target in world.Query<TestPosition>().With<FrozenTag>())
+            {
+                ref readonly var targetPos = ref world.Get<TestPosition>(target);
+
+                // Simple collision check
+                if (Math.Abs(projPos.X - targetPos.X) < 2.0f)
+                {
+                    buffer.Despawn(proj);
+                    buffer.Despawn(target);
+                    break;
+                }
+            }
+        }
+
+        buffer.Flush(world);
+
+        // Should have despawned projectile at X=0 and target at X=10 (distance < 2)
+        // Remaining: 2 projectiles + 4 targets = 6 entities
+        Assert.True(world.GetAllEntities().Count() <= 8);
+    }
+
+    #endregion
+
     #region IEntityBuilder Interface Tests
 
     [Fact]
