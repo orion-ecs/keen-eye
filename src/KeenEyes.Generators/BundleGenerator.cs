@@ -37,6 +37,21 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 return;
             }
 
+            // Report diagnostics
+            foreach (var diag in bundleInfo.Diagnostics)
+            {
+                ctx.ReportDiagnostic(Diagnostic.Create(
+                    diag.Descriptor,
+                    diag.Location,
+                    diag.MessageArgs));
+            }
+
+            // Only generate code for valid bundles
+            if (!bundleInfo.IsValid)
+            {
+                return;
+            }
+
             // Generate bundle partial struct with IBundle implementation and constructor
             var bundleSource = GenerateBundlePartial(bundleInfo);
             ctx.AddSource($"{bundleInfo.FullName}.g.cs", SourceText.From(bundleSource, Encoding.UTF8));
@@ -46,12 +61,15 @@ public sealed class BundleGenerator : IIncrementalGenerator
         var allBundles = bundleProvider.Collect();
         context.RegisterSourceOutput(allBundles, static (ctx, bundles) =>
         {
-            if (bundles.Length == 0)
+            // Filter to only valid bundles
+            var validBundles = bundles.Where(b => b is not null && b.IsValid).ToImmutableArray();
+
+            if (validBundles.Length == 0)
             {
                 return;
             }
 
-            var builderSource = GenerateEntityBuilderExtensions(bundles!);
+            var builderSource = GenerateEntityBuilderExtensions(validBundles!);
             ctx.AddSource("EntityBuilder.Bundles.g.cs", SourceText.From(builderSource, Encoding.UTF8));
         });
     }
@@ -63,18 +81,26 @@ public sealed class BundleGenerator : IIncrementalGenerator
             return null;
         }
 
+        var diagnostics = new List<DiagnosticInfo>();
+
         // Validate: must be a struct
         if (typeSymbol.TypeKind != TypeKind.Struct)
         {
             var location = typeSymbol.Locations.FirstOrDefault();
             if (location is not null)
             {
-                context.ReportDiagnostic(Diagnostic.Create(
+                diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleMustBeStruct,
                     location,
-                    typeSymbol.Name));
+                    [typeSymbol.Name]));
             }
-            return null;
+            return new BundleInfo(
+                typeSymbol.Name,
+                typeSymbol.ContainingNamespace.ToDisplayString(),
+                typeSymbol.ToDisplayString(),
+                ImmutableArray<ComponentFieldInfo>.Empty,
+                diagnostics.ToImmutableArray(),
+                IsValid: false);
         }
 
         var fields = new List<ComponentFieldInfo>();
@@ -98,12 +124,10 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 var location = field.Locations.FirstOrDefault();
                 if (location is not null)
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(
+                    diagnostics.Add(new DiagnosticInfo(
                         Diagnostics.BundleFieldMustBeComponent,
                         location,
-                        field.Name,
-                        typeSymbol.Name,
-                        field.Type.ToDisplayString()));
+                        [field.Name, typeSymbol.Name, field.Type.ToDisplayString()]));
                 }
                 continue; // Skip invalid field but continue processing others
             }
@@ -119,12 +143,18 @@ public sealed class BundleGenerator : IIncrementalGenerator
             var location = typeSymbol.Locations.FirstOrDefault();
             if (location is not null)
             {
-                context.ReportDiagnostic(Diagnostic.Create(
+                diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleMustHaveFields,
                     location,
-                    typeSymbol.Name));
+                    [typeSymbol.Name]));
             }
-            return null;
+            return new BundleInfo(
+                typeSymbol.Name,
+                typeSymbol.ContainingNamespace.ToDisplayString(),
+                typeSymbol.ToDisplayString(),
+                ImmutableArray<ComponentFieldInfo>.Empty,
+                diagnostics.ToImmutableArray(),
+                IsValid: false);
         }
 
         // Check for circular references (bundle containing itself)
@@ -135,13 +165,18 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 var location = typeSymbol.GetMembers(field.Name).FirstOrDefault()?.Locations.FirstOrDefault();
                 if (location is not null)
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(
+                    diagnostics.Add(new DiagnosticInfo(
                         Diagnostics.BundleCircularReference,
                         location,
-                        typeSymbol.Name,
-                        field.Name));
+                        [typeSymbol.Name, field.Name]));
                 }
-                return null;
+                return new BundleInfo(
+                    typeSymbol.Name,
+                    typeSymbol.ContainingNamespace.ToDisplayString(),
+                    typeSymbol.ToDisplayString(),
+                    fields.ToImmutableArray(),
+                    diagnostics.ToImmutableArray(),
+                    IsValid: false);
             }
         }
 
@@ -149,7 +184,9 @@ public sealed class BundleGenerator : IIncrementalGenerator
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
-            fields.ToImmutableArray());
+            fields.ToImmutableArray(),
+            diagnostics.ToImmutableArray(),
+            IsValid: true);
     }
 
     private static bool IsComponentType(ITypeSymbol typeSymbol, Compilation compilation)
@@ -315,11 +352,18 @@ public sealed class BundleGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<ComponentFieldInfo> Fields);
+        ImmutableArray<ComponentFieldInfo> Fields,
+        ImmutableArray<DiagnosticInfo> Diagnostics,
+        bool IsValid);
 
     private sealed record ComponentFieldInfo(
         string Name,
         string Type);
+
+    private sealed record DiagnosticInfo(
+        DiagnosticDescriptor Descriptor,
+        Location Location,
+        object[] MessageArgs);
 }
 
 /// <summary>
