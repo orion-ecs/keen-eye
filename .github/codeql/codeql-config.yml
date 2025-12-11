@@ -7,8 +7,12 @@ queries:
 
 # Disable specific rules
 query-filters:
-  # Disable "Missed opportunity to use Where" - this rule flags valid patterns
-  # in ECS code where we intentionally use foreach with conditions instead of
-  # LINQ's .Where() for performance reasons (avoiding allocations in hot paths)
+  # Disable LINQ suggestion rules - ECS hot paths intentionally avoid LINQ
+  # to prevent allocations. Manual loops with conditions, projections, and
+  # type checks are preferred for cache-friendly, zero-allocation iteration.
   - exclude:
       id: cs/linq/missed-where
+  - exclude:
+      id: cs/linq/missed-select
+  - exclude:
+      id: cs/linq/missed-oftype
