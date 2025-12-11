@@ -28,8 +28,8 @@ public class ArchetypePreallocationTests
 
     private struct Scale : IComponent
     {
-        public float X;
-        public float Y;
+        public float X { get; set; }
+        public float Y { get; set; }
     }
 
     private struct Health : IComponent
