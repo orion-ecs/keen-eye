@@ -468,7 +468,7 @@ public class SpatialQueryApiTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             var entity = world.Spawn()
-                .With(new Transform3D(new Vector3(i * 10, 0, 0), Quaternion.Identity, Vector3.One))
+                .With(new Transform3D(new Vector3(i * 10f, 0, 0), Quaternion.Identity, Vector3.One))
                 .WithTag<SpatialIndexed>()
                 .Build();
             entities.Add(entity);
@@ -493,7 +493,7 @@ public class SpatialQueryApiTests : IDisposable
         for (int i = 0; i < 10; i++)
         {
             world.Spawn()
-                .With(new Transform3D(new Vector3(i * 5, 0, 0), Quaternion.Identity, Vector3.One))
+                .With(new Transform3D(new Vector3(i * 5f, 0, 0), Quaternion.Identity, Vector3.One))
                 .WithTag<SpatialIndexed>()
                 .Build();
         }
@@ -572,7 +572,7 @@ public class SpatialQueryApiTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             world.Spawn()
-                .With(new Transform3D(new Vector3(i * 10, 0, 0), Quaternion.Identity, Vector3.One))
+                .With(new Transform3D(new Vector3(i * 10f, 0, 0), Quaternion.Identity, Vector3.One))
                 .WithTag<SpatialIndexed>()
                 .Build();
         }
@@ -587,6 +587,101 @@ public class SpatialQueryApiTests : IDisposable
         Assert.Equal(5, count);
     }
 
+    [Fact]
+    public void QueryFrustum_Span_WithNoEntities_ReturnsZero()
+    {
+        var frustum = CreateSimpleFrustum();
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryFrustum(frustum, buffer);
+
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void QueryFrustum_Span_WithEntityInFrustum_ReturnsEntity()
+    {
+        var entity = world.Spawn()
+            .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+
+        var frustum = CreateSimpleFrustum();
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryFrustum(frustum, buffer);
+
+        Assert.Equal(1, count);
+        Assert.Equal(entity, buffer[0]);
+    }
+
+    [Fact]
+    public void QueryFrustum_Span_WithEntityOutOfFrustum_ReturnsZero()
+    {
+        // Entity way behind the camera
+        world.Spawn()
+            .With(new Transform3D(new Vector3(0, 0, 100), Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+
+        var frustum = CreateSimpleFrustum();
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryFrustum(frustum, buffer);
+
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void QueryFrustum_Span_WithMultipleEntities_ReturnsAll()
+    {
+        var entities = new List<Entity>();
+
+        // Add entities within frustum
+        for (int i = 0; i < 5; i++)
+        {
+            var entity = world.Spawn()
+                .With(new Transform3D(new Vector3(i * 2f - 4f, 0, -5), Quaternion.Identity, Vector3.One))
+                .WithTag<SpatialIndexed>()
+                .Build();
+            entities.Add(entity);
+        }
+
+        world.Update(0.016f);
+
+        var frustum = CreateSimpleFrustum();
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryFrustum(frustum, buffer);
+
+        Assert.Equal(5, count);
+        foreach (var entity in entities)
+        {
+            Assert.True(ContainsEntity(buffer[..count], entity));
+        }
+    }
+
+    [Fact]
+    public void QueryFrustum_Span_WithBufferOverflow_ReturnsNegativeOne()
+    {
+        // Create more entities than the buffer can hold
+        for (int i = 0; i < 10; i++)
+        {
+            world.Spawn()
+                .With(new Transform3D(new Vector3(i * 2f - 9f, 0, -5), Quaternion.Identity, Vector3.One))
+                .WithTag<SpatialIndexed>()
+                .Build();
+        }
+
+        world.Update(0.016f);
+
+        var frustum = CreateSimpleFrustum();
+        Span<Entity> buffer = stackalloc Entity[3]; // Too small
+        int count = spatial.QueryFrustum(frustum, buffer);
+
+        Assert.Equal(-1, count); // Overflow
+    }
+
     private static bool ContainsEntity(Span<Entity> span, Entity entity)
     {
         foreach (var e in span)
@@ -597,6 +692,22 @@ public class SpatialQueryApiTests : IDisposable
             }
         }
         return false;
+    }
+
+    private static Frustum CreateSimpleFrustum()
+    {
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(
+            MathF.PI / 4,  // 45 degree FOV
+            1.0f,          // Aspect ratio
+            0.1f,          // Near plane
+            100.0f);       // Far plane
+
+        var view = Matrix4x4.CreateLookAt(
+            new Vector3(0, 0, -10),  // Camera position
+            new Vector3(0, 0, 0),    // Look at origin
+            new Vector3(0, 1, 0));   // Up vector
+
+        return Frustum.FromMatrix(view * projection);
     }
 
     #endregion
