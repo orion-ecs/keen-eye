@@ -38,6 +38,12 @@ public partial struct Velocity
 /// <summary>
 /// Entity health with current and max values.
 /// </summary>
+/// <remarks>
+/// This component follows ECS principles by containing only data.
+/// For computed properties (e.g., health percentage, alive state), use extension
+/// properties as demonstrated in KeenEyes.Sample/HealthExtensions.cs to keep the
+/// component as pure data while maintaining convenient access patterns.
+/// </remarks>
 [Component]
 public partial struct Health
 {
@@ -45,12 +51,6 @@ public partial struct Health
     public int Current;
     /// <summary>Maximum health points.</summary>
     public int Max;
-
-    /// <summary>Gets whether the entity is alive.</summary>
-    public readonly bool IsAlive => Current > 0;
-
-    /// <summary>Gets health as a fraction (0-1).</summary>
-    public readonly float Fraction => Max > 0 ? (float)Current / Max : 0;
 }
 
 /// <summary>

@@ -171,7 +171,7 @@ public partial class HealthSystem : SystemBase
         {
             ref readonly var health = ref World.Get<Health>(entity);
 
-            if (!health.IsAlive)
+            if (health.Current <= 0)
             {
                 buffer.AddComponent(entity, new Dead());
 
