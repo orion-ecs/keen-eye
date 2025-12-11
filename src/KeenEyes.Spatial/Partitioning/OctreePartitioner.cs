@@ -131,6 +131,117 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     }
 
     /// <inheritdoc/>
+    public int QueryRadius(Vector3 center, float radius, Span<Entity> results)
+    {
+        var radiusVec = new Vector3(radius, radius, radius);
+        var min = center - radiusVec;
+        var max = center + radiusVec;
+
+        int count = 0;
+        bool overflow = false;
+        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+
+        if (config.DeterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <inheritdoc/>
+    public int QueryBounds(Vector3 min, Vector3 max, Span<Entity> results)
+    {
+        int count = 0;
+        bool overflow = false;
+        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+
+        if (config.DeterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <inheritdoc/>
+    public int QueryPoint(Vector3 point, Span<Entity> results)
+    {
+        var node = root.FindLeafNode(point);
+
+        if (node == null)
+        {
+            return 0;
+        }
+
+        int count = 0;
+        bool overflow = false;
+
+        foreach (var entity in node.Entities)
+        {
+            if (count < results.Length)
+            {
+                results[count++] = entity;
+            }
+            else
+            {
+                overflow = true;
+                break;
+            }
+        }
+
+        if (config.DeterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <inheritdoc/>
+    public int QueryFrustum(Frustum frustum, Span<Entity> results)
+    {
+        int count = 0;
+        bool overflow = false;
+        root.QueryFrustumSpan(frustum, results, ref count, ref overflow, entityPositions);
+
+        if (config.DeterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <summary>
+    /// Sorts a span of entities by ID and version for deterministic ordering.
+    /// </summary>
+    private static void SortSpan(Span<Entity> span)
+    {
+        for (int i = 1; i < span.Length; i++)
+        {
+            var key = span[i];
+            int j = i - 1;
+
+            while (j >= 0 && CompareEntities(span[j], key) > 0)
+            {
+                span[j + 1] = span[j];
+                j--;
+            }
+            span[j + 1] = key;
+        }
+    }
+
+    /// <summary>
+    /// Compares two entities for sorting (by ID, then version).
+    /// </summary>
+    private static int CompareEntities(Entity a, Entity b)
+    {
+        int idCompare = a.Id.CompareTo(b.Id);
+        return idCompare != 0 ? idCompare : a.Version.CompareTo(b.Version);
+    }
+
+    /// <inheritdoc/>
     public void Clear()
     {
         root.Clear(nodePool);
@@ -451,6 +562,109 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
                     Children![i].QueryFrustum(frustum, results, entityPositions);
                 }
             }
+        }
+
+        /// <summary>
+        /// Queries all entities within the given bounds into a span (zero-allocation).
+        /// </summary>
+        public void QueryBoundsSpan(Vector3 min, Vector3 max, Span<Entity> results, ref int count, ref bool overflow, Dictionary<Entity, Vector3> entityPositions)
+        {
+            // Check if this node intersects the query bounds
+            if (!Intersects(min, max))
+            {
+                return;
+            }
+
+            // Add entities from this node that are actually within bounds
+            foreach (var entity in Entities)
+            {
+                if (entityPositions.TryGetValue(entity, out var pos) &&
+                    pos.X >= min.X && pos.X <= max.X &&
+                    pos.Y >= min.Y && pos.Y <= max.Y &&
+                    pos.Z >= min.Z && pos.Z <= max.Z)
+                {
+                    // Check for duplicates (linear scan)
+                    if (!SpanContainsEntity(results, count, entity))
+                    {
+                        if (count < results.Length)
+                        {
+                            results[count++] = entity;
+                        }
+                        else
+                        {
+                            overflow = true;
+                        }
+                    }
+                }
+            }
+
+            // Recursively query children if subdivided
+            if (IsSubdivided)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    Children![i].QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Queries entities within a frustum into a span (zero-allocation).
+        /// </summary>
+        public void QueryFrustumSpan(Frustum frustum, Span<Entity> results, ref int count, ref bool overflow, Dictionary<Entity, Vector3> entityPositions)
+        {
+            // Early out if node doesn't intersect frustum
+            if (!frustum.Intersects(Min, Max))
+            {
+                return;
+            }
+
+            // Add entities from this node that are within frustum
+            foreach (var entity in Entities)
+            {
+                if (entityPositions.TryGetValue(entity, out var pos))
+                {
+                    if (frustum.Contains(pos))
+                    {
+                        // Check for duplicates (linear scan)
+                        if (!SpanContainsEntity(results, count, entity))
+                        {
+                            if (count < results.Length)
+                            {
+                                results[count++] = entity;
+                            }
+                            else
+                            {
+                                overflow = true;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Recursively query children if subdivided
+            if (IsSubdivided)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    Children![i].QueryFrustumSpan(frustum, results, ref count, ref overflow, entityPositions);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Checks if the span already contains an entity.
+        /// </summary>
+        private static bool SpanContainsEntity(Span<Entity> span, int count, Entity entity)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                if (span[i].Id == entity.Id && span[i].Version == entity.Version)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>

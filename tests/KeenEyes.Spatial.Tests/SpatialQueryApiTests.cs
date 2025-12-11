@@ -432,4 +432,172 @@ public class SpatialQueryApiTests : IDisposable
     }
 
     #endregion
+
+    #region Span-based Query Tests
+
+    [Fact]
+    public void QueryRadius_Span_WithNoEntities_ReturnsZero()
+    {
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryRadius(Vector3.Zero, 100f, buffer);
+
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void QueryRadius_Span_WithEntity_ReturnsEntityInBuffer()
+    {
+        var entity = world.Spawn()
+            .With(new Transform3D(new Vector3(50, 0, 0), Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryRadius(Vector3.Zero, 100f, buffer);
+
+        Assert.Equal(1, count);
+        Assert.Equal(entity, buffer[0]);
+    }
+
+    [Fact]
+    public void QueryRadius_Span_WithMultipleEntities_ReturnsAll()
+    {
+        var entities = new List<Entity>();
+        for (int i = 0; i < 5; i++)
+        {
+            var entity = world.Spawn()
+                .With(new Transform3D(new Vector3(i * 10, 0, 0), Quaternion.Identity, Vector3.One))
+                .WithTag<SpatialIndexed>()
+                .Build();
+            entities.Add(entity);
+        }
+
+        world.Update(0.016f);
+
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryRadius(Vector3.Zero, 100f, buffer);
+
+        Assert.Equal(5, count);
+        foreach (var entity in entities)
+        {
+            Assert.True(ContainsEntity(buffer[..count], entity));
+        }
+    }
+
+    [Fact]
+    public void QueryRadius_Span_WithSmallBuffer_ReturnsNegativeOne()
+    {
+        // Create more entities than the buffer can hold
+        for (int i = 0; i < 10; i++)
+        {
+            world.Spawn()
+                .With(new Transform3D(new Vector3(i * 5, 0, 0), Quaternion.Identity, Vector3.One))
+                .WithTag<SpatialIndexed>()
+                .Build();
+        }
+
+        world.Update(0.016f);
+
+        Span<Entity> buffer = stackalloc Entity[3]; // Too small
+        int count = spatial.QueryRadius(Vector3.Zero, 100f, buffer);
+
+        Assert.Equal(-1, count); // Overflow
+    }
+
+    [Fact]
+    public void QueryBounds_Span_WithEntity_ReturnsEntityInBuffer()
+    {
+        var entity = world.Spawn()
+            .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryBounds(new Vector3(-50, -50, -50), new Vector3(50, 50, 50), buffer);
+
+        Assert.Equal(1, count);
+        Assert.Equal(entity, buffer[0]);
+    }
+
+    [Fact]
+    public void QueryBounds_Span_WithEntityOutOfBounds_ReturnsZero()
+    {
+        world.Spawn()
+            .With(new Transform3D(new Vector3(500, 0, 0), Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryBounds(new Vector3(-50, -50, -50), new Vector3(50, 50, 50), buffer);
+
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void QueryPoint_Span_WithEntityNearby_ReturnsEntity()
+    {
+        var entity = world.Spawn()
+            .With(new Transform3D(new Vector3(25, 25, 25), Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
+            .Build();
+
+        world.Update(0.016f);
+
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryPoint(Vector3.Zero, buffer);
+
+        Assert.True(count > 0);
+        Assert.True(ContainsEntity(buffer[..count], entity));
+    }
+
+    [Fact]
+    public void QueryPoint_Span_WithNoEntities_ReturnsZero()
+    {
+        Span<Entity> buffer = stackalloc Entity[16];
+        int count = spatial.QueryPoint(Vector3.Zero, buffer);
+
+        Assert.Equal(0, count);
+    }
+
+    [Fact]
+    public void SpanQuery_ZeroAllocation_WithStackalloc()
+    {
+        // Create entities
+        for (int i = 0; i < 5; i++)
+        {
+            world.Spawn()
+                .With(new Transform3D(new Vector3(i * 10, 0, 0), Quaternion.Identity, Vector3.One))
+                .WithTag<SpatialIndexed>()
+                .Build();
+        }
+
+        world.Update(0.016f);
+
+        // This should not allocate (using stackalloc)
+        Span<Entity> buffer = stackalloc Entity[32];
+        int count = spatial.QueryRadius(Vector3.Zero, 100f, buffer);
+
+        // Verify results are valid
+        Assert.Equal(5, count);
+    }
+
+    private static bool ContainsEntity(Span<Entity> span, Entity entity)
+    {
+        foreach (var e in span)
+        {
+            if (e.Id == entity.Id && e.Version == entity.Version)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    #endregion
 }

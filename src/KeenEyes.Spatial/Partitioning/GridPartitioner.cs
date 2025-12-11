@@ -228,6 +228,171 @@ internal sealed class GridPartitioner : ISpatialPartitioner
     }
 
     /// <inheritdoc/>
+    public int QueryRadius(Vector3 center, float radius, Span<Entity> results)
+    {
+        var radiusVec = new Vector3(radius, radius, radius);
+        var min = center - radiusVec;
+        var max = center + radiusVec;
+
+        var minCell = GetCell(min);
+        var maxCell = GetCell(max);
+
+        int count = 0;
+        bool overflow = false;
+
+        for (int x = minCell.x; x <= maxCell.x; x++)
+        {
+            for (int y = minCell.y; y <= maxCell.y; y++)
+            {
+                for (int z = minCell.z; z <= maxCell.z; z++)
+                {
+                    if (grid.TryGetValue((x, y, z), out var entitiesInCell))
+                    {
+                        foreach (var entity in entitiesInCell)
+                        {
+                            if (!SpanContains(results, count, entity))
+                            {
+                                if (count < results.Length)
+                                {
+                                    results[count++] = entity;
+                                }
+                                else
+                                {
+                                    overflow = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (deterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <inheritdoc/>
+    public int QueryBounds(Vector3 min, Vector3 max, Span<Entity> results)
+    {
+        var minCell = GetCell(min);
+        var maxCell = GetCell(max);
+
+        int count = 0;
+        bool overflow = false;
+
+        for (int x = minCell.x; x <= maxCell.x; x++)
+        {
+            for (int y = minCell.y; y <= maxCell.y; y++)
+            {
+                for (int z = minCell.z; z <= maxCell.z; z++)
+                {
+                    if (grid.TryGetValue((x, y, z), out var entitiesInCell))
+                    {
+                        foreach (var entity in entitiesInCell)
+                        {
+                            if (!SpanContains(results, count, entity))
+                            {
+                                if (count < results.Length)
+                                {
+                                    results[count++] = entity;
+                                }
+                                else
+                                {
+                                    overflow = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (deterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <inheritdoc/>
+    public int QueryPoint(Vector3 point, Span<Entity> results)
+    {
+        var cell = GetCell(point);
+
+        if (!grid.TryGetValue(cell, out var entitiesInCell))
+        {
+            return 0;
+        }
+
+        int count = 0;
+        bool overflow = false;
+
+        foreach (var entity in entitiesInCell)
+        {
+            if (count < results.Length)
+            {
+                results[count++] = entity;
+            }
+            else
+            {
+                overflow = true;
+                break;
+            }
+        }
+
+        if (deterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <inheritdoc/>
+    public int QueryFrustum(Frustum frustum, Span<Entity> results)
+    {
+        int count = 0;
+        bool overflow = false;
+
+        foreach (var kvp in grid)
+        {
+            var (x, y, z) = kvp.Key;
+            var cellMin = new Vector3(x * cellSize, y * cellSize, z * cellSize);
+            var cellMax = cellMin + new Vector3(cellSize, cellSize, cellSize);
+
+            if (frustum.Intersects(cellMin, cellMax))
+            {
+                foreach (var entity in kvp.Value)
+                {
+                    if (!SpanContains(results, count, entity))
+                    {
+                        if (count < results.Length)
+                        {
+                            results[count++] = entity;
+                        }
+                        else
+                        {
+                            overflow = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        if (deterministicMode && count > 0)
+        {
+            SortSpan(results[..count]);
+        }
+
+        return overflow ? -1 : count;
+    }
+
+    /// <inheritdoc/>
     public void Clear()
     {
         grid.Clear();
@@ -239,6 +404,50 @@ internal sealed class GridPartitioner : ISpatialPartitioner
     public void Dispose()
     {
         Clear();
+    }
+
+    /// <summary>
+    /// Checks if the span already contains an entity (linear scan for deduplication).
+    /// </summary>
+    private static bool SpanContains(Span<Entity> span, int count, Entity entity)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            if (span[i].Id == entity.Id && span[i].Version == entity.Version)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Sorts a span of entities by ID and version for deterministic ordering.
+    /// Uses insertion sort which is efficient for small arrays and nearly-sorted data.
+    /// </summary>
+    private static void SortSpan(Span<Entity> span)
+    {
+        for (int i = 1; i < span.Length; i++)
+        {
+            var key = span[i];
+            int j = i - 1;
+
+            while (j >= 0 && CompareEntities(span[j], key) > 0)
+            {
+                span[j + 1] = span[j];
+                j--;
+            }
+            span[j + 1] = key;
+        }
+    }
+
+    /// <summary>
+    /// Compares two entities for sorting (by ID, then version).
+    /// </summary>
+    private static int CompareEntities(Entity a, Entity b)
+    {
+        int idCompare = a.Id.CompareTo(b.Id);
+        return idCompare != 0 ? idCompare : a.Version.CompareTo(b.Version);
     }
 
     /// <summary>
