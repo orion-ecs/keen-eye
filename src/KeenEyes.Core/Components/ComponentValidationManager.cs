@@ -131,6 +131,10 @@ internal sealed class ComponentValidationManager(World world)
     /// <param name="entity">The newly created entity.</param>
     /// <param name="components">The components that were added.</param>
     /// <exception cref="ComponentValidationException">Thrown when custom validation fails.</exception>
+    /// <remarks>
+    /// Uses <see cref="ComponentInfo.InvokeValidator"/> delegate for AOT-compatible validation
+    /// without reflection.
+    /// </remarks>
     public void ValidateBuildCustom(Entity entity, IReadOnlyList<(ComponentInfo Info, object Data)> components)
     {
         if (!ShouldValidate())
@@ -143,12 +147,14 @@ internal sealed class ComponentValidationManager(World world)
         {
             if (customValidators.TryGetValue(info.Type, out var validator))
             {
-                // Use reflection to invoke the typed validator
-                var validateMethod = typeof(ComponentValidationManager)
-                    .GetMethod(nameof(InvokeCustomValidator), BindingFlags.NonPublic | BindingFlags.Instance)!
-                    .MakeGenericMethod(info.Type);
+                // Use the pre-stored invoker delegate (AOT-compatible)
+                if (info.InvokeValidator is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Component type '{info.Type.Name}' does not have a validator invoker delegate.");
+                }
 
-                var result = (bool)validateMethod.Invoke(this, [entity, data, validator])!;
+                var result = info.InvokeValidator(world, entity, data, validator);
                 if (!result)
                 {
                     throw new ComponentValidationException(
@@ -302,16 +308,6 @@ internal sealed class ComponentValidationManager(World world)
     }
 
     /// <summary>
-    /// Invokes a custom validator using reflection for build-time validation.
-    /// </summary>
-    private bool InvokeCustomValidator<T>(Entity entity, object data, Delegate validator) where T : struct, IComponent
-    {
-        var typedValidator = (ComponentValidator<T>)validator;
-        var component = (T)data;
-        return typedValidator(world, entity, component);
-    }
-
-    /// <summary>
     /// Determines if validation should be performed based on the current mode.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -340,12 +336,50 @@ internal sealed class ComponentValidationManager(World world)
     }
 
     /// <summary>
-    /// Cached reference to the generated ComponentValidationMetadata type.
+    /// Delegate type for the generated TryGetConstraints method.
+    /// </summary>
+    /// <param name="componentType">The component type to look up.</param>
+    /// <param name="required">Output array of required component types.</param>
+    /// <param name="conflicts">Output array of conflicting component types.</param>
+    /// <returns><c>true</c> if constraints were found; <c>false</c> otherwise.</returns>
+    public delegate bool TryGetConstraintsDelegate(Type componentType, out Type[] required, out Type[] conflicts);
+
+    /// <summary>
+    /// Registered constraint provider delegate (AOT-compatible).
+    /// </summary>
+    private static TryGetConstraintsDelegate? registeredConstraintProvider;
+
+    /// <summary>
+    /// Cached reference to the generated ComponentValidationMetadata type (fallback).
     /// Null if the type doesn't exist (no generated code available).
     /// </summary>
     private static Type? generatedMetadataType;
     private static MethodInfo? tryGetConstraintsMethod;
     private static bool generatedMetadataChecked;
+
+    /// <summary>
+    /// Registers a constraint provider for AOT-compatible validation metadata lookup.
+    /// </summary>
+    /// <param name="provider">The delegate that provides validation constraints for component types.</param>
+    /// <remarks>
+    /// <para>
+    /// This method enables AOT-compatible constraint lookup without assembly scanning or reflection.
+    /// The source generator creates a <c>ComponentValidationMetadata</c> class with a static
+    /// <c>TryGetConstraints</c> method that should be registered here.
+    /// </para>
+    /// <para>
+    /// Call this method early in application startup (e.g., in <c>Main</c> or module initializer):
+    /// </para>
+    /// <code>
+    /// ComponentValidationManager.RegisterConstraintProvider(ComponentValidationMetadata.TryGetConstraints);
+    /// </code>
+    /// </remarks>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is null.</exception>
+    public static void RegisterConstraintProvider(TryGetConstraintsDelegate provider)
+    {
+        ArgumentNullException.ThrowIfNull(provider);
+        registeredConstraintProvider = provider;
+    }
 
     /// <summary>
     /// Attempts to get validation constraints from generated metadata.
@@ -354,7 +388,32 @@ internal sealed class ComponentValidationManager(World world)
     /// <param name="required">Output array of required component types.</param>
     /// <param name="conflicts">Output array of conflicting component types.</param>
     /// <returns><c>true</c> if generated metadata was found; <c>false</c> otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// First tries the registered constraint provider (AOT-compatible path).
+    /// Falls back to reflection-based assembly scanning if no provider is registered.
+    /// </para>
+    /// <para>
+    /// For AOT scenarios, call <see cref="RegisterConstraintProvider"/> early in application startup.
+    /// </para>
+    /// </remarks>
     private static bool TryGetGeneratedConstraints(Type componentType, out Type[] required, out Type[] conflicts)
+    {
+        // Try registered provider first (AOT-compatible path)
+        if (registeredConstraintProvider is not null)
+        {
+            return registeredConstraintProvider(componentType, out required, out conflicts);
+        }
+
+        // Fall back to reflection-based lookup (not AOT-compatible)
+        return TryGetGeneratedConstraintsByReflection(componentType, out required, out conflicts);
+    }
+
+    /// <summary>
+    /// Attempts to get validation constraints using reflection-based assembly scanning.
+    /// NOT AOT-compatible.
+    /// </summary>
+    private static bool TryGetGeneratedConstraintsByReflection(Type componentType, out Type[] required, out Type[] conflicts)
     {
         required = [];
         conflicts = [];

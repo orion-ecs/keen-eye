@@ -35,6 +35,30 @@ public sealed class ComponentInfo
     /// </summary>
     internal Action<ComponentInfo, Events.ComponentEventHandlers>? SetupDispatcher { get; set; }
 
+    /// <summary>
+    /// Factory delegate that creates a FixedComponentArray for this component type.
+    /// Enables AOT-compatible chunk creation without reflection.
+    /// </summary>
+    internal Func<int, IComponentArray>? CreateComponentArray { get; set; }
+
+    /// <summary>
+    /// Delegate that applies this component (boxed) to an entity builder using With&lt;T&gt;.
+    /// Enables AOT-compatible prefab application without reflection.
+    /// </summary>
+    internal Action<EntityBuilder, object>? ApplyToBuilder { get; set; }
+
+    /// <summary>
+    /// Delegate that applies this component as a tag to an entity builder using WithTag&lt;T&gt;.
+    /// Enables AOT-compatible prefab application without reflection.
+    /// </summary>
+    internal Action<EntityBuilder>? ApplyTagToBuilder { get; set; }
+
+    /// <summary>
+    /// Delegate that invokes a custom validator for this component type.
+    /// Enables AOT-compatible validation without reflection.
+    /// </summary>
+    internal Func<World, Entity, object, Delegate, bool>? InvokeValidator { get; set; }
+
     internal ComponentInfo(ComponentId id, Type type, int size, bool isTag)
     {
         Id = id;

@@ -28,6 +28,7 @@ public sealed class Archetype : IDisposable
     private readonly List<ArchetypeChunk> chunks;
     private readonly Dictionary<int, (int ChunkIndex, int IndexInChunk)> entityLocations;
     private readonly ImmutableArray<Type> componentTypesList;
+    private readonly ImmutableArray<ComponentInfo> componentInfosList;
     private readonly ChunkPool? chunkPool;
     private int totalCount;
 
@@ -85,7 +86,8 @@ public sealed class Archetype : IDisposable
         this.chunkPool = chunkPool;
         chunks = [];
         entityLocations = [];
-        componentTypesList = componentInfos.Select(c => c.Type).ToImmutableArray();
+        componentInfosList = componentInfos.ToImmutableArray();
+        componentTypesList = componentInfosList.Select(c => c.Type).ToImmutableArray();
     }
 
     /// <summary>
@@ -396,11 +398,11 @@ public sealed class Archetype : IDisposable
         ArchetypeChunk newChunk;
         if (chunkPool != null)
         {
-            newChunk = chunkPool.Rent(Id, componentTypesList);
+            newChunk = chunkPool.Rent(Id, componentInfosList);
         }
         else
         {
-            newChunk = new ArchetypeChunk(Id, componentTypesList);
+            newChunk = new ArchetypeChunk(Id, componentInfosList);
         }
 
         chunks.Add(newChunk);

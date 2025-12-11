@@ -1104,6 +1104,9 @@ internal sealed class MockComponentSerializer : IComponentSerializer
         GetTypeCalled = true;
         return null; // Return null to fall back to other resolvers
     }
+
+    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag) => null;
+    public bool SetSingleton(World world, string typeName, object value) => false;
 }
 
 /// <summary>
@@ -1133,6 +1136,9 @@ internal sealed class WorkingAotSerializer : IComponentSerializer
         }
         return null;
     }
+
+    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag) => null;
+    public bool SetSingleton(World world, string typeName, object value) => false;
 }
 
 /// <summary>
@@ -1170,4 +1176,7 @@ internal sealed class DeserializingAotSerializer : IComponentSerializer
         }
         return null;
     }
+
+    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag) => null;
+    public bool SetSingleton(World world, string typeName, object value) => false;
 }
