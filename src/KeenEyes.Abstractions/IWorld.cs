@@ -345,4 +345,63 @@ public interface IWorld : IDisposable
     IEnumerable<Entity> GetAllEntities();
 
     #endregion
+
+    #region Random Number Generation
+
+    /// <summary>
+    /// Gets a random integer between 0 (inclusive) and maxValue (exclusive).
+    /// </summary>
+    /// <param name="maxValue">The exclusive upper bound of the random number to be generated.</param>
+    /// <returns>A 32-bit signed integer greater than or equal to 0, and less than maxValue.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">maxValue is less than 0.</exception>
+    /// <remarks>
+    /// <para>
+    /// Uses the world's deterministic random number generator. If the world was created with a seed,
+    /// this method will produce the same sequence of values across runs.
+    /// </para>
+    /// </remarks>
+    int NextInt(int maxValue);
+
+    /// <summary>
+    /// Gets a random integer between minValue (inclusive) and maxValue (exclusive).
+    /// </summary>
+    /// <param name="minValue">The inclusive lower bound of the random number returned.</param>
+    /// <param name="maxValue">The exclusive upper bound of the random number returned.</param>
+    /// <returns>
+    /// A 32-bit signed integer greater than or equal to minValue and less than maxValue.
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// minValue is greater than maxValue.
+    /// </exception>
+    int NextInt(int minValue, int maxValue);
+
+    /// <summary>
+    /// Gets a random floating-point number between 0.0 (inclusive) and 1.0 (exclusive).
+    /// </summary>
+    /// <returns>A single-precision floating point number greater than or equal to 0.0, and less than 1.0.</returns>
+    float NextFloat();
+
+    /// <summary>
+    /// Gets a random double-precision floating-point number between 0.0 (inclusive) and 1.0 (exclusive).
+    /// </summary>
+    /// <returns>A double-precision floating point number greater than or equal to 0.0, and less than 1.0.</returns>
+    double NextDouble();
+
+    /// <summary>
+    /// Gets a random boolean value.
+    /// </summary>
+    /// <returns>True or false with equal probability.</returns>
+    bool NextBool();
+
+    /// <summary>
+    /// Returns a random boolean with the specified probability of being true.
+    /// </summary>
+    /// <param name="probability">The probability (0.0 to 1.0) that the result will be true.</param>
+    /// <returns>True with the specified probability, false otherwise.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// probability is less than 0.0 or greater than 1.0.
+    /// </exception>
+    bool NextBool(float probability);
+
+    #endregion
 }
