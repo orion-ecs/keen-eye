@@ -63,6 +63,28 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     }
 
     /// <summary>
+    /// Pre-allocates an archetype for the specified component types with an initial capacity.
+    /// </summary>
+    /// <param name="componentTypes">The component types for this archetype.</param>
+    /// <param name="initialCapacity">Initial capacity for entity storage. Defaults to 16.</param>
+    /// <returns>The pre-allocated archetype.</returns>
+    /// <remarks>
+    /// <para>
+    /// Pre-allocating archetypes is useful for reducing the number of archetype transitions
+    /// when spawning many entities with the same component set. This is particularly effective
+    /// when used with bundles.
+    /// </para>
+    /// <para>
+    /// If an archetype with these component types already exists, this method returns the
+    /// existing archetype without creating a new one.
+    /// </para>
+    /// </remarks>
+    public Archetype PreallocateArchetype(IEnumerable<Type> componentTypes, int initialCapacity = 16)
+    {
+        return GetOrCreateArchetype(componentTypes);
+    }
+
+    /// <summary>
     /// Gets or creates an archetype for the specified archetype ID.
     /// </summary>
     /// <param name="id">The archetype identifier.</param>
