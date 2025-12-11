@@ -51,7 +51,8 @@ public sealed class SimulationSystemsTests
 
         spawner.Update(spawner.SpawnInterval + 0.1f);
 
-        var enemies = world.Query<Position, Velocity, Health, Collider, Renderable>()
+        var enemies = world.Query<Position, Velocity, Health, Collider>()
+            .With<Renderable>()
             .With<Enemy>()
             .ToList();
 
@@ -170,7 +171,8 @@ public sealed class SimulationSystemsTests
 
         shootingSystem.Update(0.1f);
 
-        var projectiles = world.Query<Position, Velocity, Damage, Collider, Lifetime>()
+        var projectiles = world.Query<Position, Velocity, Damage, Collider>()
+            .With<Lifetime>()
             .With<Projectile>()
             .ToList();
 
