@@ -64,8 +64,14 @@ public sealed class FixedComponentArray<T>(int capacity) : IComponentArray where
     /// </summary>
     /// <param name="component">The component to add.</param>
     /// <returns>The index where the component was added.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the array is at capacity.</exception>
     public int Add(in T component)
     {
+        if (count >= Capacity)
+        {
+            throw new InvalidOperationException($"Cannot add component: chunk is at capacity ({Capacity})");
+        }
+
         var index = count;
         data[index] = component;
         count++;
