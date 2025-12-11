@@ -41,10 +41,14 @@ public sealed class EntityInspector
     public EntityInspector(IWorld world)
     {
         if (world == null)
+        {
             throw new ArgumentNullException(nameof(world));
+        }
 
         if (world is not World concreteWorld)
+        {
             throw new ArgumentException("EntityInspector requires a concrete World instance", nameof(world));
+        }
 
         this.world = concreteWorld;
     }

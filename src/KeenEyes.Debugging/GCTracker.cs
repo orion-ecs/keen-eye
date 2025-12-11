@@ -35,8 +35,8 @@ namespace KeenEyes.Debugging;
 /// </example>
 public sealed class GCTracker
 {
-    private readonly Dictionary<string, AllocationProfile> profiles = new();
-    private readonly Dictionary<string, long> activeSnapshots = new();
+    private readonly Dictionary<string, AllocationProfile> profiles = [];
+    private readonly Dictionary<string, long> activeSnapshots = [];
 
     /// <summary>
     /// Begins tracking allocations for a sample with the specified name.
@@ -178,9 +178,15 @@ public sealed class GCTracker
     private static string FormatBytes(long bytes)
     {
         if (bytes < 1024)
+        {
             return $"{bytes}B";
+        }
+
         if (bytes < 1024 * 1024)
+        {
             return $"{bytes / 1024.0:F1}KB";
+        }
+
         return $"{bytes / (1024.0 * 1024):F1}MB";
     }
 }

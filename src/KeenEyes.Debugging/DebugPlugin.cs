@@ -59,6 +59,12 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
     /// <inheritdoc />
     public void Install(IPluginContext context)
     {
+        // Cast to concrete World to access system hooks
+        if (context.World is not World world)
+        {
+            throw new InvalidOperationException("DebugPlugin requires a concrete World instance");
+        }
+
         // Always install EntityInspector and MemoryTracker (no performance overhead)
         var inspector = new EntityInspector(context.World);
         context.SetExtension(inspector);
@@ -72,7 +78,7 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
             var profiler = new Profiler();
             context.SetExtension(profiler);
 
-            profilingHook = context.World.AddSystemHook(
+            profilingHook = world.AddSystemHook(
                 beforeHook: (system, dt) => profiler.BeginSample(system.GetType().Name),
                 afterHook: (system, dt) => profiler.EndSample(system.GetType().Name),
                 phase: options.ProfilingPhase
@@ -85,7 +91,7 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
             var gcTracker = new GCTracker();
             context.SetExtension(gcTracker);
 
-            gcTrackingHook = context.World.AddSystemHook(
+            gcTrackingHook = world.AddSystemHook(
                 beforeHook: (system, dt) => gcTracker.BeginTracking(system.GetType().Name),
                 afterHook: (system, dt) => gcTracker.EndTracking(system.GetType().Name),
                 phase: options.GCTrackingPhase

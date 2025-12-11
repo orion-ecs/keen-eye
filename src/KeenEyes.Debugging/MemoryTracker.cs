@@ -39,10 +39,14 @@ public sealed class MemoryTracker
     public MemoryTracker(IWorld world)
     {
         if (world == null)
+        {
             throw new ArgumentNullException(nameof(world));
+        }
 
         if (world is not World concreteWorld)
+        {
             throw new ArgumentException("MemoryTracker requires a concrete World instance", nameof(world));
+        }
 
         this.world = concreteWorld;
     }
@@ -86,11 +90,20 @@ public sealed class MemoryTracker
     private static string FormatBytes(long bytes)
     {
         if (bytes < 1024)
+        {
             return $"{bytes} bytes";
+        }
+
         if (bytes < 1024 * 1024)
+        {
             return $"{bytes / 1024.0:F2} KB";
+        }
+
         if (bytes < 1024 * 1024 * 1024)
+        {
             return $"{bytes / (1024.0 * 1024):F2} MB";
+        }
+
         return $"{bytes / (1024.0 * 1024 * 1024):F2} GB";
     }
 }
