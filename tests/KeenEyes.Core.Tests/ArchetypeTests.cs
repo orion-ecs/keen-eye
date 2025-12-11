@@ -1277,6 +1277,92 @@ public class ArchetypeTests
 
     #endregion
 
+    #region ArchetypeManager Performance Tests
+
+    [Fact]
+    public void ArchetypeManager_AddEntity_WithIEnumerable_WorksCorrectly()
+    {
+        var registry = new ComponentRegistry();
+        var posInfo = registry.Register<Position>();
+        var velInfo = registry.Register<Velocity>();
+        var manager = new ArchetypeManager(registry);
+
+        var entity = new Entity(1, 1);
+        var components = new[]
+        {
+            (posInfo, (object)new Position { X = 10, Y = 20 }),
+            (velInfo, (object)new Velocity { X = 1, Y = 2 })
+        };
+
+        // This should not allocate via ToList() - enumerate twice instead
+        manager.AddEntity(entity, components);
+
+        // Verify entity was added correctly
+        Assert.True(manager.IsTracked(entity));
+        Assert.True(manager.Has<Position>(entity));
+        Assert.True(manager.Has<Velocity>(entity));
+
+        // Verify component values were set correctly
+        var pos = manager.Get<Position>(entity);
+        Assert.Equal(10, pos.X);
+        Assert.Equal(20, pos.Y);
+
+        var vel = manager.Get<Velocity>(entity);
+        Assert.Equal(1, vel.X);
+        Assert.Equal(2, vel.Y);
+    }
+
+    [Fact]
+    public void ArchetypeManager_AddEntity_WithEmptyIEnumerable_WorksCorrectly()
+    {
+        var registry = new ComponentRegistry();
+        var manager = new ArchetypeManager(registry);
+
+        var entity = new Entity(1, 1);
+        var components = Array.Empty<(ComponentInfo, object)>();
+
+        // Should handle empty enumerable without error
+        manager.AddEntity(entity, components);
+
+        // Verify entity was added to empty archetype
+        Assert.True(manager.IsTracked(entity));
+        Assert.Empty(manager.GetComponentTypes(entity));
+    }
+
+    [Fact]
+    public void ArchetypeManager_AddEntity_WithLazyIEnumerable_EnumeratesTwice()
+    {
+        var registry = new ComponentRegistry();
+        var posInfo = registry.Register<Position>();
+        var manager = new ArchetypeManager(registry);
+
+        var entity = new Entity(1, 1);
+        var enumerationCount = 0;
+
+        // Create a lazy enumerable that tracks enumeration
+        IEnumerable<(ComponentInfo, object)> LazyComponents()
+        {
+            enumerationCount++;
+            yield return (posInfo, new Position { X = 42, Y = 99 });
+        }
+
+        // AddEntity should enumerate twice (once for types, once for data)
+        manager.AddEntity(entity, LazyComponents());
+
+        // Verify it was enumerated twice
+        Assert.Equal(2, enumerationCount);
+
+        // Verify entity was added correctly despite double enumeration
+        Assert.True(manager.IsTracked(entity));
+        Assert.True(manager.Has<Position>(entity));
+
+        var pos = manager.Get<Position>(entity);
+        Assert.Equal(42, pos.X);
+        Assert.Equal(99, pos.Y);
+    }
+
+    #endregion
+
     #region ComponentRegistry Coverage Tests
 
     [Fact]

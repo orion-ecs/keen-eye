@@ -114,15 +114,15 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     /// <param name="components">The components and their values.</param>
     internal void AddEntity(Entity entity, IEnumerable<(ComponentInfo Info, object Data)> components)
     {
-        var componentList = components.ToList();
-        var types = componentList.Select(c => c.Info.Type);
+        // Enumerate twice to avoid ToList() allocation on every spawn
+        var types = components.Select(c => c.Info.Type);
         var archetype = GetOrCreateArchetype(types);
 
         // Add entity to archetype
         var index = archetype.AddEntity(entity);
 
-        // Add all component values
-        foreach (var (info, data) in componentList)
+        // Add all component values (enumerate again)
+        foreach (var (info, data) in components)
         {
             archetype.AddComponentBoxed(info.Type, data);
         }
