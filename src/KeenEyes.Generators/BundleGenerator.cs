@@ -1111,7 +1111,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
 /// <summary>
 /// Diagnostic descriptors for bundle generation errors.
 /// </summary>
-internal static class Diagnostics
+internal static partial class Diagnostics
 {
     /// <summary>
     /// KEEN020: Bundle must be a struct.
