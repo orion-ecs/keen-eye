@@ -1419,5 +1419,47 @@ public class StringTagTests
         }
     }
 
+    [Fact]
+    public void Despawn_EntityWithMultipleTags_RemovesFromAllReverseIndexes()
+    {
+        // Tests RemoveAllTags properly cleans up reverse indexes without LINQ allocations
+        using var world = new World();
+        var entity1 = world.Spawn().Build();
+        var entity2 = world.Spawn().Build();
+
+        // Add tags to both entities (some shared, some unique)
+        world.AddTag(entity1, "Tag1");
+        world.AddTag(entity1, "Tag2");
+        world.AddTag(entity1, "Tag3");
+        world.AddTag(entity2, "Tag2");
+        world.AddTag(entity2, "Tag4");
+
+        // Despawn entity1 - should clean up only entity1 from reverse indexes
+        world.Despawn(entity1);
+
+        // entity1 tags should be gone
+        Assert.False(world.HasTag(entity1, "Tag1"));
+        Assert.False(world.HasTag(entity1, "Tag2"));
+        Assert.False(world.HasTag(entity1, "Tag3"));
+
+        // entity2 should still have its tags
+        Assert.True(world.HasTag(entity2, "Tag2"));
+        Assert.True(world.HasTag(entity2, "Tag4"));
+
+        // Tag1 and Tag3 should have no entities
+        Assert.Empty(world.QueryByTag("Tag1"));
+        Assert.Empty(world.QueryByTag("Tag3"));
+
+        // Tag2 should only have entity2
+        var tag2Entities = world.QueryByTag("Tag2").ToList();
+        Assert.Single(tag2Entities);
+        Assert.Contains(entity2, tag2Entities);
+
+        // Tag4 should only have entity2
+        var tag4Entities = world.QueryByTag("Tag4").ToList();
+        Assert.Single(tag4Entities);
+        Assert.Contains(entity2, tag4Entities);
+    }
+
     #endregion
 }
