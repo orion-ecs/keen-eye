@@ -457,7 +457,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"        return new {info.FullName}Ref(");
 
             var refParams = info.Fields.Select(f => $"            ref world.Get<{f.Type}>(entity)");
-            sb.AppendLine(string.Join($",{Environment.NewLine}", refParams));
+            sb.AppendLine(string.Join(",\r\n", refParams));
 
             sb.AppendLine($"        );");
             sb.AppendLine($"    }}");
@@ -547,7 +547,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             for (int arity = 1; arity <= 4; arity++)
             {
                 var typeParams = string.Join(", ", Enumerable.Range(1, arity).Select(i => $"T{i}"));
-                var whereConstraints = string.Join($"{Environment.NewLine}        ",
+                var whereConstraints = string.Join("\r\n        ",
                     Enumerable.Range(1, arity).Select(i => $"where T{i} : struct, global::KeenEyes.IComponent"));
 
                 sb.AppendLine($"    /// <summary>");
