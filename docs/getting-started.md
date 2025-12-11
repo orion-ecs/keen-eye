@@ -190,6 +190,45 @@ world.Spawn()
     .Build();
 ```
 
+## Step 6: Use Component Bundles (Optional)
+
+For entities with many components, use bundles to group related components:
+
+```csharp
+using KeenEyes.Generators.Attributes;
+
+[Component]
+public partial struct Position { public float X, Y; }
+
+[Component]
+public partial struct Velocity { public float X, Y; }
+
+[Component]
+public partial struct Color { public float R, G, B; }
+
+// Define a bundle for particle components
+[Bundle]
+public partial struct ParticleBundle
+{
+    public Position Position;
+    public Velocity Velocity;
+    public Color Color;
+}
+
+// Spawn with bundle (concise)
+var particle = world.Spawn()
+    .With(new ParticleBundle
+    {
+        Position = new() { X = 0, Y = 0 },
+        Velocity = new() { X = 10, Y = 5 },
+        Color = new() { R = 1, G = 0, B = 0 }
+    })
+    .With(new Lifetime { Remaining = 2.0f })
+    .Build();
+```
+
+Bundles are especially useful for commonly-used component combinations like transforms, physics bodies, or character stats. See the [Bundles Guide](bundles.md) for more details.
+
 ## Complete Example
 
 Here's the full program:
@@ -263,5 +302,6 @@ while (world.EntityCount > 0)
 - [Core Concepts](concepts.md) - Understand ECS fundamentals
 - [Entities Guide](entities.md) - Entity lifecycle and management
 - [Components Guide](components.md) - Component patterns
+- [Bundles Guide](bundles.md) - Group components for easier spawning
 - [Systems Guide](systems.md) - System design patterns
 - [Command Buffer](command-buffer.md) - Safe entity modification during iteration

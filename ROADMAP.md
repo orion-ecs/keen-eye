@@ -423,9 +423,9 @@ Maximum performance optimizations.
 - [ ] Spatial query optimization
 
 ### 17.4 Component Composition
-- [ ] Component inheritance/mixins
-- [ ] Component bundles (group common components)
-- [ ] `[Bundle]` attribute for source generation
+- [x] Component inheritance/mixins
+- [x] Component bundles (group common components)
+- [x] `[Bundle]` attribute for source generation
 
 ---
 
