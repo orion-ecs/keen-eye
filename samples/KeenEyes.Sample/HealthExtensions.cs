@@ -3,7 +3,7 @@ namespace KeenEyes.Sample;
 // =============================================================================
 // HEALTH COMPONENT EXTENSION PROPERTIES
 // =============================================================================
-// This file demonstrates the C# 14 extension property feature to add computed
+// This file demonstrates the C# 13 extension property feature to add computed
 // properties to components without violating ECS principles.
 //
 // By using extension properties, we keep the Health component as pure data
