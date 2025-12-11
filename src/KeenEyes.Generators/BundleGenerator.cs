@@ -118,6 +118,26 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
+            // Check for circular reference first (bundle containing itself)
+            if (field.Type.ToDisplayString() == typeSymbol.ToDisplayString())
+            {
+                var location = field.Locations.FirstOrDefault();
+                if (location is not null)
+                {
+                    diagnostics.Add(new DiagnosticInfo(
+                        Diagnostics.BundleCircularReference,
+                        location,
+                        [typeSymbol.Name, field.Name]));
+                }
+                return new BundleInfo(
+                    typeSymbol.Name,
+                    typeSymbol.ContainingNamespace.ToDisplayString(),
+                    typeSymbol.ToDisplayString(),
+                    ImmutableArray<ComponentFieldInfo>.Empty,
+                    diagnostics.ToImmutableArray(),
+                    IsValid: false);
+            }
+
             // Validate: field must be a component type
             if (!IsComponentType(field.Type, compilation))
             {
@@ -155,29 +175,6 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 ImmutableArray<ComponentFieldInfo>.Empty,
                 diagnostics.ToImmutableArray(),
                 IsValid: false);
-        }
-
-        // Check for circular references (bundle containing itself)
-        foreach (var field in fields)
-        {
-            if (field.Type == typeSymbol.ToDisplayString())
-            {
-                var location = typeSymbol.GetMembers(field.Name).FirstOrDefault()?.Locations.FirstOrDefault();
-                if (location is not null)
-                {
-                    diagnostics.Add(new DiagnosticInfo(
-                        Diagnostics.BundleCircularReference,
-                        location,
-                        [typeSymbol.Name, field.Name]));
-                }
-                return new BundleInfo(
-                    typeSymbol.Name,
-                    typeSymbol.ContainingNamespace.ToDisplayString(),
-                    typeSymbol.ToDisplayString(),
-                    fields.ToImmutableArray(),
-                    diagnostics.ToImmutableArray(),
-                    IsValid: false);
-            }
         }
 
         return new BundleInfo(
