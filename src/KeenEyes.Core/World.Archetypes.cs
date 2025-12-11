@@ -127,7 +127,7 @@ public sealed partial class World
     /// <example>
     /// <code>
     /// // Pre-allocate for a custom bundle
-    /// world.PreallocateArchetype&lt;TransformBundle&gt;();
+    /// world.PreallocateArchetypeFor&lt;TransformBundle&gt;();
     ///
     /// // Now spawning entities with this bundle is optimized
     /// for (int i = 0; i &lt; 1000; i++)
@@ -138,7 +138,7 @@ public sealed partial class World
     /// }
     /// </code>
     /// </example>
-    public void PreallocateArchetype<TBundle>(int initialCapacity = 16)
+    public void PreallocateArchetypeFor<TBundle>(int initialCapacity = 16)
         where TBundle : struct, IBundle
     {
         // Use reflection to get component types from the bundle
