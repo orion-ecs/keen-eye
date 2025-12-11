@@ -179,30 +179,64 @@ internal sealed class PrefabManager
     }
 
     /// <summary>
-    /// Applies a component definition to an entity builder using reflection.
+    /// Applies a component definition to an entity builder using AOT-compatible delegates.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Uses <see cref="ComponentInfo.ApplyToBuilder"/> and <see cref="ComponentInfo.ApplyTagToBuilder"/>
+    /// delegates stored during component registration for AOT compatibility.
+    /// </para>
+    /// <para>
+    /// If the component type is not registered, it is automatically registered using reflection
+    /// as a fallback to maintain backward compatibility.
+    /// </para>
+    /// </remarks>
     private void ApplyComponentToBuilder(EntityBuilder builder, ComponentDefinition component)
     {
+        // Get or retrieve the ComponentInfo from the registry
+        var info = world.Components.Get(component.Type);
+        if (info is null)
+        {
+            // Auto-register the component using reflection (fallback for backward compatibility)
+            info = RegisterComponentByReflection(component.Type, component.IsTag);
+        }
+
         if (component.IsTag)
         {
-            // Use reflection to call WithTag<T>() - must find the generic overload
-            // since there's also a WithTag(string) overload for string tags
-            var withTagMethod = typeof(EntityBuilder)
-                .GetMethods()
-                .First(m => m.Name == nameof(EntityBuilder.WithTag) && m.IsGenericMethodDefinition)
-                .MakeGenericMethod(component.Type);
-
-            withTagMethod.Invoke(builder, null);
+            // Use the pre-stored tag applicator delegate (AOT-compatible)
+            if (info.ApplyTagToBuilder is null)
+            {
+                throw new InvalidOperationException(
+                    $"Component type '{component.Type.Name}' was not registered as a tag component.");
+            }
+            info.ApplyTagToBuilder(builder);
         }
         else
         {
-            // Use reflection to call With<T>(T component)
-            var withMethod = typeof(EntityBuilder)
-                .GetMethod(nameof(EntityBuilder.With))!
-                .MakeGenericMethod(component.Type);
-
-            withMethod.Invoke(builder, [component.Data]);
+            // Use the pre-stored applicator delegate (AOT-compatible)
+            if (info.ApplyToBuilder is null)
+            {
+                throw new InvalidOperationException(
+                    $"Component type '{component.Type.Name}' does not have an applicator delegate.");
+            }
+            info.ApplyToBuilder(builder, component.Data!);
         }
+    }
+
+    /// <summary>
+    /// Registers a component type using reflection. NOT AOT-compatible.
+    /// </summary>
+    /// <remarks>
+    /// This method is a fallback when prefabs contain component types that haven't been
+    /// explicitly registered. Production code targeting AOT should register all component
+    /// types before using them in prefabs.
+    /// </remarks>
+    private ComponentInfo RegisterComponentByReflection(Type type, bool isTag)
+    {
+        var registryType = typeof(ComponentRegistry);
+        var method = registryType.GetMethod(nameof(ComponentRegistry.Register), [typeof(bool)])!;
+        var genericMethod = method.MakeGenericMethod(type);
+        return (ComponentInfo)genericMethod.Invoke(world.Components, [isTag])!;
     }
 
     /// <summary>

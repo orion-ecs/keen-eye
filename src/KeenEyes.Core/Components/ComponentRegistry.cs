@@ -41,6 +41,11 @@ public sealed class ComponentRegistry
 
         var id = new ComponentId(nextId++);
         var size = isTag ? 0 : ComponentMeta<T>.Size;
+
+        // Pre-create default value for tags at registration time (AOT-compatible)
+        object? defaultValue = isTag ? (object)default(T)! : null;
+
+        ComponentInfo? infoRef = null;
         var info = new ComponentInfo(id, type, size, isTag)
         {
             // Store setup function that knows how to create the dispatcher for this component type
@@ -48,8 +53,27 @@ public sealed class ComponentRegistry
             SetupDispatcher = (self, handlers) =>
             {
                 self.FireAddedBoxed = (h, e, obj) => h.FireAdded(e, (T)obj);
+            },
+            // Factory for creating typed component arrays without reflection (AOT-compatible)
+            CreateComponentArray = capacity => new FixedComponentArray<T>(capacity),
+            // Applicator for adding this component to an EntityBuilder without reflection
+            ApplyToBuilder = (builder, boxedValue) => builder.With((T)boxedValue),
+            // Validator invoker for calling typed validators without reflection
+            InvokeValidator = (world, entity, data, validator) =>
+            {
+                var typedValidator = (ComponentValidator<T>)validator;
+                var component = (T)data;
+                return typedValidator(world, entity, component);
             }
         };
+
+        // Set up tag applicator after info is created (needs to capture info reference)
+        // Uses WithBoxed with pre-created default value to avoid reflection
+        infoRef = info;
+        if (isTag)
+        {
+            info.ApplyTagToBuilder = builder => builder.WithBoxed(infoRef, defaultValue!);
+        }
 
         byType[type] = info;
         all.Add(info);

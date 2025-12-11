@@ -84,10 +84,14 @@ public sealed class ChunkPool(int maxChunksPerArchetype = 64)
     /// Rents a chunk for the specified archetype.
     /// </summary>
     /// <param name="archetypeId">The archetype identifier.</param>
-    /// <param name="componentTypes">The component types (used if creating new chunk).</param>
+    /// <param name="componentInfos">The component information (used if creating new chunk).</param>
     /// <param name="capacity">The chunk capacity.</param>
     /// <returns>A chunk, either from the pool or newly created.</returns>
-    public ArchetypeChunk Rent(ArchetypeId archetypeId, IEnumerable<Type> componentTypes, int capacity = ArchetypeChunk.DefaultCapacity)
+    /// <remarks>
+    /// Uses <see cref="ComponentInfo.CreateComponentArray"/> factory delegates for
+    /// AOT-compatible chunk creation without reflection.
+    /// </remarks>
+    public ArchetypeChunk Rent(ArchetypeId archetypeId, IEnumerable<ComponentInfo> componentInfos, int capacity = ArchetypeChunk.DefaultCapacity)
     {
         Interlocked.Increment(ref totalRented);
 
@@ -98,6 +102,38 @@ public sealed class ChunkPool(int maxChunksPerArchetype = 64)
         }
 
         // Need to create a new chunk
+        Interlocked.Increment(ref totalCreated);
+        return new ArchetypeChunk(archetypeId, componentInfos, capacity);
+    }
+
+    /// <summary>
+    /// Rents a chunk for the specified archetype using reflection-based array creation.
+    /// </summary>
+    /// <param name="archetypeId">The archetype identifier.</param>
+    /// <param name="componentTypes">The component types (used if creating new chunk).</param>
+    /// <param name="capacity">The chunk capacity.</param>
+    /// <returns>A chunk, either from the pool or newly created.</returns>
+    /// <remarks>
+    /// <para>
+    /// This overload uses reflection (MakeGenericType + Activator.CreateInstance) and is
+    /// NOT AOT-compatible. It exists for backward compatibility with test code.
+    /// </para>
+    /// <para>
+    /// Production code should use the <see cref="Rent(ArchetypeId, IEnumerable{ComponentInfo}, int)"/>
+    /// overload which uses factory delegates for AOT compatibility.
+    /// </para>
+    /// </remarks>
+    public ArchetypeChunk Rent(ArchetypeId archetypeId, IEnumerable<Type> componentTypes, int capacity = ArchetypeChunk.DefaultCapacity)
+    {
+        Interlocked.Increment(ref totalRented);
+
+        if (pools.TryGetValue(archetypeId, out var stack) && stack.TryPop(out var chunk))
+        {
+            // Got a pooled chunk - it's already reset
+            return chunk;
+        }
+
+        // Need to create a new chunk using reflection
         Interlocked.Increment(ref totalCreated);
         return new ArchetypeChunk(archetypeId, componentTypes, capacity);
     }

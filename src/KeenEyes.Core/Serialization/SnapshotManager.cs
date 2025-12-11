@@ -213,7 +213,7 @@ public static class SnapshotManager
 
                 // Ensure type is registered
                 var info = world.Components.Get(type)
-                    ?? RegisterComponentByReflection(world, type, component.IsTag);
+                    ?? RegisterComponent(world, type, component.TypeName, component.IsTag, serializer);
 
                 // Convert the data to the correct type if needed
                 var value = ConvertComponentData(component.Data, type, serializer);
@@ -249,7 +249,7 @@ public static class SnapshotManager
             var value = ConvertComponentData(singleton.Data, type, serializer);
             if (value is not null)
             {
-                SetSingletonByReflection(world, type, value);
+                SetSingleton(world, type, singleton.TypeName, value, serializer);
             }
         }
 
@@ -292,6 +292,66 @@ public static class SnapshotManager
         return new JsonSerializerOptions(defaultJsonOptions);
     }
 
+    /// <summary>
+    /// Registers a component type, using the serializer's AOT-compatible method if available.
+    /// </summary>
+    private static ComponentInfo RegisterComponent(World world, Type type, string typeName, bool isTag, IComponentSerializer? serializer)
+    {
+        // Try AOT path first via serializer
+        if (serializer is not null)
+        {
+            var info = serializer.RegisterComponent(world, typeName, isTag);
+            if (info is not null)
+            {
+                return info;
+            }
+
+            // Also try with full name
+            if (type.FullName is not null)
+            {
+                info = serializer.RegisterComponent(world, type.FullName, isTag);
+                if (info is not null)
+                {
+                    return info;
+                }
+            }
+        }
+
+        // Fall back to reflection (not AOT-compatible)
+        return RegisterComponentByReflection(world, type, isTag);
+    }
+
+    /// <summary>
+    /// Sets a singleton value, using the serializer's AOT-compatible method if available.
+    /// </summary>
+    private static void SetSingleton(World world, Type type, string typeName, object value, IComponentSerializer? serializer)
+    {
+        // Try AOT path first via serializer
+        if (serializer is not null)
+        {
+            if (serializer.SetSingleton(world, typeName, value))
+            {
+                return;
+            }
+
+            // Also try with full name
+            if (type.FullName is not null && serializer.SetSingleton(world, type.FullName, value))
+            {
+                return;
+            }
+        }
+
+        // Fall back to reflection (not AOT-compatible)
+        SetSingletonByReflection(world, type, value);
+    }
+
+    /// <summary>
+    /// Registers a component using reflection. NOT AOT-compatible.
+    /// </summary>
+    /// <remarks>
+    /// This method is a fallback when no serializer is provided. Production code
+    /// targeting AOT should provide an <see cref="IComponentSerializer"/> implementation.
+    /// </remarks>
     private static ComponentInfo RegisterComponentByReflection(World world, Type type, bool isTag)
     {
         // Use reflection to call world.Components.Register<T>(isTag)
@@ -301,6 +361,13 @@ public static class SnapshotManager
         return (ComponentInfo)genericMethod.Invoke(world.Components, [isTag])!;
     }
 
+    /// <summary>
+    /// Sets a singleton using reflection. NOT AOT-compatible.
+    /// </summary>
+    /// <remarks>
+    /// This method is a fallback when no serializer is provided. Production code
+    /// targeting AOT should provide an <see cref="IComponentSerializer"/> implementation.
+    /// </remarks>
     private static void SetSingletonByReflection(World world, Type type, object value)
     {
         // Use reflection to call world.SetSingleton<T>(value)
