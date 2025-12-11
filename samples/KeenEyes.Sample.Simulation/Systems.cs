@@ -255,6 +255,33 @@ public partial class SpawnerSystem : SystemBase
     private readonly Random random = new();
     private float spawnTimer;
 
+    /// <summary>Number of edges (North, South, East, West) for enemy spawning.</summary>
+    private const int EdgeCount = 4;
+
+    /// <summary>Number of different enemy types.</summary>
+    private const int EnemyTypeCount = 3;
+
+    /// <summary>Base velocity multiplier for random enemy movement.</summary>
+    private const float BaseVelocityMultiplier = 10f;
+
+    /// <summary>Additional velocity component for directional movement.</summary>
+    private const float DirectionalVelocityMultiplier = 5f;
+
+    /// <summary>Minimum velocity added to ensure enemies move inward.</summary>
+    private const float MinimumInwardVelocity = 2f;
+
+    /// <summary>Speed multiplier for fast enemy type.</summary>
+    private const float FastEnemySpeedMultiplier = 1.5f;
+
+    /// <summary>Speed multiplier for slow enemy type.</summary>
+    private const float SlowEnemySpeedMultiplier = 0.5f;
+
+    /// <summary>Offset from world edge for spawn positioning.</summary>
+    private const float EdgeSpawnOffset = 1f;
+
+    /// <summary>Collision radius for enemy entities.</summary>
+    private const float EnemyColliderRadius = 0.5f;
+
     /// <summary>Seconds between spawns.</summary>
     public float SpawnInterval { get; set; } = 2.0f;
 
@@ -293,33 +320,33 @@ public partial class SpawnerSystem : SystemBase
     {
         // Random edge spawn
         float x, y, vx, vy;
-        int edge = random.Next(4);
+        int edge = random.Next(EdgeCount);
 
         switch (edge)
         {
             case 0: // Top
                 x = random.NextSingle() * WorldWidth;
                 y = 0;
-                vx = (random.NextSingle() - 0.5f) * 10;
-                vy = random.NextSingle() * 5 + 2;
+                vx = (random.NextSingle() - 0.5f) * BaseVelocityMultiplier;
+                vy = random.NextSingle() * DirectionalVelocityMultiplier + MinimumInwardVelocity;
                 break;
             case 1: // Bottom
                 x = random.NextSingle() * WorldWidth;
-                y = WorldHeight - 1;
-                vx = (random.NextSingle() - 0.5f) * 10;
-                vy = -(random.NextSingle() * 5 + 2);
+                y = WorldHeight - EdgeSpawnOffset;
+                vx = (random.NextSingle() - 0.5f) * BaseVelocityMultiplier;
+                vy = -(random.NextSingle() * DirectionalVelocityMultiplier + MinimumInwardVelocity);
                 break;
             case 2: // Left
                 x = 0;
                 y = random.NextSingle() * WorldHeight;
-                vx = random.NextSingle() * 5 + 2;
-                vy = (random.NextSingle() - 0.5f) * 10;
+                vx = random.NextSingle() * DirectionalVelocityMultiplier + MinimumInwardVelocity;
+                vy = (random.NextSingle() - 0.5f) * BaseVelocityMultiplier;
                 break;
             default: // Right
-                x = WorldWidth - 1;
+                x = WorldWidth - EdgeSpawnOffset;
                 y = random.NextSingle() * WorldHeight;
-                vx = -(random.NextSingle() * 5 + 2);
-                vy = (random.NextSingle() - 0.5f) * 10;
+                vx = -(random.NextSingle() * DirectionalVelocityMultiplier + MinimumInwardVelocity);
+                vy = (random.NextSingle() - 0.5f) * BaseVelocityMultiplier;
                 break;
         }
 
@@ -328,15 +355,15 @@ public partial class SpawnerSystem : SystemBase
         ConsoleColor color;
         int health;
 
-        int type = random.Next(3);
+        int type = random.Next(EnemyTypeCount);
         switch (type)
         {
             case 0: // Fast, weak
                 symbol = 'o';
                 color = ConsoleColor.Yellow;
                 health = 1;
-                vx *= 1.5f;
-                vy *= 1.5f;
+                vx *= FastEnemySpeedMultiplier;
+                vy *= FastEnemySpeedMultiplier;
                 break;
             case 1: // Medium
                 symbol = 'O';
@@ -347,8 +374,8 @@ public partial class SpawnerSystem : SystemBase
                 symbol = '@';
                 color = ConsoleColor.Magenta;
                 health = 3;
-                vx *= 0.5f;
-                vy *= 0.5f;
+                vx *= SlowEnemySpeedMultiplier;
+                vy *= SlowEnemySpeedMultiplier;
                 break;
         }
 
@@ -356,7 +383,7 @@ public partial class SpawnerSystem : SystemBase
             .WithPosition(x: x, y: y)
             .WithVelocity(x: vx, y: vy)
             .WithHealth(current: health, max: health)
-            .WithCollider(radius: 0.5f)
+            .WithCollider(radius: EnemyColliderRadius)
             .WithRenderable(symbol: symbol, color: color)
             .WithEnemy()
             .Build();
@@ -371,8 +398,23 @@ public partial class ShootingSystem : SystemBase
 {
     private readonly CommandBuffer buffer = new();
 
+    /// <summary>Default time between auto-shots in seconds.</summary>
+    private const float DefaultFireRate = 0.3f;
+
+    /// <summary>Minimum distance threshold for shooting calculations.</summary>
+    private const float MinimumShootingDistance = 0.1f;
+
+    /// <summary>Speed of player projectiles in units per second.</summary>
+    private const float PlayerProjectileSpeed = 30f;
+
+    /// <summary>Collision radius for player projectiles.</summary>
+    private const float PlayerProjectileRadius = 0.3f;
+
+    /// <summary>Lifetime of player projectiles in seconds.</summary>
+    private const float PlayerProjectileLifetime = 3f;
+
     /// <summary>Time between auto-shots.</summary>
-    public float FireRate { get; set; } = 0.3f;
+    public float FireRate { get; set; } = DefaultFireRate;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -416,20 +458,19 @@ public partial class ShootingSystem : SystemBase
                     float dy = targetPos.Y - pos.Y;
                     float dist = MathF.Sqrt(dx * dx + dy * dy);
 
-                    if (dist > 0.1f)
+                    if (dist > MinimumShootingDistance)
                     {
-                        float speed = 30f;
-                        float vx = (dx / dist) * speed;
-                        float vy = (dy / dist) * speed;
+                        float vx = (dx / dist) * PlayerProjectileSpeed;
+                        float vy = (dy / dist) * PlayerProjectileSpeed;
 
                         // Queue projectile spawn via CommandBuffer
                         buffer.Spawn()
                             .With(new Position { X = pos.X, Y = pos.Y })
                             .With(new Velocity { X = vx, Y = vy })
                             .With(new Damage { Amount = 1 })
-                            .With(new Collider { Radius = 0.3f })
+                            .With(new Collider { Radius = PlayerProjectileRadius })
                             .With(new Renderable { Symbol = '*', Color = ConsoleColor.Cyan })
-                            .With(new Lifetime { Remaining = 3f })
+                            .With(new Lifetime { Remaining = PlayerProjectileLifetime })
                             .With(new Projectile());
                     }
                 }
@@ -449,6 +490,21 @@ public partial class EnemyShootingSystem : SystemBase
 {
     private readonly Random random = new();
     private readonly CommandBuffer buffer = new();
+
+    /// <summary>Base enemy fire rate in seconds.</summary>
+    private const float BaseEnemyFireRate = 1.5f;
+
+    /// <summary>Minimum distance threshold for enemy shooting.</summary>
+    private const float MinimumEnemyShootingDistance = 1f;
+
+    /// <summary>Speed of enemy projectiles in units per second.</summary>
+    private const float EnemyProjectileSpeed = 15f;
+
+    /// <summary>Collision radius for enemy projectiles.</summary>
+    private const float EnemyProjectileRadius = 0.3f;
+
+    /// <summary>Lifetime of enemy projectiles in seconds.</summary>
+    private const float EnemyProjectileLifetime = 2f;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -490,27 +546,26 @@ public partial class EnemyShootingSystem : SystemBase
 
             if (cooldown.Remaining <= 0)
             {
-                cooldown.Remaining = 1.5f + random.NextSingle();
+                cooldown.Remaining = BaseEnemyFireRate + random.NextSingle();
 
                 // Shoot toward player
                 float dx = playerPos.X - pos.X;
                 float dy = playerPos.Y - pos.Y;
                 float dist = MathF.Sqrt(dx * dx + dy * dy);
 
-                if (dist > 1f)
+                if (dist > MinimumEnemyShootingDistance)
                 {
-                    float speed = 15f;
-                    float vx = (dx / dist) * speed;
-                    float vy = (dy / dist) * speed;
+                    float vx = (dx / dist) * EnemyProjectileSpeed;
+                    float vy = (dy / dist) * EnemyProjectileSpeed;
 
                     // Queue enemy projectile spawn via CommandBuffer
                     buffer.Spawn()
                         .With(new Position { X = pos.X, Y = pos.Y })
                         .With(new Velocity { X = vx, Y = vy })
                         .With(new Damage { Amount = 1 })
-                        .With(new Collider { Radius = 0.3f })
+                        .With(new Collider { Radius = EnemyProjectileRadius })
                         .With(new Renderable { Symbol = '.', Color = ConsoleColor.Red })
-                        .With(new Lifetime { Remaining = 2f })
+                        .With(new Lifetime { Remaining = EnemyProjectileLifetime })
                         .With(new Projectile())
                         .With(new Enemy()); // Mark as enemy projectile
                 }
