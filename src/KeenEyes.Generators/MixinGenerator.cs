@@ -191,11 +191,11 @@ public sealed class MixinGenerator : IIncrementalGenerator
         }
 
         // Check for conflicts between mixin fields and component's own fields
-        var componentFields = typeSymbol.GetMembers()
-            .OfType<IFieldSymbol>()
-            .Where(f => !f.IsStatic && !f.IsConst)
-            .Select(f => f.Name)
-            .ToHashSet();
+        var componentFields = new HashSet<string>(
+            typeSymbol.GetMembers()
+                .OfType<IFieldSymbol>()
+                .Where(f => !f.IsStatic && !f.IsConst)
+                .Select(f => f.Name));
 
         var conflictingFields = allMixinFields.Where(f => componentFields.Contains(f.Name)).ToArray();
         if (conflictingFields.Length > 0)
