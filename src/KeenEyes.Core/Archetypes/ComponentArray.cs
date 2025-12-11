@@ -8,7 +8,7 @@ namespace KeenEyes;
 /// Stores components contiguously in memory for cache-friendly iteration.
 /// </summary>
 /// <typeparam name="T">The component type to store.</typeparam>
-public sealed class ComponentArray<T> : IComponentArray, IDisposable where T : struct
+public sealed class ComponentArray<T> : IComponentArray, IDisposable where T : struct, IComponent
 {
     private const int DefaultCapacity = 16;
     private const int MaxPooledArraySize = 1024 * 1024; // 1MB worth of elements

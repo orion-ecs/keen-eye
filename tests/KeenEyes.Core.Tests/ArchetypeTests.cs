@@ -801,6 +801,36 @@ public class ArchetypeTests
 
     #endregion
 
+    #region ComponentArray Type Safety Tests
+
+    [Fact]
+    public void ComponentArray_EnforcesIComponentConstraint()
+    {
+        // This test verifies that ComponentArray<T> requires T to implement IComponent
+        // If the constraint is missing, this test would fail to compile
+        using var array = new ComponentArray<Position>();
+
+        array.Add(new Position { X = 1, Y = 2 });
+
+        Assert.Equal(1, array.Count);
+        Assert.Equal(typeof(Position), array.ComponentType);
+    }
+
+    [Fact]
+    public void FixedComponentArray_EnforcesIComponentConstraint()
+    {
+        // This test verifies that FixedComponentArray<T> requires T to implement IComponent
+        // If the constraint is missing, this test would fail to compile
+        var array = new FixedComponentArray<Velocity>(10);
+
+        array.Add(new Velocity { X = 3, Y = 4 });
+
+        Assert.Equal(1, array.Count);
+        Assert.Equal(typeof(Velocity), array.ComponentType);
+    }
+
+    #endregion
+
     #region World Coverage Tests
 
     [Fact]
