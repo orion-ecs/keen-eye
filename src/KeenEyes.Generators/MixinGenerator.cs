@@ -29,14 +29,14 @@ public sealed class MixinGenerator : IIncrementalGenerator
                 ComponentAttribute,
                 predicate: static (node, _) => node is StructDeclarationSyntax,
                 transform: static (ctx, _) => GetMixinInfo(ctx))
-            .Where(static info => info is not null && info.MixinTypes.Length > 0);
+            .Where(static info => info is not null && (info.MixinTypes.Length > 0 || info.Diagnostics.Length > 0));
 
         var tagComponentWithMixinProvider = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 TagComponentAttribute,
                 predicate: static (node, _) => node is StructDeclarationSyntax,
                 transform: static (ctx, _) => GetMixinInfo(ctx))
-            .Where(static info => info is not null && info.MixinTypes.Length > 0);
+            .Where(static info => info is not null && (info.MixinTypes.Length > 0 || info.Diagnostics.Length > 0));
 
         // Combine both providers
         var allMixins = componentWithMixinProvider.Collect()
