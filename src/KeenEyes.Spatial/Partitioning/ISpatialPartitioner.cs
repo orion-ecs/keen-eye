@@ -148,8 +148,15 @@ internal interface ISpatialPartitioner : IDisposable
     /// When -1 is returned, the buffer contains partial results up to its capacity.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// This is a zero-allocation query method for performance-critical code paths.
     /// Use stackalloc or ArrayPool for the buffer.
+    /// </para>
+    /// <para>
+    /// <strong>Performance Note:</strong> Deduplication uses linear scan (O(n) per entity).
+    /// For queries with many overlapping cells/nodes and large result sets (>1000 entities),
+    /// this can approach O(n²) complexity. Typical queries (&lt;100 results) have negligible overhead.
+    /// </para>
     /// </remarks>
     int QueryRadius(Vector3 center, float radius, Span<Entity> results);
 
@@ -164,8 +171,15 @@ internal interface ISpatialPartitioner : IDisposable
     /// When -1 is returned, the buffer contains partial results up to its capacity.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// This is a zero-allocation query method for performance-critical code paths.
     /// Use stackalloc or ArrayPool for the buffer.
+    /// </para>
+    /// <para>
+    /// <strong>Performance Note:</strong> Deduplication uses linear scan (O(n) per entity).
+    /// For queries with many overlapping cells/nodes and large result sets (>1000 entities),
+    /// this can approach O(n²) complexity. Typical queries (&lt;100 results) have negligible overhead.
+    /// </para>
     /// </remarks>
     int QueryBounds(Vector3 min, Vector3 max, Span<Entity> results);
 
@@ -179,8 +193,15 @@ internal interface ISpatialPartitioner : IDisposable
     /// When -1 is returned, the buffer contains partial results up to its capacity.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// This is a zero-allocation query method for performance-critical code paths.
     /// Use stackalloc or ArrayPool for the buffer.
+    /// </para>
+    /// <para>
+    /// <strong>Performance Note:</strong> Deduplication uses linear scan (O(n) per entity).
+    /// For queries with many overlapping cells/nodes and large result sets (>1000 entities),
+    /// this can approach O(n²) complexity. Typical queries (&lt;100 results) have negligible overhead.
+    /// </para>
     /// </remarks>
     int QueryPoint(Vector3 point, Span<Entity> results);
 
@@ -194,8 +215,15 @@ internal interface ISpatialPartitioner : IDisposable
     /// When -1 is returned, the buffer contains partial results up to its capacity.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// This is a zero-allocation query method for performance-critical code paths.
     /// Use stackalloc or ArrayPool for the buffer.
+    /// </para>
+    /// <para>
+    /// <strong>Performance Note:</strong> Deduplication uses linear scan (O(n) per entity).
+    /// For queries with many overlapping cells/nodes and large result sets (>1000 entities),
+    /// this can approach O(n²) complexity. Typical queries (&lt;100 results) have negligible overhead.
+    /// </para>
     /// </remarks>
     int QueryFrustum(Frustum frustum, Span<Entity> results);
 }
