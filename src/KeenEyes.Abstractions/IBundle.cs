@@ -46,4 +46,14 @@ namespace KeenEyes;
 ///     .Build();
 /// </code>
 /// </example>
-public interface IBundle;
+public interface IBundle
+{
+    /// <summary>
+    /// Gets the component types that comprise this bundle.
+    /// </summary>
+    /// <remarks>
+    /// This static abstract member is implemented by the source generator
+    /// and provides AOT-compatible access to bundle component types without reflection.
+    /// </remarks>
+    static abstract Type[] ComponentTypes { get; }
+}

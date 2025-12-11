@@ -439,18 +439,20 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine($"partial struct {info.Name} : global::KeenEyes.IBundle");
         sb.AppendLine("{");
 
-        // Generate ComponentTypes static field for archetype pre-allocation
-        sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// Gets the component types that comprise this bundle.");
-        sb.AppendLine("    /// Used for archetype pre-allocation optimization.");
-        sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    internal static readonly global::System.Type[] ComponentTypes = new global::System.Type[]");
+        // Generate ComponentTypes static property for IBundle interface implementation
+        sb.AppendLine("    private static readonly global::System.Type[] s_componentTypes = new global::System.Type[]");
         sb.AppendLine("    {");
         foreach (var field in info.Fields)
         {
             sb.AppendLine($"        typeof({field.Type}),");
         }
         sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Gets the component types that comprise this bundle.");
+        sb.AppendLine("    /// Used for archetype pre-allocation optimization.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public static global::System.Type[] ComponentTypes => s_componentTypes;");
         sb.AppendLine();
 
         // Generate constructor
