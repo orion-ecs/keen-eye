@@ -221,6 +221,45 @@ public class ArchetypeTests
     }
 
     [Fact]
+    public void Archetype_Has_WithMultipleComponents_UsesEfficientLookup()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+        world.Components.Register<Health>();
+
+        var id = new ArchetypeId([typeof(Position), typeof(Velocity), typeof(Health)]);
+        // ArchetypeId sorts types by FullName, so we need to match that order
+        var sortedInfos = id.ComponentTypes
+            .Select(t => world.Components.Get(t)!)
+            .ToArray();
+        using var archetype = new Archetype(id, sortedInfos);
+
+        // Test all components are found
+        Assert.True(archetype.Has<Position>());
+        Assert.True(archetype.Has<Velocity>());
+        Assert.True(archetype.Has<Health>());
+
+        // Test non-existent component returns false
+        Assert.False(archetype.Has<EnemyTag>());
+    }
+
+    [Fact]
+    public void Archetype_Has_WithSingleComponent_ReturnsCorrectly()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+
+        var id = new ArchetypeId([typeof(Position)]);
+        var infos = new[] { world.Components.Get<Position>()! };
+        using var archetype = new Archetype(id, infos);
+
+        Assert.True(archetype.Has<Position>());
+        Assert.False(archetype.Has<Velocity>());
+        Assert.False(archetype.Has<Health>());
+    }
+
+    [Fact]
     public void Archetype_GetEntityIndex_ReturnsCorrectIndex()
     {
         using var world = new World();
