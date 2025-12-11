@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\samples\KeenEyes.Sample.Simulation\KeenEyes.Sample.Simulation.csproj" />
   </ItemGroup>
 
 </Project>

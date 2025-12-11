@@ -1,6 +1,56 @@
 namespace KeenEyes.Sample.Simulation;
 
 // =============================================================================
+// COMMAND BUFFER PATTERN
+// =============================================================================
+// CommandBuffer allows deferring entity/component changes until after iteration.
+// This prevents "collection modified during enumeration" errors when adding or
+// removing components during a query loop.
+//
+// Import: using KeenEyes;  (CommandBuffer is in the KeenEyes namespace)
+//
+// WHY IS IT NEEDED?
+// When iterating over query results, modifying entity components can invalidate
+// the iterator, causing crashes or undefined behavior. CommandBuffer queues all
+// changes and applies them in batch after iteration completes.
+//
+// EXAMPLE USAGE:
+//
+//   private readonly CommandBuffer buffer = new();
+//
+//   public override void Update(float deltaTime)
+//   {
+//       // Query entities - safe because we don't modify during iteration
+//       foreach (var entity in World.Query<Health>())
+//       {
+//           ref readonly var health = ref World.Get<Health>(entity);
+//
+//           if (!health.IsAlive)
+//           {
+//               // Queue the change instead of applying immediately
+//               buffer.AddComponent(entity, new Dead());
+//           }
+//       }
+//
+//       // Apply all queued changes at once, after iteration
+//       buffer.Flush(World);
+//   }
+//
+// COMMON OPERATIONS:
+// - buffer.Spawn()                    - Queue entity creation
+// - buffer.Despawn(entity)            - Queue entity destruction
+// - buffer.AddComponent(entity, comp) - Queue component addition
+// - buffer.RemoveComponent<T>(entity) - Queue component removal
+// - buffer.SetComponent(entity, comp) - Queue component update
+// - buffer.Flush(World)               - Apply all queued changes
+//
+// NOTE: Some systems use .ToList() instead of CommandBuffer to materialize
+// the query results before iteration, which also prevents iterator invalidation.
+// CommandBuffer is more memory-efficient for large queries and allows chaining
+// multiple operations together before flushing.
+// =============================================================================
+
+// =============================================================================
 // SYSTEM DEFINITIONS - Self-Running Simulation
 // =============================================================================
 
