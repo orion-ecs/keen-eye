@@ -40,12 +40,29 @@ public class ArchetypePreallocationTests
 
     #endregion
 
+    #region Helper Methods
+
+    /// <summary>
+    /// Helper method to register all test components with a world.
+    /// </summary>
+    private static void RegisterTestComponents(World world)
+    {
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+        world.Components.Register<Rotation>();
+        world.Components.Register<Scale>();
+        world.Components.Register<Health>();
+    }
+
+    #endregion
+
     #region ArchetypeManager PreallocateArchetype Tests
 
     [Fact]
     public void PreallocateArchetype_CreatesArchetype()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var archetypeManager = world.ArchetypeManager;
 
         // Pre-allocate archetype
@@ -61,6 +78,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_IdempotentCreation()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var archetypeManager = world.ArchetypeManager;
 
         // Pre-allocate same archetype twice
@@ -75,6 +93,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_IncludesInArchetypesList()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var archetypeManager = world.ArchetypeManager;
         var initialCount = archetypeManager.ArchetypeCount;
 
@@ -89,6 +108,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_WithSingleComponent_Works()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var archetypeManager = world.ArchetypeManager;
 
         var archetype = archetypeManager.PreallocateArchetype([typeof(Position)]);
@@ -102,6 +122,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_WithMultipleComponents_Works()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var archetypeManager = world.ArchetypeManager;
 
         var archetype = archetypeManager.PreallocateArchetype([
@@ -126,6 +147,7 @@ public class ArchetypePreallocationTests
     public void World_PreallocateArchetype_SingleComponent_Works()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var initialCount = world.ArchetypeManager.ArchetypeCount;
 
         world.PreallocateArchetype<Position>();
@@ -138,6 +160,7 @@ public class ArchetypePreallocationTests
     public void World_PreallocateArchetype_TwoComponents_Works()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var initialCount = world.ArchetypeManager.ArchetypeCount;
 
         world.PreallocateArchetype<Position, Velocity>();
@@ -150,6 +173,7 @@ public class ArchetypePreallocationTests
     public void World_PreallocateArchetype_ThreeComponents_Works()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var initialCount = world.ArchetypeManager.ArchetypeCount;
 
         world.PreallocateArchetype<Position, Velocity, Rotation>();
@@ -162,6 +186,7 @@ public class ArchetypePreallocationTests
     public void World_PreallocateArchetype_FourComponents_Works()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var initialCount = world.ArchetypeManager.ArchetypeCount;
 
         world.PreallocateArchetype<Position, Velocity, Rotation, Scale>();
@@ -174,6 +199,7 @@ public class ArchetypePreallocationTests
     public void World_PreallocateArchetype_IsIdempotent()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var initialCount = world.ArchetypeManager.ArchetypeCount;
 
         world.PreallocateArchetype<Position, Velocity>();
@@ -191,6 +217,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_ReducesArchetypeTransitions_SingleTransition()
     {
         using var world = new World();
+        RegisterTestComponents(world);
 
         // Pre-allocate archetype for Position + Velocity
         world.PreallocateArchetype<Position, Velocity>();
@@ -212,6 +239,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_OptimizesBulkEntityCreation()
     {
         using var world = new World();
+        RegisterTestComponents(world);
 
         // Pre-allocate archetype
         world.PreallocateArchetype<Position, Velocity, Health>();
@@ -246,6 +274,7 @@ public class ArchetypePreallocationTests
     public void WithoutPreallocation_CreatesMultipleArchetypesForBuilder()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var initialCount = world.ArchetypeManager.ArchetypeCount;
 
         // Without pre-allocation, entity builder creates intermediate archetypes
@@ -272,6 +301,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_WorksWithQuerySystem()
     {
         using var world = new World();
+        RegisterTestComponents(world);
 
         // Pre-allocate archetype
         world.PreallocateArchetype<Position, Velocity>();
@@ -298,6 +328,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_WithNoComponents_CreatesEmptyArchetype()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var archetypeManager = world.ArchetypeManager;
 
         var archetype = archetypeManager.PreallocateArchetype([]);
@@ -310,6 +341,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_AfterEntityCreation_StillWorks()
     {
         using var world = new World();
+        RegisterTestComponents(world);
 
         // Create entity first
         var entity1 = world.Spawn()
@@ -337,6 +369,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_DoesNotAffectExistingEntities()
     {
         using var world = new World();
+        RegisterTestComponents(world);
 
         // Create entity
         var entity = world.Spawn()
@@ -360,6 +393,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_MultiplePreallocations_AllStored()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var initialCount = world.ArchetypeManager.ArchetypeCount;
 
         // Pre-allocate multiple different archetypes
@@ -380,6 +414,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_WorksWithAddComponent()
     {
         using var world = new World();
+        RegisterTestComponents(world);
 
         // Pre-allocate target archetype
         world.PreallocateArchetype<Position, Velocity>();
@@ -404,6 +439,7 @@ public class ArchetypePreallocationTests
     public void PreallocateArchetype_WorksWithRemoveComponent()
     {
         using var world = new World();
+        RegisterTestComponents(world);
 
         // Pre-allocate target archetype (just Position)
         world.PreallocateArchetype<Position>();
