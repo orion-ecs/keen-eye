@@ -21,11 +21,11 @@ public sealed class BundleGenerator : IIncrementalGenerator
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Find all structs with [Bundle] attribute
+        // Find all types with [Bundle] attribute (allow both structs and classes for validation)
         var bundleProvider = context.SyntaxProvider
             .ForAttributeWithMetadataName(
                 BundleAttribute,
-                predicate: static (node, _) => node is StructDeclarationSyntax,
+                predicate: static (node, _) => node is StructDeclarationSyntax or ClassDeclarationSyntax,
                 transform: static (ctx, _) => GetBundleInfo(ctx))
             .Where(static info => info is not null);
 
