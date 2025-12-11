@@ -679,10 +679,10 @@ public class PoolingTests
     {
         var pool = new ChunkPool();
         var archetypeId1 = new ArchetypeId([typeof(TestPosition)]);
-        var archetypeId2 = new ArchetypeId([typeof(int)]);
+        var archetypeId2 = new ArchetypeId([typeof(TestVelocity)]);
 
         var chunk1 = pool.Rent(archetypeId1, [typeof(TestPosition)]);
-        var chunk2 = pool.Rent(archetypeId2, [typeof(int)]);
+        var chunk2 = pool.Rent(archetypeId2, [typeof(TestVelocity)]);
         pool.Return(chunk1);
         pool.Return(chunk2);
 
@@ -747,11 +747,11 @@ public class PoolingTests
     {
         var pool = new ChunkPool();
         var archetypeId1 = new ArchetypeId([typeof(TestPosition)]);
-        var archetypeId2 = new ArchetypeId([typeof(int)]);
+        var archetypeId2 = new ArchetypeId([typeof(TestVelocity)]);
 
         var chunk1a = pool.Rent(archetypeId1, [typeof(TestPosition)]);
         var chunk1b = pool.Rent(archetypeId1, [typeof(TestPosition)]);
-        var chunk2 = pool.Rent(archetypeId2, [typeof(int)]);
+        var chunk2 = pool.Rent(archetypeId2, [typeof(TestVelocity)]);
 
         pool.Return(chunk1a);
         pool.Return(chunk1b);
