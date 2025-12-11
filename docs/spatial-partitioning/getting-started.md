@@ -372,8 +372,13 @@ foreach (var entity in spatial.QueryRadius(center, radius))
 }
 ```
 
-## Next Steps
+## See Also
 
-- [Strategy Selection](strategy-selection.md) - Choose the right partitioning strategy
+### Documentation
+- [Strategy Selection](strategy-selection.md) - Choose the right partitioning strategy (Grid vs Quadtree vs Octree)
 - [Performance Tuning](performance-tuning.md) - Optimize configuration for your use case
-- [Samples](../../samples/) - Complete examples of collision detection, rendering culling, and AI
+
+### Sample Projects
+- [Collision Detection Sample](../../samples/KeenEyes.Sample.CollisionDetection) - Broadphase/narrowphase collision detection with performance comparison
+- [Rendering Culling Sample](../../samples/KeenEyes.Sample.RenderingCulling) - 3D frustum culling for efficient rendering
+- [AI Proximity Sample](../../samples/KeenEyes.Sample.AIProximity) - Vision/hearing detection for AI agents

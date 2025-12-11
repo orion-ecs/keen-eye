@@ -12,9 +12,26 @@ Demonstrates broadphase/narrowphase collision detection using spatial partitioni
 
 ## Running the Sample
 
+### Build and Run
+
 ```bash
+# From repository root
 cd samples/KeenEyes.Sample.CollisionDetection
+
+# Restore dependencies (first time only)
+dotnet restore
+
+# Build the sample
+dotnet build
+
+# Run the sample
 dotnet run
+```
+
+Or from the repository root:
+
+```bash
+dotnet run --project samples/KeenEyes.Sample.CollisionDetection
 ```
 
 ## Expected Output
@@ -192,9 +209,16 @@ if (distSq <= radiusSq)
 }
 ```
 
+## Documentation
+
+Learn more about spatial partitioning:
+
+- **[Getting Started](../../docs/spatial-partitioning/getting-started.md)** - Installation, query types, and basic patterns
+- **[Strategy Selection](../../docs/spatial-partitioning/strategy-selection.md)** - Choosing between Grid, Quadtree, and Octree
+- **[Performance Tuning](../../docs/spatial-partitioning/performance-tuning.md)** - Optimization techniques and profiling
+
 ## Next Steps
 
-- See [Performance Tuning Guide](../../docs/spatial-partitioning/performance-tuning.md)
 - Try different strategies: Grid vs Quadtree
 - Experiment with entity counts: 100, 1000, 10000
 - Add physics response to collisions
