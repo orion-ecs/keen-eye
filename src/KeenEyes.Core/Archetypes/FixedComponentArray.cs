@@ -9,7 +9,7 @@ namespace KeenEyes;
 /// </summary>
 /// <typeparam name="T">The component type to store.</typeparam>
 /// <param name="capacity">The fixed capacity.</param>
-public sealed class FixedComponentArray<T>(int capacity) : IComponentArray where T : struct
+public sealed class FixedComponentArray<T>(int capacity) : IComponentArray where T : struct, IComponent
 {
     private readonly T[] data = new T[capacity];
     private int count;
