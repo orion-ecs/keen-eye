@@ -458,6 +458,164 @@ public class BundleGeneratorTests
             t.Contains("Velocity = velocity"));
     }
 
+    [Fact]
+    public void BundleGenerator_GeneratesWithBundleMethod()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Component]
+            public partial struct Rotation
+            {
+                public float Angle;
+            }
+
+            [Bundle]
+            public partial struct TransformBundle
+            {
+                public Position Position;
+                public Rotation Rotation;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify With(TBundle bundle) method exists for generic builder
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("public static TSelf With<TSelf>(this TSelf builder, TestApp.TransformBundle bundle)") &&
+            t.Contains("where TSelf : global::KeenEyes.IEntityBuilder<TSelf>"));
+
+        // Verify With(TBundle bundle) method exists for non-generic interface
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("public static global::KeenEyes.IEntityBuilder With(this global::KeenEyes.IEntityBuilder builder, TestApp.TransformBundle bundle)"));
+    }
+
+    [Fact]
+    public void BundleGenerator_WithBundleMethod_AddsAllComponents()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Component]
+            public partial struct Rotation
+            {
+                public float Angle;
+            }
+
+            [Component]
+            public partial struct Scale
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Bundle]
+            public partial struct TransformBundle
+            {
+                public Position Position;
+                public Rotation Rotation;
+                public Scale Scale;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify the With method adds all components from the bundle
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("builder = builder.With(bundle.Position)") &&
+            t.Contains("builder = builder.With(bundle.Rotation)") &&
+            t.Contains("builder = builder.With(bundle.Scale)"));
+    }
+
+    [Fact]
+    public void BundleGenerator_WithBundleMethod_HasProperXmlDocs()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Bundle]
+            public partial struct SimpleBundle
+            {
+                public Position Position;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify XML documentation is present
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("/// <summary>") &&
+            t.Contains("/// Adds all components from a <see cref=\"TestApp.SimpleBundle\"/> bundle to the entity.") &&
+            t.Contains("/// </summary>") &&
+            t.Contains("/// <param name=\"builder\">The entity builder.</param>") &&
+            t.Contains("/// <param name=\"bundle\">The bundle containing components to add.</param>") &&
+            t.Contains("/// <returns>The builder for method chaining.</returns>"));
+    }
+
+    [Fact]
+    public void BundleGenerator_GeneratesBothWithMethodAndWithNameMethod()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Bundle]
+            public partial struct LocationBundle
+            {
+                public Position Position;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify both methods exist
+        Assert.Contains(generatedTrees, t => t.Contains("With<TSelf>(this TSelf builder, TestApp.LocationBundle bundle)"));
+        Assert.Contains(generatedTrees, t => t.Contains("WithLocationBundle<TSelf>(this TSelf builder, TestApp.Position position)"));
+    }
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
