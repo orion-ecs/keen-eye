@@ -197,7 +197,19 @@ public sealed class BundleGenerator : IIncrementalGenerator
             return false;
         }
 
-        // Check if implements IComponent interface
+        // Check if has [Component] or [TagComponent] attribute (will implement IComponent after generation)
+        const string componentAttr = "KeenEyes.ComponentAttribute";
+        const string tagComponentAttr = "KeenEyes.TagComponentAttribute";
+
+        var hasComponentAttribute = typeSymbol.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() is componentAttr or tagComponentAttr);
+
+        if (hasComponentAttribute)
+        {
+            return true;
+        }
+
+        // Check if implements IComponent interface directly
         var iComponentType = compilation.GetTypeByMetadataName(IComponentInterface);
         if (iComponentType is not null)
         {
@@ -208,9 +220,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             }
         }
 
-        // If IComponent not found in compilation, assume it will be generated
-        // (this handles the case where components use [Component] attribute)
-        return true;
+        return false;
     }
 
     private static string GenerateBundlePartial(BundleInfo info)
