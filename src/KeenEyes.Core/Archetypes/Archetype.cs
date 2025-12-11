@@ -409,12 +409,14 @@ public sealed class Archetype : IDisposable
     private void UpdateLocationsAfterChunkRemoval(int removedChunkIndex)
     {
         // Update all entity locations that were in chunks after the removed one
-        foreach (var entityId in entityLocations.Keys.ToList())
+        // We iterate through the dictionary's entries and only update when necessary
+        // to avoid allocating a list copy
+        foreach (var kvp in entityLocations)
         {
-            var (chunkIdx, indexInChunk) = entityLocations[entityId];
+            var (chunkIdx, indexInChunk) = kvp.Value;
             if (chunkIdx > removedChunkIndex)
             {
-                entityLocations[entityId] = (chunkIdx - 1, indexInChunk);
+                entityLocations[kvp.Key] = (chunkIdx - 1, indexInChunk);
             }
         }
     }
