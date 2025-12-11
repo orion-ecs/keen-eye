@@ -1,3 +1,5 @@
+using KeenEyes;
+
 namespace KeenEyes.Sample.Simulation;
 
 // =============================================================================
