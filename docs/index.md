@@ -71,6 +71,9 @@ foreach (var e in world.Query<Position, Velocity>())
 ### Libraries
 - [Abstractions](abstractions.md) - Lightweight interfaces for plugin development
 - [Spatial](spatial.md) - 3D transform components with System.Numerics
+  - [Getting Started with Spatial Partitioning](spatial-partitioning/getting-started.md) - Grid, Quadtree, and Octree queries
+  - [Strategy Selection Guide](spatial-partitioning/strategy-selection.md) - Choose the right spatial strategy
+  - [Performance Tuning](spatial-partitioning/performance-tuning.md) - Optimize spatial queries
 - [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
 
 ## Architecture Decisions

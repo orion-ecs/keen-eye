@@ -44,3 +44,10 @@
       href: graphics.md
     - name: Spatial
       href: spatial.md
+      items:
+        - name: Getting Started
+          href: spatial-partitioning/getting-started.md
+        - name: Strategy Selection
+          href: spatial-partitioning/strategy-selection.md
+        - name: Performance Tuning
+          href: spatial-partitioning/performance-tuning.md
