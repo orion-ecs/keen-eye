@@ -91,39 +91,6 @@ public sealed class ArchetypeChunk : IDisposable
     }
 
     /// <summary>
-    /// Creates a new chunk for the specified archetype using reflection-based array creation.
-    /// </summary>
-    /// <param name="archetypeId">The archetype identifier.</param>
-    /// <param name="componentTypes">The component types for this archetype.</param>
-    /// <param name="capacity">The maximum entity capacity.</param>
-    /// <remarks>
-    /// <para>
-    /// This constructor uses reflection (MakeGenericType + Activator.CreateInstance) and is
-    /// NOT AOT-compatible. It exists for backward compatibility with test code.
-    /// </para>
-    /// <para>
-    /// Production code should use the <see cref="ArchetypeChunk(ArchetypeId, IEnumerable{ComponentInfo}, int)"/>
-    /// constructor which uses factory delegates for AOT compatibility.
-    /// </para>
-    /// </remarks>
-    internal ArchetypeChunk(ArchetypeId archetypeId, IEnumerable<Type> componentTypes, int capacity = DefaultCapacity)
-    {
-        ArchetypeId = archetypeId;
-        Capacity = capacity;
-        entities = new Entity[capacity];
-        entityIdToIndex = new Dictionary<int, int>(capacity);
-        componentArrays = [];
-
-        foreach (var type in componentTypes)
-        {
-            // Reflection-based creation (not AOT-compatible, for tests only)
-            var arrayType = typeof(FixedComponentArray<>).MakeGenericType(type);
-            var array = (IComponentArray)Activator.CreateInstance(arrayType, capacity)!;
-            componentArrays[type] = array;
-        }
-    }
-
-    /// <summary>
     /// Adds an entity to this chunk.
     /// </summary>
     /// <param name="entity">The entity to add.</param>

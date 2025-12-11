@@ -122,18 +122,14 @@ public static class SnapshotManager
     }
 
     /// <summary>
-    /// Restores a world from a snapshot.
+    /// Restores a world from a snapshot using AOT-compatible deserialization.
     /// </summary>
     /// <param name="world">The world to restore into. Will be cleared before restoration.</param>
     /// <param name="snapshot">The snapshot to restore from.</param>
-    /// <param name="typeResolver">
-    /// A function that resolves type names to CLR types. Required for deserializing
-    /// components and singletons. If null, uses <see cref="Type.GetType(string)"/>.
-    /// </param>
     /// <param name="serializer">
-    /// Optional component serializer for AOT-compatible deserialization. When provided,
-    /// uses the generated serializer instead of reflection. Pass an instance of
-    /// the generated <c>ComponentSerializationRegistry</c> for AOT scenarios.
+    /// Component serializer for AOT-compatible deserialization. Pass an instance of
+    /// the generated <c>ComponentSerializationRegistry</c> which implements this interface
+    /// for components marked with <c>[Component(Serializable = true)]</c>.
     /// </param>
     /// <returns>
     /// A dictionary mapping original entity IDs from the snapshot to newly created entities.
@@ -148,47 +144,26 @@ public static class SnapshotManager
     /// Hierarchy relationships are reconstructed after all entities are created.
     /// </para>
     /// <para>
-    /// For AOT compatibility, provide an <see cref="IComponentSerializer"/> implementation.
     /// The source generator creates <c>ComponentSerializationRegistry</c> which implements
-    /// this interface for components marked with <c>[Component(Serializable = true)]</c>.
-    /// </para>
-    /// <para>
-    /// When no serializer is provided, reflection-based deserialization is used as a fallback.
+    /// <see cref="IComponentSerializer"/> for components marked with <c>[Component(Serializable = true)]</c>.
     /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">
-    /// Thrown when <paramref name="world"/> or <paramref name="snapshot"/> is null.
+    /// Thrown when <paramref name="world"/>, <paramref name="snapshot"/>, or <paramref name="serializer"/> is null.
     /// </exception>
     public static Dictionary<int, Entity> RestoreSnapshot(
         World world,
         WorldSnapshot snapshot,
-        Func<string, Type?>? typeResolver = null,
-        IComponentSerializer? serializer = null)
+        IComponentSerializer serializer)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(serializer);
 
-        // Use serializer's type resolver if available, otherwise fallback
+        // Use serializer's type resolver
         Func<string, Type?> resolveType = typeName =>
         {
-            // Try serializer first (AOT path)
-            if (serializer is not null)
-            {
-                var type = serializer.GetType(typeName);
-                if (type is not null)
-                {
-                    return type;
-                }
-            }
-
-            // Try provided resolver
-            if (typeResolver is not null)
-            {
-                return typeResolver(typeName);
-            }
-
-            // Default fallback
-            return Type.GetType(typeName);
+            return serializer.GetType(typeName);
         };
 
         // Clear the world before restoration
@@ -293,91 +268,65 @@ public static class SnapshotManager
     }
 
     /// <summary>
-    /// Registers a component type, using the serializer's AOT-compatible method if available.
+    /// Registers a component type using the serializer's AOT-compatible method.
     /// </summary>
-    private static ComponentInfo RegisterComponent(World world, Type type, string typeName, bool isTag, IComponentSerializer? serializer)
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the serializer cannot register the component type.
+    /// </exception>
+    private static ComponentInfo RegisterComponent(World world, Type type, string typeName, bool isTag, IComponentSerializer serializer)
     {
-        // Try AOT path first via serializer
-        if (serializer is not null)
+        var info = serializer.RegisterComponent(world, typeName, isTag);
+        if (info is not null)
         {
-            var info = serializer.RegisterComponent(world, typeName, isTag);
+            return info;
+        }
+
+        // Also try with full name
+        if (type.FullName is not null)
+        {
+            info = serializer.RegisterComponent(world, type.FullName, isTag);
             if (info is not null)
             {
                 return info;
             }
-
-            // Also try with full name
-            if (type.FullName is not null)
-            {
-                info = serializer.RegisterComponent(world, type.FullName, isTag);
-                if (info is not null)
-                {
-                    return info;
-                }
-            }
         }
 
-        // Fall back to reflection (not AOT-compatible)
-        return RegisterComponentByReflection(world, type, isTag);
+        throw new InvalidOperationException(
+            $"Component type '{typeName}' is not registered in the serializer. " +
+            $"Ensure all component types are marked with [Component(Serializable = true)].");
     }
 
     /// <summary>
-    /// Sets a singleton value, using the serializer's AOT-compatible method if available.
+    /// Sets a singleton value using the serializer's AOT-compatible method.
     /// </summary>
-    private static void SetSingleton(World world, Type type, string typeName, object value, IComponentSerializer? serializer)
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the serializer cannot set the singleton value.
+    /// </exception>
+    private static void SetSingleton(World world, Type type, string typeName, object value, IComponentSerializer serializer)
     {
-        // Try AOT path first via serializer
-        if (serializer is not null)
+        if (serializer.SetSingleton(world, typeName, value))
         {
-            if (serializer.SetSingleton(world, typeName, value))
-            {
-                return;
-            }
-
-            // Also try with full name
-            if (type.FullName is not null && serializer.SetSingleton(world, type.FullName, value))
-            {
-                return;
-            }
+            return;
         }
 
-        // Fall back to reflection (not AOT-compatible)
-        SetSingletonByReflection(world, type, value);
+        // Also try with full name
+        if (type.FullName is not null && serializer.SetSingleton(world, type.FullName, value))
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            $"Singleton type '{typeName}' is not registered in the serializer. " +
+            $"Ensure all singleton types are marked with [Component(Serializable = true)].");
     }
 
     /// <summary>
-    /// Registers a component using reflection. NOT AOT-compatible.
+    /// Converts component data to the target type using AOT-compatible deserialization.
     /// </summary>
-    /// <remarks>
-    /// This method is a fallback when no serializer is provided. Production code
-    /// targeting AOT should provide an <see cref="IComponentSerializer"/> implementation.
-    /// </remarks>
-    private static ComponentInfo RegisterComponentByReflection(World world, Type type, bool isTag)
-    {
-        // Use reflection to call world.Components.Register<T>(isTag)
-        var registryType = typeof(ComponentRegistry);
-        var method = registryType.GetMethod(nameof(ComponentRegistry.Register), [typeof(bool)])!;
-        var genericMethod = method.MakeGenericMethod(type);
-        return (ComponentInfo)genericMethod.Invoke(world.Components, [isTag])!;
-    }
-
-    /// <summary>
-    /// Sets a singleton using reflection. NOT AOT-compatible.
-    /// </summary>
-    /// <remarks>
-    /// This method is a fallback when no serializer is provided. Production code
-    /// targeting AOT should provide an <see cref="IComponentSerializer"/> implementation.
-    /// </remarks>
-    private static void SetSingletonByReflection(World world, Type type, object value)
-    {
-        // Use reflection to call world.SetSingleton<T>(value)
-        var worldType = typeof(World);
-        var method = worldType.GetMethod(nameof(World.SetSingleton))!;
-        var genericMethod = method.MakeGenericMethod(type);
-        genericMethod.Invoke(world, [value]);
-    }
-
-    private static object? ConvertComponentData(object data, Type targetType, IComponentSerializer? serializer)
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the serializer cannot deserialize the component data.
+    /// </exception>
+    private static object? ConvertComponentData(object data, Type targetType, IComponentSerializer serializer)
     {
         // If the data is already the correct type, return it (direct restore without JSON round-trip)
         if (targetType.IsInstanceOfType(data))
@@ -385,32 +334,29 @@ public static class SnapshotManager
             return data;
         }
 
-        // If the data is a JsonElement (from deserialization), try AOT serializer first
+        // If the data is a JsonElement (from deserialization), use the AOT serializer
         if (data is JsonElement jsonElement)
         {
-            // Try provided serializer (AOT path - no reflection)
-            if (serializer is not null)
+            var typeName = targetType.AssemblyQualifiedName ?? targetType.FullName ?? targetType.Name;
+            var result = serializer.Deserialize(typeName, jsonElement);
+            if (result is not null)
             {
-                var typeName = targetType.AssemblyQualifiedName ?? targetType.FullName ?? targetType.Name;
-                var aotResult = serializer.Deserialize(typeName, jsonElement);
-                if (aotResult is not null)
-                {
-                    return aotResult;
-                }
+                return result;
+            }
 
-                // Also try with full name
-                if (targetType.FullName is not null)
+            // Also try with full name
+            if (targetType.FullName is not null)
+            {
+                result = serializer.Deserialize(targetType.FullName, jsonElement);
+                if (result is not null)
                 {
-                    aotResult = serializer.Deserialize(targetType.FullName, jsonElement);
-                    if (aotResult is not null)
-                    {
-                        return aotResult;
-                    }
+                    return result;
                 }
             }
 
-            // Fall back to reflection-based deserialization
-            return JsonSerializer.Deserialize(jsonElement.GetRawText(), targetType, defaultJsonOptions);
+            throw new InvalidOperationException(
+                $"Cannot deserialize component type '{typeName}'. " +
+                $"Ensure the type is marked with [Component(Serializable = true)].");
         }
 
         // Data is neither the target type nor JsonElement

@@ -107,38 +107,6 @@ public sealed class ChunkPool(int maxChunksPerArchetype = 64)
     }
 
     /// <summary>
-    /// Rents a chunk for the specified archetype using reflection-based array creation.
-    /// </summary>
-    /// <param name="archetypeId">The archetype identifier.</param>
-    /// <param name="componentTypes">The component types (used if creating new chunk).</param>
-    /// <param name="capacity">The chunk capacity.</param>
-    /// <returns>A chunk, either from the pool or newly created.</returns>
-    /// <remarks>
-    /// <para>
-    /// This overload uses reflection (MakeGenericType + Activator.CreateInstance) and is
-    /// NOT AOT-compatible. It exists for backward compatibility with test code.
-    /// </para>
-    /// <para>
-    /// Production code should use the <see cref="Rent(ArchetypeId, IEnumerable{ComponentInfo}, int)"/>
-    /// overload which uses factory delegates for AOT compatibility.
-    /// </para>
-    /// </remarks>
-    public ArchetypeChunk Rent(ArchetypeId archetypeId, IEnumerable<Type> componentTypes, int capacity = ArchetypeChunk.DefaultCapacity)
-    {
-        Interlocked.Increment(ref totalRented);
-
-        if (pools.TryGetValue(archetypeId, out var stack) && stack.TryPop(out var chunk))
-        {
-            // Got a pooled chunk - it's already reset
-            return chunk;
-        }
-
-        // Need to create a new chunk using reflection
-        Interlocked.Increment(ref totalCreated);
-        return new ArchetypeChunk(archetypeId, componentTypes, capacity);
-    }
-
-    /// <summary>
     /// Returns a chunk to the pool for reuse.
     /// </summary>
     /// <param name="chunk">The chunk to return.</param>

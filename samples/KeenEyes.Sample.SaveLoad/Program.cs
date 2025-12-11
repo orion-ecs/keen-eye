@@ -1,4 +1,5 @@
 using KeenEyes;
+using KeenEyes.Generated;
 using KeenEyes.Sample.SaveLoad;
 using KeenEyes.Serialization;
 
@@ -159,7 +160,7 @@ Console.WriteLine($"Loaded snapshot from: {loadedSnapshot.Timestamp}");
 Console.WriteLine($"Save name: {loadedSnapshot.Metadata?["SaveName"]}");
 
 // Restore to world (this clears existing state)
-var entityMap = SnapshotManager.RestoreSnapshot(world, loadedSnapshot);
+var entityMap = SnapshotManager.RestoreSnapshot(world, loadedSnapshot, ComponentSerializer.Instance);
 
 Console.WriteLine($"\nRestored {entityMap.Count} entities");
 Console.WriteLine("Entity ID mapping (old -> new):");
@@ -203,7 +204,7 @@ bool Undo()
     }
 
     redoStack.Push(SnapshotManager.CreateSnapshot(world));
-    SnapshotManager.RestoreSnapshot(world, undoStack.Pop());
+    SnapshotManager.RestoreSnapshot(world, undoStack.Pop(), ComponentSerializer.Instance);
     return true;
 }
 
@@ -215,7 +216,7 @@ bool Redo()
     }
 
     undoStack.Push(SnapshotManager.CreateSnapshot(world));
-    SnapshotManager.RestoreSnapshot(world, redoStack.Pop());
+    SnapshotManager.RestoreSnapshot(world, redoStack.Pop(), ComponentSerializer.Instance);
     return true;
 }
 
@@ -288,7 +289,7 @@ void LoadFromSlot(int slot)
     var snap = SnapshotManager.FromJson(slotJson);
     if (snap != null)
     {
-        SnapshotManager.RestoreSnapshot(world, snap);
+        SnapshotManager.RestoreSnapshot(world, snap, ComponentSerializer.Instance);
         Console.WriteLine($"Loaded from slot {slot}: '{snap.Metadata?["SaveName"]}'");
     }
 }

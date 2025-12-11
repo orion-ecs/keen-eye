@@ -146,6 +146,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    private static readonly Dictionary<Type, Func<object, JsonElement>> Serializers;");
         sb.AppendLine("    private static readonly Dictionary<string, Type> TypesByName;");
         sb.AppendLine("    private static readonly HashSet<Type> SerializableTypes;");
+        sb.AppendLine("    private static readonly Dictionary<string, Func<World, bool, ComponentInfo>> Registrars;");
+        sb.AppendLine("    private static readonly Dictionary<string, Action<World, object>> SingletonSetters;");
         sb.AppendLine();
 
         // Static constructor to initialize dictionaries
@@ -192,6 +194,28 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine("        };");
+        sb.AppendLine();
+        sb.AppendLine("        Registrars = new Dictionary<string, Func<World, bool, ComponentInfo>>");
+        sb.AppendLine("        {");
+
+        foreach (var component in components)
+        {
+            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = (world, isTag) => world.Components.Register<{component.FullName}>(isTag),");
+            sb.AppendLine($"            [\"{component.FullName}\"] = (world, isTag) => world.Components.Register<{component.FullName}>(isTag),");
+        }
+
+        sb.AppendLine("        };");
+        sb.AppendLine();
+        sb.AppendLine("        SingletonSetters = new Dictionary<string, Action<World, object>>");
+        sb.AppendLine("        {");
+
+        foreach (var component in components)
+        {
+            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = (world, value) => world.SetSingleton(({component.FullName})value),");
+            sb.AppendLine($"            [\"{component.FullName}\"] = (world, value) => world.SetSingleton(({component.FullName})value),");
+        }
+
+        sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine();
 
@@ -224,6 +248,23 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    Type? IComponentSerializer.GetType(string typeName)");
         sb.AppendLine("    {");
         sb.AppendLine("        return TypesByName.TryGetValue(typeName, out var type) ? type : null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return Registrars.TryGetValue(typeName, out var registrar) ? registrar(world, isTag) : null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool SetSingleton(World world, string typeName, object value)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (SingletonSetters.TryGetValue(typeName, out var setter))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            setter(world, value);");
+        sb.AppendLine("            return true;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        return false;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");

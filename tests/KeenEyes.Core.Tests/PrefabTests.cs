@@ -36,6 +36,21 @@ public class PrefabTests
 
     public struct BossTag : ITagComponent;
 
+    /// <summary>
+    /// Registers all test component types with the world.
+    /// Required for AOT-compatible prefab spawning.
+    /// </summary>
+    private static void RegisterTestComponents(World world)
+    {
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+        world.Components.Register<Health>();
+        world.Components.Register<Damage>();
+        world.Components.Register<EnemyTag>(isTag: true);
+        world.Components.Register<PlayerTag>(isTag: true);
+        world.Components.Register<BossTag>(isTag: true);
+    }
+
     #endregion
 
     #region RegisterPrefab Tests
@@ -142,6 +157,7 @@ public class PrefabTests
     public void UnregisterPrefab_DoesNotAffectExistingEntities()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Health { Current = 100, Max = 100 });
         world.RegisterPrefab("Enemy", prefab);
@@ -192,6 +208,7 @@ public class PrefabTests
     public void SpawnFromPrefab_CreatesEntityWithComponents()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 10, Y = 20 })
             .With(new Health { Current = 100, Max = 100 });
@@ -211,6 +228,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithTagComponent_CreatesEntityWithTag()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 })
             .WithTag<EnemyTag>();
@@ -242,6 +260,7 @@ public class PrefabTests
     public void SpawnFromPrefab_CreatesDistinctEntities()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 });
         world.RegisterPrefab("Test", prefab);
@@ -257,6 +276,7 @@ public class PrefabTests
     public void SpawnFromPrefab_AllowsModifyingBuilderBeforeBuild()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 });
         world.RegisterPrefab("Test", prefab);
@@ -278,6 +298,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithEntityName_CreatesNamedEntity()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 });
         world.RegisterPrefab("Player", prefab);
@@ -309,6 +330,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithOverride_UsesOverriddenValues()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 })
             .With(new Health { Current = 100, Max = 100 });
@@ -327,6 +349,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithTagOverride_KeepsTag()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .WithTag<EnemyTag>();
         world.RegisterPrefab("Enemy", prefab);
@@ -347,6 +370,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithInheritance_InheritsBaseComponents()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var basePrefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 })
             .With(new Health { Current = 100, Max = 100 });
@@ -370,6 +394,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithInheritance_DerivedOverridesBase()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var basePrefab = new EntityPrefab()
             .With(new Health { Current = 100, Max = 100 });
         var derivedPrefab = new EntityPrefab()
@@ -389,6 +414,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithMultiLevelInheritance_ResolvesCorrectly()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var level0 = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 });
         var level1 = new EntityPrefab()
@@ -413,6 +439,7 @@ public class PrefabTests
     public void SpawnFromPrefab_WithInheritedTags_InheritsTags()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var basePrefab = new EntityPrefab()
             .WithTag<EnemyTag>();
         var derivedPrefab = new EntityPrefab()
@@ -482,6 +509,7 @@ public class PrefabTests
     public void EntityPrefab_With_ReplacesExistingComponent()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 10, Y = 10 })
             .With(new Position { X = 20, Y = 30 });
@@ -505,6 +533,7 @@ public class PrefabTests
     public void EntityPrefab_FluentChaining_Works()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 1, Y = 2 })
             .With(new Velocity { X = 3, Y = 4 })
@@ -524,6 +553,7 @@ public class PrefabTests
     public void EntityPrefab_WithTag_CalledTwiceWithSameType_DoesNotDuplicate()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .WithTag<EnemyTag>()
             .WithTag<EnemyTag>(); // Call again - should not add duplicate
@@ -543,6 +573,7 @@ public class PrefabTests
     public void SpawnFromPrefab_EntitiesAppearInQueries()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var prefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 })
             .With(new Velocity { X = 1, Y = 1 })
@@ -567,6 +598,7 @@ public class PrefabTests
     public void World_SupportsMultipleDifferentPrefabs()
     {
         using var world = new World();
+        RegisterTestComponents(world);
         var enemyPrefab = new EntityPrefab()
             .With(new Position { X = 0, Y = 0 })
             .With(new Health { Current = 50, Max = 50 })

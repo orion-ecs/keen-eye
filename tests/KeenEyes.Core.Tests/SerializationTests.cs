@@ -42,6 +42,9 @@ public struct SerializableConfig
 /// </summary>
 public class SerializationTests
 {
+    // Serializer for all restoration tests - supports all test component types
+    private readonly IComponentSerializer testSerializer = TestSerializerFactory.CreateForSerializationTests();
+
     #region CreateSnapshot Tests
 
     [Fact]
@@ -301,7 +304,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         Assert.Equal(2, entityMap.Count);
         Assert.Equal(2, world2.GetAllEntities().Count());
@@ -321,7 +324,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        _ = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        _ = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         var restoredEntity = world2.GetEntityByName("Player");
         Assert.True(restoredEntity.IsValid);
@@ -352,7 +355,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         var restoredParent = world2.GetEntityByName("Parent");
         var restoredChild = world2.GetEntityByName("Child");
@@ -375,7 +378,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         Assert.True(world2.HasSingleton<SerializableGameTime>());
         ref var time = ref world2.GetSingleton<SerializableGameTime>();
@@ -402,7 +405,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         // Restore should clear the existing entities
-        SnapshotManager.RestoreSnapshot(world, loadedSnapshot!);
+        SnapshotManager.RestoreSnapshot(world, loadedSnapshot!, testSerializer);
 
         var allEntities = world.GetAllEntities().ToList();
         Assert.Single(allEntities);
@@ -430,7 +433,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         Assert.Single(entityMap);
         Assert.True(entityMap.TryGetValue(original.Id, out var restoredEntity));
@@ -602,7 +605,7 @@ public class SerializationTests
         using var world = new World();
         var snapshot = SnapshotManager.CreateSnapshot(world);
 
-        Assert.Throws<ArgumentNullException>(() => SnapshotManager.RestoreSnapshot(null!, snapshot));
+        Assert.Throws<ArgumentNullException>(() => SnapshotManager.RestoreSnapshot(null!, snapshot, testSerializer));
     }
 
     [Fact]
@@ -610,7 +613,16 @@ public class SerializationTests
     {
         using var world = new World();
 
-        Assert.Throws<ArgumentNullException>(() => SnapshotManager.RestoreSnapshot(world, null!));
+        Assert.Throws<ArgumentNullException>(() => SnapshotManager.RestoreSnapshot(world, null!, testSerializer));
+    }
+
+    [Fact]
+    public void RestoreSnapshot_ThrowsOnNullSerializer()
+    {
+        using var world = new World();
+        var snapshot = SnapshotManager.CreateSnapshot(world);
+
+        Assert.Throws<ArgumentNullException>(() => SnapshotManager.RestoreSnapshot(world, snapshot, null!));
     }
 
     [Fact]
@@ -649,7 +661,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         var restoredGrandparent = world2.GetEntityByName("Grandparent");
         var restoredParent = world2.GetEntityByName("Parent");
@@ -688,7 +700,7 @@ public class SerializationTests
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
         using var world2 = new World();
-        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!);
+        SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         var restoredParent = world2.GetEntityByName("Parent");
         var restoredChildren = world2.GetChildren(restoredParent).ToList();
@@ -730,7 +742,7 @@ public class SerializationTests
     }
 
     [Fact]
-    public void RestoreSnapshot_WithCustomTypeResolver_UsesResolver()
+    public void RestoreSnapshot_WithSerializer_UsesSerializerTypeResolution()
     {
         using var world1 = new World();
         world1.Spawn("Test")
@@ -743,17 +755,8 @@ public class SerializationTests
 
         using var world2 = new World();
 
-        // Custom type resolver that maps type names
-        static Type? CustomResolver(string typeName)
-        {
-            if (typeName.Contains("SerializablePosition"))
-            {
-                return typeof(SerializablePosition);
-            }
-            return Type.GetType(typeName);
-        }
-
-        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, CustomResolver);
+        // Use serializer for type resolution
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
 
         Assert.Single(entityMap);
         var entity = world2.GetEntityByName("Test");
@@ -789,8 +792,8 @@ public class SerializationTests
 
         using var world = new World();
 
-        // Should not throw - just skip the unknown component
-        var entityMap = SnapshotManager.RestoreSnapshot(world, fakeSnapshot);
+        // Should not throw - just skip the unknown component (serializer won't resolve it)
+        var entityMap = SnapshotManager.RestoreSnapshot(world, fakeSnapshot, testSerializer);
 
         Assert.Single(entityMap);
         var entity = world.GetEntityByName("TestEntity");
@@ -816,8 +819,8 @@ public class SerializationTests
 
         using var world = new World();
 
-        // Should not throw - just skip the unknown singleton
-        var entityMap = SnapshotManager.RestoreSnapshot(world, fakeSnapshot);
+        // Should not throw - just skip the unknown singleton (serializer won't resolve it)
+        var entityMap = SnapshotManager.RestoreSnapshot(world, fakeSnapshot, testSerializer);
 
         Assert.Empty(entityMap);
         // World should not have any singletons
@@ -1026,7 +1029,7 @@ public class SerializationTests
 
         // Restore directly without JSON round-trip - data is already correct type
         using var world2 = new World();
-        var entityMap = SnapshotManager.RestoreSnapshot(world2, snapshot);
+        var entityMap = SnapshotManager.RestoreSnapshot(world2, snapshot, testSerializer);
 
         Assert.Single(entityMap);
         var entity = world2.GetEntityByName("Direct");
@@ -1067,7 +1070,7 @@ public class SerializationTests
         using var world = new World();
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            SnapshotManager.RestoreSnapshot(world, invalidSnapshot));
+            SnapshotManager.RestoreSnapshot(world, invalidSnapshot, testSerializer));
 
         Assert.Contains("Cannot convert data", ex.Message);
     }
@@ -1110,19 +1113,27 @@ internal sealed class MockComponentSerializer : IComponentSerializer
 }
 
 /// <summary>
-/// AOT serializer that returns valid types but doesn't deserialize.
-/// Used to test the type resolution AOT path.
+/// AOT serializer for testing the type resolution and deserialization path.
 /// </summary>
 internal sealed class WorkingAotSerializer : IComponentSerializer
 {
     public bool GetTypeCalled { get; private set; }
+    public bool DeserializeCalled { get; private set; }
 
     public bool IsSerializable(Type type) => type == typeof(SerializablePosition);
     public bool IsSerializable(string typeName) => typeName.Contains("SerializablePosition");
 
     public object? Deserialize(string typeName, System.Text.Json.JsonElement json)
     {
-        return null; // Fall back to reflection for actual deserialization
+        DeserializeCalled = true;
+        if (typeName.Contains("SerializablePosition"))
+        {
+            // Use case-insensitive property access since snapshot uses camelCase
+            var x = json.TryGetProperty("x", out var xProp) ? xProp.GetSingle() : 0f;
+            var y = json.TryGetProperty("y", out var yProp) ? yProp.GetSingle() : 0f;
+            return new SerializablePosition { X = x, Y = y };
+        }
+        return null;
     }
 
     public System.Text.Json.JsonElement? Serialize(Type type, object value) => null;
@@ -1137,7 +1148,15 @@ internal sealed class WorkingAotSerializer : IComponentSerializer
         return null;
     }
 
-    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag) => null;
+    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)
+    {
+        if (typeName.Contains("SerializablePosition"))
+        {
+            return world.Components.Register<SerializablePosition>(isTag);
+        }
+        return null;
+    }
+
     public bool SetSingleton(World world, string typeName, object value) => false;
 }
 
@@ -1177,6 +1196,14 @@ internal sealed class DeserializingAotSerializer : IComponentSerializer
         return null;
     }
 
-    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag) => null;
+    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)
+    {
+        if (typeName.Contains("SerializablePosition"))
+        {
+            return world.Components.Register<SerializablePosition>(isTag);
+        }
+        return null;
+    }
+
     public bool SetSingleton(World world, string typeName, object value) => false;
 }

@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace KeenEyes;
@@ -183,38 +182,22 @@ internal sealed class ComponentValidationManager(World world)
     }
 
     /// <summary>
-    /// Creates validation info by reading attributes from the component type.
-    /// First tries generated metadata, then falls back to reflection.
+    /// Creates validation info from the registered constraint provider.
     /// </summary>
+    /// <remarks>
+    /// Returns empty constraints if no constraint provider has been registered.
+    /// To enable validation, call <see cref="RegisterConstraintProvider"/> early
+    /// in application startup with the generated <c>ComponentValidationMetadata.TryGetConstraints</c>.
+    /// </remarks>
     private static ComponentValidationInfo CreateValidationInfo(Type componentType)
     {
-        // Try to use generated metadata first (faster, no reflection)
-        if (TryGetGeneratedConstraints(componentType, out var generatedRequired, out var generatedConflicts))
+        if (TryGetGeneratedConstraints(componentType, out var required, out var conflicts))
         {
-            return new ComponentValidationInfo(generatedRequired, generatedConflicts);
+            return new ComponentValidationInfo(required, conflicts);
         }
 
-        // Fall back to reflection for non-generated components
-        var requires = new List<Type>();
-        var conflicts = new List<Type>();
-
-        // Read RequiresComponentAttribute instances
-        var requiresAttrs = componentType.GetCustomAttributes<RequiresComponentAttribute>();
-        foreach (var attr in requiresAttrs)
-        {
-            requires.Add(attr.RequiredType);
-        }
-
-        // Read ConflictsWithAttribute instances
-        var conflictsAttrs = componentType.GetCustomAttributes<ConflictsWithAttribute>();
-        foreach (var attr in conflictsAttrs)
-        {
-            conflicts.Add(attr.ConflictingType);
-        }
-
-        return new ComponentValidationInfo(
-            requires.Count > 0 ? [.. requires] : [],
-            conflicts.Count > 0 ? [.. conflicts] : []);
+        // No constraints registered for this component type
+        return new ComponentValidationInfo([], []);
     }
 
     /// <summary>
@@ -350,14 +333,6 @@ internal sealed class ComponentValidationManager(World world)
     private static TryGetConstraintsDelegate? registeredConstraintProvider;
 
     /// <summary>
-    /// Cached reference to the generated ComponentValidationMetadata type (fallback).
-    /// Null if the type doesn't exist (no generated code available).
-    /// </summary>
-    private static Type? generatedMetadataType;
-    private static MethodInfo? tryGetConstraintsMethod;
-    private static bool generatedMetadataChecked;
-
-    /// <summary>
     /// Registers a constraint provider for AOT-compatible validation metadata lookup.
     /// </summary>
     /// <param name="provider">The delegate that provides validation constraints for component types.</param>
@@ -382,85 +357,28 @@ internal sealed class ComponentValidationManager(World world)
     }
 
     /// <summary>
-    /// Attempts to get validation constraints from generated metadata.
+    /// Attempts to get validation constraints from the registered constraint provider.
     /// </summary>
     /// <param name="componentType">The component type to look up.</param>
     /// <param name="required">Output array of required component types.</param>
     /// <param name="conflicts">Output array of conflicting component types.</param>
-    /// <returns><c>true</c> if generated metadata was found; <c>false</c> otherwise.</returns>
+    /// <returns><c>true</c> if constraints were found; <c>false</c> otherwise.</returns>
     /// <remarks>
-    /// <para>
-    /// First tries the registered constraint provider (AOT-compatible path).
-    /// Falls back to reflection-based assembly scanning if no provider is registered.
-    /// </para>
-    /// <para>
-    /// For AOT scenarios, call <see cref="RegisterConstraintProvider"/> early in application startup.
-    /// </para>
+    /// Returns <c>false</c> if no constraint provider has been registered via
+    /// <see cref="RegisterConstraintProvider"/>. Call that method early in application
+    /// startup to enable validation constraint lookup.
     /// </remarks>
     private static bool TryGetGeneratedConstraints(Type componentType, out Type[] required, out Type[] conflicts)
     {
-        // Try registered provider first (AOT-compatible path)
+        required = [];
+        conflicts = [];
+
         if (registeredConstraintProvider is not null)
         {
             return registeredConstraintProvider(componentType, out required, out conflicts);
         }
 
-        // Fall back to reflection-based lookup (not AOT-compatible)
-        return TryGetGeneratedConstraintsByReflection(componentType, out required, out conflicts);
-    }
-
-    /// <summary>
-    /// Attempts to get validation constraints using reflection-based assembly scanning.
-    /// NOT AOT-compatible.
-    /// </summary>
-    private static bool TryGetGeneratedConstraintsByReflection(Type componentType, out Type[] required, out Type[] conflicts)
-    {
-        required = [];
-        conflicts = [];
-
-        // Check for generated metadata type on first call
-        if (!generatedMetadataChecked)
-        {
-            generatedMetadataChecked = true;
-
-            // Look for the generated type in all loaded assemblies
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
-            {
-                try
-                {
-                    generatedMetadataType = assembly.GetType("KeenEyes.ComponentValidationMetadata");
-                    if (generatedMetadataType != null)
-                    {
-                        tryGetConstraintsMethod = generatedMetadataType.GetMethod(
-                            "TryGetConstraints",
-                            BindingFlags.Public | BindingFlags.Static,
-                            [typeof(Type), typeof(Type[]).MakeByRefType(), typeof(Type[]).MakeByRefType()]);
-                        break;
-                    }
-                }
-                catch
-                {
-                    // Ignore assemblies that can't be inspected
-                }
-            }
-        }
-
-        if (tryGetConstraintsMethod == null)
-        {
-            return false;
-        }
-
-        // Invoke TryGetConstraints(componentType, out required, out conflicts)
-        var parameters = new object?[] { componentType, null, null };
-        var result = (bool)tryGetConstraintsMethod.Invoke(null, parameters)!;
-
-        if (result)
-        {
-            required = (Type[])parameters[1]!;
-            conflicts = (Type[])parameters[2]!;
-        }
-
-        return result;
+        return false;
     }
 }
 

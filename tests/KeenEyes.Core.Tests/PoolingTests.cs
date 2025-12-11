@@ -699,6 +699,10 @@ public class PoolingTests
         public TestVelocity() { }
     }
 
+    // AOT-compatible ComponentInfo instances for testing chunk/pool operations
+    private static readonly ComponentInfo testPositionInfo = TestComponentInfo.Create<TestPosition>();
+    private static readonly ComponentInfo testVelocityInfo = TestComponentInfo.Create<TestVelocity>();
+
     [Fact]
     public void World_EntityRecycling_WorksCorrectly()
     {
@@ -904,7 +908,7 @@ public class PoolingTests
         var pool = new ChunkPool();
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
 
-        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk = pool.Rent(archetypeId, [testPositionInfo]);
 
         Assert.NotNull(chunk);
         Assert.Equal(archetypeId, chunk.ArchetypeId);
@@ -917,7 +921,7 @@ public class PoolingTests
     {
         var pool = new ChunkPool();
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk = pool.Rent(archetypeId, [testPositionInfo]);
 
         var returned = pool.Return(chunk);
 
@@ -931,10 +935,10 @@ public class PoolingTests
     {
         var pool = new ChunkPool();
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk1 = pool.Rent(archetypeId, [testPositionInfo]);
         pool.Return(chunk1);
 
-        var chunk2 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk2 = pool.Rent(archetypeId, [testPositionInfo]);
 
         Assert.Same(chunk1, chunk2);
         Assert.Equal(2, pool.TotalRented);
@@ -946,7 +950,7 @@ public class PoolingTests
     {
         var pool = new ChunkPool();
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk = pool.Rent(archetypeId, [testPositionInfo]);
 
         // Add an entity to make chunk non-empty
         chunk.AddEntity(new Entity(1, 1));
@@ -965,8 +969,8 @@ public class PoolingTests
         var pool = new ChunkPool(maxChunksPerArchetype: 1);
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
 
-        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]);
-        var chunk2 = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk1 = pool.Rent(archetypeId, [testPositionInfo]);
+        var chunk2 = pool.Rent(archetypeId, [testPositionInfo]);
 
         pool.Return(chunk1); // First return succeeds
         var returned = pool.Return(chunk2); // Second should be discarded
@@ -982,9 +986,9 @@ public class PoolingTests
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
 
         // Rent and return to create reuse scenario
-        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]); // created = 1, rented = 1
+        var chunk1 = pool.Rent(archetypeId, [testPositionInfo]); // created = 1, rented = 1
         pool.Return(chunk1);
-        pool.Rent(archetypeId, [typeof(TestPosition)]); // rented = 2, created still = 1
+        pool.Rent(archetypeId, [testPositionInfo]); // rented = 2, created still = 1
 
         // ReuseRate = 1 - (created / rented) = 1 - (1/2) = 0.5
         Assert.Equal(0.5, pool.ReuseRate);
@@ -1004,7 +1008,7 @@ public class PoolingTests
         var pool = new ChunkPool();
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
 
-        var chunk = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk = pool.Rent(archetypeId, [testPositionInfo]);
         pool.Return(chunk);
 
         Assert.Equal(1, pool.PooledCount);
@@ -1033,8 +1037,8 @@ public class PoolingTests
         var archetypeId1 = new ArchetypeId([typeof(TestPosition)]);
         var archetypeId2 = new ArchetypeId([typeof(TestVelocity)]);
 
-        var chunk1 = pool.Rent(archetypeId1, [typeof(TestPosition)]);
-        var chunk2 = pool.Rent(archetypeId2, [typeof(TestVelocity)]);
+        var chunk1 = pool.Rent(archetypeId1, [testPositionInfo]);
+        var chunk2 = pool.Rent(archetypeId2, [testVelocityInfo]);
         pool.Return(chunk1);
         pool.Return(chunk2);
 
@@ -1051,8 +1055,8 @@ public class PoolingTests
         var pool = new ChunkPool();
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
 
-        var chunk1 = pool.Rent(archetypeId, [typeof(TestPosition)]);
-        _ = pool.Rent(archetypeId, [typeof(TestPosition)]);
+        var chunk1 = pool.Rent(archetypeId, [testPositionInfo]);
+        _ = pool.Rent(archetypeId, [testPositionInfo]);
         pool.Return(chunk1);
 
         var stats = pool.GetStats();
@@ -1101,9 +1105,9 @@ public class PoolingTests
         var archetypeId1 = new ArchetypeId([typeof(TestPosition)]);
         var archetypeId2 = new ArchetypeId([typeof(TestVelocity)]);
 
-        var chunk1a = pool.Rent(archetypeId1, [typeof(TestPosition)]);
-        var chunk1b = pool.Rent(archetypeId1, [typeof(TestPosition)]);
-        var chunk2 = pool.Rent(archetypeId2, [typeof(TestVelocity)]);
+        var chunk1a = pool.Rent(archetypeId1, [testPositionInfo]);
+        var chunk1b = pool.Rent(archetypeId1, [testPositionInfo]);
+        var chunk2 = pool.Rent(archetypeId2, [testVelocityInfo]);
 
         pool.Return(chunk1a);
         pool.Return(chunk1b);
@@ -1349,7 +1353,7 @@ public class PoolingTests
     public void ArchetypeChunk_AddEntity_StoresEntity()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
 
         var index = chunk.AddEntity(new Entity(1, 1));
 
@@ -1362,7 +1366,7 @@ public class PoolingTests
     public void ArchetypeChunk_AddComponent_StoresComponent()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
 
         chunk.AddComponent(new TestPosition { X = 42, Y = 99 });
@@ -1375,7 +1379,7 @@ public class PoolingTests
     public void ArchetypeChunk_RemoveEntity_RemovesCorrectly()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         var entity = new Entity(1, 1);
         chunk.AddEntity(entity);
         chunk.AddComponent(new TestPosition { X = 1 });
@@ -1391,7 +1395,7 @@ public class PoolingTests
     public void ArchetypeChunk_RemoveEntity_SwapsBack()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
 
         var entity1 = new Entity(1, 1);
         var entity2 = new Entity(2, 1);
@@ -1415,7 +1419,7 @@ public class PoolingTests
     public void ArchetypeChunk_IsFull_ReturnsCorrectValue()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)], capacity: 2);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo], capacity: 2);
 
         Assert.False(chunk.IsFull);
 
@@ -1432,7 +1436,7 @@ public class PoolingTests
     public void ArchetypeChunk_FreeSpace_ReturnsCorrectValue()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)], capacity: 5);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo], capacity: 5);
 
         Assert.Equal(5, chunk.FreeSpace);
 
@@ -1446,7 +1450,7 @@ public class PoolingTests
     public void ArchetypeChunk_Contains_ReturnsCorrectValue()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         var entity = new Entity(1, 1);
         chunk.AddEntity(entity);
         chunk.AddComponent(new TestPosition());
@@ -1459,7 +1463,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetEntityIndex_ReturnsCorrectIndex()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         var entity = new Entity(1, 1);
         chunk.AddEntity(entity);
         chunk.AddComponent(new TestPosition());
@@ -1472,7 +1476,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetEntity_ReturnsCorrectEntity()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         var entity = new Entity(1, 1);
         chunk.AddEntity(entity);
         chunk.AddComponent(new TestPosition());
@@ -1484,7 +1488,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetEntities_ReturnsAllEntities()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
 
         var entity1 = new Entity(1, 1);
         var entity2 = new Entity(2, 1);
@@ -1504,7 +1508,7 @@ public class PoolingTests
     public void ArchetypeChunk_Has_ReturnsCorrectValue()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
 
         Assert.True(chunk.Has<TestPosition>());
         Assert.True(chunk.Has(typeof(TestPosition)));
@@ -1516,7 +1520,7 @@ public class PoolingTests
     public void ArchetypeChunk_Set_UpdatesComponent()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition { X = 1 });
 
@@ -1529,7 +1533,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetReadonly_ReturnsValue()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition { X = 42 });
 
@@ -1542,7 +1546,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetSpan_ReturnsValidSpan()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition { X = 1 });
         chunk.AddEntity(new Entity(2, 1));
@@ -1559,7 +1563,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetReadOnlySpan_ReturnsValidSpan()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition { X = 1 });
 
@@ -1573,7 +1577,7 @@ public class PoolingTests
     public void ArchetypeChunk_AddEntity_WhenFull_Throws()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)], capacity: 1);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo], capacity: 1);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition());
 
@@ -1584,7 +1588,7 @@ public class PoolingTests
     public void ArchetypeChunk_RemoveEntity_NotInChunk_ReturnsNull()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
 
         var result = chunk.RemoveEntity(new Entity(999, 1));
 
@@ -1595,7 +1599,7 @@ public class PoolingTests
     public void ArchetypeChunk_Reset_ClearsAllData()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition { X = 42 });
 
@@ -1609,7 +1613,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetBoxed_ReturnsValue()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition { X = 42 });
 
@@ -1623,7 +1627,7 @@ public class PoolingTests
     public void ArchetypeChunk_GetBoxed_TypeNotInChunk_Throws()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition());
 
@@ -1634,7 +1638,7 @@ public class PoolingTests
     public void ArchetypeChunk_SetBoxed_UpdatesValue()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition { X = 1 });
 
@@ -1647,7 +1651,7 @@ public class PoolingTests
     public void ArchetypeChunk_AddComponentBoxed_AddsComponent()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
 
         chunk.AddComponentBoxed(typeof(TestPosition), new TestPosition { X = 42 });
@@ -1659,8 +1663,8 @@ public class PoolingTests
     public void ArchetypeChunk_CopyComponentsTo_CopiesSharedComponents()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var source = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
-        var dest = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var source = new ArchetypeChunk(archetypeId, [testPositionInfo]);
+        var dest = new ArchetypeChunk(archetypeId, [testPositionInfo]);
 
         source.AddEntity(new Entity(1, 1));
         source.AddComponent(new TestPosition { X = 42 });
@@ -1675,7 +1679,7 @@ public class PoolingTests
     public void ArchetypeChunk_Dispose_CleansUp()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(TestPosition)]);
+        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition());
 
