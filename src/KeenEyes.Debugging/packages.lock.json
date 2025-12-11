@@ -2,11 +2,14 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "SonarAnalyzer.CSharp": {
+        "type": "Direct",
+        "requested": "[10.16.1.129956, )",
+        "resolved": "10.16.1.129956",
+        "contentHash": "XjMarxz00Xc+GD8JGYut1swL0RIw2iwfBhltEITsxsqC/MDLjK+8dk58fPYkS+YPwtdqzkU4VUuSqX3qrN2HYA=="
+      },
       "keeneyes.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "keeneyes.common": {
         "type": "Project",
@@ -19,9 +22,6 @@
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
-      },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
       }
     }
   }
