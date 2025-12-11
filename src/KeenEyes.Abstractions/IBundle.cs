@@ -19,6 +19,10 @@ namespace KeenEyes;
 /// - Constructor accepting all bundle components
 /// - Fluent builder methods for easy entity creation
 /// </para>
+/// <para>
+/// Use bundles when you frequently add the same set of components together.
+/// For one-off entity creation, individual component methods are simpler.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>

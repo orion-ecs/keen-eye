@@ -406,6 +406,58 @@ public class BundleGeneratorTests
             t.Contains("TestApp.PlayerTag tag"));
     }
 
+    [Fact]
+    public void BundleGenerator_WithMultipleNamespaces_UsesFullyQualifiedNames()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace Game.Components;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Component]
+            public partial struct Velocity
+            {
+                public float X;
+                public float Y;
+            }
+
+            namespace Game.Bundles;
+
+            using Game.Components;
+
+            [Bundle]
+            public partial struct PhysicsBundle
+            {
+                public Position Position;
+                public Velocity Velocity;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify constructor uses fully qualified names for component types from different namespace
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("Game.Components.Position position") &&
+            t.Contains("Game.Components.Velocity velocity"));
+
+        // Verify builder method exists with correct name
+        Assert.Contains(generatedTrees, t => t.Contains("WithPhysicsBundle"));
+
+        // Verify the constructor body assigns the fields correctly
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("Position = position") &&
+            t.Contains("Velocity = velocity"));
+    }
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
