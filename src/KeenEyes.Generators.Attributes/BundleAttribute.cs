@@ -10,9 +10,19 @@ namespace KeenEyes;
 /// - Fluent builder methods (WithBundleName)
 /// </summary>
 /// <remarks>
+/// <para>
 /// Bundles are compositions of multiple components that are commonly used together.
-/// All fields in a bundle struct must be valid component types (structs implementing IComponent).
-/// Bundles enable convenient bulk addition of related components to entities.
+/// All fields in a bundle struct must be valid component types (structs implementing IComponent)
+/// or other bundle types (structs implementing IBundle).
+/// </para>
+/// <para>
+/// Bundles can be nested up to 5 levels deep. Nested bundles are automatically flattened
+/// when added to entities. Circular bundle references are detected and reported as errors.
+/// </para>
+/// <para>
+/// Fields can be marked with <see cref="OptionalAttribute"/> to make them optional.
+/// Optional fields must be nullable types and will only be added if they have a value.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -24,12 +34,24 @@ namespace KeenEyes;
 ///     public Scale Scale;
 /// }
 ///
+/// [Bundle]
+/// public partial struct CharacterBundle
+/// {
+///     public TransformBundle Transform; // Nested bundle
+///     public Health Health;
+///
+///     [Optional]
+///     public Shield? Shield; // Optional component
+/// }
+///
 /// // Usage:
 /// var entity = world.Spawn()
-///     .WithTransformBundle(
-///         position: new Position { X = 0, Y = 0 },
-///         rotation: new Rotation { Angle = 0 },
-///         scale: new Scale { X = 1, Y = 1 })
+///     .With(new CharacterBundle
+///     {
+///         Transform = new(position, rotation, scale),
+///         Health = new() { Current = 100, Max = 100 }
+///         // Shield omitted (null)
+///     })
 ///     .Build();
 /// </code>
 /// </example>

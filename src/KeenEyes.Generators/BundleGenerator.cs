@@ -17,6 +17,8 @@ public sealed class BundleGenerator : IIncrementalGenerator
 {
     private const string BundleAttribute = "KeenEyes.BundleAttribute";
     private const string IComponentInterface = "KeenEyes.IComponent";
+    private const string OptionalAttribute = "KeenEyes.OptionalAttribute";
+    private const int MaxNestingDepth = 5;
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -122,6 +124,109 @@ public sealed class BundleGenerator : IIncrementalGenerator
         });
     }
 
+    private static bool IsBundleType(ITypeSymbol typeSymbol, Compilation compilation)
+    {
+        // Must be a struct
+        if (typeSymbol.TypeKind != TypeKind.Struct)
+        {
+            return false;
+        }
+
+        // Check if has [Bundle] attribute - this is the primary indicator
+        // We can't rely on IBundle interface because it's generated and may not exist yet
+        var hasBundleAttribute = typeSymbol.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() == BundleAttribute);
+
+        return hasBundleAttribute;
+    }
+
+    private static List<ComponentFieldInfo> FlattenBundle(
+        ITypeSymbol bundleType,
+        Compilation compilation,
+        List<DiagnosticInfo> diagnostics,
+        HashSet<string> visited,
+        int depth,
+        Location errorLocation)
+    {
+        var flattenedFields = new List<ComponentFieldInfo>();
+
+        // Check depth limit
+        if (depth > MaxNestingDepth)
+        {
+            diagnostics.Add(new DiagnosticInfo(
+                Diagnostics.BundleNestingDepthExceeded,
+                errorLocation,
+                [bundleType.Name, MaxNestingDepth]));
+            return flattenedFields;
+        }
+
+        // Check for circular reference
+        var bundleTypeName = bundleType.ToDisplayString();
+        if (visited.Contains(bundleTypeName))
+        {
+            diagnostics.Add(new DiagnosticInfo(
+                Diagnostics.BundleCircularReference,
+                errorLocation,
+                [bundleType.Name, "nested"]));
+            return flattenedFields;
+        }
+
+        visited.Add(bundleTypeName);
+
+        foreach (var member in bundleType.GetMembers())
+        {
+            if (member is not IFieldSymbol field)
+            {
+                continue;
+            }
+
+            if (field.IsStatic || field.IsConst)
+            {
+                continue;
+            }
+
+            var fieldType = field.Type;
+            var isOptional = field.GetAttributes()
+                .Any(a => a.AttributeClass?.ToDisplayString() == OptionalAttribute);
+            var isNullable = fieldType is INamedTypeSymbol { IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T };
+
+            ITypeSymbol underlyingType = fieldType;
+            if (isNullable && fieldType is INamedTypeSymbol namedType)
+            {
+                underlyingType = namedType.TypeArguments[0];
+            }
+
+            // Check if this field is a bundle
+            if (IsBundleType(underlyingType, compilation))
+            {
+                // Recursively flatten the nested bundle
+                var nestedFields = FlattenBundle(
+                    underlyingType,
+                    compilation,
+                    diagnostics,
+                    visited,
+                    depth + 1,
+                    field.Locations.FirstOrDefault() ?? errorLocation);
+
+                flattenedFields.AddRange(nestedFields);
+            }
+            else if (IsComponentType(underlyingType, compilation))
+            {
+                // Add component field
+                flattenedFields.Add(new ComponentFieldInfo(
+                    field.Name,
+                    fieldType.ToDisplayString(),
+                    isOptional,
+                    isNullable,
+                    IsBundle: false,
+                    isNullable ? underlyingType.ToDisplayString() : null));
+            }
+        }
+
+        visited.Remove(bundleTypeName);
+        return flattenedFields;
+    }
+
     private static BundleInfo? GetBundleInfo(GeneratorAttributeSyntaxContext context)
     {
         if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
@@ -166,8 +271,33 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
+            var fieldType = field.Type;
+            var isOptional = field.GetAttributes()
+                .Any(a => a.AttributeClass?.ToDisplayString() == OptionalAttribute);
+            var isNullable = fieldType is INamedTypeSymbol { IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T };
+
+            // Validate: [Optional] fields must be nullable
+            if (isOptional && !isNullable)
+            {
+                var location = field.Locations.FirstOrDefault();
+                if (location is not null)
+                {
+                    diagnostics.Add(new DiagnosticInfo(
+                        Diagnostics.BundleOptionalFieldMustBeNullable,
+                        location,
+                        [field.Name, typeSymbol.Name]));
+                }
+                continue;
+            }
+
+            ITypeSymbol underlyingType = fieldType;
+            if (isNullable && fieldType is INamedTypeSymbol namedType)
+            {
+                underlyingType = namedType.TypeArguments[0];
+            }
+
             // Check for circular reference first (bundle containing itself)
-            if (field.Type.ToDisplayString() == typeSymbol.ToDisplayString())
+            if (underlyingType.ToDisplayString() == typeSymbol.ToDisplayString())
             {
                 var location = field.Locations.FirstOrDefault();
                 if (location is not null)
@@ -186,8 +316,29 @@ public sealed class BundleGenerator : IIncrementalGenerator
                     IsValid: false);
             }
 
-            // Validate: field must be a component type
-            if (!IsComponentType(field.Type, compilation))
+            // Check if this is a bundle type
+            var isBundle = IsBundleType(underlyingType, compilation);
+
+            // Validate nesting depth for nested bundles
+            if (isBundle)
+            {
+                var visited = new HashSet<string>();
+                var tempDiagnostics = new List<DiagnosticInfo>();
+                FlattenBundle(
+                    underlyingType,
+                    compilation,
+                    tempDiagnostics,
+                    visited,
+                    depth: 1, // Start at 1 since we're already in a bundle
+                    field.Locations.FirstOrDefault() ?? typeSymbol.Locations.FirstOrDefault()!);
+
+                // Add any diagnostics from the flattening process (but don't fail the bundle)
+                // The diagnostics will be reported, but we still generate code for the bundle
+                diagnostics.AddRange(tempDiagnostics);
+            }
+
+            // Validate: field must be a component or bundle type
+            if (!isBundle && !IsComponentType(underlyingType, compilation))
             {
                 var location = field.Locations.FirstOrDefault();
                 if (location is not null)
@@ -195,14 +346,18 @@ public sealed class BundleGenerator : IIncrementalGenerator
                     diagnostics.Add(new DiagnosticInfo(
                         Diagnostics.BundleFieldMustBeComponent,
                         location,
-                        [field.Name, typeSymbol.Name, field.Type.ToDisplayString()]));
+                        [field.Name, typeSymbol.Name, underlyingType.ToDisplayString()]));
                 }
                 continue; // Skip invalid field but continue processing others
             }
 
             fields.Add(new ComponentFieldInfo(
                 field.Name,
-                field.Type.ToDisplayString()));
+                fieldType.ToDisplayString(),
+                isOptional,
+                isNullable,
+                isBundle,
+                isNullable ? underlyingType.ToDisplayString() : null));
         }
 
         // Validate: must have at least one field
@@ -363,7 +518,17 @@ public sealed class BundleGenerator : IIncrementalGenerator
             // Add each component from the bundle
             foreach (var field in info.Fields)
             {
-                sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                if (field.IsOptional && field.IsNullable)
+                {
+                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
+                    sb.AppendLine($"        {{");
+                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
+                    sb.AppendLine($"        }}");
+                }
+                else
+                {
+                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                }
             }
 
             sb.AppendLine($"        return builder;");
@@ -382,7 +547,17 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
             foreach (var field in info.Fields)
             {
-                sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                if (field.IsOptional && field.IsNullable)
+                {
+                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
+                    sb.AppendLine($"        {{");
+                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
+                    sb.AppendLine($"        }}");
+                }
+                else
+                {
+                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                }
             }
 
             sb.AppendLine($"        return builder;");
@@ -412,7 +587,17 @@ public sealed class BundleGenerator : IIncrementalGenerator
             // Add each component from the bundle
             foreach (var field in info.Fields)
             {
-                sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                if (field.IsOptional && field.IsNullable)
+                {
+                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
+                    sb.AppendLine($"        {{");
+                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
+                    sb.AppendLine($"        }}");
+                }
+                else
+                {
+                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                }
             }
 
             sb.AppendLine($"        return builder;");
@@ -427,7 +612,17 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
             foreach (var field in info.Fields)
             {
-                sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                if (field.IsOptional && field.IsNullable)
+                {
+                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
+                    sb.AppendLine($"        {{");
+                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
+                    sb.AppendLine($"        }}");
+                }
+                else
+                {
+                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+                }
             }
 
             sb.AppendLine($"        return builder;");
@@ -758,7 +953,17 @@ public sealed class BundleGenerator : IIncrementalGenerator
         // Add each component
         foreach (var field in info.Fields)
         {
-            sb.AppendLine($"        world.Add(entity, bundle.{field.Name});");
+            if (field.IsOptional && field.IsNullable)
+            {
+                sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
+                sb.AppendLine($"        {{");
+                sb.AppendLine($"            world.Add(entity, bundle.{field.Name}.Value);");
+                sb.AppendLine($"        }}");
+            }
+            else
+            {
+                sb.AppendLine($"        world.Add(entity, bundle.{field.Name});");
+            }
         }
 
         sb.AppendLine("    }");
@@ -843,10 +1048,24 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine($"    public static void Remove{info.Name}(this global::KeenEyes.World world, global::KeenEyes.Entity entity)");
         sb.AppendLine("    {");
 
-        // Remove each component
+        // Remove each component (recursively for nested bundles)
         foreach (var field in info.Fields)
         {
-            sb.AppendLine($"        world.Remove<{field.Type}>(entity);");
+            var typeToRemove = field.IsNullable && field.UnderlyingType is not null
+                ? field.UnderlyingType
+                : field.Type;
+
+            if (field.IsBundle)
+            {
+                // For nested bundles, call the RemoveBundleName method
+                var bundleName = typeToRemove.Substring(typeToRemove.LastIndexOf('.') + 1);
+                sb.AppendLine($"        world.Remove{bundleName}(entity);");
+            }
+            else
+            {
+                // For components, call Remove<T>
+                sb.AppendLine($"        world.Remove<{typeToRemove}>(entity);");
+            }
         }
 
         sb.AppendLine("    }");
@@ -877,7 +1096,11 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
     private sealed record ComponentFieldInfo(
         string Name,
-        string Type);
+        string Type,
+        bool IsOptional,
+        bool IsNullable,
+        bool IsBundle,
+        string? UnderlyingType = null); // For nullable types, the underlying non-nullable type
 
     private sealed record DiagnosticInfo(
         DiagnosticDescriptor Descriptor,
@@ -937,4 +1160,28 @@ internal static class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "A bundle cannot contain itself as a field. This would create an infinite recursion.");
+
+    /// <summary>
+    /// KEEN024: Bundle nesting depth exceeded.
+    /// </summary>
+    public static readonly DiagnosticDescriptor BundleNestingDepthExceeded = new(
+        id: "KEEN024",
+        title: "Bundle nesting depth exceeded",
+        messageFormat: "Bundle '{0}' exceeds maximum nesting depth of {1} levels",
+        category: "KeenEyes.Bundle",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Bundles can only be nested up to a maximum depth to prevent excessive code generation and potential stack overflow.");
+
+    /// <summary>
+    /// KEEN025: Optional bundle field must be nullable.
+    /// </summary>
+    public static readonly DiagnosticDescriptor BundleOptionalFieldMustBeNullable = new(
+        id: "KEEN025",
+        title: "Optional bundle field must be nullable",
+        messageFormat: "Field '{0}' in bundle '{1}' is marked [Optional] but is not a nullable type",
+        category: "KeenEyes.Bundle",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Fields marked with [Optional] must be nullable value types (e.g., ComponentType?) to allow null values.");
 }

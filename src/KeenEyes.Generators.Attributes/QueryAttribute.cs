@@ -28,9 +28,17 @@ public sealed class WithAttribute : Attribute;
 public sealed class WithoutAttribute : Attribute;
 
 /// <summary>
-/// Marks a field in a query struct as optional.
-/// The component will be default if not present on the entity.
+/// Marks a field as optional.
 /// </summary>
+/// <remarks>
+/// <para>
+/// When used in query structs, the component will be default if not present on the entity.
+/// </para>
+/// <para>
+/// When used in bundle structs, the field must be a nullable type and will only be added
+/// to entities if it has a value (is not null).
+/// </para>
+/// </remarks>
 [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
 [ExcludeFromCodeCoverage]
 public sealed class OptionalAttribute : Attribute;
