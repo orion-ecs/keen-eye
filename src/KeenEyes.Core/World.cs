@@ -36,6 +36,7 @@ public sealed partial class World : IWorld
     private readonly TagManager tagManager = new();
     private readonly ComponentValidationManager validationManager;
     private readonly ComponentArrayPoolManager arrayPoolManager = new();
+    private readonly StatisticsManager statisticsManager;
     private readonly EntityBuilder builder;
 
     /// <summary>
@@ -110,6 +111,7 @@ public sealed partial class World : IWorld
         changeTracker = new ChangeTracker(entityPool);
         prefabManager = new PrefabManager(this);
         validationManager = new ComponentValidationManager(this);
+        statisticsManager = new StatisticsManager(entityPool, archetypeManager, Components, systemManager, queryManager);
         builder = new EntityBuilder(this);
     }
 
