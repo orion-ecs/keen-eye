@@ -436,13 +436,16 @@ public class BundleGeneratorTests
         var bundleGenerator = new BundleGenerator();
         GeneratorDriver driver = CSharpGeneratorDriver.Create(componentGenerator, bundleGenerator);
 
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var _);
 
         var runResult = driver.GetRunResult();
         var generatedSources = runResult.GeneratedTrees
             .Select(t => t.GetText().ToString())
             .ToList();
 
-        return (diagnostics, generatedSources);
+        // Get all diagnostics from the generator run
+        var allDiagnostics = runResult.Diagnostics.ToList();
+
+        return (allDiagnostics, generatedSources);
     }
 }
