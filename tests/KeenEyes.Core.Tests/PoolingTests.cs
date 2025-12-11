@@ -370,6 +370,7 @@ public class PoolingTests
         var entity = pool.Acquire();
         var validCheckCount = 0;
         var invalidCheckCount = 0;
+        var releaseComplete = 0;
 
         // Start threads checking validity
         var checkThreads = new Thread[5];
@@ -377,13 +378,25 @@ public class PoolingTests
         {
             checkThreads[i] = new Thread(() =>
             {
-                for (var j = 0; j < 10000; j++)
+                // Check before release
+                for (var j = 0; j < 5000; j++)
                 {
                     if (pool.IsValid(entity))
                     {
                         Interlocked.Increment(ref validCheckCount);
                     }
-                    else
+                }
+
+                // Wait for release
+                while (Interlocked.CompareExchange(ref releaseComplete, 0, 0) == 0)
+                {
+                    Thread.Sleep(1);
+                }
+
+                // Check after release
+                for (var j = 0; j < 5000; j++)
+                {
+                    if (!pool.IsValid(entity))
                     {
                         Interlocked.Increment(ref invalidCheckCount);
                     }
@@ -396,16 +409,19 @@ public class PoolingTests
             thread.Start();
         }
 
-        // Release entity after some checks
-        Thread.Sleep(10);
+        // Give threads time to check before release
+        Thread.Sleep(50);
+
+        // Release entity
         pool.Release(entity);
+        Interlocked.Exchange(ref releaseComplete, 1);
 
         foreach (var thread in checkThreads)
         {
             thread.Join();
         }
 
-        // Should have both valid and invalid results
+        // Should have both valid checks before release and invalid checks after
         Assert.True(validCheckCount > 0, "Should have some valid checks before release");
         Assert.True(invalidCheckCount > 0, "Should have some invalid checks after release");
     }
