@@ -143,3 +143,22 @@ public partial struct Dead;
 /// <summary>Marks an entity as invulnerable.</summary>
 [TagComponent]
 public partial struct Invulnerable;
+
+
+/// <summary>
+/// Extension properties for the <see cref="Health"/> component.
+/// </summary>
+/// <remarks>
+/// These extensions demonstrate how to add computed properties to components
+/// while keeping the component itself as pure data (following ECS principles).
+/// </remarks>
+public static class HealthExtensions
+{
+    extension(Health health)
+    {
+        /// <summary>
+        /// Gets whether the entity is alive (has health remaining).
+        /// </summary>
+        public bool IsAlive => health.Current > 0;
+    }
+}
