@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Immutable;
 
 namespace KeenEyes;
 
@@ -13,6 +14,7 @@ public sealed class QueryDescription
     private readonly List<Type> without = [];
     private readonly List<string> withStringTags = [];
     private readonly List<string> withoutStringTags = [];
+    private ImmutableArray<Type>? allRequiredCache;
 
     /// <summary>Components that will be read (ref readonly).</summary>
     public IReadOnlyList<Type> Read => read;
@@ -33,14 +35,39 @@ public sealed class QueryDescription
     public IReadOnlyList<string> WithoutStringTags => withoutStringTags;
 
     /// <summary>All components that must be present (Read + Write + With).</summary>
-    public IEnumerable<Type> AllRequired => read.Concat(write).Concat(with).Distinct();
+    public ImmutableArray<Type> AllRequired
+    {
+        get
+        {
+            if (allRequiredCache is null)
+            {
+                allRequiredCache = read.Concat(write).Concat(with).Distinct().ToImmutableArray();
+            }
+            return allRequiredCache.Value;
+        }
+    }
 
     /// <summary>Whether any string tag filters are applied.</summary>
     public bool HasStringTagFilters => withStringTags.Count > 0 || withoutStringTags.Count > 0;
 
-    internal void AddRead<T>() where T : struct, IComponent => read.Add(typeof(T));
-    internal void AddWrite<T>() where T : struct, IComponent => write.Add(typeof(T));
-    internal void AddWith<T>() where T : struct, IComponent => with.Add(typeof(T));
+    internal void AddRead<T>() where T : struct, IComponent
+    {
+        read.Add(typeof(T));
+        allRequiredCache = null; // Invalidate cache
+    }
+
+    internal void AddWrite<T>() where T : struct, IComponent
+    {
+        write.Add(typeof(T));
+        allRequiredCache = null; // Invalidate cache
+    }
+
+    internal void AddWith<T>() where T : struct, IComponent
+    {
+        with.Add(typeof(T));
+        allRequiredCache = null; // Invalidate cache
+    }
+
     internal void AddWithout<T>() where T : struct, IComponent => without.Add(typeof(T));
     internal void AddWithStringTag(string tag) => withStringTags.Add(tag);
     internal void AddWithoutStringTag(string tag) => withoutStringTags.Add(tag);

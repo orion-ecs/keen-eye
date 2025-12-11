@@ -143,6 +143,53 @@ public class QueryDescriptionTests
     }
 
     [Fact]
+    public void AllRequired_ReturnsCachedInstance_OnSubsequentCalls()
+    {
+        var description = new QueryDescription();
+        description.AddRead<TestPosition>();
+        description.AddWrite<TestVelocity>();
+
+        var first = description.AllRequired;
+        var second = description.AllRequired;
+
+        // Should return the same cached ImmutableArray instance
+        Assert.True(first.Equals(second));
+        Assert.Equal(first.Length, second.Length);
+    }
+
+    [Fact]
+    public void AllRequired_InvalidatesCache_WhenComponentAdded()
+    {
+        var description = new QueryDescription();
+        description.AddRead<TestPosition>();
+
+        var firstCall = description.AllRequired;
+        Assert.Single(firstCall);
+        Assert.Contains(typeof(TestPosition), firstCall);
+
+        // Add another component
+        description.AddWrite<TestVelocity>();
+
+        var secondCall = description.AllRequired;
+        Assert.Equal(2, secondCall.Length);
+        Assert.Contains(typeof(TestPosition), secondCall);
+        Assert.Contains(typeof(TestVelocity), secondCall);
+    }
+
+    [Fact]
+    public void AllRequired_ReturnsImmutableArray_NotEnumerable()
+    {
+        var description = new QueryDescription();
+        description.AddRead<TestPosition>();
+        description.AddWrite<TestVelocity>();
+
+        var allRequired = description.AllRequired;
+
+        // Verify it's an ImmutableArray, not just IEnumerable
+        Assert.IsType<System.Collections.Immutable.ImmutableArray<Type>>(allRequired);
+    }
+
+    [Fact]
     public void Matches_WithMultipleExclusions_AllMustBeAbsent()
     {
         var description = new QueryDescription();
