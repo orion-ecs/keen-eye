@@ -13,9 +13,26 @@ Demonstrates frustum culling for 3D rendering optimization using spatial queries
 
 ## Running the Sample
 
+### Build and Run
+
 ```bash
+# From repository root
 cd samples/KeenEyes.Sample.RenderingCulling
+
+# Restore dependencies (first time only)
+dotnet restore
+
+# Build the sample
+dotnet build
+
+# Run the sample
 dotnet run
+```
+
+Or from the repository root:
+
+```bash
+dotnet run --project samples/KeenEyes.Sample.RenderingCulling
 ```
 
 ## Expected Output
@@ -368,9 +385,16 @@ MaxDepth = 5;           // Shallower tree
 MaxEntitiesPerNode = 12;
 ```
 
+## Documentation
+
+Learn more about spatial partitioning:
+
+- **[Getting Started](../../docs/spatial-partitioning/getting-started.md)** - Installation, query types, and basic patterns
+- **[Strategy Selection](../../docs/spatial-partitioning/strategy-selection.md)** - Choosing between Grid, Quadtree, and Octree
+- **[Performance Tuning](../../docs/spatial-partitioning/performance-tuning.md)** - Optimization techniques and profiling
+
 ## Next Steps
 
-- See [Performance Tuning Guide](../../docs/spatial-partitioning/performance-tuning.md)
 - Try different octree configurations
 - Experiment with camera settings (FOV, far plane)
 - Add LOD system based on distance

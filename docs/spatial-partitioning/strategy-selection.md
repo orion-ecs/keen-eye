@@ -58,6 +58,8 @@ world.InstallPlugin(new SpatialPlugin(new SpatialConfig
 - Large-scale multiplayer with evenly distributed players
 - Physics simulations with uniform particle distribution
 
+**See also:** [Collision Detection Sample](../../samples/KeenEyes.Sample.CollisionDetection) demonstrates Grid strategy for uniform entity distribution.
+
 ### Configuration Tips
 
 ```csharp
@@ -122,6 +124,10 @@ world.InstallPlugin(new SpatialPlugin(new SpatialConfig
 - Tower defense games with enemy waves
 - Top-down shooters with localized combat
 - 2D MMOs with player clustering in cities/dungeons
+
+**See also:**
+- [Collision Detection Sample](../../samples/KeenEyes.Sample.CollisionDetection) compares Grid vs Quadtree performance
+- [AI Proximity Sample](../../samples/KeenEyes.Sample.AIProximity) uses Grid for 2D AI sensory detection
 
 ### Configuration Tips
 
@@ -220,6 +226,8 @@ world.InstallPlugin(new SpatialPlugin(new SpatialConfig
 - Voxel-based games (though Grid often better for uniform voxels)
 - 3D physics simulations with volumetric clustering
 - Underwater games with depth-based gameplay
+
+**See also:** [Rendering Culling Sample](../../samples/KeenEyes.Sample.RenderingCulling) demonstrates Octree strategy for 3D frustum culling.
 
 ### Configuration Tips
 
@@ -389,8 +397,13 @@ new SpatialConfig
 }
 ```
 
-## Next Steps
+## See Also
 
-- [Performance Tuning](performance-tuning.md) - Optimize your selected strategy
+### Documentation
 - [Getting Started](getting-started.md) - Basic usage and API reference
-- [Samples](../../samples/) - Complete examples for each strategy
+- [Performance Tuning](performance-tuning.md) - Optimize your selected strategy
+
+### Sample Projects
+- [Collision Detection Sample](../../samples/KeenEyes.Sample.CollisionDetection) - Grid vs Quadtree performance comparison for collision detection
+- [Rendering Culling Sample](../../samples/KeenEyes.Sample.RenderingCulling) - Octree strategy for 3D frustum culling
+- [AI Proximity Sample](../../samples/KeenEyes.Sample.AIProximity) - Grid strategy for multi-sensory AI detection

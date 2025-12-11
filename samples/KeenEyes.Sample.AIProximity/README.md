@@ -13,9 +13,26 @@ Demonstrates AI sensory detection (vision and hearing) using spatial queries. Sh
 
 ## Running the Sample
 
+### Build and Run
+
 ```bash
+# From repository root
 cd samples/KeenEyes.Sample.AIProximity
+
+# Restore dependencies (first time only)
+dotnet restore
+
+# Build the sample
+dotnet build
+
+# Run the sample
 dotnet run
+```
+
+Or from the repository root:
+
+```bash
+dotnet run --project samples/KeenEyes.Sample.AIProximity
 ```
 
 ## Expected Output
@@ -504,9 +521,16 @@ AlertRange = 300f;        // Call other monsters
 NoiseLevel = 1.0f;        // Player is always loud
 ```
 
+## Documentation
+
+Learn more about spatial partitioning:
+
+- **[Getting Started](../../docs/spatial-partitioning/getting-started.md)** - Installation, query types, and basic patterns
+- **[Strategy Selection](../../docs/spatial-partitioning/strategy-selection.md)** - Choosing between Grid, Quadtree, and Octree
+- **[Performance Tuning](../../docs/spatial-partitioning/performance-tuning.md)** - Optimization techniques and profiling
+
 ## Next Steps
 
-- See [Performance Tuning Guide](../../docs/spatial-partitioning/performance-tuning.md)
 - Add field-of-view cone for vision
 - Implement obstacle occlusion with raycasting
 - Add patrol routes for guards

@@ -620,8 +620,16 @@ public class SpatialQueryStats
 - Use fixed-point math for positions (if necessary)
 - Ensure consistent rounding
 
-## Next Steps
+## See Also
 
-- [Strategy Selection](strategy-selection.md) - Choose the right strategy
+### Documentation
 - [Getting Started](getting-started.md) - Basic usage and API reference
-- [Benchmarks](../../benchmarks/KeenEyes.Spatial.Benchmarks/) - Measure performance
+- [Strategy Selection](strategy-selection.md) - Choose the right strategy for your game
+
+### Sample Projects
+
+All samples include performance measurements and demonstrate optimization techniques:
+
+- [Collision Detection Sample](../../samples/KeenEyes.Sample.CollisionDetection) - Shows false positive tracking and compares Grid vs Quadtree vs naive O(n²)
+- [Rendering Culling Sample](../../samples/KeenEyes.Sample.RenderingCulling) - Demonstrates culling efficiency metrics and Octree configuration
+- [AI Proximity Sample](../../samples/KeenEyes.Sample.AIProximity) - Illustrates query caching and sensory range tuning
