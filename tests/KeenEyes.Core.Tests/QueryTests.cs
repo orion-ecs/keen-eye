@@ -754,4 +754,135 @@ public class QueryEnumeratorTests
 
         Assert.Equal(entity, enumerator.Current);
     }
+
+    [Fact]
+    public void QueryEnumerator_MoveNext_IteratesThroughMultipleEntities()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .Build();
+
+        var enumerator = world.Query<TestPosition>().GetEnumerator();
+        var entities = new List<Entity>();
+
+        while (enumerator.MoveNext())
+        {
+            entities.Add(enumerator.Current);
+        }
+
+        Assert.Equal(3, entities.Count);
+        Assert.Contains(entity1, entities);
+        Assert.Contains(entity2, entities);
+        Assert.Contains(entity3, entities);
+
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_MoveNext_MultipleArchetypes_IteratesAll()
+    {
+        using var world = new World();
+
+        // Create entities with different archetypes but all have TestPosition
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+
+        var enumerator = world.Query<TestPosition>().GetEnumerator();
+        var count = 0;
+
+        while (enumerator.MoveNext())
+        {
+            count++;
+        }
+
+        Assert.Equal(3, count);
+
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_TwoComponents_MoveNext_WorksCorrectly()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+        world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .Build();
+
+        var enumerator = world.Query<TestPosition, TestVelocity>().GetEnumerator();
+        var count = 0;
+
+        while (enumerator.MoveNext())
+        {
+            Assert.NotEqual(Entity.Null, enumerator.Current);
+            count++;
+        }
+
+        Assert.Equal(2, count);
+
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_ThreeComponents_MoveNext_WorksCorrectly()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+
+        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth>().GetEnumerator();
+
+        Assert.True(enumerator.MoveNext());
+        Assert.NotEqual(Entity.Null, enumerator.Current);
+        Assert.False(enumerator.MoveNext());
+
+        enumerator.Dispose();
+    }
+
+    [Fact]
+    public void QueryEnumerator_FourComponents_MoveNext_WorksCorrectly()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 45f })
+            .Build();
+
+        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().GetEnumerator();
+
+        Assert.True(enumerator.MoveNext());
+        Assert.NotEqual(Entity.Null, enumerator.Current);
+        Assert.False(enumerator.MoveNext());
+
+        enumerator.Dispose();
+    }
 }
