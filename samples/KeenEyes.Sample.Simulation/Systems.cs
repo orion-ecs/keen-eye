@@ -249,10 +249,13 @@ public partial class CleanupSystem : SystemBase
 /// <summary>
 /// Spawns enemies periodically.
 /// </summary>
+/// <remarks>
+/// Uses World.NextInt() and World.NextFloat() for random number generation,
+/// ensuring deterministic behavior when the world is seeded.
+/// </remarks>
 [System(Phase = SystemPhase.EarlyUpdate, Order = 0)]
 public partial class SpawnerSystem : SystemBase
 {
-    private readonly Random random = new();
     private float spawnTimer;
 
     /// <summary>Seconds between spawns.</summary>
@@ -293,33 +296,33 @@ public partial class SpawnerSystem : SystemBase
     {
         // Random edge spawn
         float x, y, vx, vy;
-        int edge = random.Next(4);
+        int edge = World.NextInt(4);
 
         switch (edge)
         {
             case 0: // Top
-                x = random.NextSingle() * WorldWidth;
+                x = World.NextFloat() * WorldWidth;
                 y = 0;
-                vx = (random.NextSingle() - 0.5f) * 10;
-                vy = random.NextSingle() * 5 + 2;
+                vx = (World.NextFloat() - 0.5f) * 10;
+                vy = World.NextFloat() * 5 + 2;
                 break;
             case 1: // Bottom
-                x = random.NextSingle() * WorldWidth;
+                x = World.NextFloat() * WorldWidth;
                 y = WorldHeight - 1;
-                vx = (random.NextSingle() - 0.5f) * 10;
-                vy = -(random.NextSingle() * 5 + 2);
+                vx = (World.NextFloat() - 0.5f) * 10;
+                vy = -(World.NextFloat() * 5 + 2);
                 break;
             case 2: // Left
                 x = 0;
-                y = random.NextSingle() * WorldHeight;
-                vx = random.NextSingle() * 5 + 2;
-                vy = (random.NextSingle() - 0.5f) * 10;
+                y = World.NextFloat() * WorldHeight;
+                vx = World.NextFloat() * 5 + 2;
+                vy = (World.NextFloat() - 0.5f) * 10;
                 break;
             default: // Right
                 x = WorldWidth - 1;
-                y = random.NextSingle() * WorldHeight;
-                vx = -(random.NextSingle() * 5 + 2);
-                vy = (random.NextSingle() - 0.5f) * 10;
+                y = World.NextFloat() * WorldHeight;
+                vx = -(World.NextFloat() * 5 + 2);
+                vy = (World.NextFloat() - 0.5f) * 10;
                 break;
         }
 
@@ -328,7 +331,7 @@ public partial class SpawnerSystem : SystemBase
         ConsoleColor color;
         int health;
 
-        int type = random.Next(3);
+        int type = World.NextInt(3);
         switch (type)
         {
             case 0: // Fast, weak
@@ -444,10 +447,13 @@ public partial class ShootingSystem : SystemBase
 /// <summary>
 /// Enemy shooting behavior.
 /// </summary>
+/// <remarks>
+/// Uses World.NextFloat() for random cooldowns, ensuring deterministic behavior
+/// when the world is seeded.
+/// </remarks>
 [System(Phase = SystemPhase.Update, Order = -4)]
 public partial class EnemyShootingSystem : SystemBase
 {
-    private readonly Random random = new();
     private readonly CommandBuffer buffer = new();
 
     /// <inheritdoc />
@@ -490,7 +496,7 @@ public partial class EnemyShootingSystem : SystemBase
 
             if (cooldown.Remaining <= 0)
             {
-                cooldown.Remaining = 1.5f + random.NextSingle();
+                cooldown.Remaining = 1.5f + World.NextFloat();
 
                 // Shoot toward player
                 float dx = playerPos.X - pos.X;

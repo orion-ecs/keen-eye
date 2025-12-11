@@ -119,10 +119,12 @@ public class CleanupSystem : SystemBase
 /// <summary>
 /// Spawns new particles to maintain target entity count.
 /// </summary>
+/// <remarks>
+/// Uses World.NextFloat() for random number generation, ensuring deterministic behavior
+/// when the world is seeded. This is important for replay systems and testing.
+/// </remarks>
 public class SpawnerSystem : SystemBase
 {
-    private readonly Random random = new();
-
     /// <summary>Target number of active particles.</summary>
     public int TargetCount { get; set; } = 100_000;
 
@@ -152,17 +154,17 @@ public class SpawnerSystem : SystemBase
 
         for (var i = 0; i < toSpawn; i++)
         {
-            var hasGravity = random.NextDouble() < 0.3; // 30% chance of gravity
+            var hasGravity = World.NextBool(0.3f); // 30% chance of gravity
 
             var builder = World.Spawn()
                 .WithPosition(
-                    x: (float)(random.NextDouble() * WorldWidth),
-                    y: (float)(random.NextDouble() * WorldHeight))
+                    x: World.NextFloat() * WorldWidth,
+                    y: World.NextFloat() * WorldHeight)
                 .WithVelocity(
-                    x: (float)(random.NextDouble() * 20 - 10),
-                    y: (float)(random.NextDouble() * 20 - 10))
-                .WithLifetime(remaining: (float)(random.NextDouble() * 5 + 1))
-                .WithParticleColor(hue: (float)(random.NextDouble() * 360))
+                    x: World.NextFloat() * 20 - 10,
+                    y: World.NextFloat() * 20 - 10)
+                .WithLifetime(remaining: World.NextFloat() * 5 + 1)
+                .WithParticleColor(hue: World.NextFloat() * 360)
                 .WithActive();
 
             if (hasGravity)

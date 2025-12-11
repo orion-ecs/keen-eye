@@ -99,8 +99,31 @@ public sealed partial class World : IWorld
     /// <summary>
     /// Creates a new ECS world.
     /// </summary>
-    public World()
+    /// <param name="seed">
+    /// Optional seed for the world's random number generator.
+    /// If null, uses a time-based seed. If specified, enables deterministic behavior
+    /// for replays and testing.
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// Each world has its own isolated random number generator state. Providing a seed
+    /// ensures that all random operations (via <see cref="NextInt(int)"/>, <see cref="NextFloat"/>, etc.)
+    /// will produce the same sequence of values across runs, enabling deterministic simulations.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Non-deterministic world (different results each run)
+    /// var world1 = new World();
+    ///
+    /// // Deterministic world (same results with same seed)
+    /// var world2 = new World(seed: 12345);
+    /// var world3 = new World(seed: 12345); // Same sequence as world2
+    /// </code>
+    /// </example>
+    public World(int? seed = null)
     {
+        random = seed.HasValue ? new Random(seed.Value) : new Random();
         entityPool = new EntityPool();
         archetypeManager = new ArchetypeManager(Components);
         queryManager = new QueryManager(archetypeManager);
