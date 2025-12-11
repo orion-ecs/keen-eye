@@ -329,14 +329,11 @@ public class GuardAISystem(DetectionStats stats) : SystemBase
         }
 
         // Hearing check (can hear noisy players further away)
-        if (CanHearPlayer(guardTransform, guard.HearingRange))
+        if (CanHearPlayer(guardTransform, guard.HearingRange) && guard.State == GuardState.Idle)
         {
-            if (guard.State == GuardState.Idle)
-            {
-                guard.State = GuardState.Searching;
-                guard.SearchTimer = 3.0f;
-                stats.TotalHearingDetections++;
-            }
+            guard.State = GuardState.Searching;
+            guard.SearchTimer = 3.0f;
+            stats.TotalHearingDetections++;
         }
     }
 
