@@ -136,4 +136,66 @@ internal interface ISpatialPartitioner : IDisposable
     /// Clears all entities from the spatial index.
     /// </summary>
     void Clear();
+
+    /// <summary>
+    /// Queries all entities within a spherical radius into a caller-provided buffer.
+    /// </summary>
+    /// <param name="center">The center point of the query sphere.</param>
+    /// <param name="radius">The radius of the query sphere.</param>
+    /// <param name="results">The buffer to write results into.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// This is a zero-allocation query method for performance-critical code paths.
+    /// Use stackalloc or ArrayPool for the buffer.
+    /// </remarks>
+    int QueryRadius(Vector3 center, float radius, Span<Entity> results);
+
+    /// <summary>
+    /// Queries all entities within an axis-aligned bounding box into a caller-provided buffer.
+    /// </summary>
+    /// <param name="min">The minimum corner of the query box.</param>
+    /// <param name="max">The maximum corner of the query box.</param>
+    /// <param name="results">The buffer to write results into.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// This is a zero-allocation query method for performance-critical code paths.
+    /// Use stackalloc or ArrayPool for the buffer.
+    /// </remarks>
+    int QueryBounds(Vector3 min, Vector3 max, Span<Entity> results);
+
+    /// <summary>
+    /// Queries all entities at a specific point into a caller-provided buffer.
+    /// </summary>
+    /// <param name="point">The point to query.</param>
+    /// <param name="results">The buffer to write results into.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// This is a zero-allocation query method for performance-critical code paths.
+    /// Use stackalloc or ArrayPool for the buffer.
+    /// </remarks>
+    int QueryPoint(Vector3 point, Span<Entity> results);
+
+    /// <summary>
+    /// Queries all entities within a view frustum into a caller-provided buffer.
+    /// </summary>
+    /// <param name="frustum">The view frustum to query.</param>
+    /// <param name="results">The buffer to write results into.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// This is a zero-allocation query method for performance-critical code paths.
+    /// Use stackalloc or ArrayPool for the buffer.
+    /// </remarks>
+    int QueryFrustum(Frustum frustum, Span<Entity> results);
 }

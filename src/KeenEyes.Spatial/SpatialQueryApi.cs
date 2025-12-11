@@ -190,6 +190,94 @@ public sealed class SpatialQueryApi : IDisposable
     /// </summary>
     public int EntityCount => partitioner.EntityCount;
 
+    /// <summary>
+    /// Queries all entities within a spherical radius into a caller-provided buffer (zero-allocation).
+    /// </summary>
+    /// <param name="center">The center point of the query sphere.</param>
+    /// <param name="radius">The radius of the query sphere.</param>
+    /// <param name="results">The buffer to write results into. Use stackalloc or ArrayPool for optimal performance.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This is a zero-allocation query method for performance-critical code paths like
+    /// collision detection or AI queries that run every frame.
+    /// </para>
+    /// <para>
+    /// Example usage with stackalloc:
+    /// <code>
+    /// Span&lt;Entity&gt; buffer = stackalloc Entity[256];
+    /// int count = spatial.QueryRadius(center, radius, buffer);
+    /// if (count >= 0)
+    /// {
+    ///     foreach (var entity in buffer[..count])
+    ///     {
+    ///         // Process entity
+    ///     }
+    /// }
+    /// </code>
+    /// </para>
+    /// </remarks>
+    public int QueryRadius(Vector3 center, float radius, Span<Entity> results)
+    {
+        return partitioner.QueryRadius(center, radius, results);
+    }
+
+    /// <summary>
+    /// Queries all entities within an axis-aligned bounding box into a caller-provided buffer (zero-allocation).
+    /// </summary>
+    /// <param name="min">The minimum corner of the query box.</param>
+    /// <param name="max">The maximum corner of the query box.</param>
+    /// <param name="results">The buffer to write results into. Use stackalloc or ArrayPool for optimal performance.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// This is a zero-allocation query method for performance-critical code paths.
+    /// </remarks>
+    public int QueryBounds(Vector3 min, Vector3 max, Span<Entity> results)
+    {
+        return partitioner.QueryBounds(min, max, results);
+    }
+
+    /// <summary>
+    /// Queries all entities at a specific point into a caller-provided buffer (zero-allocation).
+    /// </summary>
+    /// <param name="point">The point to query.</param>
+    /// <param name="results">The buffer to write results into. Use stackalloc or ArrayPool for optimal performance.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// This is a zero-allocation query method for performance-critical code paths.
+    /// </remarks>
+    public int QueryPoint(Vector3 point, Span<Entity> results)
+    {
+        return partitioner.QueryPoint(point, results);
+    }
+
+    /// <summary>
+    /// Queries all entities within a view frustum into a caller-provided buffer (zero-allocation).
+    /// </summary>
+    /// <param name="frustum">The view frustum to query.</param>
+    /// <param name="results">The buffer to write results into. Use stackalloc or ArrayPool for optimal performance.</param>
+    /// <returns>
+    /// The number of entities written to the buffer, or -1 if the buffer was too small.
+    /// When -1 is returned, the buffer contains partial results up to its capacity.
+    /// </returns>
+    /// <remarks>
+    /// This is a zero-allocation query method for performance-critical code paths like
+    /// frustum culling for rendering.
+    /// </remarks>
+    public int QueryFrustum(Frustum frustum, Span<Entity> results)
+    {
+        return partitioner.QueryFrustum(frustum, results);
+    }
+
     /// <inheritdoc/>
     public void Dispose()
     {
