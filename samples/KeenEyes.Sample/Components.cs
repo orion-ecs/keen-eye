@@ -146,19 +146,17 @@ public partial struct Velocity2DMixin
 /// Transform component using mixins for position and velocity.
 /// The source generator will copy X, Y, VelX, VelY fields into this component.
 /// </summary>
+/// <remarks>
+/// This demonstrates mixins - all fields come from the mixins (Position2DMixin, Velocity2DMixin).
+/// The component itself has no additional fields, showing that mixins can be used to compose
+/// components entirely from shared field patterns.
+/// </remarks>
 [Component]
 [Mixin(typeof(Position2DMixin))]
 [Mixin(typeof(Velocity2DMixin))]
 public partial struct Transform2D
 {
-    // Mixin fields (X, Y, VelX, VelY) are generated automatically
-    // We only define additional fields unique to Transform2D
-
-    /// <summary>Rotation angle in radians.</summary>
-    public float Rotation;
-
-    /// <summary>Scale factor.</summary>
-    public float Scale;
+    // All fields (X, Y, VelX, VelY) are generated from mixins
 }
 
 /// <summary>
@@ -191,15 +189,15 @@ public partial struct CharacterStats
 
 /// <summary>
 /// Advanced character component using transitive mixin.
-/// Will have: Strength, Dexterity, Intelligence, Wisdom, Level, Experience
+/// Will have: Strength, Dexterity, Intelligence, Wisdom (all from mixins)
 /// </summary>
+/// <remarks>
+/// Demonstrates transitive mixins: AdvancedCharacter mixins CharacterStats,
+/// which itself mixins BaseStats. All fields from both mixins are included.
+/// </remarks>
 [Component]
 [Mixin(typeof(CharacterStats))]
 public partial struct AdvancedCharacter
 {
-    /// <summary>Character level.</summary>
-    public int Level;
-
-    /// <summary>Experience points.</summary>
-    public int Experience;
+    // All fields (Strength, Dexterity, Intelligence, Wisdom) come from mixins transitively
 }
