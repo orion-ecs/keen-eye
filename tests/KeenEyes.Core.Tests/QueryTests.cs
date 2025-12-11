@@ -802,3 +802,386 @@ public class QueryEnumeratorTests
         Assert.Equal(entity, enumerator.Current);
     }
 }
+
+/// <summary>
+/// Tests for string tag filtering in queries.
+/// </summary>
+public class QueryStringTagFilteringTests
+{
+    #region Single Component Query with String Tags
+
+    [Fact]
+    public void Query_WithStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        world.AddTag(entity1, "player");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+        world.AddTag(entity2, "enemy");
+
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .Build();
+
+        var results = world.Query<TestPosition>().WithTag("player").ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void Query_WithoutStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        world.AddTag(entity1, "frozen");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .Build();
+
+        var results = world.Query<TestPosition>().WithoutTag("frozen").ToList();
+
+        Assert.Equal(2, results.Count);
+        Assert.Contains(entity2, results);
+        Assert.Contains(entity3, results);
+    }
+
+    [Fact]
+    public void Query_WithMultipleStringTags_RequiresAllTags()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        world.AddTag(entity1, "player");
+        world.AddTag(entity1, "active");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+        world.AddTag(entity2, "player");
+
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .Build();
+        world.AddTag(entity3, "active");
+
+        var results = world.Query<TestPosition>()
+            .WithTag("player")
+            .WithTag("active")
+            .ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void Query_WithMultipleWithoutStringTags_ExcludesAnyMatch()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        world.AddTag(entity1, "frozen");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+        world.AddTag(entity2, "dead");
+
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .Build();
+
+        var results = world.Query<TestPosition>()
+            .WithoutTag("frozen")
+            .WithoutTag("dead")
+            .ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity3, results);
+    }
+
+    [Fact]
+    public void Query_CombinedWithAndWithoutStringTags_FiltersCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+        world.AddTag(entity1, "player");
+        world.AddTag(entity1, "active");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+        world.AddTag(entity2, "player");
+        world.AddTag(entity2, "frozen");
+
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .Build();
+        world.AddTag(entity3, "enemy");
+        world.AddTag(entity3, "active");
+
+        var results = world.Query<TestPosition>()
+            .WithTag("active")
+            .WithoutTag("frozen")
+            .ToList();
+
+        Assert.Equal(2, results.Count);
+        Assert.Contains(entity1, results);
+        Assert.Contains(entity3, results);
+    }
+
+    #endregion
+
+    #region Two Component Query with String Tags
+
+    [Fact]
+    public void QueryTwoComponents_WithStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+        world.AddTag(entity1, "moving");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 0f, Y = 0f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity>().WithTag("moving").ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryTwoComponents_WithoutStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .Build();
+        world.AddTag(entity1, "frozen");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity>().WithoutTag("frozen").ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity2, results);
+    }
+
+    #endregion
+
+    #region Three Component Query with String Tags
+
+    [Fact]
+    public void QueryThreeComponents_WithStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+        world.AddTag(entity1, "alive");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 0, Max = 100 })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth>().WithTag("alive").ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryThreeComponents_WithoutStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+        world.AddTag(entity1, "poisoned");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth>().WithoutTag("poisoned").ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity2, results);
+    }
+
+    #endregion
+
+    #region Four Component Query with String Tags
+
+    [Fact]
+    public void QueryFourComponents_WithStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 45f })
+            .Build();
+        world.AddTag(entity1, "rotatable");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 0f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>()
+            .WithTag("rotatable")
+            .ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    [Fact]
+    public void QueryFourComponents_WithoutStringTag_FiltersEntitiesCorrectly()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 45f })
+            .Build();
+        world.AddTag(entity1, "locked");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .With(new TestRotation { Angle = 90f })
+            .Build();
+
+        var results = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>()
+            .WithoutTag("locked")
+            .ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity2, results);
+    }
+
+    #endregion
+
+    #region Edge Cases
+
+    [Fact]
+    public void Query_WithStringTag_ReturnsEmpty_WhenNoEntitiesHaveTag()
+    {
+        using var world = new World();
+
+        world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+
+        var results = world.Query<TestPosition>().WithTag("nonexistent").ToList();
+
+        Assert.Empty(results);
+    }
+
+    [Fact]
+    public void Query_WithoutStringTag_ReturnsAll_WhenNoEntitiesHaveTag()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .Build();
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .Build();
+
+        var results = world.Query<TestPosition>().WithoutTag("nonexistent").ToList();
+
+        Assert.Equal(2, results.Count);
+        Assert.Contains(entity1, results);
+        Assert.Contains(entity2, results);
+    }
+
+    [Fact]
+    public void Query_StringTagFilter_WorksWithComponentFilters()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .With(new TestVelocity { X = 1f, Y = 1f })
+            .WithTag<ActiveTag>()
+            .Build();
+        world.AddTag(entity1, "special");
+
+        var entity2 = world.Spawn()
+            .With(new TestPosition { X = 2f, Y = 2f })
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .Build();
+        world.AddTag(entity2, "special");
+
+        var entity3 = world.Spawn()
+            .With(new TestPosition { X = 3f, Y = 3f })
+            .WithTag<ActiveTag>()
+            .Build();
+        world.AddTag(entity3, "special");
+
+        var results = world.Query<TestPosition>()
+            .With<TestVelocity>()
+            .With<ActiveTag>()
+            .WithTag("special")
+            .ToList();
+
+        Assert.Single(results);
+        Assert.Contains(entity1, results);
+    }
+
+    #endregion
+}

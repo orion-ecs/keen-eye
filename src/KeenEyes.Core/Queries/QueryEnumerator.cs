@@ -75,11 +75,25 @@ public struct QueryEnumerator<T1> : IEnumerator<Entity>
 
     private readonly bool MatchesStringTags(Entity entity)
     {
-        // Capture world in local to allow lambda access in struct
-        var w = world;
-        // All required tags must be present, and no excluded tags can be present
-        return withStringTags.All(tag => w.HasTag(entity, tag))
-            && !withoutStringTags.Any(tag => w.HasTag(entity, tag));
+        // All required tags must be present
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // No excluded tags can be present
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
@@ -170,11 +184,25 @@ public struct QueryEnumerator<T1, T2> : IEnumerator<Entity>
 
     private readonly bool MatchesStringTags(Entity entity)
     {
-        // Capture world in local to allow lambda access in struct
-        var w = world;
-        // All required tags must be present, and no excluded tags can be present
-        return withStringTags.All(tag => w.HasTag(entity, tag))
-            && !withoutStringTags.Any(tag => w.HasTag(entity, tag));
+        // All required tags must be present
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // No excluded tags can be present
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
@@ -266,11 +294,25 @@ public struct QueryEnumerator<T1, T2, T3> : IEnumerator<Entity>
 
     private readonly bool MatchesStringTags(Entity entity)
     {
-        // Capture world in local to allow lambda access in struct
-        var w = world;
-        // All required tags must be present, and no excluded tags can be present
-        return withStringTags.All(tag => w.HasTag(entity, tag))
-            && !withoutStringTags.Any(tag => w.HasTag(entity, tag));
+        // All required tags must be present
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // No excluded tags can be present
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
@@ -363,11 +405,25 @@ public struct QueryEnumerator<T1, T2, T3, T4> : IEnumerator<Entity>
 
     private readonly bool MatchesStringTags(Entity entity)
     {
-        // Capture world in local to allow lambda access in struct
-        var w = world;
-        // All required tags must be present, and no excluded tags can be present
-        return withStringTags.All(tag => w.HasTag(entity, tag))
-            && !withoutStringTags.Any(tag => w.HasTag(entity, tag));
+        // All required tags must be present
+        foreach (var tag in withStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // No excluded tags can be present
+        foreach (var tag in withoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /// <inheritdoc />
