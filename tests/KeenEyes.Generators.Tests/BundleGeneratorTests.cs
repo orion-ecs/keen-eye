@@ -616,6 +616,332 @@ public class BundleGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("WithLocationBundle<TSelf>(this TSelf builder, TestApp.Position position)"));
     }
 
+    [Fact(Skip = "Nested bundles implementation in progress")]
+    public void BundleGenerator_WithNestedBundle_GeneratesCode()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Component]
+            public partial struct Rotation
+            {
+                public float Angle;
+            }
+
+            [Component]
+            public partial struct Health
+            {
+                public int Current;
+                public int Max;
+            }
+
+            [Bundle]
+            public partial struct TransformBundle
+            {
+                public Position Position;
+                public Rotation Rotation;
+            }
+
+            [Bundle]
+            public partial struct CharacterBundle
+            {
+                public TransformBundle Transform;
+                public Health Health;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("partial struct CharacterBundle"));
+        Assert.Contains(generatedTrees, t => t.Contains("partial struct TransformBundle"));
+    }
+
+    [Fact(Skip = "Nested bundles implementation in progress")]
+    public void BundleGenerator_WithNestedBundle_GeneratesRecursiveWith()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X, Y; }
+
+            [Component]
+            public partial struct Health { public int Current, Max; }
+
+            [Bundle]
+            public partial struct TransformBundle
+            {
+                public Position Position;
+            }
+
+            [Bundle]
+            public partial struct CharacterBundle
+            {
+                public TransformBundle Transform;
+                public Health Health;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify that the CharacterBundle's With method calls With on the nested TransformBundle
+        var builderExtensions = generatedTrees.FirstOrDefault(t => t.Contains("EntityBuilderExtensions"));
+        Assert.NotNull(builderExtensions);
+        Assert.Contains("builder.With(bundle.Transform)", builderExtensions);
+        Assert.Contains("builder.With(bundle.Health)", builderExtensions);
+    }
+
+    [Fact(Skip = "Optional fields implementation in progress")]
+    public void BundleGenerator_WithOptionalField_GeneratesNullableType()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X, Y; }
+
+            [Component]
+            public partial struct Health { public int Current, Max; }
+
+            [Bundle]
+            public partial struct EnemyBundle
+            {
+                public Position Position;
+                public Health Health;
+
+                [Optional]
+                public Health? Shield;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify that optional field handling is generated
+        var builderExtensions = generatedTrees.FirstOrDefault(t => t.Contains("EntityBuilderExtensions"));
+        Assert.NotNull(builderExtensions);
+        Assert.Contains("if (bundle.Shield.HasValue)", builderExtensions);
+        Assert.Contains("builder.With(bundle.Shield.Value)", builderExtensions);
+    }
+
+    [Fact]
+    public void BundleGenerator_WithOptionalNonNullableField_ProducesDiagnostic()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X, Y; }
+
+            [Bundle]
+            public partial struct InvalidBundle
+            {
+                [Optional]
+                public Position Position; // Not nullable!
+            }
+            """;
+
+        var (diagnostics, _) = RunGenerator(source);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id == "KEEN025" &&
+            d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void BundleGenerator_WithCircularNestedBundle_ProducesDiagnostic()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X, Y; }
+
+            [Bundle]
+            public partial struct CircularBundle
+            {
+                public Position Position;
+                public CircularBundle? Nested;
+            }
+            """;
+
+        var (diagnostics, _) = RunGenerator(source);
+
+        Assert.Contains(diagnostics, d =>
+            d.Id == "KEEN023" &&
+            d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact(Skip = "Depth limit validation in progress")]
+    public void BundleGenerator_WithDeepNesting_ProducesDiagnosticAtLimit()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X, Y; }
+
+            [Bundle]
+            public partial struct Level1
+            {
+                public Position Position;
+            }
+
+            [Bundle]
+            public partial struct Level2
+            {
+                public Level1 L1;
+            }
+
+            [Bundle]
+            public partial struct Level3
+            {
+                public Level2 L2;
+            }
+
+            [Bundle]
+            public partial struct Level4
+            {
+                public Level3 L3;
+            }
+
+            [Bundle]
+            public partial struct Level5
+            {
+                public Level4 L4;
+            }
+
+            [Bundle]
+            public partial struct Level6
+            {
+                public Level5 L5; // This should exceed the depth limit
+            }
+            """;
+
+        var (diagnostics, _) = RunGenerator(source);
+
+        // Should get KEEN024 for exceeding nesting depth
+        Assert.Contains(diagnostics, d =>
+            d.Id == "KEEN024" &&
+            d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact(Skip = "Optional nested bundles in progress")]
+    public void BundleGenerator_WithOptionalNestedBundle_GeneratesNullCheck()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X, Y; }
+
+            [Component]
+            public partial struct Health { public int Current, Max; }
+
+            [Bundle]
+            public partial struct TransformBundle
+            {
+                public Position Position;
+            }
+
+            [Bundle]
+            public partial struct CharacterBundle
+            {
+                public Health Health;
+
+                [Optional]
+                public TransformBundle? Transform;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify that optional nested bundle handling is generated
+        var builderExtensions = generatedTrees.FirstOrDefault(t => t.Contains("EntityBuilderExtensions"));
+        Assert.NotNull(builderExtensions);
+        Assert.Contains("if (bundle.Transform.HasValue)", builderExtensions);
+        Assert.Contains("builder.With(bundle.Transform.Value)", builderExtensions);
+    }
+
+    [Fact]
+    public void BundleGenerator_WithMultiLevelNesting_GeneratesCorrectly()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X, Y; }
+
+            [Component]
+            public partial struct Rotation { public float Angle; }
+
+            [Component]
+            public partial struct Scale { public float X, Y; }
+
+            [Component]
+            public partial struct Health { public int Current, Max; }
+
+            [Bundle]
+            public partial struct TransformBundle
+            {
+                public Position Position;
+                public Rotation Rotation;
+                public Scale Scale;
+            }
+
+            [Bundle]
+            public partial struct ActorBundle
+            {
+                public Health Health;
+            }
+
+            [Bundle]
+            public partial struct CharacterBundle
+            {
+                public TransformBundle Transform;
+                public ActorBundle Actor;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Verify all bundles are generated
+        Assert.Contains(generatedTrees, t => t.Contains("partial struct TransformBundle"));
+        Assert.Contains(generatedTrees, t => t.Contains("partial struct ActorBundle"));
+        Assert.Contains(generatedTrees, t => t.Contains("partial struct CharacterBundle"));
+    }
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
