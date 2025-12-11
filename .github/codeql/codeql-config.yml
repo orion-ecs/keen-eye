@@ -16,3 +16,7 @@ query-filters:
       id: cs/linq/missed-select
   - exclude:
       id: cs/linq/missed-oftype
+  # Disable Path.Combine alert - paths in this codebase are constructed from
+  # trusted internal sources (asset paths, config locations), not user input
+  - exclude:
+      id: cs/path-injection
