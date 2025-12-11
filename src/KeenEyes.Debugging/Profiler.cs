@@ -36,8 +36,8 @@ namespace KeenEyes.Debugging;
 /// </example>
 public sealed class Profiler
 {
-    private readonly Dictionary<string, SystemProfile> profiles = new();
-    private readonly Dictionary<string, long> activeSamples = new();
+    private readonly Dictionary<string, SystemProfile> profiles = [];
+    private readonly Dictionary<string, long> activeSamples = [];
 
     /// <summary>
     /// Begins profiling a sample with the specified name.
