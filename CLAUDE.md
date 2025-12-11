@@ -67,6 +67,72 @@ Use Roslyn source generators to reduce boilerplate while maintaining performance
 - `[System]` → generates metadata properties (Phase, Order, Group)
 - `[Query]` → generates efficient query iterators
 
+### No Reflection in Production Code
+
+**All production code must be Native AOT compatible.** Do not use reflection in `KeenEyes.Core` or other runtime libraries.
+
+**Prohibited patterns:**
+- `Type.GetField()`, `Type.GetMethod()`, `Type.GetProperty()`
+- `Type.GetFields()`, `Type.GetMethods()`, `Type.GetProperties()`
+- `Activator.CreateInstance()` for dynamic object creation
+- `System.Reflection.BindingFlags`
+- Assembly scanning or type discovery at runtime
+
+**AOT-compatible alternatives:**
+
+1. **Factory delegates** instead of `Activator.CreateInstance()`:
+```csharp
+// ❌ BAD: Reflection-based creation
+var component = Activator.CreateInstance(componentType);
+
+// ✅ GOOD: Factory delegate stored at registration
+public delegate object ComponentFactory();
+var component = componentInfo.Factory();
+```
+
+2. **Static abstract interface members** instead of reflection on static fields:
+```csharp
+// ❌ BAD: Reflection to access static field
+var field = typeof(TBundle).GetField("ComponentTypes", BindingFlags.Static);
+var types = (Type[])field.GetValue(null);
+
+// ✅ GOOD: Static abstract interface member
+public interface IBundle
+{
+    static abstract Type[] ComponentTypes { get; }
+}
+var types = TBundle.ComponentTypes;  // Direct access, no reflection
+```
+
+3. **Source generators** for type metadata:
+```csharp
+// ❌ BAD: Runtime attribute reading
+var attrs = componentType.GetCustomAttributes<RequiresComponentAttribute>();
+
+// ✅ GOOD: Generated metadata lookup
+ComponentValidationManager.RegisterConstraintProvider(
+    ComponentValidationMetadata.TryGetConstraints);
+```
+
+4. **Explicit registration** instead of assembly scanning:
+```csharp
+// ❌ BAD: Assembly scanning
+var components = Assembly.GetExecutingAssembly()
+    .GetTypes()
+    .Where(t => typeof(IComponent).IsAssignableFrom(t));
+
+// ✅ GOOD: Explicit registration or generated registry
+world.Components.Register<Position>();
+// Or: use generated ComponentRegistry with all known components
+```
+
+**Exceptions:**
+- Test code may use reflection for test infrastructure
+- `object.GetType()` on existing instances is allowed (not assembly scanning)
+- Debug/diagnostic code with `#if DEBUG` guards
+
+When adding new features, always ask: "Would this work with Native AOT compilation?"
+
 ## Project Structure
 
 ```

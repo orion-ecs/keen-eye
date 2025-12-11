@@ -116,12 +116,12 @@ public sealed partial class World
     /// <param name="initialCapacity">Initial capacity for entity storage. Defaults to 16.</param>
     /// <remarks>
     /// <para>
-    /// This method uses reflection to extract component types from the bundle.
-    /// For better performance, bundles are automatically pre-allocated during World initialization.
+    /// This method uses the static abstract <see cref="IBundle.ComponentTypes"/> member
+    /// for AOT-compatible access to bundle component types without reflection.
     /// </para>
     /// <para>
-    /// Use this method when you want to pre-allocate a bundle archetype after World creation,
-    /// or when working with bundles from dynamically loaded assemblies.
+    /// For better performance, bundles are automatically pre-allocated during World initialization.
+    /// Use this method when you want to pre-allocate a bundle archetype after World creation.
     /// </para>
     /// </remarks>
     /// <example>
@@ -141,27 +141,11 @@ public sealed partial class World
     public void PreallocateArchetypeFor<TBundle>(int initialCapacity = 16)
         where TBundle : struct, IBundle
     {
-        // Use reflection to get component types from the bundle
-        var bundleType = typeof(TBundle);
-        var componentTypesField = bundleType.GetField("ComponentTypes",
-            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
-
-        if (componentTypesField is not null && componentTypesField.GetValue(null) is Type[] componentTypes)
+        // Use static abstract interface member for AOT-compatible access (no reflection)
+        var componentTypes = TBundle.ComponentTypes;
+        if (componentTypes.Length > 0)
         {
             archetypeManager.PreallocateArchetype(componentTypes, initialCapacity);
-        }
-        else
-        {
-            // Fallback: extract component types from fields
-            var fields = bundleType.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-            var types = fields.Where(f => typeof(IComponent).IsAssignableFrom(f.FieldType))
-                              .Select(f => f.FieldType)
-                              .ToArray();
-
-            if (types.Length > 0)
-            {
-                archetypeManager.PreallocateArchetype(types, initialCapacity);
-            }
         }
     }
 }
