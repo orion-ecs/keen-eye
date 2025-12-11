@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Debugging</PackageId>
+    <Description>Debugging and profiling plugin for KeenEyes ECS</Description>
+    <PackageTags>ecs;debugging;profiling;diagnostics;performance</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Debugging.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+  </ItemGroup>
+
+</Project>
