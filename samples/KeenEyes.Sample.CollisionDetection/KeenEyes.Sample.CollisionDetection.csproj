@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Disable XML documentation warnings for samples -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Common\KeenEyes.Common.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Spatial\KeenEyes.Spatial.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Generators.Attributes\KeenEyes.Generators.Attributes.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
