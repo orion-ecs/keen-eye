@@ -26,7 +26,7 @@ public sealed class Archetype : IDisposable
 {
     private readonly List<ArchetypeChunk> chunks;
     private readonly Dictionary<int, (int ChunkIndex, int IndexInChunk)> entityLocations;
-    private readonly List<Type> componentTypesList;
+    private readonly List<ComponentInfo> componentInfosList;
     private readonly ChunkPool? chunkPool;
     private int totalCount;
 
@@ -43,7 +43,7 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets the component types in this archetype.
     /// </summary>
-    public IReadOnlyList<Type> ComponentTypes => componentTypesList;
+    public IReadOnlyList<Type> ComponentTypes => componentInfosList.Select(c => c.Type).ToList();
 
     /// <summary>
     /// Gets all chunks in this archetype.
@@ -84,7 +84,7 @@ public sealed class Archetype : IDisposable
         this.chunkPool = chunkPool;
         chunks = [];
         entityLocations = [];
-        componentTypesList = componentInfos.Select(c => c.Type).ToList();
+        componentInfosList = componentInfos.ToList();
     }
 
     /// <summary>
@@ -290,7 +290,7 @@ public sealed class Archetype : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has<T>() where T : struct, IComponent
     {
-        return componentTypesList.Contains(typeof(T));
+        return componentInfosList.Any(c => c.Type == typeof(T));
     }
 
     /// <summary>
@@ -299,7 +299,7 @@ public sealed class Archetype : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has(Type type)
     {
-        return componentTypesList.Contains(type);
+        return componentInfosList.Any(c => c.Type == type);
     }
 
     /// <summary>
@@ -395,11 +395,11 @@ public sealed class Archetype : IDisposable
         ArchetypeChunk newChunk;
         if (chunkPool != null)
         {
-            newChunk = chunkPool.Rent(Id, componentTypesList);
+            newChunk = chunkPool.Rent(Id, componentInfosList);
         }
         else
         {
-            newChunk = new ArchetypeChunk(Id, componentTypesList);
+            newChunk = new ArchetypeChunk(Id, componentInfosList);
         }
 
         chunks.Add(newChunk);

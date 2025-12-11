@@ -1,6 +1,58 @@
 namespace KeenEyes;
 
 /// <summary>
+/// Non-generic interface for type-erased message queue operations.
+/// Enables storing queues of different types in a single collection without reflection.
+/// </summary>
+internal interface IMessageQueue
+{
+    /// <summary>
+    /// Processes all queued messages, delivering them to registered handlers.
+    /// </summary>
+    void ProcessQueue(object handlersObj);
+
+    /// <summary>
+    /// Clears all queued messages without processing them.
+    /// </summary>
+    void Clear();
+
+    /// <summary>
+    /// Gets the number of queued messages.
+    /// </summary>
+    int Count { get; }
+}
+
+/// <summary>
+/// Typed message queue wrapper that implements the non-generic interface.
+/// </summary>
+internal sealed class MessageQueue<T> : IMessageQueue
+{
+    private readonly Queue<T> queue = new();
+
+    public int Count => queue.Count;
+
+    public void Enqueue(in T message) => queue.Enqueue(message);
+
+    public void ProcessQueue(object handlersObj)
+    {
+        var handlerList = (List<Action<T>>)handlersObj;
+
+        while (queue.Count > 0)
+        {
+            var message = queue.Dequeue();
+
+            // Dispatch to handlers in reverse order for safe unsubscription
+            for (int i = handlerList.Count - 1; i >= 0; i--)
+            {
+                handlerList[i](message);
+            }
+        }
+    }
+
+    public void Clear() => queue.Clear();
+}
+
+/// <summary>
 /// Manages inter-system messaging for a world, providing a typed message bus
 /// for decoupled communication between systems.
 /// </summary>
@@ -24,7 +76,7 @@ namespace KeenEyes;
 internal sealed class MessageManager
 {
     private readonly Dictionary<Type, object> handlers = [];
-    private readonly Dictionary<Type, object> messageQueues = [];
+    private readonly Dictionary<Type, IMessageQueue> messageQueues = [];
 
     #region Subscription
 
@@ -155,24 +207,24 @@ internal sealed class MessageManager
         foreach (var kvp in messageQueues)
         {
             var messageType = kvp.Key;
-            var queueObj = kvp.Value;
+            var queue = kvp.Value;
 
             // Get the handler list for this message type
             if (!handlers.TryGetValue(messageType, out var handlersObj))
             {
                 // No handlers, clear the queue and continue
-                ClearQueue(queueObj, messageType);
+                queue.Clear();
                 continue;
             }
 
-            // Process the queue using reflection-free typed processing
-            ProcessTypedQueue(queueObj, handlersObj, messageType);
+            // Process the queue using the typed interface (no reflection)
+            queue.ProcessQueue(handlersObj);
         }
 
         // Clear all queues after processing
-        foreach (var kvp in messageQueues)
+        foreach (var queue in messageQueues.Values)
         {
-            ClearQueue(kvp.Value, kvp.Key);
+            queue.Clear();
         }
     }
 
@@ -194,7 +246,7 @@ internal sealed class MessageManager
             return;
         }
 
-        var queue = (Queue<T>)queueObj;
+        var queue = (MessageQueue<T>)queueObj;
 
         if (!handlers.TryGetValue(typeof(T), out var handlersObj))
         {
@@ -203,18 +255,8 @@ internal sealed class MessageManager
             return;
         }
 
-        var handlerList = (List<Action<T>>)handlersObj;
-
-        while (queue.Count > 0)
-        {
-            var message = queue.Dequeue();
-
-            // Dispatch to handlers in reverse order for safe unsubscription
-            for (int i = handlerList.Count - 1; i >= 0; i--)
-            {
-                handlerList[i](message);
-            }
-        }
+        // Process using the typed interface (no reflection)
+        queue.ProcessQueue(handlersObj);
     }
 
     /// <summary>
@@ -224,12 +266,12 @@ internal sealed class MessageManager
     /// <returns>The number of queued messages.</returns>
     internal int GetQueuedMessageCount<T>()
     {
-        if (!messageQueues.TryGetValue(typeof(T), out var queueObj))
+        if (!messageQueues.TryGetValue(typeof(T), out var queue))
         {
             return 0;
         }
 
-        return ((Queue<T>)queueObj).Count;
+        return queue.Count;
     }
 
     /// <summary>
@@ -239,9 +281,9 @@ internal sealed class MessageManager
     internal int GetTotalQueuedMessageCount()
     {
         int total = 0;
-        foreach (var kvp in messageQueues)
+        foreach (var queue in messageQueues.Values)
         {
-            total += GetQueueCount(kvp.Value, kvp.Key);
+            total += queue.Count;
         }
         return total;
     }
@@ -251,9 +293,9 @@ internal sealed class MessageManager
     /// </summary>
     internal void ClearQueuedMessages()
     {
-        foreach (var kvp in messageQueues)
+        foreach (var queue in messageQueues.Values)
         {
-            ClearQueue(kvp.Value, kvp.Key);
+            queue.Clear();
         }
     }
 
@@ -263,9 +305,9 @@ internal sealed class MessageManager
     /// <typeparam name="T">The message type to clear.</typeparam>
     internal void ClearQueuedMessages<T>()
     {
-        if (messageQueues.TryGetValue(typeof(T), out var queueObj))
+        if (messageQueues.TryGetValue(typeof(T), out var queue))
         {
-            ((Queue<T>)queueObj).Clear();
+            queue.Clear();
         }
     }
 
@@ -298,77 +340,16 @@ internal sealed class MessageManager
         return (List<Action<T>>)handlersObj;
     }
 
-    private Queue<T> GetOrCreateMessageQueue<T>()
+    private MessageQueue<T> GetOrCreateMessageQueue<T>()
     {
         if (!messageQueues.TryGetValue(typeof(T), out var queueObj))
         {
-            var queue = new Queue<T>();
+            var queue = new MessageQueue<T>();
             messageQueues[typeof(T)] = queue;
             return queue;
         }
 
-        return (Queue<T>)queueObj;
-    }
-
-    private static void ProcessTypedQueue(object queueObj, object handlersObj, Type messageType)
-    {
-        // Use dynamic dispatch to avoid reflection overhead
-        // This is called infrequently (once per message type per ProcessQueuedMessages call)
-        var processMethod = typeof(MessageManager).GetMethod(
-            nameof(ProcessQueueGeneric),
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-
-        var genericMethod = processMethod!.MakeGenericMethod(messageType);
-        genericMethod.Invoke(null, [queueObj, handlersObj]);
-    }
-
-    private static void ProcessQueueGeneric<T>(object queueObj, object handlersObj)
-    {
-        var queue = (Queue<T>)queueObj;
-        var handlerList = (List<Action<T>>)handlersObj;
-
-        while (queue.Count > 0)
-        {
-            var message = queue.Dequeue();
-
-            // Dispatch to handlers in reverse order for safe unsubscription
-            for (int i = handlerList.Count - 1; i >= 0; i--)
-            {
-                handlerList[i](message);
-            }
-        }
-    }
-
-    private static void ClearQueue(object queueObj, Type messageType)
-    {
-        // Use dynamic dispatch to clear the queue
-        var clearMethod = typeof(MessageManager).GetMethod(
-            nameof(ClearQueueGeneric),
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-
-        var genericMethod = clearMethod!.MakeGenericMethod(messageType);
-        genericMethod.Invoke(null, [queueObj]);
-    }
-
-    private static void ClearQueueGeneric<T>(object queueObj)
-    {
-        ((Queue<T>)queueObj).Clear();
-    }
-
-    private static int GetQueueCount(object queueObj, Type messageType)
-    {
-        // Use dynamic dispatch to get the count
-        var countMethod = typeof(MessageManager).GetMethod(
-            nameof(GetQueueCountGeneric),
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-
-        var genericMethod = countMethod!.MakeGenericMethod(messageType);
-        return (int)genericMethod.Invoke(null, [queueObj])!;
-    }
-
-    private static int GetQueueCountGeneric<T>(object queueObj)
-    {
-        return ((Queue<T>)queueObj).Count;
+        return (MessageQueue<T>)queueObj;
     }
 
     #endregion

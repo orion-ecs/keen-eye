@@ -6,6 +6,27 @@ namespace KeenEyes.Tests;
 /// </summary>
 public class EdgeCaseTests
 {
+    /// <summary>
+    /// Helper method to get ComponentInfo for tests that need to construct chunks directly.
+    /// Creates a temporary registry to get properly configured ComponentInfo.
+    /// </summary>
+    private static ComponentInfo[] GetComponentInfos(params Type[] types)
+    {
+        var registry = new ComponentRegistry();
+        var result = new List<ComponentInfo>();
+
+        foreach (var type in types)
+        {
+            // Use reflection to call Register<T>() for each type
+            var method = typeof(ComponentRegistry).GetMethod(nameof(ComponentRegistry.Register));
+            var genericMethod = method!.MakeGenericMethod(type);
+            var info = (ComponentInfo)genericMethod.Invoke(registry, [false])!;
+            result.Add(info);
+        }
+
+        return [.. result];
+    }
+
     #region Test Components
 
     private struct Position : IComponent
@@ -819,7 +840,7 @@ public class EdgeCaseTests
     public void ArchetypeChunk_SetBoxed_TypeNotInChunk_NoOp()
     {
         var archetypeId = new ArchetypeId([typeof(Position)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(Position)]);
+        var chunk = new ArchetypeChunk(archetypeId, GetComponentInfos(typeof(Position)));
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new Position { X = 1 });
 
@@ -834,7 +855,7 @@ public class EdgeCaseTests
     public void ArchetypeChunk_AddComponentBoxed_TypeNotInChunk_NoOp()
     {
         var archetypeId = new ArchetypeId([typeof(Position)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(Position)]);
+        var chunk = new ArchetypeChunk(archetypeId, GetComponentInfos(typeof(Position)));
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new Position { X = 1 });
 
@@ -852,8 +873,8 @@ public class EdgeCaseTests
         var archetypeId1 = new ArchetypeId([typeof(Position), typeof(Velocity)]);
         var archetypeId2 = new ArchetypeId([typeof(Position)]); // No Velocity
 
-        var source = new ArchetypeChunk(archetypeId1, [typeof(Position), typeof(Velocity)]);
-        var dest = new ArchetypeChunk(archetypeId2, [typeof(Position)]);
+        var source = new ArchetypeChunk(archetypeId1, GetComponentInfos(typeof(Position), typeof(Velocity)));
+        var dest = new ArchetypeChunk(archetypeId2, GetComponentInfos(typeof(Position)));
 
         source.AddEntity(new Entity(1, 1));
         source.AddComponent(new Position { X = 42 });

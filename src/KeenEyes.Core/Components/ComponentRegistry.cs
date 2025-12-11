@@ -48,7 +48,9 @@ public sealed class ComponentRegistry
             SetupDispatcher = (self, handlers) =>
             {
                 self.FireAddedBoxed = (h, e, obj) => h.FireAdded(e, (T)obj);
-            }
+            },
+            // Store factory delegate for creating component arrays without reflection
+            ArrayFactory = capacity => new FixedComponentArray<T>(capacity)
         };
 
         byType[type] = info;

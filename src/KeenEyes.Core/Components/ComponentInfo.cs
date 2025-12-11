@@ -35,6 +35,12 @@ public sealed class ComponentInfo
     /// </summary>
     internal Action<ComponentInfo, Events.ComponentEventHandlers>? SetupDispatcher { get; set; }
 
+    /// <summary>
+    /// Factory delegate that creates a FixedComponentArray for this component type.
+    /// Stored once per component type during registration, avoiding reflection in chunk creation.
+    /// </summary>
+    internal Func<int, IComponentArray>? ArrayFactory { get; set; }
+
     internal ComponentInfo(ComponentId id, Type type, int size, bool isTag)
     {
         Id = id;

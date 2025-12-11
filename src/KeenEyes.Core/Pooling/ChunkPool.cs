@@ -84,10 +84,10 @@ public sealed class ChunkPool(int maxChunksPerArchetype = 64)
     /// Rents a chunk for the specified archetype.
     /// </summary>
     /// <param name="archetypeId">The archetype identifier.</param>
-    /// <param name="componentTypes">The component types (used if creating new chunk).</param>
+    /// <param name="componentInfos">The component information (used if creating new chunk).</param>
     /// <param name="capacity">The chunk capacity.</param>
     /// <returns>A chunk, either from the pool or newly created.</returns>
-    public ArchetypeChunk Rent(ArchetypeId archetypeId, IEnumerable<Type> componentTypes, int capacity = ArchetypeChunk.DefaultCapacity)
+    public ArchetypeChunk Rent(ArchetypeId archetypeId, IEnumerable<ComponentInfo> componentInfos, int capacity = ArchetypeChunk.DefaultCapacity)
     {
         Interlocked.Increment(ref totalRented);
 
@@ -99,7 +99,7 @@ public sealed class ChunkPool(int maxChunksPerArchetype = 64)
 
         // Need to create a new chunk
         Interlocked.Increment(ref totalCreated);
-        return new ArchetypeChunk(archetypeId, componentTypes, capacity);
+        return new ArchetypeChunk(archetypeId, componentInfos, capacity);
     }
 
     /// <summary>

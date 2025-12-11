@@ -68,9 +68,9 @@ public sealed class ArchetypeChunk : IDisposable
     /// Creates a new chunk for the specified archetype.
     /// </summary>
     /// <param name="archetypeId">The archetype identifier.</param>
-    /// <param name="componentTypes">The component types for this archetype.</param>
+    /// <param name="componentInfos">The component information for this archetype.</param>
     /// <param name="capacity">The maximum entity capacity.</param>
-    internal ArchetypeChunk(ArchetypeId archetypeId, IEnumerable<Type> componentTypes, int capacity = DefaultCapacity)
+    internal ArchetypeChunk(ArchetypeId archetypeId, IEnumerable<ComponentInfo> componentInfos, int capacity = DefaultCapacity)
     {
         ArchetypeId = archetypeId;
         Capacity = capacity;
@@ -78,11 +78,20 @@ public sealed class ArchetypeChunk : IDisposable
         entityIdToIndex = new Dictionary<int, int>(capacity);
         componentArrays = [];
 
-        foreach (var type in componentTypes)
+        foreach (var info in componentInfos)
         {
-            var arrayType = typeof(FixedComponentArray<>).MakeGenericType(type);
-            var array = (IComponentArray)Activator.CreateInstance(arrayType, capacity)!;
-            componentArrays[type] = array;
+            // Use the factory delegate stored in ComponentInfo (no reflection)
+            if (info.ArrayFactory is not null)
+            {
+                componentArrays[info.Type] = info.ArrayFactory(capacity);
+            }
+            else
+            {
+                // Fallback for unregistered components (shouldn't happen in normal usage)
+                throw new InvalidOperationException(
+                    $"Component type {info.Type.Name} does not have an ArrayFactory registered. " +
+                    "This typically means the component was not properly registered with ComponentRegistry.Register<T>().");
+            }
         }
     }
 
