@@ -1221,6 +1221,70 @@ public class ArchetypeTests
         Assert.Equal(10, archetype.Count);
     }
 
+    [Fact]
+    public void Archetype_ChunkRemoval_UpdatesEntityLocationsCorrectly()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        var pool = new ChunkPool();
+        var manager = new ArchetypeManager(registry, pool);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        // Create entities across multiple chunks
+        var entitiesInFirstChunk = new List<Entity>();
+        var entitiesInSecondChunk = new List<Entity>();
+
+        // Fill first chunk
+        for (int i = 0; i < ArchetypeChunk.DefaultCapacity; i++)
+        {
+            var entity = new Entity(i, 1);
+            entitiesInFirstChunk.Add(entity);
+            archetype.AddEntity(entity);
+            archetype.AddComponent(new Position { X = i });
+        }
+
+        // Add entities to second chunk
+        for (int i = 0; i < 5; i++)
+        {
+            var entity = new Entity(ArchetypeChunk.DefaultCapacity + i, 1);
+            entitiesInSecondChunk.Add(entity);
+            archetype.AddEntity(entity);
+            archetype.AddComponent(new Position { X = ArchetypeChunk.DefaultCapacity + i });
+        }
+
+        Assert.Equal(2, archetype.ChunkCount);
+
+        // Verify entities in second chunk are at chunk index 1
+        foreach (var entity in entitiesInSecondChunk)
+        {
+            var (chunkIdx, _) = archetype.GetEntityLocation(entity);
+            Assert.Equal(1, chunkIdx);
+        }
+
+        // Remove all entities from first chunk to trigger chunk removal
+        foreach (var entity in entitiesInFirstChunk)
+        {
+            archetype.RemoveEntity(entity);
+        }
+
+        // Now only one chunk should remain
+        Assert.Equal(1, archetype.ChunkCount);
+
+        // Verify entities that were in second chunk are now in first chunk (index 0)
+        foreach (var entity in entitiesInSecondChunk)
+        {
+            var (chunkIdx, _) = archetype.GetEntityLocation(entity);
+            Assert.Equal(0, chunkIdx);
+        }
+
+        // Verify we can still access components for these entities
+        foreach (var entity in entitiesInSecondChunk)
+        {
+            ref var pos = ref archetype.GetByEntity<Position>(entity);
+            Assert.True(pos.X >= ArchetypeChunk.DefaultCapacity);
+        }
+    }
+
     #endregion
 
     #region ArchetypeManager Advanced Coverage Tests
