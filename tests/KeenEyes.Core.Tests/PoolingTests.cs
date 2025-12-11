@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace KeenEyes.Tests;
 
 /// <summary>
@@ -185,6 +187,340 @@ public class PoolingTests
         var pool = new EntityPool();
 
         Assert.Equal(-1, pool.GetVersion(999));
+    }
+
+    [Fact]
+    public void EntityPool_ConcurrentAcquire_AllEntitiesUnique()
+    {
+        var pool = new EntityPool();
+        var threadCount = 10;
+        var entitiesPerThread = 1000;
+        var allEntities = new ConcurrentBag<Entity>();
+
+        var threads = new Thread[threadCount];
+        for (var i = 0; i < threadCount; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                for (var j = 0; j < entitiesPerThread; j++)
+                {
+                    var entity = pool.Acquire();
+                    allEntities.Add(entity);
+                }
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        // Verify all entities have unique IDs
+        var entityList = allEntities.ToList();
+        Assert.Equal(threadCount * entitiesPerThread, entityList.Count);
+
+        var uniqueIds = entityList.Select(e => e.Id).Distinct().Count();
+        Assert.Equal(threadCount * entitiesPerThread, uniqueIds);
+    }
+
+    [Fact]
+    public void EntityPool_ConcurrentRelease_NoDoubleFree()
+    {
+        var pool = new EntityPool();
+        var entity = pool.Acquire();
+        var successCount = 0;
+
+        var threads = new Thread[10];
+        for (var i = 0; i < threads.Length; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                if (pool.Release(entity))
+                {
+                    Interlocked.Increment(ref successCount);
+                }
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        // Only one thread should successfully release
+        Assert.Equal(1, successCount);
+    }
+
+    [Fact]
+    public void EntityPool_ConcurrentAcquireRelease_CorrectRecycling()
+    {
+        var pool = new EntityPool();
+        var iterations = 5000;
+        var threadCount = 4;
+
+        var threads = new Thread[threadCount];
+        for (var i = 0; i < threadCount; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                for (var j = 0; j < iterations; j++)
+                {
+                    var entity = pool.Acquire();
+                    Assert.True(pool.IsValid(entity));
+                    pool.Release(entity);
+                    Assert.False(pool.IsValid(entity));
+                }
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        // All entities should be recycled
+        Assert.Equal(0, pool.ActiveCount);
+        Assert.True(pool.RecycleCount > 0);
+    }
+
+    [Fact]
+    public void EntityPool_ConcurrentAcquireReleaseWithValidation_NoStaleHandles()
+    {
+        var pool = new EntityPool();
+        var threadCount = 8;
+        var entitiesPerThread = 500;
+        var errors = new ConcurrentBag<string>();
+
+        var threads = new Thread[threadCount];
+        for (var i = 0; i < threadCount; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                var localEntities = new List<Entity>();
+
+                // Acquire entities
+                for (var j = 0; j < entitiesPerThread; j++)
+                {
+                    var entity = pool.Acquire();
+                    if (!pool.IsValid(entity))
+                    {
+                        errors.Add($"Newly acquired entity {entity} is not valid");
+                    }
+                    localEntities.Add(entity);
+                }
+
+                // Release half
+                for (var j = 0; j < entitiesPerThread / 2; j++)
+                {
+                    var entity = localEntities[j];
+                    if (!pool.Release(entity))
+                    {
+                        errors.Add($"Failed to release valid entity {entity}");
+                    }
+                    if (pool.IsValid(entity))
+                    {
+                        errors.Add($"Released entity {entity} is still valid");
+                    }
+                }
+
+                // Acquire more (may reuse)
+                for (var j = 0; j < entitiesPerThread / 2; j++)
+                {
+                    var entity = pool.Acquire();
+                    if (!pool.IsValid(entity))
+                    {
+                        errors.Add($"Reacquired entity {entity} is not valid");
+                    }
+                }
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public void EntityPool_ConcurrentIsValid_ConsistentResults()
+    {
+        var pool = new EntityPool();
+        var entity = pool.Acquire();
+        var validCheckCount = 0;
+        var invalidCheckCount = 0;
+
+        // Start threads checking validity
+        var checkThreads = new Thread[5];
+        for (var i = 0; i < checkThreads.Length; i++)
+        {
+            checkThreads[i] = new Thread(() =>
+            {
+                for (var j = 0; j < 10000; j++)
+                {
+                    if (pool.IsValid(entity))
+                    {
+                        Interlocked.Increment(ref validCheckCount);
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref invalidCheckCount);
+                    }
+                }
+            });
+        }
+
+        foreach (var thread in checkThreads)
+        {
+            thread.Start();
+        }
+
+        // Release entity after some checks
+        Thread.Sleep(10);
+        pool.Release(entity);
+
+        foreach (var thread in checkThreads)
+        {
+            thread.Join();
+        }
+
+        // Should have both valid and invalid results
+        Assert.True(validCheckCount > 0, "Should have some valid checks before release");
+        Assert.True(invalidCheckCount > 0, "Should have some invalid checks after release");
+    }
+
+    [Fact]
+    public void EntityPool_ConcurrentGetVersion_ReturnsCorrectVersions()
+    {
+        var pool = new EntityPool();
+        var entity = pool.Acquire();
+        var initialVersion = entity.Version;
+
+        var versionsBefore = new ConcurrentBag<int>();
+        var versionsAfter = new ConcurrentBag<int>();
+
+        var threads = new Thread[10];
+        for (var i = 0; i < threads.Length; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                versionsBefore.Add(pool.GetVersion(entity.Id));
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        // All threads should see the same version before release
+        Assert.All(versionsBefore, v => Assert.Equal(initialVersion, v));
+
+        // Release and check version incremented
+        pool.Release(entity);
+
+        for (var i = 0; i < threads.Length; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                versionsAfter.Add(pool.GetVersion(entity.Id));
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        // All threads should see the incremented version after release
+        Assert.All(versionsAfter, v => Assert.Equal(initialVersion + 1, v));
+    }
+
+    [Fact]
+    public void EntityPool_HighContentionAcquireRelease_MaintainsConsistency()
+    {
+        var pool = new EntityPool();
+        var threadCount = 20;
+        var iterations = 1000;
+
+        var threads = new Thread[threadCount];
+        for (var i = 0; i < threadCount; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                var random = new Random(Thread.CurrentThread.ManagedThreadId);
+                var heldEntities = new List<Entity>();
+
+                for (var j = 0; j < iterations; j++)
+                {
+                    if (random.Next(2) == 0 || heldEntities.Count == 0)
+                    {
+                        // Acquire
+                        var entity = pool.Acquire();
+                        Assert.True(pool.IsValid(entity));
+                        heldEntities.Add(entity);
+                    }
+                    else
+                    {
+                        // Release
+                        var index = random.Next(heldEntities.Count);
+                        var entity = heldEntities[index];
+                        heldEntities.RemoveAt(index);
+                        Assert.True(pool.Release(entity));
+                    }
+                }
+
+                // Clean up
+                foreach (var entity in heldEntities)
+                {
+                    pool.Release(entity);
+                }
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        // All entities should be released
+        Assert.Equal(0, pool.ActiveCount);
     }
 
     #endregion
