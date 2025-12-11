@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 
 namespace KeenEyes;
@@ -26,7 +27,7 @@ public sealed class Archetype : IDisposable
 {
     private readonly List<ArchetypeChunk> chunks;
     private readonly Dictionary<int, (int ChunkIndex, int IndexInChunk)> entityLocations;
-    private readonly List<Type> componentTypesList;
+    private readonly ImmutableArray<Type> componentTypesList;
     private readonly ChunkPool? chunkPool;
     private int totalCount;
 
@@ -84,7 +85,7 @@ public sealed class Archetype : IDisposable
         this.chunkPool = chunkPool;
         chunks = [];
         entityLocations = [];
-        componentTypesList = componentInfos.Select(c => c.Type).ToList();
+        componentTypesList = componentInfos.Select(c => c.Type).ToImmutableArray();
     }
 
     /// <summary>

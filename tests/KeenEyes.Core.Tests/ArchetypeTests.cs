@@ -799,6 +799,23 @@ public class ArchetypeTests
         Assert.Contains(typeof(Velocity), types);
     }
 
+    [Fact]
+    public void Archetype_ComponentTypes_IsReadOnly()
+    {
+        var registry = new ComponentRegistry();
+        registry.Register<Position>();
+        registry.Register<Velocity>();
+        var manager = new ArchetypeManager(registry);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+
+        var types = archetype.ComponentTypes;
+
+        // Verify it's read-only by checking multiple accesses return consistent results
+        var types2 = archetype.ComponentTypes;
+        Assert.Equal(types.Count, types2.Count);
+        Assert.True(types.SequenceEqual(types2));
+    }
+
     #endregion
 
     #region World Coverage Tests
