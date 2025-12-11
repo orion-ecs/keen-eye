@@ -114,6 +114,11 @@ public sealed class Archetype : IDisposable
     /// <param name="component">The component value.</param>
     internal void AddComponent<T>(in T component) where T : struct, IComponent
     {
+        if (chunks.Count == 0)
+        {
+            throw new InvalidOperationException("Cannot add component: archetype has no chunks");
+        }
+
         // Add to the last chunk (where the entity was just added)
         var lastChunk = chunks[^1];
         lastChunk.AddComponent(in component);
@@ -124,6 +129,11 @@ public sealed class Archetype : IDisposable
     /// </summary>
     internal void AddComponentBoxed(Type type, object value)
     {
+        if (chunks.Count == 0)
+        {
+            throw new InvalidOperationException("Cannot add component: archetype has no chunks");
+        }
+
         var lastChunk = chunks[^1];
         lastChunk.AddComponentBoxed(type, value);
     }
