@@ -1,0 +1,14 @@
+name: KeenEyes CodeQL Configuration
+
+# Use the same query suites as before
+queries:
+  - uses: security-extended
+  - uses: security-and-quality
+
+# Disable specific rules
+query-filters:
+  # Disable "Missed opportunity to use Where" - this rule flags valid patterns
+  # in ECS code where we intentionally use foreach with conditions instead of
+  # LINQ's .Where() for performance reasons (avoiding allocations in hot paths)
+  - exclude:
+      id: cs/linq/missed-where
