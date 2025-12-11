@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Analyzer projects cannot be AOT-compiled -->
+  <PropertyGroup>
+    <PublishAot>false</PublishAot>
+  </PropertyGroup>
+
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -22,6 +27,9 @@
 
     <!-- Include the generator as an analyzer -->
     <IncludeBuildOutput>false</IncludeBuildOutput>
+
+    <!-- Disable AOT compilation for analyzer project -->
+    <IsAotCompatible>false</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,15 +40,9 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\KeenEyes.Generators.Attributes\KeenEyes.Generators.Attributes.csproj" />
-  </ItemGroup>
-
-  <!-- Pack the generator and attributes correctly -->
+  <!-- Pack the generator correctly -->
   <ItemGroup>
     <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="$(OutputPath)\KeenEyes.Generators.Attributes.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-    <None Include="$(OutputPath)\KeenEyes.Generators.Attributes.dll" Pack="true" PackagePath="lib/netstandard2.0" Visible="false" />
   </ItemGroup>
 
 </Project>

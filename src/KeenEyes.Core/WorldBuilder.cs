@@ -69,7 +69,8 @@ public sealed class WorldBuilder
     /// </example>
     public WorldBuilder WithPlugin<T>() where T : IWorldPlugin, new()
     {
-        plugins.Add(new PluginRegistration(typeof(T), null));
+        // Capture factory delegate at registration time for AOT compatibility (no Activator.CreateInstance)
+        plugins.Add(new PluginRegistration(static () => new T(), null));
         return this;
     }
 
@@ -100,7 +101,7 @@ public sealed class WorldBuilder
     public WorldBuilder WithPlugin(IWorldPlugin plugin)
     {
         ArgumentNullException.ThrowIfNull(plugin);
-        plugins.Add(new PluginRegistration(null, plugin));
+        plugins.Add(new PluginRegistration(null, Instance: plugin));
         return this;
     }
 
@@ -129,7 +130,8 @@ public sealed class WorldBuilder
     public WorldBuilder WithSystem<T>(SystemPhase phase = SystemPhase.Update, int order = 0)
         where T : ISystem, new()
     {
-        systems.Add(new SystemRegistration(typeof(T), null, phase, order, [], []));
+        // Capture factory delegate at registration time for AOT compatibility (no Activator.CreateInstance)
+        systems.Add(new SystemRegistration(static () => new T(), null, phase, order, [], []));
         return this;
     }
 
@@ -149,7 +151,8 @@ public sealed class WorldBuilder
         Type[] runsAfter)
         where T : ISystem, new()
     {
-        systems.Add(new SystemRegistration(typeof(T), null, phase, order, runsBefore, runsAfter));
+        // Capture factory delegate at registration time for AOT compatibility (no Activator.CreateInstance)
+        systems.Add(new SystemRegistration(static () => new T(), null, phase, order, runsBefore, runsAfter));
         return this;
     }
 
@@ -168,7 +171,7 @@ public sealed class WorldBuilder
     public WorldBuilder WithSystem(ISystem system, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
         ArgumentNullException.ThrowIfNull(system);
-        systems.Add(new SystemRegistration(null, system, phase, order, [], []));
+        systems.Add(new SystemRegistration(null, Instance: system, phase, order, [], []));
         return this;
     }
 
@@ -189,7 +192,7 @@ public sealed class WorldBuilder
         Type[] runsAfter)
     {
         ArgumentNullException.ThrowIfNull(system);
-        systems.Add(new SystemRegistration(null, system, phase, order, runsBefore, runsAfter));
+        systems.Add(new SystemRegistration(null, Instance: system, phase, order, runsBefore, runsAfter));
         return this;
     }
 
@@ -214,7 +217,7 @@ public sealed class WorldBuilder
     public WorldBuilder WithSystemGroup(SystemGroup group, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
         ArgumentNullException.ThrowIfNull(group);
-        systems.Add(new SystemRegistration(null, group, phase, order, [], []));
+        systems.Add(new SystemRegistration(null, Instance: group, phase, order, [], []));
         return this;
     }
 
@@ -254,14 +257,14 @@ public sealed class WorldBuilder
         // Install all plugins first
         foreach (var registration in plugins)
         {
-            var plugin = registration.Instance ?? (IWorldPlugin)Activator.CreateInstance(registration.Type!)!;
+            var plugin = registration.Instance ?? registration.Factory!();
             world.InstallPlugin(plugin);
         }
 
         // Register all systems
         foreach (var registration in systems)
         {
-            var system = registration.Instance ?? (ISystem)Activator.CreateInstance(registration.Type!)!;
+            var system = registration.Instance ?? registration.Factory!();
             world.AddSystem(
                 system,
                 registration.Phase,
@@ -276,13 +279,13 @@ public sealed class WorldBuilder
     /// <summary>
     /// Internal record for tracking plugin registrations.
     /// </summary>
-    private sealed record PluginRegistration(Type? Type, IWorldPlugin? Instance);
+    private sealed record PluginRegistration(Func<IWorldPlugin>? Factory, IWorldPlugin? Instance);
 
     /// <summary>
     /// Internal record for tracking system registrations.
     /// </summary>
     private sealed record SystemRegistration(
-        Type? Type,
+        Func<ISystem>? Factory,
         ISystem? Instance,
         SystemPhase Phase,
         int Order,

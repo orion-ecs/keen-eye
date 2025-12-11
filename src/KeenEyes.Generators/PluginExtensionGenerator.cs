@@ -124,12 +124,12 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
         sb.AppendLine("/// <remarks>");
         sb.AppendLine("/// <para>");
         sb.AppendLine("/// These extension members are generated from classes marked with <see cref=\"PluginExtensionAttribute\"/>.");
-        sb.AppendLine("/// They provide convenient typed property access instead of using <see cref=\"World.GetExtension{T}\"/>.");
+        sb.AppendLine("/// They provide convenient typed property access instead of using <see cref=\"IWorld.GetExtension{T}\"/>.");
         sb.AppendLine("/// </para>");
         sb.AppendLine("/// </remarks>");
         sb.AppendLine("public static class WorldPluginExtensions");
         sb.AppendLine("{");
-        sb.AppendLine("    extension(global::KeenEyes.World world)");
+        sb.AppendLine("    extension(global::KeenEyes.IWorld world)");
         sb.AppendLine("    {");
 
         foreach (var ext in extensions)

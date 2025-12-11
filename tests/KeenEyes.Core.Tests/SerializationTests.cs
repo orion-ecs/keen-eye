@@ -52,7 +52,7 @@ public class SerializationTests
     {
         using var world = new World();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.NotNull(snapshot);
         Assert.Empty(snapshot.Entities);
@@ -68,7 +68,7 @@ public class SerializationTests
         world.Spawn().With(new SerializablePosition { X = 3, Y = 4 }).Build();
         world.Spawn().With(new SerializablePosition { X = 5, Y = 6 }).Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Equal(3, snapshot.Entities.Count);
     }
@@ -82,7 +82,7 @@ public class SerializationTests
             .With(new SerializableHealth { Current = 80, Max = 100 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Single(snapshot.Entities);
         Assert.Equal(2, snapshot.Entities[0].Components.Count);
@@ -107,7 +107,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 1, Y = 1 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         var namedSerialized = snapshot.Entities.First(e => e.Name == "Player");
         var unnamedSerialized = snapshot.Entities.First(e => e.Name == null);
@@ -129,7 +129,7 @@ public class SerializationTests
 
         world.SetParent(child, parent);
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         var parentSerialized = snapshot.Entities.First(e => e.Name == "Parent");
         var childSerialized = snapshot.Entities.First(e => e.Name == "Child");
@@ -145,7 +145,7 @@ public class SerializationTests
         world.SetSingleton(new SerializableGameTime { TotalTime = 100f, DeltaTime = 0.016f });
         world.SetSingleton(new SerializableConfig { MaxPlayers = 8, GameName = "Test Game" });
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Equal(2, snapshot.Singletons.Count);
     }
@@ -156,7 +156,7 @@ public class SerializationTests
         using var world = new World();
         var before = DateTimeOffset.UtcNow;
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         var after = DateTimeOffset.UtcNow;
         Assert.True(snapshot.Timestamp >= before);
@@ -173,7 +173,7 @@ public class SerializationTests
             ["playerName"] = "TestPlayer"
         };
 
-        var snapshot = SnapshotManager.CreateSnapshot(world, metadata);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests(), metadata);
 
         Assert.NotNull(snapshot.Metadata);
         Assert.Equal(1, snapshot.Metadata["saveSlot"]);
@@ -189,7 +189,7 @@ public class SerializationTests
             .WithTag<SerializableTag>()
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Equal(2, snapshot.Entities[0].Components.Count);
         var tagComponent = snapshot.Entities[0].Components
@@ -209,7 +209,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 10, Y = 20 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
 
         Assert.NotNull(json);
@@ -225,7 +225,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 5, Y = 10 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var restored = SnapshotManager.FromJson(json);
 
@@ -243,7 +243,7 @@ public class SerializationTests
             .With(new SerializableHealth { Current = 75, Max = 100 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var restored = SnapshotManager.FromJson(json);
 
@@ -265,7 +265,7 @@ public class SerializationTests
             .Build();
         world.SetParent(child, parent);
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var restored = SnapshotManager.FromJson(json);
 
@@ -280,7 +280,7 @@ public class SerializationTests
         using var world = new World();
         world.SetSingleton(new SerializableGameTime { TotalTime = 50f, DeltaTime = 0.033f });
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var restored = SnapshotManager.FromJson(json);
 
@@ -299,7 +299,7 @@ public class SerializationTests
         world1.Spawn("Entity1").With(new SerializablePosition { X = 1, Y = 2 }).Build();
         world1.Spawn("Entity2").With(new SerializablePosition { X = 3, Y = 4 }).Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -319,7 +319,7 @@ public class SerializationTests
             .With(new SerializableHealth { Current = 85, Max = 100 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -350,7 +350,7 @@ public class SerializationTests
             .Build();
         world1.SetParent(child, parent);
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -373,7 +373,7 @@ public class SerializationTests
         using var world1 = new World();
         world1.SetSingleton(new SerializableGameTime { TotalTime = 123.456f, DeltaTime = 0.016f });
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -400,7 +400,7 @@ public class SerializationTests
         using var sourceWorld = new World();
         sourceWorld.Spawn("New1").With(new SerializablePosition { X = 10, Y = 10 }).Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(sourceWorld);
+        var snapshot = SnapshotManager.CreateSnapshot(sourceWorld, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -428,7 +428,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 5, Y = 10 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -596,14 +596,14 @@ public class SerializationTests
     [Fact]
     public void CreateSnapshot_ThrowsOnNullWorld()
     {
-        Assert.Throws<ArgumentNullException>(() => SnapshotManager.CreateSnapshot(null!));
+        Assert.Throws<ArgumentNullException>(() => SnapshotManager.CreateSnapshot(null!, TestSerializerFactory.CreateForSerializationTests()));
     }
 
     [Fact]
     public void RestoreSnapshot_ThrowsOnNullWorld()
     {
         using var world = new World();
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Throws<ArgumentNullException>(() => SnapshotManager.RestoreSnapshot(null!, snapshot, testSerializer));
     }
@@ -620,7 +620,7 @@ public class SerializationTests
     public void RestoreSnapshot_ThrowsOnNullSerializer()
     {
         using var world = new World();
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Throws<ArgumentNullException>(() => SnapshotManager.RestoreSnapshot(world, snapshot, null!));
     }
@@ -656,7 +656,7 @@ public class SerializationTests
         world1.SetParent(parent, grandparent);
         world1.SetParent(child, parent);
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -695,7 +695,7 @@ public class SerializationTests
         world1.SetParent(child2, parent);
         world1.SetParent(child3, parent);
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -722,7 +722,7 @@ public class SerializationTests
                 .Build();
         }
 
-        var snapshot = SnapshotManager.CreateSnapshot(world);
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Equal(1000, snapshot.Entities.Count);
     }
@@ -732,16 +732,6 @@ public class SerializationTests
     #region Additional Coverage Tests
 
     [Fact]
-    public void GetDefaultJsonOptions_ReturnsValidOptions()
-    {
-        var options = SnapshotManager.GetDefaultJsonOptions();
-
-        Assert.NotNull(options);
-        Assert.True(options.WriteIndented);
-        Assert.True(options.IncludeFields);
-    }
-
-    [Fact]
     public void RestoreSnapshot_WithSerializer_UsesSerializerTypeResolution()
     {
         using var world1 = new World();
@@ -749,7 +739,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 10, Y = 20 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -781,7 +771,7 @@ public class SerializationTests
                         new SerializedComponent
                         {
                             TypeName = "NonExistent.FakeComponent, FakeAssembly",
-                            Data = new { X = 1, Y = 2 },
+                            Data = System.Text.Json.JsonSerializer.SerializeToElement(new { X = 1, Y = 2 }),
                             IsTag = false
                         }
                     ]
@@ -812,7 +802,7 @@ public class SerializationTests
                 new SerializedSingleton
                 {
                     TypeName = "NonExistent.FakeSingleton, FakeAssembly",
-                    Data = new { Value = 42 }
+                    Data = System.Text.Json.JsonSerializer.SerializeToElement(new { Value = 42 })
                 }
             ]
         };
@@ -835,7 +825,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 5, Y = 10 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -850,52 +840,6 @@ public class SerializationTests
     }
 
     [Fact]
-    public void ToJson_WithCustomOptions_UsesProvidedOptions()
-    {
-        using var world = new World();
-        world.Spawn("Test")
-            .With(new SerializablePosition { X = 1, Y = 2 })
-            .Build();
-
-        var snapshot = SnapshotManager.CreateSnapshot(world);
-
-        var customOptions = new System.Text.Json.JsonSerializerOptions
-        {
-            WriteIndented = false,
-            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
-            IncludeFields = true
-        };
-
-        var json = SnapshotManager.ToJson(snapshot, customOptions);
-
-        // Non-indented JSON should not have newlines within the object
-        Assert.DoesNotContain("\n  ", json);
-    }
-
-    [Fact]
-    public void FromJson_WithCustomOptions_UsesProvidedOptions()
-    {
-        using var world = new World();
-        world.Spawn("Test")
-            .With(new SerializablePosition { X = 1, Y = 2 })
-            .Build();
-
-        var snapshot = SnapshotManager.CreateSnapshot(world);
-        var json = SnapshotManager.ToJson(snapshot);
-
-        var customOptions = new System.Text.Json.JsonSerializerOptions
-        {
-            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
-            IncludeFields = true
-        };
-
-        var restored = SnapshotManager.FromJson(json, customOptions);
-
-        Assert.NotNull(restored);
-        Assert.Single(restored!.Entities);
-    }
-
-    [Fact]
     public void RestoreSnapshot_WithWorkingAotSerializer_UsesSerializerType()
     {
         using var world1 = new World();
@@ -903,7 +847,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 15, Y = 25 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -926,7 +870,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 100, Y = 200 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
         var json = SnapshotManager.ToJson(snapshot);
         var loadedSnapshot = SnapshotManager.FromJson(json);
 
@@ -952,7 +896,7 @@ public class SerializationTests
         var original = new SerializedComponent
         {
             TypeName = "Test.Component",
-            Data = new { X = 1 },
+            Data = System.Text.Json.JsonSerializer.SerializeToElement(new { X = 1 }),
             IsTag = false
         };
 
@@ -989,7 +933,7 @@ public class SerializationTests
         var original = new SerializedSingleton
         {
             TypeName = "Test.Singleton",
-            Data = new { Value = 42 }
+            Data = System.Text.Json.JsonSerializer.SerializeToElement(new { Value = 42 })
         };
 
         var copy = original with { TypeName = "Modified.Singleton" };
@@ -1025,7 +969,7 @@ public class SerializationTests
             .With(new SerializablePosition { X = 42, Y = 84 })
             .Build();
 
-        var snapshot = SnapshotManager.CreateSnapshot(world1);
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
 
         // Restore directly without JSON round-trip - data is already correct type
         using var world2 = new World();
@@ -1058,7 +1002,7 @@ public class SerializationTests
                         new SerializedComponent
                         {
                             TypeName = typeof(SerializablePosition).AssemblyQualifiedName!,
-                            Data = "not a position", // Wrong type - string instead of Position or JsonElement
+                            Data = System.Text.Json.JsonSerializer.SerializeToElement("not a position"), // Wrong type - string instead of Position structure
                             IsTag = false
                         }
                     ]
@@ -1069,10 +1013,11 @@ public class SerializationTests
 
         using var world = new World();
 
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        // JSON deserialization will fail before we can throw InvalidOperationException
+        var ex = Assert.Throws<System.Text.Json.JsonException>(() =>
             SnapshotManager.RestoreSnapshot(world, invalidSnapshot, testSerializer));
 
-        Assert.Contains("Cannot convert data", ex.Message);
+        Assert.Contains("could not be converted", ex.Message);
     }
 
     #endregion

@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -36,18 +37,15 @@ namespace KeenEyes.Serialization;
 /// </example>
 public static class SnapshotManager
 {
-    private static readonly JsonSerializerOptions defaultJsonOptions = new()
-    {
-        WriteIndented = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        IncludeFields = true  // Required to serialize/deserialize struct fields
-    };
-
     /// <summary>
-    /// Creates a snapshot of the current world state.
+    /// Creates a snapshot of the current world state using AOT-compatible serialization.
     /// </summary>
     /// <param name="world">The world to capture.</param>
+    /// <param name="serializer">
+    /// Component serializer for AOT-compatible serialization. Pass an instance of
+    /// the generated <c>ComponentSerializationRegistry</c> which implements this interface
+    /// for components marked with <c>[Component(Serializable = true)]</c>.
+    /// </param>
     /// <param name="metadata">Optional metadata to include in the snapshot.</param>
     /// <returns>A snapshot containing all entities, components, hierarchy, and singletons.</returns>
     /// <remarks>
@@ -62,15 +60,20 @@ public static class SnapshotManager
     /// </list>
     /// </para>
     /// <para>
-    /// The operation iterates through all archetypes and entities, boxing component
-    /// values for serialization. This is not intended for use in performance-critical
-    /// hot paths.
+    /// Component and singleton data is pre-serialized to JSON using the provided serializer
+    /// for Native AOT compatibility. This eliminates the need for reflection during JSON serialization.
     /// </para>
     /// </remarks>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="world"/> is null.</exception>
-    public static WorldSnapshot CreateSnapshot(World world, IReadOnlyDictionary<string, object>? metadata = null)
+    /// <exception cref="ArgumentNullException">
+    /// Thrown when <paramref name="world"/> or <paramref name="serializer"/> is null.
+    /// </exception>
+    public static WorldSnapshot CreateSnapshot(
+        World world,
+        IComponentSerializer serializer,
+        IReadOnlyDictionary<string, object>? metadata = null)
     {
         ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(serializer);
 
         var entities = new List<SerializedEntity>();
 
@@ -82,11 +85,17 @@ public static class SnapshotManager
             foreach (var (type, value) in world.GetComponents(entity))
             {
                 var info = world.Components.Get(type);
+                var typeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
+                var isTag = info?.IsTag ?? false;
+
+                // Serialize component data using IComponentSerializer for AOT compatibility
+                var jsonData = isTag ? null : serializer.Serialize(type, value);
+
                 components.Add(new SerializedComponent
                 {
-                    TypeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name,
-                    Data = value,
-                    IsTag = info?.IsTag ?? false
+                    TypeName = typeName,
+                    Data = jsonData,
+                    IsTag = isTag
                 });
             }
 
@@ -105,10 +114,18 @@ public static class SnapshotManager
         var singletons = new List<SerializedSingleton>();
         foreach (var (type, value) in world.GetAllSingletons())
         {
+            var typeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
+
+            // Serialize singleton data using IComponentSerializer for AOT compatibility
+            var jsonData = serializer.Serialize(type, value)
+                ?? throw new InvalidOperationException(
+                    $"Failed to serialize singleton of type '{typeName}'. " +
+                    $"Ensure the type is marked with [Component(Serializable = true)].");
+
             singletons.Add(new SerializedSingleton
             {
-                TypeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name,
-                Data = value
+                TypeName = typeName,
+                Data = jsonData
             });
         }
 
@@ -221,7 +238,11 @@ public static class SnapshotManager
                 continue;
             }
 
-            var value = ConvertComponentData(singleton.Data, type, serializer);
+            // Deserialize singleton data from JSON
+            var typeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
+            var value = serializer.Deserialize(typeName, singleton.Data)
+                ?? (type.FullName is not null ? serializer.Deserialize(type.FullName, singleton.Data) : null);
+
             if (value is not null)
             {
                 SetSingleton(world, type, singleton.TypeName, value, serializer);
@@ -232,40 +253,50 @@ public static class SnapshotManager
     }
 
     /// <summary>
-    /// Serializes a snapshot to JSON format.
+    /// Serializes a snapshot to JSON format using AOT-compatible source generation.
     /// </summary>
     /// <param name="snapshot">The snapshot to serialize.</param>
-    /// <param name="options">Optional JSON serializer options. If null, uses default options.</param>
     /// <returns>A JSON string representing the snapshot.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="snapshot"/> is null.</exception>
-    public static string ToJson(WorldSnapshot snapshot, JsonSerializerOptions? options = null)
+    /// <remarks>
+    /// <para>
+    /// This method serializes the WorldSnapshot envelope (metadata, entity list, etc.), not component data.
+    /// Component data serialization is handled by IComponentSerializer for AOT compatibility.
+    /// </para>
+    /// <para>
+    /// Uses source-generated JSON serialization which is fully Native AOT compatible.
+    /// The serialization uses camelCase naming, includes fields, and omits null values.
+    /// </para>
+    /// </remarks>
+    public static string ToJson(WorldSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
-        return JsonSerializer.Serialize(snapshot, options ?? defaultJsonOptions);
+        return JsonSerializer.Serialize(snapshot, SnapshotJsonContext.Default.WorldSnapshot);
     }
 
     /// <summary>
-    /// Deserializes a snapshot from JSON format.
+    /// Deserializes a snapshot from JSON format using AOT-compatible source generation.
     /// </summary>
     /// <param name="json">The JSON string to deserialize.</param>
-    /// <param name="options">Optional JSON serializer options. If null, uses default options.</param>
     /// <returns>The deserialized snapshot.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="json"/> is null.</exception>
     /// <exception cref="JsonException">Thrown when the JSON is invalid.</exception>
-    public static WorldSnapshot? FromJson(string json, JsonSerializerOptions? options = null)
+    /// <remarks>
+    /// <para>
+    /// This method deserializes the WorldSnapshot envelope (metadata, entity list, etc.), not component data.
+    /// Component data deserialization is handled by IComponentSerializer for AOT compatibility.
+    /// </para>
+    /// <para>
+    /// Uses source-generated JSON serialization which is fully Native AOT compatible.
+    /// The deserialization expects camelCase naming and supports fields.
+    /// </para>
+    /// </remarks>
+    public static WorldSnapshot? FromJson(string json)
     {
         ArgumentNullException.ThrowIfNull(json);
-        return JsonSerializer.Deserialize<WorldSnapshot>(json, options ?? defaultJsonOptions);
+        return JsonSerializer.Deserialize(json, SnapshotJsonContext.Default.WorldSnapshot);
     }
 
-    /// <summary>
-    /// Gets the default JSON serializer options used by the snapshot manager.
-    /// </summary>
-    /// <returns>A copy of the default options that can be customized.</returns>
-    public static JsonSerializerOptions GetDefaultJsonOptions()
-    {
-        return new JsonSerializerOptions(defaultJsonOptions);
-    }
 
     /// <summary>
     /// Registers a component type using the serializer's AOT-compatible method.
@@ -321,48 +352,39 @@ public static class SnapshotManager
     }
 
     /// <summary>
-    /// Converts component data to the target type using AOT-compatible deserialization.
+    /// Converts component data from JSON to the target type using AOT-compatible deserialization.
     /// </summary>
     /// <exception cref="InvalidOperationException">
     /// Thrown when the serializer cannot deserialize the component data.
     /// </exception>
-    private static object? ConvertComponentData(object data, Type targetType, IComponentSerializer serializer)
+    private static object? ConvertComponentData(JsonElement? data, Type targetType, IComponentSerializer serializer)
     {
-        // If the data is already the correct type, return it (direct restore without JSON round-trip)
-        if (targetType.IsInstanceOfType(data))
+        // Null data (tag components)
+        if (data is null)
         {
-            return data;
+            return null;
         }
 
-        // If the data is a JsonElement (from deserialization), use the AOT serializer
-        if (data is JsonElement jsonElement)
+        var jsonElement = data.Value;
+        var typeName = targetType.AssemblyQualifiedName ?? targetType.FullName ?? targetType.Name;
+        var result = serializer.Deserialize(typeName, jsonElement);
+        if (result is not null)
         {
-            var typeName = targetType.AssemblyQualifiedName ?? targetType.FullName ?? targetType.Name;
-            var result = serializer.Deserialize(typeName, jsonElement);
+            return result;
+        }
+
+        // Also try with full name
+        if (targetType.FullName is not null)
+        {
+            result = serializer.Deserialize(targetType.FullName, jsonElement);
             if (result is not null)
             {
                 return result;
             }
-
-            // Also try with full name
-            if (targetType.FullName is not null)
-            {
-                result = serializer.Deserialize(targetType.FullName, jsonElement);
-                if (result is not null)
-                {
-                    return result;
-                }
-            }
-
-            throw new InvalidOperationException(
-                $"Cannot deserialize component type '{typeName}'. " +
-                $"Ensure the type is marked with [Component(Serializable = true)].");
         }
 
-        // Data is neither the target type nor JsonElement
-        // This can only happen with manually constructed snapshots using unsupported data types
         throw new InvalidOperationException(
-            $"Cannot convert data of type '{data.GetType().FullName}' to '{targetType.FullName}'. " +
-            "Data must be either the target type or a JsonElement from JSON deserialization.");
+            $"Cannot deserialize component type '{typeName}'. " +
+            $"Ensure the type is marked with [Component(Serializable = true)].");
     }
 }

@@ -4,32 +4,32 @@ namespace KeenEyes.Tests;
 /// Integration tests for client-server multi-world scenarios.
 /// Demonstrates using WorldEntityRef for cross-world entity references.
 /// </summary>
-public class ClientServerIntegrationTests
+public partial class ClientServerIntegrationTests
 {
     #region Test Components
 
     [Component]
-    public partial struct Position : IComponent
+    public partial struct Position
     {
         public float X;
         public float Y;
     }
 
     [Component]
-    public partial struct Velocity : IComponent
+    public partial struct Velocity
     {
         public float X;
         public float Y;
     }
 
     [Component]
-    public partial struct NetworkedEntity : IComponent
+    public partial struct NetworkedEntity
     {
         public WorldEntityRef ServerEntity;
     }
 
     [Component]
-    public partial struct Health : IComponent
+    public partial struct Health
     {
         public int Current;
         public int Max;

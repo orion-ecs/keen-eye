@@ -3,25 +3,25 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for the StatisticsManager.
 /// </summary>
-public class StatisticsManagerTests
+public partial class StatisticsManagerTests
 {
 #pragma warning disable CS0649 // Field is never assigned to
     [Component]
-    private partial struct Position : IComponent
+    private partial struct Position
     {
         public float X;
         public float Y;
     }
 
     [Component]
-    private partial struct Velocity : IComponent
+    private partial struct Velocity
     {
         public float X;
         public float Y;
     }
 
     [Component]
-    private partial struct Health : IComponent
+    private partial struct Health
     {
         public int Current;
         public int Max;

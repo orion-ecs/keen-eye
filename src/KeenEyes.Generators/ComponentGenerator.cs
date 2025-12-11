@@ -134,12 +134,20 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             }
         }
 
+        // Check if this is a nested type and get the containing type name
+        var containingTypeName = typeSymbol.ContainingType?.Name;
+
+        // Check if type is public (for extension method generation)
+        var isPublic = typeSymbol.DeclaredAccessibility == Accessibility.Public;
+
         return new ComponentInfo(
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
             isTag,
-            fields.ToImmutableArray());
+            fields.ToImmutableArray(),
+            containingTypeName,
+            isPublic);
     }
 
     private static string FormatDefaultValue(TypedConstant constant)
@@ -179,9 +187,20 @@ public sealed class ComponentGenerator : IIncrementalGenerator
 
         var interfaceType = info.IsTag ? "ITagComponent" : "IComponent";
 
-        // Simple partial that just implements the interface
-        // No static state - component registration happens per-World at runtime
-        sb.AppendLine($"partial struct {info.Name} : global::KeenEyes.{interfaceType};");
+        // For nested types, we need to wrap in the containing type's partial declaration
+        if (info.ContainingTypeName != null)
+        {
+            sb.AppendLine($"partial class {info.ContainingTypeName}");
+            sb.AppendLine("{");
+            sb.AppendLine($"    partial struct {info.Name} : global::KeenEyes.{interfaceType};");
+            sb.AppendLine("}");
+        }
+        else
+        {
+            // Simple partial that just implements the interface
+            // No static state - component registration happens per-World at runtime
+            sb.AppendLine($"partial struct {info.Name} : global::KeenEyes.{interfaceType};");
+        }
 
         return sb.ToString();
     }
@@ -202,11 +221,47 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         sb.AppendLine("public static partial class EntityBuilderExtensions");
         sb.AppendLine("{");
 
+        // Detect name collisions and build suffix map
+        var componentsByName = components
+            .Where(c => c is not null)
+            .GroupBy(c => c!.Name)
+            .ToImmutableArray();
+
+        var suffixMap = new Dictionary<string, string>();
+
+        foreach (var group in componentsByName)
+        {
+            if (group.Count() > 1)
+            {
+                // Name collision detected - generate unique suffixes
+                foreach (var info in group)
+                {
+                    // For nested types, use containing type name; otherwise use namespace
+                    var suffix = info!.ContainingTypeName ?? GenerateNamespaceSuffix(info.Namespace);
+                    suffixMap[info.FullName] = suffix;
+                }
+            }
+        }
+
         foreach (var info in components)
         {
             if (info is null)
             {
                 continue;
+            }
+
+            // Skip non-public components - they don't need fluent builder extensions
+            // (private/internal test components should use With<T>() directly)
+            if (!info.IsPublic)
+            {
+                continue;
+            }
+
+            // Determine method name with optional suffix for collisions
+            var methodName = info.Name;
+            if (suffixMap.TryGetValue(info.FullName, out var suffix))
+            {
+                methodName = $"{info.Name}_{suffix}";
             }
 
             sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
@@ -215,7 +270,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             {
                 // Tag component - no parameters
                 // Generic version for fluent chaining
-                sb.AppendLine($"    public static TSelf With{info.Name}<TSelf>(this TSelf builder)");
+                sb.AppendLine($"    public static TSelf With{methodName}<TSelf>(this TSelf builder)");
                 sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
@@ -224,7 +279,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
 
                 // Non-generic version for interface usage
                 sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
-                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{info.Name}(this global::KeenEyes.IEntityBuilder builder)");
+                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{methodName}(this global::KeenEyes.IEntityBuilder builder)");
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
                 sb.AppendLine($"    }}");
@@ -258,7 +313,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
                 var assignList = string.Join(", ", assignments);
 
                 // Generic version for fluent chaining
-                sb.AppendLine($"    public static TSelf With{info.Name}<TSelf>(this TSelf builder, {paramList})");
+                sb.AppendLine($"    public static TSelf With{methodName}<TSelf>(this TSelf builder, {paramList})");
                 sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
@@ -267,7 +322,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
 
                 // Non-generic version for interface usage
                 sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
-                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{info.Name}(this global::KeenEyes.IEntityBuilder builder, {paramList})");
+                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{methodName}(this global::KeenEyes.IEntityBuilder builder, {paramList})");
                 sb.AppendLine($"    {{");
                 sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
                 sb.AppendLine($"    }}");
@@ -279,6 +334,29 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    private static string GenerateNamespaceSuffix(string namespaceName)
+    {
+        // Handle empty or global namespace
+        if (string.IsNullOrEmpty(namespaceName) || namespaceName == "<global namespace>")
+        {
+            return "Global";
+        }
+
+        // Extract the last meaningful part of the namespace
+        // For "KeenEyes.Tests.MultiWorldIsolationTests", we want "MultiWorldIsolationTests"
+        var parts = namespaceName.Split('.');
+
+        // Take the last part, or last two parts if the last part is very short
+        var lastPart = parts[parts.Length - 1];
+        if (parts.Length > 1 && lastPart.Length <= 3)
+        {
+            // Last part is very short (like "V2"), include the part before it
+            return parts[parts.Length - 2] + lastPart;
+        }
+
+        return lastPart;
     }
 
     private static string? GetDefaultExpression(FieldInfo field)
@@ -329,7 +407,9 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         string Namespace,
         string FullName,
         bool IsTag,
-        ImmutableArray<FieldInfo> Fields);
+        ImmutableArray<FieldInfo> Fields,
+        string? ContainingTypeName,
+        bool IsPublic);
 
     private sealed record FieldInfo(
         string Name,

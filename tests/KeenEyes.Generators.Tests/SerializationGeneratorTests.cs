@@ -1,3 +1,4 @@
+using KeenEyes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -608,20 +609,19 @@ public class SerializationGeneratorTests
 
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
-        var attributesAssembly = typeof(ComponentAttribute).Assembly;
-
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
         var references = new List<MetadataReference>
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(attributesAssembly.Location),
+            MetadataReference.CreateFromFile(typeof(SystemPhase).Assembly.Location), // KeenEyes.Abstractions
         };
 
         // Add runtime assembly references
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
+        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
 
         var compilation = CSharpCompilation.Create(
@@ -630,15 +630,19 @@ public class SerializationGeneratorTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        var generator = new SerializationGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+        // Run MarkerAttributesGenerator first to generate the attributes
+        var markerGenerator = new MarkerAttributesGenerator();
+        var serializationGenerator = new SerializationGenerator();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(markerGenerator, serializationGenerator);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
 
         var runResult = driver.GetRunResult();
-        var generatedSources = runResult.GeneratedTrees
-            .Select(t => t.GetText().ToString())
-            .ToList();
+        // Filter to only include output from SerializationGenerator, not MarkerAttributesGenerator
+        var serializationResult = runResult.Results.FirstOrDefault(r => r.Generator.GetType() == typeof(SerializationGenerator));
+        var generatedSources = serializationResult.GeneratedSources.IsDefault
+            ? []
+            : serializationResult.GeneratedSources.Select(s => s.SourceText.ToString()).ToList();
 
         return (diagnostics, generatedSources);
     }

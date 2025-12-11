@@ -82,7 +82,7 @@ var metadata = new Dictionary<string, object>
     ["Chapter"] = 2
 };
 
-var snapshot = SnapshotManager.CreateSnapshot(world, metadata);
+var snapshot = SnapshotManager.CreateSnapshot(world, ComponentSerializer.Instance, metadata);
 
 Console.WriteLine($"Snapshot created:");
 Console.WriteLine($"  Version: {snapshot.Version}");
@@ -191,7 +191,7 @@ var redoStack = new Stack<WorldSnapshot>();
 
 void SaveUndoState()
 {
-    undoStack.Push(SnapshotManager.CreateSnapshot(world));
+    undoStack.Push(SnapshotManager.CreateSnapshot(world, ComponentSerializer.Instance));
     redoStack.Clear();
     Console.WriteLine($"  [Saved undo state, stack size: {undoStack.Count}]");
 }
@@ -203,7 +203,7 @@ bool Undo()
         return false;
     }
 
-    redoStack.Push(SnapshotManager.CreateSnapshot(world));
+    redoStack.Push(SnapshotManager.CreateSnapshot(world, ComponentSerializer.Instance));
     SnapshotManager.RestoreSnapshot(world, undoStack.Pop(), ComponentSerializer.Instance);
     return true;
 }
@@ -215,7 +215,7 @@ bool Redo()
         return false;
     }
 
-    undoStack.Push(SnapshotManager.CreateSnapshot(world));
+    undoStack.Push(SnapshotManager.CreateSnapshot(world, ComponentSerializer.Instance));
     SnapshotManager.RestoreSnapshot(world, redoStack.Pop(), ComponentSerializer.Instance);
     return true;
 }
@@ -273,7 +273,7 @@ void SaveToSlot(int slot, string saveName)
         ["SaveName"] = saveName,
         ["SaveTime"] = DateTimeOffset.UtcNow
     };
-    var snap = SnapshotManager.CreateSnapshot(world, meta);
+    var snap = SnapshotManager.CreateSnapshot(world, ComponentSerializer.Instance, meta);
     saveSlots[slot] = SnapshotManager.ToJson(snap);
     Console.WriteLine($"Saved to slot {slot}: '{saveName}'");
 }

@@ -21,17 +21,13 @@ public sealed record SerializedSingleton
     public required string TypeName { get; init; }
 
     /// <summary>
-    /// Gets or sets the serialized singleton data.
+    /// Gets or sets the serialized singleton data as a JSON element.
     /// </summary>
     /// <remarks>
     /// <para>
-    /// For JSON serialization, this will be a <see cref="System.Text.Json.JsonElement"/>
-    /// representing the singleton's fields.
-    /// </para>
-    /// <para>
-    /// For binary serialization, this will be a byte array containing
-    /// the serialized singleton data.
+    /// Singleton data is pre-serialized to JSON format using <see cref="IComponentSerializer"/>
+    /// for Native AOT compatibility. This eliminates the need for reflection during JSON serialization.
     /// </para>
     /// </remarks>
-    public required object Data { get; init; }
+    public required System.Text.Json.JsonElement Data { get; init; }
 }

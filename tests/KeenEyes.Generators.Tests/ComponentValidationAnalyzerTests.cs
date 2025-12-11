@@ -383,7 +383,6 @@ public class ComponentValidationAnalyzerTests
 
     private static IReadOnlyList<Diagnostic> RunAnalyzer(string source)
     {
-        var attributesAssembly = typeof(ComponentAttribute).Assembly;
         var abstractionsAssembly = typeof(KeenEyes.IComponent).Assembly;
         var coreAssembly = typeof(KeenEyes.World).Assembly;
 
@@ -393,7 +392,6 @@ public class ComponentValidationAnalyzerTests
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(attributesAssembly.Location),
             MetadataReference.CreateFromFile(abstractionsAssembly.Location),
             MetadataReference.CreateFromFile(coreAssembly.Location),
         };
@@ -401,6 +399,7 @@ public class ComponentValidationAnalyzerTests
         // Add runtime assembly references
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
+        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
 
         var compilation = CSharpCompilation.Create(
@@ -409,8 +408,13 @@ public class ComponentValidationAnalyzerTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
+        // Run MarkerAttributesGenerator first to generate the attributes
+        var markerGenerator = new MarkerAttributesGenerator();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(markerGenerator);
+        driver.RunGeneratorsAndUpdateCompilation(compilation, out var updatedCompilation, out var _);
+
         var analyzer = new ComponentValidationAnalyzer();
-        var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var compilationWithAnalyzers = updatedCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
 
         var diagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().Result;
 

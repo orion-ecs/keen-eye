@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<PublishAot>true</PublishAot>
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+	</PropertyGroup>
+
+	<!-- AOT publishing configuration - enabled during publish:
+       dotnet publish -c Release -p:PublishAot=true -->
+	<PropertyGroup Condition="'$(PublishAot)' == 'true'">
+		<InvariantGlobalization>true</InvariantGlobalization>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+		<ProjectReference Include="..\..\src\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+</Project>
