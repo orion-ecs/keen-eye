@@ -23,36 +23,7 @@ public sealed partial class World
     /// </code>
     /// </example>
     public MemoryStats GetMemoryStats()
-    {
-        // Calculate estimated component bytes
-        long estimatedBytes = 0;
-        foreach (var archetype in archetypeManager.Archetypes)
-        {
-            foreach (var componentType in archetype.ComponentTypes)
-            {
-                var info = Components.Get(componentType);
-                if (info is not null)
-                {
-                    estimatedBytes += (long)info.Size * archetype.Count;
-                }
-            }
-        }
-
-        return new MemoryStats
-        {
-            EntitiesAllocated = entityPool.TotalAllocated,
-            EntitiesActive = entityPool.ActiveCount,
-            EntitiesRecycled = entityPool.AvailableCount,
-            EntityRecycleCount = entityPool.RecycleCount,
-            ArchetypeCount = archetypeManager.ArchetypeCount,
-            ComponentTypeCount = Components.Count,
-            SystemCount = systemManager.Count,
-            CachedQueryCount = queryManager.CachedQueryCount,
-            QueryCacheHits = queryManager.CacheHits,
-            QueryCacheMisses = queryManager.CacheMisses,
-            EstimatedComponentBytes = estimatedBytes
-        };
-    }
+        => statisticsManager.GetMemoryStats();
 
     #endregion
 }
