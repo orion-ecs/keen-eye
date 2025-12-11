@@ -287,6 +287,46 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
+            // Generate With(TBundle bundle) method - accepts bundle instance
+            sb.AppendLine($"    /// <summary>");
+            sb.AppendLine($"    /// Adds all components from a <see cref=\"{info.FullName}\"/> bundle to the entity.");
+            sb.AppendLine($"    /// </summary>");
+            sb.AppendLine($"    /// <param name=\"builder\">The entity builder.</param>");
+            sb.AppendLine($"    /// <param name=\"bundle\">The bundle containing components to add.</param>");
+            sb.AppendLine($"    /// <returns>The builder for method chaining.</returns>");
+            sb.AppendLine($"    public static TSelf With<TSelf>(this TSelf builder, {info.FullName} bundle)");
+            sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
+            sb.AppendLine($"    {{");
+
+            // Add each component from the bundle
+            foreach (var field in info.Fields)
+            {
+                sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+            }
+
+            sb.AppendLine($"        return builder;");
+            sb.AppendLine($"    }}");
+            sb.AppendLine();
+
+            // Generate non-generic version for interface usage
+            sb.AppendLine($"    /// <summary>");
+            sb.AppendLine($"    /// Adds all components from a <see cref=\"{info.FullName}\"/> bundle to the entity.");
+            sb.AppendLine($"    /// </summary>");
+            sb.AppendLine($"    /// <param name=\"builder\">The entity builder.</param>");
+            sb.AppendLine($"    /// <param name=\"bundle\">The bundle containing components to add.</param>");
+            sb.AppendLine($"    /// <returns>The builder for method chaining.</returns>");
+            sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With(this global::KeenEyes.IEntityBuilder builder, {info.FullName} bundle)");
+            sb.AppendLine($"    {{");
+
+            foreach (var field in info.Fields)
+            {
+                sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
+            }
+
+            sb.AppendLine($"        return builder;");
+            sb.AppendLine($"    }}");
+            sb.AppendLine();
+
             // Generate parameters from bundle fields
             var parameters = new List<string>();
 
