@@ -4,7 +4,9 @@
     <PackageId>KeenEyes.Core</PackageId>
     <Description>High-performance Entity Component System (ECS) framework for .NET</Description>
     <PackageTags>ecs;entity;component;system;game;framework</PackageTags>
+	<IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
+
 
   <ItemGroup>
     <InternalsVisibleTo Include="KeenEyes.Core.Tests" />

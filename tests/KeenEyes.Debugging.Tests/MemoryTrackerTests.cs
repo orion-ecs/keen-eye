@@ -3,17 +3,17 @@ namespace KeenEyes.Debugging.Tests;
 /// <summary>
 /// Unit tests for the <see cref="MemoryTracker"/> class.
 /// </summary>
-public sealed class MemoryTrackerTests
+public partial class MemoryTrackerTests
 {
 #pragma warning disable CS0649 // Field is never assigned to
     [Component]
-    private partial struct TestComponent : IComponent
+    private partial struct TestComponent
     {
         public int Value;
     }
 
     [Component]
-    private partial struct LargeComponent : IComponent
+    private partial struct LargeComponent
     {
         public long A, B, C, D, E, F, G, H;
     }

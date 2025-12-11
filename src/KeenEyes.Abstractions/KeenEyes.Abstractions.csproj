@@ -4,10 +4,7 @@
     <PackageId>KeenEyes.Abstractions</PackageId>
     <Description>Abstractions and interfaces for KeenEyes ECS plugin development</Description>
     <PackageTags>ecs;entity;component;system;plugin;abstractions</PackageTags>
+	<IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\KeenEyes.Generators.Attributes\KeenEyes.Generators.Attributes.csproj" />
-  </ItemGroup>
 
 </Project>

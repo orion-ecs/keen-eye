@@ -3,26 +3,26 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests validating isolation guarantees for multiple independent worlds.
 /// </summary>
-public class MultiWorldIsolationTests
+public partial class MultiWorldIsolationTests
 {
     #region Test Components
 
     [Component]
-    public partial struct Position : IComponent
+    public partial struct Position
     {
         public float X;
         public float Y;
     }
 
     [Component]
-    public partial struct Velocity : IComponent
+    public partial struct Velocity
     {
         public float X;
         public float Y;
     }
 
     [TagComponent]
-    public partial struct TestTag : IComponent;
+    public partial struct TestTag;
 
     #endregion
 

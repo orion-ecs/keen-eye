@@ -1,13 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <PackageId>KeenEyes.Testing</PackageId>
-    <Description>Testing utilities and assertion helpers for KeenEyes ECS framework</Description>
-    <PackageTags>ecs;testing;unit-testing;assertions;test-helpers</PackageTags>
-  </PropertyGroup>
+	<PropertyGroup>
+		<PackageId>KeenEyes.Testing</PackageId>
+		<Description>Testing utilities and assertion helpers for KeenEyes ECS framework</Description>
+		<PackageTags>ecs;testing;unit-testing;assertions;test-helpers</PackageTags>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+		<ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
 
 </Project>

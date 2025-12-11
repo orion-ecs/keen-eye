@@ -4,6 +4,7 @@
     <PackageId>KeenEyes.Common</PackageId>
     <Description>Common components shared across KeenEyes ECS plugins (Transform, Velocity, SpatialBounds)</Description>
     <PackageTags>ecs;components;transform;spatial;velocity;game;framework</PackageTags>
+	<IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

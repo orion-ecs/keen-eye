@@ -4,6 +4,7 @@
     <PackageId>KeenEyes.Logging</PackageId>
     <Description>Pluggable logging system with multiple providers for KeenEyes ECS framework</Description>
     <PackageTags>ecs;logging;diagnostics;console;file;debug</PackageTags>
+	<IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>

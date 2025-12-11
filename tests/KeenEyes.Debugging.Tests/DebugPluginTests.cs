@@ -3,11 +3,11 @@ namespace KeenEyes.Debugging.Tests;
 /// <summary>
 /// Unit tests for the <see cref="DebugPlugin"/> class.
 /// </summary>
-public sealed class DebugPluginTests
+public partial class DebugPluginTests
 {
 #pragma warning disable CS0649 // Field is never assigned to
     [Component]
-    private partial struct TestComponent : IComponent
+    private partial struct TestComponent
     {
         public int Value;
     }

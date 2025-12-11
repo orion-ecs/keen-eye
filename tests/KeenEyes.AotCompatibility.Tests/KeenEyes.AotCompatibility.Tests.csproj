@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsPackable>false</IsPackable>
+    <!-- Not a test project - this is a standalone AOT validation executable -->
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <!-- AOT publishing configuration - used in CI: dotnet publish -p:PublishAot=true -->
+  <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <!-- Remove xUnit packages and usings inherited from tests/Directory.Build.props -->
+  <ItemGroup>
+    <PackageReference Remove="GitHubActionsTestLogger" />
+    <PackageReference Remove="Microsoft.Testing.Platform" />
+    <PackageReference Remove="Microsoft.Testing.Platform.MSBuild" />
+    <PackageReference Remove="Microsoft.Testing.Extensions.CodeCoverage" />
+    <PackageReference Remove="Microsoft.Testing.Extensions.TrxReport" />
+    <PackageReference Remove="Shouldly" />
+    <PackageReference Remove="xunit.v3.mtp-v2" />
+    <PackageReference Remove="xunit.runner.visualstudio" />
+    <Using Remove="Xunit" />
+    <Using Remove="Shouldly" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>

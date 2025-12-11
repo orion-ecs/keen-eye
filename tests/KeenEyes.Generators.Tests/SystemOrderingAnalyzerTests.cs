@@ -454,7 +454,6 @@ public class SystemOrderingAnalyzerTests
 
     private static IReadOnlyList<Diagnostic> RunAnalyzer(string source)
     {
-        var attributesAssembly = typeof(SystemAttribute).Assembly;
         var abstractionsAssembly = typeof(KeenEyes.ISystem).Assembly;
         var coreAssembly = typeof(KeenEyes.World).Assembly;
 
@@ -464,7 +463,6 @@ public class SystemOrderingAnalyzerTests
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(attributesAssembly.Location),
             MetadataReference.CreateFromFile(abstractionsAssembly.Location),
             MetadataReference.CreateFromFile(coreAssembly.Location),
         };
@@ -473,6 +471,7 @@ public class SystemOrderingAnalyzerTests
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "System.Runtime.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "netstandard.dll")));
+        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
@@ -480,8 +479,13 @@ public class SystemOrderingAnalyzerTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
+        // Run MarkerAttributesGenerator first to generate the attributes
+        var markerGenerator = new MarkerAttributesGenerator();
+        var driver = CSharpGeneratorDriver.Create(markerGenerator);
+        _ = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
+
         var analyzer = new SystemOrderingAnalyzer();
-        var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var compilationWithAnalyzers = outputCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
 
         var diagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().Result;
 
@@ -490,16 +494,13 @@ public class SystemOrderingAnalyzerTests
 
     private static IReadOnlyList<Diagnostic> RunAnalyzerWithoutCore(string source)
     {
-        // Only include attributes assembly, not core (so ISystem is not available)
-        var attributesAssembly = typeof(SystemAttribute).Assembly;
-
+        // Only include base references, not core (so ISystem is not available)
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
         var references = new List<MetadataReference>
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(attributesAssembly.Location),
             // Intentionally NOT including coreAssembly to test iSystemType == null path
         };
 
@@ -507,6 +508,7 @@ public class SystemOrderingAnalyzerTests
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "System.Runtime.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Combine(runtimeDir, "netstandard.dll")));
+        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
@@ -514,8 +516,13 @@ public class SystemOrderingAnalyzerTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
+        // Run MarkerAttributesGenerator first to generate the attributes
+        var markerGenerator = new MarkerAttributesGenerator();
+        var driver = CSharpGeneratorDriver.Create(markerGenerator);
+        _ = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
+
         var analyzer = new SystemOrderingAnalyzer();
-        var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var compilationWithAnalyzers = outputCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
 
         var diagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().Result;
 

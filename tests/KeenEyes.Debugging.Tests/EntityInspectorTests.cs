@@ -3,24 +3,24 @@ namespace KeenEyes.Debugging.Tests;
 /// <summary>
 /// Unit tests for the <see cref="EntityInspector"/> class.
 /// </summary>
-public sealed class EntityInspectorTests
+public partial class EntityInspectorTests
 {
 #pragma warning disable CS0649 // Field is never assigned to
     [Component]
-    private partial struct TestComponent : IComponent
+    private partial struct TestComponent
     {
         public int Value;
     }
 
     [Component]
-    private partial struct HealthComponent : IComponent
+    private partial struct HealthComponent
     {
         public int Current;
         public int Max;
     }
 
     [TagComponent]
-    private partial struct PlayerTag : IComponent;
+    private partial struct PlayerTag;
 #pragma warning restore CS0649
 
     #region Constructor Tests

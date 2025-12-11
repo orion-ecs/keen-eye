@@ -944,7 +944,6 @@ public class BundleGeneratorTests
 
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
-        var attributesAssembly = typeof(ComponentAttribute).Assembly;
         var abstractionsAssembly = typeof(IComponent).Assembly;
 
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
@@ -953,7 +952,6 @@ public class BundleGeneratorTests
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(attributesAssembly.Location),
             MetadataReference.CreateFromFile(abstractionsAssembly.Location),
         };
 
@@ -961,6 +959,7 @@ public class BundleGeneratorTests
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
+        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
@@ -968,16 +967,20 @@ public class BundleGeneratorTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
+        // Run MarkerAttributesGenerator first to generate the attributes
+        var markerGenerator = new MarkerAttributesGenerator();
         var componentGenerator = new ComponentGenerator();
         var bundleGenerator = new BundleGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(componentGenerator, bundleGenerator);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(markerGenerator, componentGenerator, bundleGenerator);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var _);
 
         var runResult = driver.GetRunResult();
-        var generatedSources = runResult.GeneratedTrees
-            .Select(t => t.GetText().ToString())
-            .ToList();
+        // Filter to only include output from BundleGenerator, not MarkerAttributesGenerator
+        var bundleResult = runResult.Results.FirstOrDefault(r => r.Generator.GetType() == typeof(BundleGenerator));
+        var generatedSources = bundleResult.GeneratedSources.IsDefault
+            ? []
+            : bundleResult.GeneratedSources.Select(s => s.SourceText.ToString()).ToList();
 
         // Get all diagnostics from the generator run
         var allDiagnostics = runResult.Diagnostics.ToList();

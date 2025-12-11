@@ -3,7 +3,7 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for component validation: RequiresComponent, ConflictsWith, and custom validators.
 /// </summary>
-public class ComponentValidationTests
+public partial class ComponentValidationTests
 {
     static ComponentValidationTests()
     {
@@ -14,51 +14,58 @@ public class ComponentValidationTests
     #region Test Components
 
     // Base component with no constraints
-    public struct Transform : IComponent
+    [Component]
+    public partial struct Transform
     {
         public float X, Y;
     }
 
     // Component that requires Transform
+    [Component]
     [RequiresComponent(typeof(Transform))]
-    public struct Renderable : IComponent
+    public partial struct Renderable
     {
         public string TextureId;
     }
 
     // Component that requires both Transform and Renderable
+    [Component]
     [RequiresComponent(typeof(Transform))]
     [RequiresComponent(typeof(Renderable))]
-    public struct Sprite : IComponent
+    public partial struct Sprite
     {
         public int Layer;
     }
 
     // Component that conflicts with DynamicBody
+    [Component]
     [ConflictsWith(typeof(DynamicBody))]
-    public struct StaticBody : IComponent
+    public partial struct StaticBody
     {
         public bool IsKinematic;
     }
 
     // Component that conflicts with StaticBody (mutual conflict)
+    [Component]
     [ConflictsWith(typeof(StaticBody))]
-    public struct DynamicBody : IComponent
+    public partial struct DynamicBody
     {
         public float Mass;
     }
 
     // Component with no constraints
-    public struct Health : IComponent
+    [Component]
+    public partial struct Health
     {
         public int Current;
         public int Max;
     }
 
     // Component with both requires and conflicts
+    [Component]
     [RequiresComponent(typeof(Transform))]
     [ConflictsWith(typeof(StaticBody))]
-    public struct RigidBody : IComponent
+    public partial struct RigidBody
     {
         public float Mass;
         public float Drag;
