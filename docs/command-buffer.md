@@ -221,14 +221,16 @@ public class CollisionSystem : SystemBase
 
     public override void Update(float deltaTime)
     {
+        // Note: Nested iteration requires one snapshot to avoid O(n²) query re-evaluation.
+        // Snapshot the collection being modified (projectiles) and iterate the other directly.
         var projectiles = World.Query<Position, Projectile>().ToList();
-        var enemies = World.Query<Position, Health>().With<Enemy>().ToList();
 
         foreach (var projectile in projectiles)
         {
             ref readonly var projPos = ref World.Get<Position>(projectile);
 
-            foreach (var enemy in enemies)
+            // Iterate enemies directly (better cache locality)
+            foreach (var enemy in World.Query<Position, Health>().With<Enemy>())
             {
                 ref readonly var enemyPos = ref World.Get<Position>(enemy);
 

@@ -3,6 +3,19 @@ namespace KeenEyes.Sample.Simulation;
 // =============================================================================
 // SYSTEM DEFINITIONS - Self-Running Simulation
 // =============================================================================
+//
+// CommandBuffer Pattern:
+// ----------------------
+// CommandBuffer allows deferring structural changes (spawn, despawn, add/remove
+// components) until after query iteration completes. This prevents "collection
+// modified during enumeration" errors when queries would be invalidated.
+//
+// Key pattern:
+//   1. Iterate query directly (no .ToList()!)
+//   2. Queue structural changes via buffer.AddComponent(), buffer.Despawn(), etc.
+//   3. Call buffer.Flush(World) after iteration
+//
+// Direct iteration is cache-friendly and avoids allocating List<Entity> every frame.
 
 /// <summary>
 /// Moves entities by applying velocity to position, bouncing off walls.
@@ -21,10 +34,8 @@ public partial class MovementSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        // Collect entities first to avoid iterator invalidation when adding Dead component
-        var entities = World.Query<Position, Velocity>().Without<Dead>().ToList();
-
-        foreach (var entity in entities)
+        // Iterate directly - CommandBuffer defers structural changes
+        foreach (var entity in World.Query<Position, Velocity>().Without<Dead>())
         {
             ref var pos = ref World.Get<Position>(entity);
             ref var vel = ref World.Get<Velocity>(entity);
@@ -82,13 +93,10 @@ public partial class CollisionSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        // Get all damageable entities (with position, collider, and health)
-        var damageables = World.Query<Position, Collider, Health>()
-            .Without<Dead>()
-            .Without<Invulnerable>()
-            .ToList();
-
-        // Get all projectiles
+        // Note: This system uses nested iteration (projectiles × damageables).
+        // We must snapshot one collection to avoid O(n²) query re-evaluation.
+        // We snapshot projectiles since we modify them (add Dead), keeping
+        // the outer iteration (damageables) direct for better cache locality.
         var projectiles = World.Query<Position, Collider, Damage>()
             .With<Projectile>()
             .Without<Dead>()
@@ -100,7 +108,10 @@ public partial class CollisionSystem : SystemBase
             ref readonly var projCol = ref World.Get<Collider>(projectile);
             ref readonly var projDmg = ref World.Get<Damage>(projectile);
 
-            foreach (var target in damageables)
+            // Iterate damageables directly (inner loop)
+            foreach (var target in World.Query<Position, Collider, Health>()
+                .Without<Dead>()
+                .Without<Invulnerable>())
             {
                 // Don't hit self
                 if (projectile == target)
@@ -155,10 +166,8 @@ public partial class HealthSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        // Collect entities first to avoid iterator invalidation
-        var entities = World.Query<Health>().Without<Dead>().ToList();
-
-        foreach (var entity in entities)
+        // Iterate directly - CommandBuffer defers Dead component addition
+        foreach (var entity in World.Query<Health>().Without<Dead>())
         {
             ref readonly var health = ref World.Get<Health>(entity);
 
@@ -188,10 +197,8 @@ public partial class LifetimeSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        // Collect entities first to avoid iterator invalidation
-        var entities = World.Query<Lifetime>().Without<Dead>().ToList();
-
-        foreach (var entity in entities)
+        // Iterate directly - CommandBuffer defers Dead component addition
+        foreach (var entity in World.Query<Lifetime>().Without<Dead>())
         {
             ref var lifetime = ref World.Get<Lifetime>(entity);
             lifetime.Remaining -= deltaTime;
@@ -235,6 +242,7 @@ public partial class CleanupSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
+        // Snapshot required: Despawn() invalidates the query iterator
         var deadEntities = World.Query<Position>()
             .With<Dead>()
             .ToList();
@@ -377,10 +385,8 @@ public partial class ShootingSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        // Collect players to process first to avoid iterator invalidation
-        var players = World.Query<Position, Cooldown>().With<Player>().Without<Dead>().ToList();
-
-        foreach (var entity in players)
+        // Iterate directly - CommandBuffer defers projectile spawns
+        foreach (var entity in World.Query<Position, Cooldown>().With<Player>().Without<Dead>())
         {
             ref readonly var pos = ref World.Get<Position>(entity);
             ref var cooldown = ref World.Get<Cooldown>(entity);
@@ -468,10 +474,8 @@ public partial class EnemyShootingSystem : SystemBase
 
         ref readonly var playerPos = ref World.Get<Position>(player.Value);
 
-        // Collect enemies first to avoid iterator invalidation
-        var enemies = World.Query<Position, Cooldown>().With<Enemy>().Without<Dead>().ToList();
-
-        foreach (var entity in enemies)
+        // Iterate directly - CommandBuffer defers projectile spawns
+        foreach (var entity in World.Query<Position, Cooldown>().With<Enemy>().Without<Dead>())
         {
             ref readonly var pos = ref World.Get<Position>(entity);
             ref var cooldown = ref World.Get<Cooldown>(entity);
