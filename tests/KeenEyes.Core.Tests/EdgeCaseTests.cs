@@ -39,6 +39,10 @@ public class EdgeCaseTests
 
     private struct EnemyTag : ITagComponent;
 
+    // AOT-compatible ComponentInfo instances for testing chunk operations
+    private static readonly ComponentInfo positionInfo = TestComponentInfo.Create<Position>();
+    private static readonly ComponentInfo velocityInfo = TestComponentInfo.Create<Velocity>();
+
     #endregion
 
     #region World - Dead Entity and Invalid Operation Tests
@@ -819,7 +823,7 @@ public class EdgeCaseTests
     public void ArchetypeChunk_SetBoxed_TypeNotInChunk_NoOp()
     {
         var archetypeId = new ArchetypeId([typeof(Position)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(Position)]);
+        var chunk = new ArchetypeChunk(archetypeId, [positionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new Position { X = 1 });
 
@@ -834,7 +838,7 @@ public class EdgeCaseTests
     public void ArchetypeChunk_AddComponentBoxed_TypeNotInChunk_NoOp()
     {
         var archetypeId = new ArchetypeId([typeof(Position)]);
-        var chunk = new ArchetypeChunk(archetypeId, [typeof(Position)]);
+        var chunk = new ArchetypeChunk(archetypeId, [positionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new Position { X = 1 });
 
@@ -852,8 +856,8 @@ public class EdgeCaseTests
         var archetypeId1 = new ArchetypeId([typeof(Position), typeof(Velocity)]);
         var archetypeId2 = new ArchetypeId([typeof(Position)]); // No Velocity
 
-        var source = new ArchetypeChunk(archetypeId1, [typeof(Position), typeof(Velocity)]);
-        var dest = new ArchetypeChunk(archetypeId2, [typeof(Position)]);
+        var source = new ArchetypeChunk(archetypeId1, [positionInfo, velocityInfo]);
+        var dest = new ArchetypeChunk(archetypeId2, [positionInfo]);
 
         source.AddEntity(new Entity(1, 1));
         source.AddComponent(new Position { X = 42 });

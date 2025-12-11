@@ -182,23 +182,23 @@ internal sealed class PrefabManager
     /// Applies a component definition to an entity builder using AOT-compatible delegates.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// Uses <see cref="ComponentInfo.ApplyToBuilder"/> and <see cref="ComponentInfo.ApplyTagToBuilder"/>
     /// delegates stored during component registration for AOT compatibility.
-    /// </para>
-    /// <para>
-    /// If the component type is not registered, it is automatically registered using reflection
-    /// as a fallback to maintain backward compatibility.
-    /// </para>
     /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the component type is not registered in the world's component registry.
+    /// Register all component types before spawning from prefabs using
+    /// <c>world.Components.Register&lt;T&gt;()</c>.
+    /// </exception>
     private void ApplyComponentToBuilder(EntityBuilder builder, ComponentDefinition component)
     {
-        // Get or retrieve the ComponentInfo from the registry
+        // Get the ComponentInfo from the registry - component must be pre-registered
         var info = world.Components.Get(component.Type);
         if (info is null)
         {
-            // Auto-register the component using reflection (fallback for backward compatibility)
-            info = RegisterComponentByReflection(component.Type, component.IsTag);
+            throw new InvalidOperationException(
+                $"Component type '{component.Type.Name}' is not registered. " +
+                $"Register all component types before spawning from prefabs using world.Components.Register<{component.Type.Name}>().");
         }
 
         if (component.IsTag)
@@ -221,22 +221,6 @@ internal sealed class PrefabManager
             }
             info.ApplyToBuilder(builder, component.Data!);
         }
-    }
-
-    /// <summary>
-    /// Registers a component type using reflection. NOT AOT-compatible.
-    /// </summary>
-    /// <remarks>
-    /// This method is a fallback when prefabs contain component types that haven't been
-    /// explicitly registered. Production code targeting AOT should register all component
-    /// types before using them in prefabs.
-    /// </remarks>
-    private ComponentInfo RegisterComponentByReflection(Type type, bool isTag)
-    {
-        var registryType = typeof(ComponentRegistry);
-        var method = registryType.GetMethod(nameof(ComponentRegistry.Register), [typeof(bool)])!;
-        var genericMethod = method.MakeGenericMethod(type);
-        return (ComponentInfo)genericMethod.Invoke(world.Components, [isTag])!;
     }
 
     /// <summary>

@@ -5,6 +5,12 @@ namespace KeenEyes.Tests;
 /// </summary>
 public class ComponentValidationTests
 {
+    static ComponentValidationTests()
+    {
+        // Register constraints for test components (AOT-compatible)
+        RegisterTestConstraints();
+    }
+
     #region Test Components
 
     // Base component with no constraints
@@ -56,6 +62,53 @@ public class ComponentValidationTests
     {
         public float Mass;
         public float Drag;
+    }
+
+    /// <summary>
+    /// Registers constraint provider for test components.
+    /// Required for AOT-compatible validation since reflection was removed.
+    /// </summary>
+    private static void RegisterTestConstraints()
+    {
+        ComponentValidationManager.RegisterConstraintProvider(TryGetTestConstraints);
+    }
+
+    /// <summary>
+    /// Provides validation constraints for test component types.
+    /// </summary>
+    private static bool TryGetTestConstraints(Type componentType, out Type[] required, out Type[] conflicts)
+    {
+        required = [];
+        conflicts = [];
+
+        if (componentType == typeof(Renderable))
+        {
+            required = [typeof(Transform)];
+            return true;
+        }
+        if (componentType == typeof(Sprite))
+        {
+            required = [typeof(Transform), typeof(Renderable)];
+            return true;
+        }
+        if (componentType == typeof(StaticBody))
+        {
+            conflicts = [typeof(DynamicBody)];
+            return true;
+        }
+        if (componentType == typeof(DynamicBody))
+        {
+            conflicts = [typeof(StaticBody)];
+            return true;
+        }
+        if (componentType == typeof(RigidBody))
+        {
+            required = [typeof(Transform)];
+            conflicts = [typeof(StaticBody)];
+            return true;
+        }
+
+        return false;
     }
 
     #endregion
