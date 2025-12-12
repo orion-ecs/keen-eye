@@ -8,6 +8,7 @@ namespace KeenEyes.Generators.Tests;
 /// </summary>
 public class WorldBundleExtensionsTests
 {
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesWorldAddExtension()
     {
@@ -46,6 +47,7 @@ public class WorldBundleExtensionsTests
             t.Contains("global::KeenEyes.Entity entity"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesWorldRemoveExtension()
     {
@@ -77,6 +79,7 @@ public class WorldBundleExtensionsTests
             t.Contains("global::KeenEyes.Entity entity"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldAddExtension_HasAllParameters()
     {
@@ -126,6 +129,7 @@ public class WorldBundleExtensionsTests
             t.Contains("TestApp.Scale scale"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldAddExtension_CreatesBundle()
     {
@@ -155,6 +159,7 @@ public class WorldBundleExtensionsTests
             t.Contains("var bundle = new TestApp.SimpleBundle(position)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldAddExtension_CallsWorldAdd()
     {
@@ -192,6 +197,7 @@ public class WorldBundleExtensionsTests
             t.Contains("world.Add(entity, bundle.Rotation)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldRemoveExtension_CallsWorldRemove()
     {
@@ -230,6 +236,7 @@ public class WorldBundleExtensionsTests
             t.Contains("world.Remove<TestApp.Velocity>(entity)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldRemoveExtension_NoParameters()
     {
@@ -261,6 +268,7 @@ public class WorldBundleExtensionsTests
             t.Contains("RemoveSimpleBundle(this global::KeenEyes.World world, global::KeenEyes.Entity entity)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldExtensions_HasXmlDocumentation()
     {
@@ -294,6 +302,7 @@ public class WorldBundleExtensionsTests
             t.Contains("/// <param name=\"entity\">"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldExtensions_InCorrectNamespace()
     {
@@ -326,6 +335,7 @@ public class WorldBundleExtensionsTests
             t.Contains("public static partial class WorldBundleExtensions"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithMultipleBundles_GeneratesAllExtensions()
     {
@@ -382,6 +392,7 @@ public class WorldBundleExtensionsTests
         Assert.Contains(generatedTrees, t => t.Contains("RemoveHealthBundle"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldExtensions_GeneratesForQualifiedNames()
     {
@@ -420,6 +431,7 @@ public class WorldBundleExtensionsTests
             t.Contains("RemoveQualifiedBundle"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WorldExtensions_WithTagComponent()
     {

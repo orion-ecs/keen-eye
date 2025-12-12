@@ -8,6 +8,7 @@ namespace KeenEyes.Generators.Tests;
 /// </summary>
 public class BundleQueryGeneratorTests
 {
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesRefStruct()
     {
@@ -50,6 +51,7 @@ public class BundleQueryGeneratorTests
             t.Contains("public ref TestApp.Rotation Rotation"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_RefStruct_HasConstructor()
     {
@@ -81,6 +83,7 @@ public class BundleQueryGeneratorTests
             t.Contains("public SimpleBundleRef(ref TestApp.Position position)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesGetBundleExtension()
     {
@@ -124,6 +127,7 @@ public class BundleQueryGeneratorTests
             t.Contains("return new TestApp.PhysicsBundleRef("));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesQueryMethod()
     {
@@ -162,6 +166,7 @@ public class BundleQueryGeneratorTests
             t.Contains("public QueryBuilder<TestApp.Position, TestApp.Rotation> Query<T>()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesWithBundleFilter()
     {
@@ -203,6 +208,7 @@ public class BundleQueryGeneratorTests
             t.Contains("public static QueryBuilder<T1, T2> WithTransformBundle<TBundle, T1, T2>"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesWithoutBundleFilter()
     {
@@ -241,6 +247,7 @@ public class BundleQueryGeneratorTests
             t.Contains("public static QueryBuilder<T1> WithoutTransformBundle<TBundle, T1>"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithBundleFilter_CallsWithForEachComponent()
     {
@@ -289,6 +296,7 @@ public class BundleQueryGeneratorTests
             t.Contains("builder = builder.With<TestApp.Scale>()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithSingleComponentBundle_GeneratesQueryBuilderOfOne()
     {
@@ -320,6 +328,7 @@ public class BundleQueryGeneratorTests
             t.Contains("public QueryBuilder<TestApp.Position> Query<T>()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithThreeComponentBundle_GeneratesQueryBuilderOfThree()
     {
@@ -366,6 +375,7 @@ public class BundleQueryGeneratorTests
             t.Contains("public QueryBuilder<TestApp.Position, TestApp.Rotation, TestApp.Scale> Query<T>()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_RefStruct_HasXmlDocumentation()
     {
@@ -398,6 +408,7 @@ public class BundleQueryGeneratorTests
             t.Contains("/// Ref struct providing zero-copy access"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GetBundleExtension_HasXmlDocumentation()
     {

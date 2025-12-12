@@ -12,6 +12,7 @@ public class ComponentValidationAnalyzerTests
 {
     #region KEEN010: Self-Referential Constraint
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SelfReferentialRequires_ReportsError()
     {
@@ -30,6 +31,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("SelfRefComponent", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SelfReferentialConflicts_ReportsError()
     {
@@ -52,6 +54,7 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN011: Target Not A Struct
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresComponentWithClass_ReportsError()
     {
@@ -73,6 +76,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("class", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ConflictsWithInterface_ReportsError()
     {
@@ -94,6 +98,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("interface", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresComponentWithEnum_ReportsError()
     {
@@ -119,6 +124,7 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN012: Target Not A Component
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresNonComponent_ReportsWarning()
     {
@@ -140,6 +146,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("IComponent", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresValidComponent_NoWarning()
     {
@@ -163,6 +170,7 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN013: Missing Component Attribute
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresWithoutComponentAttribute_ReportsWarning()
     {
@@ -185,6 +193,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("Component", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ConflictsWithoutComponentAttribute_ReportsWarning()
     {
@@ -205,6 +214,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void WithTagComponentAttribute_NoWarning()
     {
@@ -228,6 +238,7 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN014: Mutual Conflict Warning
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void OneWayConflict_ReportsInfo()
     {
@@ -250,6 +261,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("DynamicBody", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void MutualConflict_NoInfo()
     {
@@ -274,6 +286,7 @@ public class ComponentValidationAnalyzerTests
 
     #region Valid Configurations
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidRequiresComponent_NoErrors()
     {
@@ -293,6 +306,7 @@ public class ComponentValidationAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidConflictsWith_NoErrors()
     {
@@ -313,6 +327,7 @@ public class ComponentValidationAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void MultipleRequiresAndConflicts_NoErrors()
     {
@@ -337,6 +352,7 @@ public class ComponentValidationAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresComponentWithDelegate_ReportsError()
     {
@@ -358,6 +374,7 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("delegate", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ConflictsWithDelegate_ReportsError()
     {

@@ -6,6 +6,7 @@ namespace KeenEyes.Generators.Tests;
 
 public class ComponentValidationGeneratorTests
 {
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithNoValidationAttributes_GeneratesNoOutput()
     {
@@ -29,6 +30,7 @@ public class ComponentValidationGeneratorTests
         Assert.DoesNotContain(generatedTrees, t => t.Contains("ComponentValidationMetadata"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithRequiresComponent_GeneratesMetadata()
     {
@@ -58,6 +60,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.Transform)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithConflictsWith_GeneratesMetadata()
     {
@@ -87,6 +90,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.DynamicBody)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithMultipleRequires_GeneratesArrayWithAll()
     {
@@ -119,6 +123,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains("typeof(TestApp.Renderable)", metadataFile);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_GeneratesTryGetConstraintsMethod()
     {
@@ -146,6 +151,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("out Type[] conflicts"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_GeneratesHasConstraintsMethod()
     {
@@ -171,6 +177,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("HasConstraints(Type componentType)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_GeneratesTypedAccessorMethods()
     {
@@ -196,6 +203,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetRenderableConstraints()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithTagComponent_GeneratesMetadata()
     {
@@ -219,6 +227,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.Player)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithBothRequiresAndConflicts_GeneratesBoth()
     {
@@ -252,6 +261,7 @@ public class ComponentValidationGeneratorTests
         Assert.Contains("typeof(TestApp.StaticBody)", metadataFile);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_MultipleComponents_GeneratesConstraintsForAll()
     {
