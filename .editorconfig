@@ -224,4 +224,6 @@ dotnet_diagnostic.CS1591.severity = warning
 
 # Sonar diagnostics
 # S1066: Collapsible "if" statements should be merged
+dotnet_diagnostic.S125.severity = none
+dotnet_diagnostic.S1104.severity = none
 dotnet_diagnostic.S1066.severity = warning

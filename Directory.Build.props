@@ -8,8 +8,9 @@
     <!-- NU1603: Downgrade warning - package X depends on Y >= A but Y B was resolved.
          This occurs when transitive dependencies request older versions than what's
          pinned via CentralPackageTransitivePinningEnabled. Higher versions are safe. -->
-    <NoWarn>$(NoWarn);NU1603</NoWarn>
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1603</WarningsNotAsErrors>
+    <IssuesToBypass>NU1603;S125;S1104;S3267;S4136;S3903;S6966;S3358;S1751</IssuesToBypass>
+    <NoWarn>$(NoWarn);$(IssuesToBypass)</NoWarn>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);$(IssuesToBypass)</WarningsNotAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
@@ -38,4 +39,11 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SonarAnalyzer.CSharp">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>
