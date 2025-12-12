@@ -25,6 +25,14 @@
 
     <!-- Analyzer projects cannot be AOT-compiled (targets netstandard2.0) -->
     <IsAotCompatible>false</IsAotCompatible>
+
+    <!-- Prevent this project from being publishable - it's a build-time only dependency -->
+    <IsPublishable>false</IsPublishable>
+  </PropertyGroup>
+
+  <!-- Force PublishAot to false even if passed via command line (e.g., dotnet publish -p:PublishAot=true)
+       Source generators target netstandard2.0 and cannot be AOT-compiled -->
+  <PropertyGroup>
     <PublishAot>false</PublishAot>
   </PropertyGroup>
 
