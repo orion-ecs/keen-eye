@@ -12,7 +12,6 @@ public class ComponentValidationAnalyzerTests
 {
     #region KEEN010: Self-Referential Constraint
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SelfReferentialRequires_ReportsError()
     {
@@ -31,7 +30,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("SelfRefComponent", diagnostic.GetMessage());
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SelfReferentialConflicts_ReportsError()
     {
@@ -54,7 +52,6 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN011: Target Not A Struct
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresComponentWithClass_ReportsError()
     {
@@ -76,7 +73,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("class", diagnostic.GetMessage());
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ConflictsWithInterface_ReportsError()
     {
@@ -98,7 +94,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("interface", diagnostic.GetMessage());
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresComponentWithEnum_ReportsError()
     {
@@ -124,7 +119,6 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN012: Target Not A Component
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresNonComponent_ReportsWarning()
     {
@@ -146,7 +140,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("IComponent", diagnostic.GetMessage());
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresValidComponent_NoWarning()
     {
@@ -170,7 +163,6 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN013: Missing Component Attribute
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresWithoutComponentAttribute_ReportsWarning()
     {
@@ -193,7 +185,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("Component", diagnostic.GetMessage());
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ConflictsWithoutComponentAttribute_ReportsWarning()
     {
@@ -214,7 +205,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void WithTagComponentAttribute_NoWarning()
     {
@@ -238,7 +228,6 @@ public class ComponentValidationAnalyzerTests
 
     #region KEEN014: Mutual Conflict Warning
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void OneWayConflict_ReportsInfo()
     {
@@ -261,7 +250,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("DynamicBody", diagnostic.GetMessage());
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void MutualConflict_NoInfo()
     {
@@ -286,7 +274,6 @@ public class ComponentValidationAnalyzerTests
 
     #region Valid Configurations
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidRequiresComponent_NoErrors()
     {
@@ -306,7 +293,6 @@ public class ComponentValidationAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidConflictsWith_NoErrors()
     {
@@ -327,7 +313,6 @@ public class ComponentValidationAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void MultipleRequiresAndConflicts_NoErrors()
     {
@@ -352,7 +337,6 @@ public class ComponentValidationAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RequiresComponentWithDelegate_ReportsError()
     {
@@ -374,7 +358,6 @@ public class ComponentValidationAnalyzerTests
         Assert.Contains("delegate", diagnostic.GetMessage());
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ConflictsWithDelegate_ReportsError()
     {
@@ -400,6 +383,7 @@ public class ComponentValidationAnalyzerTests
 
     private static IReadOnlyList<Diagnostic> RunAnalyzer(string source)
     {
+        var attributesAssembly = typeof(ComponentAttribute).Assembly;
         var abstractionsAssembly = typeof(KeenEyes.IComponent).Assembly;
         var coreAssembly = typeof(KeenEyes.World).Assembly;
 
@@ -409,6 +393,7 @@ public class ComponentValidationAnalyzerTests
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
+            MetadataReference.CreateFromFile(attributesAssembly.Location),
             MetadataReference.CreateFromFile(abstractionsAssembly.Location),
             MetadataReference.CreateFromFile(coreAssembly.Location),
         };
@@ -416,7 +401,6 @@ public class ComponentValidationAnalyzerTests
         // Add runtime assembly references
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
-        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
 
         var compilation = CSharpCompilation.Create(
@@ -425,13 +409,8 @@ public class ComponentValidationAnalyzerTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        // Run MarkerAttributesGenerator first to generate the attributes
-        var markerGenerator = new MarkerAttributesGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(markerGenerator);
-        driver.RunGeneratorsAndUpdateCompilation(compilation, out var updatedCompilation, out var _);
-
         var analyzer = new ComponentValidationAnalyzer();
-        var compilationWithAnalyzers = updatedCompilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
+        var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
 
         var diagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().Result;
 

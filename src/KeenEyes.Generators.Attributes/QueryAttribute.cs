@@ -1,0 +1,44 @@
+using System;
+using System.Diagnostics.CodeAnalysis;
+
+namespace KeenEyes;
+
+/// <summary>
+/// Marks a struct as a query definition. Source generators will produce
+/// an efficient enumerator for iterating matching archetypes.
+/// </summary>
+[AttributeUsage(AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
+public sealed class QueryAttribute : Attribute;
+
+/// <summary>
+/// Marks a field in a query struct as a filter requirement.
+/// The entity must have this component, but it won't be accessible in the query.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
+public sealed class WithAttribute : Attribute;
+
+/// <summary>
+/// Marks a field in a query struct as an exclusion filter.
+/// The entity must NOT have this component.
+/// </summary>
+[AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
+public sealed class WithoutAttribute : Attribute;
+
+/// <summary>
+/// Marks a field as optional.
+/// </summary>
+/// <remarks>
+/// <para>
+/// When used in query structs, the component will be default if not present on the entity.
+/// </para>
+/// <para>
+/// When used in bundle structs, the field must be a nullable type and will only be added
+/// to entities if it has a value (is not null).
+/// </para>
+/// </remarks>
+[AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
+[ExcludeFromCodeCoverage]
+public sealed class OptionalAttribute : Attribute;

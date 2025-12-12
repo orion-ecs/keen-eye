@@ -8,7 +8,6 @@ namespace KeenEyes.Generators.Tests;
 /// </summary>
 public class BundleQueryGeneratorTests
 {
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesRefStruct()
     {
@@ -51,7 +50,6 @@ public class BundleQueryGeneratorTests
             t.Contains("public ref TestApp.Rotation Rotation"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_RefStruct_HasConstructor()
     {
@@ -83,7 +81,6 @@ public class BundleQueryGeneratorTests
             t.Contains("public SimpleBundleRef(ref TestApp.Position position)"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesGetBundleExtension()
     {
@@ -127,7 +124,6 @@ public class BundleQueryGeneratorTests
             t.Contains("return new TestApp.PhysicsBundleRef("));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesQueryMethod()
     {
@@ -166,7 +162,6 @@ public class BundleQueryGeneratorTests
             t.Contains("public QueryBuilder<TestApp.Position, TestApp.Rotation> Query<T>()"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesWithBundleFilter()
     {
@@ -208,7 +203,6 @@ public class BundleQueryGeneratorTests
             t.Contains("public static QueryBuilder<T1, T2> WithTransformBundle<TBundle, T1, T2>"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesWithoutBundleFilter()
     {
@@ -247,7 +241,6 @@ public class BundleQueryGeneratorTests
             t.Contains("public static QueryBuilder<T1> WithoutTransformBundle<TBundle, T1>"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithBundleFilter_CallsWithForEachComponent()
     {
@@ -296,7 +289,6 @@ public class BundleQueryGeneratorTests
             t.Contains("builder = builder.With<TestApp.Scale>()"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithSingleComponentBundle_GeneratesQueryBuilderOfOne()
     {
@@ -328,7 +320,6 @@ public class BundleQueryGeneratorTests
             t.Contains("public QueryBuilder<TestApp.Position> Query<T>()"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithThreeComponentBundle_GeneratesQueryBuilderOfThree()
     {
@@ -375,7 +366,6 @@ public class BundleQueryGeneratorTests
             t.Contains("public QueryBuilder<TestApp.Position, TestApp.Rotation, TestApp.Scale> Query<T>()"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_RefStruct_HasXmlDocumentation()
     {
@@ -408,7 +398,6 @@ public class BundleQueryGeneratorTests
             t.Contains("/// Ref struct providing zero-copy access"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GetBundleExtension_HasXmlDocumentation()
     {
@@ -443,6 +432,7 @@ public class BundleQueryGeneratorTests
 
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
+        var attributesAssembly = typeof(ComponentAttribute).Assembly;
         var abstractionsAssembly = typeof(IComponent).Assembly;
 
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
@@ -451,13 +441,13 @@ public class BundleQueryGeneratorTests
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
+            MetadataReference.CreateFromFile(attributesAssembly.Location),
             MetadataReference.CreateFromFile(abstractionsAssembly.Location),
         };
 
         // Add runtime assembly references
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
-        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
 
         var compilation = CSharpCompilation.Create(
@@ -466,20 +456,16 @@ public class BundleQueryGeneratorTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        // Run MarkerAttributesGenerator first to generate the attributes
-        var markerGenerator = new MarkerAttributesGenerator();
         var componentGenerator = new ComponentGenerator();
         var bundleGenerator = new BundleGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(markerGenerator, componentGenerator, bundleGenerator);
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(componentGenerator, bundleGenerator);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var _);
 
         var runResult = driver.GetRunResult();
-        // Filter to only include output from BundleGenerator, not MarkerAttributesGenerator
-        var bundleResult = runResult.Results.FirstOrDefault(r => r.Generator.GetType() == typeof(BundleGenerator));
-        var generatedSources = bundleResult.GeneratedSources.IsDefault
-            ? []
-            : bundleResult.GeneratedSources.Select(s => s.SourceText.ToString()).ToList();
+        var generatedSources = runResult.GeneratedTrees
+            .Select(t => t.GetText().ToString())
+            .ToList();
 
         // Get all diagnostics from the generator run
         var allDiagnostics = runResult.Diagnostics.ToList();
