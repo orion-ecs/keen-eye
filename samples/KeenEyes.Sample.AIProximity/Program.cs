@@ -36,7 +36,7 @@ public class Program
 
     private static void RunSimulation()
     {
-        using var world = new World();
+        using var world = new World(seed: 42);
 
         // Install spatial plugin with Grid (efficient for 2D AI)
         var config = new SpatialConfig
@@ -53,13 +53,12 @@ public class Program
         world.InstallPlugin(new SpatialPlugin(config));
 
         // Spawn guards (AI agents) at random positions
-        var random = new Random(42);
         for (int i = 0; i < GuardCount; i++)
         {
             var position = new Vector3(
-                random.NextSingle() * WorldSize - WorldSize / 2,
+                world.NextFloat() * WorldSize - WorldSize / 2,
                 0,
-                random.NextSingle() * WorldSize - WorldSize / 2);
+                world.NextFloat() * WorldSize - WorldSize / 2);
 
             world.Spawn()
                 .With(new Transform3D(position, Quaternion.Identity, Vector3.One))
@@ -78,19 +77,19 @@ public class Program
         for (int i = 0; i < PlayerCount; i++)
         {
             var position = new Vector3(
-                random.NextSingle() * WorldSize - WorldSize / 2,
+                world.NextFloat() * WorldSize - WorldSize / 2,
                 0,
-                random.NextSingle() * WorldSize - WorldSize / 2);
+                world.NextFloat() * WorldSize - WorldSize / 2);
 
             var velocity = new Vector3(
-                random.NextSingle() * 20f - 10f,
+                world.NextFloat() * 20f - 10f,
                 0,
-                random.NextSingle() * 20f - 10f);
+                world.NextFloat() * 20f - 10f);
 
             world.Spawn()
                 .With(new Transform3D(position, Quaternion.Identity, Vector3.One))
                 .With(new Velocity { Value = velocity })
-                .With(new Noisy { NoiseLevel = random.NextSingle() })  // 0.0 = silent, 1.0 = loud
+                .With(new Noisy { NoiseLevel = world.NextFloat() })  // 0.0 = silent, 1.0 = loud
                 .WithTag<Player>()
                 .WithTag<SpatialIndexed>()
                 .Build();

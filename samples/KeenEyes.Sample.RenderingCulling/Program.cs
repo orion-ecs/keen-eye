@@ -41,7 +41,7 @@ public class Program
 
     private static void RunSimulation(bool useFrustumCulling)
     {
-        using var world = new World();
+        using var world = new World(seed: 42);
 
         // Install spatial plugin with Octree (best for 3D)
         var config = new SpatialConfig
@@ -59,13 +59,12 @@ public class Program
         world.InstallPlugin(new SpatialPlugin(config));
 
         // Spawn entities scattered throughout 3D space
-        var random = new Random(42);
         for (int i = 0; i < EntityCount; i++)
         {
             var position = new Vector3(
-                random.NextSingle() * WorldSize - WorldSize / 2,
-                random.NextSingle() * WorldSize - WorldSize / 2,
-                random.NextSingle() * WorldSize - WorldSize / 2);
+                world.NextFloat() * WorldSize - WorldSize / 2,
+                world.NextFloat() * WorldSize - WorldSize / 2,
+                world.NextFloat() * WorldSize - WorldSize / 2);
 
             world.Spawn()
                 .With(new Transform3D(position, Quaternion.Identity, Vector3.One))

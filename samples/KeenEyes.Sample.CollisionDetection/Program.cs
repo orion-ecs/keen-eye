@@ -41,7 +41,7 @@ public class Program
 
     private static void RunSimulation(SpatialStrategy strategy, bool useSpatial)
     {
-        using var world = new World();
+        using var world = new World(seed: 42);
 
         // Install spatial plugin with appropriate strategy
         var config = strategy switch
@@ -73,18 +73,17 @@ public class Program
         world.InstallPlugin(new SpatialPlugin(config));
 
         // Spawn entities with random positions and velocities
-        var random = new Random(42);  // Fixed seed for consistent results
         for (int i = 0; i < EntityCount; i++)
         {
             var position = new Vector3(
-                random.NextSingle() * WorldSize - WorldSize / 2,
+                world.NextFloat() * WorldSize - WorldSize / 2,
                 0,
-                random.NextSingle() * WorldSize - WorldSize / 2);
+                world.NextFloat() * WorldSize - WorldSize / 2);
 
             var velocity = new Vector3(
-                random.NextSingle() * MaxSpeed - MaxSpeed / 2,
+                world.NextFloat() * MaxSpeed - MaxSpeed / 2,
                 0,
-                random.NextSingle() * MaxSpeed - MaxSpeed / 2);
+                world.NextFloat() * MaxSpeed - MaxSpeed / 2);
 
             world.Spawn()
                 .With(new Transform3D(position, Quaternion.Identity, Vector3.One))

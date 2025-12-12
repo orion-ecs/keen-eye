@@ -495,7 +495,9 @@ public class PoolingTests
         {
             threads[i] = new Thread(() =>
             {
+#pragma warning disable KEEN030 // System.Random usage - Test infrastructure needs thread-local RNG
                 var random = new Random(Thread.CurrentThread.ManagedThreadId);
+#pragma warning restore KEEN030
                 var heldEntities = new List<Entity>();
 
                 for (var j = 0; j < iterations; j++)
