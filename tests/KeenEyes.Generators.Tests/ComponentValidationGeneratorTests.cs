@@ -1,4 +1,3 @@
-using KeenEyes;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -6,7 +5,6 @@ namespace KeenEyes.Generators.Tests;
 
 public class ComponentValidationGeneratorTests
 {
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithNoValidationAttributes_GeneratesNoOutput()
     {
@@ -30,7 +28,6 @@ public class ComponentValidationGeneratorTests
         Assert.DoesNotContain(generatedTrees, t => t.Contains("ComponentValidationMetadata"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithRequiresComponent_GeneratesMetadata()
     {
@@ -60,7 +57,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.Transform)"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithConflictsWith_GeneratesMetadata()
     {
@@ -90,7 +86,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.DynamicBody)"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithMultipleRequires_GeneratesArrayWithAll()
     {
@@ -123,7 +118,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains("typeof(TestApp.Renderable)", metadataFile);
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_GeneratesTryGetConstraintsMethod()
     {
@@ -151,7 +145,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("out Type[] conflicts"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_GeneratesHasConstraintsMethod()
     {
@@ -177,7 +170,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("HasConstraints(Type componentType)"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_GeneratesTypedAccessorMethods()
     {
@@ -203,7 +195,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetRenderableConstraints()"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithTagComponent_GeneratesMetadata()
     {
@@ -227,7 +218,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.Player)"));
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_WithBothRequiresAndConflicts_GeneratesBoth()
     {
@@ -261,7 +251,6 @@ public class ComponentValidationGeneratorTests
         Assert.Contains("typeof(TestApp.StaticBody)", metadataFile);
     }
 
-    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidationGenerator_MultipleComponents_GeneratesConstraintsForAll()
     {
@@ -297,19 +286,20 @@ public class ComponentValidationGeneratorTests
 
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
+        var attributesAssembly = typeof(ComponentAttribute).Assembly;
+
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
         var references = new List<MetadataReference>
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(SystemPhase).Assembly.Location), // KeenEyes.Abstractions
+            MetadataReference.CreateFromFile(attributesAssembly.Location),
         };
 
         // Add runtime assembly references
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
-        references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Collections.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
 
         var compilation = CSharpCompilation.Create(
@@ -318,19 +308,15 @@ public class ComponentValidationGeneratorTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        // Run MarkerAttributesGenerator first to generate the attributes
-        var markerGenerator = new MarkerAttributesGenerator();
-        var validationGenerator = new ComponentValidationGenerator();
-        GeneratorDriver driver = CSharpGeneratorDriver.Create(markerGenerator, validationGenerator);
+        var generator = new ComponentValidationGenerator();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
 
         var runResult = driver.GetRunResult();
-        // Filter to only include output from ComponentValidationGenerator, not MarkerAttributesGenerator
-        var validationResult = runResult.Results.FirstOrDefault(r => r.Generator.GetType() == typeof(ComponentValidationGenerator));
-        var generatedSources = validationResult.GeneratedSources.IsDefault
-            ? []
-            : validationResult.GeneratedSources.Select(s => s.SourceText.ToString()).ToList();
+        var generatedSources = runResult.GeneratedTrees
+            .Select(tree => tree.GetText().ToString())
+            .ToList();
 
         return (diagnostics.ToList(), generatedSources);
     }
