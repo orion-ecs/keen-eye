@@ -6,8 +6,7 @@
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 	</PropertyGroup>
 
-	<!-- AOT publishing configuration - enabled during publish:
-       dotnet publish -c Release -p:PublishAot=true -->
+	<!-- AOT publishing configuration -->
 	<PropertyGroup Condition="'$(PublishAot)' == 'true'">
 		<InvariantGlobalization>true</InvariantGlobalization>
 	</PropertyGroup>
