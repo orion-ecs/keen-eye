@@ -42,7 +42,8 @@ public class PluginExtensionGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         Assert.Single(generatedTrees);
-        Assert.Contains(generatedTrees, t => t.Contains("extension(global::KeenEyes.World world)"));
+
+        Assert.Contains(generatedTrees, t => t.Contains("extension(global::KeenEyes.IWorld world)"));
         Assert.Contains(generatedTrees, t => t.Contains("PhysicsWorld Physics =>"));
     }
 
