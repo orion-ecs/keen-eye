@@ -5,6 +5,7 @@ namespace KeenEyes.Generators.Tests;
 
 public class BundleGeneratorTests
 {
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithNoBundle_GeneratesNoOutput()
     {
@@ -23,6 +24,7 @@ public class BundleGeneratorTests
         Assert.Empty(generatedTrees);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithValidBundle_GeneratesPartialStruct()
     {
@@ -58,6 +60,7 @@ public class BundleGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("partial struct TransformBundle"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_ImplementsIBundle()
     {
@@ -86,6 +89,7 @@ public class BundleGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("IBundle"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesConstructor()
     {
@@ -125,6 +129,7 @@ public class BundleGeneratorTests
             t.Contains("TestApp.Velocity velocity"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesBuilderExtension()
     {
@@ -153,6 +158,7 @@ public class BundleGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("WithSimpleBundle"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_OnClass_ProducesDiagnostic()
     {
@@ -182,6 +188,7 @@ public class BundleGeneratorTests
             d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithNonComponentField_ProducesDiagnostic()
     {
@@ -217,6 +224,7 @@ public class BundleGeneratorTests
             d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithNoFields_ProducesDiagnostic()
     {
@@ -238,6 +246,7 @@ public class BundleGeneratorTests
             d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithCircularReference_ProducesDiagnostic()
     {
@@ -260,6 +269,7 @@ public class BundleGeneratorTests
             d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithMultipleComponents_GeneratesAllParameters()
     {
@@ -311,6 +321,7 @@ public class BundleGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("WithTransformBundle"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_BuilderExtensionUsesFullyQualifiedName()
     {
@@ -339,6 +350,7 @@ public class BundleGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("new Game.Bundles.QualifiedBundle"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_IgnoresStaticFields()
     {
@@ -372,6 +384,7 @@ public class BundleGeneratorTests
             !t.Contains("int counter"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithTagComponent_Works()
     {
@@ -406,6 +419,7 @@ public class BundleGeneratorTests
             t.Contains("TestApp.PlayerTag tag"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithMultipleNamespaces_UsesFullyQualifiedNames()
     {
@@ -458,6 +472,7 @@ public class BundleGeneratorTests
             t.Contains("Velocity = velocity"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesWithBundleMethod()
     {
@@ -501,6 +516,7 @@ public class BundleGeneratorTests
             t.Contains("public static global::KeenEyes.IEntityBuilder With(this global::KeenEyes.IEntityBuilder builder, TestApp.TransformBundle bundle)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithBundleMethod_AddsAllComponents()
     {
@@ -549,6 +565,7 @@ public class BundleGeneratorTests
             t.Contains("builder = builder.With(bundle.Scale)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithBundleMethod_HasProperXmlDocs()
     {
@@ -585,6 +602,7 @@ public class BundleGeneratorTests
             t.Contains("/// <returns>The builder for method chaining.</returns>"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_GeneratesBothWithMethodAndWithNameMethod()
     {
@@ -741,6 +759,7 @@ public class BundleGeneratorTests
         Assert.Contains("builder.With(bundle.Shield.Value)", builderExtensions);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithOptionalNonNullableField_ProducesDiagnostic()
     {
@@ -767,6 +786,7 @@ public class BundleGeneratorTests
             d.Severity == DiagnosticSeverity.Error);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithCircularNestedBundle_ProducesDiagnostic()
     {
@@ -890,6 +910,7 @@ public class BundleGeneratorTests
         Assert.Contains("builder.With(bundle.Transform.Value)", builderExtensions);
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void BundleGenerator_WithMultiLevelNesting_GeneratesCorrectly()
     {

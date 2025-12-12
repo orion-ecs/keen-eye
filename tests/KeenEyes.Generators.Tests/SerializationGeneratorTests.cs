@@ -6,6 +6,7 @@ namespace KeenEyes.Generators.Tests;
 
 public class SerializationGeneratorTests
 {
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_WithNoSerializableComponents_GeneratesNoOutput()
     {
@@ -28,6 +29,7 @@ public class SerializationGeneratorTests
         Assert.DoesNotContain(generatedTrees, t => t.Contains("ComponentSerializer"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_WithSerializableComponent_GeneratesSerializer()
     {
@@ -51,6 +53,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("IComponentSerializer"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesDeserializeMethod()
     {
@@ -74,6 +77,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetInt32()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesSerializeMethod()
     {
@@ -97,6 +101,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("WriteNumber"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesIntField()
     {
@@ -118,6 +123,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetInt32()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesFloatField()
     {
@@ -139,6 +145,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetSingle()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesDoubleField()
     {
@@ -160,6 +167,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetDouble()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesBoolField()
     {
@@ -182,6 +190,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("WriteBoolean"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesStringField()
     {
@@ -204,6 +213,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("WriteString"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesLongField()
     {
@@ -225,6 +235,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetInt64()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesDecimalField()
     {
@@ -246,6 +257,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetDecimal()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesTypesByName()
     {
@@ -268,6 +280,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.TypedComponent)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesSerializableTypes()
     {
@@ -290,6 +303,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("HashSet<Type>"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesInstance()
     {
@@ -311,6 +325,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("public static readonly ComponentSerializer Instance"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_MultipleComponents_GeneratesAllSerializers()
     {
@@ -340,6 +355,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("Serialize_Third"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_IgnoresStaticFields()
     {
@@ -363,6 +379,7 @@ public class SerializationGeneratorTests
         Assert.DoesNotContain(generatedTrees, t => t.Contains("staticField"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_IgnoresConstFields()
     {
@@ -386,6 +403,7 @@ public class SerializationGeneratorTests
         Assert.DoesNotContain(generatedTrees, t => t.Contains("version"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_UsesCamelCasePropertyNames()
     {
@@ -409,6 +427,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("\"anotherValue\""));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesAutoGeneratedHeader()
     {
@@ -431,6 +450,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("#nullable enable"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesInKeenEyesGeneratedNamespace()
     {
@@ -452,6 +472,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("namespace KeenEyes.Generated;"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_ImplementsIsSerializableType()
     {
@@ -474,6 +495,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("public bool IsSerializable(string typeName)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_ImplementsGetType()
     {
@@ -495,6 +517,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("Type? IComponentSerializer.GetType(string typeName)"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesGetSerializableTypeNames()
     {
@@ -516,6 +539,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetSerializableTypeNames()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_GeneratesGetSerializableTypes()
     {
@@ -537,6 +561,7 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("GetSerializableTypes()"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_MixedSerializable_OnlyGeneratesForMarked()
     {
@@ -563,6 +588,7 @@ public class SerializationGeneratorTests
         Assert.DoesNotContain(generatedTrees, t => t.Contains("Deserialize_NotSerializable"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_OnClass_GeneratesNoOutput()
     {
@@ -584,6 +610,7 @@ public class SerializationGeneratorTests
         Assert.DoesNotContain(generatedTrees, t => t.Contains("ComponentSerializer"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SerializationGenerator_HandlesComplexType()
     {

@@ -12,6 +12,7 @@ public class SystemOrderingAnalyzerTests
 {
     #region KEEN001: Self-Referential Constraint
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SelfReferentialRunBefore_ReportsError()
     {
@@ -31,6 +32,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("RunBefore", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void SelfReferentialRunAfter_ReportsError()
     {
@@ -50,6 +52,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("RunAfter", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void NonSelfReferential_NoError()
     {
@@ -78,6 +81,7 @@ public class SystemOrderingAnalyzerTests
 
     #region KEEN002: Target Not A Class
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithStruct_ReportsError()
     {
@@ -99,6 +103,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("struct", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunAfterWithInterface_ReportsError()
     {
@@ -120,6 +125,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("interface", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithEnum_ReportsError()
     {
@@ -141,6 +147,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("enum", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithDelegate_ReportsError()
     {
@@ -162,6 +169,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("delegate", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithClass_NoKEEN002Error()
     {
@@ -190,6 +198,7 @@ public class SystemOrderingAnalyzerTests
 
     #region KEEN003: Missing [System] Attribute
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithoutSystemAttribute_ReportsWarning()
     {
@@ -215,6 +224,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("MissingSystemAttr", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunAfterWithoutSystemAttribute_ReportsWarning()
     {
@@ -240,6 +250,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("MissingSystemAttr", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithSystemAttribute_NoKEEN003Warning()
     {
@@ -268,6 +279,7 @@ public class SystemOrderingAnalyzerTests
 
     #region KEEN004: Target Not Implementing ISystem
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithNonSystem_ReportsWarning()
     {
@@ -288,6 +300,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("NotASystem", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunAfterWithNonSystem_ReportsWarning()
     {
@@ -308,6 +321,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains("NotASystem", diagnostic.GetMessage());
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithISystemImplementer_NoKEEN004Warning()
     {
@@ -336,6 +350,7 @@ public class SystemOrderingAnalyzerTests
 
     #region Multiple Attributes
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void MultipleRunBeforeAttributes_AnalyzesEach()
     {
@@ -359,6 +374,7 @@ public class SystemOrderingAnalyzerTests
         Assert.Contains(diagnostics, d => d.Id == "KEEN004" && d.GetMessage().Contains("Target2"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void MixedRunBeforeAndRunAfter_AnalyzesAll()
     {
@@ -386,6 +402,7 @@ public class SystemOrderingAnalyzerTests
 
     #region No False Positives
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ClassWithoutOrderingAttributes_NoDiagnostics()
     {
@@ -401,6 +418,7 @@ public class SystemOrderingAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Id.StartsWith("KEEN"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void ValidSystemWithValidTarget_NoDiagnostics()
     {
@@ -426,6 +444,7 @@ public class SystemOrderingAnalyzerTests
         Assert.DoesNotContain(diagnostics, d => d.Id.StartsWith("KEEN"));
     }
 
+    [Trait("Category", "SourceGenerator")]
     [Fact]
     public void RunBeforeWithClassTarget_WhenISystemNotInCompilation_NoKEEN004Warning()
     {
