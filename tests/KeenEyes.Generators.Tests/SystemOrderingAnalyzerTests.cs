@@ -432,6 +432,21 @@ public class SystemOrderingAnalyzerTests
         // Test when ISystem interface is not available in compilation
         // This exercises the defensive code path where iSystemType == null
         var source = """
+            using System;
+
+            namespace KeenEyes
+            {
+                // Inline attribute definitions to avoid referencing KeenEyes.Abstractions
+                [AttributeUsage(AttributeTargets.Class)]
+                public class SystemAttribute : Attribute { }
+
+                [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
+                public class RunBeforeAttribute : Attribute
+                {
+                    public RunBeforeAttribute(Type targetSystem) { }
+                }
+            }
+
             namespace TestApp;
 
             public class OtherClass { }
@@ -490,17 +505,15 @@ public class SystemOrderingAnalyzerTests
 
     private static IReadOnlyList<Diagnostic> RunAnalyzerWithoutCore(string source)
     {
-        // Only include attributes assembly, not core (so ISystem is not available)
-        var attributesAssembly = typeof(SystemAttribute).Assembly;
-
+        // Don't include any KeenEyes assemblies (attributes are defined inline in test source)
+        // This ensures ISystem is not available to test the defensive code path
         var syntaxTree = CSharpSyntaxTree.ParseText(source);
 
         var references = new List<MetadataReference>
         {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Attribute).Assembly.Location),
-            MetadataReference.CreateFromFile(attributesAssembly.Location),
-            // Intentionally NOT including coreAssembly to test iSystemType == null path
+            // Intentionally NOT including KeenEyes assemblies to test iSystemType == null path
         };
 
         // Add runtime assembly references
