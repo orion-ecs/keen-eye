@@ -491,14 +491,14 @@ public class SerializationTests
         var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
 
         Assert.Throws<ArgumentNullException>(() =>
-            SnapshotManager.ToBinary(snapshot, null!));
+            SnapshotManager.ToBinary<TestComponentSerializer>(snapshot, null!));
     }
 
     [Fact]
     public void FromBinary_ThrowsOnNullData()
     {
         Assert.Throws<ArgumentNullException>(() =>
-            SnapshotManager.FromBinary(null!, testSerializer));
+            SnapshotManager.FromBinary<TestComponentSerializer>(null!, testSerializer));
     }
 
     [Fact]
@@ -507,7 +507,7 @@ public class SerializationTests
         var data = new byte[] { (byte)'K', (byte)'E', (byte)'E', (byte)'N' };
 
         Assert.Throws<ArgumentNullException>(() =>
-            SnapshotManager.FromBinary(data, null!));
+            SnapshotManager.FromBinary<TestComponentSerializer>(data, null!));
     }
 
     [Fact]

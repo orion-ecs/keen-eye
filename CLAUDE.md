@@ -407,6 +407,35 @@ Speculative code creates:
 
 When you think "this might be useful later," stop. Either it's needed now (add it), or it's not (don't add it). YAGNI (You Aren't Gonna Need It).
 
+### No Backwards Compatibility Layers
+
+This is a **new engine** - there is no existing user base requiring backwards compatibility. Do not add:
+- Legacy overloads or fallback methods
+- Compatibility shims for "old" APIs
+- Multiple code paths to support "previous versions"
+- Deprecated alternatives alongside new implementations
+
+If you believe backwards compatibility is genuinely needed for a specific case, **ask the user first** before implementing it. This falls under the "no speculative features" rule - don't add compatibility code "just in case."
+
+**Bad:**
+```csharp
+// Don't add legacy overloads
+public static byte[] ToBinary(WorldSnapshot snapshot, IBinaryComponentSerializer serializer)
+{
+    // Legacy fallback path...
+}
+```
+
+**Good:**
+```csharp
+// Single, clean implementation
+public static byte[] ToBinary<TSerializer>(WorldSnapshot snapshot, TSerializer serializer)
+    where TSerializer : IComponentSerializer, IBinaryComponentSerializer
+{
+    // Native binary serialization
+}
+```
+
 ### Suppressing Warnings
 
 Only suppress warnings when absolutely necessary:
