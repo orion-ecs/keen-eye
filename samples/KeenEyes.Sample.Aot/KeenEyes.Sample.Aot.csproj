@@ -3,7 +3,7 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<PublishAot>true</PublishAot>
-		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<!-- RuntimeIdentifier is passed via command line for cross-platform AOT builds -->
 	</PropertyGroup>
 
 	<!-- AOT publishing configuration -->
