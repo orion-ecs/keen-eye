@@ -83,8 +83,14 @@ jobs:
       - name: Restore dependencies
         run: dotnet restore
 
-      - name: Publish AOT Test Project
-        run: dotnet publish tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj -c Release -r ${{ matrix.rid }} --output ./aot-test-publish
+      - name: Publish AOT Test Project (verify zero trimming warnings)
+        run: |
+          dotnet publish tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --output ./aot-test-publish \
+            -p:TrimmerSingleWarn=false \
+            -warnaserror
 
       - name: Run AOT Tests (Linux/macOS)
         if: runner.os != 'Windows'
@@ -94,8 +100,14 @@ jobs:
         if: runner.os == 'Windows'
         run: ./aot-test-publish/KeenEyes.AotCompatibility.Tests.exe
 
-      - name: Publish AOT Sample Project
-        run: dotnet publish samples/KeenEyes.Sample.Aot/KeenEyes.Sample.Aot.csproj -c Release -r ${{ matrix.rid }} --output ./aot-sample-publish
+      - name: Publish AOT Sample Project (verify zero trimming warnings)
+        run: |
+          dotnet publish samples/KeenEyes.Sample.Aot/KeenEyes.Sample.Aot.csproj \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --output ./aot-sample-publish \
+            -p:TrimmerSingleWarn=false \
+            -warnaserror
 
       - name: Run AOT Sample (Linux/macOS)
         if: runner.os != 'Windows'
