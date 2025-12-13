@@ -43,7 +43,8 @@ public struct SerializableConfig
 public class SerializationTests
 {
     // Serializer for all restoration tests - supports all test component types
-    private readonly IComponentSerializer testSerializer = TestSerializerFactory.CreateForSerializationTests();
+    // Using concrete type since it implements both IComponentSerializer and IBinaryComponentSerializer
+    private readonly TestComponentSerializer testSerializer = TestSerializerFactory.CreateForSerializationTests();
 
     #region CreateSnapshot Tests
 
@@ -286,6 +287,311 @@ public class SerializationTests
 
         Assert.NotNull(restored);
         Assert.Single(restored!.Singletons);
+    }
+
+    #endregion
+
+    #region Binary Serialization Tests
+
+    [Fact]
+    public void ToBinary_ProducesValidBinaryData()
+    {
+        using var world = new World();
+        world.Spawn()
+            .With(new SerializablePosition { X = 10, Y = 20 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+
+        Assert.NotNull(binary);
+        Assert.True(binary.Length > 0);
+
+        // Verify magic bytes "KEEN"
+        Assert.Equal((byte)'K', binary[0]);
+        Assert.Equal((byte)'E', binary[1]);
+        Assert.Equal((byte)'E', binary[2]);
+        Assert.Equal((byte)'N', binary[3]);
+    }
+
+    [Fact]
+    public void FromBinary_DeserializesSnapshot()
+    {
+        using var world = new World();
+        world.Spawn("TestEntity")
+            .With(new SerializablePosition { X = 5, Y = 10 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        Assert.NotNull(restored);
+        Assert.Single(restored.Entities);
+        Assert.Equal("TestEntity", restored.Entities[0].Name);
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_PreservesEntityData()
+    {
+        using var world = new World();
+        world.Spawn("Player")
+            .With(new SerializablePosition { X = 100f, Y = 200f })
+            .With(new SerializableHealth { Current = 75, Max = 100 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        Assert.NotNull(restored);
+        Assert.Single(restored.Entities);
+        Assert.Equal("Player", restored.Entities[0].Name);
+        Assert.Equal(2, restored.Entities[0].Components.Count);
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_PreservesHierarchy()
+    {
+        using var world = new World();
+        var parent = world.Spawn("Parent")
+            .With(new SerializablePosition { X = 0, Y = 0 })
+            .Build();
+        var child = world.Spawn("Child")
+            .With(new SerializablePosition { X = 1, Y = 1 })
+            .Build();
+        world.SetParent(child, parent);
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        Assert.NotNull(restored);
+        var childEntity = restored.Entities.First(e => e.Name == "Child");
+        Assert.Equal(parent.Id, childEntity.ParentId);
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_PreservesSingletons()
+    {
+        using var world = new World();
+        world.SetSingleton(new SerializableGameTime { TotalTime = 50f, DeltaTime = 0.033f });
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        Assert.NotNull(restored);
+        Assert.Single(restored.Singletons);
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_PreservesMetadata()
+    {
+        using var world = new World();
+        world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
+
+        var metadata = new Dictionary<string, object>
+        {
+            ["SaveSlot"] = 1,
+            ["PlayerName"] = "TestPlayer"
+        };
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests(), metadata);
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        Assert.NotNull(restored.Metadata);
+        Assert.Equal(2, restored.Metadata!.Count);
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_PreservesTimestamp()
+    {
+        using var world = new World();
+        world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        // Timestamps should match within millisecond precision (binary stores as Unix ms)
+        Assert.Equal(
+            snapshot.Timestamp.ToUnixTimeMilliseconds(),
+            restored.Timestamp.ToUnixTimeMilliseconds());
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_PreservesVersion()
+    {
+        using var world = new World();
+        world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        Assert.Equal(snapshot.Version, restored.Version);
+    }
+
+    [Fact]
+    public void Binary_IsSmallerThanJson_ForManyEntities()
+    {
+        using var world = new World();
+
+        // Create 100 entities with position components
+        for (int i = 0; i < 100; i++)
+        {
+            world.Spawn($"Entity{i}")
+                .With(new SerializablePosition { X = i * 10f, Y = i * 20f })
+                .Build();
+        }
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var json = SnapshotManager.ToJson(snapshot);
+
+        // Binary should be smaller due to string table and compact format
+        Assert.True(binary.Length < json.Length,
+            $"Binary ({binary.Length} bytes) should be smaller than JSON ({json.Length} bytes)");
+    }
+
+    [Fact]
+    public void FromBinary_WithInvalidMagic_ThrowsInvalidDataException()
+    {
+        var invalidData = new byte[] { 0x00, 0x00, 0x00, 0x00 };
+
+        Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(invalidData, testSerializer));
+    }
+
+    [Fact]
+    public void FromBinary_WithUnsupportedVersion_ThrowsInvalidDataException()
+    {
+        // Create valid magic but unsupported version (255)
+        var invalidData = new byte[] { (byte)'K', (byte)'E', (byte)'E', (byte)'N', 0xFF, 0x00 };
+
+        var ex = Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(invalidData, testSerializer));
+
+        Assert.Contains("version", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void ToBinary_ThrowsOnNullSnapshot()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            SnapshotManager.ToBinary(null!, testSerializer));
+    }
+
+    [Fact]
+    public void ToBinary_ThrowsOnNullSerializer()
+    {
+        using var world = new World();
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+
+        Assert.Throws<ArgumentNullException>(() =>
+            SnapshotManager.ToBinary(snapshot, null!));
+    }
+
+    [Fact]
+    public void FromBinary_ThrowsOnNullData()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            SnapshotManager.FromBinary(null!, testSerializer));
+    }
+
+    [Fact]
+    public void FromBinary_ThrowsOnNullSerializer()
+    {
+        var data = new byte[] { (byte)'K', (byte)'E', (byte)'E', (byte)'N' };
+
+        Assert.Throws<ArgumentNullException>(() =>
+            SnapshotManager.FromBinary(data, null!));
+    }
+
+    [Fact]
+    public void ToBinaryStream_WritesToStream()
+    {
+        using var world = new World();
+        world.Spawn("Test").With(new SerializablePosition { X = 1, Y = 2 }).Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+
+        using var stream = new MemoryStream();
+        SnapshotManager.ToBinaryStream(snapshot, testSerializer, stream);
+
+        Assert.True(stream.Length > 0);
+    }
+
+    [Fact]
+    public void FromBinaryStream_ReadsFromStream()
+    {
+        using var world = new World();
+        world.Spawn("Test").With(new SerializablePosition { X = 1, Y = 2 }).Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+
+        using var stream = new MemoryStream(binary);
+        var restored = SnapshotManager.FromBinaryStream(stream, testSerializer);
+
+        Assert.NotNull(restored);
+        Assert.Single(restored.Entities);
+        Assert.Equal("Test", restored.Entities[0].Name);
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_PreservesTagComponents()
+    {
+        using var world = new World();
+        world.Spawn("Tagged")
+            .With(new SerializablePosition { X = 1, Y = 2 })
+            .WithTag<SerializableTag>()
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        Assert.NotNull(restored);
+        Assert.Single(restored.Entities);
+        Assert.Equal(2, restored.Entities[0].Components.Count);
+
+        var tagComponent = restored.Entities[0].Components.FirstOrDefault(c => c.IsTag);
+        Assert.NotNull(tagComponent);
+    }
+
+    [Fact]
+    public void BinaryRoundTrip_WithComplexHierarchy_PreservesRelationships()
+    {
+        using var world = new World();
+
+        // Create grandparent -> parent -> child hierarchy
+        var grandparent = world.Spawn("Grandparent")
+            .With(new SerializablePosition { X = 0, Y = 0 })
+            .Build();
+        var parent = world.Spawn("Parent")
+            .With(new SerializablePosition { X = 10, Y = 10 })
+            .Build();
+        var child = world.Spawn("Child")
+            .With(new SerializablePosition { X = 20, Y = 20 })
+            .Build();
+
+        world.SetParent(parent, grandparent);
+        world.SetParent(child, parent);
+
+        var snapshot = SnapshotManager.CreateSnapshot(world, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var restored = SnapshotManager.FromBinary(binary, testSerializer);
+
+        var restoredGrandparent = restored.Entities.First(e => e.Name == "Grandparent");
+        var restoredParent = restored.Entities.First(e => e.Name == "Parent");
+        var restoredChild = restored.Entities.First(e => e.Name == "Child");
+
+        Assert.Null(restoredGrandparent.ParentId);
+        Assert.Equal(grandparent.Id, restoredParent.ParentId);
+        Assert.Equal(parent.Id, restoredChild.ParentId);
     }
 
     #endregion

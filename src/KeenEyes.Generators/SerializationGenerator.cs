@@ -126,6 +126,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using System.IO;");
         sb.AppendLine("using System.Text.Json;");
         sb.AppendLine("using KeenEyes.Serialization;");
         sb.AppendLine();
@@ -135,7 +136,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("/// Generated registry for AOT-compatible component serialization.");
         sb.AppendLine("/// Contains serialization methods for components marked with [Component(Serializable = true)].");
         sb.AppendLine("/// </summary>");
-        sb.AppendLine("public sealed class ComponentSerializer : IComponentSerializer");
+        sb.AppendLine("public sealed class ComponentSerializer : IComponentSerializer, IBinaryComponentSerializer");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// Shared instance for convenience.");
@@ -148,6 +149,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    private static readonly HashSet<Type> SerializableTypes;");
         sb.AppendLine("    private static readonly Dictionary<string, Func<World, bool, ComponentInfo>> Registrars;");
         sb.AppendLine("    private static readonly Dictionary<string, Action<World, object>> SingletonSetters;");
+        sb.AppendLine("    private static readonly Dictionary<string, Func<BinaryReader, object>> BinaryDeserializers;");
+        sb.AppendLine("    private static readonly Dictionary<Type, Action<object, BinaryWriter>> BinarySerializers;");
         sb.AppendLine();
 
         // Static constructor to initialize dictionaries
@@ -216,6 +219,27 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine("        };");
+        sb.AppendLine();
+        sb.AppendLine("        BinaryDeserializers = new Dictionary<string, Func<BinaryReader, object>>");
+        sb.AppendLine("        {");
+
+        foreach (var component in components)
+        {
+            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = DeserializeBinary_{component.Name},");
+            sb.AppendLine($"            [\"{component.FullName}\"] = DeserializeBinary_{component.Name},");
+        }
+
+        sb.AppendLine("        };");
+        sb.AppendLine();
+        sb.AppendLine("        BinarySerializers = new Dictionary<Type, Action<object, BinaryWriter>>");
+        sb.AppendLine("        {");
+
+        foreach (var component in components)
+        {
+            sb.AppendLine($"            [typeof({component.FullName})] = (value, writer) => SerializeBinary_{component.Name}(({component.FullName})value, writer),");
+        }
+
+        sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine();
 
@@ -276,6 +300,27 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    /// Gets all registered serializable types.");
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public IEnumerable<Type> GetSerializableTypes() => SerializableTypes;");
+        sb.AppendLine();
+
+        // IBinaryComponentSerializer implementation
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool WriteTo(Type type, object value, BinaryWriter writer)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (!BinarySerializers.TryGetValue(type, out var serializer))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine("        serializer(value, writer);");
+        sb.AppendLine("        return true;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public object? ReadFrom(string typeName, BinaryReader reader)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return BinaryDeserializers.TryGetValue(typeName, out var deserializer)");
+        sb.AppendLine("            ? deserializer(reader)");
+        sb.AppendLine("            : null;");
+        sb.AppendLine("    }");
         sb.AppendLine();
 
         // Generate individual serialization/deserialization methods
@@ -359,6 +404,67 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        return JsonDocument.Parse(stream).RootElement.Clone();");
         sb.AppendLine("    }");
         sb.AppendLine();
+
+        // Binary deserialize method
+        sb.AppendLine($"    private static object DeserializeBinary_{component.Name}(BinaryReader reader)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        var result = new {component.FullName}();");
+
+        foreach (var field in component.Fields)
+        {
+            var binaryRead = GetBinaryReadMethod(field.JsonTypeName, field.Type);
+            sb.AppendLine($"        result.{field.Name} = {binaryRead};");
+        }
+
+        sb.AppendLine("        return result;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Binary serialize method
+        sb.AppendLine($"    private static void SerializeBinary_{component.Name}({component.FullName} value, BinaryWriter writer)");
+        sb.AppendLine("    {");
+
+        foreach (var field in component.Fields)
+        {
+            var binaryWrite = GetBinaryWriteCode(field.JsonTypeName, field.Type, $"value.{field.Name}");
+            sb.AppendLine($"        {binaryWrite}");
+        }
+
+        sb.AppendLine("    }");
+        sb.AppendLine();
+    }
+
+    private static string GetBinaryReadMethod(string jsonTypeName, string type)
+    {
+        return jsonTypeName switch
+        {
+            "Int32" => "reader.ReadInt32()",
+            "Int64" => "reader.ReadInt64()",
+            "Int16" => "reader.ReadInt16()",
+            "Byte" => "reader.ReadByte()",
+            "UInt32" => "reader.ReadUInt32()",
+            "UInt64" => "reader.ReadUInt64()",
+            "UInt16" => "reader.ReadUInt16()",
+            "SByte" => "reader.ReadSByte()",
+            "Single" => "reader.ReadSingle()",
+            "Double" => "reader.ReadDouble()",
+            "Decimal" => "reader.ReadDecimal()",
+            "Boolean" => "reader.ReadBoolean()",
+            "String" => "reader.ReadString()",
+            _ => $"JsonSerializer.Deserialize<{type}>(reader.ReadString())!" // Complex types as JSON
+        };
+    }
+
+    private static string GetBinaryWriteCode(string jsonTypeName, string type, string valueExpr)
+    {
+        return jsonTypeName switch
+        {
+            "Int32" or "Int64" or "Int16" or "Byte" or
+            "UInt32" or "UInt64" or "UInt16" or "SByte" or
+            "Single" or "Double" or "Decimal" or "Boolean" or "String"
+                => $"writer.Write({valueExpr});",
+            _ => $"writer.Write(JsonSerializer.Serialize({valueExpr}));" // Complex types as JSON
+        };
     }
 
     private static string ToCamelCase(string name)

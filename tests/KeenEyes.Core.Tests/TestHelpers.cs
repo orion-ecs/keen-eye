@@ -63,7 +63,7 @@ internal static class TestSerializerFactory
 /// <summary>
 /// A mock IComponentSerializer for testing that supports common test component types.
 /// </summary>
-internal sealed class TestComponentSerializer : IComponentSerializer
+internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryComponentSerializer
 {
     // JSON options matching SnapshotManager's options
     private static readonly JsonSerializerOptions jsonOptions = new()
@@ -79,6 +79,8 @@ internal sealed class TestComponentSerializer : IComponentSerializer
     private readonly Dictionary<Type, Func<object, JsonElement>> serializers = [];
     private readonly Dictionary<Type, Func<World, bool, ComponentInfo>> registrars = [];
     private readonly Dictionary<Type, Action<World, object>> singletonSetters = [];
+    private readonly Dictionary<string, Func<BinaryReader, object>> binaryDeserializers = [];
+    private readonly Dictionary<Type, Action<object, BinaryWriter>> binarySerializers = [];
 
     /// <summary>
     /// Registers a component type for serialization.
@@ -108,6 +110,22 @@ internal sealed class TestComponentSerializer : IComponentSerializer
         };
         registrars[type] = (world, isTag) => world.Components.Register<T>(isTag);
         singletonSetters[type] = (world, value) => world.SetSingleton((T)value);
+
+        // Binary serializers - serialize as JSON for simplicity in tests
+        binaryDeserializers[name] = reader =>
+        {
+            var json = reader.ReadString();
+            return JsonSerializer.Deserialize<T>(json, jsonOptions)!;
+        };
+        if (type.FullName is not null)
+        {
+            binaryDeserializers[type.FullName] = binaryDeserializers[name];
+        }
+        binarySerializers[type] = (obj, writer) =>
+        {
+            var json = JsonSerializer.Serialize((T)obj, jsonOptions);
+            writer.Write(json);
+        };
 
         return this;
     }
@@ -140,6 +158,22 @@ internal sealed class TestComponentSerializer : IComponentSerializer
         };
         singletonSetters[type] = (world, value) => world.SetSingleton((T)value);
         // Note: No registrar for non-component types
+
+        // Binary serializers - serialize as JSON for simplicity in tests
+        binaryDeserializers[name] = reader =>
+        {
+            var json = reader.ReadString();
+            return JsonSerializer.Deserialize<T>(json, jsonOptions)!;
+        };
+        if (type.FullName is not null)
+        {
+            binaryDeserializers[type.FullName] = binaryDeserializers[name];
+        }
+        binarySerializers[type] = (obj, writer) =>
+        {
+            var json = JsonSerializer.Serialize((T)obj, jsonOptions);
+            writer.Write(json);
+        };
 
         return this;
     }
@@ -191,5 +225,25 @@ internal sealed class TestComponentSerializer : IComponentSerializer
             return true;
         }
         return false;
+    }
+
+    // IBinaryComponentSerializer implementation
+    public bool WriteTo(Type type, object value, BinaryWriter writer)
+    {
+        if (binarySerializers.TryGetValue(type, out var serializer))
+        {
+            serializer(value, writer);
+            return true;
+        }
+        return false;
+    }
+
+    public object? ReadFrom(string typeName, BinaryReader reader)
+    {
+        if (binaryDeserializers.TryGetValue(typeName, out var deserializer))
+        {
+            return deserializer(reader);
+        }
+        return null;
     }
 }
