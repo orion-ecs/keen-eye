@@ -78,7 +78,7 @@ jobs:
         run: dotnet restore
 
       - name: Publish AOT Test Project
-        run: dotnet publish tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj -c Release -p:PublishAot=true --output ./aot-test-publish
+        run: dotnet publish tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj -c Release --output ./aot-test-publish
 
       - name: Run AOT Tests (Linux/macOS)
         if: runner.os != 'Windows'
@@ -89,7 +89,7 @@ jobs:
         run: ./aot-test-publish/KeenEyes.AotCompatibility.Tests.exe
 
       - name: Publish AOT Sample Project
-        run: dotnet publish samples/KeenEyes.Sample.Aot/KeenEyes.Sample.Aot.csproj -c Release -p:PublishAot=true --output ./aot-sample-publish
+        run: dotnet publish samples/KeenEyes.Sample.Aot/KeenEyes.Sample.Aot.csproj -c Release --output ./aot-sample-publish
 
       - name: Run AOT Sample (Linux/macOS)
         if: runner.os != 'Windows'
