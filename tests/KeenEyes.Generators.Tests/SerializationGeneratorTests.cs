@@ -606,6 +606,339 @@ public class SerializationGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("JsonSerializer.Deserialize"));
     }
 
+    #region Binary Serialization Generator Tests
+
+    [Fact]
+    public void SerializationGenerator_ImplementsIBinaryComponentSerializer()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryTest
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("IBinaryComponentSerializer"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_GeneratesBinaryDeserializers()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryDeserializeTest
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("BinaryDeserializers"));
+        Assert.Contains(generatedTrees, t => t.Contains("DeserializeBinary_BinaryDeserializeTest"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_GeneratesBinarySerializers()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinarySerializeTest
+            {
+                public float X;
+                public float Y;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("BinarySerializers"));
+        Assert.Contains(generatedTrees, t => t.Contains("SerializeBinary_BinarySerializeTest"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_GeneratesWriteToMethod()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct WriteToTest
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("public bool WriteTo(Type type, object value, BinaryWriter writer)"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_GeneratesReadFromMethod()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct ReadFromTest
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("public object? ReadFrom(string typeName, BinaryReader reader)"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_BinaryDeserialize_HandlesIntField()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryIntComponent
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("reader.ReadInt32()"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_BinaryDeserialize_HandlesFloatField()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryFloatComponent
+            {
+                public float Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("reader.ReadSingle()"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_BinaryDeserialize_HandlesDoubleField()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryDoubleComponent
+            {
+                public double Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("reader.ReadDouble()"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_BinaryDeserialize_HandlesBoolField()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryBoolComponent
+            {
+                public bool IsActive;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("reader.ReadBoolean()"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_BinaryDeserialize_HandlesStringField()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryStringComponent
+            {
+                public string Name;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("reader.ReadString()"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_BinaryDeserialize_HandlesLongField()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryLongComponent
+            {
+                public long Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("reader.ReadInt64()"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_BinarySerialize_UsesWriterWrite()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryWriteComponent
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("writer.Write(value.Value)"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_Binary_MultipleComponents_GeneratesAllSerializers()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryFirst { public int A; }
+
+            [Component(Serializable = true)]
+            public partial struct BinarySecond { public float B; }
+
+            [Component(Serializable = true)]
+            public partial struct BinaryThird { public string C; }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("DeserializeBinary_BinaryFirst"));
+        Assert.Contains(generatedTrees, t => t.Contains("DeserializeBinary_BinarySecond"));
+        Assert.Contains(generatedTrees, t => t.Contains("DeserializeBinary_BinaryThird"));
+        Assert.Contains(generatedTrees, t => t.Contains("SerializeBinary_BinaryFirst"));
+        Assert.Contains(generatedTrees, t => t.Contains("SerializeBinary_BinarySecond"));
+        Assert.Contains(generatedTrees, t => t.Contains("SerializeBinary_BinaryThird"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_Binary_ComplexType_UsesJsonSerialization()
+    {
+        var source = """
+            using KeenEyes;
+            using System;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct BinaryComplexComponent
+            {
+                public Guid Id;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Complex types in binary should fall back to JSON serialization
+        Assert.Contains(generatedTrees, t => t.Contains("DeserializeBinary_BinaryComplexComponent"));
+        Assert.Contains(generatedTrees, t => t.Contains("JsonSerializer.Deserialize"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_IncludesSystemIOUsing()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct IOTest
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("using System.IO;"));
+    }
+
+    #endregion
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;

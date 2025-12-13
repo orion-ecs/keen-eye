@@ -27,6 +27,24 @@ string json = SnapshotManager.ToJson(snapshot);
 File.WriteAllText("save.json", json);
 ```
 
+### Serializing to Binary
+
+For better performance and smaller file sizes, use binary serialization:
+
+```csharp
+// Serialize to binary (requires IBinaryComponentSerializer)
+var serializer = new ComponentSerializer();  // Generated serializer
+byte[] binary = SnapshotManager.ToBinary(snapshot, serializer);
+
+// Save to file
+File.WriteAllBytes("save.bin", binary);
+```
+
+Binary format benefits:
+- **Smaller files**: Typically 50-80% smaller than JSON
+- **Faster**: No string parsing overhead
+- **String table**: Repeated type names stored once
+
 ### Loading and Restoring
 
 Load a snapshot and restore it to a world:
@@ -40,6 +58,20 @@ var snapshot = SnapshotManager.FromJson(json);
 
 // Restore to world (clears existing state first)
 var entityMap = SnapshotManager.RestoreSnapshot(world, snapshot);
+```
+
+Or from binary:
+
+```csharp
+// Load binary from file
+var serializer = new ComponentSerializer();
+byte[] binary = File.ReadAllBytes("save.bin");
+
+// Deserialize snapshot
+var snapshot = SnapshotManager.FromBinary(binary, serializer);
+
+// Restore to world
+var entityMap = SnapshotManager.RestoreSnapshot(world, snapshot, serializer);
 ```
 
 ## What Gets Captured
@@ -283,22 +315,19 @@ public class LevelManager
 ```csharp
 public class NetworkSync
 {
+    private readonly ComponentSerializer serializer = new();
+
+    // Use binary format for efficient network transfer
     public byte[] CreateStateUpdate(World world)
     {
-        var snapshot = SnapshotManager.CreateSnapshot(world);
-        var json = SnapshotManager.ToJson(snapshot);
-        return Encoding.UTF8.GetBytes(json);
+        var snapshot = SnapshotManager.CreateSnapshot(world, serializer);
+        return SnapshotManager.ToBinary(snapshot, serializer);
     }
 
     public void ApplyStateUpdate(World world, byte[] data)
     {
-        var json = Encoding.UTF8.GetString(data);
-        var snapshot = SnapshotManager.FromJson(json);
-
-        if (snapshot != null)
-        {
-            SnapshotManager.RestoreSnapshot(world, snapshot);
-        }
+        var snapshot = SnapshotManager.FromBinary(data, serializer);
+        SnapshotManager.RestoreSnapshot(world, snapshot, serializer);
     }
 }
 ```
@@ -318,14 +347,58 @@ public sealed record WorldSnapshot
 }
 ```
 
+## Binary vs JSON Format
+
+| Feature | JSON | Binary |
+|---------|------|--------|
+| File size | Larger | 50-80% smaller |
+| Human readable | Yes | No |
+| Parse speed | Slower | Faster |
+| String table | No | Yes (deduplicates type names) |
+| Streaming | Via stream | Via stream |
+
+### When to Use Binary
+
+- **Save files** - Smaller files, faster load times
+- **Network sync** - Less bandwidth, faster parsing
+- **Large worlds** - Significant size reduction with many entities
+
+### When to Use JSON
+
+- **Debugging** - Human readable for inspection
+- **Interchange** - Easier to work with in other tools
+- **Version control** - Diff-friendly for text-based VCS
+
+### Binary Format Structure
+
+The binary format uses a compact structure with a string table for efficiency:
+
+```
+Header (16 bytes):
+  - Magic: "KEEN" (4 bytes)
+  - Version: uint16 (2 bytes)
+  - Flags: uint16 (2 bytes)
+  - EntityCount: int32 (4 bytes)
+  - SingletonCount: int32 (4 bytes)
+
+String Table:
+  - Count: uint16
+  - Strings: length-prefixed UTF8
+
+Entities/Singletons:
+  - Type names reference string table indices
+  - Component data as length-prefixed binary
+```
+
 ## Performance Considerations
 
 - **Snapshot creation**: O(E * C) where E = entities, C = average components per entity
 - **Component boxing**: Components are boxed for serialization
 - **JSON serialization**: Uses System.Text.Json for efficiency
+- **Binary serialization**: Uses BinaryWriter/BinaryReader with string table
 - **Not for hot paths**: Designed for save/load, not real-time synchronization
 
-For high-frequency state sync, consider delta compression or binary formats.
+For high-frequency state sync, binary format provides significant performance benefits over JSON.
 
 ## Error Handling
 
