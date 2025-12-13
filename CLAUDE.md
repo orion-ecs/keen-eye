@@ -161,6 +161,22 @@ keen-eye/
 - Nullable reference types enabled everywhere
 - Treat warnings as errors
 
+### C# 13 Extension Members
+
+This project uses C# 13 **extension members** (not to be confused with traditional extension methods). Extension members allow adding properties directly to types:
+
+```csharp
+public static class WorldPluginExtensions
+{
+    extension(global::KeenEyes.IWorld world)
+    {
+        public MyExtension MyProperty => world.GetExtension<MyExtension>();
+    }
+}
+```
+
+**Note for code review agents**: The `extension(Type paramName)` syntax is **valid C# 13/14 syntax**, not an error. It generates implicit extension members that appear as instance members on the extended type.
+
 ## Build Commands
 
 ```bash
