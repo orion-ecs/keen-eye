@@ -1,8 +1,10 @@
 # KeenEyes
 
 [![Build and Test](https://github.com/orion-ecs/keen-eye/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/orion-ecs/keen-eye/actions/workflows/build.yml)
+[![AOT Compatible](https://github.com/orion-ecs/keen-eye/actions/workflows/aot-compatibility.yml/badge.svg)](https://github.com/orion-ecs/keen-eye/actions/workflows/aot-compatibility.yml)
 [![Coverage Status](https://coveralls.io/repos/github/orion-ecs/keen-eye/badge.svg)](https://coveralls.io/github/orion-ecs/keen-eye)
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](https://dotnet.microsoft.com/)
+[![Native AOT](https://img.shields.io/badge/Native%20AOT-Compatible-brightgreen)](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub issues](https://img.shields.io/github/issues/orion-ecs/keen-eye)](https://github.com/orion-ecs/keen-eye/issues)
 [![GitHub stars](https://img.shields.io/github/stars/orion-ecs/keen-eye)](https://github.com/orion-ecs/keen-eye/stargazers)
@@ -19,6 +21,7 @@ This is a C# reimplementation of [OrionECS](https://github.com/tyevco/OrionECS),
 - Flexible query system
 - Component pools and object recycling
 - Plugin architecture for extensibility
+- **Native AOT compatible** - deploy as self-contained native executables with no JIT ([docs](docs/aot-deployment.md))
 
 ## Requirements
 
