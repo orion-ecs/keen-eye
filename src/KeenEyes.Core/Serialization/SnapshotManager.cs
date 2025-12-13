@@ -326,9 +326,10 @@ public static class SnapshotManager
     /// </summary>
     /// <param name="snapshot">The snapshot to serialize.</param>
     /// <param name="serializer">
-    /// Binary component serializer for AOT-compatible serialization. Pass an instance of
-    /// the generated <c>ComponentSerializer</c> which implements this interface
-    /// for components marked with <c>[Component(Serializable = true)]</c>.
+    /// Component serializer that implements both <see cref="IComponentSerializer"/> and
+    /// <see cref="IBinaryComponentSerializer"/>. Pass an instance of the generated
+    /// <c>ComponentSerializer</c> which implements both interfaces for components
+    /// marked with <c>[Component(Serializable = true)]</c>.
     /// </param>
     /// <returns>A byte array containing the serialized snapshot.</returns>
     /// <exception cref="ArgumentNullException">
@@ -344,6 +345,12 @@ public static class SnapshotManager
     /// </list>
     /// </para>
     /// <para>
+    /// This method uses native binary serialization for component data, avoiding the
+    /// overhead of JSON string parsing. The serializer must implement both
+    /// <see cref="IComponentSerializer"/> (to deserialize JsonElement data) and
+    /// <see cref="IBinaryComponentSerializer"/> (to write native binary).
+    /// </para>
+    /// <para>
     /// The binary format is versioned to support future evolution while maintaining
     /// backwards compatibility.
     /// </para>
@@ -355,7 +362,8 @@ public static class SnapshotManager
     /// File.WriteAllBytes("save.bin", binary);
     /// </code>
     /// </example>
-    public static byte[] ToBinary(WorldSnapshot snapshot, IBinaryComponentSerializer serializer)
+    public static byte[] ToBinary<TSerializer>(WorldSnapshot snapshot, TSerializer serializer)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(serializer);
@@ -366,19 +374,51 @@ public static class SnapshotManager
     }
 
     /// <summary>
-    /// Serializes a snapshot to a stream in binary format.
+    /// Serializes a snapshot to binary format (JSON bytes for component data).
     /// </summary>
     /// <param name="snapshot">The snapshot to serialize.</param>
-    /// <param name="serializer">Binary component serializer for AOT-compatible serialization.</param>
+    /// <param name="serializer">Binary component serializer (used for type checking only in this overload).</param>
+    /// <returns>A byte array containing the serialized snapshot.</returns>
+    /// <remarks>
+    /// This overload stores component data as JSON bytes for backwards compatibility.
+    /// For native binary serialization, use a serializer that implements both
+    /// <see cref="IComponentSerializer"/> and <see cref="IBinaryComponentSerializer"/>.
+    /// </remarks>
+    public static byte[] ToBinary(WorldSnapshot snapshot, IBinaryComponentSerializer serializer)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        ArgumentNullException.ThrowIfNull(serializer);
+
+        using var stream = new MemoryStream();
+        ToBinaryStreamLegacy(snapshot, stream);
+        return stream.ToArray();
+    }
+
+    /// <summary>
+    /// Serializes a snapshot to a stream in binary format using native binary serialization.
+    /// </summary>
+    /// <param name="snapshot">The snapshot to serialize.</param>
+    /// <param name="serializer">
+    /// Component serializer that implements both <see cref="IComponentSerializer"/> and
+    /// <see cref="IBinaryComponentSerializer"/>.
+    /// </param>
     /// <param name="stream">The stream to write to.</param>
     /// <exception cref="ArgumentNullException">
     /// Thrown when any parameter is null.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// Use this overload for streaming scenarios or when writing directly to files
     /// to avoid intermediate byte array allocations.
+    /// </para>
+    /// <para>
+    /// This method uses native binary serialization for component data. The JsonElement
+    /// data in the snapshot is first deserialized using <see cref="IComponentSerializer"/>,
+    /// then serialized to binary using <see cref="IBinaryComponentSerializer"/>.
+    /// </para>
     /// </remarks>
-    public static void ToBinaryStream(WorldSnapshot snapshot, IBinaryComponentSerializer serializer, Stream stream)
+    public static void ToBinaryStream<TSerializer>(WorldSnapshot snapshot, TSerializer serializer, Stream stream)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(serializer);
@@ -465,13 +505,34 @@ public static class SnapshotManager
                     continue; // Tags have no data
                 }
 
-                // Serialize component data to binary
-                // For now, we serialize the JsonElement data as JSON bytes
-                // The IBinaryComponentSerializer will be used during CreateSnapshot
+                // Serialize component data to native binary
                 if (component.Data.HasValue)
                 {
+                    // Deserialize from JsonElement to get the component value
+                    var componentValue = serializer.Deserialize(component.TypeName, component.Data.Value);
+                    if (componentValue is not null)
+                    {
+                        var type = serializer.GetType(component.TypeName);
+                        if (type is not null)
+                        {
+                            // Use a temporary stream to capture the binary data
+                            using var tempStream = new MemoryStream();
+                            using var tempWriter = new BinaryWriter(tempStream, Encoding.UTF8, leaveOpen: true);
+
+                            if (serializer.WriteTo(type, componentValue, tempWriter))
+                            {
+                                // Write the length-prefixed binary data
+                                var binaryData = tempStream.ToArray();
+                                writer.Write(binaryData.Length);
+                                writer.Write(binaryData);
+                                continue;
+                            }
+                        }
+                    }
+
+                    // Fallback: serialize as JSON bytes if native binary fails
                     var jsonBytes = Encoding.UTF8.GetBytes(component.Data.Value.GetRawText());
-                    writer.Write(jsonBytes.Length);
+                    writer.Write(-jsonBytes.Length); // Negative length indicates JSON fallback
                     writer.Write(jsonBytes);
                 }
                 else
@@ -486,8 +547,32 @@ public static class SnapshotManager
         {
             // Write type name as string table index
             writer.Write(stringIndex[singleton.TypeName]);
+
+            // Deserialize from JsonElement to get the singleton value
+            var singletonValue = serializer.Deserialize(singleton.TypeName, singleton.Data);
+            if (singletonValue is not null)
+            {
+                var type = serializer.GetType(singleton.TypeName);
+                if (type is not null)
+                {
+                    // Use a temporary stream to capture the binary data
+                    using var tempStream = new MemoryStream();
+                    using var tempWriter = new BinaryWriter(tempStream, Encoding.UTF8, leaveOpen: true);
+
+                    if (serializer.WriteTo(type, singletonValue, tempWriter))
+                    {
+                        // Write the length-prefixed binary data
+                        var binaryData = tempStream.ToArray();
+                        writer.Write(binaryData.Length);
+                        writer.Write(binaryData);
+                        continue;
+                    }
+                }
+            }
+
+            // Fallback: serialize as JSON bytes if native binary fails
             var jsonBytes = Encoding.UTF8.GetBytes(singleton.Data.GetRawText());
-            writer.Write(jsonBytes.Length);
+            writer.Write(-jsonBytes.Length); // Negative length indicates JSON fallback
             writer.Write(jsonBytes);
         }
 
@@ -502,10 +587,116 @@ public static class SnapshotManager
     }
 
     /// <summary>
+    /// Legacy binary serialization that stores component data as JSON bytes.
+    /// Used for backwards compatibility with code that only has IBinaryComponentSerializer.
+    /// </summary>
+    private static void ToBinaryStreamLegacy(WorldSnapshot snapshot, Stream stream)
+    {
+        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
+
+        // Build string table for type names
+        var stringTable = new List<string>();
+        var stringIndex = new Dictionary<string, ushort>();
+
+        ushort GetOrAddString(string s)
+        {
+            if (stringIndex.TryGetValue(s, out var idx))
+            {
+                return idx;
+            }
+
+            idx = (ushort)stringTable.Count;
+            stringTable.Add(s);
+            stringIndex[s] = idx;
+            return idx;
+        }
+
+        foreach (var entity in snapshot.Entities)
+        {
+            foreach (var component in entity.Components)
+            {
+                GetOrAddString(component.TypeName);
+            }
+        }
+        foreach (var singleton in snapshot.Singletons)
+        {
+            GetOrAddString(singleton.TypeName);
+        }
+
+        // Write header
+        writer.Write(BinaryMagic);
+        writer.Write(BinaryFormatVersion);
+
+        var flags = BinaryFlags.HasStringTable;
+        if (snapshot.Metadata is not null && snapshot.Metadata.Count > 0)
+        {
+            flags |= BinaryFlags.HasMetadata;
+        }
+        writer.Write((ushort)flags);
+
+        writer.Write(snapshot.Entities.Count);
+        writer.Write(snapshot.Singletons.Count);
+        writer.Write(snapshot.Timestamp.ToUnixTimeMilliseconds());
+        writer.Write(snapshot.Version);
+
+        writer.Write((ushort)stringTable.Count);
+        foreach (var s in stringTable)
+        {
+            writer.Write(s);
+        }
+
+        // Write entities with JSON bytes for component data
+        foreach (var entity in snapshot.Entities)
+        {
+            writer.Write(entity.Id);
+            writer.Write(entity.ParentId ?? -1);
+            writer.Write(entity.Name ?? string.Empty);
+            writer.Write((ushort)entity.Components.Count);
+
+            foreach (var component in entity.Components)
+            {
+                writer.Write(stringIndex[component.TypeName]);
+                writer.Write(component.IsTag);
+
+                if (!component.IsTag && component.Data.HasValue)
+                {
+                    var jsonBytes = Encoding.UTF8.GetBytes(component.Data.Value.GetRawText());
+                    writer.Write(-jsonBytes.Length); // Negative indicates JSON fallback
+                    writer.Write(jsonBytes);
+                }
+                else if (!component.IsTag)
+                {
+                    writer.Write(0);
+                }
+            }
+        }
+
+        // Write singletons with JSON bytes
+        foreach (var singleton in snapshot.Singletons)
+        {
+            writer.Write(stringIndex[singleton.TypeName]);
+            var jsonBytes = Encoding.UTF8.GetBytes(singleton.Data.GetRawText());
+            writer.Write(-jsonBytes.Length); // Negative indicates JSON fallback
+            writer.Write(jsonBytes);
+        }
+
+        if ((flags & BinaryFlags.HasMetadata) != 0)
+        {
+            var metadataJson = JsonSerializer.Serialize(
+                snapshot.Metadata,
+                SnapshotJsonContext.Default.IReadOnlyDictionaryStringObject);
+            writer.Write(metadataJson);
+        }
+    }
+
+    /// <summary>
     /// Deserializes a snapshot from binary format.
     /// </summary>
     /// <param name="data">The binary data to deserialize.</param>
-    /// <param name="serializer">Binary component serializer for AOT-compatible deserialization.</param>
+    /// <param name="serializer">
+    /// Component serializer that implements both <see cref="IComponentSerializer"/> and
+    /// <see cref="IBinaryComponentSerializer"/>.
+    /// </param>
     /// <returns>The deserialized snapshot, or null if the data is invalid.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="data"/> or <paramref name="serializer"/> is null.
@@ -518,6 +709,11 @@ public static class SnapshotManager
     /// This method validates the binary header before attempting deserialization.
     /// If the magic bytes or version are invalid, an exception is thrown.
     /// </para>
+    /// <para>
+    /// Component data is read using native binary deserialization via
+    /// <see cref="IBinaryComponentSerializer.ReadFrom"/>, then converted to JsonElement
+    /// using <see cref="IComponentSerializer.Serialize"/> for storage in the snapshot.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -526,7 +722,8 @@ public static class SnapshotManager
     /// SnapshotManager.RestoreSnapshot(world, snapshot, componentSerializer);
     /// </code>
     /// </example>
-    public static WorldSnapshot FromBinary(byte[] data, IBinaryComponentSerializer serializer)
+    public static WorldSnapshot FromBinary<TSerializer>(byte[] data, TSerializer serializer)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
     {
         ArgumentNullException.ThrowIfNull(data);
         ArgumentNullException.ThrowIfNull(serializer);
@@ -536,10 +733,33 @@ public static class SnapshotManager
     }
 
     /// <summary>
-    /// Deserializes a snapshot from a stream in binary format.
+    /// Deserializes a snapshot from binary format (supports JSON bytes for component data).
+    /// </summary>
+    /// <param name="data">The binary data to deserialize.</param>
+    /// <param name="serializer">Binary component serializer (used for type checking only in this overload).</param>
+    /// <returns>The deserialized snapshot.</returns>
+    /// <remarks>
+    /// This overload reads component data as JSON bytes for backwards compatibility.
+    /// For native binary deserialization, use a serializer that implements both
+    /// <see cref="IComponentSerializer"/> and <see cref="IBinaryComponentSerializer"/>.
+    /// </remarks>
+    public static WorldSnapshot FromBinary(byte[] data, IBinaryComponentSerializer serializer)
+    {
+        ArgumentNullException.ThrowIfNull(data);
+        ArgumentNullException.ThrowIfNull(serializer);
+
+        using var stream = new MemoryStream(data);
+        return FromBinaryStreamLegacy(stream);
+    }
+
+    /// <summary>
+    /// Deserializes a snapshot from a stream in binary format using native binary deserialization.
     /// </summary>
     /// <param name="stream">The stream to read from.</param>
-    /// <param name="serializer">Binary component serializer for AOT-compatible deserialization.</param>
+    /// <param name="serializer">
+    /// Component serializer that implements both <see cref="IComponentSerializer"/> and
+    /// <see cref="IBinaryComponentSerializer"/>.
+    /// </param>
     /// <returns>The deserialized snapshot.</returns>
     /// <exception cref="ArgumentNullException">
     /// Thrown when any parameter is null.
@@ -548,10 +768,18 @@ public static class SnapshotManager
     /// Thrown when the binary data is invalid or corrupted.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// Use this overload for streaming scenarios or when reading directly from files
     /// to avoid intermediate byte array allocations.
+    /// </para>
+    /// <para>
+    /// Component data is read using native binary deserialization via
+    /// <see cref="IBinaryComponentSerializer.ReadFrom"/>, then converted to JsonElement
+    /// using <see cref="IComponentSerializer.Serialize"/> for storage in the snapshot.
+    /// </para>
     /// </remarks>
-    public static WorldSnapshot FromBinaryStream(Stream stream, IBinaryComponentSerializer serializer)
+    public static WorldSnapshot FromBinaryStream<TSerializer>(Stream stream, TSerializer serializer)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
     {
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(serializer);
@@ -636,11 +864,33 @@ public static class SnapshotManager
                 if (!isTag)
                 {
                     var dataLength = reader.ReadInt32();
-                    if (dataLength > 0)
+                    if (dataLength != 0)
                     {
-                        var jsonBytes = reader.ReadBytes(dataLength);
-                        var jsonString = Encoding.UTF8.GetString(jsonBytes);
-                        data = JsonDocument.Parse(jsonString).RootElement.Clone();
+                        // Negative length indicates JSON fallback
+                        if (dataLength < 0)
+                        {
+                            var jsonBytes = reader.ReadBytes(-dataLength);
+                            var jsonString = Encoding.UTF8.GetString(jsonBytes);
+                            data = JsonDocument.Parse(jsonString).RootElement.Clone();
+                        }
+                        else
+                        {
+                            // Read native binary data
+                            var binaryData = reader.ReadBytes(dataLength);
+                            using var tempStream = new MemoryStream(binaryData);
+                            using var tempReader = new BinaryReader(tempStream, Encoding.UTF8, leaveOpen: true);
+
+                            var componentValue = serializer.ReadFrom(typeName, tempReader);
+                            if (componentValue is not null)
+                            {
+                                var type = serializer.GetType(typeName);
+                                if (type is not null)
+                                {
+                                    // Convert to JsonElement for storage in snapshot
+                                    data = serializer.Serialize(type, componentValue);
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -678,7 +928,198 @@ public static class SnapshotManager
             }
 
             var dataLength = reader.ReadInt32();
-            var jsonBytes = reader.ReadBytes(dataLength);
+            JsonElement data;
+
+            // Negative length indicates JSON fallback
+            if (dataLength < 0)
+            {
+                var jsonBytes = reader.ReadBytes(-dataLength);
+                var jsonString = Encoding.UTF8.GetString(jsonBytes);
+                data = JsonDocument.Parse(jsonString).RootElement.Clone();
+            }
+            else
+            {
+                // Read native binary data
+                var binaryData = reader.ReadBytes(dataLength);
+                using var tempStream = new MemoryStream(binaryData);
+                using var tempReader = new BinaryReader(tempStream, Encoding.UTF8, leaveOpen: true);
+
+                var singletonValue = serializer.ReadFrom(typeName, tempReader);
+                if (singletonValue is not null)
+                {
+                    var type = serializer.GetType(typeName);
+                    if (type is not null)
+                    {
+                        // Convert to JsonElement for storage in snapshot
+                        var jsonElement = serializer.Serialize(type, singletonValue);
+                        data = jsonElement ?? throw new InvalidDataException(
+                            $"Failed to serialize singleton '{typeName}' to JSON.");
+                    }
+                    else
+                    {
+                        throw new InvalidDataException($"Unknown singleton type: {typeName}");
+                    }
+                }
+                else
+                {
+                    throw new InvalidDataException($"Failed to deserialize singleton: {typeName}");
+                }
+            }
+
+            singletons.Add(new SerializedSingleton
+            {
+                TypeName = typeName,
+                Data = data
+            });
+        }
+
+        // Read metadata if present
+        IReadOnlyDictionary<string, object>? metadata = null;
+        if ((flags & BinaryFlags.HasMetadata) != 0)
+        {
+            var metadataJson = reader.ReadString();
+            metadata = JsonSerializer.Deserialize(
+                metadataJson,
+                SnapshotJsonContext.Default.IReadOnlyDictionaryStringObject);
+        }
+
+        return new WorldSnapshot
+        {
+            Version = snapshotVersion,
+            Timestamp = timestamp,
+            Entities = entities,
+            Singletons = singletons,
+            Metadata = metadata
+        };
+    }
+
+    /// <summary>
+    /// Legacy binary deserialization that reads component data as JSON bytes.
+    /// Used for backwards compatibility with code that only has IBinaryComponentSerializer.
+    /// </summary>
+    private static WorldSnapshot FromBinaryStreamLegacy(Stream stream)
+    {
+        using var reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);
+
+        // Read and validate header
+        Span<byte> magic = stackalloc byte[4];
+        if (reader.Read(magic) != 4 || !magic.SequenceEqual(BinaryMagic))
+        {
+            throw new InvalidDataException("Invalid binary snapshot: missing or incorrect magic bytes.");
+        }
+
+        var version = reader.ReadUInt16();
+        if (version > BinaryFormatVersion)
+        {
+            throw new InvalidDataException(
+                $"Binary snapshot version {version} is not supported. Maximum supported version is {BinaryFormatVersion}.");
+        }
+
+        var flags = (BinaryFlags)reader.ReadUInt16();
+        var entityCount = reader.ReadInt32();
+        var singletonCount = reader.ReadInt32();
+        var unixMs = reader.ReadInt64();
+        var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(unixMs);
+        var snapshotVersion = reader.ReadInt32();
+
+        // Read string table if present
+        string[] stringTable;
+        if ((flags & BinaryFlags.HasStringTable) != 0)
+        {
+            var stringCount = reader.ReadUInt16();
+            stringTable = new string[stringCount];
+            for (var i = 0; i < stringCount; i++)
+            {
+                stringTable[i] = reader.ReadString();
+            }
+        }
+        else
+        {
+            stringTable = [];
+        }
+
+        var hasStringTable = (flags & BinaryFlags.HasStringTable) != 0;
+
+        // Read entities
+        var entities = new List<SerializedEntity>(entityCount);
+        for (var i = 0; i < entityCount; i++)
+        {
+            var id = reader.ReadInt32();
+            var parentId = reader.ReadInt32();
+            var name = reader.ReadString();
+            if (string.IsNullOrEmpty(name))
+            {
+                name = null;
+            }
+
+            var componentCount = reader.ReadUInt16();
+            var components = new List<SerializedComponent>(componentCount);
+
+            for (var j = 0; j < componentCount; j++)
+            {
+                string typeName;
+                if (hasStringTable)
+                {
+                    var typeIndex = reader.ReadUInt16();
+                    typeName = stringTable[typeIndex];
+                }
+                else
+                {
+                    typeName = reader.ReadString();
+                }
+
+                var isTag = reader.ReadBoolean();
+                JsonElement? data = null;
+
+                if (!isTag)
+                {
+                    var dataLength = reader.ReadInt32();
+                    if (dataLength != 0)
+                    {
+                        // Both negative (JSON fallback) and positive (native binary read as JSON here) lengths
+                        // are handled by reading as JSON bytes in legacy mode
+                        var actualLength = dataLength < 0 ? -dataLength : dataLength;
+                        var jsonBytes = reader.ReadBytes(actualLength);
+                        var jsonString = Encoding.UTF8.GetString(jsonBytes);
+                        data = JsonDocument.Parse(jsonString).RootElement.Clone();
+                    }
+                }
+
+                components.Add(new SerializedComponent
+                {
+                    TypeName = typeName,
+                    IsTag = isTag,
+                    Data = data
+                });
+            }
+
+            entities.Add(new SerializedEntity
+            {
+                Id = id,
+                ParentId = parentId == -1 ? null : parentId,
+                Name = name,
+                Components = components
+            });
+        }
+
+        // Read singletons
+        var singletons = new List<SerializedSingleton>(singletonCount);
+        for (var i = 0; i < singletonCount; i++)
+        {
+            string typeName;
+            if (hasStringTable)
+            {
+                var typeIndex = reader.ReadUInt16();
+                typeName = stringTable[typeIndex];
+            }
+            else
+            {
+                typeName = reader.ReadString();
+            }
+
+            var dataLength = reader.ReadInt32();
+            var actualLength = dataLength < 0 ? -dataLength : dataLength;
+            var jsonBytes = reader.ReadBytes(actualLength);
             var jsonString = Encoding.UTF8.GetString(jsonBytes);
             var data = JsonDocument.Parse(jsonString).RootElement.Clone();
 
