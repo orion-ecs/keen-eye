@@ -492,24 +492,19 @@ public class JobSchedulerTests
     }
 
     [Fact]
-    public void ScheduleParallel_UsesMultipleThreads()
+    public void ScheduleParallel_ExecutesAllIterations()
     {
+        // Test that ScheduleParallel correctly processes all indices
+        // regardless of how many threads are actually used
         using var scheduler = new JobScheduler();
-        var threadIds = new ConcurrentBag<int>();
-        var values = new int[Environment.ProcessorCount * 10];
+        var values = new int[100];
 
-        // Use a job that tracks thread IDs
-        Parallel.For(0, values.Length, i =>
-        {
-            threadIds.Add(Environment.CurrentManagedThreadId);
-            Thread.SpinWait(1000);
-        });
+        var job = new ParallelIncrementJob { Values = values };
+        var handle = scheduler.ScheduleParallel(job, values.Length);
+        handle.Complete();
 
-        // Should use multiple threads (unless single-core system)
-        if (Environment.ProcessorCount > 1)
-        {
-            Assert.True(threadIds.Distinct().Count() > 1);
-        }
+        // All values should be incremented exactly once
+        Assert.All(values, v => Assert.Equal(1, v));
     }
 
     #endregion
