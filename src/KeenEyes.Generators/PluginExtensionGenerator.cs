@@ -71,7 +71,10 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
     private static ExtensionResult GetExtensionResult(GeneratorAttributeSyntaxContext context)
     {
         // Predicate guarantees ClassDeclarationSyntax, which always has INamedTypeSymbol
-        var typeSymbol = (INamedTypeSymbol)context.TargetSymbol;
+        if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
+        {
+            return new ExtensionResult(null, null);
+        }
 
         // ForAttributeWithMetadataName guarantees the attribute exists
         var attributeData = context.Attributes.First(
