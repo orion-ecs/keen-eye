@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuPhysics.CollisionDetection;
@@ -8,6 +9,7 @@ using BepuUtilities;
 using BepuUtilities.Memory;
 using KeenEyes.Common;
 using KeenEyes.Physics.Components;
+using KeenEyes.Physics.Events;
 
 namespace KeenEyes.Physics.Core;
 
@@ -47,6 +49,7 @@ public sealed class PhysicsWorld : IDisposable
     private readonly BufferPool bufferPool;
     private readonly ThreadDispatcher threadDispatcher;
     private readonly BodyLookup bodyLookup;
+    private readonly CollisionEventManager collisionEventManager;
     private Simulation simulation = null!;
     private bool disposed;
     private Vector3 gravity;
@@ -110,6 +113,7 @@ public sealed class PhysicsWorld : IDisposable
         this.config = config;
         gravity = config.Gravity;
         bodyLookup = new BodyLookup();
+        collisionEventManager = new CollisionEventManager(world);
         bufferPool = new BufferPool();
         threadDispatcher = new ThreadDispatcher(Environment.ProcessorCount);
 
@@ -118,7 +122,7 @@ public sealed class PhysicsWorld : IDisposable
 
     private void InitializeSimulation()
     {
-        var narrowPhaseCallbacks = new NarrowPhaseCallbacks();
+        var narrowPhaseCallbacks = new NarrowPhaseCallbacks(this);
         var poseIntegratorCallbacks = new PoseIntegratorCallbacks(gravity);
 
         simulation = Simulation.Create(
@@ -440,6 +444,9 @@ public sealed class PhysicsWorld : IDisposable
             simulation.Timestep(config.FixedTimestep, threadDispatcher);
             SyncFromSimulation();
 
+            // Publish collision events after each physics step
+            collisionEventManager.PublishEvents();
+
             accumulator -= config.FixedTimestep;
             steps++;
         }
@@ -577,6 +584,9 @@ public sealed class PhysicsWorld : IDisposable
 
     internal void RemoveBody(Entity entity)
     {
+        // Remove from collision tracking first
+        collisionEventManager.RemoveEntity(entity);
+
         if (bodyLookup.TryGetBody(entity, out var bodyHandle))
         {
             simulation.Bodies.Remove(bodyHandle);
@@ -627,6 +637,7 @@ public sealed class PhysicsWorld : IDisposable
 
         disposed = true;
 
+        collisionEventManager.Clear();
         simulation.Dispose();
         threadDispatcher.Dispose();
         bufferPool.Clear();
@@ -635,38 +646,180 @@ public sealed class PhysicsWorld : IDisposable
 
     #region Callback Implementations
 
-    private struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
+    private readonly struct NarrowPhaseCallbacks(PhysicsWorld physicsWorld) : INarrowPhaseCallbacks
     {
+        private readonly PhysicsWorld physicsWorld = physicsWorld;
+
         public readonly void Initialize(Simulation simulation) { }
 
         public readonly bool AllowContactGeneration(int workerIndex, CollidableReference a, CollidableReference b, ref float speculativeMargin)
         {
-            return true;
+            // Get entities for both collidables
+            if (!TryGetEntityForCollidable(a, out var entityA) || !TryGetEntityForCollidable(b, out var entityB))
+            {
+                return true; // Allow collision if we can't identify entities
+            }
+
+            // Check collision filters
+            var filterA = GetCollisionFilter(entityA);
+            var filterB = GetCollisionFilter(entityB);
+
+            return filterA.CanCollideWith(in filterB);
         }
 
         public readonly bool AllowContactGeneration(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB)
         {
-            return true;
+            return true; // Already filtered at top level
         }
 
         public readonly bool ConfigureContactManifold<TManifold>(int workerIndex, CollidablePair pair, ref TManifold manifold, out PairMaterialProperties pairMaterial)
             where TManifold : unmanaged, IContactManifold<TManifold>
         {
+            // Get entities for both collidables
+            bool hasEntityA = TryGetEntityForCollidable(pair.A, out var entityA);
+            bool hasEntityB = TryGetEntityForCollidable(pair.B, out var entityB);
+
+            // Get collision filters
+            var filterA = hasEntityA ? GetCollisionFilter(entityA) : CollisionFilter.Default;
+            var filterB = hasEntityB ? GetCollisionFilter(entityB) : CollisionFilter.Default;
+
+            bool isTrigger = filterA.IsTriggerCollision(in filterB);
+
+            // Get material properties
+            var materialA = GetPhysicsMaterial(entityA, hasEntityA);
+            var materialB = GetPhysicsMaterial(entityB, hasEntityB);
+
+            // Combine materials (average friction, max restitution)
+            float combinedFriction = (materialA.Friction + materialB.Friction) * 0.5f;
+            float combinedRestitution = MathF.Max(materialA.Restitution, materialB.Restitution);
+
             pairMaterial = new PairMaterialProperties
             {
-                FrictionCoefficient = 0.5f,
-                MaximumRecoveryVelocity = 2f,
+                FrictionCoefficient = combinedFriction,
+                MaximumRecoveryVelocity = combinedRestitution * 2f,
                 SpringSettings = new SpringSettings(30, 1)
             };
-            return true;
+
+            // Record collision event if we have both entities
+            if (hasEntityA && hasEntityB && manifold.Count > 0)
+            {
+                // Get contact information from the manifold
+                // For generic manifolds, extract the first contact's data
+                var poseA = GetPoseForCollidable(pair.A);
+                var poseB = GetPoseForCollidable(pair.B);
+
+                // Estimate contact point as midpoint between body centers
+                // (actual contact details are in concrete manifold types)
+                Vector3 contactPoint = (poseA.Position + poseB.Position) * 0.5f;
+
+                // For generic manifolds, compute normal from body positions
+                Vector3 direction = poseB.Position - poseA.Position;
+                float length = direction.Length();
+                Vector3 contactNormal = length > 0.0001f ? direction / length : Vector3.UnitY;
+
+                // Estimate penetration depth (bodies are overlapping if collision occurred)
+                float penetrationDepth = 0.01f; // Default small positive value
+
+                physicsWorld.collisionEventManager.RecordCollision(
+                    entityA,
+                    entityB,
+                    contactNormal,
+                    contactPoint,
+                    penetrationDepth,
+                    isTrigger);
+            }
+
+            // Return false for triggers to prevent physical response
+            return !isTrigger;
         }
 
         public readonly bool ConfigureContactManifold(int workerIndex, CollidablePair pair, int childIndexA, int childIndexB, ref ConvexContactManifold manifold)
         {
-            return true;
+            // Compound shapes use this overload
+            // Get entities for both collidables
+            bool hasEntityA = TryGetEntityForCollidable(pair.A, out var entityA);
+            bool hasEntityB = TryGetEntityForCollidable(pair.B, out var entityB);
+
+            // Get collision filters
+            var filterA = hasEntityA ? GetCollisionFilter(entityA) : CollisionFilter.Default;
+            var filterB = hasEntityB ? GetCollisionFilter(entityB) : CollisionFilter.Default;
+
+            bool isTrigger = filterA.IsTriggerCollision(in filterB);
+
+            // Record collision event if we have both entities and contacts
+            if (hasEntityA && hasEntityB && manifold.Count > 0)
+            {
+                float maxDepth = float.MinValue;
+                Vector3 contactPoint = Vector3.Zero;
+
+                for (int i = 0; i < manifold.Count; i++)
+                {
+                    ref var contact = ref Unsafe.Add(ref manifold.Contact0, i);
+                    if (contact.Depth > maxDepth)
+                    {
+                        maxDepth = contact.Depth;
+                        contactPoint = contact.Offset;
+                    }
+                }
+
+                var poseA = GetPoseForCollidable(pair.A);
+                contactPoint = poseA.Position + contactPoint;
+
+                physicsWorld.collisionEventManager.RecordCollision(
+                    entityA,
+                    entityB,
+                    manifold.Normal,
+                    contactPoint,
+                    maxDepth,
+                    isTrigger);
+            }
+
+            return !isTrigger;
         }
 
         public readonly void Dispose() { }
+
+        private readonly bool TryGetEntityForCollidable(CollidableReference collidable, out Entity entity)
+        {
+            if (collidable.Mobility == CollidableMobility.Static)
+            {
+                return physicsWorld.bodyLookup.TryGetEntity(collidable.StaticHandle, out entity);
+            }
+            else
+            {
+                return physicsWorld.bodyLookup.TryGetEntity(collidable.BodyHandle, out entity);
+            }
+        }
+
+        private readonly CollisionFilter GetCollisionFilter(Entity entity)
+        {
+            if (physicsWorld.world.Has<CollisionFilter>(entity))
+            {
+                return physicsWorld.world.Get<CollisionFilter>(entity);
+            }
+            return CollisionFilter.Default;
+        }
+
+        private readonly PhysicsMaterial GetPhysicsMaterial(Entity entity, bool hasEntity)
+        {
+            if (hasEntity && physicsWorld.world.Has<PhysicsMaterial>(entity))
+            {
+                return physicsWorld.world.Get<PhysicsMaterial>(entity);
+            }
+            return PhysicsMaterial.Default;
+        }
+
+        private readonly RigidPose GetPoseForCollidable(CollidableReference collidable)
+        {
+            if (collidable.Mobility == CollidableMobility.Static)
+            {
+                return physicsWorld.simulation.Statics[collidable.StaticHandle].Pose;
+            }
+            else
+            {
+                return physicsWorld.simulation.Bodies[collidable.BodyHandle].Pose;
+            }
+        }
     }
 
     private struct PoseIntegratorCallbacks(Vector3 gravity) : IPoseIntegratorCallbacks

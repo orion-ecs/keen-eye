@@ -105,6 +105,7 @@ public sealed class PhysicsPlugin : IWorldPlugin
         context.RegisterComponent<RigidBody>();
         context.RegisterComponent<PhysicsShape>();
         context.RegisterComponent<PhysicsMaterial>();
+        context.RegisterComponent<CollisionFilter>();
 
         // Create and expose the physics world API
         physicsWorld = new PhysicsWorld(context.World, config);
