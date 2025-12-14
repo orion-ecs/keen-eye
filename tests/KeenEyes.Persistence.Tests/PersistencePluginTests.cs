@@ -487,6 +487,15 @@ internal sealed class TestPersistenceSerializer : IComponentSerializer, IBinaryC
         }
         return null;
     }
+
+    public object? CreateDefault(string typeName)
+    {
+        if (typeMap.TryGetValue(typeName, out var type))
+        {
+            return Activator.CreateInstance(type);
+        }
+        return null;
+    }
 }
 
 #endregion
