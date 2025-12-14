@@ -227,6 +227,16 @@ internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryCom
         return false;
     }
 
+    public object? CreateDefault(string typeName)
+    {
+        if (typeMap.TryGetValue(typeName, out var type))
+        {
+            // Create default using reflection (OK for tests)
+            return Activator.CreateInstance(type);
+        }
+        return null;
+    }
+
     // IBinaryComponentSerializer implementation
     public bool WriteTo(Type type, object value, BinaryWriter writer)
     {

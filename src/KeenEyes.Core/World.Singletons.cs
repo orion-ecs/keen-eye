@@ -211,5 +211,17 @@ public sealed partial class World
     public IEnumerable<(Type Type, object Value)> GetAllSingletons()
         => singletonManager.GetAllSingletons();
 
+    /// <summary>
+    /// Removes a singleton by type.
+    /// </summary>
+    /// <param name="type">The singleton type to remove.</param>
+    /// <returns>True if the singleton was removed; false if it didn't exist.</returns>
+    /// <remarks>
+    /// This method is primarily used by the delta restoration system for AOT-compatible
+    /// singleton removal. For typed singleton removal, prefer <see cref="RemoveSingleton{T}"/>.
+    /// </remarks>
+    internal bool RemoveSingleton(Type type)
+        => singletonManager.RemoveSingleton(type);
+
     #endregion
 }

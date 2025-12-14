@@ -294,6 +294,48 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     }
 
     /// <summary>
+    /// Sets a component value for an entity using a boxed value.
+    /// </summary>
+    /// <param name="entity">The entity.</param>
+    /// <param name="componentType">The component type.</param>
+    /// <param name="value">The boxed component value.</param>
+    internal void SetBoxed(Entity entity, Type componentType, object value)
+    {
+        var (archetype, index) = GetEntityLocation(entity);
+        archetype.SetBoxed(componentType, index, value);
+    }
+
+    /// <summary>
+    /// Removes a component from an entity by type, migrating it to a new archetype.
+    /// </summary>
+    /// <param name="entity">The entity.</param>
+    /// <param name="componentType">The component type to remove.</param>
+    /// <returns>True if the component was removed.</returns>
+    internal bool RemoveComponent(Entity entity, Type componentType)
+    {
+        if (!entityLocations.TryGetValue(entity.Id, out var location))
+        {
+            return false;
+        }
+
+        var (currentArchetype, currentIndex) = location;
+
+        if (!currentArchetype.Has(componentType))
+        {
+            return false;
+        }
+
+        // Get or create target archetype without the component
+        var newId = currentArchetype.Id.Without(componentType);
+        var newArchetype = GetOrCreateArchetype(newId);
+
+        // Migrate entity (copies shared components, excludes removed one)
+        MigrateEntity(entity, currentArchetype, currentIndex, newArchetype);
+
+        return true;
+    }
+
+    /// <summary>
     /// Gets the archetype and index for an entity.
     /// </summary>
     /// <param name="entity">The entity.</param>

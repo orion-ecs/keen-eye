@@ -89,6 +89,16 @@ internal sealed class SingletonManager
     }
 
     /// <summary>
+    /// Removes a singleton by type.
+    /// </summary>
+    /// <param name="type">The singleton type to remove.</param>
+    /// <returns>True if the singleton was removed; false if it didn't exist.</returns>
+    internal bool RemoveSingleton(Type type)
+    {
+        return singletons.Remove(type);
+    }
+
+    /// <summary>
     /// Clears all singletons.
     /// </summary>
     internal void Clear()

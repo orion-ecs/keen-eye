@@ -240,6 +240,67 @@ public sealed partial class World
         return saveManager ??= new SaveManager(this);
     }
 
+    #region Delta Save Operations
+
+    /// <summary>
+    /// Saves a delta snapshot to a slot.
+    /// </summary>
+    /// <typeparam name="TSerializer">
+    /// The serializer type that implements both <see cref="IComponentSerializer"/>
+    /// and <see cref="IBinaryComponentSerializer"/>.
+    /// </typeparam>
+    /// <param name="slotName">
+    /// The name of the save slot. Must be a valid filename.
+    /// </param>
+    /// <param name="delta">The delta snapshot to save.</param>
+    /// <param name="serializer">
+    /// The component serializer for AOT-compatible serialization.
+    /// </param>
+    /// <param name="options">
+    /// Optional save options. Uses default if not specified.
+    /// </param>
+    /// <returns>The save slot info with updated metadata.</returns>
+    /// <remarks>
+    /// <para>
+    /// Delta saves contain only the changes since a baseline snapshot, making them
+    /// significantly smaller than full saves when few entities have changed.
+    /// </para>
+    /// <para>
+    /// To restore from a delta save, first load the baseline, then apply
+    /// each delta in sequence using <see cref="LoadDeltaFromSlot"/>.
+    /// </para>
+    /// </remarks>
+    internal SaveSlotInfo SaveDeltaToSlot<TSerializer>(
+        string slotName,
+        DeltaSnapshot delta,
+        TSerializer serializer,
+        SaveSlotOptions? options = null)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
+    {
+        return GetSaveManager().SaveDelta(slotName, delta, serializer, options);
+    }
+
+    /// <summary>
+    /// Loads a delta snapshot from a slot.
+    /// </summary>
+    /// <param name="slotName">The name of the save slot to load.</param>
+    /// <param name="validateChecksum">Whether to validate the checksum if present.</param>
+    /// <returns>The delta snapshot.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the save slot doesn't exist.</exception>
+    /// <exception cref="InvalidDataException">Thrown when the save file is corrupted or not a delta.</exception>
+    /// <remarks>
+    /// <para>
+    /// After loading a delta, apply it to a world that has been restored from
+    /// the baseline using <see cref="DeltaRestorer.ApplyDelta"/>.
+    /// </para>
+    /// </remarks>
+    internal DeltaSnapshot LoadDeltaFromSlot(string slotName, bool validateChecksum = true)
+    {
+        return GetSaveManager().LoadDelta(slotName, validateChecksum);
+    }
+
+    #endregion
+
     #region Async Save/Load Operations
 
     /// <summary>

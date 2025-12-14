@@ -394,6 +394,115 @@ internal sealed class SaveManager
         }
     }
 
+    #region Delta Save Operations
+
+    /// <summary>
+    /// Saves a delta snapshot to a slot.
+    /// </summary>
+    /// <typeparam name="TSerializer">The serializer type that implements both interfaces.</typeparam>
+    /// <param name="slotName">The name of the save slot.</param>
+    /// <param name="delta">The delta snapshot to save.</param>
+    /// <param name="serializer">The component serializer for AOT-compatible serialization.</param>
+    /// <param name="options">Optional save options. Uses default if not specified.</param>
+    /// <returns>The save slot info with updated metadata.</returns>
+    internal SaveSlotInfo SaveDelta<TSerializer>(
+        string slotName,
+        DeltaSnapshot delta,
+        TSerializer serializer,
+        SaveSlotOptions? options = null)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slotName);
+        ArgumentNullException.ThrowIfNull(delta);
+        ArgumentNullException.ThrowIfNull(serializer);
+
+        options ??= SaveSlotOptions.Default;
+
+        // Serialize delta to JSON
+        var json = System.Text.Json.JsonSerializer.Serialize(delta, SnapshotJsonContext.Default.DeltaSnapshot);
+        var snapshotData = System.Text.Encoding.UTF8.GetBytes(json);
+
+        // Check if slot exists (for save count and created timestamp)
+        var existingInfo = TryGetSlotInfo(slotName);
+        var now = DateTimeOffset.UtcNow;
+
+        // Create slot info for delta
+        var slotInfo = new SaveSlotInfo
+        {
+            SlotName = slotName,
+            DisplayName = options.DisplayName ?? $"Delta #{delta.SequenceNumber}",
+            CreatedAt = existingInfo?.CreatedAt ?? now,
+            ModifiedAt = now,
+            PlayTime = options.PlayTime,
+            SaveCount = (existingInfo?.SaveCount ?? 0) + 1,
+            Format = SaveFormat.Json, // Deltas always use JSON for simplicity
+            EntityCount = delta.CreatedEntities.Count + delta.ModifiedEntities.Count,
+            CustomMetadata = new Dictionary<string, object>
+            {
+                ["isDelta"] = true,
+                ["baselineSlotName"] = delta.BaselineSlotName,
+                ["sequenceNumber"] = delta.SequenceNumber,
+                ["changeCount"] = delta.ChangeCount
+            },
+            AppVersion = options.AppVersion,
+            FormatVersion = 1
+        };
+
+        // Ensure directory exists
+        EnsureSaveDirectoryExists();
+
+        // Write save file
+        var filePath = GetSlotFilePath(slotName);
+        using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            SaveFileFormat.Write(fileStream, slotInfo, snapshotData, options with { Format = SaveFormat.Json });
+        }
+
+        // Return the updated slot info (with sizes filled in)
+        return SaveFileFormat.ReadMetadata(File.ReadAllBytes(filePath));
+    }
+
+    /// <summary>
+    /// Loads a delta snapshot from a slot.
+    /// </summary>
+    /// <param name="slotName">The name of the save slot to load.</param>
+    /// <param name="validateChecksum">Whether to validate the checksum if present.</param>
+    /// <returns>The delta snapshot.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the save slot doesn't exist.</exception>
+    /// <exception cref="InvalidDataException">Thrown when the save file is corrupted or not a delta.</exception>
+    internal DeltaSnapshot LoadDelta(string slotName, bool validateChecksum = true)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slotName);
+
+        var filePath = GetSlotFilePath(slotName);
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Save slot '{slotName}' not found.", filePath);
+        }
+
+        // Read save file
+        var fileData = File.ReadAllBytes(filePath);
+        var (slotInfo, snapshotData) = SaveFileFormat.Read(fileData, validateChecksum);
+
+        // Check if this is a delta
+        if (slotInfo.CustomMetadata is null ||
+            !slotInfo.CustomMetadata.TryGetValue("isDelta", out var isDeltatObj) ||
+            isDeltatObj is not bool isDelta ||
+            !isDelta)
+        {
+            throw new InvalidDataException($"Save slot '{slotName}' is not a delta snapshot.");
+        }
+
+        // Deserialize delta
+        var json = System.Text.Encoding.UTF8.GetString(snapshotData);
+        var delta = System.Text.Json.JsonSerializer.Deserialize(json, SnapshotJsonContext.Default.DeltaSnapshot)
+            ?? throw new InvalidDataException("Failed to deserialize delta snapshot.");
+
+        return delta;
+    }
+
+    #endregion
+
     #region Async Operations
 
     /// <summary>
