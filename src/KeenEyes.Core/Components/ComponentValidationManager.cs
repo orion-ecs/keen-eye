@@ -33,7 +33,6 @@ public delegate bool ComponentValidator<T>(World world, Entity entity, T compone
 /// <param name="world">The world this manager belongs to.</param>
 internal sealed class ComponentValidationManager(World world)
 {
-    private readonly World world = world;
     private readonly Dictionary<Type, ComponentValidationInfo> validationCache = [];
     private readonly Dictionary<Type, Delegate> customValidators = [];
 
