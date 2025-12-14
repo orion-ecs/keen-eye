@@ -98,6 +98,27 @@ public class FloatEqualityAnalyzerTests
         Assert.Contains("IsApproximatelyZero()", diagnostic.GetMessage());
     }
 
+    [Fact]
+    public void FloatEqualsLongZero_ReportsWarning()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class TestClass
+            {
+                public bool IsZero(float value)
+                {
+                    return value == 0L;
+                }
+            }
+            """;
+
+        var diagnostics = RunAnalyzer(source);
+
+        var diagnostic = Assert.Single(diagnostics, d => d.Id == "KEEN040");
+        Assert.Contains("IsApproximatelyZero()", diagnostic.GetMessage());
+    }
+
     #endregion
 
     #region KEEN040: Float Inequality (!=)
