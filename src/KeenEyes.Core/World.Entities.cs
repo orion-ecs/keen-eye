@@ -790,16 +790,12 @@ public sealed partial class World
     /// <param name="entity">The entity to set the component on.</param>
     /// <param name="info">The component info.</param>
     /// <param name="value">The boxed component value.</param>
-    /// <returns>
-    /// The entity with the component set. This may be a different entity if archetype migration occurred.
-    /// </returns>
     /// <remarks>
     /// This method is primarily used by the delta restoration system for AOT-compatible
     /// component setting. For typed component setting, prefer <see cref="Set{T}"/>.
-    /// When adding a new component, archetype migration occurs and a new entity is created.
-    /// The original entity is despawned and the new entity is returned.
+    /// When adding a new component, archetype migration occurs but the entity ID is preserved.
     /// </remarks>
-    internal Entity SetComponent(Entity entity, ComponentInfo info, object value)
+    internal void SetComponent(Entity entity, ComponentInfo info, object value)
     {
         if (!IsAlive(entity))
         {
@@ -810,53 +806,11 @@ public sealed partial class World
         {
             // Update existing component
             archetypeManager.SetBoxed(entity, info.Type, value);
-            return entity;
         }
         else
         {
-            // Add new component - need to migrate archetype
-            var builder = Spawn();
-            foreach (var (type, existingValue) in GetComponents(entity))
-            {
-                var existingInfo = Components.Get(type);
-                if (existingInfo is not null)
-                {
-                    builder.WithBoxed(existingInfo, existingValue);
-                }
-            }
-            builder.WithBoxed(info, value);
-
-            // Get name and parent before despawning
-            var name = GetName(entity);
-            var parent = GetParent(entity);
-            var children = GetChildren(entity).ToList();
-
-            // Despawn old entity and create new one
-            Despawn(entity);
-            var newEntity = builder.Build();
-
-            // Restore name if it had one
-            if (name is not null)
-            {
-                SetName(newEntity, name);
-            }
-
-            // Restore parent if it had one
-            if (parent.IsValid)
-            {
-                SetParent(newEntity, parent);
-            }
-
-            // Restore children
-            foreach (var child in children)
-            {
-                if (IsAlive(child))
-                {
-                    SetParent(child, newEntity);
-                }
-            }
-
-            return newEntity;
+            // Add new component - proper archetype migration preserves entity ID
+            archetypeManager.AddComponentBoxed(entity, info.Type, value);
         }
     }
 
