@@ -142,7 +142,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
 
             if (methodName is not null)
             {
-                sb.AppendLine($"        // {field.Name}: {field.AccessType}");
+                sb.AppendLine($"        desc.{methodName}<{field.ComponentType}>();");
             }
         }
 
