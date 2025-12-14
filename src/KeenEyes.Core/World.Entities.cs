@@ -598,6 +598,26 @@ public sealed partial class World
     }
 
     /// <summary>
+    /// Changes the name of an entity.
+    /// </summary>
+    /// <param name="entity">The entity to rename.</param>
+    /// <param name="newName">The new name, or null to remove the name.</param>
+    /// <exception cref="InvalidOperationException">Thrown when the entity is not alive.</exception>
+    /// <exception cref="ArgumentException">Thrown when the new name is already in use.</exception>
+    /// <remarks>
+    /// This method is primarily used by the delta restoration system.
+    /// </remarks>
+    internal void SetName(Entity entity, string? newName)
+    {
+        if (!IsAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        entityNamingManager.SetName(entity.Id, newName);
+    }
+
+    /// <summary>
     /// Finds an entity by its assigned name.
     /// </summary>
     /// <param name="name">The name to search for.</param>
@@ -737,6 +757,99 @@ public sealed partial class World
     internal IReadOnlyList<Archetype> GetMatchingArchetypes(QueryDescription description)
     {
         return queryManager.GetMatchingArchetypes(description);
+    }
+
+    /// <summary>
+    /// Removes a component from an entity by type.
+    /// </summary>
+    /// <param name="entity">The entity to remove the component from.</param>
+    /// <param name="componentType">The type of component to remove.</param>
+    /// <returns>True if the component was removed, false if the entity didn't have it.</returns>
+    /// <remarks>
+    /// This method is primarily used by the delta restoration system for AOT-compatible
+    /// component removal. For typed component removal, prefer <see cref="Remove{T}"/>.
+    /// </remarks>
+    internal bool RemoveComponent(Entity entity, Type componentType)
+    {
+        if (!IsAlive(entity))
+        {
+            return false;
+        }
+
+        if (!archetypeManager.Has(entity, componentType))
+        {
+            return false;
+        }
+
+        return archetypeManager.RemoveComponent(entity, componentType);
+    }
+
+    /// <summary>
+    /// Sets a component value on an entity using component info and a boxed value.
+    /// </summary>
+    /// <param name="entity">The entity to set the component on.</param>
+    /// <param name="info">The component info.</param>
+    /// <param name="value">The boxed component value.</param>
+    /// <remarks>
+    /// This method is primarily used by the delta restoration system for AOT-compatible
+    /// component setting. For typed component setting, prefer <see cref="Set{T}"/>.
+    /// </remarks>
+    internal void SetComponent(Entity entity, ComponentInfo info, object value)
+    {
+        if (!IsAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        if (archetypeManager.Has(entity, info.Type))
+        {
+            // Update existing component
+            archetypeManager.SetBoxed(entity, info.Type, value);
+        }
+        else
+        {
+            // Add new component - need to migrate archetype
+            var builder = Spawn();
+            foreach (var (type, existingValue) in GetComponents(entity))
+            {
+                var existingInfo = Components.Get(type);
+                if (existingInfo is not null)
+                {
+                    builder.WithBoxed(existingInfo, existingValue);
+                }
+            }
+            builder.WithBoxed(info, value);
+
+            // Get name and parent before despawning
+            var name = GetName(entity);
+            var parent = GetParent(entity);
+            var children = GetChildren(entity).ToList();
+
+            // Despawn old entity and create new one
+            Despawn(entity);
+            var newEntity = builder.Build();
+
+            // Restore name if it had one
+            if (name is not null)
+            {
+                SetName(newEntity, name);
+            }
+
+            // Restore parent if it had one
+            if (parent.IsValid)
+            {
+                SetParent(newEntity, parent);
+            }
+
+            // Restore children
+            foreach (var child in children)
+            {
+                if (IsAlive(child))
+                {
+                    SetParent(child, newEntity);
+                }
+            }
+        }
     }
 
     #endregion

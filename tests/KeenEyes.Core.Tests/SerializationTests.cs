@@ -1361,6 +1361,7 @@ internal sealed class MockComponentSerializer : IComponentSerializer
 
     public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag) => null;
     public bool SetSingleton(World world, string typeName, object value) => false;
+    public object? CreateDefault(string typeName) => null;
 }
 
 /// <summary>
@@ -1409,6 +1410,15 @@ internal sealed class WorkingAotSerializer : IComponentSerializer
     }
 
     public bool SetSingleton(World world, string typeName, object value) => false;
+
+    public object? CreateDefault(string typeName)
+    {
+        if (typeName.Contains("SerializablePosition"))
+        {
+            return default(SerializablePosition);
+        }
+        return null;
+    }
 }
 
 /// <summary>
@@ -1457,4 +1467,13 @@ internal sealed class DeserializingAotSerializer : IComponentSerializer
     }
 
     public bool SetSingleton(World world, string typeName, object value) => false;
+
+    public object? CreateDefault(string typeName)
+    {
+        if (typeName.Contains("SerializablePosition"))
+        {
+            return default(SerializablePosition);
+        }
+        return null;
+    }
 }

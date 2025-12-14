@@ -89,4 +89,16 @@ public interface IComponentSerializer
     /// for the appropriate type.
     /// </remarks>
     bool SetSingleton(World world, string typeName, object value);
+
+    /// <summary>
+    /// Creates a default instance of a component type.
+    /// </summary>
+    /// <param name="typeName">The fully-qualified type name of the component.</param>
+    /// <returns>A default instance of the component, or null if the type is not registered.</returns>
+    /// <remarks>
+    /// This method enables AOT-compatible default value creation without reflection.
+    /// The implementation should return <c>default(T)</c> for the appropriate type.
+    /// This is primarily used for tag components during delta restoration.
+    /// </remarks>
+    object? CreateDefault(string typeName);
 }

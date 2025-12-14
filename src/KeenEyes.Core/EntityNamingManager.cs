@@ -108,4 +108,25 @@ internal sealed class EntityNamingManager
         entityNames.Clear();
         namesToEntityIds.Clear();
     }
+
+    /// <summary>
+    /// Changes the name of an entity.
+    /// </summary>
+    /// <param name="entityId">The entity ID to rename.</param>
+    /// <param name="newName">The new name, or null to remove the name.</param>
+    /// <exception cref="ArgumentException">Thrown when the new name is already in use.</exception>
+    internal void SetName(int entityId, string? newName)
+    {
+        // Validate new name if not null
+        if (newName is not null && namesToEntityIds.TryGetValue(newName, out var existingId) && existingId != entityId)
+        {
+            throw new ArgumentException($"An entity with the name '{newName}' already exists in this world.");
+        }
+
+        // Remove old name
+        UnregisterName(entityId);
+
+        // Register new name
+        RegisterName(entityId, newName);
+    }
 }

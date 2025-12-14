@@ -252,10 +252,26 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
         // Increment sequence
         currentDeltaSequence++;
 
-        // For now, save a full snapshot as a "delta" (simplified implementation)
-        // A full delta implementation would compare with baselineSnapshot and only save changes
+        // Create true delta by comparing current state to baseline
+        var delta = DeltaDiffer.CreateDelta(
+            world,
+            baselineSnapshot!,
+            serializer,
+            config.BaselineSlotName,
+            currentDeltaSequence);
+
+        // If delta is empty, skip saving
+        if (delta.IsEmpty)
+        {
+            currentDeltaSequence--;
+            // Return a placeholder info for the baseline
+            return world.GetSaveSlotInfo(config.BaselineSlotName)
+                ?? throw new InvalidOperationException("Baseline slot not found");
+        }
+
+        // Save delta to slot
         var slotName = config.GetDeltaSlotName(currentDeltaSequence);
-        var info = world.SaveToSlot(slotName, serializer, config.SaveOptions with
+        var info = world.SaveDeltaToSlot(slotName, delta, serializer, config.SaveOptions with
         {
             DisplayName = $"Auto-save (Delta #{currentDeltaSequence})"
         });
