@@ -117,7 +117,7 @@ public class QueryGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("// Velocity: With"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWith<TestApp.Velocity>()"));
     }
 
     [Fact]
@@ -142,7 +142,7 @@ public class QueryGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("// Frozen: Without"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWithout<TestApp.Frozen>()"));
     }
 
     [Fact]
@@ -195,9 +195,9 @@ public class QueryGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("// Position: Write"));
-        Assert.Contains(generatedTrees, t => t.Contains("// Velocity: Write"));
-        Assert.Contains(generatedTrees, t => t.Contains("// Health: Write"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWrite<TestApp.Position>()"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWrite<TestApp.Velocity>()"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWrite<TestApp.Health>()"));
     }
 
     [Fact]
@@ -240,8 +240,8 @@ public class QueryGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("// Position: Write"));
-        Assert.DoesNotContain(generatedTrees, t => t.Contains("// Counter"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWrite<TestApp.Position>()"));
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("Counter"));
     }
 
     [Fact]
@@ -265,8 +265,8 @@ public class QueryGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("// Position: Write"));
-        Assert.DoesNotContain(generatedTrees, t => t.Contains("// Version"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWrite<TestApp.Position>()"));
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("Version"));
     }
 
     [Fact]
@@ -478,10 +478,10 @@ public class QueryGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("// Position: Write"));
-        Assert.Contains(generatedTrees, t => t.Contains("// Player: With"));
-        Assert.Contains(generatedTrees, t => t.Contains("// Enemy: Without"));
-        // Optional doesn't add comment
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWrite<TestApp.Position>()"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWith<TestApp.Player>()"));
+        Assert.Contains(generatedTrees, t => t.Contains("desc.AddWithout<TestApp.Enemy>()"));
+        // Optional doesn't add method call
     }
 
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
