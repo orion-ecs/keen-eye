@@ -215,6 +215,39 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     }
 
     /// <summary>
+    /// Adds a boxed component to an entity, migrating it to a new archetype.
+    /// </summary>
+    /// <param name="entity">The entity.</param>
+    /// <param name="componentType">The component type.</param>
+    /// <param name="value">The boxed component value.</param>
+    internal void AddComponentBoxed(Entity entity, Type componentType, object value)
+    {
+        if (!entityLocations.TryGetValue(entity.Id, out var location))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not tracked by this archetype manager.");
+        }
+
+        var (currentArchetype, currentIndex) = location;
+
+        // Check if already has the component
+        if (currentArchetype.Has(componentType))
+        {
+            throw new InvalidOperationException(
+                $"Entity {entity} already has component {componentType.Name}. Use SetBoxed() to update.");
+        }
+
+        // Get or create target archetype
+        var newId = currentArchetype.Id.With(componentType);
+        var newArchetype = GetOrCreateArchetype(newId);
+
+        // Migrate entity
+        MigrateEntity(entity, currentArchetype, currentIndex, newArchetype);
+
+        // Add the new component
+        newArchetype.AddComponentBoxed(componentType, value);
+    }
+
+    /// <summary>
     /// Removes a component from an entity, migrating it to a new archetype.
     /// </summary>
     /// <typeparam name="T">The component type to remove.</typeparam>
