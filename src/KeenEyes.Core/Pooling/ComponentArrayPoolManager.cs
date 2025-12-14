@@ -26,7 +26,14 @@ public sealed class ComponentArrayPoolManager
     private delegate Array RentDelegate(int minimumLength);
     private delegate void ReturnDelegate(Array array, bool clearArray);
 
-    // Static delegate cache for AOT - shared across all worlds but doesn't affect behavior
+    // Static delegate cache for AOT compatibility - shared across all worlds.
+    // This static state is acceptable because:
+    // 1. ArrayPool<T>.Shared is already a global singleton in .NET - we're just caching delegates to it
+    // 2. Delegates are pure functions with no mutable state - they simply forward to ArrayPool<T>.Shared
+    // 3. Per-world isolation is maintained where it matters: totalRented/totalReturned are instance fields
+    // 4. Caching delegates globally is more efficient than per-world caches with identical behavior
+    // 5. Registration is idempotent - multiple Register<T>() calls are safe
+    // See issue #332 for detailed analysis of why this doesn't violate per-world isolation principles.
     private static readonly Dictionary<Type, RentDelegate> rentDelegates = [];
     private static readonly Dictionary<Type, ReturnDelegate> returnDelegates = [];
     private static readonly Lock lockObj = new();
