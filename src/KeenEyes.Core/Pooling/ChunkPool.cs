@@ -20,7 +20,6 @@ namespace KeenEyes;
 public sealed class ChunkPool(int maxChunksPerArchetype = 64)
 {
     private readonly ConcurrentDictionary<ArchetypeId, ConcurrentStack<ArchetypeChunk>> pools = new();
-    private readonly int maxChunksPerArchetype = maxChunksPerArchetype;
 
     private long totalRented;
     private long totalReturned;
