@@ -40,11 +40,24 @@ internal sealed class ArchetypeCache
     /// Adds an archetype to the cache using copy-on-write semantics.
     /// </summary>
     /// <param name="archetype">The archetype to add.</param>
+    /// <remarks>
+    /// This method is idempotent - adding an archetype that already exists is a no-op.
+    /// </remarks>
     public void Add(Archetype archetype)
     {
         lock (writeLock)
         {
             var current = archetypes;
+
+            // Check if archetype already exists (deduplication)
+            foreach (var existing in current)
+            {
+                if (ReferenceEquals(existing, archetype))
+                {
+                    return;
+                }
+            }
+
             var newArray = new Archetype[current.Length + 1];
             Array.Copy(current, newArray, current.Length);
             newArray[current.Length] = archetype;
