@@ -278,7 +278,9 @@ public class NaiveCollisionSystem(CollisionStats stats) : SystemBase
     public override void Update(float deltaTime)
     {
         // Get all entities (inefficient!)
+#pragma warning disable KEEN031 // Intentionally inefficient for performance comparison
         var entities = World.Query<Transform3D, CollisionRadius>().ToList();
+#pragma warning restore KEEN031
 
         // Check every pair (O(n²))
         for (int i = 0; i < entities.Count; i++)

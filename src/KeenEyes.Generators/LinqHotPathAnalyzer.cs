@@ -45,7 +45,7 @@ public sealed class LinqHotPathAnalyzer : DiagnosticAnalyzer
     /// <summary>
     /// LINQ methods that typically cause allocations.
     /// </summary>
-    private static readonly ImmutableHashSet<string> LinqMethods = ImmutableHashSet.Create(
+    private static readonly ImmutableHashSet<string> linqMethods = ImmutableHashSet.Create(
         // Query operators
         "Select",
         "SelectMany",
@@ -119,7 +119,7 @@ public sealed class LinqHotPathAnalyzer : DiagnosticAnalyzer
     /// <summary>
     /// LINQ-related namespaces for type checking.
     /// </summary>
-    private static readonly ImmutableHashSet<string> LinqNamespaces = ImmutableHashSet.Create(
+    private static readonly ImmutableHashSet<string> linqNamespaces = ImmutableHashSet.Create(
         "System.Linq",
         "System.Linq.Enumerable",
         "System.Linq.Queryable"
@@ -202,7 +202,7 @@ public sealed class LinqHotPathAnalyzer : DiagnosticAnalyzer
     private static bool IsLinqMethod(IMethodSymbol method)
     {
         // Check if the method name is a known LINQ method
-        if (!LinqMethods.Contains(method.Name))
+        if (!linqMethods.Contains(method.Name))
         {
             return false;
         }
@@ -255,7 +255,7 @@ public sealed class LinqHotPathAnalyzer : DiagnosticAnalyzer
 
         // Also check the full type name for types like System.Linq.Enumerable
         var fullName = containingType.ToDisplayString();
-        return LinqNamespaces.Any(ns => fullName.StartsWith(ns));
+        return linqNamespaces.Any(ns => fullName.StartsWith(ns));
     }
 
     private static string GetFullNamespace(INamespaceSymbol? ns)

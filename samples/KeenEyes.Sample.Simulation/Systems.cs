@@ -149,10 +149,12 @@ public partial class CollisionSystem : SystemBase
         // We must snapshot one collection to avoid O(n²) query re-evaluation.
         // We snapshot projectiles since we modify them (add Dead), keeping
         // the outer iteration (damageables) direct for better cache locality.
+#pragma warning disable KEEN031 // ToList() necessary for nested iteration - avoids O(n²) query re-evaluation
         var projectiles = World.Query<Position, Collider, Damage>()
             .With<Projectile>()
             .Without<Dead>()
             .ToList();
+#pragma warning restore KEEN031
 
         foreach (var projectile in projectiles)
         {
@@ -294,15 +296,15 @@ public partial class CleanupSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        // Snapshot required: Despawn() invalidates the query iterator
-        var deadEntities = World.Query<Position>()
-            .With<Dead>()
-            .ToList();
+        // Use CommandBuffer to defer despawns until after iteration completes
+        var buffer = new CommandBuffer();
 
-        foreach (var entity in deadEntities)
+        foreach (var entity in World.Query<Position>().With<Dead>())
         {
-            World.Despawn(entity);
+            buffer.Despawn(entity);
         }
+
+        buffer.Flush(World);
     }
 }
 
