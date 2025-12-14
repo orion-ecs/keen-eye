@@ -20,6 +20,9 @@ namespace KeenEyes.Serialization;
 [JsonSerializable(typeof(SerializedEntity))]
 [JsonSerializable(typeof(SerializedComponent))]
 [JsonSerializable(typeof(SerializedSingleton))]
+[JsonSerializable(typeof(SaveSlotInfo))]
+[JsonSerializable(typeof(CompressionMode))]
+[JsonSerializable(typeof(SaveFormat))]
 [JsonSerializable(typeof(IReadOnlyDictionary<string, object>))]
 internal partial class SnapshotJsonContext : JsonSerializerContext
 {

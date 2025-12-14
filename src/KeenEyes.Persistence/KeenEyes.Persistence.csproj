@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Persistence</PackageId>
+    <Description>Persistence plugin for KeenEyes ECS with encryption support</Description>
+    <PackageTags>ecs;persistence;save;load;encryption;aes;game;framework</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Persistence.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+  </ItemGroup>
+
+</Project>
