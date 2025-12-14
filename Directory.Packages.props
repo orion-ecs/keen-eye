@@ -19,4 +19,8 @@
     <PackageVersion Include="Silk.NET.Input" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.Maths" Version="2.22.0" />
   </ItemGroup>
+  <ItemGroup Label="Physics">
+    <PackageVersion Include="BepuPhysics" Version="2.4.0" />
+    <PackageVersion Include="BepuUtilities" Version="2.4.0" />
+  </ItemGroup>
 </Project>

@@ -4,7 +4,7 @@
     <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" IgnoreExitCode="true" />
   </Target>
 
-  <Target Name="HuskyInstall" AfterTargets="Restore" Condition="'$(HUSKY)' != '0' AND '$(CI)' != 'true'">
+  <Target Name="HuskyInstall" AfterTargets="Restore" Condition="'$(HUSKY)' != '0' AND '$(CI)' != 'true' AND '$(SkipHusky)' != 'true'">
     <Exec Command="dotnet husky install" StandardOutputImportance="Low" StandardErrorImportance="High" WorkingDirectory="$(MSBuildThisFileDirectory)" />
   </Target>
 </Project>
