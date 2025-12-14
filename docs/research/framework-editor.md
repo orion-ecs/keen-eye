@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-Building a rudimentary editor for KeenEyes is **highly feasible**. The framework provides comprehensive foundational pieces: a robust plugin system, entity inspection APIs, change tracking, event subscriptions, inter-system messaging, **world serialization**, **prefab system**, **pluggable logging**, **string-based tagging**, and **component validation**. The main remaining work involves the UI layer and undo/redo system.
+Building a rudimentary editor for KeenEyes is **highly feasible**. The framework now provides an extraordinarily comprehensive set of foundational pieces including: plugin system, entity inspection APIs, change tracking, event subscriptions, inter-system messaging, **complete debugging plugin** (profiler, entity inspector, memory/GC tracking), **parallelism with dependency visualization**, **save/load with delta saves and encryption**, **physics integration**, **spatial partitioning**, **binary serialization**, **multi-world support**, **deterministic RNG**, and **global system hooks**.
 
 **Recommended approach:** Build the editor as a set of modular plugins that can be installed into any World instance. This leverages the existing plugin architecture and maintains the framework's core principle of per-world isolation.
 
@@ -25,11 +25,23 @@ Building a rudimentary editor for KeenEyes is **highly feasible**. The framework
 | Component Validation | ✅ Complete | Ready to use |
 | Testing Utilities | ✅ Complete | Ready to use |
 | Graphics Plugin | ✅ Complete | Reference implementation |
-| Undo/Redo | ❌ Missing | Medium-High |
-| Hot Reload | ❌ Missing | High |
-| Per-Field Inspection | ❌ Missing | Low |
+| **Debugging Plugin** | ✅ Complete | Profiler, Inspector, Memory/GC tracking |
+| **Parallelism Plugin** | ✅ Complete | Parallel scheduler, profiler, dependency graphs |
+| **Save/Load System** | ✅ Complete | Full/delta saves, encryption, compression |
+| **Physics (BepuPhysics)** | ✅ Complete | 3D rigid body simulation |
+| **Spatial Partitioning** | ✅ Complete | Grid, Quadtree, Octree, frustum culling |
+| **Binary Serialization** | ✅ Complete | 50-80% smaller, AOT-compatible |
+| **Multi-World Support** | ✅ Complete | World ID/Name, full isolation |
+| **Deterministic RNG** | ✅ Complete | Per-world seeded random |
+| **Global System Hooks** | ✅ Complete | Before/after hooks for profiling |
+| **Component Bundles** | ✅ Complete | Generated bundle methods |
+| **Component Mixins** | ✅ Complete | Compile-time field composition |
+| **Project Templates** | ✅ Complete | `dotnet new keeneyes-game` |
+| Undo/Redo | ❌ Missing | Medium - build on snapshots |
+| Hot Reload | ❌ Missing | High - AssemblyLoadContext |
+| Per-Field Inspection | ❌ Missing | Low - reflection wrapper |
 
-> **Note:** Since the initial research, the framework has added serialization, prefabs, logging, string tags, component validation, a testing library, and a graphics plugin. The framework now provides **~90% of the infrastructure** needed for a full editor.
+> **Note:** The framework has seen massive development since initial research. The **KeenEyes.Debugging** plugin provides complete profiling and inspection. The **KeenEyes.Parallelism** plugin includes dependency graph generation. Save/load now supports delta saves with encryption. The framework provides **~95% of the infrastructure** needed for a full editor. Only undo/redo and hot reload remain.
 
 ---
 
@@ -188,6 +200,289 @@ world.GetDescendants(entity)    // All descendants recursively
 world.GetAncestors(entity)      // All ancestors to root
 world.GetRoot(entity)           // Top-most ancestor
 world.DespawnRecursive(entity)  // Despawn with children
+```
+
+### Debugging Plugin (NEW)
+
+**Location:** `src/KeenEyes.Debugging/`
+
+The framework now includes a complete debugging plugin providing profiling, entity inspection, memory tracking, and GC monitoring—ready for editor integration.
+
+**Key Classes:**
+| Class | Purpose |
+|-------|---------|
+| `EntityInspector` | Runtime entity introspection |
+| `Profiler` | System timing profiler |
+| `MemoryTracker` | Memory usage tracking |
+| `GCTracker` | Per-system GC allocation tracking |
+
+**Usage:**
+```csharp
+// Install the debugging plugin
+world.InstallPlugin<DebugPlugin>();
+
+// Get profiler data
+var profiler = world.GetExtension<Profiler>();
+foreach (var profile in profiler.GetSystemProfiles())
+{
+    Console.WriteLine($"{profile.SystemType.Name}: {profile.AverageMs:F2}ms");
+}
+
+// Inspect entities
+var inspector = world.GetExtension<EntityInspector>();
+var components = inspector.GetComponents(entity);
+```
+
+### Parallelism Plugin (NEW)
+
+**Location:** `src/KeenEyes.Parallelism/`
+
+Provides parallel system execution with automatic dependency analysis and profiling.
+
+**Key Classes:**
+| Class | Purpose |
+|-------|---------|
+| `ParallelSystemScheduler` | Schedules systems into parallel batches |
+| `ParallelProfiler` | Generates DOT graphs and bottleneck detection |
+| `JobScheduler` | Low-level job scheduling |
+| `ComponentDependencies` | Tracks read/write dependencies |
+
+**Editor Benefits:**
+```csharp
+// Generate dependency graph for visualization
+var profiler = world.GetExtension<ParallelProfiler>();
+string dotGraph = profiler.GenerateDependencyGraph();  // DOT format
+
+// Get bottleneck analysis
+var bottlenecks = profiler.IdentifyBottlenecks();
+```
+
+### Save/Load System (NEW)
+
+**Location:** `src/KeenEyes.Core/SaveManager.cs`, `src/KeenEyes.Core/Serialization/`
+
+Complete save/load system with delta saves, compression, encryption, and checksums.
+
+**Features:**
+- Full world snapshots (JSON and binary)
+- Delta saves (only store changes since baseline)
+- Compression (GZip)
+- Encryption (AES)
+- Checksum validation
+- Async operations
+
+**Key Classes:**
+| Class | Purpose |
+|-------|---------|
+| `SaveManager` | Save slot management |
+| `DeltaDiffer` | Computes delta differences |
+| `DeltaRestorer` | Applies delta patches |
+| `SnapshotManager` | Snapshot creation/restoration |
+
+**Usage:**
+```csharp
+// Create a snapshot
+var snapshot = world.CreateSnapshot();
+string json = snapshot.ToJson();
+
+// Save with delta (only changes since baseline)
+var delta = world.CreateDeltaSave(baselineSnapshot);
+
+// Save with encryption
+await saveManager.SaveAsync("slot1", snapshot, new SaveOptions
+{
+    Encrypt = true,
+    Compress = true,
+    Password = "secret"
+});
+```
+
+### Spatial Partitioning (NEW)
+
+**Location:** `src/KeenEyes.Spatial/`
+
+Efficient spatial queries with Grid, Quadtree, and Octree strategies plus frustum culling.
+
+**Key Classes:**
+| Class | Purpose |
+|-------|---------|
+| `SpatialQueryApi` | Main query interface |
+| `GridPartitioner` | Grid-based partitioning |
+| `QuadtreePartitioner` | 2D quadtree |
+| `OctreePartitioner` | 3D octree |
+| `Frustum` | View frustum culling |
+
+**Editor Benefits:**
+```csharp
+// Visualize spatial structure
+var spatial = world.GetExtension<SpatialQueryApi>();
+
+// Query entities in view frustum
+var visible = spatial.QueryFrustum(cameraFrustum);
+
+// Query radius for selection
+var nearby = spatial.QueryRadius(clickPosition, selectionRadius);
+```
+
+### Physics Integration (NEW)
+
+**Location:** `src/KeenEyes.Physics/`
+
+Complete BepuPhysics v2 integration for 3D rigid body simulation.
+
+**Key Classes:**
+| Class | Purpose |
+|-------|---------|
+| `PhysicsPlugin` | Main plugin |
+| `PhysicsWorld` | Physics API wrapper |
+| `RigidBody` | Rigid body component |
+| `PhysicsShape` | Collision shapes |
+
+**Editor Benefits:**
+- Visualize collision shapes
+- Display velocity vectors
+- Apply test forces/impulses
+- Step physics manually
+
+### Multi-World Support (NEW)
+
+**Location:** `src/KeenEyes.Core/World.cs`
+
+Each World instance now has a unique ID and optional name for debugging.
+
+```csharp
+// Create named worlds for editor
+var gameWorld = new World(name: "Game");
+var editorWorld = new World(name: "Editor");
+
+Console.WriteLine($"World ID: {gameWorld.Id}, Name: {gameWorld.Name}");
+
+// Compare world instances
+if (entity.WorldId == gameWorld.Id) { ... }
+```
+
+### Deterministic RNG (NEW)
+
+**Location:** `src/KeenEyes.Core/World.Random.cs`
+
+Per-world isolated random number generator with optional seeding for replay.
+
+```csharp
+// Create deterministic world for replay
+var world = new World(seed: 12345);
+
+// Use world's RNG
+float speed = world.NextFloat(1.0f, 10.0f);
+int damage = world.NextInt(5, 20);
+bool crit = world.NextBool();
+```
+
+### Global System Hooks (NEW)
+
+**Location:** `src/KeenEyes.Core/World.SystemHooks.cs`
+
+Register callbacks before/after system execution without modifying systems.
+
+```csharp
+// Add profiling hook
+world.AddSystemHook((system, phase) =>
+{
+    if (phase == HookPhase.Before)
+        stopwatch.Restart();
+    else
+        RecordTiming(system.GetType(), stopwatch.Elapsed);
+});
+
+// Conditional system execution
+world.AddSystemHook((system, phase) =>
+{
+    if (phase == HookPhase.Before && isPaused)
+        return HookResult.Skip;  // Skip system execution
+    return HookResult.Continue;
+});
+```
+
+### Component Bundles (NEW)
+
+**Location:** `src/KeenEyes.Generators/BundleGenerator.cs`
+
+Group commonly-used components with generated builder methods.
+
+```csharp
+[Bundle]
+public partial struct TransformBundle
+{
+    public Position Position;
+    public Rotation Rotation;
+    public Scale Scale;
+}
+
+// Usage - generated methods
+var entity = world.Spawn()
+    .With(new TransformBundle { ... })
+    .Build();
+
+// Query by bundle
+foreach (var e in world.Query<TransformBundle>())
+{
+    ref var bundle = ref world.GetBundle<TransformBundle>(e);
+}
+```
+
+### Component Mixins (NEW)
+
+**Location:** `src/KeenEyes.Generators/MixinGenerator.cs`
+
+Compile-time field composition for component reuse.
+
+```csharp
+// Define mixin
+public struct Damageable
+{
+    public int Health;
+    public int MaxHealth;
+}
+
+// Use in component
+[Component]
+[Mixin(typeof(Damageable))]
+public partial struct Enemy
+{
+    public float Speed;
+    // Health and MaxHealth fields are copied here at compile time
+}
+```
+
+### Binary Serialization (NEW)
+
+**Location:** `src/KeenEyes.Core/Serialization/`
+
+High-performance binary format (50-80% smaller than JSON).
+
+```csharp
+// Binary snapshot
+byte[] binary = world.CreateSnapshot().ToBinary();
+
+// Restore from binary
+var snapshot = WorldSnapshot.FromBinary(binary);
+snapshot.RestoreTo(world);
+```
+
+### Project Templates (NEW)
+
+**Location:** `templates/`
+
+Quick-start templates for new projects.
+
+```bash
+# Install templates
+dotnet new install KeenEyes.Templates
+
+# Create new game project
+dotnet new keeneyes-game -n MyGame
+
+# Create new plugin project
+dotnet new keeneyes-plugin -n MyPlugin
 ```
 
 ---
@@ -902,8 +1197,14 @@ public class ScriptCompiler
 | Component Validation | Phase 10 | ✅ Complete |
 | Serialization | Phase 11 | ✅ Complete |
 | Logging | Phase 12 | ✅ Complete |
-| Debug Mode | Phase 13 | ❌ Pending |
-| System Profiling | Phase 13 | ❌ Pending |
+| Debug Mode | Phase 13 | ✅ Complete (KeenEyes.Debugging) |
+| System Profiling | Phase 13 | ✅ Complete (KeenEyes.Debugging) |
+| Parallel Profiling | - | ✅ Complete (KeenEyes.Parallelism) |
+| Spatial Queries | - | ✅ Complete (KeenEyes.Spatial) |
+| Physics | - | ✅ Complete (KeenEyes.Physics) |
+| Save/Load | - | ✅ Complete (SaveManager) |
+| Binary Serialization | - | ✅ Complete |
+| Delta Saves | - | ✅ Complete |
 
 ---
 
@@ -1014,14 +1315,32 @@ When choosing a UI framework for the editor:
 |-----|-------------|----------|
 | **Per-field introspection** | Need field metadata | Reflection wrapper (~100 lines) |
 | **Property attributes** | `[Range]`, `[Tooltip]`, etc. | Define attributes, inspector reads |
-| **Undo/Redo** | No transaction history | Build on ChangeTracker + snapshots |
+| **Undo/Redo** | No transaction history | Build on ChangeTracker + Snapshots |
 | **Hot Reload** | No runtime code swapping | AssemblyLoadContext approach |
 
-> **Resolved Since Initial Research:**
-> - ~~Serialization~~ → `SnapshotManager` with JSON and AOT support
+> **Resolved Since Initial Research (Cumulative):**
+> - ~~Serialization~~ → `SnapshotManager` with JSON, binary, and AOT support
 > - ~~Prefabs~~ → `PrefabManager` with inheritance support
 > - ~~RemoveSystem API~~ → Now available via SystemManager
 > - ~~System BeforeUpdate hook~~ → `ISystemLifecycle` interface added
+> - ~~Debug Mode~~ → Complete `KeenEyes.Debugging` plugin
+> - ~~System Profiling~~ → `Profiler` class with timing history
+> - ~~Entity Inspector~~ → `EntityInspector` for runtime introspection
+> - ~~Memory Tracking~~ → `MemoryTracker` and `GCTracker`
+> - ~~Parallel Profiling~~ → `ParallelProfiler` with DOT graphs
+> - ~~Save Slots~~ → `SaveManager` with full/delta saves
+> - ~~Encryption~~ → AES encryption via `EncryptedPersistenceApi`
+> - ~~Binary Format~~ → 50-80% smaller binary serialization
+> - ~~Delta Saves~~ → `DeltaDiffer` and `DeltaRestorer`
+> - ~~Spatial Queries~~ → Grid, Quadtree, Octree partitioners
+> - ~~Frustum Culling~~ → `Frustum` class with SIMD optimization
+> - ~~Physics~~ → BepuPhysics v2 integration
+> - ~~Multi-World~~ → World ID/Name for debugging
+> - ~~Deterministic RNG~~ → Per-world seeded random
+> - ~~System Hooks~~ → Global before/after callbacks
+> - ~~Bundles~~ → Component grouping with generated methods
+> - ~~Mixins~~ → Compile-time field composition
+> - ~~Project Templates~~ → `dotnet new keeneyes-game`
 
 ---
 
@@ -1029,13 +1348,33 @@ When choosing a UI framework for the editor:
 
 Building a rudimentary editor for KeenEyes is **feasible with minimal effort**. The architecture was designed with editor-friendly patterns and now includes comprehensive tooling:
 
+### Core Infrastructure
 - **Per-world isolation** enables editor/game separation
 - **Event system** enables reactive UI updates
 - **Plugin system** enables modular editor features
 - **Entity inspection APIs** already exist and are comprehensive
 - **Change tracking** provides foundation for undo/redo
-- **Serialization & Snapshots** provide complete save/load support
+
+### Debugging & Profiling
+- **KeenEyes.Debugging plugin** provides complete profiling, entity inspection, and memory tracking
+- **KeenEyes.Parallelism plugin** provides system dependency graphs and bottleneck detection
+- **Global system hooks** enable non-invasive profiling
+
+### Serialization & Persistence
+- **Serialization & Snapshots** provide complete save/load support (JSON and binary)
+- **Delta saves** enable efficient incremental saves
+- **Encryption and compression** for secure, compact save files
 - **Prefab system** enables entity templates with inheritance
+
+### Advanced Features
+- **Spatial partitioning** (Grid, Quadtree, Octree) for spatial visualization
+- **Physics integration** (BepuPhysics) for physics debugging
+- **Multi-world support** for separate editor/game worlds
+- **Deterministic RNG** for replay and testing
+- **Component bundles and mixins** for rapid entity creation
+- **Project templates** for quick-start development
+
+### Designer Experience
 - **Pluggable logging** enables debug output and diagnostics
 - **String tags** enable designer-friendly entity categorization
 - **Component validation** enables dependency visualization
@@ -1047,7 +1386,7 @@ The main work involves:
 2. **Adding undo/redo** (layer on ChangeTracker + Snapshots)
 3. **Hot reload** (AssemblyLoadContext approach recommended)
 
-The framework provides approximately **90% of the infrastructure** needed for a full-featured editor. The remaining 10% is primarily UI/UX, undo/redo transactions, and hot reload.
+The framework provides approximately **95% of the infrastructure** needed for a full-featured editor. The remaining 5% is UI/UX, undo/redo transactions, and hot reload—all of which have clear implementation paths using the existing APIs.
 
 ---
 
@@ -1064,14 +1403,41 @@ The framework provides approximately **90% of the infrastructure** needed for a 
 - [C# Scripting Engine Hot Reloading - Kah Wei Blog](https://kahwei.dev/2023/08/07/c-scripting-engine-part-7-hot-reloading/)
 - [Runtime NuGet Package Loading - Rick Strahl](https://weblog.west-wind.com/posts/2025/Jun/09/Adding-Runtime-NuGet-Package-Loading-to-an-Application)
 
-### KeenEyes Framework
+### KeenEyes Framework - Core
 - Plugin System: `src/KeenEyes.Core/PluginManager.cs`
 - Event System: `src/KeenEyes.Core/EventManager.cs`
 - Change Tracking: `src/KeenEyes.Core/Events/ChangeTracker.cs`
 - Memory Stats: `src/KeenEyes.Core/Pooling/MemoryStats.cs`
-- Entity Inspection: `src/KeenEyes.Core/World.cs` (lines 244-660)
+- Entity Inspection: `src/KeenEyes.Core/World.cs`
 - Hierarchy: `src/KeenEyes.Core/HierarchyManager.cs`
 - Messaging: `src/KeenEyes.Core/MessageManager.cs`
+- Multi-World: `src/KeenEyes.Core/World.cs` (Id, Name properties)
+- Deterministic RNG: `src/KeenEyes.Core/World.Random.cs`
+- System Hooks: `src/KeenEyes.Core/World.SystemHooks.cs`
+
+### KeenEyes Framework - Serialization
+- Snapshot Manager: `src/KeenEyes.Core/Serialization/SnapshotManager.cs`
+- Save Manager: `src/KeenEyes.Core/SaveManager.cs`
+- Delta Differ: `src/KeenEyes.Core/Serialization/DeltaDiffer.cs`
+- Delta Restorer: `src/KeenEyes.Core/Serialization/DeltaRestorer.cs`
+- Binary Format: `src/KeenEyes.Core/Serialization/SaveFileFormat.cs`
+- Encryption: `src/KeenEyes.Persistence/EncryptedPersistenceApi.cs`
+
+### KeenEyes Framework - Plugins
+- Debugging Plugin: `src/KeenEyes.Debugging/`
+- Parallelism Plugin: `src/KeenEyes.Parallelism/`
+- Spatial Plugin: `src/KeenEyes.Spatial/`
+- Physics Plugin: `src/KeenEyes.Physics/`
+- Graphics Plugin: `src/KeenEyes.Graphics/`
+
+### KeenEyes Framework - Source Generators
+- Bundle Generator: `src/KeenEyes.Generators/BundleGenerator.cs`
+- Mixin Generator: `src/KeenEyes.Generators/MixinGenerator.cs`
+- Component Generator: `src/KeenEyes.Generators/ComponentGenerator.cs`
+
+### KeenEyes Framework - Templates
+- Game Template: `templates/keeneyes-game/`
+- Plugin Template: `templates/keeneyes-plugin/`
 
 ### Editor Architecture References
 - [Unity Editor Scripting Documentation](https://docs.unity3d.com/Manual/ExtendingTheEditor.html)
