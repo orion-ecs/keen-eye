@@ -39,6 +39,7 @@ public sealed partial class World : IWorld
     private readonly ComponentArrayPoolManager arrayPoolManager = new();
     private readonly StatisticsManager statisticsManager;
     private readonly EntityBuilder builder;
+    private SaveManager? saveManager;
 
     /// <summary>
     /// Unique identifier for this world instance.

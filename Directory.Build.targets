@@ -1,7 +1,7 @@
 <Project>
-  <!-- Auto-install Husky git hooks after restore -->
-  <Target Name="HuskyRestoreTools" BeforeTargets="Restore">
-    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" />
+  <!-- Auto-install Husky git hooks after restore (disabled for CI/web sessions) -->
+  <Target Name="HuskyRestoreTools" BeforeTargets="Restore" Condition="'$(SKIP_HUSKY)' != 'true' AND '$(CI)' != 'true'">
+    <Exec Command="dotnet tool restore" StandardOutputImportance="Low" StandardErrorImportance="High" IgnoreExitCode="true" />
   </Target>
 
   <Target Name="HuskyInstall" AfterTargets="Restore" Condition="'$(HUSKY)' != '0' AND '$(CI)' != 'true'">
