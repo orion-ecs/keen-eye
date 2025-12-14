@@ -276,6 +276,9 @@ public readonly struct QueryBuilder<T1, T2> : IQueryBuilder<T1, T2>
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
 
+    /// <summary>Gets the world this query operates on.</summary>
+    public World World => world;
+
     /// <summary>Gets an enumerator for iterating over matching entities.</summary>
     public QueryEnumerator<T1, T2> GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
@@ -361,6 +364,9 @@ public readonly struct QueryBuilder<T1, T2, T3> : IQueryBuilder<T1, T2, T3>
 
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
+
+    /// <summary>Gets the world this query operates on.</summary>
+    public World World => world;
 
     /// <summary>Gets an enumerator for iterating over matching entities.</summary>
     public QueryEnumerator<T1, T2, T3> GetEnumerator() => new(world, description);
@@ -449,6 +455,9 @@ public readonly struct QueryBuilder<T1, T2, T3, T4> : IQueryBuilder<T1, T2, T3, 
 
     /// <summary>Gets the query description.</summary>
     public QueryDescription Description => description;
+
+    /// <summary>Gets the world this query operates on.</summary>
+    public World World => world;
 
     /// <summary>Gets an enumerator for iterating over matching entities.</summary>
     public QueryEnumerator<T1, T2, T3, T4> GetEnumerator() => new(world, description);
