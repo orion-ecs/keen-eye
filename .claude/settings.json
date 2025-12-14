@@ -28,6 +28,10 @@
           {
             "type": "command",
             "command": "./scripts/resume-dotnet.sh"
+          },
+          {
+            "type": "command",
+            "command": "./.claude/hooks/install-gh-cli.sh"
           }
         ]
       }
