@@ -103,6 +103,10 @@ done
 # These are needed for husky and other tooling
 download_pkg "husky" "0.8.0"
 
+# AOT compiler runtime packages (not in packages.lock.json, resolved at restore time)
+download_pkg "runtime.linux-x64.Microsoft.DotNet.ILCompiler" "10.0.1"
+download_pkg "Microsoft.DotNet.ILCompiler" "10.0.1"
+
 # Clean up
 rm -f "$PACKAGES_FILE"
 
