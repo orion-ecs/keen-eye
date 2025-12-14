@@ -9,6 +9,8 @@ KeenEyes is fully compatible with .NET Native AOT, allowing you to compile your 
 - **Self-contained deployment** - Single executable, no .NET runtime required
 - **Improved security** - Reduced attack surface, no dynamic code generation
 
+> **Performance Data**: See [AOT vs JIT Performance Benchmarks](performance/aot-vs-jit-benchmarks.md) for detailed performance comparisons and recommendations.
+
 ## Quick Start
 
 ### 1. Create an AOT-enabled project
@@ -207,6 +209,12 @@ cd samples/KeenEyes.Sample.Aot
 dotnet publish -c Release -r linux-x64
 ./bin/Release/net10.0/linux-x64/publish/KeenEyes.Sample.Aot
 ```
+
+## Performance Benchmarks
+
+For detailed performance comparisons between AOT and JIT compilation modes, including startup time, memory usage, binary size, and runtime performance:
+
+- [AOT vs JIT Performance Benchmarks](performance/aot-vs-jit-benchmarks.md)
 
 ## Further Reading
 
