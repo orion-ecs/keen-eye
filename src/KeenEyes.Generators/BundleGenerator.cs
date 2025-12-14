@@ -729,7 +729,14 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"    /// <example>");
             sb.AppendLine($"    /// <code>");
             sb.AppendLine($"    /// ref var bundle = ref world.GetBundle(entity, default({info.FullName}));");
-            sb.AppendLine($"    /// bundle.{info.Fields[0].Name}./* modify component */;");
+            if (info.Fields.Length > 0)
+            {
+                sb.AppendLine($"    /// bundle.{info.Fields[0].Name}./* modify component */;");
+            }
+            else
+            {
+                sb.AppendLine($"    /// // Empty bundle");
+            }
             sb.AppendLine($"    /// </code>");
             sb.AppendLine($"    /// </example>");
             sb.AppendLine($"    [global::System.Runtime.CompilerServices.MethodImpl(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]");
