@@ -161,6 +161,38 @@ keen-eye/
 - Nullable reference types enabled everywhere
 - Treat warnings as errors
 
+### Floating-Point Comparisons
+
+**Never use `==` to compare floats.** Due to floating-point precision limitations, direct equality checks are unreliable.
+
+Use the extension methods from `KeenEyes.Common.FloatExtensions`:
+
+```csharp
+using KeenEyes.Common;
+
+// ❌ BAD: Direct equality (unreliable)
+if (activity.SleepThreshold == 0)
+
+// ✅ GOOD: Tolerance-based comparison
+if (activity.SleepThreshold.IsApproximatelyZero())
+
+// ❌ BAD: Direct comparison
+if (valueA == valueB)
+
+// ✅ GOOD: Approximate equality
+if (valueA.ApproximatelyEquals(valueB))
+```
+
+**Available methods:**
+| Method | Description |
+|--------|-------------|
+| `IsApproximatelyZero()` | Check if value is close to zero (epsilon: 1e-6f) |
+| `IsApproximatelyZero(epsilon)` | Check with custom tolerance |
+| `ApproximatelyEquals(other)` | Compare two floats for near-equality |
+| `ApproximatelyEquals(other, epsilon)` | Compare with custom tolerance |
+
+The default epsilon (1e-6f) is suitable for most game development scenarios. Use custom epsilon for specific precision requirements.
+
 ### C# 13 Extension Members
 
 This project uses C# 13 **extension members** (not to be confused with traditional extension methods). Extension members allow adding properties directly to types:
