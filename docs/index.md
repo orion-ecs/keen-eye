@@ -70,6 +70,7 @@ foreach (var e in world.Query<Position, Velocity>())
 
 ### Libraries
 - [Abstractions](abstractions.md) - Lightweight interfaces for plugin development
+- [Common](common.md) - Shared utilities (float extensions, velocity components)
 - [Spatial](spatial.md) - 3D transform components with System.Numerics
   - [Getting Started with Spatial Partitioning](spatial-partitioning/getting-started.md) - Grid, Quadtree, and Octree queries
   - [Strategy Selection Guide](spatial-partitioning/strategy-selection.md) - Choose the right spatial strategy

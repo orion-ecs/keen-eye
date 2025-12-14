@@ -7,6 +7,9 @@
     <PublishAot>true</PublishAot>
     <!-- Not a test project - this is a standalone AOT validation executable -->
     <IsTestProject>false</IsTestProject>
+    <!-- Suppress KEEN040: This minimal AOT test uses exact literal comparisons (no arithmetic)
+         and intentionally doesn't reference KeenEyes.Common to keep dependencies minimal -->
+    <NoWarn>$(NoWarn);KEEN040</NoWarn>
   </PropertyGroup>
 
   <!-- AOT publishing configuration -->
