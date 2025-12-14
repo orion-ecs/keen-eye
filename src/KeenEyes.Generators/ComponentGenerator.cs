@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -292,7 +293,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
 
                 foreach (var field in info.Fields)
                 {
-                    var paramName = ToCamelCase(field.Name);
+                    var paramName = StringHelpers.ToCamelCase(field.Name);
                     var defaultExpr = GetDefaultExpression(field);
 
                     if (field.IsRequired || defaultExpr is null)
@@ -383,23 +384,6 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             "char" or "System.Char" => "'\\0'",
             _ => "default"
         };
-    }
-
-    private static string ToCamelCase(string name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
-            return name;
-        }
-
-        // Handle names like "X", "Y", "Z" - keep them lowercase
-        if (name.Length == 1)
-        {
-            return name.ToLowerInvariant();
-        }
-
-        // Handle PascalCase -> camelCase
-        return char.ToLowerInvariant(name[0]) + name.Substring(1);
     }
 
     private sealed record ComponentInfo(

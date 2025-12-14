@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -351,7 +352,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var field in component.Fields)
         {
-            var camelFieldName = ToCamelCase(field.Name);
+            var camelFieldName = StringHelpers.ToCamelCase(field.Name);
             sb.AppendLine($"        if (json.TryGetProperty(\"{camelFieldName}\", out var {camelFieldName}Elem))");
             sb.AppendLine("        {");
 
@@ -400,7 +401,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var field in component.Fields)
         {
-            var camelFieldName = ToCamelCase(field.Name);
+            var camelFieldName = StringHelpers.ToCamelCase(field.Name);
 
             if (field.JsonTypeName == "Object")
             {
@@ -490,21 +491,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 => $"writer.Write({valueExpr});",
             _ => $"writer.Write(JsonSerializer.Serialize({valueExpr}));" // Complex types as JSON
         };
-    }
-
-    private static string ToCamelCase(string name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
-            return name;
-        }
-
-        if (name.Length == 1)
-        {
-            return name.ToLowerInvariant();
-        }
-
-        return char.ToLowerInvariant(name[0]) + name.Substring(1);
     }
 
     private sealed record SerializableComponentInfo(
