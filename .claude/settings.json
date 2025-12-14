@@ -15,6 +15,10 @@
           {
             "type": "command",
             "command": "./.claude/hooks/install-packages.sh"
+          },
+          {
+            "type": "command",
+            "command": "./.claude/hooks/install-gh-cli.sh"
           }
         ]
       },
