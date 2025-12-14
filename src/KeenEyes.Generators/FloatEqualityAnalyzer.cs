@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
@@ -125,8 +126,8 @@ public sealed class FloatEqualityAnalyzer : DiagnosticAnalyzer
             return value switch
             {
                 int i => i == 0,
-                float f => f == 0f,
-                double d => d == 0d,
+                float f => Math.Abs(f) < 1e-6f,
+                double d => Math.Abs(d) < 1e-9,
                 long l => l == 0L,
                 short s => s == 0,
                 byte b => b == 0,
