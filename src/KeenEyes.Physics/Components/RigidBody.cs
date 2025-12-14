@@ -1,3 +1,5 @@
+using KeenEyes.Common;
+
 namespace KeenEyes.Physics.Components;
 
 /// <summary>
@@ -98,7 +100,7 @@ public struct RigidBody(float mass, ActivityDescription activity = default) : IC
     /// <summary>
     /// Activity settings controlling when the body sleeps.
     /// </summary>
-    public ActivityDescription Activity = activity.SleepThreshold == 0 ? ActivityDescription.Default : activity;
+    public ActivityDescription Activity = activity.SleepThreshold.IsApproximatelyZero() ? ActivityDescription.Default : activity;
 
     /// <summary>
     /// Creates a dynamic rigid body with the specified mass.
