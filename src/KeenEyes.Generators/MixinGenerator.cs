@@ -142,11 +142,12 @@ public sealed class MixinGenerator : IIncrementalGenerator
             }
 
             // Extract fields from mixin, checking for circular references
+            var currentPath = new HashSet<string>();
             var fields = ExtractMixinFields(
                 mixinType,
                 typeSymbol,
                 context.SemanticModel.Compilation,
-                [],
+                currentPath,
                 depth: 0,
                 diagnostics,
                 location ?? typeSymbol.Locations.FirstOrDefault()!);
@@ -228,7 +229,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
         INamedTypeSymbol mixinType,
         INamedTypeSymbol targetType,
         Compilation compilation,
-        HashSet<string> visited,
+        HashSet<string> currentPath,
         int depth,
         List<DiagnosticInfo> diagnostics,
         Location errorLocation)
@@ -241,23 +242,25 @@ public sealed class MixinGenerator : IIncrementalGenerator
             diagnostics.Add(new DiagnosticInfo(
                 Diagnostics.MixinCircularReference,
                 errorLocation,
-                [targetType.Name, string.Join(" -> ", visited)]));
+                [targetType.Name, string.Join(" -> ", currentPath)]));
             return fields;
         }
 
         var mixinTypeName = mixinType.ToDisplayString();
 
         // KEEN027: Check for circular reference
-        if (visited.Contains(mixinTypeName))
+        // A cycle exists if this type is already in the current path
+        if (currentPath.Contains(mixinTypeName))
         {
             diagnostics.Add(new DiagnosticInfo(
                 Diagnostics.MixinCircularReference,
                 errorLocation,
-                [targetType.Name, string.Join(" -> ", visited.Append(mixinTypeName))]));
+                [targetType.Name, string.Join(" -> ", currentPath.Append(mixinTypeName))]));
             return fields;
         }
 
-        visited.Add(mixinTypeName);
+        // Add to current path for cycle detection
+        currentPath.Add(mixinTypeName);
 
         // Extract all instance fields from the mixin
         foreach (var member in mixinType.GetMembers())
@@ -296,7 +299,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
                 nestedMixinType,
                 targetType,
                 compilation,
-                visited,
+                currentPath,
                 depth + 1,
                 diagnostics,
                 errorLocation);
@@ -304,7 +307,10 @@ public sealed class MixinGenerator : IIncrementalGenerator
             fields.AddRange(nestedFields);
         }
 
-        visited.Remove(mixinTypeName);
+        // Remove from current path after processing this branch
+        // This allows the same type to be visited through different paths (diamond dependencies)
+        // while still detecting true cycles (type depends on itself)
+        currentPath.Remove(mixinTypeName);
 
         return fields;
     }

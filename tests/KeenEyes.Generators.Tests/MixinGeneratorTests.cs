@@ -628,6 +628,218 @@ public class MixinGeneratorTests
         Assert.Contains("public int Value;", mixinCode);
     }
 
+    #region Circular Reference Detection Tests (Issue #377)
+
+    [Fact]
+    public void MixinGenerator_WithIndirectCircularReference_ReportsError()
+    {
+        // A -> B -> C -> A (indirect cycle)
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            [Mixin(typeof(B))]
+            public partial struct A
+            {
+                public int ValueA;
+            }
+
+            [Component]
+            [Mixin(typeof(C))]
+            public partial struct B
+            {
+                public int ValueB;
+            }
+
+            [Component]
+            [Mixin(typeof(A))]
+            public partial struct C
+            {
+                public int ValueC;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.Contains(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("circular"));
+    }
+
+    [Fact]
+    public void MixinGenerator_WithDiamondDependency_AllowsMultiplePaths()
+    {
+        // A -> B and A -> C (two independent mixins, not a cycle or diamond really)
+        // This tests that having multiple mixins doesn't cause false cycle detection
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public struct B
+            {
+                public int ValueB;
+            }
+
+            public struct C
+            {
+                public int ValueC;
+            }
+
+            [Component]
+            [Mixin(typeof(B))]
+            [Mixin(typeof(C))]
+            public partial struct A
+            {
+                public int ValueA;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should NOT report circular reference error
+        Assert.DoesNotContain(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code successfully
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var mixinCode = generatedTrees.FirstOrDefault(t => t.Contains("partial struct A"));
+        Assert.NotNull(mixinCode);
+        Assert.Contains("public int ValueB;", mixinCode);
+        Assert.Contains("public int ValueC;", mixinCode);
+    }
+
+    [Fact]
+    public void MixinGenerator_WithComplexCycle_ReportsError()
+    {
+        // Complex case: A -> B -> D -> A (cycle through transitive dependencies)
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            [Mixin(typeof(B))]
+            public partial struct A
+            {
+                public int ValueA;
+            }
+
+            [Mixin(typeof(D))]
+            public partial struct B
+            {
+                public int ValueB;
+            }
+
+            [Component]
+            [Mixin(typeof(A))]
+            public partial struct D
+            {
+                public int ValueD;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should detect the cycle: A -> B -> D -> A
+        Assert.Contains(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("circular"));
+    }
+
+    [Fact]
+    public void MixinGenerator_WithFourLevelIndirectCycle_ReportsError()
+    {
+        // A -> B -> C -> D -> A (four-level indirect cycle)
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            [Mixin(typeof(B))]
+            public partial struct A
+            {
+                public int ValueA;
+            }
+
+            [Component]
+            [Mixin(typeof(C))]
+            public partial struct B
+            {
+                public int ValueB;
+            }
+
+            [Component]
+            [Mixin(typeof(D))]
+            public partial struct C
+            {
+                public int ValueC;
+            }
+
+            [Component]
+            [Mixin(typeof(A))]
+            public partial struct D
+            {
+                public int ValueD;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.Contains(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("circular"));
+    }
+
+    [Fact]
+    public void MixinGenerator_WithTransitiveChain_AllowsMultipleLevels()
+    {
+        // Test transitive mixins with multiple branches: A -> B/C/D (each independent)
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public struct B
+            {
+                public int ValueB;
+            }
+
+            public struct C
+            {
+                public int ValueC;
+            }
+
+            public struct D
+            {
+                public int ValueD;
+            }
+
+            [Component]
+            [Mixin(typeof(B))]
+            [Mixin(typeof(C))]
+            [Mixin(typeof(D))]
+            public partial struct A
+            {
+                public int ValueA;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should NOT report circular reference - this is a valid structure
+        Assert.DoesNotContain(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
+
+        // Should generate code successfully
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var mixinCode = generatedTrees.FirstOrDefault(t => t.Contains("partial struct A"));
+        Assert.NotNull(mixinCode);
+        Assert.Contains("public int ValueB;", mixinCode);
+        Assert.Contains("public int ValueC;", mixinCode);
+        Assert.Contains("public int ValueD;", mixinCode);
+    }
+
+    #endregion
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
