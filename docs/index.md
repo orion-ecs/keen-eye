@@ -18,6 +18,7 @@ KeenEyes is a high-performance Entity Component System (ECS) framework for .NET 
 - **Entities are IDs** - Lightweight `(int Id, int Version)` tuples for staleness detection.
 - **Fluent Queries** - `world.Query<A, B>().With<C>().Without<D>()`
 - **Source Generators** - Reduce boilerplate while maintaining performance.
+- **Parallel Execution** - Automatic system batching and job system for multi-threaded processing.
 
 ## Getting Started
 
@@ -57,6 +58,7 @@ foreach (var e in world.Query<Position, Velocity>())
 - [Systems](systems.md) - System design patterns
 - [Messaging](messaging.md) - Inter-system communication patterns
 - [Plugins](plugins.md) - Modular extensions and feature packaging
+- [Parallelism](parallelism.md) - Parallel system execution and job system
 - [Command Buffer](command-buffer.md) - Safe entity modification during iteration
 - [Singletons](singletons.md) - World-level resources
 - [Relationships](relationships.md) - Parent-child entity hierarchies
