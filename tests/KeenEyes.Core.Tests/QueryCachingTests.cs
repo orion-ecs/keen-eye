@@ -614,4 +614,343 @@ public class QueryCachingTests
     }
 
     #endregion
+
+    #region Thread Safety Tests
+
+    [Fact]
+    public void QueryManager_ConcurrentAccess_ThreadSafe()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+        world.Components.Register<Health>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        // Create initial archetypes
+        manager.GetOrCreateArchetype([typeof(Position)]);
+        manager.GetOrCreateArchetype([typeof(Velocity)]);
+
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+
+        const int threadCount = 10;
+        const int iterationsPerThread = 1000;
+        var exceptions = new List<Exception>();
+        var exceptionLock = new object();
+
+        var threads = new Thread[threadCount];
+        var startBarrier = new Barrier(threadCount);
+
+        for (var i = 0; i < threadCount; i++)
+        {
+            threads[i] = new Thread(() =>
+            {
+                try
+                {
+                    startBarrier.SignalAndWait();
+
+                    for (var j = 0; j < iterationsPerThread; j++)
+                    {
+                        var result = queryManager.GetMatchingArchetypes(description);
+                        Assert.NotNull(result);
+                        Assert.True(result.Count >= 1);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (exceptionLock)
+                    {
+                        exceptions.Add(ex);
+                    }
+                }
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        Assert.Empty(exceptions);
+    }
+
+    [Fact]
+    public void QueryManager_ConcurrentAccessWithArchetypeCreation_ThreadSafe()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+        world.Components.Register<Health>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        // Create initial archetype
+        manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+
+        const int readerThreadCount = 5;
+        const int iterationsPerThread = 500;
+        var exceptions = new List<Exception>();
+        var exceptionLock = new object();
+        var stopFlag = new ManualResetEventSlim(false);
+
+        // Reader threads that continuously query
+        var readerThreads = new Thread[readerThreadCount];
+        for (var i = 0; i < readerThreadCount; i++)
+        {
+            readerThreads[i] = new Thread(() =>
+            {
+                try
+                {
+                    for (var j = 0; j < iterationsPerThread && !stopFlag.IsSet; j++)
+                    {
+                        var result = queryManager.GetMatchingArchetypes(description);
+                        Assert.NotNull(result);
+                        // May be 1, 2, or 3 depending on when archetypes are created
+                        Assert.True(result.Count >= 1);
+
+                        // Small delay to spread out access
+                        Thread.SpinWait(10);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (exceptionLock)
+                    {
+                        exceptions.Add(ex);
+                    }
+                }
+            });
+        }
+
+        // Writer thread that creates new archetypes
+        var writerThread = new Thread(() =>
+        {
+            try
+            {
+                Thread.Sleep(10); // Let readers start first
+                manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+                Thread.Sleep(10);
+                manager.GetOrCreateArchetype([typeof(Position), typeof(Health)]);
+            }
+            catch (Exception ex)
+            {
+                lock (exceptionLock)
+                {
+                    exceptions.Add(ex);
+                }
+            }
+        });
+
+        foreach (var thread in readerThreads)
+        {
+            thread.Start();
+        }
+
+        writerThread.Start();
+
+        writerThread.Join();
+        stopFlag.Set();
+
+        foreach (var thread in readerThreads)
+        {
+            thread.Join();
+        }
+
+        Assert.Empty(exceptions);
+
+        // Verify final state
+        var finalResult = queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(3, finalResult.Count);
+    }
+
+    [Fact]
+    public void QueryManager_DifferentQueriesConcurrently_ThreadSafe()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+        world.Components.Register<Health>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        // Create archetypes
+        manager.GetOrCreateArchetype([typeof(Position)]);
+        manager.GetOrCreateArchetype([typeof(Velocity)]);
+        manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+        manager.GetOrCreateArchetype([typeof(Health)]);
+
+        var posDescription = new QueryDescription();
+        posDescription.AddWrite<Position>();
+
+        var velDescription = new QueryDescription();
+        velDescription.AddWrite<Velocity>();
+
+        var healthDescription = new QueryDescription();
+        healthDescription.AddWrite<Health>();
+
+        const int threadCount = 9; // 3 threads per query type
+        const int iterationsPerThread = 500;
+        var exceptions = new List<Exception>();
+        var exceptionLock = new object();
+        var startBarrier = new Barrier(threadCount);
+
+        var threads = new Thread[threadCount];
+        var descriptions = new[] { posDescription, velDescription, healthDescription };
+
+        for (var i = 0; i < threadCount; i++)
+        {
+            var desc = descriptions[i % 3];
+            threads[i] = new Thread(() =>
+            {
+                try
+                {
+                    startBarrier.SignalAndWait();
+
+                    for (var j = 0; j < iterationsPerThread; j++)
+                    {
+                        var result = queryManager.GetMatchingArchetypes(desc);
+                        Assert.NotNull(result);
+                        Assert.True(result.Count >= 1);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (exceptionLock)
+                    {
+                        exceptions.Add(ex);
+                    }
+                }
+            });
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Start();
+        }
+
+        foreach (var thread in threads)
+        {
+            thread.Join();
+        }
+
+        Assert.Empty(exceptions);
+
+        // Verify all queries are cached
+        Assert.True(queryManager.CachedQueryCount >= 3);
+    }
+
+    [Fact]
+    public void ArchetypeCache_ConcurrentAddAndRead_ThreadSafe()
+    {
+        // This tests the internal ArchetypeCache directly through QueryManager behavior
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        // Prime the cache with initial archetype
+        manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+
+        // Get initial cached result
+        var initialResult = queryManager.GetMatchingArchetypes(description);
+        Assert.Single(initialResult);
+
+        const int readerCount = 5;
+        const int archetypesToAdd = 50;
+        var exceptions = new List<Exception>();
+        var exceptionLock = new object();
+
+        var readerThreads = new Thread[readerCount];
+        var writerComplete = new ManualResetEventSlim(false);
+
+        // Start reader threads
+        for (var i = 0; i < readerCount; i++)
+        {
+            readerThreads[i] = new Thread(() =>
+            {
+                try
+                {
+                    while (!writerComplete.IsSet)
+                    {
+                        var result = queryManager.GetMatchingArchetypes(description);
+                        Assert.NotNull(result);
+                        // Result count should only grow
+                        Assert.True(result.Count >= 1);
+
+                        // Iterate to ensure snapshot is stable
+                        var count = 0;
+                        foreach (var archetype in result)
+                        {
+                            Assert.NotNull(archetype);
+                            count++;
+                        }
+
+                        Assert.Equal(result.Count, count);
+                        Thread.SpinWait(5);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (exceptionLock)
+                    {
+                        exceptions.Add(ex);
+                    }
+                }
+            });
+            readerThreads[i].Start();
+        }
+
+        // Writer creates many archetypes that match the query
+        try
+        {
+            for (var i = 0; i < archetypesToAdd; i++)
+            {
+                // Create archetypes that include Position but have different combinations
+                var types = new List<Type> { typeof(Position) };
+
+                // Add Velocity to some to vary the archetypes
+                if (i % 2 == 0)
+                {
+                    types.Add(typeof(Velocity));
+                }
+
+                manager.GetOrCreateArchetype([.. types]);
+                Thread.SpinWait(10);
+            }
+        }
+        finally
+        {
+            writerComplete.Set();
+        }
+
+        foreach (var thread in readerThreads)
+        {
+            thread.Join();
+        }
+
+        Assert.Empty(exceptions);
+
+        // Final result should have all matching archetypes (Position only + Position+Velocity)
+        var finalResult = queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(2, finalResult.Count);
+    }
+
+    #endregion
 }
