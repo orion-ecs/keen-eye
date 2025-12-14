@@ -197,11 +197,47 @@ public readonly struct QueryBuilder<T1> : IQueryBuilder<T1>
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    public int Count()
+    {
+        var archetypes = world.GetMatchingArchetypes(description);
+
+        // Fast path: no string tag filters, just sum archetype counts
+        if (!description.HasStringTagFilters)
+        {
+            var count = 0;
+            for (var i = 0; i < archetypes.Count; i++)
+            {
+                count += archetypes[i].Count;
+            }
+            return count;
+        }
+
+        // Slow path: need to check string tags per entity
+        var total = 0;
+        foreach (var _ in this)
+        {
+            total++;
+        }
+        return total;
+    }
+
     // Explicit interface implementations to return IQueryBuilder
     IQueryBuilder<T1> IQueryBuilder<T1>.With<TWith>() => With<TWith>();
     IQueryBuilder<T1> IQueryBuilder<T1>.Without<TWithout>() => Without<TWithout>();
     IQueryBuilder<T1> IQueryBuilder<T1>.WithTag(string tag) => WithTag(tag);
     IQueryBuilder<T1> IQueryBuilder<T1>.WithoutTag(string tag) => WithoutTag(tag);
+    int IQueryBuilder<T1>.Count() => Count();
 
     private static void ValidateTag(string tag)
     {
@@ -284,11 +320,47 @@ public readonly struct QueryBuilder<T1, T2> : IQueryBuilder<T1, T2>
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    public int Count()
+    {
+        var archetypes = world.GetMatchingArchetypes(description);
+
+        // Fast path: no string tag filters, just sum archetype counts
+        if (!description.HasStringTagFilters)
+        {
+            var count = 0;
+            for (var i = 0; i < archetypes.Count; i++)
+            {
+                count += archetypes[i].Count;
+            }
+            return count;
+        }
+
+        // Slow path: need to check string tags per entity
+        var total = 0;
+        foreach (var _ in this)
+        {
+            total++;
+        }
+        return total;
+    }
+
     // Explicit interface implementations to return IQueryBuilder
     IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.With<TWith>() => With<TWith>();
     IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.Without<TWithout>() => Without<TWithout>();
     IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.WithTag(string tag) => WithTag(tag);
     IQueryBuilder<T1, T2> IQueryBuilder<T1, T2>.WithoutTag(string tag) => WithoutTag(tag);
+    int IQueryBuilder<T1, T2>.Count() => Count();
 
     private static void ValidateTag(string tag)
     {
@@ -373,11 +445,47 @@ public readonly struct QueryBuilder<T1, T2, T3> : IQueryBuilder<T1, T2, T3>
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    public int Count()
+    {
+        var archetypes = world.GetMatchingArchetypes(description);
+
+        // Fast path: no string tag filters, just sum archetype counts
+        if (!description.HasStringTagFilters)
+        {
+            var count = 0;
+            for (var i = 0; i < archetypes.Count; i++)
+            {
+                count += archetypes[i].Count;
+            }
+            return count;
+        }
+
+        // Slow path: need to check string tags per entity
+        var total = 0;
+        foreach (var _ in this)
+        {
+            total++;
+        }
+        return total;
+    }
+
     // Explicit interface implementations to return IQueryBuilder
     IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.With<TWith>() => With<TWith>();
     IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.Without<TWithout>() => Without<TWithout>();
     IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.WithTag(string tag) => WithTag(tag);
     IQueryBuilder<T1, T2, T3> IQueryBuilder<T1, T2, T3>.WithoutTag(string tag) => WithoutTag(tag);
+    int IQueryBuilder<T1, T2, T3>.Count() => Count();
 
     private static void ValidateTag(string tag)
     {
@@ -464,11 +572,47 @@ public readonly struct QueryBuilder<T1, T2, T3, T4> : IQueryBuilder<T1, T2, T3, 
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    public int Count()
+    {
+        var archetypes = world.GetMatchingArchetypes(description);
+
+        // Fast path: no string tag filters, just sum archetype counts
+        if (!description.HasStringTagFilters)
+        {
+            var count = 0;
+            for (var i = 0; i < archetypes.Count; i++)
+            {
+                count += archetypes[i].Count;
+            }
+            return count;
+        }
+
+        // Slow path: need to check string tags per entity
+        var total = 0;
+        foreach (var _ in this)
+        {
+            total++;
+        }
+        return total;
+    }
+
     // Explicit interface implementations to return IQueryBuilder
     IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.With<TWith>() => With<TWith>();
     IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.Without<TWithout>() => Without<TWithout>();
     IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.WithTag(string tag) => WithTag(tag);
     IQueryBuilder<T1, T2, T3, T4> IQueryBuilder<T1, T2, T3, T4>.WithoutTag(string tag) => WithoutTag(tag);
+    int IQueryBuilder<T1, T2, T3, T4>.Count() => Count();
 
     private static void ValidateTag(string tag)
     {

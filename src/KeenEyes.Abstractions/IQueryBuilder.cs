@@ -38,6 +38,19 @@ public interface IQueryBuilder<T1> : IEnumerable<Entity>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     IQueryBuilder<T1> WithoutTag(string tag);
+
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    int Count();
 }
 
 /// <summary>
@@ -80,6 +93,19 @@ public interface IQueryBuilder<T1, T2> : IEnumerable<Entity>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     IQueryBuilder<T1, T2> WithoutTag(string tag);
+
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    int Count();
 }
 
 /// <summary>
@@ -124,6 +150,19 @@ public interface IQueryBuilder<T1, T2, T3> : IEnumerable<Entity>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     IQueryBuilder<T1, T2, T3> WithoutTag(string tag);
+
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    int Count();
 }
 
 /// <summary>
@@ -170,4 +209,17 @@ public interface IQueryBuilder<T1, T2, T3, T4> : IEnumerable<Entity>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     IQueryBuilder<T1, T2, T3, T4> WithoutTag(string tag);
+
+    /// <summary>
+    /// Counts the number of entities matching this query.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method is optimized to avoid LINQ overhead and is safe to use in hot paths.
+    /// When no string tag filters are applied, it sums archetype counts directly (O(archetypes)).
+    /// When string tag filters are present, it must iterate entities (O(entities)).
+    /// </para>
+    /// </remarks>
+    /// <returns>The number of entities matching the query.</returns>
+    int Count();
 }

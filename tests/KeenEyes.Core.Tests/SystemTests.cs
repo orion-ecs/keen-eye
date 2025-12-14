@@ -37,7 +37,12 @@ public class TestWorldAccessSystem : SystemBase
 
     public override void Update(float deltaTime)
     {
-        EntityCount = World.GetAllEntities().Count();
+        var count = 0;
+        foreach (var _ in World.GetAllEntities())
+        {
+            count++;
+        }
+        EntityCount = count;
     }
 }
 
