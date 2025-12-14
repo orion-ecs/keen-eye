@@ -291,6 +291,12 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        return false;");
         sb.AppendLine("    }");
         sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public object? CreateDefault(string typeName)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return TypesByName.TryGetValue(typeName, out var type) ? Activator.CreateInstance(type) : null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// Gets all registered serializable type names.");
         sb.AppendLine("    /// </summary>");

@@ -91,10 +91,15 @@ public static class DeltaRestorer
         }
 
         // 3. Restore parent relationships for new entities
-        foreach (var created in delta.CreatedEntities.Where(e => e.ParentId.HasValue))
+        foreach (var created in delta.CreatedEntities)
         {
+            if (!created.ParentId.HasValue)
+            {
+                continue;
+            }
+
             if (newEntityMap.TryGetValue(created.Id, out var child) &&
-                newEntityMap.TryGetValue(created.ParentId!.Value, out var parent))
+                newEntityMap.TryGetValue(created.ParentId.Value, out var parent))
             {
                 world.SetParent(child, parent);
             }

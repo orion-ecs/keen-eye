@@ -4,9 +4,9 @@
     "net10.0": {
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "ISahzLHsHY7vrwqr2p1YWZ+gsxoBRtH7gWRDK8fDUst9pp2He0GiesaqEfeX0V8QMCJM3eNEHGGpnIcPjFo2NQ=="
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "kICGrGYEzCNI3wPzfEXcwNHgTvlvVn9yJDhSdRK+oZQy4jvYH529u7O0xf5ocQKzOMjfS07+3z9PKRIjrFMJDA=="
       },
       "Silk.NET.Input": {
         "type": "Direct",
@@ -113,19 +113,13 @@
         "contentHash": "Iy22JopynbOJ32vA0lBhFEzGi65GQJBuJHYBYRBpydrDpNoTiHnjIXfA65Gu+8qsOr/ZEoIF8r9aHCgAXuO6DA=="
       },
       "keeneyes.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "keeneyes.common": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
-      },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
       }
     }
   }
