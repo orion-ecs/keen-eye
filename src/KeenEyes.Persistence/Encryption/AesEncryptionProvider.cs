@@ -28,7 +28,7 @@ public sealed class AesEncryptionProvider : IEncryptionProvider
     private const int IvSize = 16;
     private const int KeySize = 32; // 256 bits
     private const int Iterations = 100000;
-    private static readonly HashAlgorithmName HashAlgorithm = HashAlgorithmName.SHA256;
+    private static readonly HashAlgorithmName hashAlgorithm = HashAlgorithmName.SHA256;
 
     private readonly byte[] passwordBytes;
 
@@ -132,6 +132,6 @@ public sealed class AesEncryptionProvider : IEncryptionProvider
     /// </summary>
     private byte[] DeriveKey(byte[] salt)
     {
-        return Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, Iterations, HashAlgorithm, KeySize);
+        return Rfc2898DeriveBytes.Pbkdf2(passwordBytes, salt, Iterations, hashAlgorithm, KeySize);
     }
 }

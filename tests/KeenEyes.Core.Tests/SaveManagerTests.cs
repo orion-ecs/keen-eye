@@ -47,7 +47,7 @@ public class SaveManagerTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             world.Spawn($"Entity{i}")
-                .With(new SerializablePosition { X = i, Y = i * 2 })
+                .With(new SerializablePosition { X = i, Y = i * 2f })
                 .Build();
         }
 
@@ -136,7 +136,7 @@ public class SaveManagerTests : IDisposable
         world.Clear();
         Assert.Empty(world.GetAllEntities());
 
-        var (info, entityMap) = world.LoadFromSlot("slot1", serializer);
+        var (_, entityMap) = world.LoadFromSlot("slot1", serializer);
 
         Assert.Equal(2, world.GetAllEntities().Count());
         Assert.Equal(2, entityMap.Count);
@@ -424,7 +424,7 @@ public class SaveManagerTests : IDisposable
         for (int i = 0; i < 100; i++)
         {
             world.Spawn($"Entity{i}")
-                .With(new SerializablePosition { X = i, Y = i * 2 })
+                .With(new SerializablePosition { X = i, Y = i * 2f })
                 .Build();
         }
 
@@ -436,7 +436,7 @@ public class SaveManagerTests : IDisposable
 
         // Verify we can load it back
         world.Clear();
-        var (loadedInfo, _) = world.LoadFromSlot("slot1", serializer);
+        world.LoadFromSlot("slot1", serializer);
         Assert.Equal(100, world.GetAllEntities().Count());
     }
 
@@ -486,7 +486,7 @@ public class SaveManagerTests : IDisposable
         await world.SaveToSlotAsync("slot1", serializer, cancellationToken: TestContext.Current.CancellationToken);
         world.Clear();
 
-        var (info, entityMap) = await world.LoadFromSlotAsync("slot1", serializer, cancellationToken: TestContext.Current.CancellationToken);
+        var (_, entityMap) = await world.LoadFromSlotAsync("slot1", serializer, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(world.GetAllEntities());
         Assert.Single(entityMap);

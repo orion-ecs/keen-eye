@@ -105,7 +105,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
                 if (info is not null)
                 {
                     // Load the baseline snapshot for delta comparison
-                    var (_, entityMap) = world.LoadFromSlot(config.BaselineSlotName, serializer);
+                    world.LoadFromSlot(config.BaselineSlotName, serializer);
                     baselineSnapshot = SnapshotManager.CreateSnapshot(world, serializer);
 
                     // Find the highest existing delta sequence
