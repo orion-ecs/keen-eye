@@ -148,7 +148,7 @@ public class PersistencePluginTests : IDisposable
         api.SaveToSlot("slot1", serializer);
         world.Clear();
 
-        var (info, entityMap) = api.LoadFromSlot("slot1", serializer);
+        var (_, entityMap) = api.LoadFromSlot("slot1", serializer);
 
         Assert.Single(world.GetAllEntities());
         var player = world.GetEntityByName("Player");
@@ -170,7 +170,7 @@ public class PersistencePluginTests : IDisposable
             .Build();
 
         var api = world.GetExtension<EncryptedPersistenceApi>();
-        var info = api.SaveToSlot("encrypted_slot", serializer);
+        api.SaveToSlot("encrypted_slot", serializer);
 
         Assert.True(File.Exists(api.GetSlotFilePath("encrypted_slot")));
     }
@@ -190,7 +190,7 @@ public class PersistencePluginTests : IDisposable
         api.SaveToSlot("slot1", serializer);
         world.Clear();
 
-        var (info, entityMap) = api.LoadFromSlot("slot1", serializer);
+        var (_, entityMap) = api.LoadFromSlot("slot1", serializer);
 
         var player = world.GetEntityByName("Player");
         Assert.True(player.IsValid);
@@ -328,7 +328,7 @@ public class PersistencePluginTests : IDisposable
             .Build();
 
         var api = world.GetExtension<EncryptedPersistenceApi>();
-        var info = await api.SaveToSlotAsync("async_slot", serializer, cancellationToken: TestContext.Current.CancellationToken);
+        await api.SaveToSlotAsync("async_slot", serializer, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.True(File.Exists(api.GetSlotFilePath("async_slot")));
     }

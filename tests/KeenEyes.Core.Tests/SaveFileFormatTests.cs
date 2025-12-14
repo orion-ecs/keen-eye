@@ -144,7 +144,7 @@ public class SaveFileFormatTests
 
         // ReadMetadata should be fast since it doesn't decompress the data
         using var stream = new MemoryStream(fileData);
-        var readSlotInfo = SaveFileFormat.ReadMetadata(stream);
+        SaveFileFormat.ReadMetadata(stream);
 
         // Verify stream position is at the end of metadata, not end of file
         Assert.True(stream.Position < stream.Length);
