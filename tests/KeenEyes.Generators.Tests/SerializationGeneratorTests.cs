@@ -204,6 +204,60 @@ public class SerializationGeneratorTests
     }
 
     [Fact]
+    public void SerializationGenerator_NullableStringField_AllowsNull()
+    {
+        var source = """
+            #nullable enable
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct NullableStringComponent
+            {
+                public string? Name;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Nullable string should allow null values without throwing
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("Deserialize_NullableStringComponent"));
+        Assert.NotNull(generated);
+        // Should not contain null-forgiving operator on GetString()
+        Assert.DoesNotContain("GetString()!", generated);
+        // Should not throw JsonException for this field
+        Assert.DoesNotContain("Non-nullable field 'Name' was null", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_NonNullableStringField_ThrowsOnNull()
+    {
+        var source = """
+            #nullable enable
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct NonNullableStringComponent
+            {
+                public string Name;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Non-nullable string should throw JsonException on null
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("Deserialize_NonNullableStringComponent"));
+        Assert.NotNull(generated);
+        // Should throw JsonException with field name in error message
+        Assert.Contains("Non-nullable field 'Name' was null", generated);
+    }
+
+    [Fact]
     public void SerializationGenerator_HandlesLongField()
     {
         var source = """
@@ -961,7 +1015,9 @@ public class SerializationGeneratorTests
             "TestAssembly",
             [syntaxTree],
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable));
 
         var generator = new SerializationGenerator();
         GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);

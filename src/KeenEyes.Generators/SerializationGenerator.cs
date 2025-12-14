@@ -81,10 +81,12 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 continue;
             }
 
+            var isNullable = field.Type.NullableAnnotation == NullableAnnotation.Annotated;
             fields.Add(new SerializableFieldInfo(
                 field.Name,
                 field.Type.ToDisplayString(),
-                GetJsonTypeName(field.Type)));
+                GetJsonTypeName(field.Type),
+                isNullable));
         }
 
         return new SerializableComponentInfo(
@@ -356,14 +358,29 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             if (field.JsonTypeName == "Object")
             {
                 // Complex type - use generic deserialization
-                sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText())!;");
+                if (field.IsNullable)
+                {
+                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText());");
+                }
+                else
+                {
+                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText()) ?? throw new JsonException(\"Non-nullable field '{field.Name}' was null in JSON\");");
+                }
             }
             else if (field.JsonTypeName == "String")
             {
-                sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString()!;");
+                if (field.IsNullable)
+                {
+                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString();");
+                }
+                else
+                {
+                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString() ?? throw new JsonException(\"Non-nullable field '{field.Name}' was null in JSON\");");
+                }
             }
             else
             {
+                // Value types like int, bool, etc. - GetInt32(), GetBoolean(), etc. never return null
                 sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.Get{field.JsonTypeName}();");
             }
 
@@ -418,7 +435,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var field in component.Fields)
         {
-            var binaryRead = GetBinaryReadMethod(field.JsonTypeName, field.Type);
+            var binaryRead = GetBinaryReadMethod(field.JsonTypeName, field.Type, field.IsNullable);
             sb.AppendLine($"        result.{field.Name} = {binaryRead};");
         }
 
@@ -440,7 +457,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
-    private static string GetBinaryReadMethod(string jsonTypeName, string type)
+    private static string GetBinaryReadMethod(string jsonTypeName, string type, bool isNullable)
     {
         return jsonTypeName switch
         {
@@ -456,8 +473,10 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "Double" => "reader.ReadDouble()",
             "Decimal" => "reader.ReadDecimal()",
             "Boolean" => "reader.ReadBoolean()",
-            "String" => "reader.ReadString()",
-            _ => $"JsonSerializer.Deserialize<{type}>(reader.ReadString())!" // Complex types as JSON
+            "String" => "reader.ReadString()", // BinaryReader.ReadString() never returns null
+            _ => isNullable
+                ? $"JsonSerializer.Deserialize<{type}>(reader.ReadString())"
+                : $"JsonSerializer.Deserialize<{type}>(reader.ReadString()) ?? throw new InvalidDataException(\"Non-nullable field was null in binary data\")"
         };
     }
 
@@ -497,5 +516,6 @@ public sealed class SerializationGenerator : IIncrementalGenerator
     private sealed record SerializableFieldInfo(
         string Name,
         string Type,
-        string JsonTypeName);
+        string JsonTypeName,
+        bool IsNullable);
 }
