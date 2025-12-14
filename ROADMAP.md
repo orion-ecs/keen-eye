@@ -411,16 +411,16 @@ Maximum performance optimizations.
 - [x] Dependency graph for safe parallelism
 
 ### 17.2 Native AOT Support
-- [ ] Trimming-safe APIs
-- [ ] Source generator compatibility with AOT
-- [ ] Reflection-free serialization
-- [ ] Benchmark AOT vs JIT performance
+- [x] Trimming-safe APIs
+- [x] Source generator compatibility with AOT
+- [x] Reflection-free serialization
+- [ ] Benchmark AOT vs JIT performance (tracked in #366)
 
 ### 17.3 Advanced Spatial Partitioning
-- [ ] Configurable grid sizes
-- [ ] Hierarchical spatial structures
-- [ ] Broadphase/narrowphase separation
-- [ ] Spatial query optimization
+- [x] Configurable grid sizes
+- [x] Hierarchical spatial structures
+- [x] Broadphase/narrowphase separation
+- [x] Spatial query optimization
 
 ### 17.4 Component Composition
 - [x] Component inheritance/mixins
