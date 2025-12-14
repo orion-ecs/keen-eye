@@ -278,7 +278,14 @@ public static class DeltaRestorer
                 }
             }
 
-            world.SetComponent(entity, info, value);
+            // SetComponent may return a new entity if archetype migration occurs
+            var newEntity = world.SetComponent(entity, info, value);
+            if (newEntity.Id != entity.Id)
+            {
+                // Update entity map with the new entity
+                entityMap[delta.EntityId] = newEntity;
+                entity = newEntity;
+            }
         }
 
         // Update modified components
@@ -299,7 +306,14 @@ public static class DeltaRestorer
             var value = serializer.Deserialize(modified.TypeName, modified.Data.Value);
             if (value is not null)
             {
-                world.SetComponent(entity, info, value);
+                // SetComponent may return a new entity if archetype migration occurs
+                var newEntity = world.SetComponent(entity, info, value);
+                if (newEntity.Id != entity.Id)
+                {
+                    // Update entity map with the new entity
+                    entityMap[delta.EntityId] = newEntity;
+                    entity = newEntity;
+                }
             }
         }
     }

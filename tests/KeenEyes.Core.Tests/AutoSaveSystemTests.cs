@@ -803,11 +803,14 @@ public class AutoSaveSystemTests : IDisposable
         };
 
         // Apply delta
-        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+        var updatedEntityMap = DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Get the updated entity (archetype migration may have created a new entity)
+        var updatedEntity = updatedEntityMap[entity.Id];
 
         // Verify component was added
-        Assert.True(world.Has<SerializableVelocity>(entity));
-        ref var velocity = ref world.Get<SerializableVelocity>(entity);
+        Assert.True(world.Has<SerializableVelocity>(updatedEntity));
+        ref var velocity = ref world.Get<SerializableVelocity>(updatedEntity);
         Assert.Equal(5f, velocity.X);
         Assert.Equal(10f, velocity.Y);
     }

@@ -790,11 +790,16 @@ public sealed partial class World
     /// <param name="entity">The entity to set the component on.</param>
     /// <param name="info">The component info.</param>
     /// <param name="value">The boxed component value.</param>
+    /// <returns>
+    /// The entity with the component set. This may be a different entity if archetype migration occurred.
+    /// </returns>
     /// <remarks>
     /// This method is primarily used by the delta restoration system for AOT-compatible
     /// component setting. For typed component setting, prefer <see cref="Set{T}"/>.
+    /// When adding a new component, archetype migration occurs and a new entity is created.
+    /// The original entity is despawned and the new entity is returned.
     /// </remarks>
-    internal void SetComponent(Entity entity, ComponentInfo info, object value)
+    internal Entity SetComponent(Entity entity, ComponentInfo info, object value)
     {
         if (!IsAlive(entity))
         {
@@ -805,6 +810,7 @@ public sealed partial class World
         {
             // Update existing component
             archetypeManager.SetBoxed(entity, info.Type, value);
+            return entity;
         }
         else
         {
@@ -849,6 +855,8 @@ public sealed partial class World
                     SetParent(child, newEntity);
                 }
             }
+
+            return newEntity;
         }
     }
 
