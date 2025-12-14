@@ -95,6 +95,17 @@ public sealed class SystemDependencyTracker
     }
 
     /// <summary>
+    /// Tries to get the dependencies for a system type.
+    /// </summary>
+    /// <param name="systemType">The system type.</param>
+    /// <param name="dependencies">The dependencies if found.</param>
+    /// <returns>True if the system was registered and has dependencies.</returns>
+    public bool TryGetDependencies(Type systemType, out ComponentDependencies dependencies)
+    {
+        return systemDependencies.TryGetValue(systemType, out dependencies!);
+    }
+
+    /// <summary>
     /// Gets the dependencies for a system type.
     /// </summary>
     /// <typeparam name="TSystem">The system type.</typeparam>
