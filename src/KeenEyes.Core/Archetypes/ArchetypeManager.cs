@@ -19,7 +19,6 @@ namespace KeenEyes;
 /// <param name="chunkPool">Optional chunk pool for chunk reuse. If null, a new pool is created.</param>
 public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkPool? chunkPool = null) : IDisposable
 {
-    private readonly ComponentRegistry componentRegistry = componentRegistry;
     private readonly Dictionary<ArchetypeId, Archetype> archetypes = [];
     private readonly Dictionary<int, (Archetype Archetype, int Index)> entityLocations = [];
     private readonly List<Archetype> archetypeList = [];
