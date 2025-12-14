@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "orion-ecs",
+  "classifications": [
+    "Library",
+    "ECS",
+    "Plugin"
+  ],
+  "identity": "KeenEyes.Templates.Plugin",
+  "name": "KeenEyes Plugin",
+  "shortName": "keeneyes-plugin",
+  "description": "A class library template for creating plugins for the KeenEyes ECS framework",
+  "tags": {
+    "language": "C#",
+    "type": "project"
+  },
+  "sourceName": "KeenEyesPlugin",
+  "preferNameDirectory": true,
+  "symbols": {
+    "Framework": {
+      "type": "parameter",
+      "description": "The target framework for the project.",
+      "datatype": "choice",
+      "choices": [
+        {
+          "choice": "net10.0",
+          "description": "Target .NET 10.0"
+        }
+      ],
+      "replaces": "net10.0",
+      "defaultValue": "net10.0"
+    },
+    "IncludeCommon": {
+      "type": "parameter",
+      "description": "Include reference to KeenEyes.Common for shared components (Transform, Velocity, etc.)",
+      "datatype": "bool",
+      "defaultValue": "false"
+    }
+  },
+  "sources": [
+    {
+      "modifiers": [
+        {
+          "condition": "(!IncludeCommon)",
+          "exclude": [
+            "CommonComponents.cs"
+          ]
+        }
+      ]
+    }
+  ],
+  "primaryOutputs": [
+    {
+      "path": "KeenEyesPlugin.csproj"
+    }
+  ],
+  "postActions": [
+    {
+      "condition": "(HostIdentifier != \"dotnetcli\" && HostIdentifier != \"dotnetcli-preview\")",
+      "description": "Opens Plugin.cs in the editor",
+      "manualInstructions": [],
+      "actionId": "84C0DA21-51C8-4541-9940-6CA19AF04EE6",
+      "args": {
+        "files": "1"
+      },
+      "continueOnError": true
+    }
+  ]
+}

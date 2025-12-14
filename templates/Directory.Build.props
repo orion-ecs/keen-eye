@@ -1,0 +1,13 @@
+<Project>
+  <!--
+    Override root Directory.Build.props for template content.
+    Template source files should not inherit the main build settings
+    since they are template content, not actual buildable projects.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <!-- Disable Husky hooks for template projects -->
+    <HUSKY>0</HUSKY>
+  </PropertyGroup>
+</Project>

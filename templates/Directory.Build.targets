@@ -1,0 +1,6 @@
+<Project>
+  <!--
+    Override root Directory.Build.targets for templates folder.
+    Templates don't need Husky hooks or tool restore.
+  -->
+</Project>
