@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using KeenEyes.Physics.Components;
 using KeenEyes.Physics.Events;
 
@@ -29,6 +29,7 @@ internal readonly struct CollisionPairKey : IEquatable<CollisionPairKey>
         }
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Equals(CollisionPairKey other)
         => EntityA.Equals(other.EntityA) && EntityB.Equals(other.EntityB);
 
@@ -37,6 +38,10 @@ internal readonly struct CollisionPairKey : IEquatable<CollisionPairKey>
 
     public override int GetHashCode()
         => HashCode.Combine(EntityA, EntityB);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool InvolvesEntity(Entity entity)
+        => EntityA.Equals(entity) || EntityB.Equals(entity);
 }
 
 /// <summary>
@@ -48,7 +53,6 @@ internal struct CollisionData
     public Vector3 ContactPoint;
     public float PenetrationDepth;
     public bool IsTrigger;
-    public bool TouchedThisFrame;
 }
 
 /// <summary>
@@ -69,11 +73,16 @@ internal struct CollisionData
 /// <item><description>Publish <see cref="CollisionEvent"/> for all active collisions</description></item>
 /// <item><description>Publish <see cref="CollisionEndedEvent"/> for collisions that ended</description></item>
 /// </list>
+/// <para>
+/// This implementation is designed for zero allocations in hot paths (RecordCollision, PublishEvents).
+/// </para>
 /// </remarks>
 internal sealed class CollisionEventManager(IWorld world)
 {
     // Current frame's collision data (collected during narrow phase)
-    private readonly ConcurrentDictionary<CollisionPairKey, CollisionData> currentFrameCollisions = new();
+    // Using regular Dictionary + lock since we need to update existing values atomically
+    private readonly Dictionary<CollisionPairKey, CollisionData> currentFrameCollisions = [];
+    private readonly Lock currentFrameLock = new();
 
     // Previous frame's collision pairs (for detecting ended collisions)
     private readonly HashSet<CollisionPairKey> previousFramePairs = [];
@@ -81,11 +90,15 @@ internal sealed class CollisionEventManager(IWorld world)
     // Tracks trigger status for collision pairs (needed for CollisionEndedEvent)
     private readonly Dictionary<CollisionPairKey, bool> pairTriggerStatus = [];
 
+    // Reusable list for entity removal (avoids allocation during RemoveEntity)
+    private readonly List<CollisionPairKey> removalBuffer = new(16);
+
     /// <summary>
     /// Records a collision from the narrow phase callback.
     /// </summary>
     /// <remarks>
     /// This method is thread-safe and can be called from BepuPhysics worker threads.
+    /// Zero allocations in this hot path.
     /// </remarks>
     /// <param name="entityA">The first entity in the collision.</param>
     /// <param name="entityB">The second entity in the collision.</param>
@@ -106,32 +119,36 @@ internal sealed class CollisionEventManager(IWorld world)
         // If the key ordering swapped the entities, flip the normal
         var normalToStore = key.EntityA.Equals(entityA) ? contactNormal : -contactNormal;
 
-        currentFrameCollisions.AddOrUpdate(
-            key,
-            _ => new CollisionData
-            {
-                ContactNormal = normalToStore,
-                ContactPoint = contactPoint,
-                PenetrationDepth = penetrationDepth,
-                IsTrigger = isTrigger,
-                TouchedThisFrame = true
-            },
-            (_, existing) =>
+        var newData = new CollisionData
+        {
+            ContactNormal = normalToStore,
+            ContactPoint = contactPoint,
+            PenetrationDepth = penetrationDepth,
+            IsTrigger = isTrigger
+        };
+
+        lock (currentFrameLock)
+        {
+            if (currentFrameCollisions.TryGetValue(key, out var existing))
             {
                 // If multiple contacts exist, keep the deepest penetration
                 if (penetrationDepth > existing.PenetrationDepth)
                 {
-                    return new CollisionData
-                    {
-                        ContactNormal = normalToStore,
-                        ContactPoint = contactPoint,
-                        PenetrationDepth = penetrationDepth,
-                        IsTrigger = isTrigger || existing.IsTrigger,
-                        TouchedThisFrame = true
-                    };
+                    newData.IsTrigger = isTrigger || existing.IsTrigger;
+                    currentFrameCollisions[key] = newData;
                 }
-                return existing with { TouchedThisFrame = true };
-            });
+                else if (isTrigger && !existing.IsTrigger)
+                {
+                    // Preserve trigger flag even if this contact is shallower
+                    existing.IsTrigger = true;
+                    currentFrameCollisions[key] = existing;
+                }
+            }
+            else
+            {
+                currentFrameCollisions[key] = newData;
+            }
+        }
     }
 
     /// <summary>
@@ -144,13 +161,15 @@ internal sealed class CollisionEventManager(IWorld world)
     /// <item><description>Publish <see cref="CollisionEvent"/> for all current collisions</description></item>
     /// <item><description>Publish <see cref="CollisionEndedEvent"/> for pairs no longer colliding</description></item>
     /// </list>
-    /// This method must be called from the main thread.
+    /// This method must be called from the main thread. Zero allocations in steady state.
     /// </remarks>
     public void PublishEvents()
     {
         // Process current frame collisions
-        foreach (var (key, data) in currentFrameCollisions)
+        foreach (var kvp in currentFrameCollisions)
         {
+            var key = kvp.Key;
+            var data = kvp.Value;
             bool isNewCollision = !previousFramePairs.Contains(key);
 
             // Publish collision started event for new pairs
@@ -214,7 +233,10 @@ internal sealed class CollisionEventManager(IWorld world)
     /// </remarks>
     public void Clear()
     {
-        currentFrameCollisions.Clear();
+        lock (currentFrameLock)
+        {
+            currentFrameCollisions.Clear();
+        }
         previousFramePairs.Clear();
         pairTriggerStatus.Clear();
     }
@@ -225,25 +247,38 @@ internal sealed class CollisionEventManager(IWorld world)
     /// <param name="entity">The entity being removed.</param>
     public void RemoveEntity(Entity entity)
     {
-        // Remove from current frame
-        var keysToRemove = currentFrameCollisions.Keys
-            .Where(k => k.EntityA.Equals(entity) || k.EntityB.Equals(entity))
-            .ToList();
-
-        foreach (var key in keysToRemove)
+        // Remove from current frame using reusable buffer
+        lock (currentFrameLock)
         {
-            currentFrameCollisions.TryRemove(key, out _);
+            removalBuffer.Clear();
+            foreach (var key in currentFrameCollisions.Keys)
+            {
+                if (key.InvolvesEntity(entity))
+                {
+                    removalBuffer.Add(key);
+                }
+            }
+
+            foreach (var key in removalBuffer)
+            {
+                currentFrameCollisions.Remove(key);
+            }
         }
 
         // Remove from previous frame tracking
-        previousFramePairs.RemoveWhere(k => k.EntityA.Equals(entity) || k.EntityB.Equals(entity));
+        previousFramePairs.RemoveWhere(k => k.InvolvesEntity(entity));
 
-        // Remove from trigger status tracking
-        var triggerKeysToRemove = pairTriggerStatus.Keys
-            .Where(k => k.EntityA.Equals(entity) || k.EntityB.Equals(entity))
-            .ToList();
+        // Remove from trigger status tracking using the same buffer
+        removalBuffer.Clear();
+        foreach (var key in pairTriggerStatus.Keys)
+        {
+            if (key.InvolvesEntity(entity))
+            {
+                removalBuffer.Add(key);
+            }
+        }
 
-        foreach (var key in triggerKeysToRemove)
+        foreach (var key in removalBuffer)
         {
             pairTriggerStatus.Remove(key);
         }
@@ -252,5 +287,14 @@ internal sealed class CollisionEventManager(IWorld world)
     /// <summary>
     /// Gets the number of currently tracked collision pairs.
     /// </summary>
-    public int ActiveCollisionCount => currentFrameCollisions.Count;
+    public int ActiveCollisionCount
+    {
+        get
+        {
+            lock (currentFrameLock)
+            {
+                return currentFrameCollisions.Count;
+            }
+        }
+    }
 }
