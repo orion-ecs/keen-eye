@@ -53,3 +53,24 @@
           href: spatial-partitioning/strategy-selection.md
         - name: Performance Tuning
           href: spatial-partitioning/performance-tuning.md
+- name: Research
+  href: research/index.md
+  items:
+    - name: Networking
+      href: research/networking.md
+    - name: Audio Systems
+      href: research/audio-systems.md
+    - name: Asset Loading
+      href: research/asset-loading.md
+    - name: Cross-Platform Deployment
+      href: research/cross-platform-deployment.md
+    - name: Framework Editor
+      href: research/framework-editor.md
+    - name: Game Math Libraries
+      href: research/game-math-libraries.md
+    - name: OpenGL C# Bindings
+      href: research/opengl-csharp-bindings.md
+    - name: Shader Management
+      href: research/shader-management.md
+    - name: Windowing & Input
+      href: research/windowing-input.md
