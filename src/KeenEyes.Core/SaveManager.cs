@@ -378,8 +378,12 @@ internal sealed class SaveManager
     /// </summary>
     /// <param name="slotName">The slot name.</param>
     /// <returns>The full file path.</returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the slot name contains path separators or other unsafe characters.
+    /// </exception>
     internal string GetSlotFilePath(string slotName)
     {
+        SlotNameValidator.Validate(slotName);
         return Path.Combine(saveDirectory, $"{slotName}{SaveFileFormat.Extension}");
     }
 
