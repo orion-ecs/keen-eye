@@ -414,6 +414,51 @@ internal sealed class BenchmarkComponentSerializer : IComponentSerializer, IBina
         return false;
     }
 
+    public object? CreateDefault(string typeName)
+    {
+        if (typeName.Contains(nameof(Position)))
+        {
+            return default(Position);
+        }
+
+        if (typeName.Contains(nameof(Velocity)))
+        {
+            return default(Velocity);
+        }
+
+        if (typeName.Contains(nameof(Health)))
+        {
+            return default(Health);
+        }
+
+        if (typeName.Contains(nameof(Rotation)))
+        {
+            return default(Rotation);
+        }
+
+        if (typeName.Contains(nameof(ActiveTag)))
+        {
+            return default(ActiveTag);
+        }
+
+        if (typeName.Contains(nameof(FrozenTag)))
+        {
+            return default(FrozenTag);
+        }
+
+        if (typeName.Contains(nameof(GameTime)))
+        {
+            return default(GameTime);
+        }
+
+        if (typeName.Contains(nameof(GameConfig)))
+        {
+            return default(GameConfig);
+        }
+
+        return null;
+    }
+
     // IBinaryComponentSerializer implementation
     public bool WriteTo(Type type, object value, BinaryWriter writer)
     {
