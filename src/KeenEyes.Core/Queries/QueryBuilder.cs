@@ -50,27 +50,53 @@ public sealed class QueryDescription
     /// <summary>Whether any string tag filters are applied.</summary>
     public bool HasStringTagFilters => withStringTags.Count > 0 || withoutStringTags.Count > 0;
 
-    internal void AddRead<T>() where T : struct, IComponent
+    /// <summary>
+    /// Adds a component type as read access.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    public void AddRead<T>() where T : struct, IComponent
     {
         read.Add(typeof(T));
         allRequiredCache = null; // Invalidate cache
     }
 
-    internal void AddWrite<T>() where T : struct, IComponent
+    /// <summary>
+    /// Adds a component type as write access.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    public void AddWrite<T>() where T : struct, IComponent
     {
         write.Add(typeof(T));
         allRequiredCache = null; // Invalidate cache
     }
 
-    internal void AddWith<T>() where T : struct, IComponent
+    /// <summary>
+    /// Adds a component type as a filter (must be present).
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    public void AddWith<T>() where T : struct, IComponent
     {
         with.Add(typeof(T));
         allRequiredCache = null; // Invalidate cache
     }
 
-    internal void AddWithout<T>() where T : struct, IComponent => without.Add(typeof(T));
-    internal void AddWithStringTag(string tag) => withStringTags.Add(tag);
-    internal void AddWithoutStringTag(string tag) => withoutStringTags.Add(tag);
+    /// <summary>
+    /// Adds a component type as an exclusion filter (must NOT be present).
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    public void AddWithout<T>() where T : struct, IComponent => without.Add(typeof(T));
+
+    /// <summary>
+    /// Adds a string tag filter (must be present).
+    /// </summary>
+    /// <param name="tag">The tag that must be present.</param>
+    public void AddWithStringTag(string tag) => withStringTags.Add(tag);
+
+    /// <summary>
+    /// Adds a string tag exclusion filter (must NOT be present).
+    /// </summary>
+    /// <param name="tag">The tag that must NOT be present.</param>
+    public void AddWithoutStringTag(string tag) => withoutStringTags.Add(tag);
 
     /// <summary>
     /// Checks if an entity with the given components matches this query.
