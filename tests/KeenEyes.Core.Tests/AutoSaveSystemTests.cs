@@ -657,5 +657,477 @@ public class AutoSaveSystemTests : IDisposable
         Assert.Equal(1f, world.Get<SerializablePosition>(entity).X);
     }
 
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithEntityNameChange_UpdatesName()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        // Create initial state with named entity
+        var entity = world.Spawn("OriginalName").With(new SerializablePosition { X = 1, Y = 2 }).Build();
+        var entityMap = new Dictionary<int, Entity> { [entity.Id] = entity };
+
+        // Create delta that changes the entity's name
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = entity.Id,
+                    NewName = "UpdatedName"
+                }
+            ]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify name was updated
+        Assert.Equal("UpdatedName", world.GetName(entity));
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithParentChange_UpdatesParent()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        // Create entities
+        var parent1 = world.Spawn("Parent1").With(new SerializablePosition()).Build();
+        var parent2 = world.Spawn("Parent2").With(new SerializablePosition()).Build();
+        var child = world.Spawn("Child").With(new SerializablePosition()).Build();
+        world.SetParent(child, parent1);
+
+        var entityMap = new Dictionary<int, Entity>
+        {
+            [parent1.Id] = parent1,
+            [parent2.Id] = parent2,
+            [child.Id] = child
+        };
+
+        // Create delta that changes parent
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = child.Id,
+                    NewParentId = parent2.Id
+                }
+            ]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify parent was changed
+        Assert.Equal(parent2, world.GetParent(child));
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithParentRemoved_ClearsParent()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        // Create parent and child
+        var parent = world.Spawn("Parent").With(new SerializablePosition()).Build();
+        var child = world.Spawn("Child").With(new SerializablePosition()).Build();
+        world.SetParent(child, parent);
+
+        var entityMap = new Dictionary<int, Entity>
+        {
+            [parent.Id] = parent,
+            [child.Id] = child
+        };
+
+        // Create delta that removes parent
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = child.Id,
+                    ParentRemoved = true
+                }
+            ]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify parent was removed
+        Assert.False(world.GetParent(child).IsValid);
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithAddedComponents_AddsComponents()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+        world.Components.Register<SerializableVelocity>();
+
+        // Create entity with only position
+        var entity = world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
+        var entityMap = new Dictionary<int, Entity> { [entity.Id] = entity };
+
+        // Create delta that adds velocity component
+        var velocityJson = serializer.Serialize(
+            typeof(SerializableVelocity),
+            new SerializableVelocity { X = 5, Y = 10 });
+
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = entity.Id,
+                    AddedComponents = [
+                        new SerializedComponent
+                        {
+                            TypeName = typeof(SerializableVelocity).AssemblyQualifiedName!,
+                            Data = velocityJson,
+                            IsTag = false
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify component was added
+        Assert.True(world.Has<SerializableVelocity>(entity));
+        ref var velocity = ref world.Get<SerializableVelocity>(entity);
+        Assert.Equal(5f, velocity.X);
+        Assert.Equal(10f, velocity.Y);
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithRemovedComponents_RemovesComponents()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+        world.Components.Register<SerializableVelocity>();
+
+        // Create entity with both components
+        var entity = world.Spawn()
+            .With(new SerializablePosition { X = 1, Y = 2 })
+            .With(new SerializableVelocity { X = 5, Y = 10 })
+            .Build();
+        var entityMap = new Dictionary<int, Entity> { [entity.Id] = entity };
+
+        // Create delta that removes velocity
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = entity.Id,
+                    RemovedComponentTypes = [typeof(SerializableVelocity).AssemblyQualifiedName!]
+                }
+            ]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify component was removed
+        Assert.False(world.Has<SerializableVelocity>(entity));
+        Assert.True(world.Has<SerializablePosition>(entity));
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithModifiedComponents_UpdatesComponents()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        // Create entity with initial position
+        var entity = world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
+        var entityMap = new Dictionary<int, Entity> { [entity.Id] = entity };
+
+        // Create delta that modifies position
+        var newPositionJson = serializer.Serialize(
+            typeof(SerializablePosition),
+            new SerializablePosition { X = 100, Y = 200 });
+
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = entity.Id,
+                    ModifiedComponents = [
+                        new SerializedComponent
+                        {
+                            TypeName = typeof(SerializablePosition).AssemblyQualifiedName!,
+                            Data = newPositionJson,
+                            IsTag = false
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify component was updated
+        ref var position = ref world.Get<SerializablePosition>(entity);
+        Assert.Equal(100f, position.X);
+        Assert.Equal(200f, position.Y);
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithModifiedSingletons_UpdatesSingletons()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        // Set initial singleton value
+        world.SetSingleton(new SerializableGameTime { TotalTime = 10f, DeltaTime = 0.016f });
+
+        // Create delta that modifies singleton
+        var newTimeJson = serializer.Serialize(
+            typeof(SerializableGameTime),
+            new SerializableGameTime { TotalTime = 20f, DeltaTime = 0.032f });
+
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedSingletons = [
+                new SerializedSingleton
+                {
+                    TypeName = typeof(SerializableGameTime).AssemblyQualifiedName!,
+                    Data = newTimeJson!.Value
+                }
+            ]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, []);
+
+        // Verify singleton was updated
+        Assert.True(world.HasSingleton<SerializableGameTime>());
+        ref var time = ref world.GetSingleton<SerializableGameTime>();
+        Assert.Equal(20f, time.TotalTime);
+        Assert.Equal(0.032f, time.DeltaTime);
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithRemovedSingletons_RemovesSingletons()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        // Set initial singleton value
+        world.SetSingleton(new SerializableGameTime { TotalTime = 10f, DeltaTime = 0.016f });
+
+        // Create delta that removes singleton
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            RemovedSingletonTypes = [typeof(SerializableGameTime).AssemblyQualifiedName!]
+        };
+
+        // Apply delta
+        DeltaRestorer.ApplyDelta(world, delta, serializer, []);
+
+        // Verify singleton was removed
+        Assert.False(world.HasSingleton<SerializableGameTime>());
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithCreatedEntityHavingParent_RestoresHierarchy()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        // Create parent entity
+        var parent = world.Spawn("Parent").With(new SerializablePosition()).Build();
+        var entityMap = new Dictionary<int, Entity> { [parent.Id] = parent };
+
+        // Create delta with child entity that has parent
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            CreatedEntities = [
+                new SerializedEntity
+                {
+                    Id = 999,
+                    Name = "Child",
+                    ParentId = parent.Id,
+                    Components = []
+                }
+            ]
+        };
+
+        // Apply delta
+        var newEntityMap = DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify child was created with correct parent
+        Assert.True(newEntityMap.ContainsKey(999));
+        var child = newEntityMap[999];
+        Assert.Equal(parent, world.GetParent(child));
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithNonExistentModifiedEntity_SkipsModification()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        // Create entity map without the target entity
+        var entityMap = new Dictionary<int, Entity>();
+
+        // Create delta that tries to modify non-existent entity
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = 999,
+                    NewName = "ShouldNotExist"
+                }
+            ]
+        };
+
+        // Apply delta (should not throw)
+        var newEntityMap = DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify no entity was created
+        Assert.Empty(newEntityMap);
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithDeadModifiedEntity_SkipsModification()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        // Create entity and despawn it
+        var entity = world.Spawn().With(new SerializablePosition()).Build();
+        var entityId = entity.Id;
+        world.Despawn(entity);
+
+        var entityMap = new Dictionary<int, Entity> { [entityId] = entity };
+
+        // Create delta that tries to modify dead entity
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = entityId,
+                    NewName = "ShouldNotApply"
+                }
+            ]
+        };
+
+        // Apply delta (should not throw)
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify entity is still dead
+        Assert.False(world.IsAlive(entity));
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithUnknownComponentType_SkipsComponent()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        var entity = world.Spawn().With(new SerializablePosition()).Build();
+        var entityMap = new Dictionary<int, Entity> { [entity.Id] = entity };
+
+        // Create delta with unknown component type
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            ModifiedEntities = [
+                new EntityDelta
+                {
+                    EntityId = entity.Id,
+                    AddedComponents = [
+                        new SerializedComponent
+                        {
+                            TypeName = "NonExistent.Component.Type",
+                            Data = null,
+                            IsTag = false
+                        }
+                    ]
+                }
+            ]
+        };
+
+        // Apply delta (should not throw)
+        DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        // Verify entity still exists with original component
+        Assert.True(world.IsAlive(entity));
+        Assert.True(world.Has<SerializablePosition>(entity));
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithDestroyNonExistentEntity_DoesNotThrow()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        var entityMap = new Dictionary<int, Entity>();
+
+        // Create delta that tries to destroy non-existent entity
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            DestroyedEntityIds = [999]
+        };
+
+        // Apply delta (should not throw)
+        var newEntityMap = DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+
+        Assert.Empty(newEntityMap);
+    }
+
+    [Fact]
+    public void DeltaRestorer_ApplyDelta_WithNullArguments_ThrowsArgumentNullException()
+    {
+        using var world = new World();
+        var delta = new DeltaSnapshot { BaselineSlotName = "test", SequenceNumber = 1 };
+        var entityMap = new Dictionary<int, Entity>();
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaRestorer.ApplyDelta(null!, delta, serializer, entityMap));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaRestorer.ApplyDelta(world, null!, serializer, entityMap));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaRestorer.ApplyDelta(world, delta, null!, entityMap));
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaRestorer.ApplyDelta(world, delta, serializer, null!));
+    }
+
     #endregion
 }
