@@ -313,6 +313,79 @@ public class AutoSaveSystemTests : IDisposable
         Assert.Equal(0, system.CurrentDeltaSequence);
     }
 
+    [Fact]
+    public void DeltaSave_ProducesSmallerFileThanFullSave()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        // Create many entities to ensure measurable file sizes
+        for (int i = 0; i < 100; i++)
+        {
+            world.Spawn($"Entity{i}")
+                .With(new SerializablePosition { X = i, Y = i * 2f })
+                .With(new SerializableHealth { Current = 100, Max = 100 })
+                .Build();
+        }
+
+        var config = new AutoSaveConfig
+        {
+            AutoSaveIntervalSeconds = 1f,
+            UseDeltaSaves = true
+        };
+        var system = new AutoSaveSystem<TestComponentSerializer>(serializer, config);
+        world.AddSystem(system);
+
+        // Trigger baseline save
+        world.Update(2f);
+        var baselineSlotPath = world.GetSaveSlotPath(config.BaselineSlotName);
+        var baselineSize = new FileInfo(baselineSlotPath).Length;
+
+        // Make a small change (modify just one entity)
+        var firstEntity = world.GetEntityByName("Entity0");
+        world.Set(firstEntity, new SerializablePosition { X = 999, Y = 999 });
+
+        // Trigger delta save
+        world.Update(2f);
+        var deltaSlotPath = world.GetSaveSlotPath(config.GetDeltaSlotName(1));
+        var deltaSize = new FileInfo(deltaSlotPath).Length;
+
+        // Delta should be significantly smaller than baseline
+        // (since we only changed 1 of 100 entities)
+        Assert.True(deltaSize < baselineSize,
+            $"Delta save ({deltaSize} bytes) should be smaller than baseline ({baselineSize} bytes)");
+
+        // Delta should be much smaller - at least 50% reduction
+        Assert.True(deltaSize < baselineSize * 0.5,
+            $"Delta save ({deltaSize} bytes) should be less than 50% of baseline ({baselineSize} bytes)");
+    }
+
+    [Fact]
+    public void DeltaSave_WithNoChanges_DoesNotCreateDeltaFile()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Spawn().With(new SerializablePosition { X = 10, Y = 20 }).Build();
+
+        var config = new AutoSaveConfig
+        {
+            AutoSaveIntervalSeconds = 1f,
+            UseDeltaSaves = true
+        };
+        var system = new AutoSaveSystem<TestComponentSerializer>(serializer, config);
+        world.AddSystem(system);
+
+        // Trigger baseline save
+        world.Update(2f);
+        Assert.True(world.SaveSlotExists(config.BaselineSlotName));
+
+        // Don't make any changes - trigger delta save
+        world.Update(2f);
+
+        // Since there are no changes, delta should not be created
+        // and sequence should not increment
+        Assert.Equal(0, system.CurrentDeltaSequence);
+        Assert.False(world.SaveSlotExists(config.GetDeltaSlotName(1)));
+    }
+
     #endregion
 
     #region Event Tests

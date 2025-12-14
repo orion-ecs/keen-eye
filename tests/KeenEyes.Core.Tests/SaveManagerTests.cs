@@ -576,4 +576,128 @@ public class SaveManagerTests : IDisposable
     }
 
     #endregion
+
+    #region Slot Name Validation Tests (Path Traversal Prevention)
+
+    [Fact]
+    public void SaveToSlot_WithPathSeparator_ThrowsArgumentException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Spawn().With(new SerializablePosition()).Build();
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            world.SaveToSlot("../malicious/slot", serializer));
+
+        Assert.Contains("directory separator", ex.Message);
+    }
+
+    [Fact]
+    public void SaveToSlot_WithAltPathSeparator_ThrowsArgumentException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Spawn().With(new SerializablePosition()).Build();
+
+        // Use alternate directory separator (backslash on Windows, forward on Linux)
+        var ex = Assert.Throws<ArgumentException>(() =>
+            world.SaveToSlot("subdir/slot", serializer));
+
+        Assert.Contains("separator", ex.Message);
+    }
+
+    [Fact]
+    public void SaveToSlot_WithDoubleDot_ThrowsArgumentException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Spawn().With(new SerializablePosition()).Build();
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            world.SaveToSlot("..slot", serializer));
+
+        Assert.Contains("..", ex.Message);
+    }
+
+    [Fact]
+    public void LoadFromSlot_WithPathTraversal_ThrowsArgumentException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            world.LoadFromSlot("../../etc/passwd", serializer));
+
+        Assert.Contains("separator", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void GetSaveSlotInfo_WithPathTraversal_ThrowsArgumentException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            world.GetSaveSlotInfo("../../../secret"));
+
+        Assert.Contains("separator", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void DeleteSaveSlot_WithPathTraversal_ThrowsArgumentException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        var ex = Assert.Throws<ArgumentException>(() =>
+            world.DeleteSaveSlot("../important_file"));
+
+        Assert.Contains("separator", ex.Message.ToLower());
+    }
+
+    [Fact]
+    public void SlotNameValidator_Validate_WithValidName_DoesNotThrow()
+    {
+        // These should all be valid slot names
+        SlotNameValidator.Validate("slot1");
+        SlotNameValidator.Validate("my-save");
+        SlotNameValidator.Validate("save_001");
+        SlotNameValidator.Validate("Chapter3");
+        SlotNameValidator.Validate("quicksave.backup");
+    }
+
+    [Theory]
+    [InlineData("../escape")]
+    [InlineData("sub/dir")]
+    [InlineData("..")]
+    [InlineData("foo..bar")]
+    public void SlotNameValidator_Validate_WithInvalidName_ThrowsArgumentException(string invalidName)
+    {
+        Assert.Throws<ArgumentException>(() =>
+            SlotNameValidator.Validate(invalidName));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void SlotNameValidator_Validate_WithEmptyOrWhitespace_ThrowsArgumentException(string invalidName)
+    {
+        Assert.Throws<ArgumentException>(() =>
+            SlotNameValidator.Validate(invalidName));
+    }
+
+    [Fact]
+    public void SlotNameValidator_TryValidate_WithValidName_ReturnsTrue()
+    {
+        var result = SlotNameValidator.TryValidate("valid_slot_name", out var errorMessage);
+
+        Assert.True(result);
+        Assert.Null(errorMessage);
+    }
+
+    [Fact]
+    public void SlotNameValidator_TryValidate_WithInvalidName_ReturnsFalse()
+    {
+        var result = SlotNameValidator.TryValidate("../invalid", out var errorMessage);
+
+        Assert.False(result);
+        Assert.NotNull(errorMessage);
+        Assert.Contains("separator", errorMessage!.ToLower());
+    }
+
+    #endregion
 }

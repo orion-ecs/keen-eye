@@ -397,8 +397,12 @@ public sealed class EncryptedPersistenceApi
     /// </summary>
     /// <param name="slotName">The slot name.</param>
     /// <returns>The full file path.</returns>
+    /// <exception cref="ArgumentException">
+    /// Thrown when the slot name contains path separators or other unsafe characters.
+    /// </exception>
     public string GetSlotFilePath(string slotName)
     {
+        SlotNameValidator.Validate(slotName);
         return Path.Combine(saveDirectory, $"{slotName}.ksave");
     }
 
