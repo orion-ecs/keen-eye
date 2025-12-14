@@ -25,11 +25,16 @@ fi
 CACHE_DIR="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
 FEED_DIR="/tmp/nuget-feed"
 TEMP_DIR="/tmp/nuget-download"
+FAILED_FILE="$TEMP_DIR/failed-packages.txt"
 mkdir -p "$CACHE_DIR" "$FEED_DIR" "$TEMP_DIR"
+> "$FAILED_FILE"
 
+# Download a package with retry logic
+# Args: $1 = package id, $2 = version, $3 = is_critical (optional, "critical" to mark as critical)
 download_pkg() {
     local id=$(echo "$1" | tr '[:upper:]' '[:lower:]')
     local version="$2"
+    local is_critical="${3:-}"
     local pkg_dir="$CACHE_DIR/$id/$version"
     local feed_file="$FEED_DIR/${id}.${version}.nupkg"
 
@@ -40,20 +45,35 @@ download_pkg() {
 
     local url="https://api.nuget.org/v3-flatcontainer/${id}/${version}/${id}.${version}.nupkg"
     local nupkg="$TEMP_DIR/${id}.${version}.nupkg"
+    local max_retries=3
+    local retry_delay=2
 
-    # Clear no_proxy to ensure we use the proxy (DNS requires proxy in this env)
-    if no_proxy="" NO_PROXY="" wget -q -O "$nupkg" "$url" 2>/dev/null; then
-        # Extract to global cache
-        mkdir -p "$pkg_dir"
-        unzip -q -o "$nupkg" -d "$pkg_dir" 2>/dev/null
-        cp "$nupkg" "$pkg_dir/${id}.${version}.nupkg"
-        # Also keep in feed for offline resolution
-        mv "$nupkg" "$feed_file"
-        return 0
-    else
-        rm -f "$nupkg"
-        return 1
+    # Retry loop with exponential backoff
+    for attempt in $(seq 1 $max_retries); do
+        # Clear no_proxy to ensure we use the proxy (DNS requires proxy in this env)
+        if no_proxy="" NO_PROXY="" wget -q -O "$nupkg" "$url" 2>/dev/null; then
+            # Extract to global cache
+            mkdir -p "$pkg_dir"
+            unzip -q -o "$nupkg" -d "$pkg_dir" 2>/dev/null
+            cp "$nupkg" "$pkg_dir/${id}.${version}.nupkg"
+            # Also keep in feed for offline resolution
+            mv "$nupkg" "$feed_file"
+            return 0
+        fi
+
+        if [ $attempt -lt $max_retries ]; then
+            sleep $retry_delay
+            retry_delay=$((retry_delay * 2))
+        fi
+    done
+
+    # All retries failed - log the failure
+    rm -f "$nupkg"
+    echo "$1 $version${is_critical:+ (CRITICAL)}" >> "$FAILED_FILE"
+    if [ -n "$is_critical" ]; then
+        echo "WARNING: Failed to download critical package: $1 $version"
     fi
+    return 1
 }
 
 echo "Installing NuGet packages for KeenEyes (proxy workaround)..."
@@ -104,11 +124,35 @@ done
 download_pkg "husky" "0.8.0"
 
 # AOT compiler runtime packages (not in packages.lock.json, resolved at restore time)
-download_pkg "runtime.linux-x64.Microsoft.DotNet.ILCompiler" "10.0.1"
-download_pkg "Microsoft.DotNet.ILCompiler" "10.0.1"
+# These are marked as critical since AOT builds will fail without them
+download_pkg "runtime.linux-x64.Microsoft.DotNet.ILCompiler" "10.0.1" "critical"
+download_pkg "Microsoft.DotNet.ILCompiler" "10.0.1" "critical"
 
-# Clean up
+# Clean up temp files
 rm -f "$PACKAGES_FILE"
 
+# Summary and verification
 count=$(find "$CACHE_DIR" -maxdepth 2 -mindepth 2 -type d 2>/dev/null | wc -l)
-echo "Package installation complete! ($count packages in $CACHE_DIR)"
+failed_count=$(wc -l < "$FAILED_FILE" 2>/dev/null || echo "0")
+
+echo ""
+echo "Package installation complete!"
+echo "  Packages in cache: $count"
+
+if [ "$failed_count" -gt 0 ]; then
+    echo "  Failed downloads: $failed_count"
+    echo ""
+    echo "The following packages failed to download after 3 retries:"
+    cat "$FAILED_FILE" | while read -r line; do
+        echo "  - $line"
+    done
+
+    # Check for critical failures
+    if grep -q "(CRITICAL)" "$FAILED_FILE" 2>/dev/null; then
+        echo ""
+        echo "ERROR: Critical packages failed to download. Build/restore may fail."
+        echo "You can retry by running: CLAUDE_CODE_REMOTE=true .claude/hooks/install-packages.sh"
+    fi
+fi
+
+rm -f "$FAILED_FILE"
