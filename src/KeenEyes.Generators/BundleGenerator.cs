@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -462,19 +463,19 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
         foreach (var field in info.Fields)
         {
-            var paramName = ToCamelCase(field.Name);
+            var paramName = StringHelpers.ToCamelCase(field.Name);
             sb.AppendLine($"    /// <param name=\"{paramName}\">The {field.Name} component.</param>");
         }
 
         var constructorParams = string.Join(", ", info.Fields.Select(f =>
-            $"{f.Type} {ToCamelCase(f.Name)}"));
+            $"{f.Type} {StringHelpers.ToCamelCase(f.Name)}"));
 
         sb.AppendLine($"    public {info.Name}({constructorParams})");
         sb.AppendLine("    {");
 
         foreach (var field in info.Fields)
         {
-            var paramName = ToCamelCase(field.Name);
+            var paramName = StringHelpers.ToCamelCase(field.Name);
             sb.AppendLine($"        {field.Name} = {paramName};");
         }
 
@@ -571,12 +572,12 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
             foreach (var field in info.Fields)
             {
-                var paramName = ToCamelCase(field.Name);
+                var paramName = StringHelpers.ToCamelCase(field.Name);
                 parameters.Add($"{field.Type} {paramName}");
             }
 
             var paramList = string.Join(", ", parameters);
-            var argList = string.Join(", ", info.Fields.Select(f => ToCamelCase(f.Name)));
+            var argList = string.Join(", ", info.Fields.Select(f => StringHelpers.ToCamelCase(f.Name)));
 
             sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> bundle to the entity.</summary>");
 
@@ -672,19 +673,19 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine("    /// </summary>");
         foreach (var field in info.Fields)
         {
-            var paramName = ToCamelCase(field.Name);
+            var paramName = StringHelpers.ToCamelCase(field.Name);
             sb.AppendLine($"    /// <param name=\"{paramName}\">Reference to the {field.Name} component.</param>");
         }
 
         var constructorParams = string.Join(", ", info.Fields.Select(f =>
-            $"ref {f.Type} {ToCamelCase(f.Name)}"));
+            $"ref {f.Type} {StringHelpers.ToCamelCase(f.Name)}"));
 
         sb.AppendLine($"    public {info.Name}Ref({constructorParams})");
         sb.AppendLine("    {");
 
         foreach (var field in info.Fields)
         {
-            var paramName = ToCamelCase(field.Name);
+            var paramName = StringHelpers.ToCamelCase(field.Name);
             sb.AppendLine($"        {field.Name} = ref {paramName};");
         }
 
@@ -923,12 +924,12 @@ public sealed class BundleGenerator : IIncrementalGenerator
         var parameters = new List<string>();
         foreach (var field in info.Fields)
         {
-            var paramName = ToCamelCase(field.Name);
+            var paramName = StringHelpers.ToCamelCase(field.Name);
             parameters.Add($"{field.Type} {paramName}");
         }
 
         var paramList = string.Join(", ", parameters);
-        var argList = string.Join(", ", info.Fields.Select(f => ToCamelCase(f.Name)));
+        var argList = string.Join(", ", info.Fields.Select(f => StringHelpers.ToCamelCase(f.Name)));
 
         // XML documentation
         sb.AppendLine("    /// <summary>");
@@ -939,7 +940,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
         foreach (var field in info.Fields)
         {
-            var paramName = ToCamelCase(field.Name);
+            var paramName = StringHelpers.ToCamelCase(field.Name);
             sb.AppendLine($"    /// <param name=\"{paramName}\">The {field.Name} component.</param>");
         }
 
@@ -1078,21 +1079,6 @@ public sealed class BundleGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine("    }");
-    }
-
-    private static string ToCamelCase(string name)
-    {
-        if (string.IsNullOrEmpty(name))
-        {
-            return name;
-        }
-
-        if (name.Length == 1)
-        {
-            return name.ToLowerInvariant();
-        }
-
-        return char.ToLowerInvariant(name[0]) + name.Substring(1);
     }
 
     private sealed record BundleInfo(
