@@ -520,17 +520,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             // Add each component from the bundle
             foreach (var field in info.Fields)
             {
-                if (field.IsOptional && field.IsNullable)
-                {
-                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
-                    sb.AppendLine($"        {{");
-                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
-                    sb.AppendLine($"        }}");
-                }
-                else
-                {
-                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
-                }
+                AppendFieldAssignment(sb, field, "bundle", "builder", 2);
             }
 
             sb.AppendLine($"        return builder;");
@@ -549,17 +539,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
             foreach (var field in info.Fields)
             {
-                if (field.IsOptional && field.IsNullable)
-                {
-                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
-                    sb.AppendLine($"        {{");
-                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
-                    sb.AppendLine($"        }}");
-                }
-                else
-                {
-                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
-                }
+                AppendFieldAssignment(sb, field, "bundle", "builder", 2);
             }
 
             sb.AppendLine($"        return builder;");
@@ -589,17 +569,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             // Add each component from the bundle
             foreach (var field in info.Fields)
             {
-                if (field.IsOptional && field.IsNullable)
-                {
-                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
-                    sb.AppendLine($"        {{");
-                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
-                    sb.AppendLine($"        }}");
-                }
-                else
-                {
-                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
-                }
+                AppendFieldAssignment(sb, field, "bundle", "builder", 2);
             }
 
             sb.AppendLine($"        return builder;");
@@ -614,17 +584,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
             foreach (var field in info.Fields)
             {
-                if (field.IsOptional && field.IsNullable)
-                {
-                    sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
-                    sb.AppendLine($"        {{");
-                    sb.AppendLine($"            builder = builder.With(bundle.{field.Name}.Value);");
-                    sb.AppendLine($"        }}");
-                }
-                else
-                {
-                    sb.AppendLine($"        builder = builder.With(bundle.{field.Name});");
-                }
+                AppendFieldAssignment(sb, field, "bundle", "builder", 2);
             }
 
             sb.AppendLine($"        return builder;");
@@ -962,17 +922,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         // Add each component
         foreach (var field in info.Fields)
         {
-            if (field.IsOptional && field.IsNullable)
-            {
-                sb.AppendLine($"        if (bundle.{field.Name}.HasValue)");
-                sb.AppendLine($"        {{");
-                sb.AppendLine($"            world.Add(entity, bundle.{field.Name}.Value);");
-                sb.AppendLine($"        }}");
-            }
-            else
-            {
-                sb.AppendLine($"        world.Add(entity, bundle.{field.Name});");
-            }
+            AppendWorldAdd(sb, field, "bundle", "world", "entity", 2);
         }
 
         sb.AppendLine("    }");
@@ -1078,6 +1028,59 @@ public sealed class BundleGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine("    }");
+    }
+
+    /// <summary>
+    /// Generates code to add a component field from a bundle to an entity builder.
+    /// Handles optional/nullable fields with appropriate conditional logic.
+    /// </summary>
+    /// <param name="sb">The StringBuilder to append code to.</param>
+    /// <param name="field">The component field information.</param>
+    /// <param name="bundleAccessor">The expression to access the bundle (e.g., "bundle" or "bundle").</param>
+    /// <param name="builderVariable">The name of the builder variable (e.g., "builder").</param>
+    /// <param name="indentLevel">Number of indentation levels (4 spaces per level).</param>
+    private static void AppendFieldAssignment(StringBuilder sb, ComponentFieldInfo field, string bundleAccessor, string builderVariable, int indentLevel)
+    {
+        var indent = new string(' ', indentLevel * 4);
+
+        if (field.IsOptional && field.IsNullable)
+        {
+            sb.AppendLine($"{indent}if ({bundleAccessor}.{field.Name}.HasValue)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    {builderVariable} = {builderVariable}.With({bundleAccessor}.{field.Name}.Value);");
+            sb.AppendLine($"{indent}}}");
+        }
+        else
+        {
+            sb.AppendLine($"{indent}{builderVariable} = {builderVariable}.With({bundleAccessor}.{field.Name});");
+        }
+    }
+
+    /// <summary>
+    /// Generates code to add a component field from a bundle to a world.
+    /// Handles optional/nullable fields with appropriate conditional logic.
+    /// </summary>
+    /// <param name="sb">The StringBuilder to append code to.</param>
+    /// <param name="field">The component field information.</param>
+    /// <param name="bundleAccessor">The expression to access the bundle (e.g., "bundle").</param>
+    /// <param name="worldVariable">The name of the world variable (e.g., "world").</param>
+    /// <param name="entityVariable">The name of the entity variable (e.g., "entity").</param>
+    /// <param name="indentLevel">Number of indentation levels (4 spaces per level).</param>
+    private static void AppendWorldAdd(StringBuilder sb, ComponentFieldInfo field, string bundleAccessor, string worldVariable, string entityVariable, int indentLevel)
+    {
+        var indent = new string(' ', indentLevel * 4);
+
+        if (field.IsOptional && field.IsNullable)
+        {
+            sb.AppendLine($"{indent}if ({bundleAccessor}.{field.Name}.HasValue)");
+            sb.AppendLine($"{indent}{{");
+            sb.AppendLine($"{indent}    {worldVariable}.Add({entityVariable}, {bundleAccessor}.{field.Name}.Value);");
+            sb.AppendLine($"{indent}}}");
+        }
+        else
+        {
+            sb.AppendLine($"{indent}{worldVariable}.Add({entityVariable}, {bundleAccessor}.{field.Name});");
+        }
     }
 
     private static string ToCamelCase(string name)
