@@ -36,6 +36,8 @@
       href: serialization.md
     - name: Plugins
       href: plugins.md
+    - name: Parallelism
+      href: parallelism.md
     - name: Abstractions
       href: abstractions.md
     - name: Logging
