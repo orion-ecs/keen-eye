@@ -317,7 +317,7 @@ public class SerializationGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("TypesByName"));
+        Assert.Contains(generatedTrees, t => t.Contains("ComponentsByName"));
         Assert.Contains(generatedTrees, t => t.Contains("typeof(TestApp.TypedComponent)"));
     }
 
@@ -340,7 +340,7 @@ public class SerializationGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(generatedTrees, t => t.Contains("SerializableTypes"));
-        Assert.Contains(generatedTrees, t => t.Contains("HashSet<Type>"));
+        Assert.Contains(generatedTrees, t => t.Contains("ComponentsByType"));
     }
 
     [Fact]
@@ -701,7 +701,7 @@ public class SerializationGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("BinaryDeserializers"));
+        Assert.Contains(generatedTrees, t => t.Contains("BinaryDeserializer"));
         Assert.Contains(generatedTrees, t => t.Contains("DeserializeBinary_BinaryDeserializeTest"));
     }
 
@@ -724,7 +724,7 @@ public class SerializationGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("BinarySerializers"));
+        Assert.Contains(generatedTrees, t => t.Contains("BinarySerializer"));
         Assert.Contains(generatedTrees, t => t.Contains("SerializeBinary_BinarySerializeTest"));
     }
 
