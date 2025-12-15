@@ -56,11 +56,25 @@
 - name: Research
   href: research/index.md
   items:
+    - name: Graphics & Input Abstraction
+      href: research/graphics-input-abstraction.md
+    - name: UI System
+      href: research/ui-system.md
+    - name: Audio System
+      href: research/audio-system.md
+    - name: Particle System
+      href: research/particle-system.md
+    - name: Asset Management
+      href: research/asset-management.md
+    - name: Animation System
+      href: research/animation-system.md
+    - name: AI System
+      href: research/ai-system.md
     - name: Engine Systems Roadmap
       href: research/engine-systems-roadmap.md
     - name: Networking
       href: research/networking.md
-    - name: Audio Systems
+    - name: Audio Systems (Library Eval)
       href: research/audio-systems.md
     - name: Asset Loading
       href: research/asset-loading.md

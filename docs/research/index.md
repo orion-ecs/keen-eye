@@ -12,9 +12,23 @@ Research reports document:
 
 ## Reports
 
+### Planned Systems Architecture
+
 | Topic | Status | Purpose |
 |-------|--------|---------|
-| [Engine Systems Roadmap](engine-systems-roadmap.md) | Research Complete | Pathfinding, Scene Management, Localization, Networking planning |
+| [Graphics & Input Abstraction](graphics-input-abstraction.md) | Research Complete | Backend-agnostic graphics and input layer |
+| [UI System](ui-system.md) | Research Complete | Retained-mode UI with ECS entities |
+| [Audio System](audio-system.md) | Research Complete | OpenAL-based audio with 3D positioning |
+| [Particle System](particle-system.md) | Research Complete | High-performance particle rendering |
+| [Asset Management](asset-management.md) | Research Complete | Reference-counted asset loading |
+| [Animation System](animation-system.md) | Research Complete | Sprite, skeletal, and property animation |
+| [AI System](ai-system.md) | Research Complete | FSM, behavior trees, utility AI |
+| [Engine Systems Roadmap](engine-systems-roadmap.md) | Research Complete | Pathfinding, Scene Management, Localization, Networking |
+
+### Foundation Research
+
+| Topic | Status | Purpose |
+|-------|--------|---------|
 | [Networking](networking.md) | Phase 16.4 | Multiplayer synchronization patterns |
 | [Audio Systems](audio-systems.md) | Research Complete | Cross-platform audio library evaluation |
 | [Asset Loading](asset-loading.md) | Research Complete | Asset pipeline and loading strategies |

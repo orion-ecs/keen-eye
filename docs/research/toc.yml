@@ -1,22 +1,40 @@
 - name: Overview
   href: index.md
-- name: Engine Systems Roadmap
-  href: engine-systems-roadmap.md
-- name: Networking
-  href: networking.md
-- name: Audio Systems
-  href: audio-systems.md
-- name: Asset Loading
-  href: asset-loading.md
-- name: Cross-Platform Deployment
-  href: cross-platform-deployment.md
-- name: Framework Editor
-  href: framework-editor.md
-- name: Game Math Libraries
-  href: game-math-libraries.md
-- name: OpenGL C# Bindings
-  href: opengl-csharp-bindings.md
-- name: Shader Management
-  href: shader-management.md
-- name: Windowing & Input
-  href: windowing-input.md
+- name: Planned Systems
+  items:
+    - name: Graphics & Input Abstraction
+      href: graphics-input-abstraction.md
+    - name: UI System
+      href: ui-system.md
+    - name: Audio System
+      href: audio-system.md
+    - name: Particle System
+      href: particle-system.md
+    - name: Asset Management
+      href: asset-management.md
+    - name: Animation System
+      href: animation-system.md
+    - name: AI System
+      href: ai-system.md
+    - name: Engine Systems Roadmap
+      href: engine-systems-roadmap.md
+- name: Foundation Research
+  items:
+    - name: Networking
+      href: networking.md
+    - name: Audio Systems
+      href: audio-systems.md
+    - name: Asset Loading
+      href: asset-loading.md
+    - name: Cross-Platform Deployment
+      href: cross-platform-deployment.md
+    - name: Framework Editor
+      href: framework-editor.md
+    - name: Game Math Libraries
+      href: game-math-libraries.md
+    - name: OpenGL C# Bindings
+      href: opengl-csharp-bindings.md
+    - name: Shader Management
+      href: shader-management.md
+    - name: Windowing & Input
+      href: windowing-input.md
