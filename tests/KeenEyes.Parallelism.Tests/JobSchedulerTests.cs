@@ -326,7 +326,8 @@ public class JobSchedulerTests
     {
         using var scheduler = new JobScheduler();
 
-        var handle = scheduler.Schedule(new SlowJob { DelayMs = 1000 });
+        // Use 100ms delay - long enough to reliably test 10ms timeout, but fast enough to not slow tests
+        var handle = scheduler.Schedule(new SlowJob { DelayMs = 100 });
         var completed = handle.Wait(TimeSpan.FromMilliseconds(10));
 
         Assert.False(completed);
