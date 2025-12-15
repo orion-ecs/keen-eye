@@ -293,7 +293,7 @@ void RunRaycastingDemo()
     var targets = new List<(Entity entity, string name, Vector3 position)>();
 
     // Target 1: Directly ahead
-    var target1 = world.Spawn()
+    Entity target1 = world.Spawn()
         .With(new Transform3D(new Vector3(10, 2, 0), Quaternion.Identity, Vector3.One))
         .With(RigidBody.Static())
         .With(PhysicsShape.Sphere(1.0f))
@@ -302,7 +302,7 @@ void RunRaycastingDemo()
     targets.Add((target1, "Target A (ahead)", new Vector3(10, 2, 0)));
 
     // Target 2: To the right
-    var target2 = world.Spawn()
+    Entity target2 = world.Spawn()
         .With(new Transform3D(new Vector3(5, 2, 5), Quaternion.Identity, Vector3.One))
         .With(RigidBody.Static())
         .With(PhysicsShape.Box(1, 1, 1))
@@ -311,7 +311,7 @@ void RunRaycastingDemo()
     targets.Add((target2, "Target B (right)", new Vector3(5, 2, 5)));
 
     // Target 3: Above
-    var target3 = world.Spawn()
+    Entity target3 = world.Spawn()
         .With(new Transform3D(new Vector3(0, 8, 0), Quaternion.Identity, Vector3.One))
         .With(RigidBody.Static())
         .With(PhysicsShape.Sphere(0.5f))
