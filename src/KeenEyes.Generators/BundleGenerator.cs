@@ -238,6 +238,35 @@ public sealed class BundleGenerator : IIncrementalGenerator
         var diagnostics = new List<DiagnosticInfo>();
 
         // Validate: must be a struct
+        if (!ValidateBundleStruct(typeSymbol, diagnostics))
+        {
+            return CreateInvalidBundleInfo(typeSymbol, diagnostics);
+        }
+
+        // Extract and validate all fields
+        var fields = ExtractAndValidateFields(typeSymbol, context.SemanticModel.Compilation, diagnostics);
+        if (fields is null)
+        {
+            return CreateInvalidBundleInfo(typeSymbol, diagnostics);
+        }
+
+        // Validate: must have at least one field
+        if (!ValidateHasFields(typeSymbol, fields, diagnostics))
+        {
+            return CreateInvalidBundleInfo(typeSymbol, diagnostics);
+        }
+
+        return new BundleInfo(
+            typeSymbol.Name,
+            typeSymbol.ContainingNamespace.ToDisplayString(),
+            typeSymbol.ToDisplayString(),
+            fields.ToImmutableArray(),
+            diagnostics.ToImmutableArray(),
+            IsValid: true);
+    }
+
+    private static bool ValidateBundleStruct(INamedTypeSymbol typeSymbol, List<DiagnosticInfo> diagnostics)
+    {
         if (typeSymbol.TypeKind != TypeKind.Struct)
         {
             var location = typeSymbol.Locations.FirstOrDefault();
@@ -248,120 +277,185 @@ public sealed class BundleGenerator : IIncrementalGenerator
                     location,
                     [typeSymbol.Name]));
             }
-            return new BundleInfo(
-                typeSymbol.Name,
-                typeSymbol.ContainingNamespace.ToDisplayString(),
-                typeSymbol.ToDisplayString(),
-                ImmutableArray<ComponentFieldInfo>.Empty,
-                diagnostics.ToImmutableArray(),
-                IsValid: false);
+            return false;
         }
+        return true;
+    }
 
+    private static List<ComponentFieldInfo>? ExtractAndValidateFields(
+        INamedTypeSymbol typeSymbol,
+        Compilation compilation,
+        List<DiagnosticInfo> diagnostics)
+    {
         var fields = new List<ComponentFieldInfo>();
-        var compilation = context.SemanticModel.Compilation;
 
         foreach (var member in typeSymbol.GetMembers())
         {
-            if (member is not IFieldSymbol field)
+            if (member is not IFieldSymbol field || field.IsStatic || field.IsConst)
             {
                 continue;
             }
 
-            if (field.IsStatic || field.IsConst)
+            var fieldInfo = ProcessField(field, typeSymbol, compilation, diagnostics);
+            if (fieldInfo is null)
             {
-                continue;
-            }
-
-            var fieldType = field.Type;
-            var isOptional = field.GetAttributes()
-                .Any(a => a.AttributeClass?.ToDisplayString() == OptionalAttribute);
-            var isNullable = fieldType is INamedTypeSymbol { IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T };
-
-            // Validate: [Optional] fields must be nullable
-            if (isOptional && !isNullable)
-            {
-                var location = field.Locations.FirstOrDefault();
-                if (location is not null)
+                // Field had validation errors that should stop bundle processing
+                if (HasCircularReference(field.Type, typeSymbol, compilation))
                 {
-                    diagnostics.Add(new DiagnosticInfo(
-                        Diagnostics.BundleOptionalFieldMustBeNullable,
-                        location,
-                        [field.Name, typeSymbol.Name]));
+                    return null;
                 }
                 continue;
             }
 
-            ITypeSymbol underlyingType = fieldType;
-            if (isNullable && fieldType is INamedTypeSymbol namedType)
-            {
-                underlyingType = namedType.TypeArguments[0];
-            }
-
-            // Check for circular reference first (bundle containing itself)
-            if (underlyingType.ToDisplayString() == typeSymbol.ToDisplayString())
-            {
-                var location = field.Locations.FirstOrDefault();
-                if (location is not null)
-                {
-                    diagnostics.Add(new DiagnosticInfo(
-                        Diagnostics.BundleCircularReference,
-                        location,
-                        [typeSymbol.Name, field.Name]));
-                }
-                return new BundleInfo(
-                    typeSymbol.Name,
-                    typeSymbol.ContainingNamespace.ToDisplayString(),
-                    typeSymbol.ToDisplayString(),
-                    ImmutableArray<ComponentFieldInfo>.Empty,
-                    diagnostics.ToImmutableArray(),
-                    IsValid: false);
-            }
-
-            // Check if this is a bundle type
-            var isBundle = IsBundleType(underlyingType, compilation);
-
-            // Validate nesting depth for nested bundles
-            if (isBundle)
-            {
-                var visited = new HashSet<string>();
-                var tempDiagnostics = new List<DiagnosticInfo>();
-                FlattenBundle(
-                    underlyingType,
-                    compilation,
-                    tempDiagnostics,
-                    visited,
-                    depth: 1, // Start at 1 since we're already in a bundle
-                    field.Locations.FirstOrDefault() ?? typeSymbol.Locations.FirstOrDefault()!);
-
-                // Add any diagnostics from the flattening process (but don't fail the bundle)
-                // The diagnostics will be reported, but we still generate code for the bundle
-                diagnostics.AddRange(tempDiagnostics);
-            }
-
-            // Validate: field must be a component or bundle type
-            if (!isBundle && !IsComponentType(underlyingType, compilation))
-            {
-                var location = field.Locations.FirstOrDefault();
-                if (location is not null)
-                {
-                    diagnostics.Add(new DiagnosticInfo(
-                        Diagnostics.BundleFieldMustBeComponent,
-                        location,
-                        [field.Name, typeSymbol.Name, underlyingType.ToDisplayString()]));
-                }
-                continue; // Skip invalid field but continue processing others
-            }
-
-            fields.Add(new ComponentFieldInfo(
-                field.Name,
-                fieldType.ToDisplayString(),
-                isOptional,
-                isNullable,
-                isBundle,
-                isNullable ? underlyingType.ToDisplayString() : null));
+            fields.Add(fieldInfo);
         }
 
-        // Validate: must have at least one field
+        return fields;
+    }
+
+    private static ComponentFieldInfo? ProcessField(
+        IFieldSymbol field,
+        INamedTypeSymbol bundleType,
+        Compilation compilation,
+        List<DiagnosticInfo> diagnostics)
+    {
+        var fieldType = field.Type;
+        var isOptional = field.GetAttributes()
+            .Any(a => a.AttributeClass?.ToDisplayString() == OptionalAttribute);
+        var isNullable = fieldType is INamedTypeSymbol { IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T };
+
+        // Validate: [Optional] fields must be nullable
+        if (!ValidateOptionalField(field, bundleType, isOptional, isNullable, diagnostics))
+        {
+            return null;
+        }
+
+        var underlyingType = GetUnderlyingType(fieldType, isNullable);
+
+        // Check for circular reference first (bundle containing itself)
+        if (HasCircularReference(underlyingType, bundleType, compilation))
+        {
+            var location = field.Locations.FirstOrDefault();
+            if (location is not null)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    Diagnostics.BundleCircularReference,
+                    location,
+                    [bundleType.Name, field.Name]));
+            }
+            return null;
+        }
+
+        // Check if this is a bundle type
+        var isBundle = IsBundleType(underlyingType, compilation);
+
+        // Validate nesting depth for nested bundles
+        if (isBundle)
+        {
+            ValidateNestedBundle(underlyingType, bundleType, field, compilation, diagnostics);
+        }
+
+        // Validate: field must be a component or bundle type
+        if (!ValidateComponentOrBundle(field, bundleType, underlyingType, isBundle, compilation, diagnostics))
+        {
+            return null;
+        }
+
+        return new ComponentFieldInfo(
+            field.Name,
+            fieldType.ToDisplayString(),
+            isOptional,
+            isNullable,
+            isBundle,
+            isNullable ? underlyingType.ToDisplayString() : null);
+    }
+
+    private static bool ValidateOptionalField(
+        IFieldSymbol field,
+        INamedTypeSymbol bundleType,
+        bool isOptional,
+        bool isNullable,
+        List<DiagnosticInfo> diagnostics)
+    {
+        if (isOptional && !isNullable)
+        {
+            var location = field.Locations.FirstOrDefault();
+            if (location is not null)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    Diagnostics.BundleOptionalFieldMustBeNullable,
+                    location,
+                    [field.Name, bundleType.Name]));
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private static ITypeSymbol GetUnderlyingType(ITypeSymbol fieldType, bool isNullable)
+    {
+        if (isNullable && fieldType is INamedTypeSymbol namedType)
+        {
+            return namedType.TypeArguments[0];
+        }
+        return fieldType;
+    }
+
+    private static bool HasCircularReference(ITypeSymbol underlyingType, INamedTypeSymbol bundleType, Compilation compilation)
+    {
+        return underlyingType.ToDisplayString() == bundleType.ToDisplayString();
+    }
+
+    private static void ValidateNestedBundle(
+        ITypeSymbol underlyingType,
+        INamedTypeSymbol bundleType,
+        IFieldSymbol field,
+        Compilation compilation,
+        List<DiagnosticInfo> diagnostics)
+    {
+        var visited = new HashSet<string>();
+        var tempDiagnostics = new List<DiagnosticInfo>();
+        FlattenBundle(
+            underlyingType,
+            compilation,
+            tempDiagnostics,
+            visited,
+            depth: 1, // Start at 1 since we're already in a bundle
+            field.Locations.FirstOrDefault() ?? bundleType.Locations.FirstOrDefault()!);
+
+        // Add any diagnostics from the flattening process (but don't fail the bundle)
+        // The diagnostics will be reported, but we still generate code for the bundle
+        diagnostics.AddRange(tempDiagnostics);
+    }
+
+    private static bool ValidateComponentOrBundle(
+        IFieldSymbol field,
+        INamedTypeSymbol bundleType,
+        ITypeSymbol underlyingType,
+        bool isBundle,
+        Compilation compilation,
+        List<DiagnosticInfo> diagnostics)
+    {
+        if (!isBundle && !IsComponentType(underlyingType, compilation))
+        {
+            var location = field.Locations.FirstOrDefault();
+            if (location is not null)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    Diagnostics.BundleFieldMustBeComponent,
+                    location,
+                    [field.Name, bundleType.Name, underlyingType.ToDisplayString()]));
+            }
+            return false;
+        }
+        return true;
+    }
+
+    private static bool ValidateHasFields(
+        INamedTypeSymbol typeSymbol,
+        List<ComponentFieldInfo> fields,
+        List<DiagnosticInfo> diagnostics)
+    {
         if (fields.Count == 0)
         {
             var location = typeSymbol.Locations.FirstOrDefault();
@@ -372,22 +466,20 @@ public sealed class BundleGenerator : IIncrementalGenerator
                     location,
                     [typeSymbol.Name]));
             }
-            return new BundleInfo(
-                typeSymbol.Name,
-                typeSymbol.ContainingNamespace.ToDisplayString(),
-                typeSymbol.ToDisplayString(),
-                ImmutableArray<ComponentFieldInfo>.Empty,
-                diagnostics.ToImmutableArray(),
-                IsValid: false);
+            return false;
         }
+        return true;
+    }
 
+    private static BundleInfo CreateInvalidBundleInfo(INamedTypeSymbol typeSymbol, List<DiagnosticInfo> diagnostics)
+    {
         return new BundleInfo(
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
-            fields.ToImmutableArray(),
+            ImmutableArray<ComponentFieldInfo>.Empty,
             diagnostics.ToImmutableArray(),
-            IsValid: true);
+            IsValid: false);
     }
 
     private static bool IsComponentType(ITypeSymbol typeSymbol, Compilation compilation)
