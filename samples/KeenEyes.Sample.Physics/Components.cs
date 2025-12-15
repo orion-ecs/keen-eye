@@ -44,6 +44,9 @@ public partial struct RaycastHitTag;
 [Component]
 public partial struct EntityLabel
 {
+    /// <summary>
+    /// The display name of the entity.
+    /// </summary>
     public string Name;
 }
 
@@ -53,6 +56,9 @@ public partial struct EntityLabel
 [Component]
 public partial struct CollisionCounter
 {
+    /// <summary>
+    /// The number of collisions recorded.
+    /// </summary>
     public int Count;
 }
 
@@ -62,5 +68,8 @@ public partial struct CollisionCounter
 [Component]
 public partial struct SpawnTime
 {
+    /// <summary>
+    /// The time at which the entity was spawned.
+    /// </summary>
     public float Time;
 }

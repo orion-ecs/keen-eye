@@ -122,7 +122,7 @@ void RunFallingObjectsDemo()
 
     while (simTime < totalTime)
     {
-        world.Update(SystemPhase.FixedUpdate, dt);
+        world.FixedUpdate(dt);
         simTime += dt;
 
         // Print positions every 0.5 seconds
@@ -233,7 +233,7 @@ void RunStackingCollisionDemo()
 
     while (simTime < totalTime)
     {
-        world.Update(SystemPhase.FixedUpdate, dt);
+        world.FixedUpdate(dt);
         simTime += dt;
     }
 

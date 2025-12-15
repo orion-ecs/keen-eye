@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "dependencies": {
+    "net10.0": {
+      "keeneyes.abstractions": {
+        "type": "Project"
+      },
+      "keeneyes.common": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.core": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.physics": {
+        "type": "Project",
+        "dependencies": {
+          "BepuPhysics": "[2.4.0, )",
+          "BepuUtilities": "[2.4.0, )",
+          "KeenEyes.Common": "[1.0.0, )"
+        }
+      },
+      "BepuPhysics": {
+        "type": "CentralTransitive",
+        "requested": "[2.4.0, )",
+        "resolved": "2.4.0",
+        "contentHash": "Ck/BJgSQrBqYrj0T9jGljDdHNILBP5kTPTylc7N/hCzR1XJJc7p6ORzwtjTfjgoYkkdajvLHxEQv6BRC8kaysQ==",
+        "dependencies": {
+          "BepuUtilities": "2.4.0"
+        }
+      },
+      "BepuUtilities": {
+        "type": "CentralTransitive",
+        "requested": "[2.4.0, )",
+        "resolved": "2.4.0",
+        "contentHash": "KNMxkzKLHAvV7jRtErxs3rPv71fHToqo/WN96HlT6iomWuwL97tohEbt0B1WA8A6sO5t6PP+qF08d4T9A8k2uA=="
+      }
+    }
+  }
+}
