@@ -236,7 +236,7 @@ jobs:
             - `samples/` - Example code (check for anti-patterns users might copy)
             - `benchmarks/` - Performance benchmarks
 
-          claude_args: '--allowed-tools "Write,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue search:*),Bash(gh issue comment:*),Bash(gh label create:*)"'
+          claude_args: '--allowed-tools "Write,WebFetch,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue search:*),Bash(gh issue comment:*),Bash(gh label create:*)"'
 
       - name: Ensure labels exist
         if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
