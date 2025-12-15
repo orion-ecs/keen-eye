@@ -56,6 +56,8 @@
 - name: Research
   href: research/index.md
   items:
+    - name: Engine Systems Roadmap
+      href: research/engine-systems-roadmap.md
     - name: Networking
       href: research/networking.md
     - name: Audio Systems
