@@ -4,7 +4,6 @@
   href: getting-started.md
 - name: Core Concepts
   href: concepts.md
-- name: Guides
   items:
     - name: Entities
       href: entities.md
@@ -14,36 +13,96 @@
       href: queries.md
     - name: Systems
       href: systems.md
-    - name: Command Buffer
-      href: command-buffer.md
-    - name: Singletons
-      href: singletons.md
-    - name: Relationships
-      href: relationships.md
-    - name: Events
-      href: events.md
-    - name: Messaging
-      href: messaging.md
-    - name: Change Tracking
-      href: change-tracking.md
-    - name: Prefabs
-      href: prefabs.md
-    - name: String Tags
-      href: string-tags.md
-    - name: Component Validation
-      href: component-validation.md
-    - name: Serialization
-      href: serialization.md
-    - name: Plugins
-      href: plugins.md
-    - name: Parallelism
-      href: parallelism.md
+- name: Features
+  items:
+    - name: Entity Features
+      items:
+        - name: Bundles
+          href: bundles.md
+        - name: Prefabs
+          href: prefabs.md
+        - name: Relationships
+          href: relationships.md
+        - name: String Tags
+          href: string-tags.md
+    - name: Component Features
+      items:
+        - name: Change Tracking
+          href: change-tracking.md
+        - name: Component Validation
+          href: component-validation.md
+        - name: Events
+          href: events.md
+    - name: System Features
+      items:
+        - name: Command Buffer
+          href: command-buffer.md
+        - name: Messaging
+          href: messaging.md
+        - name: Parallelism
+          href: parallelism.md
+    - name: World Features
+      items:
+        - name: Singletons
+          href: singletons.md
+        - name: Serialization
+          href: serialization.md
+        - name: Plugins
+          href: plugins.md
+        - name: Logging
+          href: logging.md
+- name: Cookbook
+  href: cookbook/index.md
+  items:
+    - name: Getting Started Recipes
+      items:
+        - name: Basic Movement System
+          href: cookbook/basic-movement.md
+        - name: Health & Damage
+          href: cookbook/health-damage.md
+        - name: Entity Spawning Patterns
+          href: cookbook/entity-spawning.md
+    - name: Game Patterns
+      items:
+        - name: State Machine Entities
+          href: cookbook/state-machines.md
+        - name: Inventory System
+          href: cookbook/inventory-system.md
+        - name: Timer & Cooldowns
+          href: cookbook/timers-cooldowns.md
+    - name: Performance Patterns
+      items:
+        - name: Entity Pooling
+          href: cookbook/entity-pooling.md
+        - name: Spatial Queries
+          href: cookbook/spatial-queries.md
+        - name: Batch Operations
+          href: cookbook/batch-operations.md
+    - name: Integration Patterns
+      items:
+        - name: Physics Integration
+          href: cookbook/physics-integration.md
+        - name: Input Handling
+          href: cookbook/input-handling.md
+        - name: Scene Management
+          href: cookbook/scene-management.md
+- name: Design Philosophy
+  href: philosophy/index.md
+  items:
+    - name: Why ECS?
+      href: philosophy/why-ecs.md
+    - name: Why No Static State?
+      href: philosophy/no-static-state.md
+    - name: Why Source Generators?
+      href: philosophy/source-generators.md
+    - name: Why Native AOT?
+      href: philosophy/native-aot.md
+- name: Libraries
+  items:
     - name: Abstractions
       href: abstractions.md
-    - name: Logging
-      href: logging.md
-    - name: Graphics
-      href: graphics.md
+    - name: Common
+      href: common.md
     - name: Spatial
       href: spatial.md
       items:
@@ -53,40 +112,58 @@
           href: spatial-partitioning/strategy-selection.md
         - name: Performance Tuning
           href: spatial-partitioning/performance-tuning.md
+    - name: Graphics
+      href: graphics.md
+- name: Troubleshooting
+  href: troubleshooting.md
+- name: Architecture Decisions
+  items:
+    - name: ADR-001 World Manager Architecture
+      href: adr/001-world-manager-architecture.md
+    - name: ADR-002 IWorld Event System
+      href: adr/002-iworld-entity-lifecycle-events.md
+    - name: ADR-003 CommandBuffer Abstraction
+      href: adr/003-command-buffer-abstraction.md
+    - name: ADR-004 Reflection Elimination
+      href: adr/004-reflection-elimination.md
 - name: Research
   href: research/index.md
   items:
-    - name: Graphics & Input Abstraction
-      href: research/graphics-input-abstraction.md
-    - name: UI System
-      href: research/ui-system.md
-    - name: Audio System
-      href: research/audio-system.md
-    - name: Particle System
-      href: research/particle-system.md
-    - name: Asset Management
-      href: research/asset-management.md
-    - name: Animation System
-      href: research/animation-system.md
-    - name: AI System
-      href: research/ai-system.md
-    - name: Engine Systems Roadmap
-      href: research/engine-systems-roadmap.md
-    - name: Networking
-      href: research/networking.md
-    - name: Audio Systems (Library Eval)
-      href: research/audio-systems.md
-    - name: Asset Loading
-      href: research/asset-loading.md
-    - name: Cross-Platform Deployment
-      href: research/cross-platform-deployment.md
-    - name: Framework Editor
-      href: research/framework-editor.md
-    - name: Game Math Libraries
-      href: research/game-math-libraries.md
-    - name: OpenGL C# Bindings
-      href: research/opengl-csharp-bindings.md
-    - name: Shader Management
-      href: research/shader-management.md
-    - name: Windowing & Input
-      href: research/windowing-input.md
+    - name: Planned Systems
+      items:
+        - name: Graphics & Input Abstraction
+          href: research/graphics-input-abstraction.md
+        - name: UI System
+          href: research/ui-system.md
+        - name: Audio System
+          href: research/audio-system.md
+        - name: Particle System
+          href: research/particle-system.md
+        - name: Asset Management
+          href: research/asset-management.md
+        - name: Animation System
+          href: research/animation-system.md
+        - name: AI System
+          href: research/ai-system.md
+        - name: Engine Systems Roadmap
+          href: research/engine-systems-roadmap.md
+    - name: Foundation Research
+      items:
+        - name: Networking
+          href: research/networking.md
+        - name: Audio Systems (Library Eval)
+          href: research/audio-systems.md
+        - name: Asset Loading
+          href: research/asset-loading.md
+        - name: Cross-Platform Deployment
+          href: research/cross-platform-deployment.md
+        - name: Framework Editor
+          href: research/framework-editor.md
+        - name: Game Math Libraries
+          href: research/game-math-libraries.md
+        - name: OpenGL C# Bindings
+          href: research/opengl-csharp-bindings.md
+        - name: Shader Management
+          href: research/shader-management.md
+        - name: Windowing & Input
+          href: research/windowing-input.md
