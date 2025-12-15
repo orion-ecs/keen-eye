@@ -75,13 +75,13 @@ Replace dictionary-based storage with cache-friendly archetypes.
 
 Parent-child relationships for scene graphs and transforms.
 
-- [ ] `World.SetParent(child, parent)`
-- [ ] `World.GetParent(entity)`
-- [ ] `World.GetChildren(entity)`
-- [ ] `World.AddChild(parent, child)`
-- [ ] `World.RemoveChild(parent, child)`
-- [ ] Cascading despawn (destroy children with parent)
-- [ ] Hierarchy traversal utilities
+- [x] `World.SetParent(child, parent)`
+- [x] `World.GetParent(entity)`
+- [x] `World.GetChildren(entity)`
+- [x] `World.AddChild(parent, child)`
+- [x] `World.RemoveChild(parent, child)`
+- [x] Cascading despawn (destroy children with parent)
+- [x] Hierarchy traversal utilities
 
 ---
 
@@ -90,19 +90,19 @@ Parent-child relationships for scene graphs and transforms.
 Reactive patterns for responding to entity/component changes.
 
 ### 4.1 Event System
-- [ ] `World.OnComponentAdded<T>(handler)`
-- [ ] `World.OnComponentRemoved<T>(handler)`
-- [ ] `World.OnComponentChanged<T>(handler)`
-- [ ] `World.OnEntityCreated(handler)`
-- [ ] `World.OnEntityDestroyed(handler)`
-- [ ] General event bus for custom events
+- [x] `World.OnComponentAdded<T>(handler)`
+- [x] `World.OnComponentRemoved<T>(handler)`
+- [x] `World.OnComponentChanged<T>(handler)`
+- [x] `World.OnEntityCreated(handler)`
+- [x] `World.OnEntityDestroyed(handler)`
+- [x] General event bus for custom events
 
 ### 4.2 Change Tracking
-- [ ] `World.MarkDirty<T>(entity)`
-- [ ] `World.GetDirtyEntities<T>()`
-- [ ] `World.ClearDirtyFlags<T>()`
-- [ ] Automatic change detection option
-- [ ] Change tracking configuration
+- [x] `World.MarkDirty<T>(entity)`
+- [x] `World.GetDirtyEntities<T>()`
+- [x] `World.ClearDirtyFlags<T>()`
+- [x] Automatic change detection option
+- [x] Change tracking configuration
 
 ---
 
@@ -134,29 +134,29 @@ Better control over system execution.
 Extensibility for physics, networking, rendering, etc.
 
 ### 6.1 Plugin Infrastructure
-- [ ] `IWorldPlugin` interface
-- [ ] `PluginContext` for registration
-- [ ] Plugin metadata (name, version)
-- [ ] `Install()` / `Uninstall()` lifecycle
+- [x] `IWorldPlugin` interface
+- [x] `PluginContext` for registration
+- [x] Plugin metadata (name, version)
+- [x] `Install()` / `Uninstall()` lifecycle
 
 ### 6.2 WorldBuilder Pattern
-- [ ] `WorldBuilder` class
-- [ ] `.WithPlugin<T>()` fluent API
-- [ ] `.WithFixedUpdateRate(fps)` configuration
-- [ ] `.WithDebugMode(enabled)` configuration
-- [ ] `.WithChangeTracking(mode)` configuration
+- [x] `WorldBuilder` class
+- [x] `.WithPlugin<T>()` fluent API
+- [x] `.WithFixedUpdateRate(fps)` configuration
+- [x] `.WithDebugMode(enabled)` configuration
+- [x] `.WithChangeTracking(mode)` configuration
 
 ### 6.3 Runtime Plugin Management
-- [ ] `World.InstallPlugin(plugin)`
-- [ ] `World.UninstallPlugin(name)`
-- [ ] `World.HasPlugin(name)`
-- [ ] `World.GetPlugin<T>()`
-- [ ] `World.GetInstalledPlugins()`
+- [x] `World.InstallPlugin(plugin)`
+- [x] `World.UninstallPlugin(name)`
+- [x] `World.HasPlugin(name)`
+- [x] `World.GetPlugin<T>()`
+- [x] `World.GetInstalledPlugins()`
 
 ### 6.4 Extension API
-- [ ] `World.SetExtension<T>(api)` - plugin-provided APIs
-- [ ] `World.GetExtension<T>()`
-- [ ] Type-safe extension access
+- [x] `World.SetExtension<T>(api)` - plugin-provided APIs
+- [x] `World.GetExtension<T>()`
+- [x] Type-safe extension access
 
 ---
 
@@ -177,12 +177,12 @@ Decoupled communication between systems.
 
 Entity templates for content creation.
 
-- [ ] `PrefabManager`
-- [ ] `World.RegisterPrefab(name, config)`
-- [ ] `World.SpawnFromPrefab(name)`
-- [ ] `World.SpawnFromPrefab(name, overrides)`
-- [ ] Prefab inheritance
-- [ ] Nested prefabs
+- [x] `PrefabManager`
+- [x] `World.RegisterPrefab(name, config)`
+- [x] `World.SpawnFromPrefab(name)`
+- [x] `World.SpawnFromPrefab(name, overrides)`
+- [x] Prefab inheritance
+- [x] Nested prefabs
 
 ---
 
@@ -190,12 +190,12 @@ Entity templates for content creation.
 
 Dynamic categorization beyond type-safe `ITagComponent`.
 
-- [ ] `World.AddTag(entity, tagName)`
-- [ ] `World.RemoveTag(entity, tagName)`
-- [ ] `World.HasTag(entity, tagName)`
-- [ ] `World.GetTags(entity)`
-- [ ] Query filtering by tags (`.WithTag("enemy")`)
-- [ ] Query exclusion by tags (`.WithoutTag("dead")`)
+- [x] `World.AddTag(entity, tagName)`
+- [x] `World.RemoveTag(entity, tagName)`
+- [x] `World.HasTag(entity, tagName)`
+- [x] `World.GetTags(entity)`
+- [x] Query filtering by tags (`.WithTag("enemy")`)
+- [x] Query exclusion by tags (`.WithoutTag("dead")`)
 
 ---
 
@@ -203,10 +203,10 @@ Dynamic categorization beyond type-safe `ITagComponent`.
 
 Development-time safety checks.
 
-- [ ] `[RequiresComponent(typeof(T))]` attribute
-- [ ] `[ConflictsWith(typeof(T))]` attribute
-- [ ] Custom validation delegates
-- [ ] Validation toggle (dev vs production)
+- [x] `[RequiresComponent(typeof(T))]` attribute
+- [x] `[ConflictsWith(typeof(T))]` attribute
+- [x] Custom validation delegates
+- [x] Validation toggle (dev vs production)
 
 ---
 
@@ -214,12 +214,12 @@ Development-time safety checks.
 
 Save/load world state.
 
-- [ ] `SnapshotManager`
-- [ ] `World.CreateSnapshot()` - capture world state
-- [ ] `World.RestoreSnapshot(snapshot)` - restore state
-- [ ] Entity serialization
-- [ ] Component serialization (opt-in via `[Component(Serializable = true)]`)
-- [ ] Binary and JSON format support
+- [x] `SnapshotManager`
+- [x] `World.CreateSnapshot()` - capture world state
+- [x] `World.RestoreSnapshot(snapshot)` - restore state
+- [x] Entity serialization
+- [x] Component serialization (opt-in via `[Component(Serializable = true)]`)
+- [x] Binary and JSON format support
 
 ---
 
@@ -344,12 +344,12 @@ World (facade, ~300-400 lines)
 
 ### Extraction Order
 
-- [ ] Extract HierarchyManager (~676 lines)
-- [ ] Extract SystemManager (~365 lines)
-- [ ] Extract PluginManager (~169 lines)
-- [ ] Extract SingletonManager (~209 lines)
-- [ ] Extract ExtensionManager (~107 lines)
-- [ ] Reduce World to thin facade (~300-400 lines)
+- [x] Extract HierarchyManager (~676 lines)
+- [x] Extract SystemManager (~365 lines)
+- [x] Extract PluginManager (~169 lines)
+- [x] Extract SingletonManager (~209 lines)
+- [x] Extract ExtensionManager (~107 lines)
+- [x] Reduce World to thin facade (~300-400 lines)
 
 ### Constraints
 
@@ -414,7 +414,7 @@ Maximum performance optimizations.
 - [x] Trimming-safe APIs
 - [x] Source generator compatibility with AOT
 - [x] Reflection-free serialization
-- [ ] Benchmark AOT vs JIT performance (tracked in #366)
+- [x] Benchmark AOT vs JIT performance (tracked in #366)
 
 ### 17.3 Advanced Spatial Partitioning
 - [x] Configurable grid sizes
@@ -543,24 +543,44 @@ A full-featured browser-based game editor like Unity/Godot, powered by KeenEyes.
 
 Optional packages that extend KeenEyes:
 
-| Package | Purpose |
-|---------|---------|
-| `KeenEyes.Math` | Vector2/3, Matrix4x4, Quaternion, etc. |
-| `KeenEyes.Physics` | Physics simulation plugin |
-| `KeenEyes.Input` | Input management plugin |
-| `KeenEyes.Network` | Multiplayer/networking plugin |
-| `KeenEyes.StateMachine` | Finite state machine plugin |
-| `KeenEyes.AI` | Decision trees, behavior trees |
-| `KeenEyes.Spatial` | Quadtree/octree spatial partitioning |
-| `KeenEyes.Timeline` | Animation/sequencing |
-| `KeenEyes.Testing` | Test utilities, mock worlds |
-| `KeenEyes.DevTools` | Profiling, debugging, inspection |
+### Implemented Plugins
+
+| Package | Purpose | Status |
+|---------|---------|--------|
+| `KeenEyes.Spatial` | Quadtree/octree spatial partitioning | ✅ Complete |
+| `KeenEyes.Physics` | BepuPhysics integration | ✅ Complete |
+| `KeenEyes.Persistence` | Serialization with encryption | ✅ Complete |
+| `KeenEyes.Parallelism` | Parallel system execution | ✅ Complete |
+| `KeenEyes.Graphics` | Silk.NET OpenGL rendering | ✅ Complete |
+| `KeenEyes.Logging` | Pluggable logging providers | ✅ Complete |
+
+### Planned Plugins (Milestones Created)
+
+| Package | Purpose | Milestone |
+|---------|---------|-----------|
+| `KeenEyes.Graphics.Abstractions` | Graphics contracts (IRenderer, IRenderPipeline) | #14 |
+| `KeenEyes.Input.Abstractions` | Input contracts (IInputSource, IInputManager) | #14 |
+| `KeenEyes.Input` | Silk.NET input implementation | #14 |
+| `KeenEyes.UI` | Retained-mode UI as ECS entities | #15 |
+| `KeenEyes.Audio` | OpenAL audio via Silk.NET | #16 |
+| `KeenEyes.Particles` | High-performance particle systems | #18 |
+| `KeenEyes.Assets` | Reference-counted asset management | #19 |
+| `KeenEyes.Animation` | Sprite, skeletal, and property animation | #20 |
+| `KeenEyes.AI` | State machines, behavior trees, utility AI | #21 |
+
+### Research Required (See docs/research/engine-systems-roadmap.md)
+
+| Package | Purpose | Status |
+|---------|---------|--------|
+| `KeenEyes.Navigation` | Pathfinding & NavMesh | Research Issue #430 |
+| `KeenEyes.Scenes` | Scene management & streaming | Research Issue #431 |
+| `KeenEyes.Localization` | Multi-language text & assets | Research Issue #432 |
+| `KeenEyes.Network` | Multiplayer/networking plugin | Separate Planning |
 
 ### Additional Plugins from OrionECS
 | Plugin | Purpose |
 |--------|---------|
 | `KeenEyes.Canvas2D` | 2D canvas rendering |
-| `KeenEyes.ResourceManager` | Asset loading and caching |
 | `KeenEyes.Interaction` | User interaction systems |
 | `KeenEyes.Budgets` | Resource budget management |
 | `KeenEyes.ComponentPropagation` | Parent-to-child component inheritance |
@@ -578,24 +598,24 @@ Optional packages that extend KeenEyes:
 | Command Buffer | 5 | ✅ Complete |
 | Archetype Storage | 8 | ✅ Complete |
 | Query Caching | 3 | ✅ Complete |
-| Entity Hierarchy | 7 | Pending |
-| Event System | 6 | Pending |
-| Change Tracking | 5 | Pending |
+| Entity Hierarchy | 7 | ✅ Complete |
+| Event System | 6 | ✅ Complete |
+| Change Tracking | 5 | ✅ Complete |
 | System Enhancements | 12 | ✅ Complete |
-| Plugin System | 15 | Pending |
+| Plugin System | 15 | ✅ Complete |
 | Inter-System Messaging | 6 | ✅ Complete |
-| Prefabs | 6 | Pending |
-| Entity Tags | 6 | Pending |
-| Component Validation | 4 | Pending |
-| Serialization | 6 | Pending |
-| **Subtotal** | **~99** | |
+| Prefabs | 6 | ✅ Complete |
+| Entity Tags | 6 | ✅ Complete |
+| Component Validation | 4 | ✅ Complete |
+| Serialization | 6 | ✅ Complete |
+| **Subtotal** | **~99** | ✅ Complete |
 
 ### Developer Experience (Phases 12-14)
 | Category | Features | Status |
 |----------|----------|--------|
-| Log Provider Architecture | 4 | Pending |
-| Built-in Log Providers | 4 | Pending |
-| Logging Features | 6 | Pending |
+| Log Provider Architecture | 4 | ✅ Complete |
+| Built-in Log Providers | 4 | ✅ Complete |
+| Logging Features | 6 | ✅ Complete |
 | ECS-Specific Logging | 5 | Pending |
 | Debug Mode | 3 | Pending |
 | Profiling | 4 | Pending |
@@ -605,20 +625,20 @@ Optional packages that extend KeenEyes:
 | Mock Utilities | 4 | Pending |
 | Snapshot Testing | 4 | Pending |
 | Test Fixtures | 4 | Pending |
-| **Subtotal** | **~52** | |
+| **Subtotal** | **~52** | Partial |
 
 ### Production & Advanced (Phases 16-17)
 | Category | Features | Status |
 |----------|----------|--------|
 | Multi-World Support | 4 | Pending |
 | Schema Evolution | 4 | Pending |
-| Enhanced Save/Load | 11 | Pending |
+| Enhanced Save/Load | 11 | Partial (KeenEyes.Persistence) |
 | Network Sync | 5 | Pending |
 | Parallelization | 5 | ✅ Complete |
-| Native AOT | 4 | Pending |
-| Advanced Spatial | 4 | Pending |
-| Component Composition | 3 | Pending |
-| **Subtotal** | **~40** | |
+| Native AOT | 4 | ✅ Complete |
+| Advanced Spatial | 4 | ✅ Complete |
+| Component Composition | 3 | ✅ Complete |
+| **Subtotal** | **~40** | Partial |
 
 ### Tooling (Phases 18-19)
 | Category | Features | Status |

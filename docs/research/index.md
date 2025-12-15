@@ -14,6 +14,7 @@ Research reports document:
 
 | Topic | Status | Purpose |
 |-------|--------|---------|
+| [Engine Systems Roadmap](engine-systems-roadmap.md) | Research Complete | Pathfinding, Scene Management, Localization, Networking planning |
 | [Networking](networking.md) | Phase 16.4 | Multiplayer synchronization patterns |
 | [Audio Systems](audio-systems.md) | Research Complete | Cross-platform audio library evaluation |
 | [Asset Loading](asset-loading.md) | Research Complete | Asset pipeline and loading strategies |
