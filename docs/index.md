@@ -20,6 +20,87 @@ KeenEyes is a high-performance Entity Component System (ECS) framework for .NET 
 - **Source Generators** - Reduce boilerplate while maintaining performance.
 - **Parallel Execution** - Automatic system batching and job system for multi-threaded processing.
 
+## Modular Architecture
+
+KeenEyes is designed as a **fully-featured game engine** that is also **completely customizable**. Rather than a monolithic framework, KeenEyes uses a layered architecture with clear abstraction boundaries.
+
+### Why Multiple Projects?
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Your Game                            │
+├─────────────────────────────────────────────────────────┤
+│  KeenEyes.Graphics   │  KeenEyes.Audio   │  Physics     │
+│  (Silk.NET OpenGL)   │  (OpenAL)         │  (Your Pick) │
+├──────────────────────┴───────────────────┴──────────────┤
+│              KeenEyes.Core (ECS Runtime)                │
+├─────────────────────────────────────────────────────────┤
+│           KeenEyes.Abstractions (Interfaces)            │
+└─────────────────────────────────────────────────────────┘
+```
+
+| Package | Purpose |
+|---------|---------|
+| **KeenEyes.Abstractions** | Core interfaces (`IWorld`, `ISystem`, `IComponent`) - no implementation dependencies |
+| **KeenEyes.Core** | Full ECS runtime with archetype storage, queries, and system execution |
+| **KeenEyes.Graphics** | OpenGL/Vulkan rendering via Silk.NET |
+| **KeenEyes.Audio** | Spatial audio via OpenAL |
+| **KeenEyes.Spatial** | Transform components and spatial partitioning |
+
+### Swap Any Subsystem
+
+Don't like our physics implementation? Use your own. Prefer FMOD over OpenAL? Swap it out. The abstraction layers make this possible:
+
+```csharp
+// The default setup - everything works out of the box
+using var world = new WorldBuilder()
+    .WithPlugin<SilkGraphicsPlugin>()     // Built-in OpenGL rendering
+    .WithPlugin<OpenALAudioPlugin>()      // Built-in audio
+    .Build();
+
+// Or bring your own implementations
+using var world = new WorldBuilder()
+    .WithPlugin<MyCustomRendererPlugin>()  // Your Vulkan renderer
+    .WithPlugin<FmodAudioPlugin>()         // Third-party audio
+    .WithPlugin<BulletPhysicsPlugin>()     // Your physics choice
+    .Build();
+```
+
+### Benefits
+
+- **Use what works** - Start with built-in implementations, swap later if needed
+- **No vendor lock-in** - Core ECS never depends on specific rendering/audio/physics libraries
+- **Test in isolation** - Mock any subsystem for unit testing
+- **Minimal dependencies** - Only reference what you need (plugins only need `Abstractions`)
+- **Native AOT compatible** - No reflection, works with trimming and AOT compilation
+
+### Even the Core is Swappable
+
+The abstraction layer runs deep. `IWorld`, `ISystem`, `IEntityBuilder` - these are all interfaces. If you wanted to reimplement the entire ECS core with a different storage strategy, SIMD-optimized queries, or a completely different architecture, nothing stops you:
+
+```csharp
+// Your custom ECS implementation
+public class MyOptimizedWorld : IWorld
+{
+    // Implement IWorld with your own storage, queries, etc.
+}
+
+// Plugins written against IWorld work with YOUR implementation
+world.InstallPlugin<ThirdPartyPhysicsPlugin>();  // Just works
+```
+
+This isn't a theoretical capability - it's a design principle. The interfaces define the contract; `KeenEyes.Core` is simply the default implementation.
+
+### For Plugin Authors
+
+When creating plugins or libraries for KeenEyes, reference only `KeenEyes.Abstractions`:
+
+```xml
+<PackageReference Include="KeenEyes.Abstractions" Version="1.0.0" />
+```
+
+Your plugin works with any KeenEyes application regardless of which graphics, audio, or physics implementations they choose. See the [Abstractions Guide](abstractions.md) for details.
+
 ## Getting Started
 
 ```csharp

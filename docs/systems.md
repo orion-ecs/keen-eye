@@ -15,7 +15,8 @@ Systems implement `ISystem` or extend `SystemBase`:
 ```csharp
 public interface ISystem : IDisposable
 {
-    void Initialize(World world);
+    bool Enabled { get; set; }
+    void Initialize(IWorld world);
     void Update(float deltaTime);
 }
 ```
@@ -56,9 +57,11 @@ For more control, implement `ISystem` directly:
 ```csharp
 public class CustomSystem : ISystem
 {
-    private World? world;
+    private IWorld? world;
 
-    public void Initialize(World world)
+    public bool Enabled { get; set; } = true;
+
+    public void Initialize(IWorld world)
     {
         this.world = world;
         // Setup code
@@ -646,6 +649,100 @@ world.AddSystem<PhysicsSystem>();
 world.AddSystem<DeathSystem>();
 world.AddSystem<RenderSystem>();
 ```
+
+## System Hooks
+
+Global system hooks enable cross-cutting concerns like profiling, logging, and metrics collection without modifying individual systems.
+
+### Adding Hooks
+
+Register hooks with `World.AddSystemHook()`:
+
+```csharp
+// Profiling hook
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) => /* start timer */,
+    afterHook: (system, dt) => /* record elapsed time */
+);
+
+// Dispose to remove the hook
+hookSub.Dispose();
+```
+
+### Hook Patterns
+
+**Performance Profiling:**
+
+```csharp
+var timings = new Dictionary<string, float>();
+
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) => stopwatch.Restart(),
+    afterHook: (system, dt) =>
+    {
+        stopwatch.Stop();
+        timings[system.GetType().Name] = stopwatch.ElapsedMilliseconds;
+    }
+);
+```
+
+**Debug Logging:**
+
+```csharp
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) => logger.Debug($"Starting {system.GetType().Name}"),
+    afterHook: (system, dt) => logger.Debug($"Finished {system.GetType().Name}")
+);
+```
+
+**Phase Filtering:**
+
+```csharp
+// Hook only runs for FixedUpdate phase systems
+var hookSub = world.AddSystemHook(
+    beforeHook: (system, dt) => /* ... */,
+    afterHook: null,
+    phase: SystemPhase.FixedUpdate
+);
+```
+
+### Plugin Integration
+
+Plugins can register and clean up hooks during their lifecycle:
+
+```csharp
+public class ProfilingPlugin : IWorldPlugin
+{
+    public string Name => "Profiling";
+    private EventSubscription? hookSubscription;
+
+    public void Install(IPluginContext context)
+    {
+        hookSubscription = context.World.AddSystemHook(
+            beforeHook: (system, dt) => /* start profiling */,
+            afterHook: (system, dt) => /* end profiling */
+        );
+    }
+
+    public void Uninstall(IPluginContext context)
+    {
+        hookSubscription?.Dispose();
+    }
+}
+```
+
+### Performance Considerations
+
+- **No hooks registered**: Minimal overhead (~2-3ns per system)
+- **With hooks**: Overhead scales linearly with hook count
+- **Phase filtering**: Reduces unnecessary hook invocations
+
+### Best Practices
+
+1. **Dispose subscriptions** when hooks are no longer needed
+2. **Keep hooks lightweight** - they run for every system execution
+3. **Use phase filtering** when hooks only apply to specific phases
+4. **Handle exceptions** - hook exceptions propagate to the caller
 
 ## Best Practices
 

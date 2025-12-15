@@ -356,7 +356,7 @@ Wrap handlers in try-catch if fault tolerance is needed.
 // Store subscriptions for later cleanup
 private List<EventSubscription> subscriptions = [];
 
-public void Initialize(World world)
+public void Initialize(IWorld world)
 {
     subscriptions.Add(world.OnEntityCreated((e, n) => { }));
     subscriptions.Add(world.OnComponentAdded<Health>((e, h) => { }));

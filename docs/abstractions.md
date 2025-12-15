@@ -2,6 +2,82 @@
 
 The **KeenEyes.Abstractions** package provides lightweight interfaces and types for authoring plugins and extensions without depending on the full `KeenEyes.Core` runtime.
 
+## Philosophy: Swappable Subsystems
+
+KeenEyes is designed as a **fully-featured game engine** that remains **completely customizable**. The abstractions layer is the foundation that makes this possible.
+
+### The Problem with Monolithic Engines
+
+Traditional game engines often tightly couple their subsystems:
+
+```
+❌ Monolithic: Everything depends on everything
+┌─────────────────────────────────────────┐
+│   Rendering ←→ Physics ←→ Audio ←→ ECS │
+│        ↕          ↕         ↕          │
+│      Input ←→ Networking ←→ Assets     │
+└─────────────────────────────────────────┘
+```
+
+This creates problems:
+- Can't use a different physics engine without rewriting rendering code
+- Testing requires the entire engine
+- Updates to one subsystem can break others
+
+### The KeenEyes Solution
+
+KeenEyes uses abstraction boundaries that allow any subsystem to be swapped:
+
+```
+✅ Modular: Subsystems are independent
+┌──────────┐  ┌──────────┐  ┌──────────┐
+│ Graphics │  │  Audio   │  │ Physics  │  ← Swappable implementations
+└────┬─────┘  └────┬─────┘  └────┬─────┘
+     │             │             │
+     └─────────────┼─────────────┘
+                   ↓
+          ┌───────────────┐
+          │  KeenEyes.Core │  ← ECS runtime
+          └───────┬───────┘
+                  ↓
+          ┌───────────────────┐
+          │ Abstractions      │  ← Stable interfaces
+          └───────────────────┘
+```
+
+**Real-world example:**
+
+```csharp
+// Default: Use built-in implementations
+using var world = new WorldBuilder()
+    .WithPlugin<SilkGraphicsPlugin>()    // OpenGL via Silk.NET
+    .WithPlugin<OpenALAudioPlugin>()     // OpenAL audio
+    .Build();
+
+// Alternative: Swap in your preferred libraries
+using var world = new WorldBuilder()
+    .WithPlugin<MonoGameGraphicsPlugin>() // MonoGame rendering
+    .WithPlugin<FmodAudioPlugin>()        // FMOD audio
+    .WithPlugin<JoltPhysicsPlugin>()      // Jolt physics
+    .Build();
+```
+
+The ECS core and your game logic don't change - only the plugins differ.
+
+### Even the Core is Replaceable
+
+The abstraction runs all the way down. `IWorld` itself is an interface - if you need a different ECS implementation (sparse sets instead of archetypes, SIMD-optimized queries, distributed entity storage), you can build your own:
+
+```csharp
+public class MySparseSetWorld : IWorld
+{
+    // Your custom ECS implementation
+    // All plugins targeting IWorld still work
+}
+```
+
+`KeenEyes.Core` is the default implementation, not a requirement. This ensures the ecosystem of plugins and tools remains useful even if you outgrow the default core.
+
 ## Purpose
 
 When building plugins, libraries, or extensions for KeenEyes, you often want to:
@@ -10,6 +86,7 @@ When building plugins, libraries, or extensions for KeenEyes, you often want to:
 - Avoid coupling to implementation details
 - Enable testing with mock implementations
 - Support multiple KeenEyes versions with a stable interface
+- **Allow users to swap your implementation for alternatives**
 
 The Abstractions package solves this by providing only the essential interfaces and types needed to define systems, components, and plugins.
 
@@ -482,6 +559,115 @@ public static IEntityBuilder WithPosition(this IEntityBuilder builder, float x, 
 This dual-generation enables:
 - **Type-safe chaining** with concrete types (`EntityBuilder`, `EntityCommands`)
 - **Interface compatibility** for plugin usage through `IWorld.Spawn()` and `CommandBuffer.Spawn()`
+
+## Creating Swappable Subsystems
+
+When building a subsystem (physics, audio, rendering, etc.) that users might want to swap, follow this pattern:
+
+### 1. Define the Interface
+
+Create an interface in a shared abstractions package:
+
+```csharp
+// In MyPhysics.Abstractions
+public interface IPhysicsWorld
+{
+    void SetGravity(float x, float y, float z);
+    bool Raycast(Vector3 origin, Vector3 direction, float maxDistance, out RaycastHit hit);
+    void AddForce(Entity entity, Vector3 force);
+}
+
+public interface IPhysicsPlugin : IWorldPlugin
+{
+    IPhysicsWorld PhysicsWorld { get; }
+}
+```
+
+### 2. Implement the Plugin
+
+Create one or more implementations:
+
+```csharp
+// In MyPhysics.Jolt (uses Jolt physics)
+public class JoltPhysicsPlugin : IPhysicsPlugin
+{
+    public string Name => "Physics.Jolt";
+    private JoltPhysicsWorld? physicsWorld;
+
+    public IPhysicsWorld PhysicsWorld => physicsWorld
+        ?? throw new InvalidOperationException("Plugin not installed");
+
+    public void Install(IPluginContext context)
+    {
+        physicsWorld = new JoltPhysicsWorld(context.World);
+        context.SetExtension<IPhysicsWorld>(physicsWorld);
+        context.AddSystem<JoltPhysicsSystem>(SystemPhase.FixedUpdate);
+    }
+
+    public void Uninstall(IPluginContext context)
+    {
+        context.RemoveExtension<IPhysicsWorld>();
+        physicsWorld?.Dispose();
+    }
+}
+
+// In MyPhysics.Bullet (alternative implementation)
+public class BulletPhysicsPlugin : IPhysicsPlugin
+{
+    public string Name => "Physics.Bullet";
+    // ... same interface, different implementation
+}
+```
+
+### 3. Consume via Interface
+
+Game code depends only on the interface:
+
+```csharp
+public class PlayerController : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        // Works with ANY physics implementation
+        var physics = World.GetExtension<IPhysicsWorld>();
+
+        foreach (var entity in World.Query<Player, Position>())
+        {
+            if (physics.Raycast(position, Vector3.Down, 1.0f, out var hit))
+            {
+                // Player is grounded
+            }
+        }
+    }
+}
+```
+
+### 4. User Chooses Implementation
+
+Users pick the implementation at startup:
+
+```csharp
+// User prefers Jolt physics
+using var world = new WorldBuilder()
+    .WithPlugin<JoltPhysicsPlugin>()
+    .Build();
+
+// Another user prefers Bullet
+using var world = new WorldBuilder()
+    .WithPlugin<BulletPhysicsPlugin>()
+    .Build();
+
+// Game code works identically with both!
+```
+
+### Key Principles
+
+1. **Interface in abstractions** - The contract lives in a package with no implementation dependencies
+2. **Implementation in separate packages** - Each backend is its own package
+3. **Register via extension** - Use `SetExtension<IInterface>()` so consumers use the interface type
+4. **Same plugin name category** - Use names like `"Physics.Jolt"`, `"Physics.Bullet"` for clarity
+
+This pattern enables the KeenEyes ecosystem where users can mix and match subsystems freely.
 
 ## Package Contents
 

@@ -26,7 +26,7 @@ public class PhysicsPlugin : IWorldPlugin
 {
     public string Name => "Physics";
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         // Register systems
         context.AddSystem<GravitySystem>(SystemPhase.FixedUpdate, order: 0);
@@ -37,7 +37,7 @@ public class PhysicsPlugin : IWorldPlugin
         context.SetExtension(new PhysicsWorld(context.World));
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         // Cleanup (systems are auto-removed)
         context.RemoveExtension<PhysicsWorld>();
@@ -51,7 +51,7 @@ The `Name` property must be unique within a world. Installing two plugins with t
 
 ### Installation
 
-During `Install()`, use `PluginContext` to:
+During `Install()`, use `IPluginContext` to:
 
 - **Add systems** via `AddSystem<T>()` overloads
 - **Add system groups** via `AddSystemGroup()`
@@ -131,7 +131,7 @@ bool removed = world.UninstallPlugin("Physics");
 
 When uninstalled:
 1. `Uninstall()` is called on the plugin
-2. All systems registered via `PluginContext` are removed
+2. All systems registered via `IPluginContext` are removed
 3. The plugin is removed from the world's registry
 
 ## Extension API
@@ -141,7 +141,7 @@ Extensions let plugins expose custom APIs on the world:
 ### Setting Extensions
 
 ```csharp
-public void Install(PluginContext context)
+public void Install(IPluginContext context)
 {
     // Create and register your API
     var physicsWorld = new PhysicsWorld(context.World);
@@ -245,7 +245,7 @@ public class DebugPlugin : IWorldPlugin
 
     public DebugPlugin(DebugConfig config) => this.config = config;
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         if (config.ShowStats)
         {
@@ -260,7 +260,7 @@ public class DebugPlugin : IWorldPlugin
         context.SetExtension(new DebugStats());
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         context.RemoveExtension<DebugStats>();
     }
@@ -282,7 +282,7 @@ public class CombatPlugin : IWorldPlugin
 {
     public string Name => "Combat";
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         // Create system group for ordered execution
         var combatGroup = new SystemGroup("Combat");
@@ -294,7 +294,7 @@ public class CombatPlugin : IWorldPlugin
         context.AddSystemGroup(combatGroup, SystemPhase.Update, order: 100);
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         // Systems auto-cleaned
     }
@@ -313,7 +313,7 @@ public class NetworkPlugin : IWorldPlugin
 
     public NetworkPlugin(NetworkConfig config) => this.config = config;
 
-    public void Install(PluginContext context)
+    public void Install(IPluginContext context)
     {
         manager = new NetworkManager(config);
 
@@ -323,7 +323,7 @@ public class NetworkPlugin : IWorldPlugin
         context.SetExtension(manager);
     }
 
-    public void Uninstall(PluginContext context)
+    public void Uninstall(IPluginContext context)
     {
         context.RemoveExtension<NetworkManager>();
         manager?.Dispose();
@@ -415,7 +415,7 @@ world2.InstallPlugin<AudioPlugin>();
 
 ### Do
 
-- Use `PluginContext.AddSystem()` so systems are auto-tracked
+- Use `IPluginContext.AddSystem()` so systems are auto-tracked
 - Clean up extensions in `Uninstall()`
 - Use unique, descriptive plugin names
 - Provide configuration via constructor parameters
