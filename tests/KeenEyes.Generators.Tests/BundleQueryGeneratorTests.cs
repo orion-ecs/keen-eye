@@ -157,9 +157,9 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify Query<T>() method
+        // Verify Query<T>() method returns non-generic QueryBuilder
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public QueryBuilder<TestApp.Position, TestApp.Rotation> Query<T>()"));
+            t.Contains("public QueryBuilder Query<T>()"));
     }
 
     [Fact]
@@ -195,12 +195,9 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify WithTransformBundle<TBundle>() extension exists for different QueryBuilder arities
+        // Verify WithTransformBundle<TBundle>() extension exists for non-generic QueryBuilder
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public static QueryBuilder<T1> WithTransformBundle<TBundle, T1>"));
-
-        Assert.Contains(generatedTrees, t =>
-            t.Contains("public static QueryBuilder<T1, T2> WithTransformBundle<TBundle, T1, T2>"));
+            t.Contains("public static QueryBuilder WithTransformBundle<TBundle>(this QueryBuilder builder)"));
     }
 
     [Fact]
@@ -236,9 +233,9 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify WithoutTransformBundle<TBundle>() extension exists
+        // Verify WithoutTransformBundle<TBundle>() extension exists for non-generic QueryBuilder
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public static QueryBuilder<T1> WithoutTransformBundle<TBundle, T1>"));
+            t.Contains("public static QueryBuilder WithoutTransformBundle<TBundle>(this QueryBuilder builder)"));
     }
 
     [Fact]
@@ -315,9 +312,9 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify Query<T>() returns QueryBuilder<Position>
+        // Verify Query<T>() returns non-generic QueryBuilder
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public QueryBuilder<TestApp.Position> Query<T>()"));
+            t.Contains("public QueryBuilder Query<T>()"));
     }
 
     [Fact]
@@ -361,9 +358,9 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify Query<T>() returns QueryBuilder<Position, Rotation, Scale>
+        // Verify Query<T>() returns non-generic QueryBuilder
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public QueryBuilder<TestApp.Position, TestApp.Rotation, TestApp.Scale> Query<T>()"));
+            t.Contains("public QueryBuilder Query<T>()"));
     }
 
     [Fact]

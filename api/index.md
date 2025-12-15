@@ -20,8 +20,8 @@ Core ECS runtime types for building high-performance entity component systems.
 | @KeenEyes.ComponentRegistry | Per-world component type registration |
 | @KeenEyes.Archetype | Storage for entities sharing the same component types |
 | @KeenEyes.ArchetypeManager | Manages archetype lifecycle and entity migrations |
-| @KeenEyes.QueryBuilder`1 | Fluent query builder for filtering entities |
-| @KeenEyes.QueryEnumerator`1 | Cache-friendly query iteration |
+| @KeenEyes.QueryBuilder | Fluent query builder for filtering entities |
+| @KeenEyes.QueryEnumerator | Cache-friendly query iteration |
 | @KeenEyes.ISystem | Base interface for ECS systems |
 | @KeenEyes.SystemBase | Abstract base class with lifecycle hooks and runtime control |
 | @KeenEyes.SystemGroup | Groups systems for collective execution |
