@@ -265,68 +265,13 @@ public sealed class ComponentGenerator : IIncrementalGenerator
                 methodName = $"{info.Name}_{suffix}";
             }
 
-            sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
-
             if (info.IsTag)
             {
-                // Tag component - no parameters
-                // Generic version for fluent chaining
-                sb.AppendLine($"    public static TSelf With{methodName}<TSelf>(this TSelf builder)");
-                sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
-                sb.AppendLine($"    {{");
-                sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
-                sb.AppendLine($"    }}");
-                sb.AppendLine();
-
-                // Non-generic version for interface usage
-                sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
-                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{methodName}(this global::KeenEyes.IEntityBuilder builder)");
-                sb.AppendLine($"    {{");
-                sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
-                sb.AppendLine($"    }}");
+                GenerateTagComponentExtension(sb, info, methodName);
             }
             else
             {
-                // Regular component - generate parameters from fields
-                var parameters = new List<string>();
-                var assignments = new List<string>();
-
-                foreach (var field in info.Fields)
-                {
-                    var paramName = StringHelpers.ToCamelCase(field.Name);
-                    var defaultExpr = GetDefaultExpression(field);
-
-                    if (field.IsRequired || defaultExpr is null)
-                    {
-                        // Required parameter (no default)
-                        parameters.Add($"{field.Type} {paramName}");
-                    }
-                    else
-                    {
-                        // Optional parameter with default
-                        parameters.Add($"{field.Type} {paramName} = {defaultExpr}");
-                    }
-
-                    assignments.Add($"{field.Name} = {paramName}");
-                }
-
-                var paramList = string.Join(", ", parameters);
-                var assignList = string.Join(", ", assignments);
-
-                // Generic version for fluent chaining
-                sb.AppendLine($"    public static TSelf With{methodName}<TSelf>(this TSelf builder, {paramList})");
-                sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
-                sb.AppendLine($"    {{");
-                sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
-                sb.AppendLine($"    }}");
-                sb.AppendLine();
-
-                // Non-generic version for interface usage
-                sb.AppendLine($"    /// <summary>Adds a <see cref=\"{info.FullName}\"/> component to the entity.</summary>");
-                sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{methodName}(this global::KeenEyes.IEntityBuilder builder, {paramList})");
-                sb.AppendLine($"    {{");
-                sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
-                sb.AppendLine($"    }}");
+                GenerateRegularComponentExtension(sb, info, methodName);
             }
 
             sb.AppendLine();
@@ -335,6 +280,75 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    private static void AppendComponentSummary(StringBuilder sb, string fullName)
+    {
+        sb.AppendLine($"    /// <summary>Adds a <see cref=\"{fullName}\"/> component to the entity.</summary>");
+    }
+
+    private static void GenerateTagComponentExtension(StringBuilder sb, ComponentInfo info, string methodName)
+    {
+        // Generic version for fluent chaining
+        AppendComponentSummary(sb, info.FullName);
+        sb.AppendLine($"    public static TSelf With{methodName}<TSelf>(this TSelf builder)");
+        sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
+        sb.AppendLine($"    {{");
+        sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
+        sb.AppendLine($"    }}");
+        sb.AppendLine();
+
+        // Non-generic version for interface usage
+        AppendComponentSummary(sb, info.FullName);
+        sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{methodName}(this global::KeenEyes.IEntityBuilder builder)");
+        sb.AppendLine($"    {{");
+        sb.AppendLine($"        return builder.WithTag<{info.FullName}>();");
+        sb.AppendLine($"    }}");
+    }
+
+    private static void GenerateRegularComponentExtension(StringBuilder sb, ComponentInfo info, string methodName)
+    {
+        // Generate parameters from fields
+        var parameters = new List<string>();
+        var assignments = new List<string>();
+
+        foreach (var field in info.Fields)
+        {
+            var paramName = StringHelpers.ToCamelCase(field.Name);
+            var defaultExpr = GetDefaultExpression(field);
+
+            if (field.IsRequired || defaultExpr is null)
+            {
+                // Required parameter (no default)
+                parameters.Add($"{field.Type} {paramName}");
+            }
+            else
+            {
+                // Optional parameter with default
+                parameters.Add($"{field.Type} {paramName} = {defaultExpr}");
+            }
+
+            assignments.Add($"{field.Name} = {paramName}");
+        }
+
+        var paramList = string.Join(", ", parameters);
+        var assignList = string.Join(", ", assignments);
+
+        // Generic version for fluent chaining
+        AppendComponentSummary(sb, info.FullName);
+        sb.AppendLine($"    public static TSelf With{methodName}<TSelf>(this TSelf builder, {paramList})");
+        sb.AppendLine($"        where TSelf : global::KeenEyes.IEntityBuilder<TSelf>");
+        sb.AppendLine($"    {{");
+        sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
+        sb.AppendLine($"    }}");
+        sb.AppendLine();
+
+        // Non-generic version for interface usage
+        AppendComponentSummary(sb, info.FullName);
+        sb.AppendLine($"    public static global::KeenEyes.IEntityBuilder With{methodName}(this global::KeenEyes.IEntityBuilder builder, {paramList})");
+        sb.AppendLine($"    {{");
+        sb.AppendLine($"        return builder.With(new {info.FullName} {{ {assignList} }});");
+        sb.AppendLine($"    }}");
     }
 
     private static string GenerateNamespaceSuffix(string namespaceName)
