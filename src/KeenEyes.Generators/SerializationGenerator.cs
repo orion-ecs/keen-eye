@@ -146,149 +146,89 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    /// </summary>");
         sb.AppendLine("    public static readonly ComponentSerializer Instance = new();");
         sb.AppendLine();
-        sb.AppendLine("    private static readonly Dictionary<string, Func<JsonElement, object>> Deserializers;");
-        sb.AppendLine("    private static readonly Dictionary<Type, Func<object, JsonElement>> Serializers;");
-        sb.AppendLine("    private static readonly Dictionary<string, Type> TypesByName;");
-        sb.AppendLine("    private static readonly HashSet<Type> SerializableTypes;");
-        sb.AppendLine("    private static readonly Dictionary<string, Func<World, bool, ComponentInfo>> Registrars;");
-        sb.AppendLine("    private static readonly Dictionary<string, Action<World, object>> SingletonSetters;");
-        sb.AppendLine("    private static readonly Dictionary<string, Func<BinaryReader, object>> BinaryDeserializers;");
-        sb.AppendLine("    private static readonly Dictionary<Type, Action<object, BinaryWriter>> BinarySerializers;");
+        sb.AppendLine("    private sealed record ComponentSerializationInfo(");
+        sb.AppendLine("        Type Type,");
+        sb.AppendLine("        Func<JsonElement, object> JsonDeserializer,");
+        sb.AppendLine("        Func<object, JsonElement> JsonSerializer,");
+        sb.AppendLine("        Func<BinaryReader, object> BinaryDeserializer,");
+        sb.AppendLine("        Action<object, BinaryWriter> BinarySerializer,");
+        sb.AppendLine("        Func<World, bool, ComponentInfo> Registrar,");
+        sb.AppendLine("        Action<World, object> SingletonSetter);");
+        sb.AppendLine();
+        sb.AppendLine("    private static readonly Dictionary<string, ComponentSerializationInfo> ComponentsByName;");
+        sb.AppendLine("    private static readonly Dictionary<Type, ComponentSerializationInfo> ComponentsByType;");
         sb.AppendLine();
 
         // Static constructor to initialize dictionaries
         sb.AppendLine("    static ComponentSerializer()");
         sb.AppendLine("    {");
-        sb.AppendLine("        Deserializers = new Dictionary<string, Func<JsonElement, object>>");
-        sb.AppendLine("        {");
-
-        foreach (var component in components)
-        {
-            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = Deserialize_{component.Name},");
-            sb.AppendLine($"            [\"{component.FullName}\"] = Deserialize_{component.Name},");
-        }
-
-        sb.AppendLine("        };");
+        sb.AppendLine("        ComponentsByName = new Dictionary<string, ComponentSerializationInfo>();");
+        sb.AppendLine("        ComponentsByType = new Dictionary<Type, ComponentSerializationInfo>();");
         sb.AppendLine();
-        sb.AppendLine("        Serializers = new Dictionary<Type, Func<object, JsonElement>>");
-        sb.AppendLine("        {");
 
         foreach (var component in components)
         {
-            sb.AppendLine($"            [typeof({component.FullName})] = value => Serialize_{component.Name}(({component.FullName})value),");
-        }
-
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        TypesByName = new Dictionary<string, Type>");
-        sb.AppendLine("        {");
-
-        foreach (var component in components)
-        {
-            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = typeof({component.FullName}),");
-            sb.AppendLine($"            [\"{component.FullName}\"] = typeof({component.FullName}),");
-        }
-
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        SerializableTypes = new HashSet<Type>");
-        sb.AppendLine("        {");
-
-        foreach (var component in components)
-        {
+            sb.AppendLine($"        var info_{component.Name} = new ComponentSerializationInfo(");
             sb.AppendLine($"            typeof({component.FullName}),");
+            sb.AppendLine($"            Deserialize_{component.Name},");
+            sb.AppendLine($"            value => Serialize_{component.Name}(({component.FullName})value),");
+            sb.AppendLine($"            DeserializeBinary_{component.Name},");
+            sb.AppendLine($"            (value, writer) => SerializeBinary_{component.Name}(({component.FullName})value, writer),");
+            sb.AppendLine($"            (world, isTag) => world.Components.Register<{component.FullName}>(isTag),");
+            sb.AppendLine($"            (world, value) => world.SetSingleton(({component.FullName})value));");
+            sb.AppendLine();
+            sb.AppendLine($"        ComponentsByName[typeof({component.FullName}).AssemblyQualifiedName!] = info_{component.Name};");
+            sb.AppendLine($"        ComponentsByName[\"{component.FullName}\"] = info_{component.Name};");
+            sb.AppendLine($"        ComponentsByType[typeof({component.FullName})] = info_{component.Name};");
+            sb.AppendLine();
         }
 
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        Registrars = new Dictionary<string, Func<World, bool, ComponentInfo>>");
-        sb.AppendLine("        {");
-
-        foreach (var component in components)
-        {
-            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = (world, isTag) => world.Components.Register<{component.FullName}>(isTag),");
-            sb.AppendLine($"            [\"{component.FullName}\"] = (world, isTag) => world.Components.Register<{component.FullName}>(isTag),");
-        }
-
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        SingletonSetters = new Dictionary<string, Action<World, object>>");
-        sb.AppendLine("        {");
-
-        foreach (var component in components)
-        {
-            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = (world, value) => world.SetSingleton(({component.FullName})value),");
-            sb.AppendLine($"            [\"{component.FullName}\"] = (world, value) => world.SetSingleton(({component.FullName})value),");
-        }
-
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        BinaryDeserializers = new Dictionary<string, Func<BinaryReader, object>>");
-        sb.AppendLine("        {");
-
-        foreach (var component in components)
-        {
-            sb.AppendLine($"            [typeof({component.FullName}).AssemblyQualifiedName!] = DeserializeBinary_{component.Name},");
-            sb.AppendLine($"            [\"{component.FullName}\"] = DeserializeBinary_{component.Name},");
-        }
-
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("        BinarySerializers = new Dictionary<Type, Action<object, BinaryWriter>>");
-        sb.AppendLine("        {");
-
-        foreach (var component in components)
-        {
-            sb.AppendLine($"            [typeof({component.FullName})] = (value, writer) => SerializeBinary_{component.Name}(({component.FullName})value, writer),");
-        }
-
-        sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine();
 
         // Public API methods implementing IComponentSerializer
         sb.AppendLine("    /// <inheritdoc />");
-        sb.AppendLine("    public bool IsSerializable(Type type) => SerializableTypes.Contains(type);");
+        sb.AppendLine("    public bool IsSerializable(Type type) => ComponentsByType.ContainsKey(type);");
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
-        sb.AppendLine("    public bool IsSerializable(string typeName) => Deserializers.ContainsKey(typeName);");
+        sb.AppendLine("    public bool IsSerializable(string typeName) => ComponentsByName.ContainsKey(typeName);");
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public object? Deserialize(string typeName, JsonElement json)");
         sb.AppendLine("    {");
-        sb.AppendLine("        return Deserializers.TryGetValue(typeName, out var deserializer)");
-        sb.AppendLine("            ? deserializer(json)");
+        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info)");
+        sb.AppendLine("            ? info.JsonDeserializer(json)");
         sb.AppendLine("            : null;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public JsonElement? Serialize(Type type, object value)");
         sb.AppendLine("    {");
-        sb.AppendLine("        if (!Serializers.TryGetValue(type, out var serializer))");
+        sb.AppendLine("        if (!ComponentsByType.TryGetValue(type, out var info))");
         sb.AppendLine("        {");
         sb.AppendLine("            return null;");
         sb.AppendLine("        }");
-        sb.AppendLine("        return serializer(value);");
+        sb.AppendLine("        return info.JsonSerializer(value);");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    Type? IComponentSerializer.GetType(string typeName)");
         sb.AppendLine("    {");
-        sb.AppendLine("        return TypesByName.TryGetValue(typeName, out var type) ? type : null;");
+        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info) ? info.Type : null;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)");
         sb.AppendLine("    {");
-        sb.AppendLine("        return Registrars.TryGetValue(typeName, out var registrar) ? registrar(world, isTag) : null;");
+        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info) ? info.Registrar(world, isTag) : null;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public bool SetSingleton(World world, string typeName, object value)");
         sb.AppendLine("    {");
-        sb.AppendLine("        if (SingletonSetters.TryGetValue(typeName, out var setter))");
+        sb.AppendLine("        if (ComponentsByName.TryGetValue(typeName, out var info))");
         sb.AppendLine("        {");
-        sb.AppendLine("            setter(world, value);");
+        sb.AppendLine("            info.SingletonSetter(world, value);");
         sb.AppendLine("            return true;");
         sb.AppendLine("        }");
         sb.AppendLine("        return false;");
@@ -297,37 +237,37 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public object? CreateDefault(string typeName)");
         sb.AppendLine("    {");
-        sb.AppendLine("        return TypesByName.TryGetValue(typeName, out var type) ? Activator.CreateInstance(type) : null;");
+        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info) ? Activator.CreateInstance(info.Type) : null;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// Gets all registered serializable type names.");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    public IEnumerable<string> GetSerializableTypeNames() => Deserializers.Keys;");
+        sb.AppendLine("    public IEnumerable<string> GetSerializableTypeNames() => ComponentsByName.Keys;");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// Gets all registered serializable types.");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    public IEnumerable<Type> GetSerializableTypes() => SerializableTypes;");
+        sb.AppendLine("    public IEnumerable<Type> GetSerializableTypes() => ComponentsByType.Keys;");
         sb.AppendLine();
 
         // IBinaryComponentSerializer implementation
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public bool WriteTo(Type type, object value, BinaryWriter writer)");
         sb.AppendLine("    {");
-        sb.AppendLine("        if (!BinarySerializers.TryGetValue(type, out var serializer))");
+        sb.AppendLine("        if (!ComponentsByType.TryGetValue(type, out var info))");
         sb.AppendLine("        {");
         sb.AppendLine("            return false;");
         sb.AppendLine("        }");
-        sb.AppendLine("        serializer(value, writer);");
+        sb.AppendLine("        info.BinarySerializer(value, writer);");
         sb.AppendLine("        return true;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public object? ReadFrom(string typeName, BinaryReader reader)");
         sb.AppendLine("    {");
-        sb.AppendLine("        return BinaryDeserializers.TryGetValue(typeName, out var deserializer)");
-        sb.AppendLine("            ? deserializer(reader)");
+        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info)");
+        sb.AppendLine("            ? info.BinaryDeserializer(reader)");
         sb.AppendLine("            : null;");
         sb.AppendLine("    }");
         sb.AppendLine();
