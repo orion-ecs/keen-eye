@@ -18,7 +18,7 @@ namespace KeenEyes;
 /// <code>
 /// // Process entities with Position and Velocity in parallel
 /// world.Query&lt;Position, Velocity&gt;()
-///     .ForEachParallel((Entity e, ref Position pos, ref Velocity vel) =>
+///     .ForEachParallel&lt;Position, Velocity&gt;((Entity e, ref Position pos, ref Velocity vel) =>
 ///     {
 ///         pos.X += vel.X * deltaTime;
 ///         pos.Y += vel.Y * deltaTime;
@@ -42,7 +42,7 @@ public static class ParallelQueryExtensions
     /// <param name="action">The action to execute for each entity.</param>
     /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallel<T1>(
-        this QueryBuilder<T1> query,
+        this QueryBuilder query,
         EntityAction<T1> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent
@@ -83,7 +83,7 @@ public static class ParallelQueryExtensions
     /// <param name="action">The action to execute for each entity.</param>
     /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallelReadOnly<T1>(
-        this QueryBuilder<T1> query,
+        this QueryBuilder query,
         EntityActionReadOnly<T1> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent
@@ -127,7 +127,7 @@ public static class ParallelQueryExtensions
     /// <param name="action">The action to execute for each entity.</param>
     /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallel<T1, T2>(
-        this QueryBuilder<T1, T2> query,
+        this QueryBuilder query,
         EntityAction<T1, T2> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent
@@ -165,7 +165,7 @@ public static class ParallelQueryExtensions
     /// Processes all matching entities in parallel with readonly component access.
     /// </summary>
     public static void ForEachParallelReadOnly<T1, T2>(
-        this QueryBuilder<T1, T2> query,
+        this QueryBuilder query,
         EntityActionReadOnly<T1, T2> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent
@@ -213,7 +213,7 @@ public static class ParallelQueryExtensions
     /// <param name="action">The action to execute for each entity.</param>
     /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallel<T1, T2, T3>(
-        this QueryBuilder<T1, T2, T3> query,
+        this QueryBuilder query,
         EntityAction<T1, T2, T3> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent
@@ -254,7 +254,7 @@ public static class ParallelQueryExtensions
     /// Processes all matching entities in parallel with readonly component access.
     /// </summary>
     public static void ForEachParallelReadOnly<T1, T2, T3>(
-        this QueryBuilder<T1, T2, T3> query,
+        this QueryBuilder query,
         EntityActionReadOnly<T1, T2, T3> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent
@@ -306,7 +306,7 @@ public static class ParallelQueryExtensions
     /// <param name="action">The action to execute for each entity.</param>
     /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallel<T1, T2, T3, T4>(
-        this QueryBuilder<T1, T2, T3, T4> query,
+        this QueryBuilder query,
         EntityAction<T1, T2, T3, T4> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent
@@ -350,7 +350,7 @@ public static class ParallelQueryExtensions
     /// Processes all matching entities in parallel with readonly component access.
     /// </summary>
     public static void ForEachParallelReadOnly<T1, T2, T3, T4>(
-        this QueryBuilder<T1, T2, T3, T4> query,
+        this QueryBuilder query,
         EntityActionReadOnly<T1, T2, T3, T4> action,
         int minEntityCount = DefaultMinEntityCount)
         where T1 : struct, IComponent

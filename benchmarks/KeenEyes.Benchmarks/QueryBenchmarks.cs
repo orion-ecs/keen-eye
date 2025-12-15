@@ -81,7 +81,7 @@ public class QueryBenchmarks
     /// Measures the overhead of constructing a query (without iteration).
     /// </summary>
     [Benchmark]
-    public QueryBuilder<Position> QueryConstruction()
+    public QueryBuilder QueryConstruction()
     {
         return world.Query<Position>();
     }
@@ -90,7 +90,7 @@ public class QueryBenchmarks
     /// Measures the overhead of constructing a two-component query.
     /// </summary>
     [Benchmark]
-    public QueryBuilder<Position, Velocity> QueryConstructionTwoComponents()
+    public QueryBuilder QueryConstructionTwoComponents()
     {
         return world.Query<Position, Velocity>();
     }

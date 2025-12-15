@@ -881,22 +881,16 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"    /// </example>");
 
             var componentTypeParams = string.Join(", ", info.Fields.Select(f => f.Type));
-            var queryBuilderType = info.Fields.Length switch
-            {
-                1 => $"QueryBuilder<{componentTypeParams}>",
-                2 => $"QueryBuilder<{componentTypeParams}>",
-                3 => $"QueryBuilder<{componentTypeParams}>",
-                4 => $"QueryBuilder<{componentTypeParams}>",
-                _ => null
-            };
 
-            if (queryBuilderType is null)
+            // QueryBuilder is now non-generic; bundles with more than 4 components are still limited
+            // by the World.Query<T1..T4>() overloads
+            if (info.Fields.Length > 4)
             {
-                // Skip bundles with more than 4 components (not supported by current QueryBuilder)
+                // Skip bundles with more than 4 components (not supported by current World.Query<>)
                 continue;
             }
 
-            sb.AppendLine($"    public {queryBuilderType} Query<T>() where T : struct, global::KeenEyes.IBundle");
+            sb.AppendLine($"    public QueryBuilder Query<T>() where T : struct, global::KeenEyes.IBundle");
             sb.AppendLine($"    {{");
             sb.AppendLine($"        return Query<{componentTypeParams}>();");
             sb.AppendLine($"    }}");
@@ -920,49 +914,41 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
-            // Generate With<TBundle>() for each QueryBuilder arity (1-4)
-            for (int arity = 1; arity <= 4; arity++)
+            // Generate With{BundleName}<TBundle>() extension for non-generic QueryBuilder
+            sb.AppendLine($"    /// <summary>");
+            sb.AppendLine($"    /// Requires the entity to have all components in the {info.Name} bundle.");
+            sb.AppendLine($"    /// </summary>");
+            sb.AppendLine($"    /// <typeparam name=\"TBundle\">The bundle type.</typeparam>");
+            sb.AppendLine($"    public static QueryBuilder With{info.Name}<TBundle>(this QueryBuilder builder)");
+            sb.AppendLine($"        where TBundle : struct, global::KeenEyes.IBundle");
+            sb.AppendLine($"    {{");
+
+            foreach (var field in info.Fields)
             {
-                var typeParams = string.Join(", ", Enumerable.Range(1, arity).Select(i => $"T{i}"));
-                var whereConstraints = string.Join("\r\n        ",
-                    Enumerable.Range(1, arity).Select(i => $"where T{i} : struct, global::KeenEyes.IComponent"));
-
-                sb.AppendLine($"    /// <summary>");
-                sb.AppendLine($"    /// Requires the entity to have all components in the bundle.");
-                sb.AppendLine($"    /// </summary>");
-                sb.AppendLine($"    /// <typeparam name=\"TBundle\">The bundle type.</typeparam>");
-                sb.AppendLine($"    public static QueryBuilder<{typeParams}> With{info.Name}<TBundle, {typeParams}>(this QueryBuilder<{typeParams}> builder)");
-                sb.AppendLine($"        where TBundle : struct, global::KeenEyes.IBundle");
-                sb.AppendLine($"        {whereConstraints}");
-                sb.AppendLine($"    {{");
-
-                foreach (var field in info.Fields)
-                {
-                    sb.AppendLine($"        builder = builder.With<{field.Type}>();");
-                }
-
-                sb.AppendLine($"        return builder;");
-                sb.AppendLine($"    }}");
-                sb.AppendLine();
-
-                sb.AppendLine($"    /// <summary>");
-                sb.AppendLine($"    /// Excludes entities that have all components in the bundle.");
-                sb.AppendLine($"    /// </summary>");
-                sb.AppendLine($"    /// <typeparam name=\"TBundle\">The bundle type.</typeparam>");
-                sb.AppendLine($"    public static QueryBuilder<{typeParams}> Without{info.Name}<TBundle, {typeParams}>(this QueryBuilder<{typeParams}> builder)");
-                sb.AppendLine($"        where TBundle : struct, global::KeenEyes.IBundle");
-                sb.AppendLine($"        {whereConstraints}");
-                sb.AppendLine($"    {{");
-
-                foreach (var field in info.Fields)
-                {
-                    sb.AppendLine($"        builder = builder.Without<{field.Type}>();");
-                }
-
-                sb.AppendLine($"        return builder;");
-                sb.AppendLine($"    }}");
-                sb.AppendLine();
+                sb.AppendLine($"        builder = builder.With<{field.Type}>();");
             }
+
+            sb.AppendLine($"        return builder;");
+            sb.AppendLine($"    }}");
+            sb.AppendLine();
+
+            // Generate Without{BundleName}<TBundle>() extension for non-generic QueryBuilder
+            sb.AppendLine($"    /// <summary>");
+            sb.AppendLine($"    /// Excludes entities that have all components in the {info.Name} bundle.");
+            sb.AppendLine($"    /// </summary>");
+            sb.AppendLine($"    /// <typeparam name=\"TBundle\">The bundle type.</typeparam>");
+            sb.AppendLine($"    public static QueryBuilder Without{info.Name}<TBundle>(this QueryBuilder builder)");
+            sb.AppendLine($"        where TBundle : struct, global::KeenEyes.IBundle");
+            sb.AppendLine($"    {{");
+
+            foreach (var field in info.Fields)
+            {
+                sb.AppendLine($"        builder = builder.Without<{field.Type}>();");
+            }
+
+            sb.AppendLine($"        return builder;");
+            sb.AppendLine($"    }}");
+            sb.AppendLine();
         }
 
         sb.AppendLine("}");

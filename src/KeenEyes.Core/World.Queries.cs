@@ -7,43 +7,43 @@ public sealed partial class World
     /// <summary>
     /// Creates a query for entities with the specified component.
     /// </summary>
-    public QueryBuilder<T1> Query<T1>()
+    public QueryBuilder Query<T1>()
         where T1 : struct, IComponent
     {
-        return new QueryBuilder<T1>(this);
+        return new QueryBuilder(this).WithWrite<T1>();
     }
 
     /// <summary>
     /// Creates a query for entities with the specified components.
     /// </summary>
-    public QueryBuilder<T1, T2> Query<T1, T2>()
+    public QueryBuilder Query<T1, T2>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent
     {
-        return new QueryBuilder<T1, T2>(this);
+        return new QueryBuilder(this).WithWrite<T1>().WithWrite<T2>();
     }
 
     /// <summary>
     /// Creates a query for entities with the specified components.
     /// </summary>
-    public QueryBuilder<T1, T2, T3> Query<T1, T2, T3>()
+    public QueryBuilder Query<T1, T2, T3>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent
         where T3 : struct, IComponent
     {
-        return new QueryBuilder<T1, T2, T3>(this);
+        return new QueryBuilder(this).WithWrite<T1>().WithWrite<T2>().WithWrite<T3>();
     }
 
     /// <summary>
     /// Creates a query for entities with the specified components.
     /// </summary>
-    public QueryBuilder<T1, T2, T3, T4> Query<T1, T2, T3, T4>()
+    public QueryBuilder Query<T1, T2, T3, T4>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent
         where T3 : struct, IComponent
         where T4 : struct, IComponent
     {
-        return new QueryBuilder<T1, T2, T3, T4>(this);
+        return new QueryBuilder(this).WithWrite<T1>().WithWrite<T2>().WithWrite<T3>().WithWrite<T4>();
     }
 
     #endregion
@@ -51,16 +51,16 @@ public sealed partial class World
     #region IWorld Query Implementations
 
     /// <inheritdoc />
-    IQueryBuilder<T1> IWorld.Query<T1>() => Query<T1>();
+    IQueryBuilder IWorld.Query<T1>() => Query<T1>();
 
     /// <inheritdoc />
-    IQueryBuilder<T1, T2> IWorld.Query<T1, T2>() => Query<T1, T2>();
+    IQueryBuilder IWorld.Query<T1, T2>() => Query<T1, T2>();
 
     /// <inheritdoc />
-    IQueryBuilder<T1, T2, T3> IWorld.Query<T1, T2, T3>() => Query<T1, T2, T3>();
+    IQueryBuilder IWorld.Query<T1, T2, T3>() => Query<T1, T2, T3>();
 
     /// <inheritdoc />
-    IQueryBuilder<T1, T2, T3, T4> IWorld.Query<T1, T2, T3, T4>() => Query<T1, T2, T3, T4>();
+    IQueryBuilder IWorld.Query<T1, T2, T3, T4>() => Query<T1, T2, T3, T4>();
 
     #endregion
 }

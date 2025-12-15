@@ -136,7 +136,7 @@ public class SmokeTestBenchmarks
     /// Query construction overhead (no iteration).
     /// </summary>
     [Benchmark]
-    public QueryBuilder<Position, Velocity> Query_Construction()
+    public QueryBuilder Query_Construction()
     {
         return world.Query<Position, Velocity>();
     }

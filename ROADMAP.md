@@ -10,7 +10,7 @@ KeenEyes has basic ECS scaffolding in place:
 - `EntityBuilder` with fluent `With<T>()` / `WithTag<T>()` API
 - `IComponent` / `ITagComponent` marker interfaces
 - `ComponentRegistry` with per-world component IDs
-- `QueryBuilder<T1..T4>` with `With<>()` / `Without<>()` filters
+- `QueryBuilder` with `With<>()` / `Without<>()` filters
 - `ISystem` / `SystemBase` with Initialize/Update lifecycle
 - `SystemGroup` for grouped execution
 - Source generator attributes (`[Component]`, `[System]`, `[Query]`)
