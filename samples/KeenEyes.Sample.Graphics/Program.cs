@@ -9,6 +9,7 @@ using KeenEyes.Common;
 using KeenEyes.Graphics;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk;
+using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
 using KeenEyes.Sample.Graphics;
 
@@ -22,13 +23,18 @@ Console.WriteLine("- Animating objects with custom systems");
 Console.WriteLine("- Using the WorldRunnerBuilder for clean main loop setup");
 Console.WriteLine();
 
-// Configure the graphics (includes window settings)
+// Configure the window
+var windowConfig = new WindowConfig
+{
+    Title = "KeenEyes Graphics Sample",
+    Width = 1280,
+    Height = 720,
+    VSync = true
+};
+
+// Configure the graphics rendering settings
 var graphicsConfig = new SilkGraphicsConfig
 {
-    WindowTitle = "KeenEyes Graphics Sample",
-    WindowWidth = 1280,
-    WindowHeight = 720,
-    VSync = true,
     ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f), // Sky blue background
     EnableDepthTest = true,
     EnableCulling = true
@@ -37,7 +43,10 @@ var graphicsConfig = new SilkGraphicsConfig
 // Create the world and install plugins
 using var world = new World();
 
-// Install graphics plugin (creates its own window)
+// Install window plugin first (provides ILoopProvider and shared window)
+world.InstallPlugin(new SilkWindowPlugin(windowConfig));
+
+// Install graphics plugin (uses shared window from SilkWindowPlugin)
 world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
 
 // Register graphics systems (from KeenEyes.Graphics)

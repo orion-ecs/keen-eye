@@ -30,7 +30,13 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
         };
 
         window = global::Silk.NET.Windowing.Window.Create(options);
-        window.Load += OnWindowLoad;
+
+        // Subscribe to window events and forward to our events
+        window.Load += HandleWindowLoad;
+        window.Update += HandleWindowUpdate;
+        window.Render += HandleWindowRender;
+        window.Resize += HandleWindowResize;
+        window.Closing += HandleWindowClosing;
     }
 
     /// <inheritdoc />
@@ -45,7 +51,7 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
             {
                 throw new InvalidOperationException(
                     "InputContext is not available until the window has loaded. " +
-                    "Access this property after the window's Load event has fired.");
+                    "Access this property after the OnLoad event has fired.");
             }
 
             return inputContext;
@@ -60,9 +66,45 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
     /// </remarks>
     public bool IsInputContextAvailable => inputContext is not null;
 
-    private void OnWindowLoad()
+    /// <inheritdoc />
+    public event Action? OnLoad;
+
+    /// <inheritdoc />
+    public event Action<double>? OnUpdate;
+
+    /// <inheritdoc />
+    public event Action<double>? OnRender;
+
+    /// <inheritdoc />
+    public event Action<int, int>? OnResize;
+
+    /// <inheritdoc />
+    public event Action? OnClosing;
+
+    private void HandleWindowLoad()
     {
         inputContext = window.CreateInput();
+        OnLoad?.Invoke();
+    }
+
+    private void HandleWindowUpdate(double deltaTime)
+    {
+        OnUpdate?.Invoke(deltaTime);
+    }
+
+    private void HandleWindowRender(double deltaTime)
+    {
+        OnRender?.Invoke(deltaTime);
+    }
+
+    private void HandleWindowResize(Vector2D<int> size)
+    {
+        OnResize?.Invoke(size.X, size.Y);
+    }
+
+    private void HandleWindowClosing()
+    {
+        OnClosing?.Invoke();
     }
 
     /// <inheritdoc />
@@ -74,6 +116,14 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
         }
 
         disposed = true;
+
+        // Unsubscribe from window events
+        window.Load -= HandleWindowLoad;
+        window.Update -= HandleWindowUpdate;
+        window.Render -= HandleWindowRender;
+        window.Resize -= HandleWindowResize;
+        window.Closing -= HandleWindowClosing;
+
         inputContext?.Dispose();
         window.Dispose();
     }

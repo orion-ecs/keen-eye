@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Input</PackageId>
+    <Description>Backend-agnostic input systems for KeenEyes ECS</Description>
+    <PackageTags>ecs;input;game;keyboard;mouse;gamepad</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Input.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

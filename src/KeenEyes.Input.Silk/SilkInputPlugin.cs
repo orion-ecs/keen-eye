@@ -1,3 +1,4 @@
+using KeenEyes.Input.Abstractions;
 using KeenEyes.Platform.Silk;
 
 namespace KeenEyes.Input.Silk;
@@ -64,7 +65,7 @@ public sealed class SilkInputPlugin(SilkInputConfig config) : IWorldPlugin
     public void Install(IPluginContext context)
     {
         // Explicit dependency - fail loudly if window plugin not installed
-        if (!context.World.TryGetExtension<ISilkWindowProvider>(out var windowProvider) || windowProvider is null)
+        if (!context.TryGetExtension<ISilkWindowProvider>(out var windowProvider) || windowProvider is null)
         {
             throw new InvalidOperationException(
                 $"{nameof(SilkInputPlugin)} requires SilkWindowPlugin to be installed first. " +
@@ -73,15 +74,19 @@ public sealed class SilkInputPlugin(SilkInputConfig config) : IWorldPlugin
 
         // Create input context using the shared window's input context
         inputContext = new SilkInputContext(windowProvider, config);
+
+        // Register as both interface and concrete type for flexibility
+        context.SetExtension<IInputContext>(inputContext);
         context.SetExtension(inputContext);
 
-        // Register input capture system (runs early to capture input before other systems)
-        context.AddSystem<SilkInputCaptureSystem>(SystemPhase.EarlyUpdate, order: -1000);
+        // Register backend-agnostic input capture system (runs early to capture input before other systems)
+        context.AddSystem<InputCaptureSystem>(SystemPhase.EarlyUpdate, order: -1000);
     }
 
     /// <inheritdoc />
     public void Uninstall(IPluginContext context)
     {
+        context.RemoveExtension<IInputContext>();
         context.RemoveExtension<SilkInputContext>();
         inputContext?.Dispose();
         inputContext = null;

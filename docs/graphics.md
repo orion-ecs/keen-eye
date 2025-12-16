@@ -25,21 +25,30 @@ using KeenEyes;
 using KeenEyes.Graphics;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk;
+using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
 
-// Configure the graphics backend
-var config = new SilkGraphicsConfig
+// Configure the window
+var windowConfig = new WindowConfig
 {
-    WindowTitle = "My Game",
-    WindowWidth = 1280,
-    WindowHeight = 720,
-    VSync = true,
-    ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f)
+    Title = "My Game",
+    Width = 1280,
+    Height = 720,
+    VSync = true
 };
 
-// Create world and install plugin
+// Configure graphics rendering
+var graphicsConfig = new SilkGraphicsConfig
+{
+    ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f),
+    EnableDepthTest = true,
+    EnableCulling = true
+};
+
+// Create world and install plugins
 using var world = new World();
-world.InstallPlugin(new SilkGraphicsPlugin(config));
+world.InstallPlugin(new SilkWindowPlugin(windowConfig));  // Window first
+world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
 
 // Add backend-agnostic systems
 world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate);
@@ -104,32 +113,45 @@ world.CreateRunner()
 
 ### Alternative: Direct Event Wiring
 
-For advanced scenarios, you can wire events directly on `IGraphicsContext`:
+For advanced scenarios, you can wire events directly on `ILoopProvider`:
 
 ```csharp
-var graphics = world.GetExtension<IGraphicsContext>();
+var loopProvider = world.GetExtension<ILoopProvider>();
 
-graphics.OnReady += () => CreateScene(world, graphics);
-graphics.OnUpdate += (dt) => world.Update(dt);
-graphics.OnResize += (w, h) => Console.WriteLine($"Resized: {w}x{h}");
-graphics.OnClosing += () => Console.WriteLine("Closing...");
+loopProvider.OnReady += () => CreateScene(world);
+loopProvider.OnUpdate += (dt) => world.Update(dt);
+loopProvider.OnResize += (w, h) => Console.WriteLine($"Resized: {w}x{h}");
+loopProvider.OnClosing += () => Console.WriteLine("Closing...");
 
-graphics.Initialize();
-graphics.Run();  // Blocks until closed
+loopProvider.Initialize();
+loopProvider.Run();  // Blocks until closed
 ```
 
 ## Configuration
 
+### Window Configuration
+
 ```csharp
-var config = new SilkGraphicsConfig
+var windowConfig = new WindowConfig
 {
-    WindowWidth = 1920,          // Initial window width
-    WindowHeight = 1080,         // Initial window height
-    WindowTitle = "My Game",     // Window title
+    Title = "My Game",           // Window title
+    Width = 1920,                // Initial window width
+    Height = 1080,               // Initial window height
     VSync = true,                // Enable vertical sync
+    Resizable = true,            // Allow window resizing
+    TargetFramerate = 60.0,      // Target FPS (0 = uncapped)
+    TargetUpdateFrequency = 60.0 // Target fixed update rate
+};
+```
+
+### Graphics Configuration
+
+```csharp
+var graphicsConfig = new SilkGraphicsConfig
+{
+    ClearColor = new Vector4(0.1f, 0.1f, 0.1f, 1f),  // Background color
     EnableDepthTest = true,      // Enable depth testing
-    EnableCulling = true,        // Enable backface culling
-    ClearColor = new Vector4(0.1f, 0.1f, 0.1f, 1f)  // Background color
+    EnableCulling = true         // Enable backface culling
 };
 ```
 
@@ -308,21 +330,27 @@ using KeenEyes.Common;
 using KeenEyes.Graphics;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk;
+using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
 
-var config = new SilkGraphicsConfig
+var windowConfig = new WindowConfig
 {
-    WindowTitle = "Spinning Cube",
-    WindowWidth = 1280,
-    WindowHeight = 720,
-    VSync = true,
+    Title = "Spinning Cube",
+    Width = 1280,
+    Height = 720,
+    VSync = true
+};
+
+var graphicsConfig = new SilkGraphicsConfig
+{
     ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f),
     EnableDepthTest = true,
     EnableCulling = true
 };
 
 using var world = new World();
-world.InstallPlugin(new SilkGraphicsPlugin(config));
+world.InstallPlugin(new SilkWindowPlugin(windowConfig));
+world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
 
 // Add systems
 world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate);
@@ -395,7 +423,7 @@ public class SpinSystem : ISystem
 
 ## Lifecycle Events
 
-The `ILoopProvider` interface (implemented by `IGraphicsContext`) provides these events:
+The `ILoopProvider` interface (provided by `SilkWindowPlugin`) provides these events:
 
 | Event | Timing | Use Case |
 |-------|--------|----------|
@@ -405,11 +433,41 @@ The `ILoopProvider` interface (implemented by `IGraphicsContext`) provides these
 | `OnResize` | When resized | Update viewports, aspect ratios |
 | `OnClosing` | When closing | Final cleanup |
 
+## Plugin Architecture
+
+The graphics system requires the window plugin to be installed first:
+
+```
+SilkWindowPlugin (must be installed first)
+├── Creates native window
+├── Provides ILoopProvider (main loop)
+└── Provides ISilkWindowProvider (shared window access)
+
+SilkGraphicsPlugin (uses shared window)
+├── Subscribes to window lifecycle events
+├── Creates OpenGL context
+└── Provides IGraphicsContext
+```
+
+**Required installation order:**
+
+```csharp
+// Window plugin first (provides ILoopProvider)
+world.InstallPlugin(new SilkWindowPlugin(windowConfig));
+
+// Then graphics and/or input plugins (any order after window)
+world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
+world.InstallPlugin(new SilkInputPlugin(inputConfig));
+```
+
+See the [Input documentation](input.md#plugin-architecture) for more details.
+
 ## Dependencies
 
 - **KeenEyes.Graphics.Abstractions** - Backend-agnostic interfaces
 - **KeenEyes.Graphics** - Backend-agnostic systems
 - **KeenEyes.Graphics.Silk** - Silk.NET OpenGL backend
+- **KeenEyes.Platform.Silk** - Shared window provider
 - **KeenEyes.Runtime** - WorldRunnerBuilder
 - **KeenEyes.Common** - Transform3D component
 - **Silk.NET** - OpenGL/Vulkan bindings

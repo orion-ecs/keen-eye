@@ -16,6 +16,11 @@ namespace KeenEyes.Graphics.Abstractions;
 /// <see cref="IGraphicsContext"/> uses opaque handles (<see cref="MeshHandle"/>,
 /// <see cref="TextureHandle"/>, <see cref="ShaderHandle"/>) to reference resources.
 /// </para>
+/// <para>
+/// The graphics context is initialized automatically when the window loads.
+/// Use <see cref="ILoopProvider"/> (from <c>SilkWindowPlugin</c>) for the main
+/// application loop.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -30,7 +35,7 @@ namespace KeenEyes.Graphics.Abstractions;
 /// context.DrawMesh(mesh);
 /// </code>
 /// </example>
-public interface IGraphicsContext : ILoopProvider, IDisposable
+public interface IGraphicsContext : IDisposable
 {
     #region State
 
@@ -44,12 +49,10 @@ public interface IGraphicsContext : ILoopProvider, IDisposable
     /// </summary>
     IGraphicsDevice? Device { get; }
 
-    // IsInitialized is inherited from ILoopProvider
-
     /// <summary>
-    /// Gets whether the window should close.
+    /// Gets whether the graphics context is initialized and ready for use.
     /// </summary>
-    bool ShouldClose { get; }
+    bool IsInitialized { get; }
 
     /// <summary>
     /// Gets the current window width in pixels.
@@ -91,21 +94,7 @@ public interface IGraphicsContext : ILoopProvider, IDisposable
 
     #endregion
 
-    #region Lifecycle Events (inherited from ILoopProvider)
-
-    // The following events are inherited from ILoopProvider:
-    // - OnReady: Raised when the window is loaded and ready
-    // - OnUpdate: Raised each frame for updates (float deltaTime)
-    // - OnRender: Raised each frame for rendering (float deltaTime)
-    // - OnResize: Raised when the window is resized (int width, int height)
-    // - OnClosing: Raised when the window is closing
-
-    #endregion
-
     #region Lifecycle Control
-
-    // Initialize() and Run() are inherited from ILoopProvider
-    // IsInitialized is inherited from ILoopProvider
 
     /// <summary>
     /// Processes pending window events without blocking.
