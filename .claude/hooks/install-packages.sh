@@ -25,11 +25,14 @@ fi
 CACHE_DIR="${NUGET_PACKAGES:-$HOME/.nuget/packages}"
 FEED_DIR="/tmp/nuget-feed"
 TEMP_DIR="/tmp/nuget-download"
-FAILED_FILE="$TEMP_DIR/failed-packages.txt"
-mkdir -p "$CACHE_DIR" "$FEED_DIR" "$TEMP_DIR"
-> "$FAILED_FILE"
+FAILED_DIR="$TEMP_DIR/failures"
+mkdir -p "$CACHE_DIR" "$FEED_DIR" "$TEMP_DIR" "$FAILED_DIR"
+rm -rf "$FAILED_DIR"/*
 
-# Download a package with retry logic
+# Maximum parallel downloads (balance between speed and server load)
+MAX_PARALLEL=${MAX_PARALLEL:-8}
+
+# Download a package with retry logic (thread-safe for parallel execution)
 # Args: $1 = package id, $2 = version, $3 = is_critical (optional, "critical" to mark as critical)
 download_pkg() {
     local id=$(echo "$1" | tr '[:upper:]' '[:lower:]')
@@ -44,7 +47,8 @@ download_pkg() {
     fi
 
     local url="https://api.nuget.org/v3-flatcontainer/${id}/${version}/${id}.${version}.nupkg"
-    local nupkg="$TEMP_DIR/${id}.${version}.nupkg"
+    # Use unique temp file per download to avoid conflicts in parallel execution
+    local nupkg="$TEMP_DIR/${id}.${version}.$$.nupkg"
     local max_retries=3
     local retry_delay=2
 
@@ -67,14 +71,18 @@ download_pkg() {
         fi
     done
 
-    # All retries failed - log the failure
+    # All retries failed - log the failure (use unique file per package for thread safety)
     rm -f "$nupkg"
-    echo "$1 $version${is_critical:+ (CRITICAL)}" >> "$FAILED_FILE"
+    echo "$1 $version${is_critical:+ (CRITICAL)}" > "$FAILED_DIR/${id}.${version}.failed"
     if [ -n "$is_critical" ]; then
         echo "WARNING: Failed to download critical package: $1 $version"
     fi
     return 1
 }
+
+# Export function and variables for use in parallel subshells
+export -f download_pkg
+export CACHE_DIR FEED_DIR TEMP_DIR FAILED_DIR
 
 echo "Installing NuGet packages for KeenEyes (proxy workaround)..."
 
@@ -112,12 +120,10 @@ for framework, deps in data.get("dependencies", {}).items():
 PYTHON_SCRIPT
 done
 
-# Sort and dedupe, then download each package
-sort -u "$PACKAGES_FILE" | while read -r pkg version; do
-    if [[ -n "$pkg" && -n "$version" ]]; then
-        download_pkg "$pkg" "$version"
-    fi
-done
+# Sort and dedupe, then download packages in parallel
+# Using xargs -P for parallel execution with limited concurrency
+echo "Downloading packages (up to $MAX_PARALLEL in parallel)..."
+sort -u "$PACKAGES_FILE" | xargs -P "$MAX_PARALLEL" -L 1 bash -c 'download_pkg "$1" "$2"' _
 
 # Download dotnet tools (from .config/dotnet-tools.json)
 # These are needed for husky and other tooling
@@ -133,7 +139,7 @@ rm -f "$PACKAGES_FILE"
 
 # Summary and verification
 count=$(find "$CACHE_DIR" -maxdepth 2 -mindepth 2 -type d 2>/dev/null | wc -l)
-failed_count=$(wc -l < "$FAILED_FILE" 2>/dev/null || echo "0")
+failed_count=$(find "$FAILED_DIR" -name "*.failed" -type f 2>/dev/null | wc -l)
 
 echo ""
 echo "Package installation complete!"
@@ -143,16 +149,17 @@ if [ "$failed_count" -gt 0 ]; then
     echo "  Failed downloads: $failed_count"
     echo ""
     echo "The following packages failed to download after 3 retries:"
-    cat "$FAILED_FILE" | while read -r line; do
-        echo "  - $line"
+    for failed_file in "$FAILED_DIR"/*.failed; do
+        [ -f "$failed_file" ] && echo "  - $(cat "$failed_file")"
     done
 
     # Check for critical failures
-    if grep -q "(CRITICAL)" "$FAILED_FILE" 2>/dev/null; then
+    if grep -q "(CRITICAL)" "$FAILED_DIR"/*.failed 2>/dev/null; then
         echo ""
         echo "ERROR: Critical packages failed to download. Build/restore may fail."
         echo "You can retry by running: CLAUDE_CODE_REMOTE=true .claude/hooks/install-packages.sh"
     fi
 fi
 
-rm -f "$FAILED_FILE"
+# Clean up failure tracking directory
+rm -rf "$FAILED_DIR"
