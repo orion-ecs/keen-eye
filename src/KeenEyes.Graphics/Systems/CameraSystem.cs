@@ -11,14 +11,15 @@ namespace KeenEyes.Graphics;
 /// with the new aspect ratio. It runs in the EarlyUpdate phase.
 /// </para>
 /// <para>
-/// This system requires an <see cref="IGraphicsContext"/> extension to be present
-/// on the world.
+/// This system requires an <see cref="IGraphicsContext"/> and <see cref="ILoopProvider"/>
+/// extension to be present on the world.
 /// </para>
 /// </remarks>
 public sealed class CameraSystem : ISystem
 {
     private IWorld? world;
     private IGraphicsContext? graphics;
+    private ILoopProvider? loopProvider;
     private int lastWidth;
     private int lastHeight;
 
@@ -30,9 +31,15 @@ public sealed class CameraSystem : ISystem
     {
         this.world = world;
 
-        if (world.TryGetExtension<IGraphicsContext>(out graphics))
+        world.TryGetExtension(out graphics);
+
+        if (world.TryGetExtension<ILoopProvider>(out loopProvider) && loopProvider is not null)
         {
-            graphics!.OnResize += HandleResize;
+            loopProvider.OnResize += HandleResize;
+        }
+
+        if (graphics is not null)
+        {
             lastWidth = graphics.Width;
             lastHeight = graphics.Height;
         }
@@ -84,9 +91,9 @@ public sealed class CameraSystem : ISystem
     /// <inheritdoc />
     public void Dispose()
     {
-        if (graphics is not null)
+        if (loopProvider is not null)
         {
-            graphics.OnResize -= HandleResize;
+            loopProvider.OnResize -= HandleResize;
         }
     }
 }

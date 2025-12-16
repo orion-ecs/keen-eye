@@ -12,8 +12,10 @@ namespace KeenEyes.Graphics.Silk;
 /// Silk.NET implementation of <see cref="IWindow"/>.
 /// </summary>
 /// <remarks>
-/// This class adapts Silk.NET's windowing API to the KeenEyes graphics abstraction layer,
-/// enabling backend-agnostic graphics code.
+/// <para>
+/// This class wraps an existing Silk.NET window to provide the KeenEyes graphics abstraction layer.
+/// The window itself is created and managed by <c>SilkWindowPlugin</c>.
+/// </para>
 /// </remarks>
 internal sealed class SilkWindow : IWindow
 {
@@ -22,20 +24,12 @@ internal sealed class SilkWindow : IWindow
     private bool disposed;
 
     /// <summary>
-    /// Creates a new Silk.NET window with the specified configuration.
+    /// Wraps an existing Silk.NET window.
     /// </summary>
-    /// <param name="config">The window configuration.</param>
-    public SilkWindow(SilkGraphicsConfig config)
+    /// <param name="existingWindow">The existing window to wrap.</param>
+    public SilkWindow(SilkIWindow existingWindow)
     {
-        var options = WindowOptions.Default with
-        {
-            Title = config.WindowTitle,
-            Size = new Vector2D<int>(config.WindowWidth, config.WindowHeight),
-            VSync = config.VSync,
-            WindowBorder = config.Resizable ? WindowBorder.Resizable : WindowBorder.Fixed,
-        };
-
-        window = Window.Create(options);
+        window = existingWindow;
 
         // Wire up Silk.NET events to our events
         window.Load += HandleLoad;
@@ -168,6 +162,7 @@ internal sealed class SilkWindow : IWindow
         window.Render -= HandleRender;
 
         gl?.Dispose();
-        window.Dispose();
+
+        // Note: We don't dispose the window - it's owned by SilkWindowPlugin
     }
 }

@@ -13,6 +13,7 @@
     <Project Path="samples/KeenEyes.Sample.Aot/KeenEyes.Sample.Aot.csproj" />
     <Project Path="samples/KeenEyes.Sample.CollisionDetection/KeenEyes.Sample.CollisionDetection.csproj" />
     <Project Path="samples/KeenEyes.Sample.Graphics/KeenEyes.Sample.Graphics.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Input/KeenEyes.Sample.Input.csproj" />
     <Project Path="samples/KeenEyes.Sample.MassSimulation/KeenEyes.Sample.MassSimulation.csproj" />
     <Project Path="samples/KeenEyes.Sample.Messaging/KeenEyes.Sample.Messaging.csproj" />
     <Project Path="samples/KeenEyes.Sample.Physics/KeenEyes.Sample.Physics.csproj" />
@@ -43,6 +44,7 @@
     <Project Path="src/KeenEyes.Graphics.Abstractions/KeenEyes.Graphics.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Graphics/KeenEyes.Graphics.csproj" />
     <Project Path="src/KeenEyes.Input.Abstractions/KeenEyes.Input.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Input/KeenEyes.Input.csproj" />
     <Project Path="src/KeenEyes.Logging/KeenEyes.Logging.csproj" />
     <Project Path="src/KeenEyes.Parallelism/KeenEyes.Parallelism.csproj" />
     <Project Path="src/KeenEyes.Persistence/KeenEyes.Persistence.csproj" />

@@ -103,6 +103,23 @@ public interface IPluginContext
     /// <returns>The system group for chaining.</returns>
     SystemGroup AddSystemGroup(SystemGroup group, SystemPhase phase = SystemPhase.Update, int order = 0);
 
+
+    /// <summary>
+    /// Gets an extension registered with the world.
+    /// </summary>
+    /// <typeparam name="T">The extension type.</typeparam>
+    /// <returns>The extension instance.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the extension is not registered.</exception>
+    T GetExtension<T>() where T : class;
+
+    /// <summary>
+    /// Tries to get an extension registered with the world.
+    /// </summary>
+    /// <typeparam name="T">The extension type.</typeparam>
+    /// <param name="extension">When this method returns, contains the extension if found.</param>
+    /// <returns>True if the extension is registered; false otherwise.</returns>
+    bool TryGetExtension<T>(out T? extension) where T : class;
+
     /// <summary>
     /// Sets an extension value that can be retrieved by other code.
     /// </summary>

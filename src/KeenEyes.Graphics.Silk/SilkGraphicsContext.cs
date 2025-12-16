@@ -3,6 +3,7 @@ using System.Numerics;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk.Resources;
 using KeenEyes.Graphics.Silk.Shaders;
+using KeenEyes.Platform.Silk;
 
 namespace KeenEyes.Graphics.Silk;
 
@@ -12,38 +13,46 @@ namespace KeenEyes.Graphics.Silk;
 /// <remarks>
 /// <para>
 /// This context provides a complete graphics API using Silk.NET and OpenGL as the backend.
-/// It manages the window, device, and all GPU resources (meshes, textures, shaders).
+/// It manages GPU resources (meshes, textures, shaders) and provides rendering operations.
 /// </para>
 /// <para>
-/// Usage: Install <see cref="SilkGraphicsPlugin"/> to get access to this context via
-/// <c>world.GetExtension&lt;IGraphicsContext&gt;()</c>.
+/// This context requires <see cref="SilkWindowPlugin"/> to be installed first. The window
+/// plugin provides the main loop via <see cref="ILoopProvider"/>. Graphics subscribes to
+/// window lifecycle events internally to initialize the device when the window loads.
+/// </para>
+/// <para>
+/// Usage: Install <see cref="SilkWindowPlugin"/> first, then <see cref="SilkGraphicsPlugin"/>.
+/// Use <see cref="ILoopProvider"/> (from the window plugin) for the main application loop.
 /// </para>
 /// </remarks>
 /// <example>
 /// <code>
-/// world.InstallPlugin(new SilkGraphicsPlugin(config));
+/// // Install window plugin first (provides ILoopProvider)
+/// world.InstallPlugin(new SilkWindowPlugin(windowConfig));
+/// world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
+///
 /// var graphics = world.GetExtension&lt;IGraphicsContext&gt;();
 ///
-/// graphics.OnReady += () =>
-/// {
-///     // Create resources here
-///     var mesh = graphics.CreateMesh(vertices, vertexCount, indices);
-/// };
-///
-/// graphics.OnRender += deltaTime =>
-/// {
-///     graphics.Clear(ClearMask.ColorBuffer | ClearMask.DepthBuffer);
-///     // Draw calls
-/// };
-///
-/// graphics.Initialize();
-/// graphics.Run();
+/// // Use WorldRunnerBuilder for the main loop
+/// world.CreateRunner()
+///     .OnReady(() =&gt;
+///     {
+///         // Create resources here
+///         var mesh = graphics.CreateMesh(vertices, vertexCount, indices);
+///     })
+///     .OnRender(deltaTime =&gt;
+///     {
+///         graphics.Clear(ClearMask.ColorBuffer | ClearMask.DepthBuffer);
+///         // Draw calls
+///     })
+///     .Run();
 /// </code>
 /// </example>
 [PluginExtension("SilkGraphics")]
-public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGraphicsContext
+public sealed class SilkGraphicsContext : IGraphicsContext
 {
-    private readonly SilkGraphicsConfig config = config ?? new SilkGraphicsConfig();
+    private readonly SilkGraphicsConfig config;
+    private readonly ISilkWindowProvider windowProvider;
     private readonly MeshManager meshManager = new();
     private readonly TextureManager textureManager = new();
     private readonly ShaderManager shaderManager = new();
@@ -54,6 +63,22 @@ public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGr
     private bool initialized;
     private bool disposed;
     private bool gpuResourcesDisposed;
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="SilkGraphicsContext"/> using a shared window.
+    /// </summary>
+    /// <param name="windowProvider">The window provider for the shared window.</param>
+    /// <param name="config">The graphics configuration (rendering settings only).</param>
+    internal SilkGraphicsContext(ISilkWindowProvider windowProvider, SilkGraphicsConfig? config = null)
+    {
+        this.windowProvider = windowProvider;
+        this.config = config ?? new SilkGraphicsConfig();
+
+        // Subscribe to window lifecycle events
+        windowProvider.OnLoad += HandleWindowLoad;
+        windowProvider.OnResize += HandleWindowResize;
+        windowProvider.OnClosing += HandleWindowClosing;
+    }
 
     /// <summary>
     /// Gets the graphics configuration.
@@ -69,9 +94,6 @@ public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGr
     /// <inheritdoc />
     public bool IsInitialized => initialized;
 
-    /// <inheritdoc />
-    public bool ShouldClose => window?.IsClosing ?? true;
-
     /// <summary>
     /// Gets the current window width in pixels.
     /// </summary>
@@ -81,21 +103,6 @@ public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGr
     /// Gets the current window height in pixels.
     /// </summary>
     public int Height => window?.Height ?? 0;
-
-    /// <inheritdoc />
-    public event Action? OnReady;
-
-    /// <inheritdoc />
-    public event Action<int, int>? OnResize;
-
-    /// <inheritdoc />
-    public event Action? OnClosing;
-
-    /// <inheritdoc />
-    public event Action<float>? OnUpdate;
-
-    /// <inheritdoc />
-    public event Action<float>? OnRender;
 
     /// <summary>
     /// The built-in unlit shader handle.
@@ -122,37 +129,6 @@ public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGr
     internal ShaderManager ShaderManager => shaderManager;
 
     /// <inheritdoc />
-    public void Initialize()
-    {
-        if (initialized)
-        {
-            return;
-        }
-
-        // Create the window
-        window = new SilkWindow(config);
-
-        // Hook up window events
-        window.OnLoad += HandleWindowLoad;
-        window.OnResize += HandleWindowResize;
-        window.OnClosing += HandleWindowClosing;
-        window.OnUpdate += HandleWindowUpdate;
-        window.OnRender += HandleWindowRender;
-    }
-
-    /// <inheritdoc />
-    public void Run()
-    {
-        if (window is null)
-        {
-            throw new InvalidOperationException(
-                "Call Initialize() before Run().");
-        }
-
-        window.Run();
-    }
-
-    /// <inheritdoc />
     public void ProcessEvents()
     {
         window?.DoEvents();
@@ -166,10 +142,8 @@ public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGr
 
     private void HandleWindowLoad()
     {
-        if (window is null)
-        {
-            return;
-        }
+        // Wrap the shared window
+        window = new SilkWindow(windowProvider.Window);
 
         // Create device from window
         device = window.CreateDevice();
@@ -198,31 +172,17 @@ public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGr
         CreateBuiltInResources();
 
         initialized = true;
-        OnReady?.Invoke();
     }
 
     private void HandleWindowResize(int width, int height)
     {
         device?.Viewport(0, 0, (uint)width, (uint)height);
-        OnResize?.Invoke(width, height);
     }
 
     private void HandleWindowClosing()
     {
-        OnClosing?.Invoke();
-
         // Dispose GPU resources while the OpenGL context is still valid
         DisposeGpuResources();
-    }
-
-    private void HandleWindowUpdate(double deltaTime)
-    {
-        OnUpdate?.Invoke((float)deltaTime);
-    }
-
-    private void HandleWindowRender(double deltaTime)
-    {
-        OnRender?.Invoke((float)deltaTime);
     }
 
     private void CreateBuiltInResources()
@@ -606,16 +566,13 @@ public sealed class SilkGraphicsContext(SilkGraphicsConfig? config = null) : IGr
 
         disposed = true;
 
-        if (window is not null)
-        {
-            window.OnLoad -= HandleWindowLoad;
-            window.OnResize -= HandleWindowResize;
-            window.OnClosing -= HandleWindowClosing;
-            window.OnUpdate -= HandleWindowUpdate;
-            window.OnRender -= HandleWindowRender;
-        }
+        // Unsubscribe from window provider events
+        windowProvider.OnLoad -= HandleWindowLoad;
+        windowProvider.OnResize -= HandleWindowResize;
+        windowProvider.OnClosing -= HandleWindowClosing;
 
         DisposeGpuResources();
-        window?.Dispose();
+
+        // Note: We don't dispose the window - it's owned by SilkWindowPlugin
     }
 }

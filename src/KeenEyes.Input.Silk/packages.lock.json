@@ -89,6 +89,13 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
+      "keeneyes.input": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.input.abstractions": {
         "type": "Project",
         "dependencies": {

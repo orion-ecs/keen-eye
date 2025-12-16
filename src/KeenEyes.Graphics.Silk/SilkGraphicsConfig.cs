@@ -11,35 +11,6 @@ namespace KeenEyes.Graphics.Silk;
 /// </remarks>
 public sealed class SilkGraphicsConfig
 {
-    #region Window Settings
-
-    /// <summary>
-    /// Gets or sets the initial window width in pixels.
-    /// </summary>
-    public int WindowWidth { get; set; } = 1280;
-
-    /// <summary>
-    /// Gets or sets the initial window height in pixels.
-    /// </summary>
-    public int WindowHeight { get; set; } = 720;
-
-    /// <summary>
-    /// Gets or sets the window title.
-    /// </summary>
-    public string WindowTitle { get; set; } = "KeenEyes Application";
-
-    /// <summary>
-    /// Gets or sets whether to enable VSync.
-    /// </summary>
-    public bool VSync { get; set; } = true;
-
-    /// <summary>
-    /// Gets or sets whether the window is resizable.
-    /// </summary>
-    public bool Resizable { get; set; } = true;
-
-    #endregion
-
     #region Rendering Settings
 
     /// <summary>

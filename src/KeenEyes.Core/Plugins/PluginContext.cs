@@ -116,6 +116,20 @@ public sealed class PluginContext : IPluginContext
     }
 
     /// <inheritdoc />
+    public T GetExtension<T>() where T : class
+    {
+        return World.GetExtension<T>();
+    }
+
+    /// <inheritdoc />
+    public bool TryGetExtension<T>(out T? extension) where T : class
+    {
+        var result = World.TryGetExtension<T>(out var ext);
+        extension = ext;
+        return result;
+    }
+
+    /// <inheritdoc />
     public void SetExtension<T>(T extension) where T : class
     {
         World.SetExtension(extension);
