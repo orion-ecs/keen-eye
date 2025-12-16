@@ -77,9 +77,24 @@ public sealed class SilkLoopProvider : ILoopProvider
         initialized = true;
         OnReady?.Invoke();
 
+        // Track frame timing for delta time calculation
+        var lastTime = DateTime.UtcNow;
+
         // Silk.NET IView.Run() requires an onFrame callback.
-        // We use an empty callback since we're using window events instead.
-        windowProvider.Window.Run(() => { });
+        // When using Run(Action), Update/Render events do NOT fire automatically.
+        // We need to manually calculate delta time and fire our events.
+        windowProvider.Window.Run(() =>
+        {
+            var currentTime = DateTime.UtcNow;
+            var deltaTime = (currentTime - lastTime).TotalSeconds;
+            lastTime = currentTime;
+
+            // Fire update event
+            OnUpdate?.Invoke((float)deltaTime);
+
+            // Fire render event
+            OnRender?.Invoke((float)deltaTime);
+        });
     }
 
     private void HandleLoad()
@@ -90,11 +105,13 @@ public sealed class SilkLoopProvider : ILoopProvider
 
     private void HandleUpdate(double deltaTime)
     {
+        // Not used when using Run(Action) - we fire OnUpdate directly in the callback
         OnUpdate?.Invoke((float)deltaTime);
     }
 
     private void HandleRender(double deltaTime)
     {
+        // Not used when using Run(Action) - we fire OnRender directly in the callback
         OnRender?.Invoke((float)deltaTime);
     }
 
