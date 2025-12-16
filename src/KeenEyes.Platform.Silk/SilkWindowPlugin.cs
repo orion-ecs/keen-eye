@@ -1,7 +1,7 @@
 namespace KeenEyes.Platform.Silk;
 
 /// <summary>
-/// Plugin that creates and manages a Silk.NET window.
+/// Plugin that creates and manages a Silk.NET window and main loop.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -9,8 +9,9 @@ namespace KeenEyes.Platform.Silk;
 /// as both depend on the <see cref="ISilkWindowProvider"/> extension this plugin provides.
 /// </para>
 /// <para>
-/// The window is created during installation but does not start running until
-/// <see cref="ISilkWindowProvider.Window"/>'s <c>Run()</c> method is called.
+/// The plugin registers both <see cref="ISilkWindowProvider"/> for direct window access
+/// and <see cref="ILoopProvider"/> for the main application loop. Use
+/// <c>WorldRunnerBuilder</c> to easily set up the main loop.
 /// </para>
 /// </remarks>
 /// <example>
@@ -24,21 +25,21 @@ namespace KeenEyes.Platform.Silk;
 ///     VSync = true
 /// }));
 ///
-/// // Get the window provider to access the window
-/// var windowProvider = world.GetExtension&lt;ISilkWindowProvider&gt;();
+/// // Install other plugins (graphics, input)
+/// world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
+/// world.InstallPlugin(new SilkInputPlugin(inputConfig));
 ///
-/// // Hook up world updates to window events
-/// windowProvider.Window.OnUpdate += deltaTime =&gt; world.Update((float)deltaTime);
-/// windowProvider.Window.OnRender += deltaTime =&gt; world.Render((float)deltaTime);
-///
-/// // Start the window loop (blocks until window closes)
-/// windowProvider.Window.Run();
+/// // Run with WorldRunnerBuilder (recommended)
+/// world.CreateRunner()
+///     .OnReady(() =&gt; CreateScene(world))
+///     .Run();
 /// </code>
 /// </example>
 /// <param name="config">The window configuration.</param>
 public sealed class SilkWindowPlugin(WindowConfig config) : IWorldPlugin
 {
     private SilkWindowProvider? provider;
+    private SilkLoopProvider? loopProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SilkWindowPlugin"/> class with default configuration.
@@ -55,14 +56,19 @@ public sealed class SilkWindowPlugin(WindowConfig config) : IWorldPlugin
     public void Install(IPluginContext context)
     {
         provider = new SilkWindowProvider(config);
+        loopProvider = new SilkLoopProvider(provider);
+
         context.SetExtension<ISilkWindowProvider>(provider);
+        context.SetExtension<ILoopProvider>(loopProvider);
     }
 
     /// <inheritdoc />
     public void Uninstall(IPluginContext context)
     {
+        context.RemoveExtension<ILoopProvider>();
         context.RemoveExtension<ISilkWindowProvider>();
         provider?.Dispose();
         provider = null;
+        loopProvider = null;
     }
 }

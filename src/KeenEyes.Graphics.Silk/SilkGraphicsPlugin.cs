@@ -1,5 +1,6 @@
 using KeenEyes;
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Platform.Silk;
 
 namespace KeenEyes.Graphics.Silk;
 
@@ -64,14 +65,19 @@ public sealed class SilkGraphicsPlugin(SilkGraphicsConfig config) : IWorldPlugin
     /// <inheritdoc />
     public void Install(IPluginContext context)
     {
+        // Explicit dependency - fail loudly if window plugin not installed
+        if (!context.TryGetExtension<ISilkWindowProvider>(out var windowProvider) || windowProvider is null)
+        {
+            throw new InvalidOperationException(
+                $"{nameof(SilkGraphicsPlugin)} requires SilkWindowPlugin to be installed first. " +
+                $"Install SilkWindowPlugin before installing {nameof(SilkGraphicsPlugin)}.");
+        }
+
         // Create graphics context
-        graphicsContext = new SilkGraphicsContext(config);
+        graphicsContext = new SilkGraphicsContext(windowProvider, config);
 
         // Set extension as the interface type for backend-agnostic access
         context.SetExtension<IGraphicsContext>(graphicsContext);
-
-        // Register as ILoopProvider for WorldRunnerBuilder
-        context.SetExtension<ILoopProvider>(graphicsContext);
 
         // Also set as concrete type for advanced usage
         context.SetExtension(graphicsContext);
@@ -85,6 +91,7 @@ public sealed class SilkGraphicsPlugin(SilkGraphicsConfig config) : IWorldPlugin
     /// <inheritdoc />
     public void Uninstall(IPluginContext context)
     {
+        context.RemoveExtension<ISilkWindowProvider>();
         context.RemoveExtension<IGraphicsContext>();
         context.RemoveExtension<ILoopProvider>();
         context.RemoveExtension<SilkGraphicsContext>();
