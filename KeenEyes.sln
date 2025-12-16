@@ -118,6 +118,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Physics.Tests", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Sample.Physics", "samples\KeenEyes.Sample.Physics\KeenEyes.Sample.Physics.csproj", "{2A1B3C4D-5E6F-7890-ABCD-EF1234567890}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KeenEyes.Graphics.Abstractions", "src\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj", "{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -620,6 +622,18 @@ Global
 		{2A1B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|x64.Build.0 = Release|Any CPU
 		{2A1B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|x86.ActiveCfg = Release|Any CPU
 		{2A1B3C4D-5E6F-7890-ABCD-EF1234567890}.Release|x86.Build.0 = Release|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Debug|x64.Build.0 = Debug|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Debug|x86.Build.0 = Debug|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Release|x64.ActiveCfg = Release|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Release|x64.Build.0 = Release|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Release|x86.ActiveCfg = Release|Any CPU
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -667,6 +681,7 @@ Global
 		{BB431EFF-672A-497F-AF1F-E90717863125} = {D4E5F678-90AB-CDEF-1234-567890123456}
 		{4347BA86-9422-43C3-8109-599DB6AF98CC} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{2A1B3C4D-5E6F-7890-ABCD-EF1234567890} = {F6789012-CDEF-1234-5678-901234567890}
+		{2956E7CB-C3E4-4CFE-9D3E-15C8148561CA} = {D4E5F678-90AB-CDEF-1234-567890123456}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {074345D4-2E9C-4743-8915-67A2DA09075C}
