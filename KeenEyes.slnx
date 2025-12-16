@@ -62,6 +62,7 @@
     <Project Path="tests/KeenEyes.Debugging.Tests/KeenEyes.Debugging.Tests.csproj" />
     <Project Path="tests/KeenEyes.Generators.Tests/KeenEyes.Generators.Tests.csproj" />
     <Project Path="tests/KeenEyes.Graphics.Tests/KeenEyes.Graphics.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Input.Abstractions.Tests/KeenEyes.Input.Abstractions.Tests.csproj" />
     <Project Path="tests/KeenEyes.Logging.Tests/KeenEyes.Logging.Tests.csproj" />
     <Project Path="tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj" />
     <Project Path="tests/KeenEyes.Persistence.Tests/KeenEyes.Persistence.Tests.csproj" />

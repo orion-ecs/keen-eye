@@ -6,7 +6,7 @@ namespace KeenEyes.Sample.Input;
 
 /// <summary>
 /// System that handles player movement from keyboard/gamepad input.
-/// Demonstrates polling-based input in an ECS system.
+/// Demonstrates both direct device polling and action-based input in an ECS system.
 /// </summary>
 public class PlayerMovementSystem : SystemBase
 {
@@ -16,6 +16,18 @@ public class PlayerMovementSystem : SystemBase
     private const float JumpForce = 8f;
     private const float Gravity = 20f;
     private const float GroundY = 0.5f;
+
+    // Action-based input: Define actions with multiple bindings
+    // This allows the same action to work with keyboard AND gamepad
+    private static readonly InputAction jumpAction = new("Jump",
+        InputBinding.FromKey(Key.Space),
+        InputBinding.FromGamepadButton(GamepadButton.South));
+
+    // Movement actions could also use InputAction for rebindable controls:
+    // private static readonly InputAction MoveForward = new("MoveForward",
+    //     InputBinding.FromKey(Key.W),
+    //     InputBinding.FromKey(Key.Up),
+    //     InputBinding.FromGamepadAxis(GamepadAxis.LeftStickY, 0.15f, isPositive: false));
 
     /// <summary>
     /// Updates player position based on input.
@@ -30,7 +42,8 @@ public class PlayerMovementSystem : SystemBase
 
         var keyboard = input.Keyboard;
 
-        // Calculate movement direction from keyboard
+        // Movement uses direct device polling (for demonstration)
+        // In production, you might use InputAction for rebindable controls
         var moveDir = Vector2.Zero;
 
         if (keyboard.IsKeyDown(Key.W) || keyboard.IsKeyDown(Key.Up))
@@ -72,9 +85,9 @@ public class PlayerMovementSystem : SystemBase
             moveDir = Vector2.Normalize(moveDir);
         }
 
-        // Check for jump
-        bool wantsJump = keyboard.IsKeyDown(Key.Space) ||
-                         (cachedGamepad?.IsButtonDown(GamepadButton.South) ?? false);
+        // Jump uses InputAction - automatically checks both keyboard AND gamepad bindings
+        // This is cleaner than manually checking each input source
+        bool wantsJump = jumpAction.IsPressed(input);
 
         // Apply movement to player entities
         foreach (var entity in World.Query<Transform3D, PlayerVelocity, PlayerTag>())

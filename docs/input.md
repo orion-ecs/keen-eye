@@ -373,6 +373,162 @@ public class PlayerMovementSystem : ISystem
 
 **Rule of thumb:** If you check it every frame, use polling. If it's a one-time action, use events.
 
+## Action Mapping
+
+Action mapping provides an abstraction layer between game logic and physical inputs. Instead of checking specific keys or buttons, you define named actions that can be bound to multiple input sources.
+
+### Why Use Action Mapping?
+
+- **Multiple bindings per action** - Same action works with keyboard AND gamepad
+- **Rebindable controls** - Let players customize their bindings at runtime
+- **Context switching** - Easily enable/disable groups of actions (gameplay vs menu)
+- **Cleaner code** - Check `jump.IsPressed(input)` instead of checking each key/button
+
+### Basic Usage
+
+```csharp
+// Define an action with multiple bindings
+var jump = new InputAction("Jump",
+    InputBinding.FromKey(Key.Space),
+    InputBinding.FromGamepadButton(GamepadButton.South));
+
+// In your update loop
+if (jump.IsPressed(input))
+    player.Jump();
+```
+
+### InputBinding
+
+An `InputBinding` represents a single input source:
+
+```csharp
+// Keyboard key
+var spaceBinding = InputBinding.FromKey(Key.Space);
+
+// Mouse button
+var clickBinding = InputBinding.FromMouseButton(MouseButton.Left);
+
+// Gamepad button
+var buttonBinding = InputBinding.FromGamepadButton(GamepadButton.South);
+
+// Gamepad axis (for axis-as-button, e.g., trigger as "accelerate")
+var triggerBinding = InputBinding.FromGamepadAxis(GamepadAxis.RightTrigger, threshold: 0.5f);
+
+// Gamepad axis (negative direction)
+var leftStickLeft = InputBinding.FromGamepadAxis(GamepadAxis.LeftStickX, threshold: 0.3f, isPositive: false);
+```
+
+### InputAction
+
+An `InputAction` groups bindings together and provides state queries:
+
+```csharp
+// Create with multiple bindings
+var fire = new InputAction("Fire",
+    InputBinding.FromMouseButton(MouseButton.Left),
+    InputBinding.FromGamepadButton(GamepadButton.RightShoulder));
+
+// State queries
+bool pressed = fire.IsPressed(input);   // Any binding active
+bool released = fire.IsReleased(input); // No binding active
+float value = fire.GetValue(input);     // Analog value (1.0 if digital)
+
+// Disable/enable
+fire.Enabled = false;
+
+// Rebind at runtime
+fire.ClearBindings();
+fire.AddBinding(InputBinding.FromKey(Key.F));
+```
+
+### InputActionMap
+
+Group related actions into maps for context switching:
+
+```csharp
+// Create action maps for different contexts
+var gameplayMap = new InputActionMap("Gameplay");
+gameplayMap.AddAction("Jump", InputBinding.FromKey(Key.Space));
+gameplayMap.AddAction("Fire", InputBinding.FromMouseButton(MouseButton.Left));
+gameplayMap.AddAction("Interact", InputBinding.FromKey(Key.E));
+
+var menuMap = new InputActionMap("Menu");
+menuMap.AddAction("Select", InputBinding.FromKey(Key.Enter));
+menuMap.AddAction("Back", InputBinding.FromKey(Key.Escape));
+
+// Access actions by name
+var jump = gameplayMap.GetAction("Jump");
+
+// Switch contexts
+gameplayMap.Enabled = false;  // Disables all gameplay actions
+menuMap.Enabled = true;       // Enables all menu actions
+```
+
+### ActionMapProvider
+
+For managing multiple action maps:
+
+```csharp
+var provider = new ActionMapProvider();
+
+// Register maps
+provider.AddActionMap(gameplayMap);
+provider.AddActionMap(menuMap);
+
+// Switch active context
+provider.SetActiveMap("Menu");  // Enables Menu, disables others
+
+// Access
+var activeMap = provider.ActiveMap;
+var menuActions = provider.GetActionMap("Menu");
+```
+
+### Multiplayer (Per-Player Input)
+
+Bind actions to specific gamepads for local multiplayer:
+
+```csharp
+// Player 1's actions bound to gamepad index 0
+var player1Jump = new InputAction("Jump",
+    InputBinding.FromGamepadButton(GamepadButton.South))
+{
+    GamepadIndex = 0  // Only check gamepad 0
+};
+
+// Player 2's actions bound to gamepad index 1
+var player2Jump = new InputAction("Jump",
+    InputBinding.FromGamepadButton(GamepadButton.South))
+{
+    GamepadIndex = 1  // Only check gamepad 1
+};
+```
+
+### In ECS Systems
+
+```csharp
+public class PlayerMovementSystem : SystemBase
+{
+    // Define actions (can also be passed in via constructor)
+    private static readonly InputAction jumpAction = new("Jump",
+        InputBinding.FromKey(Key.Space),
+        InputBinding.FromGamepadButton(GamepadButton.South));
+
+    private IInputContext? input;
+
+    public override void Update(float deltaTime)
+    {
+        input ??= World.TryGetExtension<IInputContext>(out var ctx) ? ctx : null;
+        if (input is null) return;
+
+        // Clean, readable input checks
+        if (jumpAction.IsPressed(input))
+        {
+            // Apply jump to player entities
+        }
+    }
+}
+```
+
 ## Button Naming
 
 Gamepad buttons use standardized names based on position:
