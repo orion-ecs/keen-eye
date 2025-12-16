@@ -5,8 +5,13 @@
 //   WASD / Left Stick  - Move the cube
 //   Mouse              - Look around (when captured)
 //   Left Click         - Capture/release mouse
-//   Space / South      - Jump
+//   Space / South      - Jump (using InputAction with multiple bindings)
 //   Escape             - Exit
+//
+// This sample demonstrates:
+//   - Direct device polling (keyboard.IsKeyDown, gamepad.LeftStick)
+//   - Event-based input handlers (OnKeyDown, OnButtonDown)
+//   - Action mapping (InputAction with multiple bindings for rebindable controls)
 //
 // NOTE: This sample requires a display to run.
 
@@ -32,6 +37,7 @@ Console.WriteLine("- Mouse input (click to capture, move to look)");
 Console.WriteLine("- Gamepad input (if connected)");
 Console.WriteLine("- Polling-based input in systems");
 Console.WriteLine("- Event-based input handlers");
+Console.WriteLine("- Action mapping (InputAction for rebindable controls)");
 Console.WriteLine();
 Console.WriteLine("Press Escape to exit.");
 Console.WriteLine();
