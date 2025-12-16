@@ -128,6 +128,8 @@
       href: adr/003-command-buffer-abstraction.md
     - name: ADR-004 Reflection Elimination
       href: adr/004-reflection-elimination.md
+    - name: ADR-005 Graphics/Input Abstraction Layers
+      href: adr/005-graphics-input-abstraction-layers.md
 - name: Research
   href: research/index.md
   items:
