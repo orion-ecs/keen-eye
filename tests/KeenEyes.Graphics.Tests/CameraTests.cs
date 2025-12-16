@@ -1,6 +1,7 @@
 using System.Numerics;
 
 using KeenEyes.Common;
+using KeenEyes.Graphics.Abstractions;
 
 namespace KeenEyes.Graphics.Tests;
 

@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Runtime</PackageId>
+    <Description>Application runtime and main loop management for KeenEyes ECS</Description>
+    <PackageTags>ecs;runtime;mainloop;gameloop;application</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

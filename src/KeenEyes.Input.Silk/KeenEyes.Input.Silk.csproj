@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <PackageId>KeenEyes.Input.Silk</PackageId>
@@ -12,7 +12,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Platform.Silk.Abstractions\KeenEyes.Platform.Silk.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />

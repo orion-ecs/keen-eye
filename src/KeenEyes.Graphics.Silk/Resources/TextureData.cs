@@ -1,6 +1,6 @@
-using KeenEyes.Graphics.Backend;
+using KeenEyes.Graphics.Abstractions;
 
-namespace KeenEyes.Graphics;
+namespace KeenEyes.Graphics.Silk.Resources;
 
 /// <summary>
 /// Specifies the texture filtering mode.
@@ -130,10 +130,10 @@ internal sealed class TextureManager : IDisposable
         }
 
         uint handle = Device.GenTexture();
-        Device.BindTexture(Backend.TextureTarget.Texture2D, handle);
+        Device.BindTexture(TextureTarget.Texture2D, handle);
 
         // Upload texture data
-        Device.TexImage2D(Backend.TextureTarget.Texture2D, 0, width, height, data);
+        Device.TexImage2D(TextureTarget.Texture2D, 0, width, height, Abstractions.PixelFormat.RGBA, data);
 
         // Set filtering
         var (minFilter, magFilter) = filter switch
@@ -144,29 +144,29 @@ internal sealed class TextureManager : IDisposable
             _ => (TextureMinFilter.Linear, TextureMagFilter.Linear)
         };
 
-        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.MinFilter, (int)minFilter);
-        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.MagFilter, (int)magFilter);
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.MinFilter, (int)minFilter);
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.MagFilter, (int)magFilter);
 
         // Set wrapping
         var wrapMode = wrap switch
         {
-            TextureWrap.Repeat => Backend.TextureWrapMode.Repeat,
-            TextureWrap.MirroredRepeat => Backend.TextureWrapMode.MirroredRepeat,
-            TextureWrap.ClampToEdge => Backend.TextureWrapMode.ClampToEdge,
-            TextureWrap.ClampToBorder => Backend.TextureWrapMode.ClampToBorder,
-            _ => Backend.TextureWrapMode.Repeat
+            TextureWrap.Repeat => TextureWrapMode.Repeat,
+            TextureWrap.MirroredRepeat => TextureWrapMode.MirroredRepeat,
+            TextureWrap.ClampToEdge => TextureWrapMode.ClampToEdge,
+            TextureWrap.ClampToBorder => TextureWrapMode.ClampToBorder,
+            _ => TextureWrapMode.Repeat
         };
 
-        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.WrapS, (int)wrapMode);
-        Device.TexParameter(Backend.TextureTarget.Texture2D, TextureParam.WrapT, (int)wrapMode);
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapS, (int)wrapMode);
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapT, (int)wrapMode);
 
         // Generate mipmaps for trilinear filtering
         if (filter == TextureFilter.Trilinear)
         {
-            Device.GenerateMipmap(Backend.TextureTarget.Texture2D);
+            Device.GenerateMipmap(TextureTarget.Texture2D);
         }
 
-        Device.BindTexture(Backend.TextureTarget.Texture2D, 0);
+        Device.BindTexture(TextureTarget.Texture2D, 0);
 
         var textureData = new TextureData
         {

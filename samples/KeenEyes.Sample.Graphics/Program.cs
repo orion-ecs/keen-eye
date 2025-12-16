@@ -7,6 +7,9 @@ using System.Numerics;
 using KeenEyes;
 using KeenEyes.Common;
 using KeenEyes.Graphics;
+using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk;
+using KeenEyes.Runtime;
 using KeenEyes.Sample.Graphics;
 
 Console.WriteLine("KeenEyes Graphics Sample");
@@ -16,91 +19,67 @@ Console.WriteLine("This sample demonstrates:");
 Console.WriteLine("- Setting up a 3D scene with the Graphics plugin");
 Console.WriteLine("- Creating cameras, lights, and renderable objects");
 Console.WriteLine("- Animating objects with custom systems");
+Console.WriteLine("- Using the WorldRunnerBuilder for clean main loop setup");
 Console.WriteLine();
 
-// Configure the graphics window
-var config = new GraphicsConfig
+// Configure the graphics (includes window settings)
+var graphicsConfig = new SilkGraphicsConfig
 {
+    WindowTitle = "KeenEyes Graphics Sample",
     WindowWidth = 1280,
     WindowHeight = 720,
-    WindowTitle = "KeenEyes Graphics Sample",
     VSync = true,
-    ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f) // Sky blue background
+    ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f), // Sky blue background
+    EnableDepthTest = true,
+    EnableCulling = true
 };
 
-// Create the world and install graphics plugin
+// Create the world and install plugins
 using var world = new World();
-world.InstallPlugin(new GraphicsPlugin(config));
 
-// Get the graphics context for creating resources
-var graphics = world.GetExtension<GraphicsContext>();
+// Install graphics plugin (creates its own window)
+world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
+
+// Register graphics systems (from KeenEyes.Graphics)
+world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate, order: 0);
+world.AddSystem<RenderSystem>(SystemPhase.Render, order: 0);
 
 // Register custom systems for animation
 world.AddSystem<SpinSystem>(SystemPhase.Update, order: 0);
 world.AddSystem<BobSystem>(SystemPhase.Update, order: 1);
 
-// Track initialization state
-bool sceneReady = false;
-int cubeMesh = 0;
-int quadMesh = 0;
-
-// Set up scene when graphics are ready
-graphics.OnLoad += () =>
-{
-    Console.WriteLine("Graphics initialized, creating scene...");
-
-    // Create mesh resources
-    cubeMesh = graphics.CreateCube(1f);
-    quadMesh = graphics.CreateQuad(20f, 20f);
-
-    // Enable depth testing and backface culling
-    graphics.EnableDepthTest();
-    graphics.EnableCulling();
-
-    // Create the scene
-    CreateScene(world, graphics, cubeMesh, quadMesh);
-
-    sceneReady = true;
-    Console.WriteLine("Scene created! Use mouse/keyboard to interact (if implemented).");
-    Console.WriteLine("Close the window to exit.");
-};
-
-// Handle window resize
-graphics.OnResize += (width, height) =>
-{
-    Console.WriteLine($"Window resized to {width}x{height}");
-
-    // Update camera aspect ratio
-    foreach (var entity in world.Query<Camera>())
-    {
-        ref var camera = ref world.Get<Camera>(entity);
-        camera.AspectRatio = (float)width / height;
-    }
-};
-
-// Handle window close
-graphics.OnClosing += () =>
-{
-    Console.WriteLine("Window closing...");
-};
-
-// Handle render events - this is called each frame by Silk.NET
-graphics.OnRender += (deltaTime) =>
-{
-    if (sceneReady)
-    {
-        // Update the world (runs all systems including render)
-        world.Update((float)deltaTime);
-    }
-};
-
-// Initialize and run the graphics (blocks until window closes)
 Console.WriteLine("Starting graphics...");
 
 try
 {
-    graphics.Initialize();
-    graphics.Run(); // This blocks until the window is closed
+    // Use the backend-agnostic builder pattern to run the main loop
+    world.CreateRunner()
+        .OnReady(() =>
+        {
+            Console.WriteLine("Graphics initialized, creating scene...");
+
+            // Get the graphics context for resource creation
+            var graphics = world.GetExtension<IGraphicsContext>();
+
+            // Create mesh resources
+            var cubeMesh = graphics.CreateCube(1f);
+            var quadMesh = graphics.CreateQuad(20f, 20f);
+
+            // Create the scene
+            CreateScene(world, graphics, cubeMesh, quadMesh);
+
+            Console.WriteLine("Scene created! Use mouse/keyboard to interact (if implemented).");
+            Console.WriteLine("Close the window to exit.");
+        })
+        .OnResize((width, height) =>
+        {
+            Console.WriteLine($"Window resized to {width}x{height}");
+        })
+        .OnClosing(() =>
+        {
+            Console.WriteLine("Window closing...");
+        })
+        .Run(); // Blocks until window closes, auto-calls world.Update() each frame
 }
 catch (Exception ex)
 {
@@ -111,7 +90,7 @@ catch (Exception ex)
 Console.WriteLine("Sample complete!");
 
 // Helper method to create the scene
-static void CreateScene(World world, GraphicsContext graphics, int cubeMesh, int quadMesh)
+static void CreateScene(World world, IGraphicsContext graphics, MeshHandle cubeMesh, MeshHandle quadMesh)
 {
     // Create a camera
     var cameraPosition = new Vector3(0, 5, 10);
@@ -148,8 +127,8 @@ static void CreateScene(World world, GraphicsContext graphics, int cubeMesh, int
     // Create a ground plane
     var groundMaterial = new Material
     {
-        ShaderId = graphics.LitShaderId,
-        TextureId = graphics.WhiteTextureId,
+        ShaderId = graphics.LitShader.Id,
+        TextureId = graphics.WhiteTexture.Id,
         Color = new Vector4(0.3f, 0.5f, 0.3f, 1f), // Green
         Metallic = 0f,
         Roughness = 0.9f
@@ -160,7 +139,7 @@ static void CreateScene(World world, GraphicsContext graphics, int cubeMesh, int
             new Vector3(0, -0.5f, 0),
             Quaternion.CreateFromAxisAngle(Vector3.UnitX, -MathF.PI / 2f),
             Vector3.One))
-        .With(new Renderable(quadMesh, 0))
+        .With(new Renderable(quadMesh.Id, 0))
         .With(groundMaterial)
         .WithTag<GroundTag>()
         .Build();
@@ -185,8 +164,8 @@ static void CreateScene(World world, GraphicsContext graphics, int cubeMesh, int
 
         var cubeMaterial = new Material
         {
-            ShaderId = graphics.LitShaderId,
-            TextureId = graphics.WhiteTextureId,
+            ShaderId = graphics.LitShader.Id,
+            TextureId = graphics.WhiteTexture.Id,
             Color = colors[i],
             Metallic = 0.2f,
             Roughness = 0.5f
@@ -197,7 +176,7 @@ static void CreateScene(World world, GraphicsContext graphics, int cubeMesh, int
                 new Vector3(x, y, z),
                 Quaternion.Identity,
                 Vector3.One))
-            .With(new Renderable(cubeMesh, 0))
+            .With(new Renderable(cubeMesh.Id, 0))
             .With(cubeMaterial)
             .With(new Spin { Speed = new Vector3(0.5f, 1f, 0.3f) })
             .Build();
@@ -206,8 +185,8 @@ static void CreateScene(World world, GraphicsContext graphics, int cubeMesh, int
     // Create a bobbing cube in the center
     var centerMaterial = new Material
     {
-        ShaderId = graphics.LitShaderId,
-        TextureId = graphics.WhiteTextureId,
+        ShaderId = graphics.LitShader.Id,
+        TextureId = graphics.WhiteTexture.Id,
         Color = new Vector4(1f, 1f, 1f, 1f), // White
         Metallic = 0.8f,
         Roughness = 0.2f
@@ -218,7 +197,7 @@ static void CreateScene(World world, GraphicsContext graphics, int cubeMesh, int
             new Vector3(0, 2f, 0),
             Quaternion.Identity,
             new Vector3(1.5f, 1.5f, 1.5f)))
-        .With(new Renderable(cubeMesh, 0))
+        .With(new Renderable(cubeMesh.Id, 0))
         .With(centerMaterial)
         .With(new Spin { Speed = new Vector3(0f, 0.5f, 0f) })
         .With(new Bob { Amplitude = 0.5f, Frequency = 0.5f, Phase = 0, OriginY = 2f })

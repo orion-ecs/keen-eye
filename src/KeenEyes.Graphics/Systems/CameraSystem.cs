@@ -1,3 +1,5 @@
+using KeenEyes.Graphics.Abstractions;
+
 namespace KeenEyes.Graphics;
 
 /// <summary>
@@ -6,26 +8,33 @@ namespace KeenEyes.Graphics;
 /// <remarks>
 /// <para>
 /// This system listens for window resize events and updates all camera components
-/// with the new aspect ratio. It runs in the <see cref="SystemPhase.EarlyUpdate"/> phase.
+/// with the new aspect ratio. It runs in the EarlyUpdate phase.
+/// </para>
+/// <para>
+/// This system requires an <see cref="IGraphicsContext"/> extension to be present
+/// on the world.
 /// </para>
 /// </remarks>
-public sealed class CameraSystem : SystemBase
+public sealed class CameraSystem : ISystem
 {
-    private GraphicsContext? graphics;
+    private IWorld? world;
+    private IGraphicsContext? graphics;
     private int lastWidth;
     private int lastHeight;
 
     /// <inheritdoc />
-    protected override void OnInitialize()
+    public bool Enabled { get; set; } = true;
+
+    /// <inheritdoc />
+    public void Initialize(IWorld world)
     {
-        if (World.TryGetExtension<GraphicsContext>(out graphics))
+        this.world = world;
+
+        if (world.TryGetExtension<IGraphicsContext>(out graphics))
         {
             graphics!.OnResize += HandleResize;
-            if (graphics.Window is not null)
-            {
-                lastWidth = graphics.Window.Width;
-                lastHeight = graphics.Window.Height;
-            }
+            lastWidth = graphics.Width;
+            lastHeight = graphics.Height;
         }
     }
 
@@ -38,46 +47,46 @@ public sealed class CameraSystem : SystemBase
 
     private void UpdateCameraAspectRatios()
     {
-        if (lastWidth <= 0 || lastHeight <= 0)
+        if (world is null || lastWidth <= 0 || lastHeight <= 0)
         {
             return;
         }
 
         float aspectRatio = (float)lastWidth / lastHeight;
 
-        foreach (var entity in World.Query<Camera>())
+        foreach (var entity in world.Query<Camera>())
         {
-            ref var camera = ref World.Get<Camera>(entity);
+            ref var camera = ref world.Get<Camera>(entity);
             camera.AspectRatio = aspectRatio;
         }
     }
 
     /// <inheritdoc />
-    public override void Update(float deltaTime)
+    public void Update(float deltaTime)
     {
-        // Most work is done in resize callback
-        // This update ensures cameras added after resize are also updated
-        if (graphics?.Window is not null)
+        if (world is null || graphics is null)
         {
-            int currentWidth = graphics.Window.Width;
-            int currentHeight = graphics.Window.Height;
+            return;
+        }
 
-            if (currentWidth != lastWidth || currentHeight != lastHeight)
-            {
-                lastWidth = currentWidth;
-                lastHeight = currentHeight;
-                UpdateCameraAspectRatios();
-            }
+        // This update ensures cameras added after resize are also updated
+        int currentWidth = graphics.Width;
+        int currentHeight = graphics.Height;
+
+        if (currentWidth != lastWidth || currentHeight != lastHeight)
+        {
+            lastWidth = currentWidth;
+            lastHeight = currentHeight;
+            UpdateCameraAspectRatios();
         }
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    public void Dispose()
     {
         if (graphics is not null)
         {
             graphics.OnResize -= HandleResize;
         }
-        base.Dispose();
     }
 }

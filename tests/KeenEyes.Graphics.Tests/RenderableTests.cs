@@ -1,3 +1,5 @@
+using KeenEyes.Graphics.Abstractions;
+
 namespace KeenEyes.Graphics.Tests;
 
 /// <summary>

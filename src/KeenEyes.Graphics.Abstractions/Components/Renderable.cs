@@ -1,4 +1,6 @@
-namespace KeenEyes.Graphics;
+using KeenEyes.Common;
+
+namespace KeenEyes.Graphics.Abstractions;
 
 /// <summary>
 /// Component that marks an entity as renderable with mesh and material references.
@@ -6,7 +8,7 @@ namespace KeenEyes.Graphics;
 /// <remarks>
 /// <para>
 /// The <see cref="MeshId"/> and <see cref="MaterialId"/> are handles to resources
-/// managed by <see cref="GraphicsContext"/>. Use the graphics API to create meshes
+/// managed by the graphics context. Use the graphics API to create meshes
 /// and materials before assigning their IDs to this component.
 /// </para>
 /// </remarks>

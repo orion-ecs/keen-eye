@@ -1,8 +1,11 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
+
+using KeenEyes.Graphics.Abstractions;
+
 using Silk.NET.OpenGL;
 
-namespace KeenEyes.Graphics.Backend;
+namespace KeenEyes.Graphics.Silk.Backend;
 
 /// <summary>
 /// OpenGL implementation of <see cref="IGraphicsDevice"/> using Silk.NET.
@@ -51,7 +54,7 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     public void EnableVertexAttribArray(uint index) => gl.EnableVertexAttribArray(index);
 
     /// <inheritdoc />
-    public void VertexAttribPointer(uint index, int size, VertexAttribType type, bool normalized, uint stride, nuint offset)
+    public void VertexAttribPointer(uint index, int size, Abstractions.VertexAttribType type, bool normalized, uint stride, nuint offset)
     {
         unsafe
         {
@@ -67,11 +70,11 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     public uint GenTexture() => gl.GenTexture();
 
     /// <inheritdoc />
-    public void BindTexture(TextureTarget target, uint texture)
+    public void BindTexture(Abstractions.TextureTarget target, uint texture)
         => gl.BindTexture(ToGL(target), texture);
 
     /// <inheritdoc />
-    public void TexImage2D(TextureTarget target, int level, int width, int height, ReadOnlySpan<byte> data)
+    public void TexImage2D(Abstractions.TextureTarget target, int level, int width, int height, Abstractions.PixelFormat format, ReadOnlySpan<byte> data)
     {
         unsafe
         {
@@ -80,11 +83,11 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
                 gl.TexImage2D(
                     ToGL(target),
                     level,
-                    InternalFormat.Rgba,
+                    ToGLInternalFormat(format),
                     (uint)width,
                     (uint)height,
                     0,
-                    PixelFormat.Rgba,
+                    ToGL(format),
                     PixelType.UnsignedByte,
                     ptr);
             }
@@ -92,18 +95,18 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     }
 
     /// <inheritdoc />
-    public void TexParameter(TextureTarget target, TextureParam param, int value)
+    public void TexParameter(Abstractions.TextureTarget target, TextureParam param, int value)
         => gl.TexParameter(ToGL(target), ToGL(param), value);
 
     /// <inheritdoc />
-    public void GenerateMipmap(TextureTarget target)
+    public void GenerateMipmap(Abstractions.TextureTarget target)
         => gl.GenerateMipmap(ToGL(target));
 
     /// <inheritdoc />
     public void DeleteTexture(uint texture) => gl.DeleteTexture(texture);
 
     /// <inheritdoc />
-    public void ActiveTexture(TextureUnit unit)
+    public void ActiveTexture(Abstractions.TextureUnit unit)
         => gl.ActiveTexture(ToGL(unit));
 
     #endregion
@@ -114,7 +117,7 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     public uint CreateProgram() => gl.CreateProgram();
 
     /// <inheritdoc />
-    public uint CreateShader(ShaderType type) => gl.CreateShader(ToGL(type));
+    public uint CreateShader(Abstractions.ShaderType type) => gl.CreateShader(ToGL(type));
 
     /// <inheritdoc />
     public void ShaderSource(uint shader, string source) => gl.ShaderSource(shader, source);
@@ -171,6 +174,10 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     public void Uniform1(int location, int value) => gl.Uniform1(location, value);
 
     /// <inheritdoc />
+    public void Uniform2(int location, float x, float y)
+        => gl.Uniform2(location, x, y);
+
+    /// <inheritdoc />
     public void Uniform3(int location, float x, float y, float z)
         => gl.Uniform3(location, x, y, z);
 
@@ -215,13 +222,35 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         => gl.Viewport(x, y, width, height);
 
     /// <inheritdoc />
-    public void DrawElements(PrimitiveType mode, uint count, IndexType type)
+    public void Scissor(int x, int y, uint width, uint height)
+        => gl.Scissor(x, y, width, height);
+
+    /// <inheritdoc />
+    public void BlendFunc(Abstractions.BlendFactor srcFactor, Abstractions.BlendFactor dstFactor)
+        => gl.BlendFunc(ToGL(srcFactor), ToGL(dstFactor));
+
+    /// <inheritdoc />
+    public void DepthFunc(Abstractions.DepthFunction func)
+        => gl.DepthFunc(ToGL(func));
+
+    /// <inheritdoc />
+    public void DrawElements(Abstractions.PrimitiveType mode, uint count, Abstractions.IndexType type)
     {
         unsafe
         {
             gl.DrawElements(ToGL(mode), count, ToGL(type), null);
         }
     }
+
+    /// <inheritdoc />
+    public void DrawArrays(Abstractions.PrimitiveType mode, int first, uint count)
+        => gl.DrawArrays(ToGL(mode), first, count);
+
+    /// <inheritdoc />
+    public void LineWidth(float width) => gl.LineWidth(width);
+
+    /// <inheritdoc />
+    public void PointSize(float size) => gl.PointSize(size);
 
     #endregion
 
@@ -242,17 +271,19 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         _ => throw new ArgumentOutOfRangeException(nameof(usage))
     };
 
-    private static VertexAttribPointerType ToGL(VertexAttribType type) => type switch
+    private static VertexAttribPointerType ToGL(Abstractions.VertexAttribType type) => type switch
     {
-        VertexAttribType.Float => VertexAttribPointerType.Float,
-        VertexAttribType.Int => VertexAttribPointerType.Int,
-        VertexAttribType.UnsignedByte => VertexAttribPointerType.UnsignedByte,
+        Abstractions.VertexAttribType.Float => VertexAttribPointerType.Float,
+        Abstractions.VertexAttribType.Int => VertexAttribPointerType.Int,
+        Abstractions.VertexAttribType.UnsignedByte => VertexAttribPointerType.UnsignedByte,
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
 
-    private static Silk.NET.OpenGL.TextureTarget ToGL(TextureTarget target) => target switch
+    private static global::Silk.NET.OpenGL.TextureTarget ToGL(Abstractions.TextureTarget target) => target switch
     {
-        TextureTarget.Texture2D => Silk.NET.OpenGL.TextureTarget.Texture2D,
+        Abstractions.TextureTarget.Texture2D => global::Silk.NET.OpenGL.TextureTarget.Texture2D,
+        Abstractions.TextureTarget.TextureCubeMap => global::Silk.NET.OpenGL.TextureTarget.TextureCubeMap,
+        Abstractions.TextureTarget.Texture2DArray => global::Silk.NET.OpenGL.TextureTarget.Texture2DArray,
         _ => throw new ArgumentOutOfRangeException(nameof(target))
     };
 
@@ -265,19 +296,25 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         _ => throw new ArgumentOutOfRangeException(nameof(param))
     };
 
-    private static Silk.NET.OpenGL.TextureUnit ToGL(TextureUnit unit) => unit switch
+    private static global::Silk.NET.OpenGL.TextureUnit ToGL(Abstractions.TextureUnit unit) => unit switch
     {
-        TextureUnit.Texture0 => Silk.NET.OpenGL.TextureUnit.Texture0,
-        TextureUnit.Texture1 => Silk.NET.OpenGL.TextureUnit.Texture1,
-        TextureUnit.Texture2 => Silk.NET.OpenGL.TextureUnit.Texture2,
-        TextureUnit.Texture3 => Silk.NET.OpenGL.TextureUnit.Texture3,
+        Abstractions.TextureUnit.Texture0 => global::Silk.NET.OpenGL.TextureUnit.Texture0,
+        Abstractions.TextureUnit.Texture1 => global::Silk.NET.OpenGL.TextureUnit.Texture1,
+        Abstractions.TextureUnit.Texture2 => global::Silk.NET.OpenGL.TextureUnit.Texture2,
+        Abstractions.TextureUnit.Texture3 => global::Silk.NET.OpenGL.TextureUnit.Texture3,
+        Abstractions.TextureUnit.Texture4 => global::Silk.NET.OpenGL.TextureUnit.Texture4,
+        Abstractions.TextureUnit.Texture5 => global::Silk.NET.OpenGL.TextureUnit.Texture5,
+        Abstractions.TextureUnit.Texture6 => global::Silk.NET.OpenGL.TextureUnit.Texture6,
+        Abstractions.TextureUnit.Texture7 => global::Silk.NET.OpenGL.TextureUnit.Texture7,
         _ => throw new ArgumentOutOfRangeException(nameof(unit))
     };
 
-    private static Silk.NET.OpenGL.ShaderType ToGL(ShaderType type) => type switch
+    private static global::Silk.NET.OpenGL.ShaderType ToGL(Abstractions.ShaderType type) => type switch
     {
-        ShaderType.Vertex => Silk.NET.OpenGL.ShaderType.VertexShader,
-        ShaderType.Fragment => Silk.NET.OpenGL.ShaderType.FragmentShader,
+        Abstractions.ShaderType.Vertex => global::Silk.NET.OpenGL.ShaderType.VertexShader,
+        Abstractions.ShaderType.Fragment => global::Silk.NET.OpenGL.ShaderType.FragmentShader,
+        Abstractions.ShaderType.Geometry => global::Silk.NET.OpenGL.ShaderType.GeometryShader,
+        Abstractions.ShaderType.Compute => global::Silk.NET.OpenGL.ShaderType.ComputeShader,
         _ => throw new ArgumentOutOfRangeException(nameof(type))
     };
 
@@ -304,6 +341,8 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         RenderCapability.DepthTest => EnableCap.DepthTest,
         RenderCapability.CullFace => EnableCap.CullFace,
         RenderCapability.Blend => EnableCap.Blend,
+        RenderCapability.ScissorTest => EnableCap.ScissorTest,
+        RenderCapability.StencilTest => EnableCap.StencilTest,
         _ => throw new ArgumentOutOfRangeException(nameof(cap))
     };
 
@@ -315,20 +354,70 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         _ => throw new ArgumentOutOfRangeException(nameof(mode))
     };
 
-    private static Silk.NET.OpenGL.PrimitiveType ToGL(PrimitiveType mode) => mode switch
+    private static global::Silk.NET.OpenGL.PrimitiveType ToGL(Abstractions.PrimitiveType mode) => mode switch
     {
-        PrimitiveType.Triangles => Silk.NET.OpenGL.PrimitiveType.Triangles,
-        PrimitiveType.TriangleStrip => Silk.NET.OpenGL.PrimitiveType.TriangleStrip,
-        PrimitiveType.Lines => Silk.NET.OpenGL.PrimitiveType.Lines,
-        PrimitiveType.Points => Silk.NET.OpenGL.PrimitiveType.Points,
+        Abstractions.PrimitiveType.Triangles => global::Silk.NET.OpenGL.PrimitiveType.Triangles,
+        Abstractions.PrimitiveType.TriangleStrip => global::Silk.NET.OpenGL.PrimitiveType.TriangleStrip,
+        Abstractions.PrimitiveType.TriangleFan => global::Silk.NET.OpenGL.PrimitiveType.TriangleFan,
+        Abstractions.PrimitiveType.Lines => global::Silk.NET.OpenGL.PrimitiveType.Lines,
+        Abstractions.PrimitiveType.LineStrip => global::Silk.NET.OpenGL.PrimitiveType.LineStrip,
+        Abstractions.PrimitiveType.LineLoop => global::Silk.NET.OpenGL.PrimitiveType.LineLoop,
+        Abstractions.PrimitiveType.Points => global::Silk.NET.OpenGL.PrimitiveType.Points,
         _ => throw new ArgumentOutOfRangeException(nameof(mode))
     };
 
-    private static DrawElementsType ToGL(IndexType type) => type switch
+    private static DrawElementsType ToGL(Abstractions.IndexType type) => type switch
     {
-        IndexType.UnsignedShort => DrawElementsType.UnsignedShort,
-        IndexType.UnsignedInt => DrawElementsType.UnsignedInt,
+        Abstractions.IndexType.UnsignedByte => DrawElementsType.UnsignedByte,
+        Abstractions.IndexType.UnsignedShort => DrawElementsType.UnsignedShort,
+        Abstractions.IndexType.UnsignedInt => DrawElementsType.UnsignedInt,
         _ => throw new ArgumentOutOfRangeException(nameof(type))
+    };
+
+    private static global::Silk.NET.OpenGL.BlendingFactor ToGL(Abstractions.BlendFactor factor) => factor switch
+    {
+        Abstractions.BlendFactor.Zero => global::Silk.NET.OpenGL.BlendingFactor.Zero,
+        Abstractions.BlendFactor.One => global::Silk.NET.OpenGL.BlendingFactor.One,
+        Abstractions.BlendFactor.SrcColor => global::Silk.NET.OpenGL.BlendingFactor.SrcColor,
+        Abstractions.BlendFactor.OneMinusSrcColor => global::Silk.NET.OpenGL.BlendingFactor.OneMinusSrcColor,
+        Abstractions.BlendFactor.DstColor => global::Silk.NET.OpenGL.BlendingFactor.DstColor,
+        Abstractions.BlendFactor.OneMinusDstColor => global::Silk.NET.OpenGL.BlendingFactor.OneMinusDstColor,
+        Abstractions.BlendFactor.SrcAlpha => global::Silk.NET.OpenGL.BlendingFactor.SrcAlpha,
+        Abstractions.BlendFactor.OneMinusSrcAlpha => global::Silk.NET.OpenGL.BlendingFactor.OneMinusSrcAlpha,
+        Abstractions.BlendFactor.DstAlpha => global::Silk.NET.OpenGL.BlendingFactor.DstAlpha,
+        Abstractions.BlendFactor.OneMinusDstAlpha => global::Silk.NET.OpenGL.BlendingFactor.OneMinusDstAlpha,
+        _ => throw new ArgumentOutOfRangeException(nameof(factor))
+    };
+
+    private static global::Silk.NET.OpenGL.DepthFunction ToGL(Abstractions.DepthFunction func) => func switch
+    {
+        Abstractions.DepthFunction.Never => global::Silk.NET.OpenGL.DepthFunction.Never,
+        Abstractions.DepthFunction.Less => global::Silk.NET.OpenGL.DepthFunction.Less,
+        Abstractions.DepthFunction.Equal => global::Silk.NET.OpenGL.DepthFunction.Equal,
+        Abstractions.DepthFunction.LessOrEqual => global::Silk.NET.OpenGL.DepthFunction.Lequal,
+        Abstractions.DepthFunction.Greater => global::Silk.NET.OpenGL.DepthFunction.Greater,
+        Abstractions.DepthFunction.NotEqual => global::Silk.NET.OpenGL.DepthFunction.Notequal,
+        Abstractions.DepthFunction.GreaterOrEqual => global::Silk.NET.OpenGL.DepthFunction.Gequal,
+        Abstractions.DepthFunction.Always => global::Silk.NET.OpenGL.DepthFunction.Always,
+        _ => throw new ArgumentOutOfRangeException(nameof(func))
+    };
+
+    private static global::Silk.NET.OpenGL.PixelFormat ToGL(Abstractions.PixelFormat format) => format switch
+    {
+        Abstractions.PixelFormat.R => global::Silk.NET.OpenGL.PixelFormat.Red,
+        Abstractions.PixelFormat.RG => global::Silk.NET.OpenGL.PixelFormat.RG,
+        Abstractions.PixelFormat.RGB => global::Silk.NET.OpenGL.PixelFormat.Rgb,
+        Abstractions.PixelFormat.RGBA => global::Silk.NET.OpenGL.PixelFormat.Rgba,
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
+    private static InternalFormat ToGLInternalFormat(Abstractions.PixelFormat format) => format switch
+    {
+        Abstractions.PixelFormat.R => InternalFormat.R8,
+        Abstractions.PixelFormat.RG => InternalFormat.RG8,
+        Abstractions.PixelFormat.RGB => InternalFormat.Rgb8,
+        Abstractions.PixelFormat.RGBA => InternalFormat.Rgba8,
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
     };
 
     #endregion

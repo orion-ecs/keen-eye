@@ -1,8 +1,9 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
-using KeenEyes.Graphics.Backend;
 
-namespace KeenEyes.Graphics;
+using KeenEyes.Graphics.Abstractions;
+
+namespace KeenEyes.Graphics.Silk.Resources;
 
 /// <summary>
 /// Represents a vertex with position, normal, and texture coordinates.

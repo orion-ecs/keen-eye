@@ -2,7 +2,7 @@ using System.Numerics;
 
 using KeenEyes.Common;
 
-namespace KeenEyes.Graphics;
+namespace KeenEyes.Graphics.Abstractions;
 
 /// <summary>
 /// Specifies the projection type for a camera.
