@@ -261,10 +261,7 @@
         }
       },
       "keeneyes.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "keeneyes.common": {
         "type": "Project",
@@ -278,14 +275,10 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
-      },
       "keeneyes.graphics": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Common": "[1.0.0, )",
-          "KeenEyes.Core": "[1.0.0, )",
           "Silk.NET.Input": "[2.22.0, )",
           "Silk.NET.Maths": "[2.22.0, )",
           "Silk.NET.OpenGL": "[2.22.0, )",
