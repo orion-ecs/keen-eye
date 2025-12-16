@@ -1,0 +1,77 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/KeenEyes.Benchmarks/KeenEyes.Benchmarks.csproj" />
+    <Project Path="benchmarks/KeenEyes.Spatial.Benchmarks/KeenEyes.Spatial.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/KeenEyes.Sample.AIProximity/KeenEyes.Sample.AIProximity.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Aot/KeenEyes.Sample.Aot.csproj" />
+    <Project Path="samples/KeenEyes.Sample.CollisionDetection/KeenEyes.Sample.CollisionDetection.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Graphics/KeenEyes.Sample.Graphics.csproj" />
+    <Project Path="samples/KeenEyes.Sample.MassSimulation/KeenEyes.Sample.MassSimulation.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Messaging/KeenEyes.Sample.Messaging.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Physics/KeenEyes.Sample.Physics.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Prefabs/KeenEyes.Sample.Prefabs.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Relationships/KeenEyes.Sample.Relationships.csproj" />
+    <Project Path="samples/KeenEyes.Sample.RenderingCulling/KeenEyes.Sample.RenderingCulling.csproj" />
+    <Project Path="samples/KeenEyes.Sample.SaveLoad/KeenEyes.Sample.SaveLoad.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Simulation/KeenEyes.Sample.Simulation.csproj" />
+    <Project Path="samples/KeenEyes.Sample.StringTags/KeenEyes.Sample.StringTags.csproj" />
+    <Project Path="samples/KeenEyes.Sample/KeenEyes.Sample.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/KeenEyes.Abstractions/KeenEyes.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Common/KeenEyes.Common.csproj" />
+    <Project Path="src/KeenEyes.Core/KeenEyes.Core.csproj" />
+    <Project Path="src/KeenEyes.Generators/KeenEyes.Generators.csproj" />
+    <Project Path="src/KeenEyes.Graphics/KeenEyes.Graphics.csproj" />
+    <Project Path="src/KeenEyes.Logging/KeenEyes.Logging.csproj" />
+    <Project Path="src/KeenEyes.Parallelism/KeenEyes.Parallelism.csproj" />
+    <Project Path="src/KeenEyes.Persistence/KeenEyes.Persistence.csproj" />
+    <Project Path="src/KeenEyes.Physics/KeenEyes.Physics.csproj" />
+    <Project Path="src/KeenEyes.Spatial/KeenEyes.Spatial.csproj" />
+    <Project Path="src/KeenEyes.Testing/KeenEyes.Testing.csproj" />
+  </Folder>
+  <Folder Name="/templates/">
+    <Project Path="templates/KeenEyes.Templates/KeenEyes.Templates.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Common.Tests/KeenEyes.Common.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Core.Tests/KeenEyes.Core.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Debugging.Tests/KeenEyes.Debugging.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Generators.Tests/KeenEyes.Generators.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Graphics.Tests/KeenEyes.Graphics.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Logging.Tests/KeenEyes.Logging.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Persistence.Tests/KeenEyes.Persistence.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Physics.Tests/KeenEyes.Physics.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Spatial.Tests/KeenEyes.Spatial.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Testing.Tests/KeenEyes.Testing.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tests/_/">
+    <File Path="tests/Directory.Build.props" />
+    <File Path="tests/Directory.Packages.props" />
+    <File Path="tests/global.json" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/BenchmarkCompare/BenchmarkCompare.csproj" />
+  </Folder>
+  <Folder Name="/_/">
+    <File Path=".editorconfig" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="docfx.json" />
+    <File Path="global.json" />
+    <File Path="index.md" />
+    <File Path="nuget.config" />
+    <File Path="README.md" />
+    <File Path="ROADMAP.md" />
+    <File Path="toc.yml" />
+  </Folder>
+</Solution>
