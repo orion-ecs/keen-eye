@@ -65,6 +65,18 @@ public sealed class SilkLoopProvider : ILoopProvider
     /// <inheritdoc />
     public void Run()
     {
+        // Initialize the window before running the main loop.
+        // This creates the native window and OpenGL context.
+        // The window's Load event fires synchronously during Initialize(),
+        // which triggers windowProvider.OnLoad for plugins to initialize.
+        windowProvider.Window.Initialize();
+
+        // Fire OnReady AFTER window initialization is complete.
+        // This ensures all plugins (graphics, input) have initialized from OnLoad
+        // before user code runs in OnReady.
+        initialized = true;
+        OnReady?.Invoke();
+
         // Silk.NET IView.Run() requires an onFrame callback.
         // We use an empty callback since we're using window events instead.
         windowProvider.Window.Run(() => { });
@@ -72,8 +84,8 @@ public sealed class SilkLoopProvider : ILoopProvider
 
     private void HandleLoad()
     {
-        initialized = true;
-        OnReady?.Invoke();
+        // Don't fire OnReady here - we fire it in Run() after Initialize() completes.
+        // This ensures all plugin OnLoad handlers have run before OnReady fires.
     }
 
     private void HandleUpdate(double deltaTime)
