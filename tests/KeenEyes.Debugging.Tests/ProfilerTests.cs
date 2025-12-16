@@ -258,21 +258,24 @@ public sealed class ProfilerTests
         // Arrange
         var profiler = new Profiler();
 
-        // Act - First call with shorter sleep
+        // Act - First call with no sleep (minimal time)
         profiler.BeginSample("TestSystem");
-        Thread.Sleep(1);
         profiler.EndSample("TestSystem");
 
         var firstMax = profiler.GetSystemProfile("TestSystem").MaxTime;
 
-        // Second call with longer sleep
+        // Second call with a spin-wait to guarantee longer execution
+        // Use SpinWait for more reliable timing than Thread.Sleep for short durations
         profiler.BeginSample("TestSystem");
-        Thread.Sleep(5);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        while (sw.ElapsedMilliseconds < 50) { } // Busy-wait for 50ms
         profiler.EndSample("TestSystem");
 
         // Assert
         var profile = profiler.GetSystemProfile("TestSystem");
-        Assert.True(profile.MaxTime > firstMax);
+        Assert.True(
+            profile.MaxTime > firstMax,
+            $"MaxTime ({profile.MaxTime.TotalMilliseconds:F3}ms) should be > firstMax ({firstMax.TotalMilliseconds:F3}ms)");
     }
 
     #endregion
