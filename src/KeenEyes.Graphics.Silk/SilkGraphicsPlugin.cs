@@ -91,9 +91,9 @@ public sealed class SilkGraphicsPlugin(SilkGraphicsConfig config) : IWorldPlugin
     /// <inheritdoc />
     public void Uninstall(IPluginContext context)
     {
-        context.RemoveExtension<ISilkWindowProvider>();
+        // Only remove extensions that this plugin registered
+        // ISilkWindowProvider and ILoopProvider belong to SilkWindowPlugin
         context.RemoveExtension<IGraphicsContext>();
-        context.RemoveExtension<ILoopProvider>();
         context.RemoveExtension<SilkGraphicsContext>();
         graphicsContext?.Dispose();
         graphicsContext = null;
