@@ -42,6 +42,7 @@ jobs:
               - 'benchmarks/**/*.cs'
               - '**/*.csproj'
               - '**/*.sln'
+              - '**/*.slnx'
               - 'Directory.Build.props'
               - 'Directory.Packages.props'
 
