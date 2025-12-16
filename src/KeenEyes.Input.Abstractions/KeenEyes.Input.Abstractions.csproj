@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>KeenEyes.Input.Abstractions</PackageId>
+    <Description>Backend-agnostic input abstractions for KeenEyes ECS</Description>
+    <PackageTags>ecs;input;keyboard;mouse;gamepad;abstractions</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+  </ItemGroup>
+</Project>
