@@ -2,10 +2,9 @@
 
   <PropertyGroup>
     <PackageId>KeenEyes.Graphics</PackageId>
-    <Description>Graphics plugin for KeenEyes ECS using Silk.NET (OpenGL/Vulkan)</Description>
-    <PackageTags>ecs;graphics;opengl;vulkan;silk.net;game;rendering</PackageTags>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	<IsAotCompatible>true</IsAotCompatible>
+    <Description>Backend-agnostic graphics systems for KeenEyes ECS</Description>
+    <PackageTags>ecs;graphics;game;rendering</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,15 +12,10 @@
   </ItemGroup>
 
   <ItemGroup>
-	  <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
-	  <ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Silk.NET.OpenGL" />
-    <PackageReference Include="Silk.NET.Windowing" />
-    <PackageReference Include="Silk.NET.Input" />
-    <PackageReference Include="Silk.NET.Maths" />
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+    <ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

@@ -1,11 +1,11 @@
-using KeenEyes.Graphics.Backend;
+using KeenEyes.Graphics.Abstractions;
 
 namespace KeenEyes.Graphics.Tests.Mocks;
 
 /// <summary>
-/// Mock implementation of <see cref="IGraphicsWindow"/> for unit testing.
+/// Mock implementation of <see cref="IWindow"/> for unit testing.
 /// </summary>
-public sealed class MockGraphicsWindow : IGraphicsWindow
+public sealed class MockGraphicsWindow : IWindow
 {
     private readonly MockGraphicsDevice device;
     private bool disposed;
@@ -23,7 +23,16 @@ public sealed class MockGraphicsWindow : IGraphicsWindow
     public int Height { get; set; } = 720;
 
     /// <inheritdoc />
+    public string Title { get; set; } = "Mock Window";
+
+    /// <inheritdoc />
     public bool IsClosing => isClosing;
+
+    /// <inheritdoc />
+    public bool IsFocused { get; set; } = true;
+
+    /// <inheritdoc />
+    public float AspectRatio => Height > 0 ? (float)Width / Height : 1f;
 
     /// <inheritdoc />
     public event Action? OnLoad;

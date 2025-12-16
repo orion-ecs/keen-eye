@@ -1,6 +1,7 @@
 using System.Numerics;
+
 using KeenEyes.Common;
-using KeenEyes.Graphics.Backend;
+using KeenEyes.Graphics.Abstractions;
 
 namespace KeenEyes.Graphics;
 
@@ -14,33 +15,37 @@ namespace KeenEyes.Graphics;
 /// camera's view and projection matrices for rendering.
 /// </para>
 /// <para>
-/// This system runs in the <see cref="SystemPhase.Render"/> phase and requires the
-/// <see cref="GraphicsContext"/> extension to be present.
+/// This system runs in the Render phase and requires an <see cref="IGraphicsContext"/>
+/// extension to be present on the world.
 /// </para>
 /// </remarks>
-public sealed class RenderSystem : SystemBase
+public sealed class RenderSystem : ISystem
 {
-    private GraphicsContext? graphics;
+    private IWorld? world;
+    private IGraphicsContext? graphics;
     private readonly List<(Entity Entity, int Layer)> renderQueue = [];
 
     /// <inheritdoc />
-    protected override void OnInitialize()
+    public bool Enabled { get; set; } = true;
+
+    /// <inheritdoc />
+    public void Initialize(IWorld world)
     {
-        if (!World.TryGetExtension<GraphicsContext>(out graphics))
+        this.world = world;
+
+        if (!world.TryGetExtension<IGraphicsContext>(out graphics))
         {
-            throw new InvalidOperationException("RenderSystem requires GraphicsContext extension");
+            throw new InvalidOperationException("RenderSystem requires IGraphicsContext extension");
         }
     }
 
     /// <inheritdoc />
-    public override void Update(float deltaTime)
+    public void Update(float deltaTime)
     {
-        if (graphics?.Device is null || !graphics.IsInitialized)
+        if (world is null || graphics is null || !graphics.IsInitialized)
         {
             return;
         }
-
-        var device = graphics.Device;
 
         // Find active camera
         Camera camera = default;
@@ -48,10 +53,10 @@ public sealed class RenderSystem : SystemBase
         bool foundCamera = false;
 
         // Prefer main camera tag
-        foreach (var entity in World.Query<Camera, Transform3D, MainCameraTag>())
+        foreach (var entity in world.Query<Camera, Transform3D, MainCameraTag>())
         {
-            camera = World.Get<Camera>(entity);
-            cameraTransform = World.Get<Transform3D>(entity);
+            camera = world.Get<Camera>(entity);
+            cameraTransform = world.Get<Transform3D>(entity);
             foundCamera = true;
             break;
         }
@@ -59,10 +64,10 @@ public sealed class RenderSystem : SystemBase
         // Fall back to any camera
         if (!foundCamera)
         {
-            foreach (var entity in World.Query<Camera, Transform3D>())
+            foreach (var entity in world.Query<Camera, Transform3D>())
             {
-                camera = World.Get<Camera>(entity);
-                cameraTransform = World.Get<Transform3D>(entity);
+                camera = world.Get<Camera>(entity);
+                cameraTransform = world.Get<Transform3D>(entity);
                 foundCamera = true;
                 break;
             }
@@ -84,30 +89,29 @@ public sealed class RenderSystem : SystemBase
             ClearMask clearMask = 0;
             if (camera.ClearColorBuffer)
             {
-                device.ClearColor(camera.ClearColor.X, camera.ClearColor.Y, camera.ClearColor.Z, camera.ClearColor.W);
+                graphics.SetClearColor(camera.ClearColor);
                 clearMask |= ClearMask.ColorBuffer;
             }
             if (camera.ClearDepthBuffer)
             {
                 clearMask |= ClearMask.DepthBuffer;
             }
-            device.Clear(clearMask);
+            graphics.Clear(clearMask);
         }
 
         // Enable depth testing and culling
-        device.Enable(RenderCapability.DepthTest);
-        device.Enable(RenderCapability.CullFace);
-        device.CullFace(CullFaceMode.Back);
+        graphics.SetDepthTest(true);
+        graphics.SetCulling(true, CullFaceMode.Back);
 
         // Collect light data
         Vector3 lightDirection = -Vector3.UnitY;
         Vector3 lightColor = Vector3.One;
         float lightIntensity = 1f;
 
-        foreach (var entity in World.Query<Light, Transform3D>())
+        foreach (var entity in world.Query<Light, Transform3D>())
         {
-            ref readonly var light = ref World.Get<Light>(entity);
-            ref readonly var lightTransform = ref World.Get<Transform3D>(entity);
+            ref readonly var light = ref world.Get<Light>(entity);
+            ref readonly var lightTransform = ref world.Get<Transform3D>(entity);
 
             if (light.Type == LightType.Directional)
             {
@@ -120,9 +124,9 @@ public sealed class RenderSystem : SystemBase
 
         // Build render queue
         renderQueue.Clear();
-        foreach (var entity in World.Query<Transform3D, Renderable>())
+        foreach (var entity in world.Query<Transform3D, Renderable>())
         {
-            ref readonly var renderable = ref World.Get<Renderable>(entity);
+            ref readonly var renderable = ref world.Get<Renderable>(entity);
             renderQueue.Add((entity, renderable.Layer));
         }
 
@@ -130,87 +134,74 @@ public sealed class RenderSystem : SystemBase
         renderQueue.Sort((a, b) => a.Layer.CompareTo(b.Layer));
 
         // Render each entity
-        int currentShaderId = -1;
-        int currentTextureId = -1;
+        ShaderHandle currentShader = default;
+        TextureHandle currentTexture = default;
 
         foreach (var (entity, _) in renderQueue)
         {
-            ref readonly var transform = ref World.Get<Transform3D>(entity);
-            ref readonly var renderable = ref World.Get<Renderable>(entity);
+            ref readonly var transform = ref world.Get<Transform3D>(entity);
+            ref readonly var renderable = ref world.Get<Renderable>(entity);
 
-            // Get mesh data
-            var meshData = graphics.MeshManager.GetMesh(renderable.MeshId);
-            if (meshData is null)
+            // Skip if no mesh
+            if (renderable.MeshId <= 0)
             {
                 continue;
             }
 
             // Get material (use solid shader if no material component)
-            int shaderId = graphics.SolidShaderId;
-            int textureId = graphics.WhiteTextureId;
+            ShaderHandle shader = graphics.SolidShader;
+            TextureHandle texture = graphics.WhiteTexture;
             Vector4 color = Vector4.One;
             Vector3 emissive = Vector3.Zero;
 
-            if (World.Has<Material>(entity))
+            if (world.Has<Material>(entity))
             {
-                ref readonly var material = ref World.Get<Material>(entity);
-                shaderId = material.ShaderId > 0 ? material.ShaderId : graphics.LitShaderId;
-                textureId = material.TextureId > 0 ? material.TextureId : graphics.WhiteTextureId;
+                ref readonly var material = ref world.Get<Material>(entity);
+                shader = material.ShaderId > 0 ? new ShaderHandle(material.ShaderId) : graphics.LitShader;
+                texture = material.TextureId > 0 ? new TextureHandle(material.TextureId) : graphics.WhiteTexture;
                 color = material.Color;
                 emissive = material.EmissiveColor;
             }
 
             // Bind shader
-            var shaderData = graphics.ShaderManager.GetShader(shaderId);
-            if (shaderData is null)
+            if (currentShader.Id != shader.Id)
             {
-                continue;
-            }
-
-            if (currentShaderId != shaderId)
-            {
-                device.UseProgram(shaderData.Handle);
-                currentShaderId = shaderId;
+                graphics.BindShader(shader);
+                currentShader = shader;
 
                 // Set per-frame uniforms
-                graphics.ShaderManager.SetUniform(shaderId, "uView", viewMatrix);
-                graphics.ShaderManager.SetUniform(shaderId, "uProjection", projectionMatrix);
-                graphics.ShaderManager.SetUniform(shaderId, "uCameraPosition", cameraTransform.Position);
-                graphics.ShaderManager.SetUniform(shaderId, "uLightDirection", lightDirection);
-                graphics.ShaderManager.SetUniform(shaderId, "uLightColor", lightColor);
-                graphics.ShaderManager.SetUniform(shaderId, "uLightIntensity", lightIntensity);
+                graphics.SetUniform("uView", viewMatrix);
+                graphics.SetUniform("uProjection", projectionMatrix);
+                graphics.SetUniform("uCameraPosition", cameraTransform.Position);
+                graphics.SetUniform("uLightDirection", lightDirection);
+                graphics.SetUniform("uLightColor", lightColor);
+                graphics.SetUniform("uLightIntensity", lightIntensity);
             }
 
             // Bind texture
-            var textureData = graphics.TextureManager.GetTexture(textureId);
-            if (textureData is not null && currentTextureId != textureId)
+            if (currentTexture.Id != texture.Id)
             {
-                device.ActiveTexture(TextureUnit.Texture0);
-                device.BindTexture(TextureTarget.Texture2D, textureData.Handle);
-                graphics.ShaderManager.SetUniform(shaderId, "uTexture", 0);
-                currentTextureId = textureId;
+                graphics.BindTexture(texture, 0);
+                graphics.SetUniform("uTexture", 0);
+                currentTexture = texture;
             }
 
             // Set per-object uniforms
             Matrix4x4 modelMatrix = transform.Matrix();
-            graphics.ShaderManager.SetUniform(shaderId, "uModel", modelMatrix);
-            graphics.ShaderManager.SetUniform(shaderId, "uColor", color);
-            graphics.ShaderManager.SetUniform(shaderId, "uEmissive", emissive);
+            graphics.SetUniform("uModel", modelMatrix);
+            graphics.SetUniform("uColor", color);
+            graphics.SetUniform("uEmissive", emissive);
 
             // Draw mesh
-            device.BindVertexArray(meshData.Vao);
-            device.DrawElements(PrimitiveType.Triangles, (uint)meshData.IndexCount, IndexType.UnsignedInt);
+            var meshHandle = new MeshHandle(renderable.MeshId);
+            graphics.BindMesh(meshHandle);
+            graphics.DrawMesh(meshHandle);
         }
-
-        // Cleanup
-        device.BindVertexArray(0);
-        device.UseProgram(0);
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    public void Dispose()
     {
         renderQueue.Clear();
-        base.Dispose();
     }
 }

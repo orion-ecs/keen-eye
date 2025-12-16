@@ -30,7 +30,7 @@ namespace KeenEyes.Graphics.Abstractions;
 /// context.DrawMesh(mesh);
 /// </code>
 /// </example>
-public interface IGraphicsContext : IDisposable
+public interface IGraphicsContext : ILoopProvider, IDisposable
 {
     #region State
 
@@ -44,58 +44,68 @@ public interface IGraphicsContext : IDisposable
     /// </summary>
     IGraphicsDevice? Device { get; }
 
-    /// <summary>
-    /// Gets whether the context has been initialized.
-    /// </summary>
-    bool IsInitialized { get; }
+    // IsInitialized is inherited from ILoopProvider
 
     /// <summary>
     /// Gets whether the window should close.
     /// </summary>
     bool ShouldClose { get; }
 
+    /// <summary>
+    /// Gets the current window width in pixels.
+    /// </summary>
+    int Width { get; }
+
+    /// <summary>
+    /// Gets the current window height in pixels.
+    /// </summary>
+    int Height { get; }
+
     #endregion
 
-    #region Lifecycle Events
+    #region Default Resources
 
     /// <summary>
-    /// Event raised when the window is loaded and ready.
+    /// Gets the default lit shader handle.
     /// </summary>
-    event Action? OnLoad;
+    ShaderHandle LitShader { get; }
 
     /// <summary>
-    /// Event raised when the window is resized.
+    /// Gets the default unlit shader handle.
     /// </summary>
-    event Action<int, int>? OnResize;
+    ShaderHandle UnlitShader { get; }
 
     /// <summary>
-    /// Event raised when the window is closing.
+    /// Gets the default solid color shader handle.
     /// </summary>
-    event Action? OnClosing;
+    /// <remarks>
+    /// The solid shader is used for rendering without lighting calculations.
+    /// It applies a simple color without any lighting effects.
+    /// </remarks>
+    ShaderHandle SolidShader { get; }
 
     /// <summary>
-    /// Event raised each frame for updates.
+    /// Gets a 1x1 white texture for solid color rendering.
     /// </summary>
-    event Action<double>? OnUpdate;
+    TextureHandle WhiteTexture { get; }
 
-    /// <summary>
-    /// Event raised each frame for rendering.
-    /// </summary>
-    event Action<double>? OnRender;
+    #endregion
+
+    #region Lifecycle Events (inherited from ILoopProvider)
+
+    // The following events are inherited from ILoopProvider:
+    // - OnReady: Raised when the window is loaded and ready
+    // - OnUpdate: Raised each frame for updates (float deltaTime)
+    // - OnRender: Raised each frame for rendering (float deltaTime)
+    // - OnResize: Raised when the window is resized (int width, int height)
+    // - OnClosing: Raised when the window is closing
 
     #endregion
 
     #region Lifecycle Control
 
-    /// <summary>
-    /// Initializes the graphics context and creates the window.
-    /// </summary>
-    void Initialize();
-
-    /// <summary>
-    /// Runs the main window loop. Blocks until the window is closed.
-    /// </summary>
-    void Run();
+    // Initialize() and Run() are inherited from ILoopProvider
+    // IsInitialized is inherited from ILoopProvider
 
     /// <summary>
     /// Processes pending window events without blocking.
@@ -119,6 +129,21 @@ public interface IGraphicsContext : IDisposable
     /// <param name="indices">The index data.</param>
     /// <returns>The mesh handle.</returns>
     MeshHandle CreateMesh(ReadOnlySpan<byte> vertices, int vertexCount, ReadOnlySpan<uint> indices);
+
+    /// <summary>
+    /// Creates a cube mesh.
+    /// </summary>
+    /// <param name="size">The size of the cube (default: 1).</param>
+    /// <returns>The mesh handle.</returns>
+    MeshHandle CreateCube(float size = 1f);
+
+    /// <summary>
+    /// Creates a quad mesh (plane).
+    /// </summary>
+    /// <param name="width">The width of the quad (default: 1).</param>
+    /// <param name="height">The height of the quad (default: 1).</param>
+    /// <returns>The mesh handle.</returns>
+    MeshHandle CreateQuad(float width = 1f, float height = 1f);
 
     /// <summary>
     /// Deletes a mesh resource.

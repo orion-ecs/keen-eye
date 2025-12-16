@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <PackageId>KeenEyes.Graphics.Silk</PackageId>
@@ -10,10 +10,10 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="KeenEyes.Graphics.Silk.Tests" />
+    <InternalsVisibleTo Include="KeenEyes.Graphics.Tests" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
     <ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Platform.Silk.Abstractions\KeenEyes.Platform.Silk.Abstractions.csproj" />

@@ -1,5 +1,5 @@
 using System.Numerics;
-using KeenEyes.Graphics.Backend;
+using KeenEyes.Graphics.Abstractions;
 
 namespace KeenEyes.Graphics.Tests.Mocks;
 
@@ -167,9 +167,9 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Calls.Add($"BindTexture({target}, {texture})");
     }
 
-    public void TexImage2D(TextureTarget target, int level, int width, int height, ReadOnlySpan<byte> data)
+    public void TexImage2D(TextureTarget target, int level, int width, int height, PixelFormat format, ReadOnlySpan<byte> data)
     {
-        Calls.Add($"TexImage2D({target}, {level}, {width}x{height}, {data.Length} bytes)");
+        Calls.Add($"TexImage2D({target}, {level}, {width}x{height}, {format}, {data.Length} bytes)");
     }
 
     public void TexParameter(TextureTarget target, TextureParam param, int value)
@@ -298,6 +298,12 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Calls.Add($"Uniform1({location}, {value})");
     }
 
+    public void Uniform2(int location, float x, float y)
+    {
+        UniformValues[$"{location}:vec2"] = new Vector2(x, y);
+        Calls.Add($"Uniform2({location}, {x}, {y})");
+    }
+
     public void Uniform3(int location, float x, float y, float z)
     {
         UniformValues[$"{location}:vec3"] = new Vector3(x, y, z);
@@ -350,9 +356,39 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Calls.Add($"Viewport({x}, {y}, {width}, {height})");
     }
 
+    public void Scissor(int x, int y, uint width, uint height)
+    {
+        Calls.Add($"Scissor({x}, {y}, {width}, {height})");
+    }
+
+    public void BlendFunc(BlendFactor srcFactor, BlendFactor dstFactor)
+    {
+        Calls.Add($"BlendFunc({srcFactor}, {dstFactor})");
+    }
+
+    public void DepthFunc(DepthFunction func)
+    {
+        Calls.Add($"DepthFunc({func})");
+    }
+
     public void DrawElements(PrimitiveType mode, uint count, IndexType type)
     {
         Calls.Add($"DrawElements({mode}, {count}, {type})");
+    }
+
+    public void DrawArrays(PrimitiveType mode, int first, uint count)
+    {
+        Calls.Add($"DrawArrays({mode}, {first}, {count})");
+    }
+
+    public void LineWidth(float width)
+    {
+        Calls.Add($"LineWidth({width})");
+    }
+
+    public void PointSize(float size)
+    {
+        Calls.Add($"PointSize({size})");
     }
 
     #endregion

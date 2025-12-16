@@ -8,7 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\KeenEyes.Graphics\KeenEyes.Graphics.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics.Silk\KeenEyes.Graphics.Silk.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Platform.Silk\KeenEyes.Platform.Silk.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
   </ItemGroup>
 
