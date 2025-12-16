@@ -1,4 +1,4 @@
-namespace KeenEyes.Graphics;
+namespace KeenEyes.Graphics.Silk.Shaders;
 
 /// <summary>
 /// Contains built-in shader source code.

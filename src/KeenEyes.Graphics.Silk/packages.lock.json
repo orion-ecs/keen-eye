@@ -104,7 +104,8 @@
       "keeneyes.graphics.abstractions": {
         "type": "Project",
         "dependencies": {
-          "KeenEyes.Abstractions": "[1.0.0, )"
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )"
         }
       },
       "keeneyes.platform.silk.abstractions": {

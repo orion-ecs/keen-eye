@@ -88,11 +88,48 @@
       "keeneyes.graphics": {
         "type": "Project",
         "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
           "KeenEyes.Common": "[1.0.0, )",
-          "Silk.NET.Input": "[2.22.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.graphics.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )"
+        }
+      },
+      "keeneyes.graphics.silk": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.Platform.Silk.Abstractions": "[1.0.0, )",
           "Silk.NET.Maths": "[2.22.0, )",
-          "Silk.NET.OpenGL": "[2.22.0, )",
+          "Silk.NET.OpenGL": "[2.22.0, )"
+        }
+      },
+      "keeneyes.platform.silk": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Platform.Silk.Abstractions": "[1.0.0, )",
+          "Silk.NET.Input": "[2.22.0, )",
           "Silk.NET.Windowing": "[2.22.0, )"
+        }
+      },
+      "keeneyes.platform.silk.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "Silk.NET.Input": "[2.22.0, )",
+          "Silk.NET.Windowing": "[2.22.0, )"
+        }
+      },
+      "keeneyes.runtime": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
       "keeneyes.spatial": {

@@ -1,3 +1,4 @@
+using KeenEyes.Graphics.Silk.Resources;
 using KeenEyes.Graphics.Tests.Mocks;
 
 namespace KeenEyes.Graphics.Tests;

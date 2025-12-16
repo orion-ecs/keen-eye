@@ -1,6 +1,8 @@
 using System.Numerics;
 
-namespace KeenEyes.Graphics;
+using KeenEyes.Common;
+
+namespace KeenEyes.Graphics.Abstractions;
 
 /// <summary>
 /// Component containing material properties for rendering.

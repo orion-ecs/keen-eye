@@ -368,6 +368,25 @@ public interface IWorld : IDisposable
 
     #endregion
 
+    #region System Execution
+
+    /// <summary>
+    /// Updates all registered systems in the world.
+    /// </summary>
+    /// <param name="deltaTime">The time elapsed since the last update in seconds.</param>
+    /// <remarks>
+    /// <para>
+    /// This method executes all enabled systems in their configured phases and order.
+    /// Systems are grouped by <c>SystemPhase</c> and executed in ascending order within each phase.
+    /// </para>
+    /// <para>
+    /// Call this method from your main loop, typically at 60Hz or tied to your render refresh rate.
+    /// </para>
+    /// </remarks>
+    void Update(float deltaTime);
+
+    #endregion
+
     #region Random Number Generation
 
     /// <summary>
