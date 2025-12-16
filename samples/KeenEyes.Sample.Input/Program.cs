@@ -123,7 +123,6 @@ static void SetupInputEvents(IInputContext input)
 {
     var keyboard = input.Keyboard;
     var mouse = input.Mouse;
-    var gamepad = input.Gamepad;
 
     // Keyboard events
     keyboard.OnKeyDown += args =>
@@ -131,6 +130,8 @@ static void SetupInputEvents(IInputContext input)
         if (args.Key == Key.Escape)
         {
             Console.WriteLine("Escape pressed - closing...");
+            // Note: Calling Environment.Exit() bypasses proper cleanup.
+            // In a real application, use window.Close() instead.
             Environment.Exit(0);
         }
 
@@ -164,6 +165,10 @@ static void SetupInputEvents(IInputContext input)
     input.OnGamepadConnected += gp =>
     {
         Console.WriteLine($"Gamepad connected: {gp.Name} (index {gp.Index})");
+        gp.OnButtonDown += args =>
+        {
+            Console.WriteLine($"Gamepad button: {args.Button}");
+        };
     };
 
     input.OnGamepadDisconnected += gp =>
@@ -171,14 +176,17 @@ static void SetupInputEvents(IInputContext input)
         Console.WriteLine($"Gamepad disconnected: {gp.Name}");
     };
 
-    // Gamepad button events
-    if (gamepad.IsConnected)
+    // Check for already-connected gamepads (avoid throwing if none connected)
+    foreach (var gp in input.Gamepads)
     {
-        Console.WriteLine($"Gamepad already connected: {gamepad.Name}");
-        gamepad.OnButtonDown += args =>
+        if (gp.IsConnected)
         {
-            Console.WriteLine($"Gamepad button: {args.Button}");
-        };
+            Console.WriteLine($"Gamepad already connected: {gp.Name}");
+            gp.OnButtonDown += args =>
+            {
+                Console.WriteLine($"Gamepad button: {args.Button}");
+            };
+        }
     }
 }
 
