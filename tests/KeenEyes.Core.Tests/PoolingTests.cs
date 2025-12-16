@@ -372,12 +372,18 @@ public class PoolingTests
         var invalidCheckCount = 0;
         var releaseComplete = 0;
 
+        // Use a countdown event to ensure all threads have started checking before release
+        using var allThreadsStarted = new CountdownEvent(5);
+
         // Start threads checking validity
         var checkThreads = new Thread[5];
         for (var i = 0; i < checkThreads.Length; i++)
         {
             checkThreads[i] = new Thread(() =>
             {
+                // Signal that this thread has started
+                allThreadsStarted.Signal();
+
                 // Check before release
                 for (var j = 0; j < 5000; j++)
                 {
@@ -409,8 +415,8 @@ public class PoolingTests
             thread.Start();
         }
 
-        // Give threads time to check before release
-        Thread.Sleep(50);
+        // Wait for all threads to start (with timeout to avoid hang if something goes wrong)
+        allThreadsStarted.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
 
         // Release entity
         pool.Release(entity);

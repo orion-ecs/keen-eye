@@ -116,20 +116,8 @@ public sealed class JobScheduler : IDisposable
 
         jobQueue.Enqueue(scheduled);
 
-        // Start processing if dependency is satisfied
-        if (dependency.IsCompleted)
-        {
-            ThreadPool.QueueUserWorkItem(_ => ProcessQueue());
-        }
-        else
-        {
-            // Wait for dependency in background, then process
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
-                dependency.Complete();
-                ProcessQueue();
-            });
-        }
+        // Always queue processing - don't block ThreadPool threads waiting for dependencies
+        ThreadPool.QueueUserWorkItem(_ => ProcessQueue());
 
         return new JobHandle(jobId, source);
     }
@@ -182,18 +170,8 @@ public sealed class JobScheduler : IDisposable
 
         jobQueue.Enqueue(scheduled);
 
-        if (dependency.IsCompleted)
-        {
-            ThreadPool.QueueUserWorkItem(_ => ProcessQueue());
-        }
-        else
-        {
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
-                dependency.Complete();
-                ProcessQueue();
-            });
-        }
+        // Always queue processing - don't block ThreadPool threads waiting for dependencies
+        ThreadPool.QueueUserWorkItem(_ => ProcessQueue());
 
         return new JobHandle(jobId, source);
     }
@@ -254,18 +232,8 @@ public sealed class JobScheduler : IDisposable
 
         jobQueue.Enqueue(scheduled);
 
-        if (dependency.IsCompleted)
-        {
-            ThreadPool.QueueUserWorkItem(_ => ProcessQueue());
-        }
-        else
-        {
-            ThreadPool.QueueUserWorkItem(_ =>
-            {
-                dependency.Complete();
-                ProcessQueue();
-            });
-        }
+        // Always queue processing - don't block ThreadPool threads waiting for dependencies
+        ThreadPool.QueueUserWorkItem(_ => ProcessQueue());
 
         return new JobHandle(jobId, source);
     }
@@ -279,22 +247,92 @@ public sealed class JobScheduler : IDisposable
     /// </remarks>
     public void CompleteAll()
     {
-        // Process remaining queue items
-        while (jobQueue.TryDequeue(out var scheduled))
+        CompleteAll(Timeout.InfiniteTimeSpan);
+    }
+
+    /// <summary>
+    /// Completes all pending and active jobs, blocking until finished or timeout expires.
+    /// </summary>
+    /// <param name="timeout">Maximum time to wait for jobs to complete.</param>
+    /// <returns>True if all jobs completed within the timeout; false otherwise.</returns>
+    /// <remarks>
+    /// This method processes all queued jobs and waits for completion.
+    /// Useful for ensuring all work is done before continuing with a bounded wait time.
+    /// </remarks>
+    public bool CompleteAll(TimeSpan timeout)
+    {
+        var deadline = timeout == Timeout.InfiniteTimeSpan
+            ? DateTime.MaxValue
+            : DateTime.UtcNow + timeout;
+
+        // Process remaining queue items, handling dependencies
+        var pendingWithDeps = new List<ScheduledJob>();
+
+        while (true)
         {
-            ExecuteScheduledJob(scheduled);
+            // Check timeout
+            if (DateTime.UtcNow >= deadline)
+            {
+                return false;
+            }
+
+            // Drain current queue
+            while (jobQueue.TryDequeue(out var scheduled))
+            {
+                if (scheduled.Dependency.IsCompleted)
+                {
+                    ExecuteScheduledJob(scheduled);
+                }
+                else
+                {
+                    pendingWithDeps.Add(scheduled);
+                }
+            }
+
+            // If nothing pending, we're done with queue processing
+            if (pendingWithDeps.Count == 0)
+            {
+                break;
+            }
+
+            // Re-queue items with pending dependencies and retry
+            foreach (var job in pendingWithDeps)
+            {
+                jobQueue.Enqueue(job);
+            }
+
+            pendingWithDeps.Clear();
+
+            // Use Sleep(1) instead of Yield() - on Windows, Sleep(1) actually
+            // releases the time slice and allows other threads to make progress
+            Thread.Sleep(1);
         }
 
-        // Wait for any active jobs
+        // Wait for any active jobs with timeout
         foreach (var kvp in activeJobs)
         {
-            kvp.Value.Wait();
+            var remaining = deadline - DateTime.UtcNow;
+            if (remaining <= TimeSpan.Zero)
+            {
+                return false;
+            }
+
+            if (!kvp.Value.Wait(remaining))
+            {
+                return false;
+            }
         }
+
+        return true;
     }
 
     /// <summary>
     /// Releases resources used by the scheduler.
     /// </summary>
+    /// <remarks>
+    /// Waits up to 5 seconds for all pending jobs to complete before disposing.
+    /// Jobs that do not complete within this timeout will be abandoned.
+    /// </remarks>
     public void Dispose()
     {
         if (isDisposed)
@@ -303,20 +341,40 @@ public sealed class JobScheduler : IDisposable
         }
 
         isDisposed = true;
-        CompleteAll();
+
+        // Use a reasonable timeout to prevent test hangs when ThreadPool is contended.
+        // In production, CompleteAll() should be called explicitly before Dispose if
+        // all jobs must complete.
+        CompleteAll(TimeSpan.FromSeconds(5));
         activeJobs.Clear();
     }
 
     private void ProcessQueue()
     {
+        var retryCount = 0;
+        const int maxRetries = 100; // Limit retries to prevent infinite loops
+
         while (jobQueue.TryDequeue(out var scheduled))
         {
-            // Wait for dependency if needed
+            // If dependency isn't ready, re-queue and continue
             if (!scheduled.Dependency.IsCompleted)
             {
-                scheduled.Dependency.Complete();
+                jobQueue.Enqueue(scheduled);
+                retryCount++;
+
+                // If we've retried too many times, exit and let other work items continue
+                if (retryCount > maxRetries)
+                {
+                    return;
+                }
+
+                // Use Sleep(1) instead of Yield() - on Windows, Sleep(1) actually
+                // releases the time slice and allows other threads to make progress
+                Thread.Sleep(1);
+                continue;
             }
 
+            retryCount = 0; // Reset on successful execution
             ExecuteScheduledJob(scheduled);
         }
     }
