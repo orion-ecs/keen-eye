@@ -49,6 +49,7 @@ build:
       - any-glob-to-any-file:
           - '**/*.csproj'
           - '**/*.sln'
+          - '**/*.slnx'
           - 'Directory.Build.props'
           - 'Directory.Packages.props'
           - 'global.json'
