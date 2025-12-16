@@ -1,110 +1,141 @@
-# Graphics Plugin
+# Graphics
 
-The `KeenEyes.Graphics` plugin provides 3D rendering capabilities using Silk.NET for OpenGL/Vulkan integration. It includes components for cameras, lights, materials, and renderables, along with resource management for meshes, textures, and shaders.
+KeenEyes provides a modular graphics architecture with backend-agnostic abstractions and Silk.NET OpenGL implementation.
 
-## Installation
+## Architecture Overview
 
-Add the graphics plugin to your world:
+The graphics system is split across multiple packages:
+
+| Package | Purpose |
+|---------|---------|
+| `KeenEyes.Graphics.Abstractions` | Backend-agnostic interfaces and components |
+| `KeenEyes.Graphics` | Backend-agnostic systems (CameraSystem, RenderSystem) |
+| `KeenEyes.Graphics.Silk` | Silk.NET OpenGL implementation |
+| `KeenEyes.Runtime` | Main loop builder (WorldRunnerBuilder) |
+
+This separation allows:
+- Swapping rendering backends without changing game code
+- Writing backend-agnostic plugins and systems
+- Testing graphics logic without GPU dependencies
+
+## Quick Start
 
 ```csharp
+using KeenEyes;
 using KeenEyes.Graphics;
+using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk;
+using KeenEyes.Runtime;
 
-var config = new GraphicsConfig
+// Configure the graphics backend
+var config = new SilkGraphicsConfig
 {
-    WindowWidth = 1920,
-    WindowHeight = 1080,
     WindowTitle = "My Game",
-    VSync = true
+    WindowWidth = 1280,
+    WindowHeight = 720,
+    VSync = true,
+    ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f)
 };
 
+// Create world and install plugin
 using var world = new World();
-world.InstallPlugin(new GraphicsPlugin(config));
+world.InstallPlugin(new SilkGraphicsPlugin(config));
+
+// Add backend-agnostic systems
+world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate);
+world.AddSystem<RenderSystem>(SystemPhase.Render);
+
+// Run with the builder pattern (recommended)
+world.CreateRunner()
+    .OnReady(() => CreateScene(world))
+    .Run();  // Blocks until window closes, auto-calls world.Update()
 ```
 
-## Configuration Options
+## Main Loop Setup
+
+### Recommended: WorldRunnerBuilder
+
+The `WorldRunnerBuilder` provides a clean, backend-agnostic way to run your game:
 
 ```csharp
-var config = new GraphicsConfig
+world.CreateRunner()
+    .OnReady(() =>
+    {
+        // Called once when graphics are ready
+        var graphics = world.GetExtension<IGraphicsContext>();
+        CreateScene(world, graphics);
+    })
+    .OnResize((width, height) =>
+    {
+        Console.WriteLine($"Window resized to {width}x{height}");
+    })
+    .OnClosing(() =>
+    {
+        Console.WriteLine("Goodbye!");
+    })
+    .Run();  // Blocks until closed
+```
+
+**Key features:**
+- **Auto-update**: `world.Update(dt)` is called automatically each frame
+- **Backend-agnostic**: Works with any `ILoopProvider` implementation
+- **Clean syntax**: No manual event wiring
+
+### Explicit Update Control
+
+For custom update logic, provide an `OnUpdate` callback:
+
+```csharp
+world.CreateRunner()
+    .OnReady(() => CreateScene(world))
+    .OnUpdate((dt) =>
+    {
+        // Custom logic before update
+        HandleInput();
+
+        // Manually call world update
+        world.Update(dt);
+
+        // Custom logic after update
+        UpdateUI();
+    })
+    .Run();
+```
+
+### Alternative: Direct Event Wiring
+
+For advanced scenarios, you can wire events directly on `IGraphicsContext`:
+
+```csharp
+var graphics = world.GetExtension<IGraphicsContext>();
+
+graphics.OnReady += () => CreateScene(world, graphics);
+graphics.OnUpdate += (dt) => world.Update(dt);
+graphics.OnResize += (w, h) => Console.WriteLine($"Resized: {w}x{h}");
+graphics.OnClosing += () => Console.WriteLine("Closing...");
+
+graphics.Initialize();
+graphics.Run();  // Blocks until closed
+```
+
+## Configuration
+
+```csharp
+var config = new SilkGraphicsConfig
 {
-    WindowWidth = 1280,           // Initial window width
-    WindowHeight = 720,           // Initial window height
-    WindowTitle = "KeenEyes App", // Window title
-    VSync = true,                 // Enable vertical sync
-    Resizable = true,             // Allow window resizing
-    Fullscreen = false,           // Start in fullscreen
-    TargetFps = 0,                // Target FPS (0 = unlimited)
+    WindowWidth = 1920,          // Initial window width
+    WindowHeight = 1080,         // Initial window height
+    WindowTitle = "My Game",     // Window title
+    VSync = true,                // Enable vertical sync
+    EnableDepthTest = true,      // Enable depth testing
+    EnableCulling = true,        // Enable backface culling
     ClearColor = new Vector4(0.1f, 0.1f, 0.1f, 1f)  // Background color
 };
 ```
 
-## GraphicsContext
-
-Access the graphics API through the world extension:
-
-```csharp
-var graphics = world.GetExtension<GraphicsContext>();
-graphics.Initialize();
-```
-
-### Main Loop
-
-**Recommended: Event-driven pattern**
-
-The recommended approach is to use Silk.NET's event-driven pattern with `OnRender`:
-
-```csharp
-// Handle rendering each frame
-graphics.OnRender += (deltaTime) =>
-{
-    // Update world and render
-    world.Update((float)deltaTime);
-};
-
-// Start the window (blocks until closed)
-graphics.Initialize();
-graphics.Run();
-```
-
-This pattern ensures proper resource cleanup and follows Silk.NET best practices.
-
-**Alternative: Manual control**
-
-For advanced scenarios requiring custom loop control:
-
-```csharp
-graphics.Initialize();
-
-while (!graphics.ShouldClose)
-{
-    graphics.ProcessEvents();
-    world.Update(deltaTime);
-    graphics.SwapBuffers();
-}
-```
-
-⚠️ **Warning**: The manual control pattern requires careful handling of cleanup and may cause issues with GPU resource disposal on window close. Use the event-driven pattern unless you have specific requirements.
-
 ## Components
 
-### Transform3D
-
-From `KeenEyes.Common`, defines position, rotation, and scale:
-
-```csharp
-using KeenEyes.Common;
-
-world.Spawn()
-    .With(new Transform3D(
-        position: new Vector3(0, 5, 10),
-        rotation: Quaternion.Identity,
-        scale: Vector3.One))
-    .Build();
-
-// Or use the identity transform
-world.Spawn()
-    .With(Transform3D.Identity)
-    .Build();
-```
+All graphics components are in `KeenEyes.Graphics.Abstractions` for backend independence.
 
 ### Camera
 
@@ -144,45 +175,33 @@ Camera properties:
 Marks an entity for rendering:
 
 ```csharp
+var graphics = world.GetExtension<IGraphicsContext>();
 var meshId = graphics.CreateCube();
 
 world.Spawn()
     .With(Transform3D.Identity)
-    .With(new Renderable(meshId, materialId: 0))
-    .With(Material.Default)
+    .With(new Renderable(meshId.Id, layer: 0))
+    .With(new Material
+    {
+        ShaderId = graphics.LitShader.Id,
+        TextureId = graphics.WhiteTexture.Id,
+        Color = new Vector4(1, 0, 0, 1)  // Red
+    })
     .Build();
 ```
-
-Renderable properties:
-- `MeshId` - Handle to mesh resource
-- `MaterialId` - Handle to material resource
-- `Layer` - Render order (lower = first)
-- `CastShadows` / `ReceiveShadows` - Shadow settings
 
 ### Material
 
 Defines surface appearance:
 
 ```csharp
-// Default PBR material
-world.Spawn()
-    .With(Transform3D.Identity)
-    .With(new Renderable(meshId, 0))
-    .With(Material.Default)
-    .Build();
-
-// Unlit colored material
-var material = Material.Unlit(new Vector4(1, 0, 0, 1));  // Red
-
-// Custom PBR material
 var material = new Material
 {
-    ShaderId = graphics.LitShaderId,
-    TextureId = textureId,
-    Color = Vector4.One,
-    Metallic = 0.8f,
-    Roughness = 0.2f,
-    EmissiveColor = Vector3.Zero
+    ShaderId = graphics.LitShader.Id,
+    TextureId = graphics.WhiteTexture.Id,
+    Color = new Vector4(1, 1, 1, 1),    // White
+    Metallic = 0.8f,                     // Metallic look
+    Roughness = 0.2f                     // Smooth surface
 };
 ```
 
@@ -194,7 +213,7 @@ Illuminates the scene:
 // Directional light (sun)
 world.Spawn()
     .With(new Transform3D(Vector3.Zero,
-        Quaternion.CreateFromYawPitchRoll(0, -0.5f, 0), Vector3.One))
+        Quaternion.CreateFromYawPitchRoll(0.5f, -0.8f, 0), Vector3.One))
     .With(Light.Directional(
         color: new Vector3(1, 0.95f, 0.8f),
         intensity: 1.0f))
@@ -205,8 +224,8 @@ world.Spawn()
     .With(new Transform3D(new Vector3(5, 3, 0), Quaternion.Identity, Vector3.One))
     .With(Light.Point(
         color: new Vector3(1, 0.8f, 0.6f),
-        intensity: 1.0f,
-        range: 10f))
+        intensity: 0.5f,
+        range: 15f))
     .Build();
 
 // Spot light (flashlight)
@@ -216,234 +235,181 @@ world.Spawn()
         color: new Vector3(1, 1, 1),
         intensity: 2.0f,
         range: 15f,
-        innerAngle: 15f,   // Full intensity cone
-        outerAngle: 30f))  // Falloff cone
+        innerAngle: 15f,
+        outerAngle: 30f))
     .Build();
 ```
 
 ## Resource Management
 
+Access resources through `IGraphicsContext`:
+
+```csharp
+var graphics = world.GetExtension<IGraphicsContext>();
+```
+
 ### Meshes
 
 ```csharp
 // Built-in primitives
-var quadMesh = graphics.CreateQuad(width: 1f, height: 1f);
-var cubeMesh = graphics.CreateCube(size: 1f);
-
-// Custom mesh from vertex data
-var vertices = new Vertex[]
-{
-    new(position: new Vector3(-1, 0, 0), normal: Vector3.UnitY, uv: new Vector2(0, 0)),
-    new(position: new Vector3(1, 0, 0), normal: Vector3.UnitY, uv: new Vector2(1, 0)),
-    new(position: new Vector3(0, 0, 1), normal: Vector3.UnitY, uv: new Vector2(0.5f, 1)),
-};
-var indices = new uint[] { 0, 1, 2 };
-var customMesh = graphics.CreateMesh(vertices, indices);
+var quad = graphics.CreateQuad(width: 1f, height: 1f);
+var cube = graphics.CreateCube(size: 1f);
 
 // Delete when done
-graphics.DeleteMesh(meshId);
+graphics.DeleteMesh(quad);
 ```
 
 ### Textures
 
 ```csharp
-// Solid color texture
-var redTexture = graphics.CreateSolidColorTexture(255, 0, 0, 255);
-
 // From raw RGBA data
-var textureId = graphics.CreateTexture(
-    width: 256,
-    height: 256,
-    data: pixelData,
-    filter: TextureFilter.Linear,
-    wrap: TextureWrap.Repeat);
+var texture = graphics.CreateTexture(256, 256, pixelData);
 
 // Built-in white texture
-var whiteTexture = graphics.WhiteTextureId;
+var white = graphics.WhiteTexture;
 
 // Delete when done
-graphics.DeleteTexture(textureId);
+graphics.DeleteTexture(texture);
 ```
 
 ### Shaders
 
 ```csharp
 // Built-in shaders
-var unlitShader = graphics.UnlitShaderId;
-var litShader = graphics.LitShaderId;
-var solidShader = graphics.SolidShaderId;
+var lit = graphics.LitShader;      // PBR lighting
+var unlit = graphics.UnlitShader;  // No lighting
+var solid = graphics.SolidShader;  // Solid color
 
 // Custom GLSL shader
-var customShader = graphics.CreateShader(
-    vertexSource: @"
-        #version 330 core
-        layout (location = 0) in vec3 aPosition;
-        uniform mat4 uModel;
-        uniform mat4 uViewProjection;
-        void main() {
-            gl_Position = uViewProjection * uModel * vec4(aPosition, 1.0);
-        }",
-    fragmentSource: @"
-        #version 330 core
-        out vec4 FragColor;
-        uniform vec4 uColor;
-        void main() {
-            FragColor = uColor;
-        }");
-
-graphics.DeleteShader(shaderId);
-```
-
-## Rendering Control
-
-```csharp
-// Clear screen
-graphics.Clear();                           // Use config clear color
-graphics.Clear(new Vector4(0, 0, 1, 1));   // Custom color
-
-// Depth testing
-graphics.EnableDepthTest();
-graphics.DisableDepthTest();
-
-// Backface culling
-graphics.EnableCulling();
-graphics.DisableCulling();
-
-// Viewport
-graphics.SetViewport(0, 0, 1920, 1080);
-```
-
-## Events
-
-GraphicsContext provides several events for window and rendering lifecycle:
-
-```csharp
-// Called once when the window and OpenGL context are ready
-graphics.OnLoad += () =>
-{
-    Console.WriteLine("Graphics initialized");
-    // Create meshes, textures, shaders here
-};
-
-// Called each frame for game logic updates
-graphics.OnUpdate += (deltaTime) =>
-{
-    Console.WriteLine($"Update: {deltaTime}s");
-    // Update game logic (optional - can use OnRender instead)
-};
-
-// Called each frame for rendering
-graphics.OnRender += (deltaTime) =>
-{
-    Console.WriteLine($"Render: {deltaTime}s");
-    // Render the scene - call world.Update() here
-};
-
-// Called when the window is resized
-graphics.OnResize += (width, height) =>
-{
-    Console.WriteLine($"Window resized to {width}x{height}");
-    // Update camera aspect ratios
-};
-
-// Called when the window is about to close
-graphics.OnClosing += () =>
-{
-    Console.WriteLine("Window closing");
-    // GPU resources are automatically disposed here
-};
-```
-
-**Note**: For most applications, use `OnRender` to call `world.Update()`. The `OnUpdate` and `OnRender` events are called at the same frequency, but `OnRender` is the standard place for game loop logic in Silk.NET applications.
-
-## Complete Example
-
-```csharp
-using KeenEyes;
-using KeenEyes.Graphics;
-using KeenEyes.Common;
-using System.Numerics;
-
-// Create world with graphics
-var config = new GraphicsConfig
-{
-    WindowWidth = 1280,
-    WindowHeight = 720,
-    WindowTitle = "Cube Demo",
-    VSync = true
-};
-
-using var world = new World();
-world.InstallPlugin(new GraphicsPlugin(config));
-
-var graphics = world.GetExtension<GraphicsContext>();
-
-// Track scene initialization
-bool sceneReady = false;
-
-// Called when graphics are initialized
-graphics.OnLoad += () =>
-{
-    // Create camera
-    world.Spawn()
-        .With(new Transform3D(new Vector3(0, 2, 5), Quaternion.Identity, Vector3.One))
-        .With(Camera.CreatePerspective(60f, 16f/9f, 0.1f, 100f))
-        .WithTag<MainCameraTag>()
-        .Build();
-
-    // Create light
-    world.Spawn()
-        .With(new Transform3D(Vector3.Zero,
-            Quaternion.CreateFromYawPitchRoll(0.5f, -0.5f, 0), Vector3.One))
-        .With(Light.Directional(new Vector3(1, 1, 1), 1f))
-        .Build();
-
-    // Create spinning cube
-    var cubeMesh = graphics.CreateCube();
-    world.Spawn("SpinningCube")
-        .With(Transform3D.Identity)
-        .With(new Renderable(cubeMesh, 0))
-        .With(Material.Default)
-        .Build();
-
-    sceneReady = true;
-};
-
-// Update camera aspect ratio on resize
-graphics.OnResize += (width, height) =>
-{
-    foreach (var entity in world.Query<Camera>())
-    {
-        ref var camera = ref world.Get<Camera>(entity);
-        camera.AspectRatio = (float)width / height;
-    }
-};
-
-// Render each frame
-graphics.OnRender += (deltaTime) =>
-{
-    if (sceneReady)
-    {
-        // Update world (runs all systems including render)
-        world.Update((float)deltaTime);
-    }
-};
-
-// Run the application (blocks until window closes)
-graphics.Initialize();
-graphics.Run();
+var custom = graphics.CreateShader(vertexSource, fragmentSource);
+graphics.DeleteShader(custom);
 ```
 
 ## Systems
 
-The plugin registers these systems automatically:
+The following systems should be added to your world:
 
-- **CameraSystem** (`EarlyUpdate`) - Updates camera matrices
-- **RenderSystem** (`Render`) - Draws all renderables
+```csharp
+// Camera system - updates camera matrices based on window size
+world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate, order: 0);
+
+// Render system - draws all renderables
+world.AddSystem<RenderSystem>(SystemPhase.Render, order: 0);
+```
+
+These systems are in `KeenEyes.Graphics` and work with any backend implementing `IGraphicsContext`.
+
+## Complete Example
+
+```csharp
+using System.Numerics;
+using KeenEyes;
+using KeenEyes.Common;
+using KeenEyes.Graphics;
+using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk;
+using KeenEyes.Runtime;
+
+var config = new SilkGraphicsConfig
+{
+    WindowTitle = "Spinning Cube",
+    WindowWidth = 1280,
+    WindowHeight = 720,
+    VSync = true,
+    ClearColor = new Vector4(0.2f, 0.3f, 0.4f, 1f),
+    EnableDepthTest = true,
+    EnableCulling = true
+};
+
+using var world = new World();
+world.InstallPlugin(new SilkGraphicsPlugin(config));
+
+// Add systems
+world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate);
+world.AddSystem<RenderSystem>(SystemPhase.Render);
+world.AddSystem<SpinSystem>(SystemPhase.Update);  // Custom system
+
+// Run with builder pattern
+world.CreateRunner()
+    .OnReady(() =>
+    {
+        var graphics = world.GetExtension<IGraphicsContext>();
+
+        // Create camera
+        world.Spawn()
+            .With(new Transform3D(new Vector3(0, 2, 5), Quaternion.Identity, Vector3.One))
+            .With(Camera.CreatePerspective(60f, 16f/9f, 0.1f, 100f))
+            .WithTag<MainCameraTag>()
+            .Build();
+
+        // Create light
+        world.Spawn()
+            .With(new Transform3D(Vector3.Zero,
+                Quaternion.CreateFromYawPitchRoll(0.5f, -0.5f, 0), Vector3.One))
+            .With(Light.Directional(new Vector3(1, 1, 1), 1f))
+            .Build();
+
+        // Create spinning cube
+        var cube = graphics.CreateCube();
+        world.Spawn()
+            .With(Transform3D.Identity)
+            .With(new Renderable(cube.Id, 0))
+            .With(new Material
+            {
+                ShaderId = graphics.LitShader.Id,
+                TextureId = graphics.WhiteTexture.Id,
+                Color = new Vector4(1, 0.3f, 0.3f, 1f),
+                Metallic = 0.2f,
+                Roughness = 0.5f
+            })
+            .With(new SpinSpeed { Value = 1f })
+            .Build();
+    })
+    .OnResize((w, h) => Console.WriteLine($"Resized: {w}x{h}"))
+    .Run();
+
+// Custom component and system
+[Component]
+public partial struct SpinSpeed { public float Value; }
+
+public class SpinSystem : ISystem
+{
+    private IWorld? world;
+    public bool Enabled { get; set; } = true;
+
+    public void Initialize(IWorld world) => this.world = world;
+
+    public void Update(float dt)
+    {
+        foreach (var entity in world!.Query<Transform3D, SpinSpeed>())
+        {
+            ref var transform = ref world.Get<Transform3D>(entity);
+            var speed = world.Get<SpinSpeed>(entity);
+            transform.Rotation *= Quaternion.CreateFromAxisAngle(Vector3.UnitY, speed.Value * dt);
+        }
+    }
+
+    public void Dispose() { }
+}
+```
+
+## Lifecycle Events
+
+The `ILoopProvider` interface (implemented by `IGraphicsContext`) provides these events:
+
+| Event | Timing | Use Case |
+|-------|--------|----------|
+| `OnReady` | Once, when ready | Create resources, set up scene |
+| `OnUpdate` | Every frame | Game logic (if not using auto-update) |
+| `OnRender` | Every frame | Additional rendering |
+| `OnResize` | When resized | Update viewports, aspect ratios |
+| `OnClosing` | When closing | Final cleanup |
 
 ## Dependencies
 
-- **Silk.NET** - OpenGL/Vulkan bindings (.NET Foundation)
-- **Silk.NET.Windowing** - Cross-platform windowing
-- **System.Numerics** - SIMD-accelerated math
+- **KeenEyes.Graphics.Abstractions** - Backend-agnostic interfaces
+- **KeenEyes.Graphics** - Backend-agnostic systems
+- **KeenEyes.Graphics.Silk** - Silk.NET OpenGL backend
+- **KeenEyes.Runtime** - WorldRunnerBuilder
 - **KeenEyes.Common** - Transform3D component
+- **Silk.NET** - OpenGL/Vulkan bindings
