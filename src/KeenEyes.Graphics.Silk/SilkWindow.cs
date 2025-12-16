@@ -27,7 +27,11 @@ internal sealed class SilkWindow : IWindow
     /// Wraps an existing Silk.NET window.
     /// </summary>
     /// <param name="existingWindow">The existing window to wrap.</param>
-    public SilkWindow(SilkIWindow existingWindow)
+    /// <param name="isAlreadyLoaded">
+    /// Whether the window has already loaded. If true, creates the GL context immediately
+    /// instead of waiting for the Load event.
+    /// </param>
+    public SilkWindow(SilkIWindow existingWindow, bool isAlreadyLoaded = false)
     {
         window = existingWindow;
 
@@ -37,6 +41,13 @@ internal sealed class SilkWindow : IWindow
         window.Closing += HandleClosing;
         window.Update += HandleUpdate;
         window.Render += HandleRender;
+
+        // If the window is already loaded, we missed the Load event.
+        // Create the GL context immediately.
+        if (isAlreadyLoaded)
+        {
+            gl = window.CreateOpenGL();
+        }
     }
 
     /// <inheritdoc />

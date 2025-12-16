@@ -142,8 +142,9 @@ public sealed class SilkGraphicsContext : IGraphicsContext
 
     private void HandleWindowLoad()
     {
-        // Wrap the shared window
-        window = new SilkWindow(windowProvider.Window);
+        // Wrap the shared window. Pass isAlreadyLoaded=true because this is called
+        // from the window's Load event, so the window is already initialized.
+        window = new SilkWindow(windowProvider.Window, isAlreadyLoaded: true);
 
         // Create device from window
         device = window.CreateDevice();
