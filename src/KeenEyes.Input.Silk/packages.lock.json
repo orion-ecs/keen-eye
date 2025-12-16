@@ -2,6 +2,22 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "Microsoft.NET.ILLink.Tasks": {
+        "type": "Direct",
+        "requested": "[10.0.1, )",
+        "resolved": "10.0.1",
+        "contentHash": "ISahzLHsHY7vrwqr2p1YWZ+gsxoBRtH7gWRDK8fDUst9pp2He0GiesaqEfeX0V8QMCJM3eNEHGGpnIcPjFo2NQ=="
+      },
+      "Silk.NET.Input": {
+        "type": "Direct",
+        "requested": "[2.22.0, )",
+        "resolved": "2.22.0",
+        "contentHash": "1gqbKHrKpBv2Vk983kVpMqXL4Uj36NaUIQ2YbQosFVa3pXJE8UMGiWqKtaeoMqnzItusZ1WYgDHKge37EvNm/w==",
+        "dependencies": {
+          "Silk.NET.Input.Common": "2.22.0",
+          "Silk.NET.Input.Glfw": "2.22.0"
+        }
+      },
       "Microsoft.DotNet.PlatformAbstractions": {
         "type": "Transitive",
         "resolved": "3.1.6",
@@ -73,42 +89,17 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
-      "keeneyes.common": {
+      "keeneyes.input.abstractions": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
-      "keeneyes.core": {
+      "keeneyes.platform.silk.abstractions": {
         "type": "Project",
         "dependencies": {
-          "KeenEyes.Abstractions": "[1.0.0, )"
-        }
-      },
-      "keeneyes.graphics": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Common": "[1.0.0, )",
           "Silk.NET.Input": "[2.22.0, )",
-          "Silk.NET.Maths": "[2.22.0, )",
-          "Silk.NET.OpenGL": "[2.22.0, )",
           "Silk.NET.Windowing": "[2.22.0, )"
-        }
-      },
-      "keeneyes.spatial": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Common": "[1.0.0, )"
-        }
-      },
-      "Silk.NET.Input": {
-        "type": "CentralTransitive",
-        "requested": "[2.22.0, )",
-        "resolved": "2.22.0",
-        "contentHash": "1gqbKHrKpBv2Vk983kVpMqXL4Uj36NaUIQ2YbQosFVa3pXJE8UMGiWqKtaeoMqnzItusZ1WYgDHKge37EvNm/w==",
-        "dependencies": {
-          "Silk.NET.Input.Common": "2.22.0",
-          "Silk.NET.Input.Glfw": "2.22.0"
         }
       },
       "Silk.NET.Maths": {
@@ -116,16 +107,6 @@
         "requested": "[2.22.0, )",
         "resolved": "2.22.0",
         "contentHash": "W9b5UlUGCu5Ywb5f8ZyIWJ475ucY+mT/nEiSTo3JH098VxHaZS/02bYr9f29VWBaJhh3DwMkfxQvgTyXzTrHyw=="
-      },
-      "Silk.NET.OpenGL": {
-        "type": "CentralTransitive",
-        "requested": "[2.22.0, )",
-        "resolved": "2.22.0",
-        "contentHash": "AmbtflPvaGWw7fHEHrcFTd54OTAj0bemzx4WV2ELJdW2NBPSvtyz31nhyuBVTml20+NtW4Z3yhDGUpM6uouVDQ==",
-        "dependencies": {
-          "Silk.NET.Core": "2.22.0",
-          "Silk.NET.Maths": "2.22.0"
-        }
       },
       "Silk.NET.Windowing": {
         "type": "CentralTransitive",

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Platform.Silk</PackageId>
+    <Description>Silk.NET window and platform plugin for KeenEyes ECS</Description>
+    <PackageTags>ecs;silk.net;window;platform;opengl;vulkan</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Platform.Silk.Abstractions\KeenEyes.Platform.Silk.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Graphics.Silk\KeenEyes.Graphics.Silk.csproj" />
+    <ProjectReference Include="..\KeenEyes.Input.Silk\KeenEyes.Input.Silk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Silk.NET.Windowing" />
+    <PackageReference Include="Silk.NET.Input" />
+    <PackageReference Include="Silk.NET.Maths" />
+  </ItemGroup>
+
+</Project>

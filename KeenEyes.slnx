@@ -32,6 +32,10 @@
     <Project Path="src/KeenEyes.Graphics/KeenEyes.Graphics.csproj" />
     <Project Path="src/KeenEyes.Graphics.Abstractions/KeenEyes.Graphics.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Input.Abstractions/KeenEyes.Input.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Platform.Silk.Abstractions/KeenEyes.Platform.Silk.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Platform.Silk/KeenEyes.Platform.Silk.csproj" />
+    <Project Path="src/KeenEyes.Graphics.Silk/KeenEyes.Graphics.Silk.csproj" />
+    <Project Path="src/KeenEyes.Input.Silk/KeenEyes.Input.Silk.csproj" />
     <Project Path="src/KeenEyes.Logging/KeenEyes.Logging.csproj" />
     <Project Path="src/KeenEyes.Parallelism/KeenEyes.Parallelism.csproj" />
     <Project Path="src/KeenEyes.Persistence/KeenEyes.Persistence.csproj" />
