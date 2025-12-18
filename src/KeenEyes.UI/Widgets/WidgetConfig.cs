@@ -622,3 +622,520 @@ public sealed record ScrollViewConfig(
     internal Vector4 GetScrollbarThumbColor() =>
         ScrollbarThumbColor ?? new Vector4(0.35f, 0.35f, 0.4f, 1f);
 }
+
+/// <summary>
+/// Configuration for creating floating UI window widgets.
+/// </summary>
+/// <param name="Width">The window width in pixels.</param>
+/// <param name="Height">The window height in pixels.</param>
+/// <param name="X">Initial X position from top-left.</param>
+/// <param name="Y">Initial Y position from top-left.</param>
+/// <param name="TitleBarHeight">The title bar height in pixels.</param>
+/// <param name="CanDrag">Whether the window can be dragged.</param>
+/// <param name="CanResize">Whether the window can be resized.</param>
+/// <param name="CanClose">Whether the window has a close button.</param>
+/// <param name="MinWidth">Minimum width when resizing.</param>
+/// <param name="MinHeight">Minimum height when resizing.</param>
+/// <param name="TitleBarColor">The title bar background color.</param>
+/// <param name="ContentColor">The content area background color.</param>
+/// <param name="TitleTextColor">The title text color.</param>
+/// <param name="CloseButtonColor">The close button background color.</param>
+/// <param name="CloseButtonHoverColor">The close button hover color.</param>
+/// <param name="FontSize">The title text font size.</param>
+/// <param name="CornerRadius">The window corner radius.</param>
+public sealed record UIWindowConfig(
+    float Width = 400,
+    float Height = 300,
+    float X = 100,
+    float Y = 100,
+    float TitleBarHeight = 32,
+    bool CanDrag = true,
+    bool CanResize = false,
+    bool CanClose = true,
+    float MinWidth = 150,
+    float MinHeight = 100,
+    Vector4? TitleBarColor = null,
+    Vector4? ContentColor = null,
+    Vector4? TitleTextColor = null,
+    Vector4? CloseButtonColor = null,
+    Vector4? CloseButtonHoverColor = null,
+    float FontSize = 14,
+    float CornerRadius = 6)
+{
+    /// <summary>
+    /// The default window configuration.
+    /// </summary>
+    public static UIWindowConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the title bar color or default.
+    /// </summary>
+    internal Vector4 GetTitleBarColor() =>
+        TitleBarColor ?? new Vector4(0.18f, 0.18f, 0.22f, 1f);
+
+    /// <summary>
+    /// Gets the content color or default.
+    /// </summary>
+    internal Vector4 GetContentColor() =>
+        ContentColor ?? new Vector4(0.12f, 0.12f, 0.15f, 0.98f);
+
+    /// <summary>
+    /// Gets the title text color or default.
+    /// </summary>
+    internal Vector4 GetTitleTextColor() =>
+        TitleTextColor ?? new Vector4(1f, 1f, 1f, 1f);
+
+    /// <summary>
+    /// Gets the close button color or default.
+    /// </summary>
+    internal Vector4 GetCloseButtonColor() =>
+        CloseButtonColor ?? new Vector4(0.5f, 0.2f, 0.2f, 0f);
+
+    /// <summary>
+    /// Gets the close button hover color or default.
+    /// </summary>
+    internal Vector4 GetCloseButtonHoverColor() =>
+        CloseButtonHoverColor ?? new Vector4(0.8f, 0.3f, 0.3f, 1f);
+}
+
+/// <summary>
+/// Configuration for creating a splitter widget.
+/// </summary>
+/// <param name="Orientation">The split direction. Horizontal means panes side by side.</param>
+/// <param name="InitialRatio">Initial ratio for the first pane (0.0-1.0).</param>
+/// <param name="HandleSize">Size of the draggable handle in pixels.</param>
+/// <param name="MinFirstPane">Minimum size of the first pane in pixels.</param>
+/// <param name="MinSecondPane">Minimum size of the second pane in pixels.</param>
+/// <param name="HandleColor">Color of the splitter handle.</param>
+/// <param name="HandleHoverColor">Color of the handle when hovered.</param>
+/// <param name="FirstPaneColor">Background color of the first pane (null for transparent).</param>
+/// <param name="SecondPaneColor">Background color of the second pane (null for transparent).</param>
+public sealed record SplitterConfig(
+    LayoutDirection Orientation = LayoutDirection.Horizontal,
+    float InitialRatio = 0.5f,
+    float HandleSize = 4,
+    float MinFirstPane = 100,
+    float MinSecondPane = 100,
+    Vector4? HandleColor = null,
+    Vector4? HandleHoverColor = null,
+    Vector4? FirstPaneColor = null,
+    Vector4? SecondPaneColor = null)
+{
+    /// <summary>
+    /// The default splitter configuration.
+    /// </summary>
+    public static SplitterConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the handle color or default.
+    /// </summary>
+    internal Vector4 GetHandleColor() =>
+        HandleColor ?? new Vector4(0.3f, 0.3f, 0.35f, 1f);
+
+    /// <summary>
+    /// Gets the handle hover color or default.
+    /// </summary>
+    internal Vector4 GetHandleHoverColor() =>
+        HandleHoverColor ?? new Vector4(0.4f, 0.4f, 0.5f, 1f);
+}
+
+/// <summary>
+/// Configuration for a tooltip.
+/// </summary>
+/// <param name="Delay">Delay in seconds before showing (default 0.5s).</param>
+/// <param name="MaxWidth">Maximum width for text wrapping.</param>
+/// <param name="Position">Preferred tooltip position.</param>
+/// <param name="FollowMouse">Whether tooltip follows cursor.</param>
+/// <param name="BackgroundColor">Tooltip background color.</param>
+/// <param name="TextColor">Tooltip text color.</param>
+/// <param name="FontSize">Font size for tooltip text.</param>
+/// <param name="CornerRadius">Corner radius for tooltip background.</param>
+public sealed record TooltipConfig(
+    float Delay = 0.5f,
+    float MaxWidth = 300,
+    TooltipPosition Position = TooltipPosition.Auto,
+    bool FollowMouse = false,
+    Vector4? BackgroundColor = null,
+    Vector4? TextColor = null,
+    float FontSize = 13,
+    float CornerRadius = 4)
+{
+    /// <summary>
+    /// The default tooltip configuration.
+    /// </summary>
+    public static TooltipConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.1f, 0.1f, 0.12f, 0.95f);
+
+    /// <summary>
+    /// Gets the text color or default.
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(0.9f, 0.9f, 0.9f, 1f);
+}
+
+/// <summary>
+/// Configuration for a popover.
+/// </summary>
+/// <param name="Trigger">What triggers the popover to open.</param>
+/// <param name="Position">Preferred position relative to trigger.</param>
+/// <param name="CloseOnClickOutside">Whether clicking outside closes it.</param>
+/// <param name="Width">Popover width.</param>
+/// <param name="Height">Popover height.</param>
+/// <param name="BackgroundColor">Popover background color.</param>
+/// <param name="CornerRadius">Corner radius.</param>
+public sealed record PopoverConfig(
+    PopoverTrigger Trigger = PopoverTrigger.Click,
+    TooltipPosition Position = TooltipPosition.Below,
+    bool CloseOnClickOutside = true,
+    float Width = 250,
+    float Height = 150,
+    Vector4? BackgroundColor = null,
+    float CornerRadius = 6)
+{
+    /// <summary>
+    /// The default popover configuration.
+    /// </summary>
+    public static PopoverConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.15f, 0.15f, 0.18f, 0.98f);
+}
+
+/// <summary>
+/// Configuration for a menu bar.
+/// </summary>
+/// <param name="Height">Height of the menu bar.</param>
+/// <param name="BackgroundColor">Background color.</param>
+/// <param name="ItemColor">Normal item background color.</param>
+/// <param name="ItemHoverColor">Item background when hovered.</param>
+/// <param name="TextColor">Text color.</param>
+/// <param name="FontSize">Font size.</param>
+/// <param name="ItemPadding">Horizontal padding for each item.</param>
+public sealed record MenuBarConfig(
+    float Height = 28,
+    Vector4? BackgroundColor = null,
+    Vector4? ItemColor = null,
+    Vector4? ItemHoverColor = null,
+    Vector4? TextColor = null,
+    float FontSize = 14,
+    float ItemPadding = 12)
+{
+    /// <summary>
+    /// The default menu bar configuration.
+    /// </summary>
+    public static MenuBarConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.18f, 0.18f, 0.22f, 1f);
+
+    /// <summary>
+    /// Gets the item hover color or default.
+    /// </summary>
+    internal Vector4 GetItemHoverColor() =>
+        ItemHoverColor ?? new Vector4(0.25f, 0.25f, 0.3f, 1f);
+
+    /// <summary>
+    /// Gets the text color or default.
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(0.9f, 0.9f, 0.9f, 1f);
+}
+
+/// <summary>
+/// Configuration for a dropdown or context menu.
+/// </summary>
+/// <param name="MinWidth">Minimum menu width.</param>
+/// <param name="MaxWidth">Maximum menu width (0 for no limit).</param>
+/// <param name="ItemHeight">Height of each menu item.</param>
+/// <param name="BackgroundColor">Menu background color.</param>
+/// <param name="ItemHoverColor">Item background when hovered.</param>
+/// <param name="TextColor">Normal text color.</param>
+/// <param name="DisabledTextColor">Disabled item text color.</param>
+/// <param name="ShortcutColor">Keyboard shortcut text color.</param>
+/// <param name="SeparatorColor">Separator line color.</param>
+/// <param name="CheckmarkColor">Checkmark color for toggle items.</param>
+/// <param name="FontSize">Font size.</param>
+/// <param name="CornerRadius">Corner radius.</param>
+public sealed record MenuConfig(
+    float MinWidth = 180,
+    float MaxWidth = 0,
+    float ItemHeight = 26,
+    Vector4? BackgroundColor = null,
+    Vector4? ItemHoverColor = null,
+    Vector4? TextColor = null,
+    Vector4? DisabledTextColor = null,
+    Vector4? ShortcutColor = null,
+    Vector4? SeparatorColor = null,
+    Vector4? CheckmarkColor = null,
+    float FontSize = 13,
+    float CornerRadius = 4)
+{
+    /// <summary>
+    /// The default menu configuration.
+    /// </summary>
+    public static MenuConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.15f, 0.15f, 0.18f, 0.98f);
+
+    /// <summary>
+    /// Gets the item hover color or default.
+    /// </summary>
+    internal Vector4 GetItemHoverColor() =>
+        ItemHoverColor ?? new Vector4(0.25f, 0.4f, 0.7f, 1f);
+
+    /// <summary>
+    /// Gets the text color or default.
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+    /// <summary>
+    /// Gets the disabled text color or default.
+    /// </summary>
+    internal Vector4 GetDisabledTextColor() =>
+        DisabledTextColor ?? new Vector4(0.5f, 0.5f, 0.5f, 1f);
+
+    /// <summary>
+    /// Gets the shortcut color or default.
+    /// </summary>
+    internal Vector4 GetShortcutColor() =>
+        ShortcutColor ?? new Vector4(0.6f, 0.6f, 0.6f, 1f);
+
+    /// <summary>
+    /// Gets the separator color or default.
+    /// </summary>
+    internal Vector4 GetSeparatorColor() =>
+        SeparatorColor ?? new Vector4(0.3f, 0.3f, 0.35f, 1f);
+}
+
+/// <summary>
+/// Definition of a menu item for factory methods.
+/// </summary>
+/// <param name="Label">Display label for the item.</param>
+/// <param name="ItemId">Unique identifier for event handling.</param>
+/// <param name="Shortcut">Optional keyboard shortcut display text.</param>
+/// <param name="IsEnabled">Whether the item is enabled.</param>
+/// <param name="IsSeparator">Whether this is a separator line.</param>
+/// <param name="IsToggle">Whether this is a toggle item.</param>
+/// <param name="IsChecked">Initial checked state for toggle items.</param>
+/// <param name="SubmenuItems">Items for a submenu (makes this a submenu parent).</param>
+public sealed record MenuItemDef(
+    string Label,
+    string? ItemId = null,
+    string? Shortcut = null,
+    bool IsEnabled = true,
+    bool IsSeparator = false,
+    bool IsToggle = false,
+    bool IsChecked = false,
+    IEnumerable<MenuItemDef>? SubmenuItems = null)
+{
+    /// <summary>
+    /// Creates a separator item.
+    /// </summary>
+    public static MenuItemDef Separator() => new("", IsSeparator: true);
+}
+
+/// <summary>
+/// Configuration for a radial (pie) menu.
+/// </summary>
+/// <param name="InnerRadius">Inner radius (dead zone).</param>
+/// <param name="OuterRadius">Outer radius of the menu.</param>
+/// <param name="BackgroundColor">Background color of slices.</param>
+/// <param name="SelectedColor">Color when slice is selected.</param>
+/// <param name="DisabledColor">Color for disabled slices.</param>
+/// <param name="TextColor">Text color for labels.</param>
+/// <param name="IconSize">Size for slice icons.</param>
+/// <param name="FontSize">Font size for labels.</param>
+/// <param name="ShowLabels">Whether to show text labels on slices.</param>
+/// <param name="StartAngle">Starting angle in radians (default is top).</param>
+public sealed record RadialMenuConfig(
+    float InnerRadius = 40f,
+    float OuterRadius = 120f,
+    Vector4? BackgroundColor = null,
+    Vector4? SelectedColor = null,
+    Vector4? DisabledColor = null,
+    Vector4? TextColor = null,
+    float IconSize = 32f,
+    float FontSize = 12f,
+    bool ShowLabels = true,
+    float StartAngle = -MathF.PI / 2)
+{
+    /// <summary>
+    /// The default radial menu configuration.
+    /// </summary>
+    public static RadialMenuConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.2f, 0.2f, 0.25f, 0.9f);
+
+    /// <summary>
+    /// Gets the selected color or default.
+    /// </summary>
+    internal Vector4 GetSelectedColor() =>
+        SelectedColor ?? new Vector4(0.3f, 0.5f, 0.8f, 0.95f);
+
+    /// <summary>
+    /// Gets the disabled color or default.
+    /// </summary>
+    internal Vector4 GetDisabledColor() =>
+        DisabledColor ?? new Vector4(0.15f, 0.15f, 0.15f, 0.7f);
+
+    /// <summary>
+    /// Gets the text color or default.
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(1f, 1f, 1f, 1f);
+}
+
+/// <summary>
+/// Definition of a radial menu slice for factory methods.
+/// </summary>
+/// <param name="Label">Display label for the slice.</param>
+/// <param name="ItemId">Unique identifier for event handling.</param>
+/// <param name="IsEnabled">Whether the slice is enabled.</param>
+/// <param name="SubSlices">Slices for a submenu (makes this open a nested radial menu).</param>
+public sealed record RadialSliceDef(
+    string Label,
+    string? ItemId = null,
+    bool IsEnabled = true,
+    IEnumerable<RadialSliceDef>? SubSlices = null);
+
+/// <summary>
+/// Configuration for a dock container.
+/// </summary>
+/// <param name="LeftZoneSize">Initial width of the left dock zone.</param>
+/// <param name="RightZoneSize">Initial width of the right dock zone.</param>
+/// <param name="TopZoneSize">Initial height of the top dock zone.</param>
+/// <param name="BottomZoneSize">Initial height of the bottom dock zone.</param>
+/// <param name="MinZoneSize">Minimum size for any dock zone.</param>
+/// <param name="SplitterSize">Size of splitters between zones.</param>
+/// <param name="ShowLeftZone">Whether the left zone is initially visible.</param>
+/// <param name="ShowRightZone">Whether the right zone is initially visible.</param>
+/// <param name="ShowTopZone">Whether the top zone is initially visible.</param>
+/// <param name="ShowBottomZone">Whether the bottom zone is initially visible.</param>
+/// <param name="ZoneBackgroundColor">Background color for dock zones.</param>
+/// <param name="SplitterColor">Color of the zone splitters.</param>
+/// <param name="PreviewColor">Color for the dock preview overlay.</param>
+public sealed record DockContainerConfig(
+    float LeftZoneSize = 200f,
+    float RightZoneSize = 200f,
+    float TopZoneSize = 150f,
+    float BottomZoneSize = 150f,
+    float MinZoneSize = 100f,
+    float SplitterSize = 4f,
+    bool ShowLeftZone = true,
+    bool ShowRightZone = true,
+    bool ShowTopZone = false,
+    bool ShowBottomZone = false,
+    Vector4? ZoneBackgroundColor = null,
+    Vector4? SplitterColor = null,
+    Vector4? PreviewColor = null)
+{
+    /// <summary>
+    /// The default dock container configuration.
+    /// </summary>
+    public static DockContainerConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the zone background color or default.
+    /// </summary>
+    internal Vector4 GetZoneBackgroundColor() =>
+        ZoneBackgroundColor ?? new Vector4(0.12f, 0.12f, 0.15f, 1f);
+
+    /// <summary>
+    /// Gets the splitter color or default.
+    /// </summary>
+    internal Vector4 GetSplitterColor() =>
+        SplitterColor ?? new Vector4(0.08f, 0.08f, 0.1f, 1f);
+
+    /// <summary>
+    /// Gets the preview color or default.
+    /// </summary>
+    internal Vector4 GetPreviewColor() =>
+        PreviewColor ?? new Vector4(0.3f, 0.5f, 0.8f, 0.4f);
+}
+
+/// <summary>
+/// Configuration for a dockable panel.
+/// </summary>
+/// <param name="Width">Initial floating width.</param>
+/// <param name="Height">Initial floating height.</param>
+/// <param name="CanClose">Whether the panel has a close button.</param>
+/// <param name="CanFloat">Whether the panel can be undocked/floated.</param>
+/// <param name="CanDock">Whether the panel can be docked.</param>
+/// <param name="AllowedZones">Which dock zones this panel can dock to.</param>
+/// <param name="TitleBarHeight">Height of the panel title bar.</param>
+/// <param name="TitleBarColor">Title bar background color.</param>
+/// <param name="ContentColor">Content area background color.</param>
+/// <param name="TitleTextColor">Title text color.</param>
+/// <param name="TabColor">Tab background color when in a tab group.</param>
+/// <param name="ActiveTabColor">Active tab background color.</param>
+/// <param name="FontSize">Font size for title text.</param>
+public sealed record DockPanelConfig(
+    float Width = 300f,
+    float Height = 200f,
+    bool CanClose = true,
+    bool CanFloat = true,
+    bool CanDock = true,
+    DockZone AllowedZones = DockZone.All,
+    float TitleBarHeight = 28f,
+    Vector4? TitleBarColor = null,
+    Vector4? ContentColor = null,
+    Vector4? TitleTextColor = null,
+    Vector4? TabColor = null,
+    Vector4? ActiveTabColor = null,
+    float FontSize = 13f)
+{
+    /// <summary>
+    /// The default dock panel configuration.
+    /// </summary>
+    public static DockPanelConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the title bar color or default.
+    /// </summary>
+    internal Vector4 GetTitleBarColor() =>
+        TitleBarColor ?? new Vector4(0.18f, 0.18f, 0.22f, 1f);
+
+    /// <summary>
+    /// Gets the content color or default.
+    /// </summary>
+    internal Vector4 GetContentColor() =>
+        ContentColor ?? new Vector4(0.15f, 0.15f, 0.18f, 1f);
+
+    /// <summary>
+    /// Gets the title text color or default.
+    /// </summary>
+    internal Vector4 GetTitleTextColor() =>
+        TitleTextColor ?? new Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+    /// <summary>
+    /// Gets the tab color or default.
+    /// </summary>
+    internal Vector4 GetTabColor() =>
+        TabColor ?? new Vector4(0.15f, 0.15f, 0.18f, 1f);
+
+    /// <summary>
+    /// Gets the active tab color or default.
+    /// </summary>
+    internal Vector4 GetActiveTabColor() =>
+        ActiveTabColor ?? new Vector4(0.2f, 0.2f, 0.25f, 1f);
+}
