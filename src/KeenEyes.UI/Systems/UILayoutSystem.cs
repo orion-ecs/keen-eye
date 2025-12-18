@@ -455,6 +455,7 @@ public sealed class UILayoutSystem : SystemBase
             float width = childRect.WidthMode switch
             {
                 UISizeMode.Fixed => childRect.Size.X,
+                UISizeMode.FitContent => MeasureContentWidth(child, contentArea),
                 UISizeMode.Fill => direction == LayoutDirection.Horizontal
                     ? 0 // Will be calculated later based on available space
                     : contentArea.Width,
@@ -465,6 +466,7 @@ public sealed class UILayoutSystem : SystemBase
             float height = childRect.HeightMode switch
             {
                 UISizeMode.Fixed => childRect.Size.Y,
+                UISizeMode.FitContent => MeasureContentHeight(child, contentArea, width),
                 UISizeMode.Fill => direction == LayoutDirection.Vertical
                     ? 0 // Will be calculated later based on available space
                     : contentArea.Height,
@@ -476,6 +478,130 @@ public sealed class UILayoutSystem : SystemBase
         }
 
         return sizes;
+    }
+
+    private float MeasureContentWidth(Entity entity, Rectangle availableArea)
+    {
+        // Get padding from style if present
+        var padding = World.Has<UIStyle>(entity)
+            ? World.Get<UIStyle>(entity).Padding
+            : UIEdges.Zero;
+
+        // Get layout info if present
+        var hasLayout = World.Has<UILayout>(entity);
+        var layout = hasLayout ? World.Get<UILayout>(entity) : default;
+
+        // Get visible children
+        var children = World.GetChildren(entity)
+            .Where(c => World.Has<UIRect>(c) && World.Has<UIElement>(c))
+            .Where(c => World.Get<UIElement>(c).Visible && !World.Has<UIHiddenTag>(c))
+            .ToList();
+
+        if (children.Count == 0)
+        {
+            // No children - return minimum (padding only)
+            // Text measurement would go here if needed
+            return padding.HorizontalSize;
+        }
+
+        // Measure children recursively
+        float totalWidth = 0;
+        float maxWidth = 0;
+        var isHorizontal = hasLayout && layout.Direction == LayoutDirection.Horizontal;
+        var spacing = hasLayout ? layout.Spacing : 0;
+
+        foreach (var child in children)
+        {
+            ref readonly var childRect = ref World.Get<UIRect>(child);
+            float childWidth = childRect.WidthMode switch
+            {
+                UISizeMode.Fixed => childRect.Size.X,
+                UISizeMode.FitContent => MeasureContentWidth(child, availableArea),
+                UISizeMode.Percentage => availableArea.Width * (childRect.Size.X / 100f),
+                _ => childRect.Size.X
+            };
+
+            if (isHorizontal)
+            {
+                totalWidth += childWidth;
+            }
+            maxWidth = Math.Max(maxWidth, childWidth);
+        }
+
+        if (isHorizontal)
+        {
+            return totalWidth + spacing * (children.Count - 1) + padding.HorizontalSize;
+        }
+        return maxWidth + padding.HorizontalSize;
+    }
+
+    private float MeasureContentHeight(Entity entity, Rectangle availableArea, float resolvedWidth)
+    {
+        // Get padding from style if present
+        var padding = World.Has<UIStyle>(entity)
+            ? World.Get<UIStyle>(entity).Padding
+            : UIEdges.Zero;
+
+        // Get layout info if present
+        var hasLayout = World.Has<UILayout>(entity);
+        var layout = hasLayout ? World.Get<UILayout>(entity) : default;
+
+        // Get visible children
+        var children = World.GetChildren(entity)
+            .Where(c => World.Has<UIRect>(c) && World.Has<UIElement>(c))
+            .Where(c => World.Get<UIElement>(c).Visible && !World.Has<UIHiddenTag>(c))
+            .ToList();
+
+        if (children.Count == 0)
+        {
+            // No children - return minimum (padding only)
+            return padding.VerticalSize;
+        }
+
+        // Measure children recursively
+        float totalHeight = 0;
+        float maxHeight = 0;
+        var isVertical = !hasLayout || layout.Direction == LayoutDirection.Vertical;
+        var spacing = hasLayout ? layout.Spacing : 0;
+
+        // Create a working area with the resolved width
+        var childArea = new Rectangle(availableArea.X, availableArea.Y, resolvedWidth, availableArea.Height);
+
+        foreach (var child in children)
+        {
+            ref readonly var childRect = ref World.Get<UIRect>(child);
+
+            // First resolve width for this child
+            float childWidth = childRect.WidthMode switch
+            {
+                UISizeMode.Fixed => childRect.Size.X,
+                UISizeMode.FitContent => MeasureContentWidth(child, childArea),
+                UISizeMode.Fill => resolvedWidth - padding.HorizontalSize,
+                UISizeMode.Percentage => resolvedWidth * (childRect.Size.X / 100f),
+                _ => childRect.Size.X
+            };
+
+            // Then measure height
+            float childHeight = childRect.HeightMode switch
+            {
+                UISizeMode.Fixed => childRect.Size.Y,
+                UISizeMode.FitContent => MeasureContentHeight(child, childArea, childWidth),
+                UISizeMode.Percentage => availableArea.Height * (childRect.Size.Y / 100f),
+                _ => childRect.Size.Y
+            };
+
+            if (isVertical)
+            {
+                totalHeight += childHeight;
+            }
+            maxHeight = Math.Max(maxHeight, childHeight);
+        }
+
+        if (isVertical)
+        {
+            return totalHeight + spacing * (children.Count - 1) + padding.VerticalSize;
+        }
+        return maxHeight + padding.VerticalSize;
     }
 
     private static Rectangle CalculateAnchoredBounds(in UIRect rect, Rectangle parentBounds, UIEdges padding)
