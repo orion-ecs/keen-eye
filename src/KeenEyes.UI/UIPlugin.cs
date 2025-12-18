@@ -196,6 +196,12 @@ public sealed class UIPlugin : IWorldPlugin
         // Accordion system handles section expand/collapse
         context.AddSystem<UIAccordionSystem>(SystemPhase.EarlyUpdate, order: 80);
 
+        // Checkbox system handles checkbox and toggle click behavior
+        context.AddSystem<UICheckboxSystem>(SystemPhase.EarlyUpdate, order: 85);
+
+        // Slider system handles slider drag behavior
+        context.AddSystem<UISliderSystem>(SystemPhase.EarlyUpdate, order: 86);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -285,6 +291,11 @@ public sealed class UIPlugin : IWorldPlugin
         // Accordion components
         context.RegisterComponent<UIAccordion>();
         context.RegisterComponent<UIAccordionSection>();
+
+        // Input widget components
+        context.RegisterComponent<UICheckbox>();
+        context.RegisterComponent<UIToggle>();
+        context.RegisterComponent<UISlider>();
 
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);

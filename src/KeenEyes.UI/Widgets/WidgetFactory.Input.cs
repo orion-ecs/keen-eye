@@ -251,6 +251,9 @@ public static partial class WidgetFactory
 
         world.SetParent(labelEntity, container);
 
+        // Add UICheckbox component for behavior
+        world.Add(container, new UICheckbox(config.IsChecked) { BoxEntity = box });
+
         return container;
     }
 
@@ -353,6 +356,9 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(labelEntity, container);
+
+        // Add UICheckbox component for behavior
+        world.Add(container, new UICheckbox(config.IsChecked) { BoxEntity = box });
 
         return container;
     }
@@ -482,6 +488,13 @@ public static partial class WidgetFactory
 
         world.SetParent(thumb, container);
 
+        // Add UISlider component for behavior
+        world.Add(container, new UISlider(config.MinValue, config.MaxValue, config.Value)
+        {
+            FillEntity = fill,
+            ThumbEntity = thumb
+        });
+
         return container;
     }
 
@@ -593,6 +606,13 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(thumb, container);
+
+        // Add UISlider component for behavior
+        world.Add(container, new UISlider(config.MinValue, config.MaxValue, config.Value)
+        {
+            FillEntity = fill,
+            ThumbEntity = thumb
+        });
 
         return container;
     }
@@ -733,6 +753,13 @@ public static partial class WidgetFactory
 
         world.SetParent(labelEntity, container);
 
+        // Add UIToggle component for behavior
+        world.Add(container, new UIToggle(config.IsOn)
+        {
+            TrackEntity = track,
+            ThumbEntity = thumb
+        });
+
         return container;
     }
 
@@ -857,6 +884,13 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(labelEntity, container);
+
+        // Add UIToggle component for behavior
+        world.Add(container, new UIToggle(config.IsOn)
+        {
+            TrackEntity = track,
+            ThumbEntity = thumb
+        });
 
         return container;
     }
