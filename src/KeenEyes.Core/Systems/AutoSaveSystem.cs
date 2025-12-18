@@ -1,5 +1,8 @@
 using KeenEyes.Serialization;
 
+// TODO: Remove this suppression after refactoring to use IWorld interface
+#pragma warning disable KEEN050 // IWorld to World cast - legacy code pending refactoring
+
 namespace KeenEyes.Systems;
 
 /// <summary>
