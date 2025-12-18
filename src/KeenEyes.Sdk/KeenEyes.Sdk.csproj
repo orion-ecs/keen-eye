@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    KeenEyes.Sdk - Custom MSBuild SDK Package
+
+    This project produces a NuGet package that can be used as an SDK:
+      <Project Sdk="KeenEyes.Sdk/0.1.0">
+
+    The SDK simplifies KeenEyes game development by providing sensible
+    defaults and automatic package references.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+
+    <!-- Package Identity -->
+    <PackageId>KeenEyes.Sdk</PackageId>
+    <Version>0.1.0</Version>
+    <Description>MSBuild SDK for KeenEyes ECS game development. Provides sensible defaults, automatic package references, and custom item types for editor integration.</Description>
+    <PackageTags>ecs;gamedev;sdk;msbuild;keeneyes</PackageTags>
+
+    <!-- SDK packages must be packable -->
+    <IsPackable>true</IsPackable>
+
+    <!-- Don't produce any assembly output (SDK packages contain only MSBuild files) -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+
+    <!-- Disable default items - we only have MSBuild files, no source code -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+
+    <!-- Suppress CS1591 - no XML docs needed for SDK package (no public API) -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+
+    <!-- SDK package type -->
+    <PackageType>MSBuildSdk</PackageType>
+
+    <!-- Include readme in package -->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <!-- SDK files must be in the Sdk/ folder at the package root -->
+  <ItemGroup>
+    <None Include="Sdk\Sdk.props" Pack="true" PackagePath="Sdk\" />
+    <None Include="Sdk\Sdk.targets" Pack="true" PackagePath="Sdk\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

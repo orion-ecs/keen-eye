@@ -1,0 +1,61 @@
+<Project>
+  <!--
+    KeenEyes Library SDK - Core Properties
+
+    For developing ECS component and system libraries that extend KeenEyes.
+    Libraries are packable and include appropriate package metadata.
+  -->
+
+  <!-- Import the base .NET SDK props first -->
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <!-- KeenEyes SDK Versioning -->
+  <PropertyGroup>
+    <KeenEyesSdkVersion>0.1.0</KeenEyesSdkVersion>
+    <KeenEyesCoreVersion>0.1.0</KeenEyesCoreVersion>
+    <KeenEyesMinimumCoreVersion>0.1.0</KeenEyesMinimumCoreVersion>
+  </PropertyGroup>
+
+  <!-- Default Framework and Language Settings -->
+  <PropertyGroup>
+    <TargetFramework Condition="'$(TargetFramework)' == ''">net10.0</TargetFramework>
+    <LangVersion Condition="'$(LangVersion)' == ''">preview</LangVersion>
+    <Nullable Condition="'$(Nullable)' == ''">enable</Nullable>
+    <ImplicitUsings Condition="'$(ImplicitUsings)' == ''">enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Libraries output DLLs -->
+  <PropertyGroup>
+    <OutputType Condition="'$(OutputType)' == ''">Library</OutputType>
+  </PropertyGroup>
+
+  <!-- AOT Compatibility (libraries should be AOT-ready) -->
+  <PropertyGroup>
+    <IsAotCompatible Condition="'$(IsAotCompatible)' == ''">true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!-- Code Quality Defaults -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors Condition="'$(TreatWarningsAsErrors)' == ''">true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers Condition="'$(EnableNETAnalyzers)' == ''">true</EnableNETAnalyzers>
+    <AnalysisLevel Condition="'$(AnalysisLevel)' == ''">latest</AnalysisLevel>
+    <GenerateDocumentationFile Condition="'$(GenerateDocumentationFile)' == ''">true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Libraries are packable by default -->
+  <PropertyGroup>
+    <IsPackable Condition="'$(IsPackable)' == ''">true</IsPackable>
+  </PropertyGroup>
+
+  <!-- KeenEyes Project Type Detection -->
+  <PropertyGroup>
+    <IsKeenEyesProject>true</IsKeenEyesProject>
+    <KeenEyesProjectType>Library</KeenEyesProjectType>
+  </PropertyGroup>
+
+  <!-- Feature Flags -->
+  <PropertyGroup>
+    <KeenEyesFeatures>ECS;SourceGenerators;AOT;Library</KeenEyesFeatures>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,104 @@
+<Project>
+  <!--
+    KeenEyes SDK - Core Properties
+
+    This file is imported at the very START of project evaluation,
+    before Microsoft.NET.Sdk.props. It sets KeenEyes defaults that
+    can be overridden by the consuming project.
+  -->
+
+  <!-- Import the base .NET SDK props first -->
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <!-- KeenEyes SDK Versioning -->
+  <PropertyGroup>
+    <KeenEyesSdkVersion>0.1.0</KeenEyesSdkVersion>
+    <KeenEyesCoreVersion>0.1.0</KeenEyesCoreVersion>
+    <KeenEyesMinimumCoreVersion>0.1.0</KeenEyesMinimumCoreVersion>
+  </PropertyGroup>
+
+  <!-- Default Framework and Language Settings -->
+  <PropertyGroup>
+    <TargetFramework Condition="'$(TargetFramework)' == ''">net10.0</TargetFramework>
+    <LangVersion Condition="'$(LangVersion)' == ''">preview</LangVersion>
+    <Nullable Condition="'$(Nullable)' == ''">enable</Nullable>
+    <ImplicitUsings Condition="'$(ImplicitUsings)' == ''">enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Default to Exe for game projects -->
+  <PropertyGroup>
+    <OutputType Condition="'$(OutputType)' == ''">Exe</OutputType>
+  </PropertyGroup>
+
+  <!-- AOT Compatibility (games should be AOT-ready) -->
+  <PropertyGroup>
+    <IsAotCompatible Condition="'$(IsAotCompatible)' == ''">true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!-- Code Quality Defaults -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors Condition="'$(TreatWarningsAsErrors)' == ''">true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers Condition="'$(EnableNETAnalyzers)' == ''">true</EnableNETAnalyzers>
+    <AnalysisLevel Condition="'$(AnalysisLevel)' == ''">latest</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- KeenEyes Project Type Detection -->
+  <PropertyGroup>
+    <!-- Mark this as a KeenEyes project for editor detection -->
+    <IsKeenEyesProject>true</IsKeenEyesProject>
+    <KeenEyesProjectType Condition="'$(KeenEyesProjectType)' == ''">Game</KeenEyesProjectType>
+  </PropertyGroup>
+
+  <!-- Feature Flags (for future editor compatibility checks) -->
+  <PropertyGroup>
+    <KeenEyesFeatures>ECS;SourceGenerators;AOT</KeenEyesFeatures>
+  </PropertyGroup>
+
+  <!--
+    Custom ItemGroup Definitions for Editor Integration
+
+    These item types allow the KeenEyes editor to discover and process
+    game assets, scenes, and configuration files.
+  -->
+
+  <!-- Scene files (.kescene) - define world configuration and entity setup -->
+  <ItemDefinitionGroup>
+    <KeenEyesScene>
+      <Visible>true</Visible>
+      <Generator>KeenEyesSceneGenerator</Generator>
+    </KeenEyesScene>
+  </ItemDefinitionGroup>
+
+  <!-- Prefab files (.keprefab) - reusable entity templates -->
+  <ItemDefinitionGroup>
+    <KeenEyesPrefab>
+      <Visible>true</Visible>
+      <Generator>KeenEyesPrefabGenerator</Generator>
+    </KeenEyesPrefab>
+  </ItemDefinitionGroup>
+
+  <!-- Asset files - textures, audio, data files -->
+  <ItemDefinitionGroup>
+    <KeenEyesAsset>
+      <Visible>true</Visible>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </KeenEyesAsset>
+  </ItemDefinitionGroup>
+
+  <!-- System hints - help editor discover and categorize systems -->
+  <ItemDefinitionGroup>
+    <KeenEyesSystem>
+      <Visible>false</Visible>
+      <AutoRegister>false</AutoRegister>
+    </KeenEyesSystem>
+  </ItemDefinitionGroup>
+
+  <!-- World configuration files (.keworld) -->
+  <ItemDefinitionGroup>
+    <KeenEyesWorld>
+      <Visible>true</Visible>
+      <Generator>KeenEyesWorldGenerator</Generator>
+    </KeenEyesWorld>
+  </ItemDefinitionGroup>
+
+</Project>

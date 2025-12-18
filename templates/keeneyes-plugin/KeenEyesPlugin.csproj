@@ -1,19 +1,24 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="KeenEyes.Sdk.Plugin/0.1.0">
+  <!--
+    KeenEyes Plugin Project
 
+    The KeenEyes.Sdk.Plugin automatically:
+    - Sets TargetFramework to net10.0
+    - Sets OutputType to Library
+    - Enables nullable reference types
+    - References KeenEyes.Abstractions and KeenEyes.Generators
+    - Configures AOT compatibility
+
+    To include common components, add:
+    <PropertyGroup>
+      <IncludeKeenEyesCommon>true</IncludeKeenEyesCommon>
+    </PropertyGroup>
+  -->
+
+  <!--#if (IncludeCommon)-->
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>preview</LangVersion>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <IsAotCompatible>true</IsAotCompatible>
+    <IncludeKeenEyesCommon>true</IncludeKeenEyesCommon>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="KeenEyes.Abstractions" Version="0.1.0" />
-    <!--#if (IncludeCommon)-->
-    <PackageReference Include="KeenEyes.Common" Version="0.1.0" />
-    <!--#endif-->
-    <PackageReference Include="KeenEyes.Generators" Version="0.1.0" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
-  </ItemGroup>
+  <!--#endif-->
 
 </Project>

@@ -144,12 +144,72 @@ keen-eye/
 │   │   ├── Queries/                  # QueryBuilder, QueryEnumerator
 │   │   └── Systems/                  # ISystem, SystemBase
 │   ├── KeenEyes.Generators/           # Source generators
-│   └── KeenEyes.Generators.Attributes/ # Attributes (netstandard2.0)
+│   ├── KeenEyes.Abstractions/         # Interfaces and attributes
+│   ├── KeenEyes.Sdk/                  # MSBuild SDK for games
+│   ├── KeenEyes.Sdk.Plugin/           # MSBuild SDK for plugins
+│   └── KeenEyes.Sdk.Library/          # MSBuild SDK for libraries
 ├── tests/                            # Unit and integration tests
 ├── samples/                          # Example projects
+├── templates/                        # dotnet new templates
 ├── benchmarks/                       # Performance benchmarks
 └── docs/                             # Documentation
 ```
+
+## Custom MSBuild SDK
+
+KeenEyes provides custom MSBuild SDK packages that simplify project setup for consumers and enable future editor integration.
+
+### Why Custom SDKs?
+
+1. **Minimal boilerplate** - New projects need only the SDK reference
+2. **Convention enforcement** - C# 13, nullable, AOT enabled by default
+3. **Version coupling** - SDK version implies compatible package versions
+4. **Editor foundation** - Project detection, metadata, custom item types
+5. **Asset pipeline ready** - Custom ItemGroups for build-time processing
+
+### SDK Packages
+
+| Package | Use Case | Location |
+|---------|----------|----------|
+| `KeenEyes.Sdk` | Games/apps | `src/KeenEyes.Sdk/` |
+| `KeenEyes.Sdk.Plugin` | Plugin libraries | `src/KeenEyes.Sdk.Plugin/` |
+| `KeenEyes.Sdk.Library` | Reusable ECS libraries | `src/KeenEyes.Sdk.Library/` |
+
+### Usage
+
+External consumers use the SDK like this:
+
+```xml
+<Project Sdk="KeenEyes.Sdk/0.1.0">
+  <!-- Everything configured automatically -->
+</Project>
+```
+
+This replaces 15+ lines of boilerplate (TFM, LangVersion, package references, etc.).
+
+### Custom ItemGroup Types
+
+The SDK defines item types for future editor integration:
+
+- `<KeenEyesScene>` - Scene files (`.kescene`)
+- `<KeenEyesPrefab>` - Prefab definitions (`.keprefab`)
+- `<KeenEyesAsset>` - Game assets (auto-copied to output)
+- `<KeenEyesWorld>` - World configuration (`.keworld`)
+
+### Project Metadata
+
+Each build generates `keeneyes.project.json` in the output directory with version info, enabling:
+- Editor project detection
+- Version compatibility checking
+- Upgrade path recommendations
+
+### Internal vs External Usage
+
+- **External consumers**: Use `<Project Sdk="KeenEyes.Sdk/0.1.0">`
+- **Monorepo samples**: Continue using `ProjectReference` (not SDK) for local development
+- **Templates**: Updated to use SDK for accurate external consumer experience
+
+See [ADR-006](docs/adr/006-custom-msbuild-sdk.md) and [SDK Documentation](docs/sdk.md) for details.
 
 ## Coding Conventions
 
