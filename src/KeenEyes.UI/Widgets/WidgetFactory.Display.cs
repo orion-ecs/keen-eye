@@ -604,7 +604,7 @@ public static partial class WidgetFactory
     {
         config ??= ScrollViewConfig.Default;
 
-        // Create container
+        // Create container with clipping enabled
         var container = world.Spawn()
             .With(new UIElement { Visible = true, RaycastTarget = true })
             .With(CreateScrollViewRect(config))
@@ -621,6 +621,7 @@ public static partial class WidgetFactory
                 HorizontalScroll = config.ShowHorizontalScrollbar,
                 VerticalScroll = config.ShowVerticalScrollbar
             })
+            .WithTag<UIClipChildrenTag>()
             .Build();
 
         if (parent.IsValid)
