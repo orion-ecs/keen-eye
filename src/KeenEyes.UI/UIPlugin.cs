@@ -239,6 +239,13 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIDockTabGroup>();
         context.RegisterComponent<UIDockTab>();
 
+        // Toolbar components
+        context.RegisterComponent<UIToolbar>();
+        context.RegisterComponent<UIToolbarButton>();
+        context.RegisterComponent<UIToolbarSeparator>();
+        context.RegisterComponent<UIStatusBar>();
+        context.RegisterComponent<UIStatusBarSection>();
+
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);
         context.RegisterComponent<UIDisabledTag>(isTag: true);
@@ -253,5 +260,6 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIRadialSliceSelectedTag>(isTag: true);
         context.RegisterComponent<UIDockPreviewTag>(isTag: true);
         context.RegisterComponent<UIDockDraggingTag>(isTag: true);
+        context.RegisterComponent<UIToolbarButtonGroupTag>(isTag: true);
     }
 }

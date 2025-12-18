@@ -1139,3 +1139,172 @@ public sealed record DockPanelConfig(
     internal Vector4 GetActiveTabColor() =>
         ActiveTabColor ?? new Vector4(0.2f, 0.2f, 0.25f, 1f);
 }
+
+#region Phase 6: Toolbar and StatusBar
+
+/// <summary>
+/// Definition for a toolbar button.
+/// </summary>
+/// <param name="Icon">Optional icon texture for the button.</param>
+/// <param name="Tooltip">Tooltip text shown on hover.</param>
+/// <param name="IsToggle">Whether this button acts as a toggle.</param>
+/// <param name="IsEnabled">Whether the button is enabled.</param>
+/// <param name="GroupId">Optional group ID for radio-button behavior.</param>
+public sealed record ToolbarButtonDef(
+    TextureHandle Icon = default,
+    string Tooltip = "",
+    bool IsToggle = false,
+    bool IsEnabled = true,
+    string? GroupId = null);
+
+/// <summary>
+/// Definition for a toolbar separator.
+/// </summary>
+public sealed record ToolbarSeparatorDef;
+
+/// <summary>
+/// Union type for toolbar items (button or separator).
+/// </summary>
+public abstract record ToolbarItemDef
+{
+    /// <summary>
+    /// Creates a button item.
+    /// </summary>
+    public sealed record Button(ToolbarButtonDef Definition) : ToolbarItemDef;
+
+    /// <summary>
+    /// Creates a separator item.
+    /// </summary>
+    public sealed record Separator() : ToolbarItemDef;
+}
+
+/// <summary>
+/// Configuration for creating toolbar widgets.
+/// </summary>
+/// <param name="Orientation">The toolbar layout direction.</param>
+/// <param name="ButtonSize">Size of toolbar buttons in pixels.</param>
+/// <param name="Spacing">Space between buttons in pixels.</param>
+/// <param name="Padding">Padding around the toolbar content.</param>
+/// <param name="BackgroundColor">The toolbar background color.</param>
+/// <param name="ButtonColor">Default button background color.</param>
+/// <param name="ButtonHoverColor">Button color when hovered.</param>
+/// <param name="ButtonPressedColor">Button color when pressed/toggled.</param>
+/// <param name="SeparatorColor">Color of separator lines.</param>
+/// <param name="SeparatorWidth">Width of separator lines in pixels.</param>
+public sealed record ToolbarConfig(
+    LayoutDirection Orientation = LayoutDirection.Horizontal,
+    float ButtonSize = 32f,
+    float Spacing = 2f,
+    UIEdges? Padding = null,
+    Vector4? BackgroundColor = null,
+    Vector4? ButtonColor = null,
+    Vector4? ButtonHoverColor = null,
+    Vector4? ButtonPressedColor = null,
+    Vector4? SeparatorColor = null,
+    float SeparatorWidth = 1f)
+{
+    /// <summary>
+    /// The default toolbar configuration.
+    /// </summary>
+    public static ToolbarConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the padding or default.
+    /// </summary>
+    internal UIEdges GetPadding() =>
+        Padding ?? new UIEdges(4, 4, 4, 4);
+
+    /// <summary>
+    /// Gets the background color or default.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.2f, 0.2f, 0.22f, 1f);
+
+    /// <summary>
+    /// Gets the button color or default.
+    /// </summary>
+    internal Vector4 GetButtonColor() =>
+        ButtonColor ?? new Vector4(0.25f, 0.25f, 0.28f, 1f);
+
+    /// <summary>
+    /// Gets the button hover color or default.
+    /// </summary>
+    internal Vector4 GetButtonHoverColor() =>
+        ButtonHoverColor ?? new Vector4(0.35f, 0.35f, 0.38f, 1f);
+
+    /// <summary>
+    /// Gets the button pressed color or default.
+    /// </summary>
+    internal Vector4 GetButtonPressedColor() =>
+        ButtonPressedColor ?? new Vector4(0.4f, 0.5f, 0.7f, 1f);
+
+    /// <summary>
+    /// Gets the separator color or default.
+    /// </summary>
+    internal Vector4 GetSeparatorColor() =>
+        SeparatorColor ?? new Vector4(0.4f, 0.4f, 0.45f, 0.5f);
+}
+
+/// <summary>
+/// Definition for a status bar section.
+/// </summary>
+/// <param name="InitialText">Initial text content of the section.</param>
+/// <param name="Width">Fixed width in pixels (0 for flexible).</param>
+/// <param name="IsFlexible">Whether the section expands to fill space.</param>
+/// <param name="MinWidth">Minimum width for flexible sections.</param>
+/// <param name="TextAlign">Text alignment within the section.</param>
+public sealed record StatusBarSectionDef(
+    string InitialText = "",
+    float Width = 0f,
+    bool IsFlexible = false,
+    float MinWidth = 50f,
+    TextAlignH TextAlign = TextAlignH.Left);
+
+/// <summary>
+/// Configuration for creating status bar widgets.
+/// </summary>
+/// <param name="Height">Height of the status bar in pixels.</param>
+/// <param name="Padding">Padding around the status bar content.</param>
+/// <param name="BackgroundColor">The status bar background color.</param>
+/// <param name="TextColor">Default text color for sections.</param>
+/// <param name="SeparatorColor">Color of separator lines between sections.</param>
+/// <param name="FontSize">Font size for status text.</param>
+public sealed record StatusBarConfig(
+    float Height = 24f,
+    UIEdges? Padding = null,
+    Vector4? BackgroundColor = null,
+    Vector4? TextColor = null,
+    Vector4? SeparatorColor = null,
+    float FontSize = 12f)
+{
+    /// <summary>
+    /// The default status bar configuration.
+    /// </summary>
+    public static StatusBarConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the padding or default.
+    /// </summary>
+    internal UIEdges GetPadding() =>
+        Padding ?? new UIEdges(4, 2, 4, 2);
+
+    /// <summary>
+    /// Gets the background color or default.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.15f, 0.15f, 0.18f, 1f);
+
+    /// <summary>
+    /// Gets the text color or default.
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(0.8f, 0.8f, 0.8f, 1f);
+
+    /// <summary>
+    /// Gets the separator color or default.
+    /// </summary>
+    internal Vector4 GetSeparatorColor() =>
+        SeparatorColor ?? new Vector4(0.3f, 0.3f, 0.35f, 0.5f);
+}
+
+#endregion
