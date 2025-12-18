@@ -211,12 +211,61 @@ public sealed class UILayoutSystem : SystemBase
         LayoutAlign crossAxisAlign,
         float layoutSpacing)
     {
-        // Calculate total size and spacing
-        float totalMainSize = childSizes.Sum(s => direction == LayoutDirection.Horizontal ? s.X : s.Y);
-        float totalSpacing = layoutSpacing * (layoutChildren.Count - 1);
         float availableMainSize = direction == LayoutDirection.Horizontal
             ? contentArea.Width
             : contentArea.Height;
+        float totalSpacing = layoutSpacing * (layoutChildren.Count - 1);
+
+        // Distribute remaining space to Fill children
+        // First, identify Fill children and calculate non-Fill total
+        var fillChildIndices = new List<int>();
+        float nonFillMainSize = 0;
+
+        for (int i = 0; i < layoutChildren.Count; i++)
+        {
+            var child = layoutChildren[i];
+            ref readonly var childRect = ref World.Get<UIRect>(child);
+            var size = childSizes[i];
+            float mainSize = direction == LayoutDirection.Horizontal ? size.X : size.Y;
+
+            bool isFillInMainAxis = direction == LayoutDirection.Horizontal
+                ? childRect.WidthMode == UISizeMode.Fill
+                : childRect.HeightMode == UISizeMode.Fill;
+
+            if (isFillInMainAxis)
+            {
+                fillChildIndices.Add(i);
+            }
+            else
+            {
+                nonFillMainSize += mainSize;
+            }
+        }
+
+        // Calculate size for Fill children
+        float fillChildSize = 0;
+        if (fillChildIndices.Count > 0)
+        {
+            float remainingSpace = availableMainSize - nonFillMainSize - totalSpacing;
+            fillChildSize = Math.Max(0, remainingSpace / fillChildIndices.Count);
+
+            // Update sizes for Fill children
+            foreach (var idx in fillChildIndices)
+            {
+                var size = childSizes[idx];
+                if (direction == LayoutDirection.Horizontal)
+                {
+                    childSizes[idx] = new Vector2(fillChildSize, size.Y);
+                }
+                else
+                {
+                    childSizes[idx] = new Vector2(size.X, fillChildSize);
+                }
+            }
+        }
+
+        // Recalculate total size after Fill distribution
+        float totalMainSize = childSizes.Sum(s => direction == LayoutDirection.Horizontal ? s.X : s.Y);
 
         // Calculate starting position and spacing based on alignment
         float mainStart = direction == LayoutDirection.Horizontal ? contentArea.X : contentArea.Y;

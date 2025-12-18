@@ -319,7 +319,7 @@ public static partial class WidgetFactory
             world.SetParent(tabButton, tabBar);
         }
 
-        // Create content area
+        // Create content area with clipping to prevent overflow
         var contentArea = world.Spawn()
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
@@ -335,6 +335,7 @@ public static partial class WidgetFactory
             {
                 BackgroundColor = config.GetContentColor()
             })
+            .WithTag<UIClipChildrenTag>()
             .Build();
 
         world.SetParent(contentArea, container);
@@ -479,6 +480,7 @@ public static partial class WidgetFactory
             world.SetParent(tabButton, tabBar);
         }
 
+        // Create content area with clipping to prevent overflow
         var contentArea = world.Spawn($"{name}_Content")
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
@@ -494,6 +496,7 @@ public static partial class WidgetFactory
             {
                 BackgroundColor = config.GetContentColor()
             })
+            .WithTag<UIClipChildrenTag>()
             .Build();
 
         world.SetParent(contentArea, container);
