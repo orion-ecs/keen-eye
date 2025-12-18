@@ -357,10 +357,11 @@ public sealed class UIMenuSystem : SystemBase
         }
 
         ref var menuRect = ref World.Get<UIRect>(menuEntity);
-        ref readonly var itemRect = ref World.Get<UIRect>(itemEntity);
 
-        var itemBounds = itemRect.ComputedBounds;
-        menuRect.Offset = new UIEdges(itemBounds.X, itemBounds.Y + itemBounds.Height, 0, 0);
+        // The menu is anchored to (0, 1) (bottom-left of parent) with Pivot (0, 0),
+        // which already positions it directly below the parent menu bar item.
+        // No additional offset is needed.
+        menuRect.Offset = UIEdges.Zero;
     }
 
     private void PositionSubmenuBesideItem(Entity submenuEntity, Entity itemEntity)
@@ -371,15 +372,10 @@ public sealed class UIMenuSystem : SystemBase
         }
 
         ref var submenuRect = ref World.Get<UIRect>(submenuEntity);
-        ref readonly var itemRect = ref World.Get<UIRect>(itemEntity);
 
-        var itemBounds = itemRect.ComputedBounds;
-
-        // Position to the right of the item
-        submenuRect.Offset = new UIEdges(
-            itemBounds.X + itemBounds.Width - 2,  // Slight overlap
-            itemBounds.Y,
-            0,
-            0);
+        // The submenu is anchored to (1, 0) (top-right of parent) with Pivot (0, 0),
+        // which already positions it to the right of the parent menu item.
+        // Use a small negative left offset to create a slight overlap.
+        submenuRect.Offset = new UIEdges(-2, 0, 0, 0);
     }
 }
