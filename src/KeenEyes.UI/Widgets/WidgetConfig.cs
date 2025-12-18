@@ -1524,3 +1524,97 @@ public sealed record PropertyCategoryDef(
     IEnumerable<PropertyDef>? Properties = null);
 
 #endregion
+
+#region Phase 9: Accordion
+
+/// <summary>
+/// Configuration for creating accordion widgets.
+/// </summary>
+/// <param name="Width">The accordion width (null for stretch).</param>
+/// <param name="Height">The accordion height (null for stretch).</param>
+/// <param name="AllowMultipleExpanded">Whether multiple sections can be expanded at once.</param>
+/// <param name="HeaderHeight">Height of section headers.</param>
+/// <param name="Spacing">Space between sections.</param>
+/// <param name="BackgroundColor">The accordion background color.</param>
+/// <param name="HeaderColor">Section header background color.</param>
+/// <param name="HeaderHoverColor">Section header color when hovered.</param>
+/// <param name="ContentColor">Section content background color.</param>
+/// <param name="HeaderTextColor">Text color for section headers.</param>
+/// <param name="ArrowColor">Color for expand/collapse arrows.</param>
+/// <param name="BorderColor">Border color between sections.</param>
+/// <param name="FontSize">Font size for header text.</param>
+/// <param name="CornerRadius">Corner radius for sections.</param>
+public sealed record AccordionConfig(
+    float? Width = null,
+    float? Height = null,
+    bool AllowMultipleExpanded = false,
+    float HeaderHeight = 32f,
+    float Spacing = 1f,
+    Vector4? BackgroundColor = null,
+    Vector4? HeaderColor = null,
+    Vector4? HeaderHoverColor = null,
+    Vector4? ContentColor = null,
+    Vector4? HeaderTextColor = null,
+    Vector4? ArrowColor = null,
+    Vector4? BorderColor = null,
+    float FontSize = 14f,
+    float CornerRadius = 0f)
+{
+    /// <summary>
+    /// The default accordion configuration.
+    /// </summary>
+    public static AccordionConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default (transparent).
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? Vector4.Zero;
+
+    /// <summary>
+    /// Gets the header color or default.
+    /// </summary>
+    internal Vector4 GetHeaderColor() =>
+        HeaderColor ?? new Vector4(0.2f, 0.2f, 0.24f, 1f);
+
+    /// <summary>
+    /// Gets the header hover color or default.
+    /// </summary>
+    internal Vector4 GetHeaderHoverColor() =>
+        HeaderHoverColor ?? new Vector4(0.25f, 0.25f, 0.3f, 1f);
+
+    /// <summary>
+    /// Gets the content color or default.
+    /// </summary>
+    internal Vector4 GetContentColor() =>
+        ContentColor ?? new Vector4(0.15f, 0.15f, 0.18f, 1f);
+
+    /// <summary>
+    /// Gets the header text color or default.
+    /// </summary>
+    internal Vector4 GetHeaderTextColor() =>
+        HeaderTextColor ?? new Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+    /// <summary>
+    /// Gets the arrow color or default.
+    /// </summary>
+    internal Vector4 GetArrowColor() =>
+        ArrowColor ?? new Vector4(0.7f, 0.7f, 0.7f, 1f);
+
+    /// <summary>
+    /// Gets the border color or default.
+    /// </summary>
+    internal Vector4 GetBorderColor() =>
+        BorderColor ?? new Vector4(0.1f, 0.1f, 0.12f, 1f);
+}
+
+/// <summary>
+/// Definition for an accordion section.
+/// </summary>
+/// <param name="Title">The section title displayed in the header.</param>
+/// <param name="IsExpanded">Initial expanded state.</param>
+public sealed record AccordionSectionDef(
+    string Title,
+    bool IsExpanded = false);
+
+#endregion

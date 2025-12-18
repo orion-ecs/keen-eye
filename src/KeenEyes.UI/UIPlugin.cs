@@ -91,6 +91,12 @@ namespace KeenEyes.UI;
 /// <term>Property grid category expand/collapse</term>
 /// </item>
 /// <item>
+/// <term>EarlyUpdate</term>
+/// <term>80</term>
+/// <term><see cref="UIAccordionSystem"/></term>
+/// <term>Accordion section expand/collapse</term>
+/// </item>
+/// <item>
 /// <term>LateUpdate</term>
 /// <term>-10</term>
 /// <term><see cref="UILayoutSystem"/></term>
@@ -187,6 +193,9 @@ public sealed class UIPlugin : IWorldPlugin
         // Property grid system handles category expand/collapse
         context.AddSystem<UIPropertyGridSystem>(SystemPhase.EarlyUpdate, order: 75);
 
+        // Accordion system handles section expand/collapse
+        context.AddSystem<UIAccordionSystem>(SystemPhase.EarlyUpdate, order: 80);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -273,6 +282,10 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIPropertyCategory>();
         context.RegisterComponent<UIPropertyRow>();
 
+        // Accordion components
+        context.RegisterComponent<UIAccordion>();
+        context.RegisterComponent<UIAccordionSection>();
+
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);
         context.RegisterComponent<UIDisabledTag>(isTag: true);
@@ -292,5 +305,8 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UITreeNodeExpandArrowTag>(isTag: true);
         context.RegisterComponent<UIPropertyCategoryHeaderTag>(isTag: true);
         context.RegisterComponent<UIPropertyCategoryArrowTag>(isTag: true);
+        context.RegisterComponent<UIAccordionHeaderTag>(isTag: true);
+        context.RegisterComponent<UIAccordionArrowTag>(isTag: true);
+        context.RegisterComponent<UIAccordionContentTag>(isTag: true);
     }
 }

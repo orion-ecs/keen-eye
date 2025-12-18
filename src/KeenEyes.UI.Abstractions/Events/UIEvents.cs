@@ -309,3 +309,21 @@ public readonly record struct UIPropertyCategoryExpandedEvent(Entity PropertyGri
 public readonly record struct UIPropertyCategoryCollapsedEvent(Entity PropertyGrid, Entity Category);
 
 #endregion
+
+#region Accordion Events
+
+/// <summary>
+/// Event raised when an accordion section is expanded.
+/// </summary>
+/// <param name="Accordion">The accordion entity.</param>
+/// <param name="Section">The section that was expanded.</param>
+public readonly record struct UIAccordionSectionExpandedEvent(Entity Accordion, Entity Section);
+
+/// <summary>
+/// Event raised when an accordion section is collapsed.
+/// </summary>
+/// <param name="Accordion">The accordion entity.</param>
+/// <param name="Section">The section that was collapsed.</param>
+public readonly record struct UIAccordionSectionCollapsedEvent(Entity Accordion, Entity Section);
+
+#endregion
