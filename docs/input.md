@@ -373,6 +373,78 @@ public class PlayerMovementSystem : ISystem
 
 **Rule of thumb:** If you check it every frame, use polling. If it's a one-time action, use events.
 
+## Event Handler Patterns
+
+### Registering Global Handlers
+
+```csharp
+// In OnReady callback
+world.CreateRunner()
+    .OnReady(() =>
+    {
+        var input = world.GetExtension<IInputContext>();
+
+        // Global key handler
+        input.OnKeyDown += (kb, args) =>
+        {
+            if (args.Key == Key.F1) ShowHelp();
+            if (args.Key == Key.F11) ToggleFullscreen();
+        };
+
+        // Global mouse handler
+        input.OnMouseButtonDown += (mouse, args) =>
+        {
+            if (args.Button == MouseButton.Middle)
+                StartPanning();
+        };
+    })
+    .Run();
+```
+
+### Device-Specific Handlers
+
+```csharp
+// Per-keyboard handler (multi-keyboard setups)
+foreach (var keyboard in input.Keyboards)
+{
+    keyboard.OnKeyDown += (args) =>
+    {
+        Console.WriteLine($"Keyboard {keyboard.Index}: {args.Key}");
+    };
+}
+
+// Per-gamepad handler (local multiplayer)
+foreach (var gamepad in input.Gamepads)
+{
+    gamepad.OnButtonDown += (args) =>
+    {
+        HandlePlayerInput(gamepad.Index, args.Button);
+    };
+}
+```
+
+### Cleanup Pattern
+
+When using event handlers, store references for proper cleanup:
+
+```csharp
+private Action<IKeyboard, KeyEventArgs>? keyHandler;
+
+public void Initialize()
+{
+    var input = world.GetExtension<IInputContext>();
+    keyHandler = (kb, args) => HandleKey(args);
+    input.OnKeyDown += keyHandler;
+}
+
+public void Cleanup()
+{
+    var input = world.GetExtension<IInputContext>();
+    if (keyHandler != null)
+        input.OnKeyDown -= keyHandler;
+}
+```
+
 ## Action Mapping
 
 Action mapping provides an abstraction layer between game logic and physical inputs. Instead of checking specific keys or buttons, you define named actions that can be bound to multiple input sources.
@@ -584,6 +656,258 @@ This architecture means:
 - Both `SilkGraphicsPlugin` and `SilkInputPlugin` require `SilkWindowPlugin`
 - Graphics and input can be installed in any order after window
 - All plugins share the same native window and input context
+
+## Input + UI Integration
+
+When using the KeenEyes UI system, input handling requires coordination between raw input and UI focus.
+
+### UI Focus and Input Context
+
+```csharp
+var input = world.GetExtension<IInputContext>();
+var ui = world.TryGetExtension<UIContext>(out var ctx) ? ctx : null;
+
+// Check if UI has focus before processing gameplay input
+if (ui?.HasFocus != true)
+{
+    // Process gameplay input normally
+    ProcessGameplayInput(input);
+}
+else
+{
+    // UI has focus - skip gameplay input
+    // UI systems handle input automatically
+}
+```
+
+### Input Blocking Patterns
+
+```csharp
+// Option 1: Let UI consume input first
+public class GameInputSystem : ISystem
+{
+    private IWorld? world;
+    private IInputContext? input;
+    private UIContext? ui;
+
+    public bool Enabled { get; set; } = true;
+
+    public void Initialize(IWorld world) => this.world = world;
+
+    public void Update(float dt)
+    {
+        input ??= world?.TryGetExtension<IInputContext>(out var i) == true ? i : null;
+        ui ??= world?.TryGetExtension<UIContext>(out var u) == true ? u : null;
+
+        // Skip if UI is capturing input
+        if (ui?.HasFocus == true) return;
+
+        // Process gameplay input
+        var keyboard = input?.Keyboard;
+        // ...
+    }
+
+    public void Dispose() { }
+}
+```
+
+### Context-Sensitive Input
+
+```csharp
+public class ContextualInputSystem : ISystem
+{
+    public void Update(float dt)
+    {
+        var input = world.GetExtension<IInputContext>();
+        var ui = world.TryGetExtension<UIContext>(out var ctx) ? ctx : null;
+
+        // Escape always available for pause menu
+        if (input.Keyboard.IsKeyDown(Key.Escape))
+        {
+            TogglePause();
+            return;
+        }
+
+        // UI has priority for focused elements
+        if (ui?.HasFocus == true)
+        {
+            // Let UI handle input
+            return;
+        }
+
+        // Process gameplay input
+        HandleMovement(input);
+        HandleActions(input);
+    }
+}
+```
+
+### Mouse Position to UI Coordinates
+
+Mouse position from the input system is in screen coordinates, which matches the UI coordinate system:
+
+```csharp
+var mousePos = input.Mouse.Position;  // Screen coordinates (0,0 = top-left)
+
+// UI elements use the same coordinate system
+// ComputedBounds are in screen space
+foreach (var entity in world.Query<UIRect, UIInteractable>())
+{
+    ref readonly var rect = ref world.Get<UIRect>(entity);
+    if (rect.ComputedBounds.Contains(mousePos))
+    {
+        // Mouse is over this element
+    }
+}
+```
+
+## Advanced Multimodal Input
+
+### Unified Input Abstraction
+
+When supporting keyboard, mouse, AND gamepad simultaneously:
+
+```csharp
+public class UnifiedInputSystem : ISystem
+{
+    public void Update(float dt)
+    {
+        var input = World.GetExtension<IInputContext>();
+        var kb = input.Keyboard;
+        var mouse = input.Mouse;
+        var gamepad = input.Gamepad;
+
+        // Movement: keyboard OR gamepad
+        var moveDir = Vector2.Zero;
+
+        // Keyboard WASD
+        if (kb.IsKeyDown(Key.W)) moveDir.Y -= 1;
+        if (kb.IsKeyDown(Key.S)) moveDir.Y += 1;
+        if (kb.IsKeyDown(Key.A)) moveDir.X -= 1;
+        if (kb.IsKeyDown(Key.D)) moveDir.X += 1;
+
+        // Gamepad overrides if connected and active
+        if (gamepad.IsConnected)
+        {
+            var stick = gamepad.LeftStick;
+            if (stick.LengthSquared() > 0.01f)
+                moveDir = stick;
+        }
+
+        // Normalize if needed
+        if (moveDir.LengthSquared() > 1)
+            moveDir = Vector2.Normalize(moveDir);
+
+        // Aim: mouse OR right stick
+        var aimDir = Vector2.Zero;
+
+        if (gamepad.IsConnected &&
+            gamepad.RightStick.LengthSquared() > 0.01f)
+        {
+            aimDir = Vector2.Normalize(gamepad.RightStick);
+        }
+        else
+        {
+            // Aim toward mouse from player position
+            var playerPos = GetPlayerScreenPosition();
+            var toMouse = mouse.Position - playerPos;
+            if (toMouse.LengthSquared() > 1)
+                aimDir = Vector2.Normalize(toMouse);
+        }
+
+        // Apply to player
+        ApplyMovement(moveDir, aimDir);
+    }
+}
+```
+
+### Input Device Detection
+
+Track which input device was used most recently:
+
+```csharp
+public enum ActiveInputDevice { Keyboard, Mouse, Gamepad }
+
+public class InputDeviceTracker : ISystem
+{
+    private ActiveInputDevice lastDevice = ActiveInputDevice.Keyboard;
+    private Vector2 lastMousePos;
+
+    public ActiveInputDevice ActiveDevice => lastDevice;
+
+    public void Update(float dt)
+    {
+        var input = World.GetExtension<IInputContext>();
+
+        // Check for keyboard activity
+        if (input.Keyboard.GetState().PressedKeys.Length > 0)
+            lastDevice = ActiveInputDevice.Keyboard;
+
+        // Check for mouse movement or clicks
+        if (input.Mouse.Position != lastMousePos ||
+            input.Mouse.IsButtonDown(MouseButton.Left))
+        {
+            lastDevice = ActiveInputDevice.Mouse;
+            lastMousePos = input.Mouse.Position;
+        }
+
+        // Check for gamepad activity
+        if (input.Gamepad.IsConnected)
+        {
+            var gp = input.Gamepad;
+            if (gp.LeftStick.LengthSquared() > 0.1f ||
+                gp.RightStick.LengthSquared() > 0.1f ||
+                gp.IsButtonDown(GamepadButton.South))
+            {
+                lastDevice = ActiveInputDevice.Gamepad;
+            }
+        }
+    }
+}
+```
+
+### Cursor Visibility Based on Device
+
+Show/hide cursor based on active input device:
+
+```csharp
+// In your input system
+if (deviceTracker.ActiveDevice == ActiveInputDevice.Gamepad)
+{
+    input.Mouse.IsCursorVisible = false;
+}
+else
+{
+    input.Mouse.IsCursorVisible = true;
+}
+```
+
+### UI Prompts Based on Device
+
+Display controller-appropriate button prompts:
+
+```csharp
+public string GetPrompt(string action)
+{
+    return deviceTracker.ActiveDevice switch
+    {
+        ActiveInputDevice.Gamepad => action switch
+        {
+            "Jump" => "[A]",
+            "Attack" => "[X]",
+            "Interact" => "[Y]",
+            _ => "[?]"
+        },
+        _ => action switch
+        {
+            "Jump" => "[Space]",
+            "Attack" => "[Left Click]",
+            "Interact" => "[E]",
+            _ => "[?]"
+        }
+    };
+}
+```
 
 ## Dependencies
 

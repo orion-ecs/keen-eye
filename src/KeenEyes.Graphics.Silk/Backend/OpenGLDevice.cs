@@ -78,8 +78,10 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     {
         unsafe
         {
-            fixed (byte* ptr = data)
+
+            if (data.IsEmpty)
             {
+                // Allocate GPU memory without initializing (null pointer)
                 gl.TexImage2D(
                     ToGL(target),
                     level,
@@ -87,6 +89,43 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
                     (uint)width,
                     (uint)height,
                     0,
+                    ToGL(format),
+                    PixelType.UnsignedByte,
+                    null);
+            }
+            else
+            {
+                fixed (byte* ptr = data)
+                {
+                    gl.TexImage2D(
+                        ToGL(target),
+                        level,
+                        ToGLInternalFormat(format),
+                        (uint)width,
+                        (uint)height,
+                        0,
+                        ToGL(format),
+                        PixelType.UnsignedByte,
+                        ptr);
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void TexSubImage2D(Abstractions.TextureTarget target, int level, int xOffset, int yOffset, int width, int height, Abstractions.PixelFormat format, ReadOnlySpan<byte> data)
+    {
+        unsafe
+        {
+            fixed (byte* ptr = data)
+            {
+                gl.TexSubImage2D(
+                    ToGL(target),
+                    level,
+                    xOffset,
+                    yOffset,
+                    (uint)width,
+                    (uint)height,
                     ToGL(format),
                     PixelType.UnsignedByte,
                     ptr);
@@ -108,6 +147,10 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     /// <inheritdoc />
     public void ActiveTexture(Abstractions.TextureUnit unit)
         => gl.ActiveTexture(ToGL(unit));
+
+    /// <inheritdoc />
+    public void PixelStore(Abstractions.PixelStoreParameter param, int value)
+        => gl.PixelStore(ToGL(param), value);
 
     #endregion
 
@@ -420,7 +463,35 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         _ => throw new ArgumentOutOfRangeException(nameof(format))
     };
 
+    private static global::Silk.NET.OpenGL.PixelStoreParameter ToGL(Abstractions.PixelStoreParameter param) => param switch
+    {
+        Abstractions.PixelStoreParameter.UnpackRowLength => global::Silk.NET.OpenGL.PixelStoreParameter.UnpackRowLength,
+        Abstractions.PixelStoreParameter.UnpackSkipRows => global::Silk.NET.OpenGL.PixelStoreParameter.UnpackSkipRows,
+        Abstractions.PixelStoreParameter.UnpackSkipPixels => global::Silk.NET.OpenGL.PixelStoreParameter.UnpackSkipPixels,
+        Abstractions.PixelStoreParameter.UnpackAlignment => global::Silk.NET.OpenGL.PixelStoreParameter.UnpackAlignment,
+        _ => throw new ArgumentOutOfRangeException(nameof(param))
+    };
+
     #endregion
+
+    #region Debug
+
+    /// <inheritdoc />
+    public void GetTexImage(Abstractions.TextureTarget target, int level, Abstractions.PixelFormat format, Span<byte> data)
+    {
+        unsafe
+        {
+            fixed (byte* ptr = data)
+            {
+                gl.GetTexImage(ToGL(target), level, ToGL(format), PixelType.UnsignedByte, ptr);
+            }
+        }
+    }
+
+    #endregion
+
+    /// <inheritdoc />
+    public int GetError() => (int)gl.GetError();
 
     /// <inheritdoc />
     public void Dispose()

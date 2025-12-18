@@ -22,6 +22,13 @@ public interface IEntityBuilder
     IEntityBuilder WithTag<T>() where T : struct, ITagComponent;
 
     /// <summary>
+    /// Sets the parent entity for the entity being built.
+    /// </summary>
+    /// <param name="parent">The parent entity.</param>
+    /// <returns>This builder for chaining.</returns>
+    IEntityBuilder WithParent(Entity parent);
+
+    /// <summary>
     /// Builds the entity and adds it to the world.
     /// </summary>
     /// <returns>The created entity.</returns>
@@ -43,4 +50,9 @@ public interface IEntityBuilder<TSelf> : IEntityBuilder where TSelf : IEntityBui
     /// Adds a tag component to the entity being built.
     /// </summary>
     new TSelf WithTag<T>() where T : struct, ITagComponent;
+
+    /// <summary>
+    /// Sets the parent entity for the entity being built.
+    /// </summary>
+    new TSelf WithParent(Entity parent);
 }

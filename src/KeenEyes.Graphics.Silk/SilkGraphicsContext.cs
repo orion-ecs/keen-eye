@@ -1,8 +1,10 @@
 using System.Numerics;
 
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk.Rendering2D;
 using KeenEyes.Graphics.Silk.Resources;
 using KeenEyes.Graphics.Silk.Shaders;
+using KeenEyes.Graphics.Silk.Text;
 using KeenEyes.Platform.Silk;
 
 namespace KeenEyes.Graphics.Silk;
@@ -49,7 +51,7 @@ namespace KeenEyes.Graphics.Silk;
 /// </code>
 /// </example>
 [PluginExtension("SilkGraphics")]
-public sealed class SilkGraphicsContext : IGraphicsContext
+public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider, ITextRendererProvider, IFontManagerProvider
 {
     private readonly SilkGraphicsConfig config;
     private readonly ISilkWindowProvider windowProvider;
@@ -59,6 +61,9 @@ public sealed class SilkGraphicsContext : IGraphicsContext
 
     private SilkWindow? window;
     private IGraphicsDevice? device;
+    private Silk2DRenderer? renderer2D;
+    private SilkFontManager? fontManager;
+    private SilkTextRenderer? textRenderer;
     private int currentBoundShaderId = -1;
     private bool initialized;
     private bool disposed;
@@ -124,6 +129,39 @@ public sealed class SilkGraphicsContext : IGraphicsContext
     /// </summary>
     public TextureHandle WhiteTexture { get; private set; }
 
+    /// <summary>
+    /// Gets the 2D renderer for UI and sprite rendering.
+    /// </summary>
+    /// <remarks>
+    /// This is only available after initialization (when the window loads).
+    /// </remarks>
+    public I2DRenderer? Renderer2D => renderer2D;
+
+    /// <inheritdoc />
+    public I2DRenderer? Get2DRenderer() => renderer2D;
+
+    /// <summary>
+    /// Gets the text renderer for font rendering.
+    /// </summary>
+    /// <remarks>
+    /// This is only available after initialization (when the window loads).
+    /// </remarks>
+    public ITextRenderer? TextRenderer => textRenderer;
+
+    /// <inheritdoc />
+    public ITextRenderer? GetTextRenderer() => textRenderer;
+
+    /// <summary>
+    /// Gets the font manager for loading and managing fonts.
+    /// </summary>
+    /// <remarks>
+    /// This is only available after initialization (when the window loads).
+    /// </remarks>
+    public IFontManager? FontManager => fontManager;
+
+    /// <inheritdoc />
+    public IFontManager? GetFontManager() => fontManager;
+
     internal MeshManager MeshManager => meshManager;
     internal TextureManager TextureManager => textureManager;
     internal ShaderManager ShaderManager => shaderManager;
@@ -178,6 +216,8 @@ public sealed class SilkGraphicsContext : IGraphicsContext
     private void HandleWindowResize(int width, int height)
     {
         device?.Viewport(0, 0, (uint)width, (uint)height);
+        renderer2D?.SetScreenSize(width, height);
+        textRenderer?.SetScreenSize(width, height);
     }
 
     private void HandleWindowClosing()
@@ -207,6 +247,13 @@ public sealed class SilkGraphicsContext : IGraphicsContext
         // Create default white texture
         var whiteId = textureManager.CreateSolidColorTexture(255, 255, 255, 255);
         WhiteTexture = new TextureHandle(whiteId);
+
+        // Create 2D renderer
+        renderer2D = new Silk2DRenderer(device!, textureManager, Width, Height);
+
+        // Create font manager and text renderer
+        fontManager = new SilkFontManager(device!);
+        textRenderer = new SilkTextRenderer(device!, fontManager, fontManager.TextureManager, Width, Height);
     }
 
     #region Mesh Operations
@@ -552,6 +599,9 @@ public sealed class SilkGraphicsContext : IGraphicsContext
 
         gpuResourcesDisposed = true;
 
+        renderer2D?.Dispose();
+        textRenderer?.Dispose();
+        fontManager?.Dispose();
         meshManager.Dispose();
         textureManager.Dispose();
         shaderManager.Dispose();

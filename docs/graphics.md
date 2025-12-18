@@ -307,6 +307,114 @@ var custom = graphics.CreateShader(vertexSource, fragmentSource);
 graphics.DeleteShader(custom);
 ```
 
+## Custom Shaders
+
+KeenEyes uses GLSL shaders with the Silk.NET backend.
+
+### Shader Structure
+
+**Vertex Shader:**
+
+```glsl
+#version 330 core
+layout (location = 0) in vec3 aPosition;
+layout (location = 1) in vec2 aTexCoord;
+layout (location = 2) in vec3 aNormal;
+
+uniform mat4 uModel;
+uniform mat4 uView;
+uniform mat4 uProjection;
+
+out vec2 vTexCoord;
+out vec3 vNormal;
+out vec3 vFragPos;
+
+void main()
+{
+    vec4 worldPos = uModel * vec4(aPosition, 1.0);
+    gl_Position = uProjection * uView * worldPos;
+    vTexCoord = aTexCoord;
+    vNormal = mat3(transpose(inverse(uModel))) * aNormal;
+    vFragPos = worldPos.xyz;
+}
+```
+
+**Fragment Shader:**
+
+```glsl
+#version 330 core
+in vec2 vTexCoord;
+in vec3 vNormal;
+in vec3 vFragPos;
+
+uniform sampler2D uTexture;
+uniform vec4 uColor;
+
+out vec4 FragColor;
+
+void main()
+{
+    vec4 texColor = texture(uTexture, vTexCoord);
+    FragColor = texColor * uColor;
+}
+```
+
+### Creating Custom Shaders
+
+```csharp
+var graphics = world.GetExtension<IGraphicsContext>();
+
+// Load from strings
+string vertexSource = File.ReadAllText("shaders/custom.vert");
+string fragmentSource = File.ReadAllText("shaders/custom.frag");
+var shader = graphics.CreateShader(vertexSource, fragmentSource);
+
+// Use in material
+var material = new Material
+{
+    ShaderId = shader.Id,
+    TextureId = myTexture.Id,
+    Color = Vector4.One
+};
+
+// Clean up when done
+graphics.DeleteShader(shader);
+```
+
+### Built-in Shaders
+
+| Shader | Purpose | Key Uniforms |
+|--------|---------|--------------|
+| `LitShader` | PBR lighting | uModel, uView, uProjection, light uniforms |
+| `UnlitShader` | No lighting (2D, UI) | uModel, uView, uProjection, uTexture, uColor |
+| `SolidShader` | Solid color fill | uModel, uView, uProjection, uColor |
+
+### Common Shader Patterns
+
+**Tinting:**
+
+```glsl
+// Apply color tint to texture
+FragColor = texture(uTexture, vTexCoord) * uColor;
+```
+
+**Alpha Cutout (for sprites):**
+
+```glsl
+vec4 texColor = texture(uTexture, vTexCoord);
+if (texColor.a < 0.5)
+    discard;
+FragColor = texColor * uColor;
+```
+
+**Simple Gradient:**
+
+```glsl
+// Vertical gradient based on UV
+float gradient = vTexCoord.y;
+FragColor = mix(uColorTop, uColorBottom, gradient);
+```
+
 ## Systems
 
 The following systems should be added to your world:
@@ -320,6 +428,106 @@ world.AddSystem<RenderSystem>(SystemPhase.Render, order: 0);
 ```
 
 These systems are in `KeenEyes.Graphics` and work with any backend implementing `IGraphicsContext`.
+
+## 2D Rendering Patterns
+
+While KeenEyes graphics primarily targets 3D, 2D games can use orthographic cameras and specialized patterns.
+
+### Orthographic Camera Setup
+
+```csharp
+// Create an orthographic camera for 2D
+world.Spawn()
+    .With(new Transform3D(new Vector3(0, 0, 10), Quaternion.Identity, Vector3.One))
+    .With(Camera.CreateOrthographic(
+        size: 5f,            // Half-height (10 units total vertically)
+        aspectRatio: 16f/9f,
+        nearPlane: 0.1f,
+        farPlane: 100f))
+    .WithTag<MainCameraTag>()
+    .Build();
+```
+
+### Sprite Rendering with Quads
+
+```csharp
+var graphics = world.GetExtension<IGraphicsContext>();
+var quad = graphics.CreateQuad(1f, 1f);  // Unit quad
+
+// Create a sprite entity
+world.Spawn()
+    .With(new Transform3D(new Vector3(0, 0, 0), Quaternion.Identity, Vector3.One))
+    .With(new Renderable(quad.Id, layer: 0))
+    .With(new Material
+    {
+        ShaderId = graphics.UnlitShader.Id,  // No lighting for 2D
+        TextureId = myTexture.Id,
+        Color = Vector4.One
+    })
+    .Build();
+```
+
+### Layer-Based Rendering Order
+
+Use `Renderable.Layer` for draw order. Lower layers render first (background), higher layers render on top (foreground):
+
+```csharp
+// Background (layer 0)
+CreateSprite(backgroundTexture, layer: 0, z: 0);
+
+// Gameplay objects (layer 1)
+CreateSprite(playerTexture, layer: 1, z: 0);
+
+// Foreground decorations (layer 2)
+CreateSprite(foregroundTexture, layer: 2, z: 0);
+
+// UI (handled by UI system, renders on top)
+```
+
+### Pixel-Perfect Rendering
+
+For pixel-art games, calculate orthographic size from your virtual resolution:
+
+```csharp
+int gameHeight = 180;  // Virtual resolution height in pixels
+float orthoSize = gameHeight / 2f;  // Half-height for ortho camera
+
+world.Spawn()
+    .With(Transform3D.Identity)
+    .With(Camera.CreateOrthographic(
+        size: orthoSize,
+        aspectRatio: (float)windowWidth / windowHeight,
+        nearPlane: 0.1f,
+        farPlane: 100f))
+    .WithTag<MainCameraTag>()
+    .Build();
+```
+
+### Sprite Animation
+
+Animate sprites by updating texture source rectangles or swapping textures:
+
+```csharp
+public class SpriteAnimationSystem : ISystem
+{
+    public void Update(float dt)
+    {
+        foreach (var entity in world.Query<SpriteAnimation, Material>())
+        {
+            ref var anim = ref world.Get<SpriteAnimation>(entity);
+            ref var material = ref world.Get<Material>(entity);
+
+            anim.Timer += dt;
+            if (anim.Timer >= anim.FrameDuration)
+            {
+                anim.Timer = 0;
+                anim.CurrentFrame = (anim.CurrentFrame + 1) % anim.FrameCount;
+                material.TextureId = anim.Frames[anim.CurrentFrame];
+            }
+        }
+    }
+}
+```
 
 ## Complete Example
 
@@ -461,6 +669,112 @@ world.InstallPlugin(new SilkInputPlugin(inputConfig));
 ```
 
 See the [Input documentation](input.md#plugin-architecture) for more details.
+
+## Debugging & Troubleshooting
+
+### Common Issues
+
+#### Nothing Renders
+
+1. **Check camera exists**: Ensure an entity with `Camera` and `MainCameraTag` exists
+2. **Check clear color**: Use a bright clear color to verify camera is working
+3. **Check systems added**: Verify `CameraSystem` and `RenderSystem` are registered
+4. **Check loop provider**: Ensure `world.Update(dt)` is being called
+
+```csharp
+// Verify camera exists
+var cameras = world.Query<Camera>().ToList();
+Console.WriteLine($"Camera count: {cameras.Count}");
+```
+
+#### Objects Not Visible
+
+1. **Position**: Check `Transform3D.Position` is in front of camera
+2. **Scale**: Ensure scale is not zero
+3. **Material**: Verify `ShaderId` and `TextureId` are valid handles
+4. **Layer**: Check `Renderable.Layer` isn't being culled
+
+```csharp
+// Debug renderable entities
+foreach (var entity in world.Query<Renderable, Transform3D>())
+{
+    var transform = world.Get<Transform3D>(entity);
+    var renderable = world.Get<Renderable>(entity);
+    Console.WriteLine($"Entity at {transform.Position}, mesh: {renderable.MeshId}");
+}
+```
+
+#### Black Objects
+
+1. **Lighting**: Add a `Light` entity or use `UnlitShader`
+2. **Texture**: Verify texture loaded successfully (valid handle)
+3. **Color alpha**: Check `Material.Color.W` is not zero
+4. **Shader**: Use `UnlitShader` for 2D or debug
+
+```csharp
+// Quick fix: Add a directional light
+world.Spawn()
+    .With(new Transform3D(Vector3.Zero,
+        Quaternion.CreateFromYawPitchRoll(0.5f, -0.5f, 0), Vector3.One))
+    .With(Light.Directional(new Vector3(1, 1, 1), 1f))
+    .Build();
+```
+
+#### Performance Issues
+
+1. **Batching**: Group objects with the same material
+2. **Draw calls**: Minimize unique material combinations
+3. **Culling**: Enable backface culling for closed meshes
+4. **VSync**: Disable for uncapped framerate testing
+
+### Debug Visualization
+
+```csharp
+// Print rendering statistics
+var cameras = world.Query<Camera>().Count();
+var renderables = world.Query<Renderable>().Count();
+var lights = world.Query<Light>().Count();
+
+Console.WriteLine($"Cameras: {cameras}");
+Console.WriteLine($"Renderables: {renderables}");
+Console.WriteLine($"Lights: {lights}");
+```
+
+### Window Resize Handling
+
+Update camera aspect ratio when the window resizes:
+
+```csharp
+world.CreateRunner()
+    .OnResize((width, height) =>
+    {
+        float aspectRatio = (float)width / height;
+
+        foreach (var entity in world.Query<Camera>())
+        {
+            ref var camera = ref world.Get<Camera>(entity);
+            camera.AspectRatio = aspectRatio;
+        }
+    })
+    .Run();
+```
+
+### Checking Resource Validity
+
+```csharp
+var graphics = world.GetExtension<IGraphicsContext>();
+
+// Check if handles are valid (non-zero)
+if (meshHandle.Id == 0)
+    Console.WriteLine("Invalid mesh handle!");
+
+if (textureHandle.Id == 0)
+    Console.WriteLine("Invalid texture handle!");
+
+// Built-in resources are always valid
+var whiteTexture = graphics.WhiteTexture;  // Always valid
+var litShader = graphics.LitShader;        // Always valid
+```
 
 ## Dependencies
 

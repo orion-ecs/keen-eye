@@ -172,6 +172,11 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Calls.Add($"TexImage2D({target}, {level}, {width}x{height}, {format}, {data.Length} bytes)");
     }
 
+    public void TexSubImage2D(TextureTarget target, int level, int xOffset, int yOffset, int width, int height, PixelFormat format, ReadOnlySpan<byte> data)
+    {
+        Calls.Add($"TexSubImage2D({target}, {level}, {xOffset}, {yOffset}, {width}x{height}, {format}, {data.Length} bytes)");
+    }
+
     public void TexParameter(TextureTarget target, TextureParam param, int value)
     {
         Calls.Add($"TexParameter({target}, {param}, {value})");
@@ -191,6 +196,11 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     public void ActiveTexture(TextureUnit unit)
     {
         Calls.Add($"ActiveTexture({unit})");
+    }
+
+    public void PixelStore(PixelStoreParameter param, int value)
+    {
+        Calls.Add($"PixelStore({param}, {value})");
     }
 
     #endregion
@@ -389,6 +399,22 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     public void PointSize(float size)
     {
         Calls.Add($"PointSize({size})");
+    }
+
+    public int GetError()
+    {
+        Calls.Add("GetError()");
+        return 0; // No error in mock
+    }
+
+    public void GetTexImage(TextureTarget target, int level, PixelFormat format, Span<byte> data)
+    {
+        Calls.Add($"GetTexImage({target}, {level}, {format}, {data.Length} bytes)");
+        // Fill with test pattern in mock
+        for (int i = 0; i < data.Length && i < 4; i++)
+        {
+            data[i] = (byte)(255 - i * 50);
+        }
     }
 
     #endregion

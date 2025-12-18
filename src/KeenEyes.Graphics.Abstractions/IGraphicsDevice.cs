@@ -122,6 +122,19 @@ public interface IGraphicsDevice : IDisposable
     void TexParameter(TextureTarget target, TextureParam param, int value);
 
     /// <summary>
+    /// Updates a sub-region of a 2D texture.
+    /// </summary>
+    /// <param name="target">The texture target.</param>
+    /// <param name="level">The mipmap level.</param>
+    /// <param name="xOffset">The X offset within the texture.</param>
+    /// <param name="yOffset">The Y offset within the texture.</param>
+    /// <param name="width">The width of the region.</param>
+    /// <param name="height">The height of the region.</param>
+    /// <param name="format">The pixel format.</param>
+    /// <param name="data">The pixel data.</param>
+    void TexSubImage2D(TextureTarget target, int level, int xOffset, int yOffset, int width, int height, PixelFormat format, ReadOnlySpan<byte> data);
+
+    /// <summary>
     /// Generates mipmaps for the bound texture.
     /// </summary>
     /// <param name="target">The texture target.</param>
@@ -138,6 +151,13 @@ public interface IGraphicsDevice : IDisposable
     /// </summary>
     /// <param name="unit">The texture unit.</param>
     void ActiveTexture(TextureUnit unit);
+
+    /// <summary>
+    /// Sets pixel storage modes for texture uploads.
+    /// </summary>
+    /// <param name="param">The parameter to set.</param>
+    /// <param name="value">The parameter value.</param>
+    void PixelStore(PixelStoreParameter param, int value);
 
     #endregion
 
@@ -386,6 +406,29 @@ public interface IGraphicsDevice : IDisposable
     /// </summary>
     /// <param name="size">The point size in pixels.</param>
     void PointSize(float size);
+
+    #endregion
+
+    #region Error Handling
+
+    /// <summary>
+    /// Gets the current error code from the graphics device.
+    /// </summary>
+    /// <returns>The error code, or 0 if no error.</returns>
+    int GetError();
+
+    #endregion
+
+    #region Debug
+
+    /// <summary>
+    /// Reads texture data back from the GPU (for debugging).
+    /// </summary>
+    /// <param name="target">The texture target.</param>
+    /// <param name="level">The mipmap level.</param>
+    /// <param name="format">The pixel format.</param>
+    /// <param name="data">The buffer to receive the data.</param>
+    void GetTexImage(TextureTarget target, int level, PixelFormat format, Span<byte> data);
 
     #endregion
 }

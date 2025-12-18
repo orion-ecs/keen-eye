@@ -34,6 +34,7 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     private readonly List<(ComponentInfo Info, object Data)> components = [];
     private readonly List<string> stringTags = [];
     private string? name;
+    private Entity? parentEntity;
 
     internal EntityBuilder(World world)
     {
@@ -77,6 +78,38 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
         }
 
         components.Add((info, component));
+        return this;
+    }
+
+    /// <summary>
+    /// Sets the name of the entity being built.
+    /// </summary>
+    /// <param name="entityName">The name to assign to the entity. Can be null to clear the name.</param>
+    /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Entity names are useful for debugging, editor integration, and finding specific entities.
+    /// Names can be looked up using <see cref="World.GetName(Entity)"/>.
+    /// </para>
+    /// <para>
+    /// Names do not need to be unique within a world, but unique names make lookup by name more
+    /// predictable.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var player = world.Spawn()
+    ///     .WithName("Player")
+    ///     .With(new Position { X = 0, Y = 0 })
+    ///     .Build();
+    ///
+    /// // Later, find the entity by name
+    /// var found = world.FindEntity("Player");
+    /// </code>
+    /// </example>
+    public EntityBuilder WithName(string? entityName)
+    {
+        name = entityName;
         return this;
     }
 
@@ -175,6 +208,42 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     }
 
     /// <summary>
+    /// Sets the parent entity for the entity being built.
+    /// </summary>
+    /// <param name="parent">The parent entity. The parent-child relationship will be established after entity creation.</param>
+    /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// When the entity is built, <see cref="World.SetParent(Entity, Entity)"/> will be called
+    /// to establish the parent-child relationship. This enables hierarchical entity structures
+    /// useful for UI, scene graphs, and object ownership.
+    /// </para>
+    /// <para>
+    /// The parent entity must be alive when <see cref="Build()"/> is called, otherwise
+    /// the parent relationship will not be established.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var parent = world.Spawn()
+    ///     .WithName("Parent")
+    ///     .Build();
+    ///
+    /// var child = world.Spawn()
+    ///     .WithName("Child")
+    ///     .WithParent(parent)
+    ///     .Build();
+    ///
+    /// // The child is now parented to the parent entity
+    /// </code>
+    /// </example>
+    public EntityBuilder WithParent(Entity parent)
+    {
+        parentEntity = parent;
+        return this;
+    }
+
+    /// <summary>
     /// Builds the entity and adds it to the world.
     /// </summary>
     /// <returns>The created entity.</returns>
@@ -188,18 +257,26 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
             world.AddTag(entity, tag);
         }
 
+        // Establish parent-child relationship if parent was specified
+        if (parentEntity.HasValue && parentEntity.Value.IsValid)
+        {
+            world.SetParent(entity, parentEntity.Value);
+        }
+
         return entity;
     }
 
     // Explicit interface implementations for non-generic interface
     IEntityBuilder IEntityBuilder.With<T>(T component) => With(component);
     IEntityBuilder IEntityBuilder.WithTag<T>() => WithTag<T>();
+    IEntityBuilder IEntityBuilder.WithParent(Entity parent) => WithParent(parent);
 
     internal void Reset()
     {
         components.Clear();
         stringTags.Clear();
         name = null;
+        parentEntity = null;
     }
 
     internal void Reset(string? entityName)
@@ -207,5 +284,6 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
         components.Clear();
         stringTags.Clear();
         name = entityName;
+        parentEntity = null;
     }
 }
