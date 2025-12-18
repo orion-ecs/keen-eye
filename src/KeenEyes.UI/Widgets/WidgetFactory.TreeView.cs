@@ -77,6 +77,7 @@ public static partial class WidgetFactory
                 ShowLines = config.ShowLines,
                 AllowMultiSelect = config.AllowMultiSelect
             })
+            .WithTag<UIClipChildrenTag>()
             .Build();
 
         if (parent.IsValid)

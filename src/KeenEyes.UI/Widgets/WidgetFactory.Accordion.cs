@@ -51,6 +51,7 @@ public static partial class WidgetFactory
                 ContentContainer = Entity.Null,
                 SectionCount = 0
             })
+            .WithTag<UIClipChildrenTag>()
             .Build();
 
         world.SetParent(accordionEntity, parent);

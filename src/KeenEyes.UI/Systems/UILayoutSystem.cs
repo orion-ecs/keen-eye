@@ -26,6 +26,8 @@ namespace KeenEyes.UI;
 public sealed class UILayoutSystem : SystemBase
 {
     private World? concreteWorld;
+    private IFontManager? fontManager;
+    private bool fontManagerInitialized;
     private Vector2 screenSize = new(1280, 720); // Default, should be updated from window
 
     /// <summary>
@@ -44,6 +46,21 @@ public sealed class UILayoutSystem : SystemBase
         concreteWorld = World as World;
     }
 
+    private void TryInitializeFontManager()
+    {
+        if (fontManagerInitialized)
+        {
+            return;
+        }
+
+        fontManagerInitialized = true;
+
+        if (World.TryGetExtension<IFontManagerProvider>(out var provider) && provider is not null)
+        {
+            fontManager = provider.GetFontManager();
+        }
+    }
+
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
@@ -51,6 +68,9 @@ public sealed class UILayoutSystem : SystemBase
         {
             return;
         }
+
+        // Lazy initialize font manager
+        TryInitializeFontManager();
 
         // Process all root canvases
         foreach (var rootEntity in World.Query<UIElement, UIRect, UIRootTag>())
@@ -491,16 +511,25 @@ public sealed class UILayoutSystem : SystemBase
         var hasLayout = World.Has<UILayout>(entity);
         var layout = hasLayout ? World.Get<UILayout>(entity) : default;
 
-        // Get visible children
+        // Get visible children (exclude menus - they're positioned absolutely and shouldn't affect parent layout)
         var children = World.GetChildren(entity)
             .Where(c => World.Has<UIRect>(c) && World.Has<UIElement>(c))
             .Where(c => World.Get<UIElement>(c).Visible && !World.Has<UIHiddenTag>(c))
+            .Where(c => !World.Has<UIMenu>(c))
             .ToList();
 
         if (children.Count == 0)
         {
-            // No children - return minimum (padding only)
-            // Text measurement would go here if needed
+            // No children - measure text content if present
+            if (World.Has<UIText>(entity) && fontManager is not null)
+            {
+                ref readonly var text = ref World.Get<UIText>(entity);
+                if (!string.IsNullOrEmpty(text.Content) && text.Font.IsValid)
+                {
+                    var textWidth = fontManager.MeasureTextWidth(text.Font, text.Content);
+                    return textWidth + padding.HorizontalSize;
+                }
+            }
             return padding.HorizontalSize;
         }
 
@@ -546,15 +575,25 @@ public sealed class UILayoutSystem : SystemBase
         var hasLayout = World.Has<UILayout>(entity);
         var layout = hasLayout ? World.Get<UILayout>(entity) : default;
 
-        // Get visible children
+        // Get visible children (exclude menus - they're positioned absolutely and shouldn't affect parent layout)
         var children = World.GetChildren(entity)
             .Where(c => World.Has<UIRect>(c) && World.Has<UIElement>(c))
             .Where(c => World.Get<UIElement>(c).Visible && !World.Has<UIHiddenTag>(c))
+            .Where(c => !World.Has<UIMenu>(c))
             .ToList();
 
         if (children.Count == 0)
         {
-            // No children - return minimum (padding only)
+            // No children - measure text content if present
+            if (World.Has<UIText>(entity) && fontManager is not null)
+            {
+                ref readonly var text = ref World.Get<UIText>(entity);
+                if (!string.IsNullOrEmpty(text.Content) && text.Font.IsValid)
+                {
+                    var textSize = fontManager.MeasureText(text.Font, text.Content);
+                    return textSize.Y + padding.VerticalSize;
+                }
+            }
             return padding.VerticalSize;
         }
 

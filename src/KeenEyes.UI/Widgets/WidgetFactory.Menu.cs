@@ -152,7 +152,7 @@ public static partial class WidgetFactory
 
         var itemList = items.ToList();
 
-        // Create menu container
+        // Create menu container with high z-index to render on top
         var menu = world.Spawn()
             .With(new UIElement { Visible = false, RaycastTarget = true })
             .With(new UIRect
@@ -162,7 +162,8 @@ public static partial class WidgetFactory
                 Pivot = new Vector2(0, 0),
                 Size = new Vector2(config.MinWidth, 0),
                 WidthMode = config.MaxWidth > 0 ? UISizeMode.Fixed : UISizeMode.FitContent,
-                HeightMode = UISizeMode.FitContent
+                HeightMode = UISizeMode.FitContent,
+                LocalZIndex = 1000  // Menus render on top of other UI
             })
             .With(new UIStyle
             {
@@ -237,7 +238,8 @@ public static partial class WidgetFactory
                 Pivot = Vector2.Zero,
                 Size = new Vector2(config.MinWidth, 0),
                 WidthMode = config.MaxWidth > 0 ? UISizeMode.Fixed : UISizeMode.FitContent,
-                HeightMode = UISizeMode.FitContent
+                HeightMode = UISizeMode.FitContent,
+                LocalZIndex = 1000  // Context menus render on top of other UI
             })
             .With(new UIStyle
             {
