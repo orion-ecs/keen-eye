@@ -1308,3 +1308,106 @@ public sealed record StatusBarConfig(
 }
 
 #endregion
+
+#region Phase 7: TreeView
+
+/// <summary>
+/// Configuration for creating tree view widgets.
+/// </summary>
+/// <param name="Width">The tree view width (null for stretch).</param>
+/// <param name="Height">The tree view height (null for stretch).</param>
+/// <param name="IndentSize">Indentation per depth level in pixels.</param>
+/// <param name="RowHeight">Height of each tree node row.</param>
+/// <param name="ShowLines">Whether to show connecting lines between nodes.</param>
+/// <param name="AllowMultiSelect">Whether multiple nodes can be selected.</param>
+/// <param name="BackgroundColor">The tree view background color.</param>
+/// <param name="SelectedColor">Background color for selected nodes.</param>
+/// <param name="HoverColor">Background color for hovered nodes.</param>
+/// <param name="TextColor">Color for node labels.</param>
+/// <param name="LineColor">Color for connecting lines (if shown).</param>
+/// <param name="ExpandArrowColor">Color for expand/collapse arrows.</param>
+/// <param name="FontSize">Font size for node labels.</param>
+public sealed record TreeViewConfig(
+    float? Width = null,
+    float? Height = null,
+    float IndentSize = 20f,
+    float RowHeight = 24f,
+    bool ShowLines = false,
+    bool AllowMultiSelect = false,
+    Vector4? BackgroundColor = null,
+    Vector4? SelectedColor = null,
+    Vector4? HoverColor = null,
+    Vector4? TextColor = null,
+    Vector4? LineColor = null,
+    Vector4? ExpandArrowColor = null,
+    float FontSize = 13f)
+{
+    /// <summary>
+    /// The default tree view configuration.
+    /// </summary>
+    public static TreeViewConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default (transparent).
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? Vector4.Zero;
+
+    /// <summary>
+    /// Gets the selected color or default.
+    /// </summary>
+    internal Vector4 GetSelectedColor() =>
+        SelectedColor ?? new Vector4(0.3f, 0.5f, 0.7f, 1f);
+
+    /// <summary>
+    /// Gets the hover color or default.
+    /// </summary>
+    internal Vector4 GetHoverColor() =>
+        HoverColor ?? new Vector4(0.25f, 0.25f, 0.3f, 0.5f);
+
+    /// <summary>
+    /// Gets the text color or default.
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+    /// <summary>
+    /// Gets the line color or default.
+    /// </summary>
+    internal Vector4 GetLineColor() =>
+        LineColor ?? new Vector4(0.4f, 0.4f, 0.45f, 0.5f);
+
+    /// <summary>
+    /// Gets the expand arrow color or default.
+    /// </summary>
+    internal Vector4 GetExpandArrowColor() =>
+        ExpandArrowColor ?? new Vector4(0.7f, 0.7f, 0.7f, 1f);
+}
+
+/// <summary>
+/// Configuration for individual tree nodes.
+/// </summary>
+/// <param name="IsExpanded">Initial expanded state for nodes with children.</param>
+/// <param name="Icon">Optional icon to display next to the label.</param>
+/// <param name="IconSize">Size of the icon in pixels.</param>
+public sealed record TreeNodeConfig(
+    bool IsExpanded = false,
+    TextureHandle Icon = default,
+    float IconSize = 16f);
+
+/// <summary>
+/// Definition for creating a tree node.
+/// </summary>
+/// <param name="Label">The display label for the node.</param>
+/// <param name="Children">Optional child node definitions.</param>
+/// <param name="IsExpanded">Initial expanded state.</param>
+/// <param name="Icon">Optional icon for the node.</param>
+/// <param name="UserData">Optional user data associated with the node.</param>
+public sealed record TreeNodeDef(
+    string Label,
+    IEnumerable<TreeNodeDef>? Children = null,
+    bool IsExpanded = false,
+    TextureHandle Icon = default,
+    object? UserData = null);
+
+#endregion
