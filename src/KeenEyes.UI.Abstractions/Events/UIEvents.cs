@@ -244,3 +244,35 @@ public readonly record struct UIDockRequestEvent(Entity Panel, DockZone Zone, En
 /// <param name="Panel">The panel to float.</param>
 /// <param name="Position">The floating window position.</param>
 public readonly record struct UIFloatRequestEvent(Entity Panel, Vector2 Position);
+
+#region TreeView Events
+
+/// <summary>
+/// Event raised when a tree node is selected.
+/// </summary>
+/// <param name="Node">The selected tree node.</param>
+/// <param name="TreeView">The tree view containing the node.</param>
+public readonly record struct UITreeNodeSelectedEvent(Entity Node, Entity TreeView);
+
+/// <summary>
+/// Event raised when a tree node is expanded.
+/// </summary>
+/// <param name="Node">The expanded tree node.</param>
+/// <param name="TreeView">The tree view containing the node.</param>
+public readonly record struct UITreeNodeExpandedEvent(Entity Node, Entity TreeView);
+
+/// <summary>
+/// Event raised when a tree node is collapsed.
+/// </summary>
+/// <param name="Node">The collapsed tree node.</param>
+/// <param name="TreeView">The tree view containing the node.</param>
+public readonly record struct UITreeNodeCollapsedEvent(Entity Node, Entity TreeView);
+
+/// <summary>
+/// Event raised when a tree node is double-clicked (e.g., to open a file).
+/// </summary>
+/// <param name="Node">The double-clicked tree node.</param>
+/// <param name="TreeView">The tree view containing the node.</param>
+public readonly record struct UITreeNodeDoubleClickedEvent(Entity Node, Entity TreeView);
+
+#endregion

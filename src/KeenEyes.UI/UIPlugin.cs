@@ -79,6 +79,12 @@ namespace KeenEyes.UI;
 /// <term>Panel docking, tabs, drag-drop</term>
 /// </item>
 /// <item>
+/// <term>EarlyUpdate</term>
+/// <term>70</term>
+/// <term><see cref="UITreeViewSystem"/></term>
+/// <term>Tree view expand/collapse, selection, navigation</term>
+/// </item>
+/// <item>
 /// <term>LateUpdate</term>
 /// <term>-10</term>
 /// <term><see cref="UILayoutSystem"/></term>
@@ -169,6 +175,9 @@ public sealed class UIPlugin : IWorldPlugin
         // Dock system handles panel docking, tabs, and drag-drop
         context.AddSystem<UIDockSystem>(SystemPhase.EarlyUpdate, order: 60);
 
+        // Tree view system handles expand/collapse, selection, and navigation
+        context.AddSystem<UITreeViewSystem>(SystemPhase.EarlyUpdate, order: 70);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -246,6 +255,10 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIStatusBar>();
         context.RegisterComponent<UIStatusBarSection>();
 
+        // Tree view components
+        context.RegisterComponent<UITreeView>();
+        context.RegisterComponent<UITreeNode>();
+
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);
         context.RegisterComponent<UIDisabledTag>(isTag: true);
@@ -261,5 +274,7 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIDockPreviewTag>(isTag: true);
         context.RegisterComponent<UIDockDraggingTag>(isTag: true);
         context.RegisterComponent<UIToolbarButtonGroupTag>(isTag: true);
+        context.RegisterComponent<UITreeNodeDraggingTag>(isTag: true);
+        context.RegisterComponent<UITreeNodeExpandArrowTag>(isTag: true);
     }
 }
