@@ -174,6 +174,12 @@ using var world = new WorldBuilder()
 - [Plugins](plugins.md) - Modular extensions and feature packaging
 - [Logging](logging.md) - Pluggable logging system
 
+### UI Features
+- [UI System](ui.md) - Retained-mode UI with ECS entities
+- Widget Factory - Pre-built widgets (buttons, panels, sliders, etc.)
+- Anchor-based Layout - Responsive positioning system
+- Flexbox Containers - Automatic child arrangement
+
 ## Libraries
 
 - [Abstractions](abstractions.md) - Lightweight interfaces for plugin development
@@ -183,6 +189,8 @@ using var world = new WorldBuilder()
   - [Strategy Selection Guide](spatial-partitioning/strategy-selection.md)
   - [Performance Tuning](spatial-partitioning/performance-tuning.md)
 - [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
+- [Input](input.md) - Keyboard, mouse, and gamepad input handling
+- [UI](ui.md) - ECS-based retained-mode UI system
 
 ## Architecture Decisions
 

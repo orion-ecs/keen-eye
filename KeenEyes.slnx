@@ -21,8 +21,10 @@
     <Project Path="samples/KeenEyes.Sample.Relationships/KeenEyes.Sample.Relationships.csproj" />
     <Project Path="samples/KeenEyes.Sample.RenderingCulling/KeenEyes.Sample.RenderingCulling.csproj" />
     <Project Path="samples/KeenEyes.Sample.SaveLoad/KeenEyes.Sample.SaveLoad.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Showcase/KeenEyes.Sample.Showcase.csproj" />
     <Project Path="samples/KeenEyes.Sample.Simulation/KeenEyes.Sample.Simulation.csproj" />
     <Project Path="samples/KeenEyes.Sample.StringTags/KeenEyes.Sample.StringTags.csproj" />
+    <Project Path="samples/KeenEyes.Sample.UI/KeenEyes.Sample.UI.csproj" />
     <Project Path="samples/KeenEyes.Sample/KeenEyes.Sample.csproj" />
   </Folder>
   <Folder Name="/src/" />
@@ -51,6 +53,8 @@
     <Project Path="src/KeenEyes.Physics/KeenEyes.Physics.csproj" />
     <Project Path="src/KeenEyes.Spatial/KeenEyes.Spatial.csproj" />
     <Project Path="src/KeenEyes.Testing/KeenEyes.Testing.csproj" />
+    <Project Path="src/KeenEyes.UI.Abstractions/KeenEyes.UI.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.UI/KeenEyes.UI.csproj" />
   </Folder>
   <Folder Name="/templates/">
     <Project Path="templates/KeenEyes.Templates/KeenEyes.Templates.csproj" />
@@ -69,6 +73,7 @@
     <Project Path="tests/KeenEyes.Physics.Tests/KeenEyes.Physics.Tests.csproj" />
     <Project Path="tests/KeenEyes.Spatial.Tests/KeenEyes.Spatial.Tests.csproj" />
     <Project Path="tests/KeenEyes.Testing.Tests/KeenEyes.Testing.Tests.csproj" />
+    <Project Path="tests/KeenEyes.UI.Tests/KeenEyes.UI.Tests.csproj" />
   </Folder>
   <Folder Name="/tests/_/">
     <File Path="tests/Directory.Build.props" />

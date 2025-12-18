@@ -305,6 +305,43 @@ public interface IWorld : IDisposable
 
     #endregion
 
+    #region Hierarchy Operations
+
+    /// <summary>
+    /// Sets the parent of an entity, establishing a parent-child relationship.
+    /// </summary>
+    /// <param name="child">The entity to become a child.</param>
+    /// <param name="parent">The entity to become the parent. Use <see cref="Entity.Null"/> to remove the parent.</param>
+    /// <remarks>
+    /// <para>
+    /// If the child already has a parent, it is removed from the old parent's children
+    /// before being added to the new parent.
+    /// </para>
+    /// <para>
+    /// Circular relationships are detected and will throw <see cref="InvalidOperationException"/>.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the operation would create a circular relationship (parent is a descendant of child).
+    /// </exception>
+    void SetParent(Entity child, Entity parent);
+
+    /// <summary>
+    /// Gets the parent entity of the specified entity.
+    /// </summary>
+    /// <param name="entity">The entity to get the parent of.</param>
+    /// <returns>The parent entity, or <see cref="Entity.Null"/> if the entity has no parent.</returns>
+    Entity GetParent(Entity entity);
+
+    /// <summary>
+    /// Gets the immediate children of an entity.
+    /// </summary>
+    /// <param name="entity">The entity to get children of.</param>
+    /// <returns>An enumerable of child entities. Returns an empty enumerable if the entity has no children.</returns>
+    IEnumerable<Entity> GetChildren(Entity entity);
+
+    #endregion
+
     #region Extension Operations
 
     /// <summary>

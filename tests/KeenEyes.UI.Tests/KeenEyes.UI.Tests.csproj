@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.UI\KeenEyes.UI.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.UI.Abstractions\KeenEyes.UI.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -133,65 +133,83 @@ public enum TextureParam
 
 /// <summary>
 /// Texture minification filter modes.
+/// Values match OpenGL constants directly.
 /// </summary>
 public enum TextureMinFilter
 {
     /// <summary>
     /// Nearest neighbor filtering.
     /// </summary>
-    Nearest,
+    Nearest = 0x2600,
 
     /// <summary>
     /// Bilinear filtering.
     /// </summary>
-    Linear,
+    Linear = 0x2601,
+
+    /// <summary>
+    /// Nearest with nearest mipmap.
+    /// </summary>
+    NearestMipmapNearest = 0x2700,
+
+    /// <summary>
+    /// Linear with nearest mipmap.
+    /// </summary>
+    LinearMipmapNearest = 0x2701,
+
+    /// <summary>
+    /// Nearest with linear mipmap.
+    /// </summary>
+    NearestMipmapLinear = 0x2702,
 
     /// <summary>
     /// Trilinear filtering with mipmaps.
     /// </summary>
-    LinearMipmapLinear
+    LinearMipmapLinear = 0x2703
 }
 
 /// <summary>
 /// Texture magnification filter modes.
+/// Values match OpenGL constants directly.
 /// </summary>
 public enum TextureMagFilter
 {
     /// <summary>
     /// Nearest neighbor filtering.
     /// </summary>
-    Nearest,
+    Nearest = 0x2600,
 
     /// <summary>
     /// Bilinear filtering.
     /// </summary>
-    Linear
+    Linear = 0x2601
 }
 
 /// <summary>
 /// Texture wrapping modes.
+/// Values match OpenGL constants directly.
 /// </summary>
 public enum TextureWrapMode
 {
     /// <summary>
     /// Repeat the texture.
     /// </summary>
-    Repeat,
+    Repeat = 0x2901,
 
     /// <summary>
     /// Mirror the texture on each repeat.
     /// </summary>
-    MirroredRepeat,
+    MirroredRepeat = 0x8370,
 
     /// <summary>
     /// Clamp to edge color.
     /// </summary>
-    ClampToEdge,
+    ClampToEdge = 0x812F,
 
     /// <summary>
     /// Clamp to border color.
     /// </summary>
-    ClampToBorder
+    ClampToBorder = 0x812D
 }
 
 /// <summary>
@@ -440,4 +458,30 @@ public enum PixelFormat
 
     /// <summary>Red, green, blue, and alpha channels.</summary>
     RGBA
+}
+
+/// <summary>
+/// Pixel storage mode parameters for texture uploads.
+/// </summary>
+public enum PixelStoreParameter
+{
+    /// <summary>
+    /// Row length in pixels for unpacking. 0 means use the width from the texture call.
+    /// </summary>
+    UnpackRowLength,
+
+    /// <summary>
+    /// Number of rows to skip when unpacking.
+    /// </summary>
+    UnpackSkipRows,
+
+    /// <summary>
+    /// Number of pixels to skip at the start of each row when unpacking.
+    /// </summary>
+    UnpackSkipPixels,
+
+    /// <summary>
+    /// Byte alignment for unpacking rows (1, 2, 4, or 8).
+    /// </summary>
+    UnpackAlignment
 }

@@ -46,7 +46,7 @@ internal sealed class SilkWindow : IWindow
         // Create the GL context immediately.
         if (isAlreadyLoaded)
         {
-            gl = window.CreateOpenGL();
+            gl = GL.GetApi(window);
         }
     }
 
@@ -132,7 +132,7 @@ internal sealed class SilkWindow : IWindow
 
     private void HandleLoad()
     {
-        gl = window.CreateOpenGL();
+        gl = GL.GetApi(window);
         OnLoad?.Invoke();
     }
 

@@ -79,6 +79,15 @@ public sealed class SilkGraphicsPlugin(SilkGraphicsConfig config) : IWorldPlugin
         // Set extension as the interface type for backend-agnostic access
         context.SetExtension<IGraphicsContext>(graphicsContext);
 
+        // Register as I2DRendererProvider for UI systems
+        context.SetExtension<I2DRendererProvider>(graphicsContext);
+
+        // Register as ITextRendererProvider for text rendering in UI systems
+        context.SetExtension<ITextRendererProvider>(graphicsContext);
+
+        // Register as IFontManagerProvider for font loading in UI systems
+        context.SetExtension<IFontManagerProvider>(graphicsContext);
+
         // Also set as concrete type for advanced usage
         context.SetExtension(graphicsContext);
 
@@ -94,6 +103,9 @@ public sealed class SilkGraphicsPlugin(SilkGraphicsConfig config) : IWorldPlugin
         // Only remove extensions that this plugin registered
         // ISilkWindowProvider and ILoopProvider belong to SilkWindowPlugin
         context.RemoveExtension<IGraphicsContext>();
+        context.RemoveExtension<I2DRendererProvider>();
+        context.RemoveExtension<ITextRendererProvider>();
+        context.RemoveExtension<IFontManagerProvider>();
         context.RemoveExtension<SilkGraphicsContext>();
         graphicsContext?.Dispose();
         graphicsContext = null;

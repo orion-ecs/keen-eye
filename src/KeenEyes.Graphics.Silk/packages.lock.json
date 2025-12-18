@@ -2,6 +2,18 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
+      "FontStashSharp": {
+        "type": "Direct",
+        "requested": "[1.3.9, )",
+        "resolved": "1.3.9",
+        "contentHash": "wzk1Dm7zaGEEUjLWlKV70lxZCS5vMTV+rxIfjjk8ILIaHQRmnVuBcvP8n0DeuRHaLMdETMWsdJLLnNK3km/9Rg==",
+        "dependencies": {
+          "Cyotek.Drawing.BitmapFont": "2.0.4",
+          "FontStashSharp.Base": "1.1.9",
+          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.1.9",
+          "StbImageSharp": "2.30.15"
+        }
+      },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
         "requested": "[10.0.1, )",
@@ -22,6 +34,25 @@
         "dependencies": {
           "Silk.NET.Core": "2.22.0",
           "Silk.NET.Maths": "2.22.0"
+        }
+      },
+      "Cyotek.Drawing.BitmapFont": {
+        "type": "Transitive",
+        "resolved": "2.0.4",
+        "contentHash": "iA6WehGVdMUuNbfsQQDq/Bt+mMd/OqHjiMUtKFLIQd/0pyYh4ehT7FEjTxN9/4OXNKQZsp9bAJgltP2nnswUJg=="
+      },
+      "FontStashSharp.Base": {
+        "type": "Transitive",
+        "resolved": "1.1.9",
+        "contentHash": "/AjkOcPNijs8vyNgcCj3FfBJbVWmsSH744hqkhLfBt8qspDz/tEoD+U09my5u9eRBX6zX+RLQ/gdCvwy+ZBOtg=="
+      },
+      "FontStashSharp.Rasterizers.StbTrueTypeSharp": {
+        "type": "Transitive",
+        "resolved": "1.1.9",
+        "contentHash": "yi5iuTERem46uyHC5p+jRi3Jh8dKWzgNWLqcvHciGlyVHD1cWFdERgnxshZU4xWB2hRGnogxaCudCirbMpg4eQ==",
+        "dependencies": {
+          "FontStashSharp.Base": "1.1.9",
+          "StbTrueTypeSharp": "1.26.12"
         }
       },
       "Microsoft.DotNet.PlatformAbstractions": {
@@ -86,6 +117,16 @@
           "Silk.NET.GLFW": "2.22.0",
           "Silk.NET.Windowing.Common": "2.22.0"
         }
+      },
+      "StbImageSharp": {
+        "type": "Transitive",
+        "resolved": "2.30.15",
+        "contentHash": "7QqbupVhz2kcFUPTgMw4iHR9rYDHGundzzee19Mwmd1typ2Lnv8EVJcLJxlkeBM2+4ex0NwsMtdbGSJctp1XCQ=="
+      },
+      "StbTrueTypeSharp": {
+        "type": "Transitive",
+        "resolved": "1.26.12",
+        "contentHash": "hCc6/OsfcPa5VsLECcEU2m78WOshBrKwK42nAodSm9Z5wH68f7n66SoiRLCdGCkDaqbWz2TlX4zYHIjogj1HJA=="
       },
       "Ultz.Native.GLFW": {
         "type": "Transitive",

@@ -76,6 +76,21 @@ public sealed class EntityCommands : IEntityBuilder<EntityCommands>
     }
 
     /// <summary>
+    /// Sets the parent entity for the entity being built.
+    /// </summary>
+    /// <param name="parent">The parent entity. Must be alive when CommandBuffer.Flush() is called.</param>
+    /// <returns>This builder for chaining.</returns>
+    /// <remarks>
+    /// The parent-child relationship will be established when the command buffer is flushed.
+    /// The parent entity must exist and be alive at that time.
+    /// </remarks>
+    public EntityCommands WithParent(Entity parent)
+    {
+        ComponentAdders.Add(builder => builder.WithParent(parent));
+        return this;
+    }
+
+    /// <summary>
     /// Not supported on EntityCommands. Use CommandBuffer.Flush() instead.
     /// </summary>
     /// <exception cref="NotSupportedException">Always thrown - entities are created during Flush().</exception>
@@ -89,4 +104,5 @@ public sealed class EntityCommands : IEntityBuilder<EntityCommands>
     // Explicit interface implementations for non-generic interface
     IEntityBuilder IEntityBuilder.With<T>(T component) => With(component);
     IEntityBuilder IEntityBuilder.WithTag<T>() => WithTag<T>();
+    IEntityBuilder IEntityBuilder.WithParent(Entity parent) => WithParent(parent);
 }

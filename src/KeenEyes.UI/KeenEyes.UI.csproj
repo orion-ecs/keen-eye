@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.UI</PackageId>
+    <Description>ECS-based UI systems for KeenEyes</Description>
+    <PackageTags>ecs;ui;layout;rendering;systems</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.UI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.UI.Abstractions\KeenEyes.UI.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+</Project>
