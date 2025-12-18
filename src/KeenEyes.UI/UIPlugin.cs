@@ -43,6 +43,42 @@ namespace KeenEyes.UI;
 /// <term>Tab view switching on click</term>
 /// </item>
 /// <item>
+/// <term>EarlyUpdate</term>
+/// <term>30</term>
+/// <term><see cref="UIWindowSystem"/></term>
+/// <term>Window dragging, closing, z-order</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
+/// <term>40</term>
+/// <term><see cref="UISplitterSystem"/></term>
+/// <term>Splitter pane resizing</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
+/// <term>45</term>
+/// <term><see cref="UITooltipSystem"/></term>
+/// <term>Tooltips and popovers</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
+/// <term>50</term>
+/// <term><see cref="UIMenuSystem"/></term>
+/// <term>Menu bars, dropdowns, context menus</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
+/// <term>55</term>
+/// <term><see cref="UIRadialMenuSystem"/></term>
+/// <term>Radial pie menus for gamepad</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
+/// <term>60</term>
+/// <term><see cref="UIDockSystem"/></term>
+/// <term>Panel docking, tabs, drag-drop</term>
+/// </item>
+/// <item>
 /// <term>LateUpdate</term>
 /// <term>-10</term>
 /// <term><see cref="UILayoutSystem"/></term>
@@ -115,6 +151,24 @@ public sealed class UIPlugin : IWorldPlugin
         // Tab system handles tab switching after input and focus
         context.AddSystem<UITabSystem>(SystemPhase.EarlyUpdate, order: 20);
 
+        // Window system handles window dragging, closing, and z-order
+        context.AddSystem<UIWindowSystem>(SystemPhase.EarlyUpdate, order: 30);
+
+        // Splitter system handles splitter drag operations
+        context.AddSystem<UISplitterSystem>(SystemPhase.EarlyUpdate, order: 40);
+
+        // Tooltip system handles tooltip display and popover behavior
+        context.AddSystem<UITooltipSystem>(SystemPhase.EarlyUpdate, order: 45);
+
+        // Menu system handles menu bars, dropdowns, and context menus
+        context.AddSystem<UIMenuSystem>(SystemPhase.EarlyUpdate, order: 50);
+
+        // Radial menu system handles pie menus for gamepad navigation
+        context.AddSystem<UIRadialMenuSystem>(SystemPhase.EarlyUpdate, order: 55);
+
+        // Dock system handles panel docking, tabs, and drag-drop
+        context.AddSystem<UIDockSystem>(SystemPhase.EarlyUpdate, order: 60);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -149,6 +203,42 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UITabPanel>();
         context.RegisterComponent<UITabViewState>();
 
+        // Window components
+        context.RegisterComponent<UIWindow>();
+        context.RegisterComponent<UIWindowTitleBar>();
+        context.RegisterComponent<UIWindowCloseButton>();
+        context.RegisterComponent<UIWindowResizeHandle>();
+
+        // Splitter components
+        context.RegisterComponent<UISplitter>();
+        context.RegisterComponent<UISplitterHandle>();
+        context.RegisterComponent<UISplitterFirstPane>();
+        context.RegisterComponent<UISplitterSecondPane>();
+
+        // Tooltip components
+        context.RegisterComponent<UITooltip>();
+        context.RegisterComponent<UIPopover>();
+        context.RegisterComponent<UITooltipHoverState>();
+
+        // Menu components
+        context.RegisterComponent<UIMenuBar>();
+        context.RegisterComponent<UIMenu>();
+        context.RegisterComponent<UIMenuItem>();
+        context.RegisterComponent<UIMenuShortcut>();
+        context.RegisterComponent<UIMenuBarItem>();
+
+        // Radial menu components
+        context.RegisterComponent<UIRadialMenu>();
+        context.RegisterComponent<UIRadialSlice>();
+        context.RegisterComponent<UIRadialMenuInputState>();
+
+        // Dock components
+        context.RegisterComponent<UIDockContainer>();
+        context.RegisterComponent<UIDockZone>();
+        context.RegisterComponent<UIDockPanel>();
+        context.RegisterComponent<UIDockTabGroup>();
+        context.RegisterComponent<UIDockTab>();
+
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);
         context.RegisterComponent<UIDisabledTag>(isTag: true);
@@ -156,5 +246,12 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIFocusedTag>(isTag: true);
         context.RegisterComponent<UILayoutDirtyTag>(isTag: true);
         context.RegisterComponent<UIClipChildrenTag>(isTag: true);
+        context.RegisterComponent<UITooltipVisibleTag>(isTag: true);
+        context.RegisterComponent<UIMenuToggleTag>(isTag: true);
+        context.RegisterComponent<UIMenuSubmenuTag>(isTag: true);
+        context.RegisterComponent<UIRadialMenuOpenTag>(isTag: true);
+        context.RegisterComponent<UIRadialSliceSelectedTag>(isTag: true);
+        context.RegisterComponent<UIDockPreviewTag>(isTag: true);
+        context.RegisterComponent<UIDockDraggingTag>(isTag: true);
     }
 }
