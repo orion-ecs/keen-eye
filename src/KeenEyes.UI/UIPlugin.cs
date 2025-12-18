@@ -85,6 +85,12 @@ namespace KeenEyes.UI;
 /// <term>Tree view expand/collapse, selection, navigation</term>
 /// </item>
 /// <item>
+/// <term>EarlyUpdate</term>
+/// <term>75</term>
+/// <term><see cref="UIPropertyGridSystem"/></term>
+/// <term>Property grid category expand/collapse</term>
+/// </item>
+/// <item>
 /// <term>LateUpdate</term>
 /// <term>-10</term>
 /// <term><see cref="UILayoutSystem"/></term>
@@ -178,6 +184,9 @@ public sealed class UIPlugin : IWorldPlugin
         // Tree view system handles expand/collapse, selection, and navigation
         context.AddSystem<UITreeViewSystem>(SystemPhase.EarlyUpdate, order: 70);
 
+        // Property grid system handles category expand/collapse
+        context.AddSystem<UIPropertyGridSystem>(SystemPhase.EarlyUpdate, order: 75);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -259,6 +268,11 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UITreeView>();
         context.RegisterComponent<UITreeNode>();
 
+        // Property grid components
+        context.RegisterComponent<UIPropertyGrid>();
+        context.RegisterComponent<UIPropertyCategory>();
+        context.RegisterComponent<UIPropertyRow>();
+
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);
         context.RegisterComponent<UIDisabledTag>(isTag: true);
@@ -276,5 +290,7 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIToolbarButtonGroupTag>(isTag: true);
         context.RegisterComponent<UITreeNodeDraggingTag>(isTag: true);
         context.RegisterComponent<UITreeNodeExpandArrowTag>(isTag: true);
+        context.RegisterComponent<UIPropertyCategoryHeaderTag>(isTag: true);
+        context.RegisterComponent<UIPropertyCategoryArrowTag>(isTag: true);
     }
 }

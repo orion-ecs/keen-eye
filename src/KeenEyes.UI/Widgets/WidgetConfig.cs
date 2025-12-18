@@ -1411,3 +1411,116 @@ public sealed record TreeNodeDef(
     object? UserData = null);
 
 #endregion
+
+#region Phase 8: PropertyGrid
+
+/// <summary>
+/// Configuration for creating property grid widgets.
+/// </summary>
+/// <param name="Width">The property grid width (null for stretch).</param>
+/// <param name="Height">The property grid height (null for stretch).</param>
+/// <param name="LabelWidthRatio">Ratio of width for property labels (0.0-1.0).</param>
+/// <param name="RowHeight">Height of each property row.</param>
+/// <param name="CategoryHeight">Height of category headers.</param>
+/// <param name="ShowCategories">Whether to group properties into collapsible categories.</param>
+/// <param name="BackgroundColor">The property grid background color.</param>
+/// <param name="RowAlternateColor">Alternate row background color for striping.</param>
+/// <param name="CategoryColor">Category header background color.</param>
+/// <param name="LabelColor">Color for property labels.</param>
+/// <param name="ValueColor">Color for property values.</param>
+/// <param name="SeparatorColor">Color of separator lines.</param>
+/// <param name="FontSize">Font size for labels and values.</param>
+/// <param name="CategoryFontSize">Font size for category headers.</param>
+public sealed record PropertyGridConfig(
+    float? Width = null,
+    float? Height = null,
+    float LabelWidthRatio = 0.4f,
+    float RowHeight = 24f,
+    float CategoryHeight = 28f,
+    bool ShowCategories = true,
+    Vector4? BackgroundColor = null,
+    Vector4? RowAlternateColor = null,
+    Vector4? CategoryColor = null,
+    Vector4? LabelColor = null,
+    Vector4? ValueColor = null,
+    Vector4? SeparatorColor = null,
+    float FontSize = 13f,
+    float CategoryFontSize = 13f)
+{
+    /// <summary>
+    /// The default property grid configuration.
+    /// </summary>
+    public static PropertyGridConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default (transparent).
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? Vector4.Zero;
+
+    /// <summary>
+    /// Gets the row alternate color or default.
+    /// </summary>
+    internal Vector4 GetRowAlternateColor() =>
+        RowAlternateColor ?? new Vector4(0.15f, 0.15f, 0.18f, 0.3f);
+
+    /// <summary>
+    /// Gets the category color or default.
+    /// </summary>
+    internal Vector4 GetCategoryColor() =>
+        CategoryColor ?? new Vector4(0.2f, 0.2f, 0.24f, 1f);
+
+    /// <summary>
+    /// Gets the label color or default.
+    /// </summary>
+    internal Vector4 GetLabelColor() =>
+        LabelColor ?? new Vector4(0.7f, 0.7f, 0.7f, 1f);
+
+    /// <summary>
+    /// Gets the value color or default.
+    /// </summary>
+    internal Vector4 GetValueColor() =>
+        ValueColor ?? new Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+    /// <summary>
+    /// Gets the separator color or default.
+    /// </summary>
+    internal Vector4 GetSeparatorColor() =>
+        SeparatorColor ?? new Vector4(0.3f, 0.3f, 0.35f, 0.5f);
+}
+
+/// <summary>
+/// Definition for a property in a property grid.
+/// </summary>
+/// <param name="Name">The unique property identifier.</param>
+/// <param name="Label">The display label (defaults to Name if null).</param>
+/// <param name="Type">The type of property editor to use.</param>
+/// <param name="Category">Optional category name for grouping.</param>
+/// <param name="InitialValue">The initial value for the property.</param>
+/// <param name="IsReadOnly">Whether the property is read-only.</param>
+/// <param name="EnumValues">For Enum type, the available string values.</param>
+/// <param name="MinValue">For numeric types, the minimum value.</param>
+/// <param name="MaxValue">For numeric types, the maximum value.</param>
+public sealed record PropertyDef(
+    string Name,
+    string? Label = null,
+    PropertyType Type = PropertyType.String,
+    string? Category = null,
+    object? InitialValue = null,
+    bool IsReadOnly = false,
+    IEnumerable<string>? EnumValues = null,
+    float? MinValue = null,
+    float? MaxValue = null);
+
+/// <summary>
+/// Definition for a property category in a property grid.
+/// </summary>
+/// <param name="Name">The category display name.</param>
+/// <param name="IsExpanded">Initial expanded state.</param>
+/// <param name="Properties">Properties in this category.</param>
+public sealed record PropertyCategoryDef(
+    string Name,
+    bool IsExpanded = true,
+    IEnumerable<PropertyDef>? Properties = null);
+
+#endregion
