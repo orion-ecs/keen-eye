@@ -1,0 +1,72 @@
+<Project>
+  <!--
+    KeenEyes Plugin SDK - Targets
+
+    Plugins get Abstractions (not Core) and Generators.
+    Optionally includes Common for standard components.
+  -->
+
+  <!-- Import the base .NET SDK targets -->
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <!--
+    Automatic Package References for Plugins
+
+    Plugins get Abstractions by default, not Core.
+    Set IncludeKeenEyesCommon=true to include common components.
+  -->
+  <PropertyGroup>
+    <IncludeKeenEyesAbstractions Condition="'$(IncludeKeenEyesAbstractions)' == ''">true</IncludeKeenEyesAbstractions>
+    <IncludeKeenEyesCommon Condition="'$(IncludeKeenEyesCommon)' == ''">false</IncludeKeenEyesCommon>
+    <IncludeKeenEyesGenerators Condition="'$(IncludeKeenEyesGenerators)' == ''">true</IncludeKeenEyesGenerators>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IncludeKeenEyesAbstractions)' == 'true'">
+    <PackageReference Include="KeenEyes.Abstractions" Version="$(KeenEyesCoreVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IncludeKeenEyesCommon)' == 'true'">
+    <PackageReference Include="KeenEyes.Common" Version="$(KeenEyesCoreVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IncludeKeenEyesGenerators)' == 'true'">
+    <PackageReference Include="KeenEyes.Generators"
+                      Version="$(KeenEyesCoreVersion)"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Version Compatibility Check Target -->
+  <Target Name="KeenEyesVersionCheck" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <_KeenEyesVersionInfoFile>$(IntermediateOutputPath)keeneyes.version.json</_KeenEyesVersionInfoFile>
+    </PropertyGroup>
+
+    <WriteLinesToFile
+      File="$(_KeenEyesVersionInfoFile)"
+      Lines='{&#xD;&#xA;  "sdkVersion": "$(KeenEyesSdkVersion)",&#xD;&#xA;  "coreVersion": "$(KeenEyesCoreVersion)",&#xD;&#xA;  "minimumCoreVersion": "$(KeenEyesMinimumCoreVersion)",&#xD;&#xA;  "projectType": "$(KeenEyesProjectType)",&#xD;&#xA;  "features": "$(KeenEyesFeatures)",&#xD;&#xA;  "targetFramework": "$(TargetFramework)"&#xD;&#xA;}'
+      Overwrite="true"
+      Condition="'$(IsKeenEyesProject)' == 'true'" />
+  </Target>
+
+  <!-- Plugin Project Info Target -->
+  <Target Name="GenerateKeenEyesProjectInfo"
+          AfterTargets="Build"
+          Condition="'$(IsKeenEyesProject)' == 'true'">
+    <PropertyGroup>
+      <_KeenEyesProjectInfoFile>$(OutputPath)keeneyes.project.json</_KeenEyesProjectInfoFile>
+    </PropertyGroup>
+
+    <WriteLinesToFile
+      File="$(_KeenEyesProjectInfoFile)"
+      Lines='{&#xD;&#xA;  "projectName": "$(MSBuildProjectName)",&#xD;&#xA;  "projectType": "$(KeenEyesProjectType)",&#xD;&#xA;  "sdkVersion": "$(KeenEyesSdkVersion)",&#xD;&#xA;  "coreVersion": "$(KeenEyesCoreVersion)",&#xD;&#xA;  "targetFramework": "$(TargetFramework)",&#xD;&#xA;  "outputType": "$(OutputType)",&#xD;&#xA;  "isAotCompatible": $(IsAotCompatible)&#xD;&#xA;}'
+      Overwrite="true" />
+  </Target>
+
+  <!-- Clean Target Extension -->
+  <Target Name="CleanKeenEyesFiles" AfterTargets="Clean">
+    <Delete Files="$(IntermediateOutputPath)keeneyes.version.json" ContinueOnError="true" />
+    <Delete Files="$(OutputPath)keeneyes.project.json" ContinueOnError="true" />
+  </Target>
+
+</Project>

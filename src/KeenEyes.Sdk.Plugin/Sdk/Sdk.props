@@ -1,0 +1,62 @@
+<Project>
+  <!--
+    KeenEyes Plugin SDK - Core Properties
+
+    For developing plugins that extend KeenEyes without depending on Core.
+    Plugins reference Abstractions and optionally Common.
+  -->
+
+  <!-- Import the base .NET SDK props first -->
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <!-- KeenEyes SDK Versioning -->
+  <PropertyGroup>
+    <KeenEyesSdkVersion>0.1.0</KeenEyesSdkVersion>
+    <KeenEyesCoreVersion>0.1.0</KeenEyesCoreVersion>
+    <KeenEyesMinimumCoreVersion>0.1.0</KeenEyesMinimumCoreVersion>
+  </PropertyGroup>
+
+  <!-- Default Framework and Language Settings -->
+  <PropertyGroup>
+    <TargetFramework Condition="'$(TargetFramework)' == ''">net10.0</TargetFramework>
+    <LangVersion Condition="'$(LangVersion)' == ''">preview</LangVersion>
+    <Nullable Condition="'$(Nullable)' == ''">enable</Nullable>
+    <ImplicitUsings Condition="'$(ImplicitUsings)' == ''">enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Plugins are libraries by default -->
+  <PropertyGroup>
+    <OutputType Condition="'$(OutputType)' == ''">Library</OutputType>
+  </PropertyGroup>
+
+  <!-- AOT Compatibility (plugins should be AOT-ready) -->
+  <PropertyGroup>
+    <IsAotCompatible Condition="'$(IsAotCompatible)' == ''">true</IsAotCompatible>
+  </PropertyGroup>
+
+  <!-- Code Quality Defaults -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors Condition="'$(TreatWarningsAsErrors)' == ''">true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers Condition="'$(EnableNETAnalyzers)' == ''">true</EnableNETAnalyzers>
+    <AnalysisLevel Condition="'$(AnalysisLevel)' == ''">latest</AnalysisLevel>
+  </PropertyGroup>
+
+  <!-- KeenEyes Project Type Detection -->
+  <PropertyGroup>
+    <IsKeenEyesProject>true</IsKeenEyesProject>
+    <KeenEyesProjectType>Plugin</KeenEyesProjectType>
+  </PropertyGroup>
+
+  <!-- Feature Flags -->
+  <PropertyGroup>
+    <KeenEyesFeatures>ECS;SourceGenerators;AOT;Plugin</KeenEyesFeatures>
+  </PropertyGroup>
+
+  <!-- Plugin-specific ItemGroup Definitions -->
+  <ItemDefinitionGroup>
+    <KeenEyesPluginManifest>
+      <Visible>true</Visible>
+    </KeenEyesPluginManifest>
+  </ItemDefinitionGroup>
+
+</Project>

@@ -1,0 +1,125 @@
+<Project>
+  <!--
+    KeenEyes SDK - Targets
+
+    This file is imported at the very END of project evaluation,
+    after Microsoft.NET.Sdk.targets. It adds package references
+    and custom build targets.
+  -->
+
+  <!-- Import the base .NET SDK targets -->
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <!--
+    Automatic Package References
+
+    These packages are automatically included for all KeenEyes Game projects.
+    Set IncludeKeenEyesCore=false or IncludeKeenEyesGenerators=false to opt out.
+  -->
+  <PropertyGroup>
+    <IncludeKeenEyesCore Condition="'$(IncludeKeenEyesCore)' == ''">true</IncludeKeenEyesCore>
+    <IncludeKeenEyesGenerators Condition="'$(IncludeKeenEyesGenerators)' == ''">true</IncludeKeenEyesGenerators>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IncludeKeenEyesCore)' == 'true'">
+    <PackageReference Include="KeenEyes.Core" Version="$(KeenEyesCoreVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IncludeKeenEyesGenerators)' == 'true'">
+    <PackageReference Include="KeenEyes.Generators"
+                      Version="$(KeenEyesCoreVersion)"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!--
+    Version Compatibility Check Target
+
+    Runs during build to ensure SDK and Core versions are compatible.
+    This helps the editor provide upgrade guidance.
+  -->
+  <Target Name="KeenEyesVersionCheck" BeforeTargets="BeforeBuild">
+    <PropertyGroup>
+      <_KeenEyesVersionInfoFile>$(IntermediateOutputPath)keeneyes.version.json</_KeenEyesVersionInfoFile>
+    </PropertyGroup>
+
+    <!-- Generate version info file for editor consumption -->
+    <WriteLinesToFile
+      File="$(_KeenEyesVersionInfoFile)"
+      Lines='{&#xD;&#xA;  "sdkVersion": "$(KeenEyesSdkVersion)",&#xD;&#xA;  "coreVersion": "$(KeenEyesCoreVersion)",&#xD;&#xA;  "minimumCoreVersion": "$(KeenEyesMinimumCoreVersion)",&#xD;&#xA;  "projectType": "$(KeenEyesProjectType)",&#xD;&#xA;  "features": "$(KeenEyesFeatures)",&#xD;&#xA;  "targetFramework": "$(TargetFramework)"&#xD;&#xA;}'
+      Overwrite="true"
+      Condition="'$(IsKeenEyesProject)' == 'true'" />
+  </Target>
+
+  <!--
+    Asset Processing Targets
+
+    These targets process KeenEyes-specific item types during build.
+    The actual processing logic will be implemented by the editor or
+    additional tooling packages.
+  -->
+
+  <!-- Collect all KeenEyes scenes for processing -->
+  <Target Name="CollectKeenEyesScenes" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <_KeenEyesSceneFiles Include="@(KeenEyesScene)" />
+    </ItemGroup>
+
+    <Message Condition="'@(_KeenEyesSceneFiles)' != ''"
+             Text="KeenEyes: Found %(RecursiveDir)%(Filename)%(Extension) scene(s)"
+             Importance="low" />
+  </Target>
+
+  <!-- Collect all KeenEyes prefabs for processing -->
+  <Target Name="CollectKeenEyesPrefabs" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <_KeenEyesPrefabFiles Include="@(KeenEyesPrefab)" />
+    </ItemGroup>
+
+    <Message Condition="'@(_KeenEyesPrefabFiles)' != ''"
+             Text="KeenEyes: Found %(RecursiveDir)%(Filename)%(Extension) prefab(s)"
+             Importance="low" />
+  </Target>
+
+  <!-- Copy KeenEyes assets to output directory -->
+  <Target Name="CopyKeenEyesAssets"
+          AfterTargets="Build"
+          Condition="'@(KeenEyesAsset)' != ''">
+    <Copy SourceFiles="@(KeenEyesAsset)"
+          DestinationFolder="$(OutputPath)Assets/%(RecursiveDir)"
+          SkipUnchangedFiles="true" />
+
+    <Message Text="KeenEyes: Copied @(KeenEyesAsset->Count()) asset(s) to output"
+             Importance="normal" />
+  </Target>
+
+  <!--
+    Project Info Target
+
+    Generates project metadata that the editor can read to understand
+    project configuration without fully loading the project.
+  -->
+  <Target Name="GenerateKeenEyesProjectInfo"
+          AfterTargets="Build"
+          Condition="'$(IsKeenEyesProject)' == 'true'">
+    <PropertyGroup>
+      <_KeenEyesProjectInfoFile>$(OutputPath)keeneyes.project.json</_KeenEyesProjectInfoFile>
+    </PropertyGroup>
+
+    <WriteLinesToFile
+      File="$(_KeenEyesProjectInfoFile)"
+      Lines='{&#xD;&#xA;  "projectName": "$(MSBuildProjectName)",&#xD;&#xA;  "projectType": "$(KeenEyesProjectType)",&#xD;&#xA;  "sdkVersion": "$(KeenEyesSdkVersion)",&#xD;&#xA;  "coreVersion": "$(KeenEyesCoreVersion)",&#xD;&#xA;  "targetFramework": "$(TargetFramework)",&#xD;&#xA;  "outputType": "$(OutputType)",&#xD;&#xA;  "isAotCompatible": $(IsAotCompatible),&#xD;&#xA;  "features": [$(KeenEyesFeatures.Replace(';', '", "').Insert(0, '"').Insert($([MSBuild]::Add($(KeenEyesFeatures.Length), 1)), '"'))]&#xD;&#xA;}'
+      Overwrite="true" />
+  </Target>
+
+  <!--
+    Clean Target Extension
+
+    Clean up KeenEyes-generated files during clean.
+  -->
+  <Target Name="CleanKeenEyesFiles" AfterTargets="Clean">
+    <Delete Files="$(IntermediateOutputPath)keeneyes.version.json" ContinueOnError="true" />
+    <Delete Files="$(OutputPath)keeneyes.project.json" ContinueOnError="true" />
+  </Target>
+
+</Project>
