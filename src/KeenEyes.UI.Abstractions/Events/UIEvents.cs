@@ -276,3 +276,36 @@ public readonly record struct UITreeNodeCollapsedEvent(Entity Node, Entity TreeV
 public readonly record struct UITreeNodeDoubleClickedEvent(Entity Node, Entity TreeView);
 
 #endregion
+
+#region PropertyGrid Events
+
+/// <summary>
+/// Event raised when a property value changes in a property grid.
+/// </summary>
+/// <param name="PropertyGrid">The property grid entity.</param>
+/// <param name="Row">The property row that changed.</param>
+/// <param name="PropertyName">The name of the property.</param>
+/// <param name="OldValue">The previous value (type depends on property type).</param>
+/// <param name="NewValue">The new value (type depends on property type).</param>
+public readonly record struct UIPropertyChangedEvent(
+    Entity PropertyGrid,
+    Entity Row,
+    string PropertyName,
+    object? OldValue,
+    object? NewValue);
+
+/// <summary>
+/// Event raised when a property category is expanded.
+/// </summary>
+/// <param name="PropertyGrid">The property grid entity.</param>
+/// <param name="Category">The category that was expanded.</param>
+public readonly record struct UIPropertyCategoryExpandedEvent(Entity PropertyGrid, Entity Category);
+
+/// <summary>
+/// Event raised when a property category is collapsed.
+/// </summary>
+/// <param name="PropertyGrid">The property grid entity.</param>
+/// <param name="Category">The category that was collapsed.</param>
+public readonly record struct UIPropertyCategoryCollapsedEvent(Entity PropertyGrid, Entity Category);
+
+#endregion
