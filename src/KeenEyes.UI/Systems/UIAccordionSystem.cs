@@ -131,13 +131,10 @@ public sealed class UIAccordionSystem : SystemBase
         // Find the arrow element within the header
         foreach (var child in World.GetChildren(headerEntity))
         {
-            if (World.Has<UIAccordionArrowTag>(child) && World.Has<UIStyle>(child))
+            if (World.Has<UIAccordionArrowTag>(child) && World.Has<UIText>(child))
             {
-                ref var style = ref World.Get<UIStyle>(child);
-                // Visual feedback - change color to indicate state
-                style.BackgroundColor = isExpanded
-                    ? new Vector4(0.5f, 0.5f, 0.5f, 1f)
-                    : new Vector4(0.7f, 0.7f, 0.7f, 1f);
+                ref var text = ref World.Get<UIText>(child);
+                text.Content = isExpanded ? "▼" : "▶";
                 break;
             }
         }

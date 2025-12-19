@@ -187,11 +187,15 @@ public static partial class WidgetFactory
                 WidthMode = UISizeMode.Fixed,
                 HeightMode = UISizeMode.Fixed
             })
-            .With(new UIStyle
+            .With(new UIStyle())
+            .With(new UIText
             {
-                BackgroundColor = isExpanded
-                    ? new Vector4(0.5f, 0.5f, 0.5f, 1f)
-                    : config.GetArrowColor()
+                Content = isExpanded ? "▼" : "▶",
+                Font = font,
+                FontSize = 12,
+                Color = config.GetArrowColor(),
+                HorizontalAlign = TextAlignH.Center,
+                VerticalAlign = TextAlignV.Middle
             })
             .Build();
 
@@ -323,12 +327,10 @@ public static partial class WidgetFactory
         {
             foreach (var child in world.GetChildren(section.Header))
             {
-                if (world.Has<UIAccordionArrowTag>(child) && world.Has<UIStyle>(child))
+                if (world.Has<UIAccordionArrowTag>(child) && world.Has<UIText>(child))
                 {
-                    ref var style = ref world.Get<UIStyle>(child);
-                    style.BackgroundColor = isExpanded
-                        ? new Vector4(0.5f, 0.5f, 0.5f, 1f)
-                        : new Vector4(0.7f, 0.7f, 0.7f, 1f);
+                    ref var text = ref world.Get<UIText>(child);
+                    text.Content = isExpanded ? "▼" : "▶";
                     break;
                 }
             }
