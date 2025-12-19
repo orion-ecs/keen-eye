@@ -15,7 +15,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
@@ -33,7 +32,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
@@ -55,7 +53,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
@@ -74,7 +71,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
@@ -97,7 +93,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
@@ -126,7 +121,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
@@ -161,7 +155,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: false);
 
@@ -186,7 +179,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
@@ -215,7 +207,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 2, allowMultiple: true);
 
@@ -236,7 +227,6 @@ public class UIAccordionSystemTests
         using var world = new World();
         var system = new UIAccordionSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (accordion, sections, headers) = CreateAccordion(world, 2, allowMultiple: true);
 

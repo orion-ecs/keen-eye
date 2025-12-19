@@ -18,7 +18,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -37,7 +36,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -56,7 +54,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -80,7 +77,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -101,7 +97,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -131,7 +126,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -151,7 +145,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -179,7 +172,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -205,7 +197,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -232,7 +223,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -254,7 +244,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var draggable = CreateDraggable(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -279,7 +268,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var draggable = CreateDraggable(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -303,7 +291,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var draggable = CreateDraggable(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
@@ -333,7 +320,6 @@ public class UIInputSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
         var system = new UIInputSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var draggable = CreateDraggable(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements

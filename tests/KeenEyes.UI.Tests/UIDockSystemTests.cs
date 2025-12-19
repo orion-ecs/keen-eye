@@ -493,7 +493,6 @@ public class UIDockSystemTests
         using var world = new World();
         var dockSystem = new UIDockSystem();
         world.AddSystem(dockSystem);
-        dockSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)

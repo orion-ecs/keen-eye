@@ -23,10 +23,10 @@ public sealed class UITooltipSystem : SystemBase
     private EventSubscription? pointerExitSubscription;
     private EventSubscription? clickSubscription;
 
-    private Entity currentHoveredElement;
+    private Entity currentHoveredElement = Entity.Null;
     private float hoverTime;
     private Vector2 hoverPosition;
-    private Entity activeTooltip;
+    private Entity activeTooltip = Entity.Null;
 
     /// <inheritdoc />
     protected override void OnInitialize()

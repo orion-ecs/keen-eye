@@ -16,7 +16,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
@@ -38,7 +37,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
@@ -60,7 +58,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
@@ -82,7 +79,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
@@ -104,7 +100,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
@@ -123,7 +118,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 10); // Higher tab index
@@ -150,7 +144,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
@@ -176,7 +169,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
@@ -202,7 +194,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // No focusable elements
         var canvas = uiContext.CreateCanvas();
@@ -224,7 +215,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button = CreateButton(world, canvas, 0);
@@ -247,7 +237,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Press Escape with no focus
         input.PressKey(Key.Escape);
@@ -266,7 +255,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button = CreateButton(world, canvas, 0);
@@ -289,7 +277,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button = CreateButton(world, canvas, 0);
@@ -312,7 +299,6 @@ public class UIFocusSystemTests
         using var world = CreateWorldWithInput(out var input, out var uiContext);
         var system = new UIFocusSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var canvas = uiContext.CreateCanvas();
         var button = CreateButton(world, canvas, 0);

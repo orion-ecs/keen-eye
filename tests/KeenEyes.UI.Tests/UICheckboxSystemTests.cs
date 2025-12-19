@@ -17,7 +17,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var checkbox = CreateCheckbox(world, false);
 
@@ -35,7 +34,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var checkbox = CreateCheckbox(world, true);
 
@@ -53,7 +51,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var checkbox = CreateCheckbox(world, false);
 
@@ -76,7 +73,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var checkbox = CreateCheckbox(world, false);
 
@@ -103,7 +99,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var checkbox = CreateCheckbox(world, false);
 
@@ -130,7 +125,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var toggle = CreateToggle(world, false);
 
@@ -148,7 +142,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var toggle = CreateToggle(world, true);
 
@@ -166,7 +159,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var toggle = CreateToggle(world, false);
 
@@ -189,7 +181,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var toggle = CreateToggle(world, false);
 
@@ -212,7 +203,6 @@ public class UICheckboxSystemTests
         using var world = new World();
         var system = new UICheckboxSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var toggle = CreateToggle(world, false);
         var thumbEntity = world.Get<UIToggle>(toggle).ThumbEntity;

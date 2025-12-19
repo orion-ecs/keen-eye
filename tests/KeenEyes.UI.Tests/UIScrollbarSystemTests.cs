@@ -17,7 +17,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
@@ -39,7 +38,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
@@ -61,7 +59,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
@@ -84,7 +81,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
@@ -109,7 +105,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateHorizontalScrollView(world, 400, 200, 800);
@@ -131,7 +126,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateHorizontalScrollView(world, 400, 200, 800);
@@ -153,7 +147,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateHorizontalScrollView(world, 400, 200, 800);
@@ -176,7 +169,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateHorizontalScrollView(world, 400, 200, 800);
@@ -201,7 +193,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var layout = SetupLayout(world);
         var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
@@ -221,7 +212,6 @@ public class UIScrollbarSystemTests
         using var world = new World();
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Content fits within viewport (no overflow)
         var layout = SetupLayout(world);

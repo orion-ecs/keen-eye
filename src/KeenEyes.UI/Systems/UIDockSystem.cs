@@ -429,7 +429,7 @@ public sealed class UIDockSystem : SystemBase
 
         ref readonly var container = ref World.Get<UIDockContainer>(containerEntity);
 
-        if (!container.PreviewOverlay.IsValid)
+        if (!container.PreviewOverlay.IsValid || !World.IsAlive(container.PreviewOverlay))
         {
             return;
         }

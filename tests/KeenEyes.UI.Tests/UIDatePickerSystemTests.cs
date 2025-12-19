@@ -81,7 +81,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 1, 15);
         var picker = CreateDatePicker(world, initialDate);
@@ -101,7 +100,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 1, 15);
         var picker = CreateDatePicker(world, initialDate);
@@ -122,7 +120,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 6, 15);
         var minDate = new DateTime(2024, 6, 10);
@@ -143,7 +140,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 6, 15);
         var maxDate = new DateTime(2024, 6, 20);
@@ -163,7 +159,6 @@ public class UIDatePickerSystemTests
         using var world = new World();
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Should not throw
         system.SetValue(Entity.Null, DateTime.Now);
@@ -176,7 +171,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var expectedDate = new DateTime(2024, 6, 15, 10, 30, 0);
         var picker = CreateDatePicker(world, expectedDate);
@@ -193,7 +187,6 @@ public class UIDatePickerSystemTests
         using var world = new World();
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var value = system.GetValue(Entity.Null);
 
@@ -211,7 +204,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 1, 15);
         var picker = CreateDatePicker(world, initialDate);
@@ -231,7 +223,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 1, 15);
         var picker = CreateDatePicker(world, initialDate);
@@ -250,7 +241,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2020, 1, 15);
         var picker = CreateDatePicker(world, initialDate);
@@ -275,7 +265,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 6, 15);
         var picker = CreateDatePickerWithDays(world, initialDate);
@@ -311,7 +300,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 6, 15);
         var picker = CreateDatePickerWithConstraints(world, initialDate, new DateTime(2024, 6, 10), null);
@@ -340,7 +328,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 6, 15, 10, 30, 45);
         var picker = CreateDatePickerWithDays(world, initialDate);
@@ -380,7 +367,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 1, 15);
         var picker = CreateDatePicker(world, initialDate);
@@ -405,7 +391,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var date = new DateTime(2024, 1, 15);
         var picker = CreateDatePicker(world, date);
@@ -426,7 +411,6 @@ public class UIDatePickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIDatePickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialDate = new DateTime(2024, 1, 15);
         var picker = CreateDatePicker(world, initialDate);

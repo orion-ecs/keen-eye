@@ -18,7 +18,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(new UIElement { Visible = false })
@@ -46,7 +45,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu1 = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -76,7 +74,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -102,7 +99,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -124,11 +120,10 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
-            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = 0 })
+            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = 0, SelectedIndex = -1 })
             .With(new UIRadialMenuInputState { InputDirection = new Vector2(1, 0), InputMagnitude = 0.8f })
             .Build();
 
@@ -145,7 +140,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -170,11 +164,10 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
-            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = 0 })
+            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = 0, SelectedIndex = -1 })
             .With(new UIRadialMenuInputState { InputDirection = new Vector2(1, 0), InputMagnitude = 0.8f })
             .Build();
 
@@ -191,7 +184,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -212,11 +204,10 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
-            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = 0 })
+            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = 0, SelectedIndex = -1 })
             .With(new UIRadialMenuInputState { InputDirection = new Vector2(1, 0), InputMagnitude = 0.8f })
             .Build();
 
@@ -246,7 +237,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -278,7 +268,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -298,7 +287,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -324,7 +312,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var submenu = world.Spawn()
             .With(UIElement.Default)
@@ -379,7 +366,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -400,7 +386,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -425,7 +410,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(new UIElement { Visible = false })
@@ -456,7 +440,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -483,7 +466,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(UIElement.Default)
@@ -518,7 +500,6 @@ public class UIRadialMenuSystemTests
         using var world = new World();
         var radialMenuSystem = new UIRadialMenuSystem();
         world.AddSystem(radialMenuSystem);
-        radialMenuSystem.Initialize(world);
 
         var radialMenu = world.Spawn()
             .With(new UIElement { Visible = true })

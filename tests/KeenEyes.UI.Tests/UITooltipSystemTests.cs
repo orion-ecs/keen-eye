@@ -19,7 +19,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var element = world.Spawn()
             .With(UIElement.Default)
@@ -42,7 +41,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var canvas = world.Spawn()
             .With(UIElement.Default)
@@ -71,7 +69,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var element = world.Spawn()
             .With(UIElement.Default)
@@ -99,7 +96,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var canvas = world.Spawn()
             .With(UIElement.Default)
@@ -137,7 +133,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var canvas = world.Spawn()
             .With(UIElement.Default)
@@ -177,7 +172,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var canvas = world.Spawn()
             .With(UIElement.Default)
@@ -223,7 +217,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = false })
@@ -248,7 +241,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -277,7 +269,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = false })
@@ -300,7 +291,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -327,7 +317,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -354,7 +343,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -382,7 +370,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -413,7 +400,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = false })
@@ -443,7 +429,6 @@ public class UITooltipSystemTests
         using var world = new World();
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
-        tooltipSystem.Initialize(world);
 
         var popover = world.Spawn()
             .With(new UIElement { Visible = true })
