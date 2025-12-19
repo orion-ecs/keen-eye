@@ -246,7 +246,16 @@ public static partial class WidgetFactory
                 WidthMode = UISizeMode.Fixed,
                 HeightMode = UISizeMode.Fixed
             })
-            .With(new UIStyle { BackgroundColor = treeViewConfig.GetExpandArrowColor() })
+            .With(new UIStyle())
+            .With(new UIText
+            {
+                Content = config.IsExpanded ? "▼" : "▶",
+                Font = font,
+                FontSize = 12,
+                Color = treeViewConfig.GetExpandArrowColor(),
+                HorizontalAlign = TextAlignH.Center,
+                VerticalAlign = TextAlignV.Middle
+            })
             .With(UIInteractable.Clickable())
             .With(new UITreeNodeExpandArrowTag())
             .Build();

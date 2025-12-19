@@ -137,16 +137,11 @@ public sealed class UITreeViewSystem : SystemBase
 
     private void UpdateExpandArrowVisual(Entity arrowEntity, bool isExpanded)
     {
-        // Update arrow rotation based on expansion state
-        // This would typically be done by updating a rotation transform or swapping textures
-        if (World.Has<UIStyle>(arrowEntity))
+        // Update arrow text based on expansion state
+        if (World.Has<UIText>(arrowEntity))
         {
-            // Visual feedback - could use rotation, different colors, etc.
-            // For now, we'll just change the color to indicate state
-            ref var style = ref World.Get<UIStyle>(arrowEntity);
-            style.BackgroundColor = isExpanded
-                ? new Vector4(0.5f, 0.5f, 0.5f, 1f)
-                : new Vector4(0.7f, 0.7f, 0.7f, 1f);
+            ref var text = ref World.Get<UIText>(arrowEntity);
+            text.Content = isExpanded ? "▼" : "▶";
         }
     }
 
