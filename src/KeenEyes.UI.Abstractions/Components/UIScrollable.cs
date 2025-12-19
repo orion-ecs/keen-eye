@@ -104,3 +104,21 @@ public struct UIScrollable : IComponent
         );
     }
 }
+
+/// <summary>
+/// Component that identifies a scrollbar thumb and links it to its parent ScrollView.
+/// </summary>
+/// <param name="scrollView">The parent ScrollView entity that contains the UIScrollable component.</param>
+/// <param name="isVertical">True for vertical scrollbar, false for horizontal.</param>
+public struct UIScrollbarThumb(Entity scrollView, bool isVertical) : IComponent
+{
+    /// <summary>
+    /// The parent ScrollView entity.
+    /// </summary>
+    public Entity ScrollView = scrollView;
+
+    /// <summary>
+    /// Whether this is a vertical (true) or horizontal (false) scrollbar.
+    /// </summary>
+    public bool IsVertical = isVertical;
+}
