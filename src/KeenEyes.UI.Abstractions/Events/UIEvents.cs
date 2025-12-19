@@ -1,6 +1,7 @@
 using System.Numerics;
 using KeenEyes;
 using KeenEyes.Input.Abstractions;
+using KeenEyes.UI.Abstractions;
 
 namespace KeenEyes.UI.Abstractions;
 
@@ -310,6 +311,48 @@ public readonly record struct UIPropertyCategoryCollapsedEvent(Entity PropertyGr
 
 #endregion
 
+#region Modal Events
+
+/// <summary>
+/// Event raised when a modal dialog is opened.
+/// </summary>
+/// <param name="Modal">The modal entity that was opened.</param>
+public readonly record struct UIModalOpenedEvent(Entity Modal);
+
+/// <summary>
+/// Event raised when a modal dialog is closed.
+/// </summary>
+/// <param name="Modal">The modal entity that was closed.</param>
+/// <param name="Result">The result of the modal (OK, Cancel, etc.).</param>
+public readonly record struct UIModalClosedEvent(Entity Modal, ModalResult Result);
+
+/// <summary>
+/// Event raised when a modal action button is clicked.
+/// </summary>
+/// <param name="Modal">The modal entity.</param>
+/// <param name="Button">The button entity that was clicked.</param>
+/// <param name="Result">The result value of the clicked button.</param>
+public readonly record struct UIModalResultEvent(Entity Modal, Entity Button, ModalResult Result);
+
+#endregion
+
+#region Toast Events
+
+/// <summary>
+/// Event raised when a toast notification is shown.
+/// </summary>
+/// <param name="Toast">The toast entity.</param>
+public readonly record struct UIToastShownEvent(Entity Toast);
+
+/// <summary>
+/// Event raised when a toast notification is dismissed.
+/// </summary>
+/// <param name="Toast">The toast entity.</param>
+/// <param name="WasManual">True if dismissed by user, false if auto-dismissed.</param>
+public readonly record struct UIToastDismissedEvent(Entity Toast, bool WasManual);
+
+#endregion
+
 #region Accordion Events
 
 /// <summary>
@@ -325,5 +368,28 @@ public readonly record struct UIAccordionSectionExpandedEvent(Entity Accordion, 
 /// <param name="Accordion">The accordion entity.</param>
 /// <param name="Section">The section that was collapsed.</param>
 public readonly record struct UIAccordionSectionCollapsedEvent(Entity Accordion, Entity Section);
+
+#endregion
+
+#region Window Events
+
+/// <summary>
+/// Event raised when a window is minimized.
+/// </summary>
+/// <param name="Window">The window entity that was minimized.</param>
+public readonly record struct UIWindowMinimizedEvent(Entity Window);
+
+/// <summary>
+/// Event raised when a window is maximized.
+/// </summary>
+/// <param name="Window">The window entity that was maximized.</param>
+public readonly record struct UIWindowMaximizedEvent(Entity Window);
+
+/// <summary>
+/// Event raised when a window is restored from minimized or maximized state.
+/// </summary>
+/// <param name="Window">The window entity that was restored.</param>
+/// <param name="PreviousState">The state the window was restored from.</param>
+public readonly record struct UIWindowRestoredEvent(Entity Window, WindowState PreviousState);
 
 #endregion

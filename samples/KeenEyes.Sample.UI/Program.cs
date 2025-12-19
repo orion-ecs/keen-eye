@@ -669,6 +669,112 @@ static void PopulateLayoutTab(World world, Entity panel, FontHandle font)
                 TextColor: color
             ));
     }
+
+    // --- New Widgets Section: Cards, Badges, Avatars ---
+    var newWidgetsSection = CreateSection(world, panel, "New Widgets (Phase 5)", font);
+
+    // Cards row
+    var cardsRow = WidgetFactory.CreatePanel(world, newWidgetsSection, "CardsRow", new PanelConfig(
+        Height: 180,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Start,
+        Spacing: 20
+    ));
+
+    // Card 1: Simple card
+    var (card1, card1Content) = WidgetFactory.CreateCard(world, cardsRow, "Info Card", font, new CardConfig(
+        Width: 220,
+        TitleBarColor: Colors.Primary,
+        BorderWidth: 1,
+        CornerRadius: 8
+    ));
+    WidgetFactory.CreateLabel(world, card1Content, "Card1Label1", "Feature: Card widgets", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
+    WidgetFactory.CreateLabel(world, card1Content, "Card1Label2", "With title bars", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // Card 2: Warning card
+    var (card2, card2Content) = WidgetFactory.CreateCard(world, cardsRow, "Warning", font, new CardConfig(
+        Width: 220,
+        TitleBarColor: Colors.Warning,
+        BorderColor: Colors.WarningBorder,
+        BorderWidth: 2,
+        CornerRadius: 8
+    ));
+    WidgetFactory.CreateLabel(world, card2Content, "Card2Label", "Important notice!", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
+
+    // Card 3: Success card
+    var (card3, card3Content) = WidgetFactory.CreateCard(world, cardsRow, "Status", font, new CardConfig(
+        Width: 220,
+        TitleBarColor: Colors.Success,
+        BorderWidth: 1,
+        CornerRadius: 8
+    ));
+    WidgetFactory.CreateLabel(world, card3Content, "Card3Label", "Everything is ok!", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
+
+    // Badges and Avatars row
+    var badgesRow = WidgetFactory.CreatePanel(world, newWidgetsSection, "BadgesRow", new PanelConfig(
+        Height: 100,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 40
+    ));
+
+    // Badges group
+    var badgesGroup = WidgetFactory.CreatePanel(world, badgesRow, "BadgesGroup", new PanelConfig(
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 20
+    ));
+    WidgetFactory.CreateLabel(world, badgesGroup, "BadgesLabel", "Badges:", font,
+        new LabelConfig(Width: 80, FontSize: 13, TextColor: Colors.TextLight));
+    WidgetFactory.CreateBadge(world, badgesGroup, 3, font, new BadgeConfig(Size: 24, BackgroundColor: Colors.Danger));
+    WidgetFactory.CreateBadge(world, badgesGroup, 42, font, new BadgeConfig(Size: 28, BackgroundColor: Colors.Info));
+    WidgetFactory.CreateBadge(world, badgesGroup, 150, font, new BadgeConfig(Size: 32, BackgroundColor: Colors.Success, MaxValue: 99));
+
+    // Avatars group
+    var avatarsGroup = WidgetFactory.CreatePanel(world, badgesRow, "AvatarsGroup", new PanelConfig(
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 15
+    ));
+    WidgetFactory.CreateLabel(world, avatarsGroup, "AvatarsLabel", "Avatars:", font,
+        new LabelConfig(Width: 80, FontSize: 13, TextColor: Colors.TextLight));
+
+    // Avatar 1: Initials (circular)
+    WidgetFactory.CreateAvatar(world, avatarsGroup, font, new AvatarConfig(
+        Size: 48,
+        FallbackText: "AB",
+        FallbackBackgroundColor: Colors.Primary,
+        FallbackFontSize: 20,
+        CornerRadius: 24
+    ));
+
+    // Avatar 2: Initials (rounded square)
+    WidgetFactory.CreateAvatar(world, avatarsGroup, font, new AvatarConfig(
+        Size: 48,
+        FallbackText: "JD",
+        FallbackBackgroundColor: Colors.Success,
+        FallbackFontSize: 20,
+        CornerRadius: 8,
+        BorderColor: new Vector4(1f, 1f, 1f, 0.3f),
+        BorderWidth: 2
+    ));
+
+    // Avatar 3: Different color
+    WidgetFactory.CreateAvatar(world, avatarsGroup, font, new AvatarConfig(
+        Size: 48,
+        FallbackText: "XY",
+        FallbackBackgroundColor: Colors.AccentPurple,
+        FallbackFontSize: 20,
+        CornerRadius: 24
+    ));
 }
 
 // ============================================================================

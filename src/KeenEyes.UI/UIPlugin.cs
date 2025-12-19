@@ -232,6 +232,24 @@ public sealed class UIPlugin : IWorldPlugin
         // Text input system handles keyboard input for text fields
         context.AddSystem<UITextInputSystem>(SystemPhase.EarlyUpdate, order: 88);
 
+        // Modal system handles modal dialogs, backdrop clicks, and Escape key
+        context.AddSystem<UIModalSystem>(SystemPhase.EarlyUpdate, order: 35);
+
+        // Toast system handles toast notification timers and dismissal
+        context.AddSystem<UIToastSystem>(SystemPhase.EarlyUpdate, order: 90);
+
+        // Spinner system handles spinner rotation and progress bar animation
+        context.AddSystem<UISpinnerSystem>(SystemPhase.EarlyUpdate, order: 91);
+
+        // Color picker system handles color selection interactions
+        context.AddSystem<UIColorPickerSystem>(SystemPhase.EarlyUpdate, order: 92);
+
+        // Date picker system handles calendar and time selection
+        context.AddSystem<UIDatePickerSystem>(SystemPhase.EarlyUpdate, order: 93);
+
+        // Data grid system handles sorting, selection, and column resizing
+        context.AddSystem<UIDataGridSystem>(SystemPhase.EarlyUpdate, order: 94);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -322,12 +340,44 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIAccordion>();
         context.RegisterComponent<UIAccordionSection>();
 
+        // Modal components
+        context.RegisterComponent<UIModal>();
+        context.RegisterComponent<UIModalBackdrop>();
+        context.RegisterComponent<UIModalCloseButton>();
+        context.RegisterComponent<UIModalButton>();
+
+        // Toast components
+        context.RegisterComponent<UIToast>();
+        context.RegisterComponent<UIToastContainer>();
+        context.RegisterComponent<UIToastCloseButton>();
+
         // Input widget components
         context.RegisterComponent<UICheckbox>();
         context.RegisterComponent<UIToggle>();
         context.RegisterComponent<UISlider>();
         context.RegisterComponent<UIScrollbarThumb>();
         context.RegisterComponent<UITextInput>();
+
+        // Spinner and progress bar components
+        context.RegisterComponent<UISpinner>();
+        context.RegisterComponent<UIProgressBar>();
+
+        // Color picker components
+        context.RegisterComponent<UIColorPicker>();
+        context.RegisterComponent<UIColorSlider>();
+        context.RegisterComponent<UIColorSatValArea>();
+
+        // Date picker components
+        context.RegisterComponent<UIDatePicker>();
+        context.RegisterComponent<UICalendarDay>();
+        context.RegisterComponent<UITimeSpinner>();
+
+        // Data grid components
+        context.RegisterComponent<UIDataGrid>();
+        context.RegisterComponent<UIDataGridColumn>();
+        context.RegisterComponent<UIDataGridRow>();
+        context.RegisterComponent<UIDataGridCell>();
+        context.RegisterComponent<UIDataGridResizeHandle>();
 
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);
@@ -351,5 +401,6 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIAccordionHeaderTag>(isTag: true);
         context.RegisterComponent<UIAccordionArrowTag>(isTag: true);
         context.RegisterComponent<UIAccordionContentTag>(isTag: true);
+        context.RegisterComponent<UIDataGridRowSelectedTag>(isTag: true);
     }
 }

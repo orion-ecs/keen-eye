@@ -585,6 +585,119 @@ var config = new DividerConfig
 var verticalDivider = WidgetFactory.CreateDivider(world, parent, config);
 ```
 
+### Image
+
+Displays textures and sprites.
+
+```csharp
+var texture = new TextureHandle(1); // Your loaded texture
+
+var image = WidgetFactory.CreateImage(world, parent, texture);
+
+// With custom config
+var config = new ImageConfig
+{
+    Width = 128,
+    Height = 128,
+    ScaleMode = ImageScaleMode.ScaleToFit,
+    PreserveAspect = true
+};
+var icon = WidgetFactory.CreateImage(world, parent, texture, config);
+
+// From sprite atlas
+var atlasConfig = new ImageConfig
+{
+    Width = 64,
+    Height = 64,
+    SourceRect = new Rectangle(0, 0, 64, 64)
+};
+var sprite = WidgetFactory.CreateImage(world, parent, texture, atlasConfig);
+```
+
+**Image Scale Modes:**
+
+| Mode | Description |
+|------|-------------|
+| `Stretch` | Stretches to fill the entire element (may distort) |
+| `ScaleToFit` | Scales uniformly to fit within bounds (preserves aspect, may leave gaps) |
+| `ScaleToFill` | Scales uniformly to fill bounds (preserves aspect, may crop) |
+| `Tile` | Tiles the image to fill the element |
+| `NineSlice` | Nine-slice scaling for UI elements |
+
+### Card
+
+Container with title bar and content area.
+
+```csharp
+var (card, content) = WidgetFactory.CreateCard(world, parent, "Settings", font);
+
+// Add content to the card
+WidgetFactory.CreateLabel(world, content, "Option 1", font);
+WidgetFactory.CreateLabel(world, content, "Option 2", font);
+
+// With custom styling
+var config = new CardConfig
+{
+    Width = 400,
+    TitleHeight = 50,
+    TitleBarColor = new Vector4(0.2f, 0.3f, 0.5f, 1f),
+    ContentColor = new Vector4(0.15f, 0.15f, 0.18f, 1f),
+    BorderWidth = 2,
+    CornerRadius = 12
+};
+var (styledCard, styledContent) = WidgetFactory.CreateCard(
+    world, parent, "Styled Card", font, config);
+```
+
+### Badge
+
+Notification indicator (typically circular with a number).
+
+```csharp
+var badge = WidgetFactory.CreateBadge(world, parent, 5, font);
+
+// Badge that caps at 99 and shows "99+"
+var config = new BadgeConfig
+{
+    Size = 28,
+    MaxValue = 99,
+    BackgroundColor = new Vector4(0.9f, 0.2f, 0.2f, 1f),
+    FontSize = 14
+};
+var notificationBadge = WidgetFactory.CreateBadge(world, parent, 150, font, config);
+// Displays "99+" since 150 > 99
+```
+
+### Avatar
+
+User profile image with fallback initials.
+
+```csharp
+// Avatar with image
+var texture = new TextureHandle(1);
+var imageConfig = new AvatarConfig
+{
+    Size = 64,
+    Image = texture,
+    CornerRadius = 32 // Circular
+};
+var avatar = WidgetFactory.CreateAvatar(world, parent, font, imageConfig);
+
+// Avatar with fallback text (initials)
+var textConfig = new AvatarConfig
+{
+    Size = 80,
+    FallbackText = "JD",
+    FallbackBackgroundColor = new Vector4(0.3f, 0.5f, 0.8f, 1f),
+    FallbackTextColor = Vector4.One,
+    FallbackFontSize = 32,
+    CornerRadius = 40, // Circular
+    BorderColor = new Vector4(1f, 1f, 1f, 0.3f),
+    BorderWidth = 2
+};
+var initialsAvatar = WidgetFactory.CreateAvatar(world, parent, font, textConfig);
+```
+
 ### ScrollView
 
 Scrollable container.
@@ -803,6 +916,546 @@ public static class SettingsMenu
 1. **Check `CanFocus`**: Must be `true` on `UIInteractable`
 2. **Check `TabIndex`**: Should be set for tab navigation
 3. **Verify element is alive**: Dead entities cannot be focused
+
+## Advanced Widgets
+
+### Window
+
+Floating windows with title bar, close button, and optional minimize/maximize controls.
+
+```csharp
+var config = new UIWindowConfig
+{
+    X = 100,
+    Y = 100,
+    Width = 400,
+    Height = 300,
+    CanDrag = true,
+    CanResize = true,
+    CanClose = true,
+    CanMinimize = true,
+    CanMaximize = true
+};
+
+var (window, content) = WidgetFactory.CreateWindow(
+    world, canvas, "Settings", font, config);
+
+// Add content to the window
+WidgetFactory.CreateLabel(world, content, "Volume", font);
+WidgetFactory.CreateSlider(world, content);
+```
+
+**Window Events:**
+
+| Event | When Fired |
+|-------|------------|
+| `UIWindowClosedEvent` | Close button clicked |
+| `UIWindowMinimizedEvent` | Window minimized |
+| `UIWindowMaximizedEvent` | Window maximized |
+| `UIWindowRestoredEvent` | Window restored from min/max |
+
+**Programmatic Control:**
+
+```csharp
+var windowSystem = world.GetSystem<UIWindowSystem>();
+
+windowSystem.ShowWindow(window);
+windowSystem.MinimizeWindow(window);
+windowSystem.MaximizeWindow(window);
+windowSystem.RestoreWindow(window);
+```
+
+### Splitter
+
+Resizable split pane containers.
+
+```csharp
+var config = new SplitterConfig
+{
+    Orientation = LayoutDirection.Horizontal,
+    InitialRatio = 0.3f,  // 30% left, 70% right
+    MinFirstPane = 100,   // Minimum 100px
+    MinSecondPane = 200,  // Minimum 200px
+    HandleSize = 6
+};
+
+var (container, leftPane, rightPane) = WidgetFactory.CreateSplitter(
+    world, parent, config);
+
+// Add content to each pane
+WidgetFactory.CreateLabel(world, leftPane, "Left Side", font);
+WidgetFactory.CreateLabel(world, rightPane, "Right Side", font);
+```
+
+**Splitter Events:**
+
+```csharp
+world.Subscribe<UISplitterChangedEvent>(e =>
+{
+    Console.WriteLine($"Split ratio: {e.NewRatio:P0}");
+});
+```
+
+### Tooltip
+
+Hover-triggered informational overlays.
+
+```csharp
+// Add tooltip to any element
+WidgetFactory.AddTooltip(world, button, "Click to submit");
+
+// With configuration
+var config = new TooltipConfig
+{
+    Delay = 0.5f,        // 500ms delay before showing
+    MaxWidth = 200,
+    Position = TooltipPosition.Bottom,
+    FollowMouse = false
+};
+WidgetFactory.AddTooltip(world, element, "Tooltip text", config);
+
+// Remove tooltip
+WidgetFactory.RemoveTooltip(world, element);
+```
+
+### Popover
+
+Click-triggered content overlays.
+
+```csharp
+var config = new PopoverConfig
+{
+    Width = 250,
+    Height = 150,
+    Trigger = PopoverTrigger.Click,
+    Position = PopoverPosition.Bottom,
+    CloseOnClickOutside = true
+};
+
+var popover = WidgetFactory.CreatePopover(world, triggerButton, config);
+
+// Add content to the popover
+WidgetFactory.CreateLabel(world, popover, "Popover content", font);
+
+// Programmatic control
+WidgetFactory.OpenPopover(world, popover);
+WidgetFactory.ClosePopover(world, popover);
+```
+
+### MenuBar
+
+Horizontal menu bar with dropdown menus.
+
+```csharp
+var menus = new[]
+{
+    ("File", new MenuItemDef[]
+    {
+        new("New", "file_new"),
+        new("Open", "file_open"),
+        MenuItemDef.Separator(),
+        new("Exit", "file_exit")
+    }),
+    ("Edit", new MenuItemDef[]
+    {
+        new("Undo", "edit_undo", Shortcut: "Ctrl+Z"),
+        new("Redo", "edit_redo", Shortcut: "Ctrl+Y"),
+        MenuItemDef.Separator(),
+        new("Cut", "edit_cut"),
+        new("Copy", "edit_copy"),
+        new("Paste", "edit_paste")
+    })
+};
+
+var menuBar = WidgetFactory.CreateMenuBar(world, canvas, font, menus);
+
+// Handle menu item clicks
+world.Subscribe<UIMenuItemClickEvent>(e =>
+{
+    switch (e.ItemId)
+    {
+        case "file_new":
+            CreateNewDocument();
+            break;
+        case "file_exit":
+            Application.Exit();
+            break;
+    }
+});
+```
+
+### Context Menu
+
+Right-click popup menus.
+
+```csharp
+var items = new MenuItemDef[]
+{
+    new("Cut", "cut", Icon: cutTexture),
+    new("Copy", "copy", Icon: copyTexture),
+    new("Paste", "paste", Icon: pasteTexture),
+    MenuItemDef.Separator(),
+    new("Delete", "delete")
+};
+
+var contextMenu = WidgetFactory.CreateContextMenu(world, items, font);
+
+// Show on right-click
+world.Subscribe<UIClickEvent>(e =>
+{
+    if (e.Button == MouseButton.Right)
+    {
+        world.Send(new UIContextMenuRequestEvent(contextMenu, e.Position, e.Element));
+    }
+});
+```
+
+### Accordion
+
+Collapsible section containers.
+
+```csharp
+var accordion = WidgetFactory.CreateAccordion(world, parent, new AccordionConfig
+{
+    AllowMultipleExpanded = false,  // Only one section open at a time
+    Spacing = 2
+});
+
+// Add sections
+var (section1, content1) = WidgetFactory.CreateAccordionSection(
+    world, accordion, "General Settings", font, isExpanded: true);
+WidgetFactory.CreateLabel(world, content1, "General options here...", font);
+
+var (section2, content2) = WidgetFactory.CreateAccordionSection(
+    world, accordion, "Advanced Settings", font);
+WidgetFactory.CreateLabel(world, content2, "Advanced options here...", font);
+
+// Handle expansion events
+world.Subscribe<UIAccordionSectionExpandedEvent>(e =>
+{
+    Console.WriteLine($"Section expanded: {e.Section}");
+});
+```
+
+### Modal Dialog
+
+Centered dialog overlays with backdrop.
+
+```csharp
+var config = new ModalConfig(
+    Title: "Confirm Action",
+    Width: 400,
+    CloseOnBackdropClick: true,
+    CloseOnEscape: true
+);
+
+var buttons = new[]
+{
+    new ModalButtonDef("Cancel", ModalResult.Cancel),
+    new ModalButtonDef("Delete", ModalResult.OK, IsPrimary: true)
+};
+
+var (modal, backdrop, content) = WidgetFactory.CreateModal(
+    world, canvas, font, config, buttons);
+
+// Add content
+WidgetFactory.CreateLabel(world, content, "Are you sure you want to delete?", font);
+
+// Open the modal
+var modalSystem = world.GetSystem<UIModalSystem>();
+modalSystem.OpenModal(modal);
+
+// Handle result
+world.Subscribe<UIModalClosedEvent>(e =>
+{
+    if (e.Modal == modal && e.Result == ModalResult.OK)
+    {
+        PerformDelete();
+    }
+});
+```
+
+**Convenience Dialogs:**
+
+```csharp
+// Alert (OK button only)
+var alert = WidgetFactory.CreateAlert(world, canvas, "File saved!", font);
+
+// Confirm (OK/Cancel buttons)
+var confirm = WidgetFactory.CreateConfirm(world, canvas, "Delete this item?", font);
+
+// Prompt (text input with OK/Cancel)
+var (modal, backdrop, content, textInput) = WidgetFactory.CreatePrompt(
+    world, canvas, "Enter your name:", font,
+    new PromptConfig { Placeholder = "Name..." });
+```
+
+### Toast Notifications
+
+Auto-dismissing notification messages.
+
+```csharp
+// Create a toast container (once per UI)
+var container = WidgetFactory.CreateToastContainer(world, new ToastContainerConfig
+{
+    Position = ToastPosition.TopRight,
+    MaxVisible = 5,
+    Spacing = 8
+});
+world.SetParent(container, canvas);
+
+// Show toasts
+WidgetFactory.ShowInfoToast(world, container, "Document saved");
+WidgetFactory.ShowSuccessToast(world, container, "Upload complete!", "Success");
+WidgetFactory.ShowWarningToast(world, container, "Low disk space", duration: 5f);
+WidgetFactory.ShowErrorToast(world, container, "Connection failed", duration: 0f);  // 0 = no auto-dismiss
+
+// Custom toast
+var customToast = new ToastConfig(
+    Message: "Custom notification",
+    Duration: 4f,
+    Type: ToastType.Info,
+    Title: "Custom Title",
+    CanDismiss: true,
+    ShowCloseButton: true
+);
+WidgetFactory.ShowToast(world, container, customToast);
+```
+
+### Spinner / Loading Indicator
+
+Animated loading indicators.
+
+```csharp
+// Default spinner
+var spinner = WidgetFactory.CreateSpinner(world, parent);
+
+// Preset sizes
+var small = WidgetFactory.CreateSpinner(world, parent, SpinnerConfig.Small());
+var large = WidgetFactory.CreateSpinner(world, parent, SpinnerConfig.Large());
+
+// Different styles
+var circular = WidgetFactory.CreateSpinner(world, parent, SpinnerConfig.Circular());
+var dots = WidgetFactory.CreateSpinner(world, parent, SpinnerConfig.Dots());
+var bar = WidgetFactory.CreateSpinner(world, parent, SpinnerConfig.Bar());
+
+// Custom configuration
+var custom = new SpinnerConfig
+{
+    Size = 48,
+    Style = SpinnerStyle.Circular,
+    Speed = 2f,
+    Thickness = 4f
+};
+var customSpinner = WidgetFactory.CreateSpinner(world, parent, custom);
+
+// Full-screen loading overlay
+var (overlay, overlaySpinner) = WidgetFactory.CreateLoadingOverlay(world, canvas);
+// Hide when loading complete
+world.Get<UIElement>(overlay).Visible = false;
+```
+
+### TreeView
+
+Hierarchical tree structure with expandable nodes.
+
+```csharp
+var treeView = WidgetFactory.CreateTreeView(world, parent, font);
+
+// Add root nodes
+var rootNode = WidgetFactory.CreateTreeNode(world, treeView, "Root Folder", font);
+
+// Add child nodes
+var childNode = WidgetFactory.CreateTreeNode(world, rootNode, "Subfolder", font);
+var leafNode = WidgetFactory.CreateTreeNode(world, rootNode, "File.txt", font,
+    new TreeNodeConfig { IsLeaf = true });
+
+// Handle events
+world.Subscribe<UITreeNodeSelectedEvent>(e =>
+{
+    Console.WriteLine($"Selected: {e.Node}");
+});
+
+world.Subscribe<UITreeNodeExpandedEvent>(e =>
+{
+    Console.WriteLine($"Expanded: {e.Node}");
+});
+
+world.Subscribe<UITreeNodeDoubleClickedEvent>(e =>
+{
+    OpenFile(e.Node);
+});
+```
+
+### PropertyGrid
+
+Property editor with categories.
+
+```csharp
+var propertyGrid = WidgetFactory.CreatePropertyGrid(world, parent, font);
+
+// Add categories and properties
+var transformCategory = WidgetFactory.CreatePropertyCategory(
+    world, propertyGrid, "Transform", font);
+
+WidgetFactory.CreatePropertyRow(world, transformCategory, "Position X", font,
+    PropertyType.Float, 0f);
+WidgetFactory.CreatePropertyRow(world, transformCategory, "Position Y", font,
+    PropertyType.Float, 0f);
+WidgetFactory.CreatePropertyRow(world, transformCategory, "Rotation", font,
+    PropertyType.Float, 0f);
+
+// Handle value changes
+world.Subscribe<UIPropertyChangedEvent>(e =>
+{
+    Console.WriteLine($"{e.PropertyName}: {e.OldValue} -> {e.NewValue}");
+});
+```
+
+### DockContainer
+
+Panel docking system with drag-and-drop.
+
+```csharp
+var dockContainer = WidgetFactory.CreateDockContainer(world, canvas);
+
+// Create dock panels
+var scenePanel = WidgetFactory.CreateDockPanel(world, dockContainer, "Scene", font);
+var hierarchyPanel = WidgetFactory.CreateDockPanel(world, dockContainer, "Hierarchy", font);
+var inspectorPanel = WidgetFactory.CreateDockPanel(world, dockContainer, "Inspector", font);
+
+// Dock panels to zones
+world.Send(new UIDockRequestEvent(hierarchyPanel, DockZone.Left, dockContainer));
+world.Send(new UIDockRequestEvent(inspectorPanel, DockZone.Right, dockContainer));
+world.Send(new UIDockRequestEvent(scenePanel, DockZone.Center, dockContainer));
+
+// Handle dock events
+world.Subscribe<UIDockPanelDockedEvent>(e =>
+{
+    Console.WriteLine($"{e.Panel} docked to {e.Zone}");
+});
+```
+
+### Toolbar & StatusBar
+
+Horizontal tool and status strips.
+
+```csharp
+// Toolbar
+var toolbar = WidgetFactory.CreateToolbar(world, parent, font);
+
+WidgetFactory.CreateToolbarButton(world, toolbar, "New", newIcon, font);
+WidgetFactory.CreateToolbarButton(world, toolbar, "Open", openIcon, font);
+WidgetFactory.CreateToolbarButton(world, toolbar, "Save", saveIcon, font);
+WidgetFactory.CreateToolbarSeparator(world, toolbar);
+WidgetFactory.CreateToolbarButton(world, toolbar, "Undo", undoIcon, font);
+WidgetFactory.CreateToolbarButton(world, toolbar, "Redo", redoIcon, font);
+
+// StatusBar
+var statusBar = WidgetFactory.CreateStatusBar(world, parent, font);
+
+WidgetFactory.CreateStatusLabel(world, statusBar, "Ready", font);
+WidgetFactory.CreateStatusSpacer(world, statusBar);
+WidgetFactory.CreateStatusLabel(world, statusBar, "Line 1, Col 1", font);
+```
+
+## All Events Reference
+
+### Input Events
+
+| Event | Properties | Description |
+|-------|------------|-------------|
+| `UIClickEvent` | Element, Position, Button | Element clicked |
+| `UIPointerEnterEvent` | Element, Position | Pointer enters element |
+| `UIPointerExitEvent` | Element | Pointer exits element |
+| `UIDragStartEvent` | Element, StartPosition | Drag begins |
+| `UIDragEvent` | Element, Position, Delta | During drag |
+| `UIDragEndEvent` | Element, EndPosition | Drag ends |
+| `UIFocusGainedEvent` | Element, Previous | Focus gained |
+| `UIFocusLostEvent` | Element, Next | Focus lost |
+| `UIValueChangedEvent` | Element, OldValue, NewValue | Value changed |
+| `UISubmitEvent` | Element | Enter pressed on focused element |
+
+### Window Events
+
+| Event | Properties | Description |
+|-------|------------|-------------|
+| `UIWindowClosedEvent` | Window | Window closed |
+| `UIWindowMinimizedEvent` | Window | Window minimized |
+| `UIWindowMaximizedEvent` | Window | Window maximized |
+| `UIWindowRestoredEvent` | Window, PreviousState | Window restored |
+
+### Menu Events
+
+| Event | Properties | Description |
+|-------|------------|-------------|
+| `UIMenuItemClickEvent` | MenuItem, Menu, ItemId, Index | Menu item clicked |
+| `UIMenuOpenedEvent` | Menu, ParentMenu | Menu opened |
+| `UIMenuClosedEvent` | Menu | Menu closed |
+| `UIMenuToggleChangedEvent` | MenuItem, IsChecked | Toggle item changed |
+
+### Modal & Toast Events
+
+| Event | Properties | Description |
+|-------|------------|-------------|
+| `UIModalOpenedEvent` | Modal | Modal opened |
+| `UIModalClosedEvent` | Modal, Result | Modal closed |
+| `UIModalResultEvent` | Modal, Button, Result | Modal button clicked |
+| `UIToastShownEvent` | Toast | Toast shown |
+| `UIToastDismissedEvent` | Toast, WasManual | Toast dismissed |
+
+### Tree & PropertyGrid Events
+
+| Event | Properties | Description |
+|-------|------------|-------------|
+| `UITreeNodeSelectedEvent` | Node, TreeView | Tree node selected |
+| `UITreeNodeExpandedEvent` | Node, TreeView | Tree node expanded |
+| `UITreeNodeCollapsedEvent` | Node, TreeView | Tree node collapsed |
+| `UITreeNodeDoubleClickedEvent` | Node, TreeView | Tree node double-clicked |
+| `UIPropertyChangedEvent` | PropertyGrid, Row, PropertyName, OldValue, NewValue | Property value changed |
+| `UIPropertyCategoryExpandedEvent` | PropertyGrid, Category | Category expanded |
+| `UIPropertyCategoryCollapsedEvent` | PropertyGrid, Category | Category collapsed |
+
+### Dock Events
+
+| Event | Properties | Description |
+|-------|------------|-------------|
+| `UIDockPanelDockedEvent` | Panel, Zone, Container | Panel docked |
+| `UIDockPanelUndockedEvent` | Panel, PreviousZone | Panel undocked |
+| `UIDockStateChangedEvent` | Panel, OldState, NewState | Dock state changed |
+| `UIDockZoneResizedEvent` | Zone, OldSize, NewSize | Zone resized |
+
+### Other Events
+
+| Event | Properties | Description |
+|-------|------------|-------------|
+| `UISplitterChangedEvent` | Splitter, OldRatio, NewRatio | Splitter moved |
+| `UITooltipShowEvent` | Element, Text, Position | Tooltip show requested |
+| `UITooltipHideEvent` | Element | Tooltip hide requested |
+| `UIPopoverOpenedEvent` | Popover, Trigger | Popover opened |
+| `UIPopoverClosedEvent` | Popover | Popover closed |
+| `UIAccordionSectionExpandedEvent` | Accordion, Section | Section expanded |
+| `UIAccordionSectionCollapsedEvent` | Accordion, Section | Section collapsed |
+
+## All Systems Reference
+
+| System | Phase | Responsibility |
+|--------|-------|----------------|
+| `UIInputSystem` | EarlyUpdate | Hit testing, hover/press states, click/drag events |
+| `UIFocusSystem` | EarlyUpdate | Tab navigation, keyboard focus management |
+| `UITabSystem` | EarlyUpdate | Tab view switching |
+| `UIWindowSystem` | EarlyUpdate | Window dragging, closing, minimize/maximize, z-order |
+| `UIMenuSystem` | EarlyUpdate | Menu bar interaction, dropdown handling |
+| `UISplitterSystem` | EarlyUpdate | Splitter drag handling |
+| `UIAccordionSystem` | EarlyUpdate | Accordion expand/collapse |
+| `UITooltipSystem` | EarlyUpdate | Tooltip show/hide with delay |
+| `UIModalSystem` | EarlyUpdate | Modal open/close, backdrop clicks, Esc key |
+| `UIToastSystem` | Update | Toast timer, auto-dismiss |
+| `UISpinnerSystem` | Update | Spinner rotation animation |
+| `UIScrollableSystem` | Update | Scroll position updates |
+| `UITextInputSystem` | Update | Text field cursor, input handling |
+| `UILayoutSystem` | LateUpdate | Compute bounds for all elements |
+| `UIRenderSystem` | Render | Draw all visible UI elements |
 
 ## Dependencies
 

@@ -6,10 +6,213 @@ using KeenEyes.UI.Abstractions;
 namespace KeenEyes.UI.Widgets;
 
 /// <summary>
-/// Factory methods for display UI widgets: ProgressBar, TabView, ScrollView.
+/// Factory methods for display UI widgets: Spinner, ProgressBar, TabView, ScrollView.
 /// </summary>
 public static partial class WidgetFactory
 {
+    #region Spinner
+
+    /// <summary>
+    /// Creates a spinner/loading indicator widget.
+    /// </summary>
+    /// <param name="world">The world to create the entity in.</param>
+    /// <param name="config">Optional spinner configuration.</param>
+    /// <returns>The spinner entity.</returns>
+    /// <remarks>
+    /// <para>
+    /// The spinner animates automatically via the UISpinnerSystem.
+    /// Different styles produce different visual effects:
+    /// <list type="bullet">
+    /// <item><see cref="SpinnerStyle.Circular"/> - A rotating arc</item>
+    /// <item><see cref="SpinnerStyle.Dots"/> - Pulsing dots</item>
+    /// <item><see cref="SpinnerStyle.Bar"/> - Oscillating bar</item>
+    /// </list>
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Create a default spinner
+    /// var spinner = WidgetFactory.CreateSpinner(world);
+    ///
+    /// // Create a small spinner
+    /// var smallSpinner = WidgetFactory.CreateSpinner(world, SpinnerConfig.Small());
+    ///
+    /// // Create a dot-style spinner
+    /// var dotsSpinner = WidgetFactory.CreateSpinner(world, SpinnerConfig.Dots());
+    /// </code>
+    /// </example>
+    public static Entity CreateSpinner(IWorld world, SpinnerConfig? config = null)
+    {
+        config ??= SpinnerConfig.Default;
+
+        var spinner = world.Spawn()
+            .With(new UIElement { Visible = true, RaycastTarget = false })
+            .With(new UIRect
+            {
+                Size = new Vector2(config.Size, config.Size),
+                WidthMode = UISizeMode.Fixed,
+                HeightMode = UISizeMode.Fixed
+            })
+            .With(new UISpinner(config.Speed)
+            {
+                Style = config.Style,
+                Color = config.GetColor(),
+                Thickness = config.Thickness,
+                ArcLength = config.ArcLength,
+                ElementCount = config.ElementCount
+            })
+            .Build();
+
+        return spinner;
+    }
+
+    /// <summary>
+    /// Creates a spinner centered within a parent container.
+    /// </summary>
+    /// <param name="world">The world to create the entity in.</param>
+    /// <param name="parent">The parent container entity.</param>
+    /// <param name="config">Optional spinner configuration.</param>
+    /// <returns>The spinner entity.</returns>
+    public static Entity CreateSpinner(IWorld world, Entity parent, SpinnerConfig? config = null)
+    {
+        var spinner = CreateSpinner(world, config);
+
+        if (parent.IsValid)
+        {
+            world.SetParent(spinner, parent);
+        }
+
+        return spinner;
+    }
+
+    /// <summary>
+    /// Creates a spinner with a name.
+    /// </summary>
+    /// <param name="world">The world to create the entity in.</param>
+    /// <param name="name">The entity name for identification.</param>
+    /// <param name="config">Optional spinner configuration.</param>
+    /// <returns>The spinner entity.</returns>
+    public static Entity CreateSpinner(IWorld world, string name, SpinnerConfig? config = null)
+    {
+        config ??= SpinnerConfig.Default;
+
+        var spinner = world.Spawn(name)
+            .With(new UIElement { Visible = true, RaycastTarget = false })
+            .With(new UIRect
+            {
+                Size = new Vector2(config.Size, config.Size),
+                WidthMode = UISizeMode.Fixed,
+                HeightMode = UISizeMode.Fixed
+            })
+            .With(new UISpinner(config.Speed)
+            {
+                Style = config.Style,
+                Color = config.GetColor(),
+                Thickness = config.Thickness,
+                ArcLength = config.ArcLength,
+                ElementCount = config.ElementCount
+            })
+            .Build();
+
+        return spinner;
+    }
+
+    /// <summary>
+    /// Creates a full-screen loading overlay with a centered spinner.
+    /// </summary>
+    /// <param name="world">The world to create the entity in.</param>
+    /// <param name="parent">The parent to attach to (typically a root canvas).</param>
+    /// <param name="spinnerConfig">Optional spinner configuration.</param>
+    /// <param name="backdropColor">Optional backdrop color (defaults to semi-transparent black).</param>
+    /// <returns>A tuple containing the overlay entity and spinner entity.</returns>
+    /// <remarks>
+    /// <para>
+    /// The loading overlay blocks user interaction by covering the entire screen.
+    /// It includes a centered spinner.
+    /// </para>
+    /// </remarks>
+    public static (Entity Overlay, Entity Spinner) CreateLoadingOverlay(
+        IWorld world,
+        Entity parent,
+        SpinnerConfig? spinnerConfig = null,
+        Vector4? backdropColor = null)
+    {
+        spinnerConfig ??= SpinnerConfig.Large();
+        var backdrop = backdropColor ?? new Vector4(0, 0, 0, 0.5f);
+
+        // Create the overlay backdrop
+        var overlay = world.Spawn()
+            .With(new UIElement { Visible = true, RaycastTarget = true })
+            .With(UIRect.Stretch())
+            .With(new UIStyle
+            {
+                BackgroundColor = backdrop
+            })
+            .With(new UILayout
+            {
+                Direction = LayoutDirection.Vertical,
+                MainAxisAlign = LayoutAlign.Center,
+                CrossAxisAlign = LayoutAlign.Center
+            })
+            .Build();
+
+        if (parent.IsValid)
+        {
+            world.SetParent(overlay, parent);
+        }
+
+        // Create centered spinner
+        var spinner = CreateSpinner(world, overlay, spinnerConfig);
+
+        return (overlay, spinner);
+    }
+
+    /// <summary>
+    /// Creates a loading overlay with a message.
+    /// </summary>
+    /// <param name="world">The world to create the entity in.</param>
+    /// <param name="parent">The parent to attach to.</param>
+    /// <param name="message">The loading message to display.</param>
+    /// <param name="font">The font to use for the message.</param>
+    /// <param name="spinnerConfig">Optional spinner configuration.</param>
+    /// <param name="backdropColor">Optional backdrop color.</param>
+    /// <returns>A tuple containing the overlay, spinner, and message text entities.</returns>
+    public static (Entity Overlay, Entity Spinner, Entity Message) CreateLoadingOverlay(
+        IWorld world,
+        Entity parent,
+        string message,
+        FontHandle font,
+        SpinnerConfig? spinnerConfig = null,
+        Vector4? backdropColor = null)
+    {
+        var (overlay, spinner) = CreateLoadingOverlay(world, parent, spinnerConfig, backdropColor);
+
+        // Add message text below spinner
+        var messageText = world.Spawn()
+            .With(new UIElement { Visible = true, RaycastTarget = false })
+            .With(new UIRect
+            {
+                Size = new Vector2(0, 24),
+                WidthMode = UISizeMode.FitContent,
+                HeightMode = UISizeMode.FitContent
+            })
+            .With(new UIText
+            {
+                Content = message,
+                Font = font,
+                Color = new Vector4(1, 1, 1, 1),
+                FontSize = 14,
+                HorizontalAlign = TextAlignH.Center
+            })
+            .Build();
+
+        world.SetParent(messageText, overlay);
+
+        return (overlay, spinner, messageText);
+    }
+
+    #endregion
+
     #region ProgressBar
 
     /// <summary>

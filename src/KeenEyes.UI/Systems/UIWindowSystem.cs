@@ -85,6 +85,12 @@ public sealed class UIWindowSystem : SystemBase
             return;
         }
 
+        // Don't allow dragging when maximized
+        if (windowComponent.State == WindowState.Maximized)
+        {
+            return;
+        }
+
         // Update the window position
         ref var rect = ref World.Get<UIRect>(window);
         rect.Offset = new UIEdges(
@@ -113,6 +119,12 @@ public sealed class UIWindowSystem : SystemBase
 
         ref readonly var windowComponent = ref World.Get<UIWindow>(window);
         if (!windowComponent.CanResize)
+        {
+            return;
+        }
+
+        // Don't allow resizing when maximized or minimized
+        if (windowComponent.State != WindowState.Normal)
         {
             return;
         }
@@ -177,6 +189,20 @@ public sealed class UIWindowSystem : SystemBase
             return;
         }
 
+        // Check if clicking a minimize button
+        if (World.Has<UIWindowMinimizeButton>(e.Element))
+        {
+            HandleMinimizeClick(e);
+            return;
+        }
+
+        // Check if clicking a maximize button
+        if (World.Has<UIWindowMaximizeButton>(e.Element))
+        {
+            HandleMaximizeClick(e);
+            return;
+        }
+
         // Check if clicking anywhere in a window (for z-order)
         var clickedWindow = FindParentWindow(e.Element);
         if (clickedWindow.IsValid)
@@ -218,6 +244,62 @@ public sealed class UIWindowSystem : SystemBase
         World.Send(new UIWindowClosedEvent(window));
     }
 
+    private void HandleMinimizeClick(UIClickEvent e)
+    {
+        ref readonly var minimizeButton = ref World.Get<UIWindowMinimizeButton>(e.Element);
+        var window = minimizeButton.Window;
+
+        if (!World.IsAlive(window) || !World.Has<UIWindow>(window))
+        {
+            return;
+        }
+
+        ref var windowComponent = ref World.Get<UIWindow>(window);
+        if (!windowComponent.CanMinimize)
+        {
+            return;
+        }
+
+        if (windowComponent.State == WindowState.Minimized)
+        {
+            // Restore from minimized
+            RestoreWindow(window);
+        }
+        else
+        {
+            // Minimize the window
+            MinimizeWindow(window);
+        }
+    }
+
+    private void HandleMaximizeClick(UIClickEvent e)
+    {
+        ref readonly var maximizeButton = ref World.Get<UIWindowMaximizeButton>(e.Element);
+        var window = maximizeButton.Window;
+
+        if (!World.IsAlive(window) || !World.Has<UIWindow>(window))
+        {
+            return;
+        }
+
+        ref var windowComponent = ref World.Get<UIWindow>(window);
+        if (!windowComponent.CanMaximize)
+        {
+            return;
+        }
+
+        if (windowComponent.State == WindowState.Maximized)
+        {
+            // Restore from maximized
+            RestoreWindow(window);
+        }
+        else
+        {
+            // Maximize the window
+            MaximizeWindow(window);
+        }
+    }
+
     private Entity FindParentWindow(Entity entity)
     {
         var current = entity;
@@ -245,7 +327,8 @@ public sealed class UIWindowSystem : SystemBase
         ref var windowComponent = ref World.Get<UIWindow>(window);
 
         // Only update if not already at the front
-        if (windowComponent.ZOrder < nextZOrder - 1)
+        // When nextZOrder is 1, no window has been brought to front yet, so always update
+        if (windowComponent.ZOrder != nextZOrder - 1 || nextZOrder == 1)
         {
             windowComponent.ZOrder = nextZOrder++;
 
@@ -290,5 +373,173 @@ public sealed class UIWindowSystem : SystemBase
         {
             World.Add(window, new UILayoutDirtyTag());
         }
+    }
+
+    /// <summary>
+    /// Minimizes a window to show only its title bar.
+    /// </summary>
+    /// <param name="window">The window entity to minimize.</param>
+    public void MinimizeWindow(Entity window)
+    {
+        if (!World.IsAlive(window) || !World.Has<UIWindow>(window))
+        {
+            return;
+        }
+
+        ref var windowComponent = ref World.Get<UIWindow>(window);
+        if (!windowComponent.CanMinimize || windowComponent.State == WindowState.Minimized)
+        {
+            return;
+        }
+
+        // Store current position and size for restore
+        if (windowComponent.State == WindowState.Normal && World.Has<UIRect>(window))
+        {
+            ref readonly var rect = ref World.Get<UIRect>(window);
+            windowComponent.RestorePosition = new Vector2(rect.Offset.Left, rect.Offset.Top);
+            windowComponent.RestoreSize = rect.Size;
+        }
+
+        windowComponent.State = WindowState.Minimized;
+
+        // Hide the content panel
+        if (windowComponent.ContentPanel.IsValid && World.Has<UIElement>(windowComponent.ContentPanel))
+        {
+            ref var contentElement = ref World.Get<UIElement>(windowComponent.ContentPanel);
+            contentElement.Visible = false;
+
+            if (!World.Has<UIHiddenTag>(windowComponent.ContentPanel))
+            {
+                World.Add(windowComponent.ContentPanel, new UIHiddenTag());
+            }
+        }
+
+        // Mark layout dirty
+        if (!World.Has<UILayoutDirtyTag>(window))
+        {
+            World.Add(window, new UILayoutDirtyTag());
+        }
+
+        // Fire minimized event
+        World.Send(new UIWindowMinimizedEvent(window));
+    }
+
+    /// <summary>
+    /// Maximizes a window to fill its parent's bounds.
+    /// </summary>
+    /// <param name="window">The window entity to maximize.</param>
+    public void MaximizeWindow(Entity window)
+    {
+        if (!World.IsAlive(window) || !World.Has<UIWindow>(window))
+        {
+            return;
+        }
+
+        ref var windowComponent = ref World.Get<UIWindow>(window);
+        if (!windowComponent.CanMaximize || windowComponent.State == WindowState.Maximized)
+        {
+            return;
+        }
+
+        // If currently minimized, restore content first
+        if (windowComponent.State == WindowState.Minimized)
+        {
+            if (windowComponent.ContentPanel.IsValid && World.Has<UIElement>(windowComponent.ContentPanel))
+            {
+                ref var contentElement = ref World.Get<UIElement>(windowComponent.ContentPanel);
+                contentElement.Visible = true;
+
+                if (World.Has<UIHiddenTag>(windowComponent.ContentPanel))
+                {
+                    World.Remove<UIHiddenTag>(windowComponent.ContentPanel);
+                }
+            }
+        }
+
+        // Store current position and size for restore (only if not already saved from minimize)
+        if (windowComponent.State == WindowState.Normal && World.Has<UIRect>(window))
+        {
+            ref readonly var rect = ref World.Get<UIRect>(window);
+            windowComponent.RestorePosition = new Vector2(rect.Offset.Left, rect.Offset.Top);
+            windowComponent.RestoreSize = rect.Size;
+        }
+
+        windowComponent.State = WindowState.Maximized;
+
+        // Maximize by setting anchors to stretch and clearing offset
+        if (World.Has<UIRect>(window))
+        {
+            ref var rect = ref World.Get<UIRect>(window);
+            rect.AnchorMin = Vector2.Zero;
+            rect.AnchorMax = Vector2.One;
+            rect.Offset = UIEdges.Zero;
+            rect.Size = Vector2.Zero;
+            rect.WidthMode = UISizeMode.Fill;
+            rect.HeightMode = UISizeMode.Fill;
+        }
+
+        // Mark layout dirty
+        if (!World.Has<UILayoutDirtyTag>(window))
+        {
+            World.Add(window, new UILayoutDirtyTag());
+        }
+
+        // Fire maximized event
+        World.Send(new UIWindowMaximizedEvent(window));
+    }
+
+    /// <summary>
+    /// Restores a window from minimized or maximized state to its normal state.
+    /// </summary>
+    /// <param name="window">The window entity to restore.</param>
+    public void RestoreWindow(Entity window)
+    {
+        if (!World.IsAlive(window) || !World.Has<UIWindow>(window))
+        {
+            return;
+        }
+
+        ref var windowComponent = ref World.Get<UIWindow>(window);
+        if (windowComponent.State == WindowState.Normal)
+        {
+            return;
+        }
+
+        var previousState = windowComponent.State;
+        windowComponent.State = WindowState.Normal;
+
+        // Restore content panel visibility
+        if (windowComponent.ContentPanel.IsValid && World.Has<UIElement>(windowComponent.ContentPanel))
+        {
+            ref var contentElement = ref World.Get<UIElement>(windowComponent.ContentPanel);
+            contentElement.Visible = true;
+
+            if (World.Has<UIHiddenTag>(windowComponent.ContentPanel))
+            {
+                World.Remove<UIHiddenTag>(windowComponent.ContentPanel);
+            }
+        }
+
+        // Restore position and size
+        if (World.Has<UIRect>(window))
+        {
+            ref var rect = ref World.Get<UIRect>(window);
+            rect.AnchorMin = Vector2.Zero;
+            rect.AnchorMax = Vector2.Zero;
+            rect.Pivot = Vector2.Zero;
+            rect.Offset = new UIEdges(windowComponent.RestorePosition.X, windowComponent.RestorePosition.Y, 0, 0);
+            rect.Size = windowComponent.RestoreSize;
+            rect.WidthMode = UISizeMode.Fixed;
+            rect.HeightMode = UISizeMode.Fixed;
+        }
+
+        // Mark layout dirty
+        if (!World.Has<UILayoutDirtyTag>(window))
+        {
+            World.Add(window, new UILayoutDirtyTag());
+        }
+
+        // Fire restored event
+        World.Send(new UIWindowRestoredEvent(window, previousState));
     }
 }
