@@ -26,6 +26,7 @@ public sealed class UIInputSystem : SystemBase
     private Entity hoveredEntity;
     private Entity pressedEntity;
     private Vector2 dragStartPosition;
+    private Vector2 lastDragPosition;
     private bool isDragging;
     private double lastClickTime;
     private const double DoubleClickTime = 0.3; // seconds
@@ -127,6 +128,7 @@ public sealed class UIInputSystem : SystemBase
                     interactable.State |= UIInteractionState.Pressed;
                     interactable.PendingEvents |= UIEventFlags.PointerDown;
                     dragStartPosition = mousePos;
+                    lastDragPosition = mousePos;
 
                     // Request focus if element is focusable
                     if (interactable.CanFocus && uiContext is not null)
@@ -157,7 +159,8 @@ public sealed class UIInputSystem : SystemBase
 
                 if (isDragging)
                 {
-                    var delta = mousePos - dragStartPosition;
+                    var delta = mousePos - lastDragPosition;
+                    lastDragPosition = mousePos;
                     World.Send(new UIDragEvent(pressedEntity, mousePos, delta));
                 }
             }
