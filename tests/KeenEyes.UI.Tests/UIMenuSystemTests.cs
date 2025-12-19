@@ -19,7 +19,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menuBar = world.Spawn()
             .With(UIElement.Default)
@@ -54,7 +53,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menuBar = world.Spawn()
             .With(UIElement.Default)
@@ -92,7 +90,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menuBar = world.Spawn()
             .With(UIElement.Default)
@@ -139,7 +136,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(UIElement.Default)
@@ -174,7 +170,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(UIElement.Default)
@@ -203,7 +198,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(UIElement.Default)
@@ -232,7 +226,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(UIElement.Default)
@@ -265,7 +258,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var parentMenu = world.Spawn()
             .With(UIElement.Default)
@@ -298,7 +290,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var parentMenu = world.Spawn()
             .With(UIElement.Default)
@@ -335,7 +326,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var contextMenu = world.Spawn()
             .With(new UIElement { Visible = false })
@@ -366,7 +356,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -393,7 +382,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -425,7 +413,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menuBar = world.Spawn()
             .With(UIElement.Default)
@@ -465,7 +452,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(new UIElement { Visible = true })
@@ -499,7 +485,6 @@ public class UIMenuSystemTests
         using var world = new World();
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
-        menuSystem.Initialize(world);
 
         var menu = world.Spawn()
             .With(UIElement.Default)

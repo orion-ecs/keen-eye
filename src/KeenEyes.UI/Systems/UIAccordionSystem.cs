@@ -35,6 +35,12 @@ public sealed class UIAccordionSystem : SystemBase
                 continue;
             }
 
+            // Clear the click flag so it doesn't get processed again
+            {
+                ref var mutableInteractable = ref World.Get<UIInteractable>(headerEntity);
+                mutableInteractable.PendingEvents &= ~UIEventFlags.Click;
+            }
+
             // Find the parent section
             var parent = World.GetParent(headerEntity);
             while (parent.IsValid && !World.Has<UIAccordionSection>(parent))

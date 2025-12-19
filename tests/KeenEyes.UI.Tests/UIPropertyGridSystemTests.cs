@@ -17,7 +17,6 @@ public class UIPropertyGridSystemTests
         using var world = new World();
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
-        propertyGridSystem.Initialize(world);
 
         var propertyGrid = world.Spawn()
             .With(UIElement.Default)
@@ -44,6 +43,10 @@ public class UIPropertyGridSystemTests
             .Build();
         world.SetParent(header, category);
 
+        // Set click flag on header to trigger expand
+        ref var interactable = ref world.Get<UIInteractable>(header);
+        interactable.PendingEvents |= UIEventFlags.Click;
+
         propertyGridSystem.Update(0);
 
         ref readonly var updatedCategory = ref world.Get<UIPropertyCategory>(category);
@@ -59,7 +62,6 @@ public class UIPropertyGridSystemTests
         using var world = new World();
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
-        propertyGridSystem.Initialize(world);
 
         var propertyGrid = world.Spawn()
             .With(UIElement.Default)
@@ -86,6 +88,10 @@ public class UIPropertyGridSystemTests
             .Build();
         world.SetParent(header, category);
 
+        // Set click flag on header to trigger collapse
+        ref var interactable = ref world.Get<UIInteractable>(header);
+        interactable.PendingEvents |= UIEventFlags.Click;
+
         propertyGridSystem.Update(0);
 
         ref readonly var updatedCategory = ref world.Get<UIPropertyCategory>(category);
@@ -105,7 +111,6 @@ public class UIPropertyGridSystemTests
         using var world = new World();
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
-        propertyGridSystem.Initialize(world);
 
         var propertyGrid = world.Spawn()
             .With(UIElement.Default)
@@ -141,6 +146,10 @@ public class UIPropertyGridSystemTests
             }
         });
 
+        // Set click flag on header to trigger expand
+        ref var interactable = ref world.Get<UIInteractable>(header);
+        interactable.PendingEvents |= UIEventFlags.Click;
+
         propertyGridSystem.Update(0);
 
         Assert.True(eventFired);
@@ -152,7 +161,6 @@ public class UIPropertyGridSystemTests
         using var world = new World();
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
-        propertyGridSystem.Initialize(world);
 
         var propertyGrid = world.Spawn()
             .With(UIElement.Default)
@@ -188,6 +196,10 @@ public class UIPropertyGridSystemTests
             }
         });
 
+        // Set click flag on header to trigger collapse
+        ref var interactable = ref world.Get<UIInteractable>(header);
+        interactable.PendingEvents |= UIEventFlags.Click;
+
         propertyGridSystem.Update(0);
 
         Assert.True(eventFired);
@@ -203,7 +215,6 @@ public class UIPropertyGridSystemTests
         using var world = new World();
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
-        propertyGridSystem.Initialize(world);
 
         var propertyGrid = world.Spawn()
             .With(UIElement.Default)
@@ -237,6 +248,10 @@ public class UIPropertyGridSystemTests
             .Build();
         world.SetParent(arrow, header);
 
+        // Set click flag on header to trigger expand
+        ref var interactable = ref world.Get<UIInteractable>(header);
+        interactable.PendingEvents |= UIEventFlags.Click;
+
         propertyGridSystem.Update(0);
 
         ref readonly var arrowStyle = ref world.Get<UIStyle>(arrow);
@@ -254,7 +269,6 @@ public class UIPropertyGridSystemTests
         using var world = new World();
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
-        propertyGridSystem.Initialize(world);
 
         var propertyGrid = world.Spawn()
             .With(UIElement.Default)
@@ -294,7 +308,6 @@ public class UIPropertyGridSystemTests
         using var world = new World();
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
-        propertyGridSystem.Initialize(world);
 
         var nonCategoryElement = world.Spawn()
             .With(UIElement.Default)

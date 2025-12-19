@@ -330,7 +330,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -354,7 +353,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -377,7 +375,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -400,7 +397,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Start with red hue
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
@@ -429,7 +425,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -456,7 +451,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -478,7 +472,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(0f, 1f, 1f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -499,7 +492,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -524,7 +516,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256, showAlpha: true);
         layout.Update(0);
@@ -554,7 +545,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPickerRgbMode(world, new Vector4(0f, 0f, 1f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -579,7 +569,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPickerRgbMode(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -604,7 +593,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPickerRgbMode(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -629,7 +617,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPickerRgbMode(world, new Vector4(0f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -662,7 +649,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -683,7 +669,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -703,7 +688,6 @@ public class UIColorPickerSystemTests
         using var world = new World();
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Should not throw
         system.SetColor(Entity.Null, new Vector4(1f, 0f, 0f, 1f));
@@ -716,7 +700,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0.5f, 0.25f, 0.75f), 0, 0, 256, 256);
         layout.Update(0);
@@ -735,7 +718,6 @@ public class UIColorPickerSystemTests
         using var world = new World();
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var color = system.GetColor(Entity.Null);
 
@@ -753,7 +735,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -776,7 +757,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
         layout.Update(0);
@@ -799,7 +779,6 @@ public class UIColorPickerSystemTests
         var layout = SetupLayout(world);
         var system = new UIColorPickerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var initialColor = new Vector4(1f, 0f, 0f, 1f);
         var picker = CreateColorPicker(world, initialColor, 0, 0, 256, 256);

@@ -17,7 +17,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var spinner = CreateSpinner(world, speed: MathF.PI);
         var initialAngle = world.Get<UISpinner>(spinner).CurrentAngle;
@@ -35,7 +34,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Start at angle close to 2*PI
         var spinner = CreateSpinner(world, speed: MathF.PI * 2);
@@ -56,7 +54,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var spinner = CreateSpinner(world, speed: MathF.PI * 2);
         world.Add(spinner, new UIHiddenTag());
@@ -74,7 +71,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var spinner = CreateSpinner(world, speed: -MathF.PI);
         ref var spinnerData = ref world.Get<UISpinner>(spinner);
@@ -92,7 +88,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var spinner = CreateSpinner(world, speed: 0);
         var initialAngle = world.Get<UISpinner>(spinner).CurrentAngle;
@@ -109,7 +104,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var spinner1 = CreateSpinner(world, speed: MathF.PI);
         var spinner2 = CreateSpinner(world, speed: MathF.PI * 2);
@@ -132,7 +126,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var spinner = CreateSpinner(world, speed: MathF.PI * 2);
         system.Update(1.0f); // Advance angle
@@ -149,7 +142,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var spinner = CreateSpinner(world, speed: MathF.PI);
         system.SetSpinnerSpeed(spinner, MathF.PI * 4);
@@ -164,7 +156,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Should not throw
         system.ResetSpinner(Entity.Null);
@@ -176,7 +167,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Should not throw
         system.SetSpinnerSpeed(Entity.Null, MathF.PI);
@@ -192,7 +182,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0f, animationSpeed: 1f);
 
@@ -213,7 +202,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0f, animationSpeed: 1f);
 
@@ -233,7 +221,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0f, animationSpeed: 1f);
         world.Add(progressBar, new UIHiddenTag());
@@ -253,7 +240,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0.5f, animationSpeed: 1f);
         var initialAnimatedValue = world.Get<UIProgressBar>(progressBar).AnimatedValue;
@@ -271,7 +257,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 1f, animationSpeed: 2f);
 
@@ -295,7 +280,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0f, animationSpeed: 1f);
 
@@ -311,7 +295,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0.5f, animationSpeed: 1f);
 
@@ -327,7 +310,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0.5f, animationSpeed: 1f);
 
@@ -343,7 +325,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Should not throw
         system.SetProgress(Entity.Null, 0.5f);
@@ -359,7 +340,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0f, animationSpeed: 1f);
 
@@ -376,7 +356,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var progressBar = CreateProgressBar(world, value: 0.5f, animationSpeed: 1f);
 
@@ -393,7 +372,6 @@ public class UISpinnerSystemTests
         using var world = new World();
         var system = new UISpinnerSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Should not throw
         system.SetProgressImmediate(Entity.Null, 0.5f);

@@ -16,7 +16,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -34,7 +33,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -56,7 +54,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -75,7 +72,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -96,7 +92,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -114,7 +109,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -134,7 +128,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
@@ -156,7 +149,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
@@ -174,7 +166,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
@@ -192,7 +183,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
@@ -217,7 +207,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
@@ -236,7 +225,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
@@ -260,7 +248,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -281,7 +268,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
@@ -307,7 +293,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
@@ -328,7 +313,6 @@ public class UITreeViewSystemTests
         using var world = new World();
         var system = new UITreeViewSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 

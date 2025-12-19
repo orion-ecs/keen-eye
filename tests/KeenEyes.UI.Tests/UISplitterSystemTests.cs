@@ -19,7 +19,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -39,7 +38,8 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(50, 0), new Vector2(250, 150));
+        // UIDragEvent(Element, Position, Delta) - Delta is the movement amount
+        var dragEvent = new UIDragEvent(handle, new Vector2(250, 150), new Vector2(50, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -55,7 +55,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -75,7 +74,8 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(-50, 0), new Vector2(150, 150));
+        // UIDragEvent(Element, Position, Delta) - Delta is the movement amount
+        var dragEvent = new UIDragEvent(handle, new Vector2(150, 150), new Vector2(-50, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -95,7 +95,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -115,7 +114,8 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(0, 40), new Vector2(200, 190));
+        // UIDragEvent(Element, Position, Delta) - Delta is the movement amount
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 190), new Vector2(0, 40));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -131,7 +131,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -151,7 +150,8 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(0, -40), new Vector2(200, 110));
+        // UIDragEvent(Element, Position, Delta) - Delta is the movement amount
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 110), new Vector2(0, -40));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -171,7 +171,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -191,7 +190,8 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(-200, 0), new Vector2(0, 150));
+        // UIDragEvent(Element, Position, Delta) - Delta is the movement amount
+        var dragEvent = new UIDragEvent(handle, new Vector2(0, 150), new Vector2(-200, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -209,7 +209,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -229,7 +228,8 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(200, 0), new Vector2(500, 150));
+        // UIDragEvent(Element, Position, Delta) - Delta is the movement amount
+        var dragEvent = new UIDragEvent(handle, new Vector2(500, 150), new Vector2(200, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -238,7 +238,8 @@ public class UISplitterSystemTests
         float totalWidth = 400 - 10;
         float secondPaneWidth = totalWidth * (1f - splitter.SplitRatio);
 
-        Assert.True(secondPaneWidth >= 100f);
+        // Use epsilon tolerance for float comparison (MinSecondPane = 100)
+        Assert.True(secondPaneWidth >= 100f - 0.01f);
     }
 
     #endregion
@@ -251,7 +252,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -271,7 +271,7 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(-500, 0), new Vector2(-100, 150));
+        var dragEvent = new UIDragEvent(handle, new Vector2(-100, 150), new Vector2(-500, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -287,7 +287,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -307,7 +306,7 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(500, 0), new Vector2(800, 150));
+        var dragEvent = new UIDragEvent(handle, new Vector2(800, 150), new Vector2(500, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -327,7 +326,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -361,7 +359,7 @@ public class UISplitterSystemTests
             }
         });
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(50, 0), new Vector2(250, 150));
+        var dragEvent = new UIDragEvent(handle, new Vector2(250, 150), new Vector2(50, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -377,7 +375,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -397,7 +394,7 @@ public class UISplitterSystemTests
             .With(new UISplitterHandle(container))
             .Build();
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(50, 0), new Vector2(250, 150));
+        var dragEvent = new UIDragEvent(handle, new Vector2(250, 150), new Vector2(50, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);
@@ -415,7 +412,6 @@ public class UISplitterSystemTests
         using var world = new World();
         var splitterSystem = new UISplitterSystem();
         world.AddSystem(splitterSystem);
-        splitterSystem.Initialize(world);
 
         var container = world.Spawn()
             .With(UIElement.Default)
@@ -438,7 +434,7 @@ public class UISplitterSystemTests
         bool eventFired = false;
         world.Subscribe<UISplitterChangedEvent>(e => eventFired = true);
 
-        var dragEvent = new UIDragEvent(handle, new Vector2(0.00001f, 0), new Vector2(200, 150));
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 150), new Vector2(0.00001f, 0));
         world.Send(dragEvent);
 
         splitterSystem.Update(0);

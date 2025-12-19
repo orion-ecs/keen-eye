@@ -16,7 +16,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 3);
 
@@ -34,7 +33,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 3);
 
@@ -54,7 +52,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 3, initialTab: 0);
 
@@ -76,7 +73,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 2, initialTab: 0);
 
@@ -97,7 +93,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 2, initialTab: 0);
 
@@ -120,7 +115,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 2);
 
@@ -147,7 +141,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 2, initialTab: 0);
 
@@ -178,7 +171,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         var (tabView, tabButtons, panels) = CreateTabView(world, 2);
 
@@ -196,7 +188,6 @@ public class UITabSystemTests
         using var world = new World();
         var system = new UITabSystem();
         world.AddSystem(system);
-        system.Initialize(world);
 
         // Create a regular button (not a tab button)
         var button = world.Spawn()

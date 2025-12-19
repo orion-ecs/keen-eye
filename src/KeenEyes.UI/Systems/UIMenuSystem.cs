@@ -96,7 +96,7 @@ public sealed class UIMenuSystem : SystemBase
         if (World.Has<UIMenuItem>(e.Element))
         {
             ref readonly var menuItem = ref World.Get<UIMenuItem>(e.Element);
-            if (menuItem.Submenu.IsValid && menuItem.IsEnabled)
+            if (menuItem.Submenu.IsValid && World.IsAlive(menuItem.Submenu) && menuItem.IsEnabled)
             {
                 OpenSubmenu(e.Element, menuItem);
             }
@@ -168,8 +168,8 @@ public sealed class UIMenuSystem : SystemBase
             return;
         }
 
-        // Handle submenu items
-        if (menuItem.Submenu.IsValid)
+        // Handle submenu items (check IsAlive since default Entity(0,0) passes IsValid)
+        if (menuItem.Submenu.IsValid && World.IsAlive(menuItem.Submenu))
         {
             OpenSubmenu(element, menuItem);
             return;
