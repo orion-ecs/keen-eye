@@ -66,6 +66,17 @@ public static partial class WidgetFactory
                 CanFocus = true,
                 TabIndex = config.TabIndex
             })
+            .With(new UITextInput
+            {
+                CursorPosition = 0,
+                SelectionStart = 0,
+                SelectionEnd = 0,
+                IsEditing = false,
+                MaxLength = config.MaxLength,
+                Multiline = false,
+                PlaceholderText = config.PlaceholderText,
+                ShowingPlaceholder = true
+            })
             .Build();
 
         if (parent.IsValid)
@@ -127,6 +138,17 @@ public static partial class WidgetFactory
                 CanClick = true,
                 CanFocus = true,
                 TabIndex = config.TabIndex
+            })
+            .With(new UITextInput
+            {
+                CursorPosition = 0,
+                SelectionStart = 0,
+                SelectionEnd = 0,
+                IsEditing = false,
+                MaxLength = config.MaxLength,
+                Multiline = false,
+                PlaceholderText = config.PlaceholderText,
+                ShowingPlaceholder = true
             })
             .Build();
 

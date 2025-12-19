@@ -128,6 +128,7 @@ public sealed record LabelConfig(
 /// <param name="Width">The text field width in pixels.</param>
 /// <param name="Height">The text field height in pixels.</param>
 /// <param name="PlaceholderText">The placeholder text when empty.</param>
+/// <param name="MaxLength">Maximum characters allowed (0 for unlimited).</param>
 /// <param name="BackgroundColor">The background color.</param>
 /// <param name="BorderColor">The border color.</param>
 /// <param name="BorderWidth">The border width in pixels.</param>
@@ -139,6 +140,7 @@ public sealed record TextFieldConfig(
     float Width = 200,
     float Height = 32,
     string PlaceholderText = "",
+    int MaxLength = 0,
     Vector4? BackgroundColor = null,
     Vector4? BorderColor = null,
     float BorderWidth = 1,

@@ -115,6 +115,12 @@ namespace KeenEyes.UI;
 /// <term>Scrollbar thumb drag behavior</term>
 /// </item>
 /// <item>
+/// <term>EarlyUpdate</term>
+/// <term>88</term>
+/// <term><see cref="UITextInputSystem"/></term>
+/// <term>Text field keyboard input handling</term>
+/// </item>
+/// <item>
 /// <term>LateUpdate</term>
 /// <term>-10</term>
 /// <term><see cref="UILayoutSystem"/></term>
@@ -223,6 +229,9 @@ public sealed class UIPlugin : IWorldPlugin
         // Scrollbar system handles scrollbar thumb drag behavior
         context.AddSystem<UIScrollbarSystem>(SystemPhase.EarlyUpdate, order: 87);
 
+        // Text input system handles keyboard input for text fields
+        context.AddSystem<UITextInputSystem>(SystemPhase.EarlyUpdate, order: 88);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -318,6 +327,7 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UIToggle>();
         context.RegisterComponent<UISlider>();
         context.RegisterComponent<UIScrollbarThumb>();
+        context.RegisterComponent<UITextInput>();
 
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);
