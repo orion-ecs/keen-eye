@@ -844,14 +844,315 @@ public class WidgetFactoryTests
 
     #endregion
 
+    #region Image Tests
+
+    [Fact]
+    public void CreateImage_HasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var texture = new TextureHandle(1);
+
+        var image = WidgetFactory.CreateImage(world, parent, texture);
+
+        Assert.True(world.Has<UIElement>(image));
+        Assert.True(world.Has<UIRect>(image));
+        Assert.True(world.Has<UIImage>(image));
+    }
+
+    [Fact]
+    public void CreateImage_IsNotInteractable()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var texture = new TextureHandle(1);
+
+        var image = WidgetFactory.CreateImage(world, parent, texture);
+
+        ref readonly var element = ref world.Get<UIElement>(image);
+        Assert.False(element.RaycastTarget);
+    }
+
+    [Fact]
+    public void CreateImage_SetsTexture()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var texture = new TextureHandle(42);
+
+        var image = WidgetFactory.CreateImage(world, parent, texture);
+
+        ref readonly var uiImage = ref world.Get<UIImage>(image);
+        Assert.Equal(texture, uiImage.Texture);
+    }
+
+    [Fact]
+    public void CreateImage_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var texture = new TextureHandle(1);
+        var config = new ImageConfig
+        {
+            Width = 128,
+            Height = 96,
+            ScaleMode = ImageScaleMode.Stretch,
+            PreserveAspect = false
+        };
+
+        var image = WidgetFactory.CreateImage(world, parent, texture, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(image);
+        Assert.Equal(new Vector2(128, 96), rect.Size);
+        ref readonly var uiImage = ref world.Get<UIImage>(image);
+        Assert.Equal(ImageScaleMode.Stretch, uiImage.ScaleMode);
+        Assert.False(uiImage.PreserveAspect);
+    }
+
+    [Fact]
+    public void CreateImage_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var texture = new TextureHandle(1);
+
+        var image = WidgetFactory.CreateImage(world, parent, "Icon", texture);
+
+        Assert.Equal("Icon", world.GetName(image));
+    }
+
+    #endregion
+
+    #region Card Tests
+
+    [Fact]
+    public void CreateCard_ReturnsCardAndContent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (card, content) = WidgetFactory.CreateCard(world, parent, "Title", testFont);
+
+        Assert.True(world.IsAlive(card));
+        Assert.True(world.IsAlive(content));
+    }
+
+    [Fact]
+    public void CreateCard_HasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (card, _) = WidgetFactory.CreateCard(world, parent, "Title", testFont);
+
+        Assert.True(world.Has<UIElement>(card));
+        Assert.True(world.Has<UIRect>(card));
+        Assert.True(world.Has<UIStyle>(card));
+        Assert.True(world.Has<UILayout>(card));
+    }
+
+    [Fact]
+    public void CreateCard_HasTitleBarAndContent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (card, content) = WidgetFactory.CreateCard(world, parent, "Title", testFont);
+
+        var children = world.GetChildren(card).ToList();
+        Assert.Equal(2, children.Count); // Title bar and content area
+        Assert.Contains(content, children);
+    }
+
+    [Fact]
+    public void CreateCard_TitleBarHasText()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (card, _) = WidgetFactory.CreateCard(world, parent, "My Card", testFont);
+
+        var children = world.GetChildren(card).ToList();
+        var titleBar = children[0];
+        ref readonly var text = ref world.Get<UIText>(titleBar);
+        Assert.Equal("My Card", text.Content);
+    }
+
+    [Fact]
+    public void CreateCard_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new CardConfig { Width = 400, TitleHeight = 50, CornerRadius = 12 };
+
+        var (card, _) = WidgetFactory.CreateCard(world, parent, "Title", testFont, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(card);
+        Assert.Equal(400, rect.Size.X);
+        ref readonly var style = ref world.Get<UIStyle>(card);
+        Assert.Equal(12, style.CornerRadius);
+    }
+
+    #endregion
+
+    #region Badge Tests
+
+    [Fact]
+    public void CreateBadge_HasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var badge = WidgetFactory.CreateBadge(world, parent, 5, testFont);
+
+        Assert.True(world.Has<UIElement>(badge));
+        Assert.True(world.Has<UIRect>(badge));
+        Assert.True(world.Has<UIStyle>(badge));
+        Assert.True(world.Has<UIText>(badge));
+    }
+
+    [Fact]
+    public void CreateBadge_IsNotInteractable()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var badge = WidgetFactory.CreateBadge(world, parent, 5, testFont);
+
+        ref readonly var element = ref world.Get<UIElement>(badge);
+        Assert.False(element.RaycastTarget);
+    }
+
+    [Fact]
+    public void CreateBadge_DisplaysValue()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var badge = WidgetFactory.CreateBadge(world, parent, 7, testFont);
+
+        ref readonly var text = ref world.Get<UIText>(badge);
+        Assert.Equal("7", text.Content);
+    }
+
+    [Fact]
+    public void CreateBadge_CapsValueAtMax()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new BadgeConfig { MaxValue = 99 };
+
+        var badge = WidgetFactory.CreateBadge(world, parent, 150, testFont, config);
+
+        ref readonly var text = ref world.Get<UIText>(badge);
+        Assert.Equal("99+", text.Content);
+    }
+
+    [Fact]
+    public void CreateBadge_IsCircular()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new BadgeConfig { Size = 30 };
+
+        var badge = WidgetFactory.CreateBadge(world, parent, 1, testFont, config);
+
+        ref readonly var style = ref world.Get<UIStyle>(badge);
+        Assert.Equal(15, style.CornerRadius); // Half of size for circular
+    }
+
+    #endregion
+
+    #region Avatar Tests
+
+    [Fact]
+    public void CreateAvatar_HasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var avatar = WidgetFactory.CreateAvatar(world, parent, testFont);
+
+        Assert.True(world.Has<UIElement>(avatar));
+        Assert.True(world.Has<UIRect>(avatar));
+        Assert.True(world.Has<UIStyle>(avatar));
+    }
+
+    [Fact]
+    public void CreateAvatar_IsNotInteractable()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var avatar = WidgetFactory.CreateAvatar(world, parent, testFont);
+
+        ref readonly var element = ref world.Get<UIElement>(avatar);
+        Assert.False(element.RaycastTarget);
+    }
+
+    [Fact]
+    public void CreateAvatar_WithImage_HasUIImage()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var texture = new TextureHandle(1);
+        var config = new AvatarConfig { Image = texture };
+
+        var avatar = WidgetFactory.CreateAvatar(world, parent, testFont, config);
+
+        Assert.True(world.Has<UIImage>(avatar));
+        ref readonly var image = ref world.Get<UIImage>(avatar);
+        Assert.Equal(texture, image.Texture);
+    }
+
+    [Fact]
+    public void CreateAvatar_WithFallbackText_HasUIText()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AvatarConfig { FallbackText = "JD" };
+
+        var avatar = WidgetFactory.CreateAvatar(world, parent, testFont, config);
+
+        Assert.True(world.Has<UIText>(avatar));
+        ref readonly var text = ref world.Get<UIText>(avatar);
+        Assert.Equal("JD", text.Content);
+    }
+
+    [Fact]
+    public void CreateAvatar_AppliesSize()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AvatarConfig { Size = 80, CornerRadius = 40 };
+
+        var avatar = WidgetFactory.CreateAvatar(world, parent, testFont, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(avatar);
+        Assert.Equal(new Vector2(80, 80), rect.Size);
+        ref readonly var style = ref world.Get<UIStyle>(avatar);
+        Assert.Equal(40, style.CornerRadius);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Entity CreateRootEntity(World world)
     {
-        return world.Spawn("Root")
+        var root = world.Spawn("Root")
             .With(UIElement.Default)
             .With(UIRect.Stretch())
+            .With(new UIRootTag())
             .Build();
+
+        // Create and run layout system to compute bounds
+        var layout = new UILayoutSystem();
+        world.AddSystem(layout);
+        layout.Initialize(world);
+        layout.Update(0);
+
+        return root;
     }
 
     #endregion

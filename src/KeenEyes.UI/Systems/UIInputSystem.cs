@@ -23,8 +23,8 @@ public sealed class UIInputSystem : SystemBase
     private UIHitTester? hitTester;
     private UIContext? uiContext;
     private IInputContext? inputContext;
-    private Entity hoveredEntity;
-    private Entity pressedEntity;
+    private Entity hoveredEntity = Entity.Null;
+    private Entity pressedEntity = Entity.Null;
     private Vector2 dragStartPosition;
     private Vector2 lastDragPosition;
     private bool isDragging;
