@@ -1527,6 +1527,168 @@ public sealed record PropertyCategoryDef(
 
 #endregion
 
+#region Phase 5: Image, Card, Badge, Avatar
+
+/// <summary>
+/// Configuration for creating image widgets.
+/// </summary>
+/// <param name="Width">The image width in pixels.</param>
+/// <param name="Height">The image height in pixels.</param>
+/// <param name="Tint">Color tint applied to the image.</param>
+/// <param name="ScaleMode">How the image is scaled to fit.</param>
+/// <param name="PreserveAspect">Whether to preserve aspect ratio.</param>
+/// <param name="SourceRect">Source rectangle for sprite atlas (empty for full texture).</param>
+public sealed record ImageConfig(
+    float Width = 100,
+    float Height = 100,
+    Vector4? Tint = null,
+    ImageScaleMode ScaleMode = ImageScaleMode.ScaleToFit,
+    bool PreserveAspect = true,
+    Rectangle? SourceRect = null)
+{
+    /// <summary>
+    /// The default image configuration.
+    /// </summary>
+    public static ImageConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the tint color or default (white, no tint).
+    /// </summary>
+    internal Vector4 GetTint() =>
+        Tint ?? Vector4.One;
+
+    /// <summary>
+    /// Gets the source rectangle or default (empty, full texture).
+    /// </summary>
+    internal Rectangle GetSourceRect() =>
+        SourceRect ?? Rectangle.Empty;
+}
+
+/// <summary>
+/// Configuration for creating card widgets.
+/// </summary>
+/// <param name="Width">The card width in pixels.</param>
+/// <param name="TitleHeight">Height of the title bar in pixels.</param>
+/// <param name="TitleBarColor">The title bar background color.</param>
+/// <param name="ContentColor">The content area background color.</param>
+/// <param name="BorderColor">The card border color.</param>
+/// <param name="BorderWidth">The border width in pixels.</param>
+/// <param name="CornerRadius">The corner radius for rounded corners.</param>
+public sealed record CardConfig(
+    float Width = 300,
+    float TitleHeight = 40,
+    Vector4? TitleBarColor = null,
+    Vector4? ContentColor = null,
+    Vector4? BorderColor = null,
+    float BorderWidth = 1,
+    float CornerRadius = 8)
+{
+    /// <summary>
+    /// The default card configuration.
+    /// </summary>
+    public static CardConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the title bar color or default.
+    /// </summary>
+    internal Vector4 GetTitleBarColor() =>
+        TitleBarColor ?? new Vector4(0.18f, 0.18f, 0.22f, 1f);
+
+    /// <summary>
+    /// Gets the content color or default.
+    /// </summary>
+    internal Vector4 GetContentColor() =>
+        ContentColor ?? new Vector4(0.15f, 0.15f, 0.18f, 1f);
+
+    /// <summary>
+    /// Gets the border color or default.
+    /// </summary>
+    internal Vector4 GetBorderColor() =>
+        BorderColor ?? new Vector4(0.3f, 0.3f, 0.35f, 1f);
+}
+
+/// <summary>
+/// Configuration for creating badge widgets.
+/// </summary>
+/// <param name="Size">The badge size (diameter) in pixels.</param>
+/// <param name="BackgroundColor">The badge background color.</param>
+/// <param name="TextColor">The badge text color.</param>
+/// <param name="FontSize">The text font size.</param>
+/// <param name="MaxValue">Maximum value to display (shows "99+" if exceeded).</param>
+public sealed record BadgeConfig(
+    float Size = 24,
+    Vector4? BackgroundColor = null,
+    Vector4? TextColor = null,
+    float FontSize = 12,
+    int MaxValue = 99)
+{
+    /// <summary>
+    /// The default badge configuration.
+    /// </summary>
+    public static BadgeConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the background color or default (red).
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? new Vector4(0.8f, 0.2f, 0.2f, 1f);
+
+    /// <summary>
+    /// Gets the text color or default (white).
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(1f, 1f, 1f, 1f);
+}
+
+/// <summary>
+/// Configuration for creating avatar widgets.
+/// </summary>
+/// <param name="Size">The avatar size (width and height) in pixels.</param>
+/// <param name="Image">Optional image texture for the avatar.</param>
+/// <param name="FallbackText">Text to show if no image (e.g., initials).</param>
+/// <param name="FallbackBackgroundColor">Background color when showing fallback text.</param>
+/// <param name="FallbackTextColor">Text color for fallback text.</param>
+/// <param name="FallbackFontSize">Font size for fallback text.</param>
+/// <param name="CornerRadius">Corner radius (0 for square, size/2 for circle).</param>
+/// <param name="BorderColor">Optional border color.</param>
+/// <param name="BorderWidth">Border width in pixels.</param>
+public sealed record AvatarConfig(
+    float Size = 64,
+    TextureHandle Image = default,
+    string FallbackText = "",
+    Vector4? FallbackBackgroundColor = null,
+    Vector4? FallbackTextColor = null,
+    float FallbackFontSize = 24,
+    float CornerRadius = 32,
+    Vector4? BorderColor = null,
+    float BorderWidth = 0)
+{
+    /// <summary>
+    /// The default avatar configuration.
+    /// </summary>
+    public static AvatarConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the fallback background color or default.
+    /// </summary>
+    internal Vector4 GetFallbackBackgroundColor() =>
+        FallbackBackgroundColor ?? new Vector4(0.3f, 0.5f, 0.8f, 1f);
+
+    /// <summary>
+    /// Gets the fallback text color or default (white).
+    /// </summary>
+    internal Vector4 GetFallbackTextColor() =>
+        FallbackTextColor ?? new Vector4(1f, 1f, 1f, 1f);
+
+    /// <summary>
+    /// Gets the border color or default (transparent).
+    /// </summary>
+    internal Vector4 GetBorderColor() =>
+        BorderColor ?? Vector4.Zero;
+}
+
+#endregion
+
 #region Phase 9: Accordion
 
 /// <summary>
