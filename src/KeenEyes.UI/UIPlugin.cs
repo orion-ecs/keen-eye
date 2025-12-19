@@ -97,6 +97,24 @@ namespace KeenEyes.UI;
 /// <term>Accordion section expand/collapse</term>
 /// </item>
 /// <item>
+/// <term>EarlyUpdate</term>
+/// <term>85</term>
+/// <term><see cref="UICheckboxSystem"/></term>
+/// <term>Checkbox and toggle click behavior</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
+/// <term>86</term>
+/// <term><see cref="UISliderSystem"/></term>
+/// <term>Slider drag behavior</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
+/// <term>87</term>
+/// <term><see cref="UIScrollbarSystem"/></term>
+/// <term>Scrollbar thumb drag behavior</term>
+/// </item>
+/// <item>
 /// <term>LateUpdate</term>
 /// <term>-10</term>
 /// <term><see cref="UILayoutSystem"/></term>
@@ -202,6 +220,9 @@ public sealed class UIPlugin : IWorldPlugin
         // Slider system handles slider drag behavior
         context.AddSystem<UISliderSystem>(SystemPhase.EarlyUpdate, order: 86);
 
+        // Scrollbar system handles scrollbar thumb drag behavior
+        context.AddSystem<UIScrollbarSystem>(SystemPhase.EarlyUpdate, order: 87);
+
         // Layout calculates bounds before rendering
         context.AddSystem<UILayoutSystem>(SystemPhase.LateUpdate, order: -10);
 
@@ -296,6 +317,7 @@ public sealed class UIPlugin : IWorldPlugin
         context.RegisterComponent<UICheckbox>();
         context.RegisterComponent<UIToggle>();
         context.RegisterComponent<UISlider>();
+        context.RegisterComponent<UIScrollbarThumb>();
 
         // Tag components
         context.RegisterComponent<UIRootTag>(isTag: true);

@@ -701,6 +701,7 @@ public static partial class WidgetFactory
                 {
                     CanDrag = true
                 })
+                .With(new UIScrollbarThumb(container, isVertical: true))
                 .Build();
 
             world.SetParent(vThumb, vScrollbar);
@@ -748,6 +749,7 @@ public static partial class WidgetFactory
                 {
                     CanDrag = true
                 })
+                .With(new UIScrollbarThumb(container, isVertical: false))
                 .Build();
 
             world.SetParent(hThumb, hScrollbar);
@@ -861,6 +863,7 @@ public static partial class WidgetFactory
                 {
                     CanDrag = true
                 })
+                .With(new UIScrollbarThumb(container, isVertical: true))
                 .Build();
 
             world.SetParent(vThumb, vScrollbar);
@@ -907,6 +910,7 @@ public static partial class WidgetFactory
                 {
                     CanDrag = true
                 })
+                .With(new UIScrollbarThumb(container, isVertical: false))
                 .Build();
 
             world.SetParent(hThumb, hScrollbar);
