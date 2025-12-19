@@ -636,6 +636,8 @@ public sealed record ScrollViewConfig(
 /// <param name="CanDrag">Whether the window can be dragged.</param>
 /// <param name="CanResize">Whether the window can be resized.</param>
 /// <param name="CanClose">Whether the window has a close button.</param>
+/// <param name="CanMinimize">Whether the window can be minimized.</param>
+/// <param name="CanMaximize">Whether the window can be maximized.</param>
 /// <param name="MinWidth">Minimum width when resizing.</param>
 /// <param name="MinHeight">Minimum height when resizing.</param>
 /// <param name="TitleBarColor">The title bar background color.</param>
@@ -643,6 +645,8 @@ public sealed record ScrollViewConfig(
 /// <param name="TitleTextColor">The title text color.</param>
 /// <param name="CloseButtonColor">The close button background color.</param>
 /// <param name="CloseButtonHoverColor">The close button hover color.</param>
+/// <param name="MinimizeButtonColor">The minimize button background color.</param>
+/// <param name="MaximizeButtonColor">The maximize button background color.</param>
 /// <param name="FontSize">The title text font size.</param>
 /// <param name="CornerRadius">The window corner radius.</param>
 public sealed record UIWindowConfig(
@@ -654,6 +658,8 @@ public sealed record UIWindowConfig(
     bool CanDrag = true,
     bool CanResize = false,
     bool CanClose = true,
+    bool CanMinimize = false,
+    bool CanMaximize = false,
     float MinWidth = 150,
     float MinHeight = 100,
     Vector4? TitleBarColor = null,
@@ -661,6 +667,8 @@ public sealed record UIWindowConfig(
     Vector4? TitleTextColor = null,
     Vector4? CloseButtonColor = null,
     Vector4? CloseButtonHoverColor = null,
+    Vector4? MinimizeButtonColor = null,
+    Vector4? MaximizeButtonColor = null,
     float FontSize = 14,
     float CornerRadius = 6)
 {
@@ -698,6 +706,18 @@ public sealed record UIWindowConfig(
     /// </summary>
     internal Vector4 GetCloseButtonHoverColor() =>
         CloseButtonHoverColor ?? new Vector4(0.8f, 0.3f, 0.3f, 1f);
+
+    /// <summary>
+    /// Gets the minimize button color or default.
+    /// </summary>
+    internal Vector4 GetMinimizeButtonColor() =>
+        MinimizeButtonColor ?? new Vector4(0.3f, 0.4f, 0.5f, 0f);
+
+    /// <summary>
+    /// Gets the maximize button color or default.
+    /// </summary>
+    internal Vector4 GetMaximizeButtonColor() =>
+        MaximizeButtonColor ?? new Vector4(0.3f, 0.5f, 0.3f, 0f);
 }
 
 /// <summary>
@@ -1689,6 +1709,147 @@ public sealed record AvatarConfig(
 
 #endregion
 
+#region Phase 10: Modal Dialog
+
+/// <summary>
+/// Configuration for creating modal dialog widgets.
+/// </summary>
+/// <param name="Width">The modal width in pixels.</param>
+/// <param name="Height">The modal height in pixels (null for auto height based on content).</param>
+/// <param name="Title">The modal title displayed in the header.</param>
+/// <param name="CloseOnBackdropClick">Whether clicking the backdrop closes the modal.</param>
+/// <param name="CloseOnEscape">Whether pressing Escape closes the modal.</param>
+/// <param name="ShowCloseButton">Whether to show a close button in the header.</param>
+/// <param name="TitleBarHeight">Height of the title bar in pixels.</param>
+/// <param name="BackdropColor">The backdrop overlay color.</param>
+/// <param name="TitleBarColor">The title bar background color.</param>
+/// <param name="ContentColor">The content area background color.</param>
+/// <param name="TitleTextColor">The title text color.</param>
+/// <param name="FontSize">Font size for the title.</param>
+/// <param name="CornerRadius">Corner radius for the modal dialog.</param>
+/// <param name="ButtonSpacing">Space between action buttons.</param>
+/// <param name="ContentPadding">Padding around the content area.</param>
+public sealed record ModalConfig(
+    float Width = 400,
+    float? Height = null,
+    string Title = "",
+    bool CloseOnBackdropClick = true,
+    bool CloseOnEscape = true,
+    bool ShowCloseButton = true,
+    float TitleBarHeight = 40,
+    Vector4? BackdropColor = null,
+    Vector4? TitleBarColor = null,
+    Vector4? ContentColor = null,
+    Vector4? TitleTextColor = null,
+    float FontSize = 16,
+    float CornerRadius = 8,
+    float ButtonSpacing = 8,
+    UIEdges? ContentPadding = null)
+{
+    /// <summary>
+    /// The default modal configuration.
+    /// </summary>
+    public static ModalConfig Default { get; } = new();
+
+    /// <summary>
+    /// Gets the backdrop color or default.
+    /// </summary>
+    internal Vector4 GetBackdropColor() =>
+        BackdropColor ?? new Vector4(0f, 0f, 0f, 0.6f);
+
+    /// <summary>
+    /// Gets the title bar color or default.
+    /// </summary>
+    internal Vector4 GetTitleBarColor() =>
+        TitleBarColor ?? new Vector4(0.18f, 0.18f, 0.22f, 1f);
+
+    /// <summary>
+    /// Gets the content color or default.
+    /// </summary>
+    internal Vector4 GetContentColor() =>
+        ContentColor ?? new Vector4(0.15f, 0.15f, 0.18f, 1f);
+
+    /// <summary>
+    /// Gets the title text color or default.
+    /// </summary>
+    internal Vector4 GetTitleTextColor() =>
+        TitleTextColor ?? new Vector4(1f, 1f, 1f, 1f);
+
+    /// <summary>
+    /// Gets the content padding or default.
+    /// </summary>
+    internal UIEdges GetContentPadding() =>
+        ContentPadding ?? new UIEdges(16, 16, 16, 16);
+}
+
+/// <summary>
+/// Configuration for an alert dialog (single OK button).
+/// </summary>
+/// <param name="Width">The alert width in pixels.</param>
+/// <param name="Title">The alert title.</param>
+/// <param name="OkButtonText">Text for the OK button.</param>
+/// <param name="CloseOnBackdropClick">Whether clicking backdrop closes the alert.</param>
+/// <param name="CloseOnEscape">Whether Escape closes the alert.</param>
+public sealed record AlertConfig(
+    float Width = 350,
+    string Title = "Alert",
+    string OkButtonText = "OK",
+    bool CloseOnBackdropClick = true,
+    bool CloseOnEscape = true);
+
+/// <summary>
+/// Configuration for a confirm dialog (OK/Cancel buttons).
+/// </summary>
+/// <param name="Width">The confirm dialog width in pixels.</param>
+/// <param name="Title">The dialog title.</param>
+/// <param name="OkButtonText">Text for the OK button.</param>
+/// <param name="CancelButtonText">Text for the Cancel button.</param>
+/// <param name="CloseOnBackdropClick">Whether clicking backdrop closes the dialog.</param>
+/// <param name="CloseOnEscape">Whether Escape closes the dialog.</param>
+public sealed record ConfirmConfig(
+    float Width = 350,
+    string Title = "Confirm",
+    string OkButtonText = "OK",
+    string CancelButtonText = "Cancel",
+    bool CloseOnBackdropClick = false,
+    bool CloseOnEscape = true);
+
+/// <summary>
+/// Configuration for a prompt dialog (text input with OK/Cancel).
+/// </summary>
+/// <param name="Width">The prompt dialog width in pixels.</param>
+/// <param name="Title">The dialog title.</param>
+/// <param name="Placeholder">Placeholder text for the input field.</param>
+/// <param name="InitialValue">Initial value in the input field.</param>
+/// <param name="OkButtonText">Text for the OK button.</param>
+/// <param name="CancelButtonText">Text for the Cancel button.</param>
+/// <param name="CloseOnBackdropClick">Whether clicking backdrop closes the dialog.</param>
+/// <param name="CloseOnEscape">Whether Escape closes the dialog.</param>
+public sealed record PromptConfig(
+    float Width = 400,
+    string Title = "Input",
+    string Placeholder = "",
+    string InitialValue = "",
+    string OkButtonText = "OK",
+    string CancelButtonText = "Cancel",
+    bool CloseOnBackdropClick = false,
+    bool CloseOnEscape = true);
+
+/// <summary>
+/// Definition for a modal action button.
+/// </summary>
+/// <param name="Text">The button text.</param>
+/// <param name="Result">The result value when clicked.</param>
+/// <param name="IsPrimary">Whether this is a primary (styled) button.</param>
+/// <param name="Width">Button width (null for auto).</param>
+public sealed record ModalButtonDef(
+    string Text,
+    ModalResult Result = ModalResult.OK,
+    bool IsPrimary = false,
+    float? Width = null);
+
+#endregion
+
 #region Phase 9: Accordion
 
 /// <summary>
@@ -1780,5 +1941,402 @@ public sealed record AccordionConfig(
 public sealed record AccordionSectionDef(
     string Title,
     bool IsExpanded = false);
+
+#endregion
+
+#region Toast Configuration
+
+/// <summary>
+/// Configuration for creating toast notifications.
+/// </summary>
+/// <param name="Message">The toast message text.</param>
+/// <param name="Title">Optional title displayed above the message.</param>
+/// <param name="Type">The toast type (info, success, warning, error).</param>
+/// <param name="Duration">How long the toast displays in seconds (0 = indefinite).</param>
+/// <param name="CanDismiss">Whether the toast can be dismissed by clicking.</param>
+/// <param name="ShowCloseButton">Whether to show a close button.</param>
+/// <param name="Width">The toast width in pixels.</param>
+/// <param name="BackgroundColor">Custom background color (defaults based on type).</param>
+/// <param name="TextColor">Custom text color.</param>
+/// <param name="FontSize">The message font size.</param>
+/// <param name="TitleFontSize">The title font size.</param>
+/// <param name="CornerRadius">The corner radius for rounded corners.</param>
+/// <param name="Padding">Internal padding.</param>
+public sealed record ToastConfig(
+    string Message,
+    string? Title = null,
+    ToastType Type = ToastType.Info,
+    float Duration = 3f,
+    bool CanDismiss = true,
+    bool ShowCloseButton = true,
+    float Width = 300,
+    Vector4? BackgroundColor = null,
+    Vector4? TextColor = null,
+    float FontSize = 14,
+    float TitleFontSize = 16,
+    float CornerRadius = 6,
+    UIEdges? Padding = null)
+{
+    /// <summary>
+    /// Creates an info toast configuration.
+    /// </summary>
+    public static ToastConfig Info(string message, string? title = null, float duration = 3f) =>
+        new(message, title, ToastType.Info, duration);
+
+    /// <summary>
+    /// Creates a success toast configuration.
+    /// </summary>
+    public static ToastConfig Success(string message, string? title = null, float duration = 3f) =>
+        new(message, title, ToastType.Success, duration);
+
+    /// <summary>
+    /// Creates a warning toast configuration.
+    /// </summary>
+    public static ToastConfig Warning(string message, string? title = null, float duration = 5f) =>
+        new(message, title, ToastType.Warning, duration);
+
+    /// <summary>
+    /// Creates an error toast configuration.
+    /// </summary>
+    public static ToastConfig Error(string message, string? title = null, float duration = 0f) =>
+        new(message, title, ToastType.Error, duration);
+
+    /// <summary>
+    /// Gets the background color based on toast type.
+    /// </summary>
+    internal Vector4 GetBackgroundColor() =>
+        BackgroundColor ?? Type switch
+        {
+            ToastType.Success => new Vector4(0.15f, 0.5f, 0.2f, 0.95f),
+            ToastType.Warning => new Vector4(0.6f, 0.45f, 0.1f, 0.95f),
+            ToastType.Error => new Vector4(0.6f, 0.15f, 0.15f, 0.95f),
+            _ => new Vector4(0.2f, 0.25f, 0.35f, 0.95f)  // Info
+        };
+
+    /// <summary>
+    /// Gets the text color or default.
+    /// </summary>
+    internal Vector4 GetTextColor() =>
+        TextColor ?? new Vector4(1f, 1f, 1f, 1f);
+
+    /// <summary>
+    /// Gets the padding or default.
+    /// </summary>
+    internal UIEdges GetPadding() =>
+        Padding ?? new UIEdges(12, 16, 12, 16);
+}
+
+/// <summary>
+/// Configuration for creating toast containers.
+/// </summary>
+/// <param name="Position">Where toasts appear on screen.</param>
+/// <param name="MaxVisible">Maximum number of visible toasts.</param>
+/// <param name="Spacing">Space between stacked toasts.</param>
+/// <param name="Margin">Margin from container edges.</param>
+public sealed record ToastContainerConfig(
+    ToastPosition Position = ToastPosition.TopRight,
+    int MaxVisible = 5,
+    float Spacing = 10f,
+    float Margin = 20f)
+{
+    /// <summary>
+    /// The default toast container configuration.
+    /// </summary>
+    public static ToastContainerConfig Default { get; } = new();
+
+    /// <summary>
+    /// Creates a top-right positioned container.
+    /// </summary>
+    public static ToastContainerConfig TopRight(int maxVisible = 5) =>
+        new(ToastPosition.TopRight, maxVisible);
+
+    /// <summary>
+    /// Creates a bottom-right positioned container.
+    /// </summary>
+    public static ToastContainerConfig BottomRight(int maxVisible = 5) =>
+        new(ToastPosition.BottomRight, maxVisible);
+
+    /// <summary>
+    /// Creates a top-center positioned container.
+    /// </summary>
+    public static ToastContainerConfig TopCenter(int maxVisible = 3) =>
+        new(ToastPosition.TopCenter, maxVisible);
+
+    /// <summary>
+    /// Creates a bottom-center positioned container.
+    /// </summary>
+    public static ToastContainerConfig BottomCenter(int maxVisible = 3) =>
+        new(ToastPosition.BottomCenter, maxVisible);
+}
+
+/// <summary>
+/// Configuration for creating spinner widgets.
+/// </summary>
+/// <param name="Style">The spinner animation style.</param>
+/// <param name="Size">The size of the spinner in pixels.</param>
+/// <param name="Speed">Rotation speed in radians per second.</param>
+/// <param name="Color">The spinner color.</param>
+/// <param name="Thickness">The stroke thickness.</param>
+/// <param name="ArcLength">Arc length for circular spinners (0 to 1).</param>
+/// <param name="ElementCount">Number of elements for dot spinners.</param>
+public sealed record SpinnerConfig(
+    SpinnerStyle Style = SpinnerStyle.Circular,
+    float Size = 40f,
+    float Speed = MathF.PI * 2,
+    Vector4? Color = null,
+    float Thickness = 3f,
+    float ArcLength = 0.75f,
+    int ElementCount = 8)
+{
+    /// <summary>
+    /// The default spinner configuration.
+    /// </summary>
+    public static SpinnerConfig Default { get; } = new();
+
+    /// <summary>
+    /// Creates a small spinner (24px).
+    /// </summary>
+    public static SpinnerConfig Small(Vector4? color = null) =>
+        new(Size: 24f, Color: color, Thickness: 2f);
+
+    /// <summary>
+    /// Creates a medium spinner (40px).
+    /// </summary>
+    public static SpinnerConfig Medium(Vector4? color = null) =>
+        new(Size: 40f, Color: color);
+
+    /// <summary>
+    /// Creates a large spinner (64px).
+    /// </summary>
+    public static SpinnerConfig Large(Vector4? color = null) =>
+        new(Size: 64f, Color: color, Thickness: 4f);
+
+    /// <summary>
+    /// Creates a dot-style spinner.
+    /// </summary>
+    public static SpinnerConfig Dots(float size = 40f, int dotCount = 8, Vector4? color = null) =>
+        new(Style: SpinnerStyle.Dots, Size: size, ElementCount: dotCount, Color: color);
+
+    /// <summary>
+    /// Creates a bar-style spinner (indeterminate progress).
+    /// </summary>
+    public static SpinnerConfig Bar(float width = 200f, Vector4? color = null) =>
+        new(Style: SpinnerStyle.Bar, Size: width, Color: color);
+
+    /// <summary>
+    /// Gets the color or default.
+    /// </summary>
+    internal Vector4 GetColor() =>
+        Color ?? new Vector4(0.3f, 0.6f, 1f, 1f); // Blue
+}
+
+#endregion
+
+#region Color Picker
+
+/// <summary>
+/// Configuration for creating color picker widgets.
+/// </summary>
+/// <param name="InitialColor">The initial color in RGBA format (0-1 range).</param>
+/// <param name="Mode">The color picker mode (HSV, RGB, or Both).</param>
+/// <param name="ShowAlpha">Whether to show the alpha slider.</param>
+/// <param name="ShowHexInput">Whether to show the hex input field.</param>
+/// <param name="ShowPreview">Whether to show the color preview panel.</param>
+/// <param name="Width">The width of the color picker.</param>
+/// <param name="Height">The height of the color picker.</param>
+/// <param name="CornerRadius">The corner radius for rounded corners.</param>
+public sealed record ColorPickerConfig(
+    Vector4? InitialColor = null,
+    ColorPickerMode Mode = ColorPickerMode.HSV,
+    bool ShowAlpha = true,
+    bool ShowHexInput = true,
+    bool ShowPreview = true,
+    float Width = 250f,
+    float Height = 300f,
+    float CornerRadius = 4f)
+{
+    /// <summary>
+    /// The default color picker configuration.
+    /// </summary>
+    public static ColorPickerConfig Default { get; } = new();
+
+    /// <summary>
+    /// Creates an HSV color picker configuration.
+    /// </summary>
+    public static ColorPickerConfig HSV(Vector4? initialColor = null, bool showAlpha = true) =>
+        new(InitialColor: initialColor, Mode: ColorPickerMode.HSV, ShowAlpha: showAlpha);
+
+    /// <summary>
+    /// Creates an RGB color picker configuration.
+    /// </summary>
+    public static ColorPickerConfig RGB(Vector4? initialColor = null, bool showAlpha = true) =>
+        new(InitialColor: initialColor, Mode: ColorPickerMode.RGB, ShowAlpha: showAlpha);
+
+    /// <summary>
+    /// Creates a compact color picker (no hex input, smaller size).
+    /// </summary>
+    public static ColorPickerConfig Compact(Vector4? initialColor = null) =>
+        new(InitialColor: initialColor, ShowHexInput: false, Width: 200f, Height: 220f);
+
+    /// <summary>
+    /// Creates a color picker without alpha slider.
+    /// </summary>
+    public static ColorPickerConfig Opaque(Vector4? initialColor = null) =>
+        new(InitialColor: initialColor, ShowAlpha: false);
+
+    /// <summary>
+    /// Gets the initial color or default (red).
+    /// </summary>
+    internal Vector4 GetInitialColor() =>
+        InitialColor ?? new Vector4(1f, 0f, 0f, 1f);
+}
+
+#endregion
+
+#region Date/Time Picker
+
+/// <summary>
+/// Configuration for creating date picker widgets.
+/// </summary>
+/// <param name="InitialValue">The initial date/time value.</param>
+/// <param name="Mode">The picker mode (Date, Time, or DateTime).</param>
+/// <param name="TimeFormat">The time format (12-hour or 24-hour).</param>
+/// <param name="ShowSeconds">Whether to show seconds in time mode.</param>
+/// <param name="MinDate">The minimum selectable date (null for no minimum).</param>
+/// <param name="MaxDate">The maximum selectable date (null for no maximum).</param>
+/// <param name="FirstDayOfWeek">The first day of the week for calendar display.</param>
+/// <param name="Width">The width of the date picker.</param>
+/// <param name="Height">The height of the date picker.</param>
+/// <param name="CornerRadius">The corner radius for rounded corners.</param>
+public sealed record DatePickerConfig(
+    DateTime? InitialValue = null,
+    DatePickerMode Mode = DatePickerMode.Date,
+    TimeFormat TimeFormat = TimeFormat.Hour24,
+    bool ShowSeconds = false,
+    DateTime? MinDate = null,
+    DateTime? MaxDate = null,
+    DayOfWeek FirstDayOfWeek = DayOfWeek.Sunday,
+    float Width = 280f,
+    float Height = 320f,
+    float CornerRadius = 4f)
+{
+    /// <summary>
+    /// The default date picker configuration.
+    /// </summary>
+    public static DatePickerConfig Default { get; } = new();
+
+    /// <summary>
+    /// Creates a date-only picker configuration.
+    /// </summary>
+    public static DatePickerConfig DateOnly(DateTime? initialValue = null) =>
+        new(InitialValue: initialValue, Mode: DatePickerMode.Date);
+
+    /// <summary>
+    /// Creates a time-only picker configuration.
+    /// </summary>
+    public static DatePickerConfig TimeOnly(DateTime? initialValue = null, TimeFormat format = TimeFormat.Hour24) =>
+        new(InitialValue: initialValue, Mode: DatePickerMode.Time, TimeFormat: format, Height: 100f);
+
+    /// <summary>
+    /// Creates a date and time picker configuration.
+    /// </summary>
+    public static DatePickerConfig DateAndTime(DateTime? initialValue = null, TimeFormat format = TimeFormat.Hour24) =>
+        new(InitialValue: initialValue, Mode: DatePickerMode.DateTime, TimeFormat: format, Height: 380f);
+
+    /// <summary>
+    /// Creates a date picker with a date range constraint.
+    /// </summary>
+    public static DatePickerConfig WithRange(DateTime minDate, DateTime maxDate, DateTime? initialValue = null) =>
+        new(InitialValue: initialValue, MinDate: minDate, MaxDate: maxDate);
+
+    /// <summary>
+    /// Creates a date picker that only allows future dates.
+    /// </summary>
+    public static DatePickerConfig FutureOnly(DateTime? initialValue = null) =>
+        new(InitialValue: initialValue ?? DateTime.Today, MinDate: DateTime.Today);
+
+    /// <summary>
+    /// Creates a date picker that only allows past dates.
+    /// </summary>
+    public static DatePickerConfig PastOnly(DateTime? initialValue = null) =>
+        new(InitialValue: initialValue ?? DateTime.Today, MaxDate: DateTime.Today);
+
+    /// <summary>
+    /// Gets the initial value or default (now).
+    /// </summary>
+    internal DateTime GetInitialValue() =>
+        InitialValue ?? DateTime.Now;
+}
+
+#endregion
+
+#region DataGrid Config
+
+/// <summary>
+/// Configuration for a data grid column definition.
+/// </summary>
+/// <param name="Header">The column header text.</param>
+/// <param name="Width">The column width in pixels.</param>
+/// <param name="MinWidth">The minimum width when resizing.</param>
+/// <param name="IsSortable">Whether this column is sortable.</param>
+/// <param name="IsResizable">Whether this column is resizable.</param>
+public sealed record DataGridColumnDef(
+    string Header,
+    float Width = 100f,
+    float MinWidth = 50f,
+    bool IsSortable = true,
+    bool IsResizable = true);
+
+/// <summary>
+/// Configuration for creating a data grid.
+/// </summary>
+/// <param name="Columns">The column definitions.</param>
+/// <param name="SelectionMode">The row selection mode.</param>
+/// <param name="AllowColumnResize">Whether columns can be resized.</param>
+/// <param name="AllowSorting">Whether columns can be sorted.</param>
+/// <param name="RowHeight">The height of data rows.</param>
+/// <param name="HeaderHeight">The height of the header row.</param>
+/// <param name="AlternatingRowColors">Whether to show alternating row colors.</param>
+/// <param name="Size">The overall grid size.</param>
+public sealed record DataGridConfig(
+    DataGridColumnDef[] Columns,
+    GridSelectionMode SelectionMode = GridSelectionMode.Single,
+    bool AllowColumnResize = true,
+    bool AllowSorting = true,
+    float RowHeight = 30f,
+    float HeaderHeight = 35f,
+    bool AlternatingRowColors = true,
+    Vector2? Size = null)
+{
+    /// <summary>
+    /// Creates a default data grid configuration with specified columns.
+    /// </summary>
+    public static DataGridConfig WithColumns(params DataGridColumnDef[] columns) =>
+        new(Columns: columns);
+
+    /// <summary>
+    /// Creates a data grid with simple string column headers.
+    /// </summary>
+    public static DataGridConfig WithHeaders(params string[] headers) =>
+        new(Columns: headers.Select(h => new DataGridColumnDef(h)).ToArray());
+
+    /// <summary>
+    /// Creates a read-only data grid (no selection, no sorting, no resize).
+    /// </summary>
+    public static DataGridConfig ReadOnly(params DataGridColumnDef[] columns) =>
+        new(
+            Columns: columns,
+            SelectionMode: GridSelectionMode.None,
+            AllowColumnResize: false,
+            AllowSorting: false);
+
+    /// <summary>
+    /// Creates a data grid that allows multiple row selection.
+    /// </summary>
+    public static DataGridConfig MultiSelect(params DataGridColumnDef[] columns) =>
+        new(
+            Columns: columns,
+            SelectionMode: GridSelectionMode.Multiple);
+}
 
 #endregion

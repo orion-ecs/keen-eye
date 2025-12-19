@@ -71,7 +71,11 @@ public static partial class WidgetFactory
                 CanDrag = config.CanDrag,
                 CanResize = config.CanResize,
                 CanClose = config.CanClose,
-                MinSize = new Vector2(config.MinWidth, config.MinHeight)
+                CanMinimize = config.CanMinimize,
+                CanMaximize = config.CanMaximize,
+                MinSize = new Vector2(config.MinWidth, config.MinHeight),
+                RestorePosition = new Vector2(config.X, config.Y),
+                RestoreSize = new Vector2(config.Width, config.Height)
             })
             .Build();
 
@@ -138,6 +142,107 @@ public static partial class WidgetFactory
 
         world.SetParent(titleLabel, titleBar);
 
+        // Create window control buttons container (to keep buttons in order)
+        var buttonContainer = world.Spawn()
+            .With(new UIElement { Visible = true, RaycastTarget = false })
+            .With(new UIRect
+            {
+                AnchorMin = Vector2.Zero,
+                AnchorMax = Vector2.One,
+                Pivot = new Vector2(1f, 0.5f),
+                Size = Vector2.Zero,
+                WidthMode = UISizeMode.Fill,
+                HeightMode = UISizeMode.Fill
+            })
+            .With(new UILayout
+            {
+                Direction = LayoutDirection.Horizontal,
+                MainAxisAlign = LayoutAlign.End,
+                CrossAxisAlign = LayoutAlign.Center,
+                Spacing = 4
+            })
+            .Build();
+
+        world.SetParent(buttonContainer, titleBar);
+
+        var buttonSize = config.TitleBarHeight - 8;
+
+        // Create minimize button if enabled
+        if (config.CanMinimize)
+        {
+            var minimizeButton = world.Spawn()
+                .With(new UIElement { Visible = true, RaycastTarget = true })
+                .With(new UIRect
+                {
+                    AnchorMin = Vector2.Zero,
+                    AnchorMax = Vector2.One,
+                    Pivot = new Vector2(0.5f, 0.5f),
+                    Size = new Vector2(buttonSize, buttonSize),
+                    WidthMode = UISizeMode.Fixed,
+                    HeightMode = UISizeMode.Fixed
+                })
+                .With(new UIStyle
+                {
+                    BackgroundColor = config.GetMinimizeButtonColor(),
+                    CornerRadius = 3f
+                })
+                .With(new UIText
+                {
+                    Content = "\u2212", // Minus sign
+                    Font = font,
+                    Color = config.GetTitleTextColor(),
+                    FontSize = config.FontSize * 0.8f,
+                    HorizontalAlign = TextAlignH.Center,
+                    VerticalAlign = TextAlignV.Middle
+                })
+                .With(new UIInteractable
+                {
+                    CanClick = true
+                })
+                .With(new UIWindowMinimizeButton(window))
+                .Build();
+
+            world.SetParent(minimizeButton, buttonContainer);
+        }
+
+        // Create maximize button if enabled
+        if (config.CanMaximize)
+        {
+            var maximizeButton = world.Spawn()
+                .With(new UIElement { Visible = true, RaycastTarget = true })
+                .With(new UIRect
+                {
+                    AnchorMin = Vector2.Zero,
+                    AnchorMax = Vector2.One,
+                    Pivot = new Vector2(0.5f, 0.5f),
+                    Size = new Vector2(buttonSize, buttonSize),
+                    WidthMode = UISizeMode.Fixed,
+                    HeightMode = UISizeMode.Fixed
+                })
+                .With(new UIStyle
+                {
+                    BackgroundColor = config.GetMaximizeButtonColor(),
+                    CornerRadius = 3f
+                })
+                .With(new UIText
+                {
+                    Content = "\u25A1", // Square outline
+                    Font = font,
+                    Color = config.GetTitleTextColor(),
+                    FontSize = config.FontSize * 0.8f,
+                    HorizontalAlign = TextAlignH.Center,
+                    VerticalAlign = TextAlignV.Middle
+                })
+                .With(new UIInteractable
+                {
+                    CanClick = true
+                })
+                .With(new UIWindowMaximizeButton(window))
+                .Build();
+
+            world.SetParent(maximizeButton, buttonContainer);
+        }
+
         // Create close button if enabled
         if (config.CanClose)
         {
@@ -148,7 +253,7 @@ public static partial class WidgetFactory
                     AnchorMin = Vector2.Zero,
                     AnchorMax = Vector2.One,
                     Pivot = new Vector2(0.5f, 0.5f),
-                    Size = new Vector2(config.TitleBarHeight - 8, config.TitleBarHeight - 8),
+                    Size = new Vector2(buttonSize, buttonSize),
                     WidthMode = UISizeMode.Fixed,
                     HeightMode = UISizeMode.Fixed
                 })
@@ -173,7 +278,7 @@ public static partial class WidgetFactory
                 .With(new UIWindowCloseButton(window))
                 .Build();
 
-            world.SetParent(closeButton, titleBar);
+            world.SetParent(closeButton, buttonContainer);
         }
 
         // Create content panel
@@ -202,6 +307,11 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(contentPanel, window);
+
+        // Update window component with entity references
+        ref var windowComponent = ref world.Get<UIWindow>(window);
+        windowComponent.TitleBar = titleBar;
+        windowComponent.ContentPanel = contentPanel;
 
         return (window, contentPanel);
     }
@@ -254,7 +364,11 @@ public static partial class WidgetFactory
                 CanDrag = config.CanDrag,
                 CanResize = config.CanResize,
                 CanClose = config.CanClose,
-                MinSize = new Vector2(config.MinWidth, config.MinHeight)
+                CanMinimize = config.CanMinimize,
+                CanMaximize = config.CanMaximize,
+                MinSize = new Vector2(config.MinWidth, config.MinHeight),
+                RestorePosition = new Vector2(config.X, config.Y),
+                RestoreSize = new Vector2(config.Width, config.Height)
             })
             .Build();
 
@@ -319,6 +433,108 @@ public static partial class WidgetFactory
 
         world.SetParent(titleLabel, titleBar);
 
+        // Create window control buttons container (to keep buttons in order)
+        var buttonContainer = world.Spawn($"{name}_ButtonContainer")
+            .With(new UIElement { Visible = true, RaycastTarget = false })
+            .With(new UIRect
+            {
+                AnchorMin = Vector2.Zero,
+                AnchorMax = Vector2.One,
+                Pivot = new Vector2(1f, 0.5f),
+                Size = Vector2.Zero,
+                WidthMode = UISizeMode.Fill,
+                HeightMode = UISizeMode.Fill
+            })
+            .With(new UILayout
+            {
+                Direction = LayoutDirection.Horizontal,
+                MainAxisAlign = LayoutAlign.End,
+                CrossAxisAlign = LayoutAlign.Center,
+                Spacing = 4
+            })
+            .Build();
+
+        world.SetParent(buttonContainer, titleBar);
+
+        var buttonSize = config.TitleBarHeight - 8;
+
+        // Create minimize button if enabled
+        if (config.CanMinimize)
+        {
+            var minimizeButton = world.Spawn($"{name}_MinimizeButton")
+                .With(new UIElement { Visible = true, RaycastTarget = true })
+                .With(new UIRect
+                {
+                    AnchorMin = Vector2.Zero,
+                    AnchorMax = Vector2.One,
+                    Pivot = new Vector2(0.5f, 0.5f),
+                    Size = new Vector2(buttonSize, buttonSize),
+                    WidthMode = UISizeMode.Fixed,
+                    HeightMode = UISizeMode.Fixed
+                })
+                .With(new UIStyle
+                {
+                    BackgroundColor = config.GetMinimizeButtonColor(),
+                    CornerRadius = 3f
+                })
+                .With(new UIText
+                {
+                    Content = "\u2212", // Minus sign
+                    Font = font,
+                    Color = config.GetTitleTextColor(),
+                    FontSize = config.FontSize * 0.8f,
+                    HorizontalAlign = TextAlignH.Center,
+                    VerticalAlign = TextAlignV.Middle
+                })
+                .With(new UIInteractable
+                {
+                    CanClick = true
+                })
+                .With(new UIWindowMinimizeButton(window))
+                .Build();
+
+            world.SetParent(minimizeButton, buttonContainer);
+        }
+
+        // Create maximize button if enabled
+        if (config.CanMaximize)
+        {
+            var maximizeButton = world.Spawn($"{name}_MaximizeButton")
+                .With(new UIElement { Visible = true, RaycastTarget = true })
+                .With(new UIRect
+                {
+                    AnchorMin = Vector2.Zero,
+                    AnchorMax = Vector2.One,
+                    Pivot = new Vector2(0.5f, 0.5f),
+                    Size = new Vector2(buttonSize, buttonSize),
+                    WidthMode = UISizeMode.Fixed,
+                    HeightMode = UISizeMode.Fixed
+                })
+                .With(new UIStyle
+                {
+                    BackgroundColor = config.GetMaximizeButtonColor(),
+                    CornerRadius = 3f
+                })
+                .With(new UIText
+                {
+                    Content = "\u25A1", // Square outline
+                    Font = font,
+                    Color = config.GetTitleTextColor(),
+                    FontSize = config.FontSize * 0.8f,
+                    HorizontalAlign = TextAlignH.Center,
+                    VerticalAlign = TextAlignV.Middle
+                })
+                .With(new UIInteractable
+                {
+                    CanClick = true
+                })
+                .With(new UIWindowMaximizeButton(window))
+                .Build();
+
+            world.SetParent(maximizeButton, buttonContainer);
+        }
+
+        // Create close button if enabled
         if (config.CanClose)
         {
             var closeButton = world.Spawn($"{name}_CloseButton")
@@ -328,7 +544,7 @@ public static partial class WidgetFactory
                     AnchorMin = Vector2.Zero,
                     AnchorMax = Vector2.One,
                     Pivot = new Vector2(0.5f, 0.5f),
-                    Size = new Vector2(config.TitleBarHeight - 8, config.TitleBarHeight - 8),
+                    Size = new Vector2(buttonSize, buttonSize),
                     WidthMode = UISizeMode.Fixed,
                     HeightMode = UISizeMode.Fixed
                 })
@@ -353,7 +569,7 @@ public static partial class WidgetFactory
                 .With(new UIWindowCloseButton(window))
                 .Build();
 
-            world.SetParent(closeButton, titleBar);
+            world.SetParent(closeButton, buttonContainer);
         }
 
         var contentPanel = world.Spawn($"{name}_Content")
@@ -381,6 +597,11 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(contentPanel, window);
+
+        // Update window component with entity references
+        ref var windowComponent = ref world.Get<UIWindow>(window);
+        windowComponent.TitleBar = titleBar;
+        windowComponent.ContentPanel = contentPanel;
 
         return (window, contentPanel);
     }
