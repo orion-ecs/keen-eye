@@ -711,8 +711,8 @@ public static partial class WidgetFactory
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
             {
-                AnchorMin = Vector2.Zero,
-                AnchorMax = Vector2.Zero,
+                AnchorMin = new Vector2(0, 0.5f),
+                AnchorMax = new Vector2(0, 0.5f),
                 Pivot = new Vector2(0, 0.5f),
                 Offset = new UIEdges(thumbOffset, 0, 0, 0),
                 Size = new Vector2(thumbSize, thumbSize),
@@ -844,8 +844,8 @@ public static partial class WidgetFactory
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
             {
-                AnchorMin = Vector2.Zero,
-                AnchorMax = Vector2.Zero,
+                AnchorMin = new Vector2(0, 0.5f),
+                AnchorMax = new Vector2(0, 0.5f),
                 Pivot = new Vector2(0, 0.5f),
                 Offset = new UIEdges(thumbOffset, 0, 0, 0),
                 Size = new Vector2(thumbSize, thumbSize),
