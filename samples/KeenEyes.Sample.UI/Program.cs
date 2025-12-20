@@ -5,7 +5,10 @@
 // - Basic widgets: Button, Panel, Label, TextField, Checkbox, Slider,
 //   ProgressBar, Toggle, Dropdown, TabView, Divider, ScrollView
 // - Advanced widgets: Splitter, Toolbar, StatusBar, TreeView, Accordion, PropertyGrid
-// - Menu system: MenuBar with dropdowns
+// - Windows & Modals: Window, Modal dialogs (Alert, Confirm, Prompt)
+// - Pickers: ColorPicker, DatePicker
+// - Display widgets: Spinner, DataGrid, Toast notifications
+// - Menu system: MenuBar with dropdowns, RadialMenu
 // - Tooltips on interactive elements
 // - Multiple color schemes (primary, success, danger, warning, info)
 // - Various font sizes and layout configurations
@@ -38,7 +41,10 @@ Console.WriteLine("This sample demonstrates all WidgetFactory widgets:");
 Console.WriteLine("Basic:    Button, Panel, Label, TextField, Checkbox, Slider");
 Console.WriteLine("          ProgressBar, Toggle, Dropdown, TabView, Divider, ScrollView");
 Console.WriteLine("Advanced: Splitter, Toolbar, StatusBar, TreeView, Accordion, PropertyGrid");
-Console.WriteLine("Menus:    MenuBar with dropdowns, tooltips on hover");
+Console.WriteLine("Windows:  Window, Modal dialogs (Alert, Confirm, Prompt)");
+Console.WriteLine("Pickers:  ColorPicker, DatePicker");
+Console.WriteLine("Display:  Spinner, DataGrid, Toast notifications");
+Console.WriteLine("Menus:    MenuBar with dropdowns, RadialMenu, tooltips on hover");
 Console.WriteLine();
 Console.WriteLine("Controls:");
 Console.WriteLine("  Tab / Shift+Tab  - Navigate between elements");
@@ -206,15 +212,18 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
     // Spacing
     CreateSpacer(world, mainPanel, 8);
 
-    // Create TabView with 6 tabs
+    // Create TabView with 9 tabs covering all widgets
     var tabs = new TabConfig[]
     {
-        new("Controls", MinWidth: 90),
-        new("Inputs", MinWidth: 90),
-        new("Layout", MinWidth: 90),
-        new("Splitter", MinWidth: 90),
-        new("TreeView", MinWidth: 90),
-        new("Inspector", MinWidth: 90)
+        new("Controls", MinWidth: 80),
+        new("Inputs", MinWidth: 80),
+        new("Layout", MinWidth: 80),
+        new("Splitter", MinWidth: 80),
+        new("TreeView", MinWidth: 80),
+        new("Inspector", MinWidth: 80),
+        new("Windows", MinWidth: 80),
+        new("Pickers", MinWidth: 80),
+        new("Advanced", MinWidth: 80)
     };
 
     var (tabView, contentPanels) = WidgetFactory.CreateTabView(
@@ -228,7 +237,7 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
             ContentColor: Colors.MediumPanel,
             TabColor: new Vector4(0.14f, 0.14f, 0.18f, 1f),
             ActiveTabColor: Colors.MediumPanel,
-            FontSize: 13
+            FontSize: 12
         ));
 
     // Populate Tab 1: Controls
@@ -248,6 +257,15 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
 
     // Populate Tab 6: PropertyGrid
     PopulatePropertyGridTab(world, contentPanels[5], font);
+
+    // Populate Tab 7: Windows & Modals
+    PopulateWindowsTab(world, contentPanels[6], font, canvas);
+
+    // Populate Tab 8: Pickers
+    PopulatePickersTab(world, contentPanels[7], font);
+
+    // Populate Tab 9: Advanced (Spinner, DataGrid, Toast, RadialMenu)
+    PopulateAdvancedTab(world, contentPanels[8], font, canvas);
 
     Console.WriteLine("Created widget gallery with TabView and all widget types");
 }
@@ -1318,6 +1336,513 @@ static void PopulatePropertyGridTab(World world, Entity panel, FontHandle font)
             ValueColor: Colors.TextWhite,
             FontSize: 12
         ));
+}
+
+// ============================================================================
+// Tab 7: Windows & Modals
+// ============================================================================
+
+static void PopulateWindowsTab(World world, Entity panel, FontHandle font, Entity canvas)
+{
+    ref var layout = ref world.Get<UILayout>(panel);
+    layout.Spacing = 15;
+    layout.CrossAxisAlign = LayoutAlign.Center;
+    world.Add(panel, new UIStyle { Padding = UIEdges.All(15) });
+
+    // --- Window Section ---
+    var windowSection = CreateSection(world, panel, "Floating Windows", font);
+
+    var windowRow = WidgetFactory.CreatePanel(world, windowSection, "WindowRow", new PanelConfig(
+        Height: 200,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Start,
+        Spacing: 20
+    ));
+
+    // Create a demo window
+    var (window1, window1Content) = WidgetFactory.CreateWindow(
+        world, windowRow, "Properties", font,
+        new UIWindowConfig(
+            Width: 280,
+            Height: 180,
+            TitleBarColor: Colors.Primary,
+            ContentColor: Colors.DarkPanel,
+            CanClose: true,
+            CanMinimize: true,
+            CanMaximize: false,
+            CanResize: true
+        ));
+
+    // Add content to window
+    WidgetFactory.CreateLabel(world, window1Content, "WinLabel1", "Window content area", font, new LabelConfig(
+        FontSize: 12, TextColor: Colors.TextLight
+    ));
+    WidgetFactory.CreateLabel(world, window1Content, "WinLabel2", "Draggable title bar", font, new LabelConfig(
+        FontSize: 11, TextColor: Colors.TextMuted
+    ));
+
+    // Second window with different style
+    var (window2, window2Content) = WidgetFactory.CreateWindow(
+        world, windowRow, "Settings", font,
+        new UIWindowConfig(
+            Width: 280,
+            Height: 180,
+            X: 300,
+            TitleBarColor: Colors.Success,
+            ContentColor: Colors.DarkPanel,
+            CanClose: true,
+            CanMinimize: false,
+            CanMaximize: true,
+            CanResize: true
+        ));
+
+    WidgetFactory.CreateCheckbox(world, window2Content, "WinCheck1", "Enable feature", font, new CheckboxConfig(
+        IsChecked: true, CheckColor: Colors.Success
+    ));
+    WidgetFactory.CreateCheckbox(world, window2Content, "WinCheck2", "Dark mode", font, new CheckboxConfig(
+        IsChecked: false, CheckColor: Colors.AccentBlue
+    ));
+
+    // Third window
+    var (window3, window3Content) = WidgetFactory.CreateWindow(
+        world, windowRow, "Info", font,
+        new UIWindowConfig(
+            Width: 280,
+            Height: 180,
+            X: 600,
+            TitleBarColor: Colors.Warning,
+            ContentColor: Colors.DarkPanel,
+            CanClose: true,
+            CanMinimize: true,
+            CanMaximize: true,
+            CanResize: false
+        ));
+
+    WidgetFactory.CreateLabel(world, window3Content, "WinInfo1", "Non-resizable window", font, new LabelConfig(
+        FontSize: 12, TextColor: Colors.TextLight
+    ));
+
+    // --- Modal Dialogs Section ---
+    var modalSection = CreateSection(world, panel, "Modal Dialogs (Click buttons to open)", font);
+
+    var modalRow = WidgetFactory.CreatePanel(world, modalSection, "ModalRow", new PanelConfig(
+        Height: 60,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 20
+    ));
+
+    // Alert button
+    var alertBtn = WidgetFactory.CreateButton(world, modalRow, "AlertBtn", "Show Alert", font, new ButtonConfig(
+        Width: 130, Height: 40,
+        BackgroundColor: Colors.Info,
+        CornerRadius: 6
+    ));
+    WidgetFactory.AddTooltip(world, alertBtn, "Opens an alert dialog");
+
+    // Confirm button
+    var confirmBtn = WidgetFactory.CreateButton(world, modalRow, "ConfirmBtn", "Show Confirm", font, new ButtonConfig(
+        Width: 130, Height: 40,
+        BackgroundColor: Colors.Warning,
+        CornerRadius: 6,
+        TextColor: Colors.TextDark
+    ));
+    WidgetFactory.AddTooltip(world, confirmBtn, "Opens a confirmation dialog");
+
+    // Prompt button
+    var promptBtn = WidgetFactory.CreateButton(world, modalRow, "PromptBtn", "Show Prompt", font, new ButtonConfig(
+        Width: 130, Height: 40,
+        BackgroundColor: Colors.Success,
+        CornerRadius: 6
+    ));
+    WidgetFactory.AddTooltip(world, promptBtn, "Opens a prompt dialog");
+
+    // Custom modal button
+    var customBtn = WidgetFactory.CreateButton(world, modalRow, "CustomModalBtn", "Custom Modal", font, new ButtonConfig(
+        Width: 130, Height: 40,
+        BackgroundColor: Colors.Primary,
+        CornerRadius: 6
+    ));
+    WidgetFactory.AddTooltip(world, customBtn, "Opens a custom modal");
+
+    // Create demo modals (hidden by default)
+    var (alertModal, _, alertContent) = WidgetFactory.CreateAlert(
+        world, canvas,
+        "This is an alert dialog. It displays important information to the user.",
+        font, new AlertConfig(Title: "Information", Width: 400));
+
+    var (confirmModal, _, confirmContent) = WidgetFactory.CreateConfirm(
+        world, canvas,
+        "Are you sure you want to proceed? This action cannot be undone.",
+        font, new ConfirmConfig(Title: "Confirm Action", Width: 420));
+
+    var (promptModal, _, promptContent, promptInput) = WidgetFactory.CreatePrompt(
+        world, canvas,
+        "Please enter your name:",
+        font, new PromptConfig(Title: "Enter Value", Width: 400, InitialValue: "John Doe"));
+
+    // Custom modal with more content
+    var (customModal, _, customContent) = WidgetFactory.CreateModal(
+        world, canvas, font,
+        new ModalConfig(Title: "Custom Dialog", Width: 450, Height: 250));
+
+    WidgetFactory.CreateLabel(world, customContent, "CustomLabel1", "This is a custom modal dialog", font,
+        new LabelConfig(FontSize: 14, TextColor: Colors.TextWhite));
+    WidgetFactory.CreateLabel(world, customContent, "CustomLabel2", "You can add any widgets here:", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextMuted));
+
+    var customSlider = WidgetFactory.CreateSlider(world, customContent, "ModalSlider", new SliderConfig(
+        Width: 380, Height: 24, Value: 50, FillColor: Colors.AccentBlue
+    ));
+
+    WidgetFactory.CreateCheckbox(world, customContent, "ModalCheck", "Enable notifications", font, new CheckboxConfig(
+        IsChecked: true, CheckColor: Colors.Success
+    ));
+
+    // Description text
+    WidgetFactory.CreateLabel(world, modalSection, "ModalDesc",
+        "Modals block interaction with the background and can be closed with the X button or backdrop click.",
+        font, new LabelConfig(
+            Width: 900,
+            FontSize: 11,
+            TextColor: Colors.TextMuted,
+            HorizontalAlign: TextAlignH.Center
+        ));
+}
+
+// ============================================================================
+// Tab 8: Pickers (ColorPicker, DatePicker)
+// ============================================================================
+
+static void PopulatePickersTab(World world, Entity panel, FontHandle font)
+{
+    ref var layout = ref world.Get<UILayout>(panel);
+    layout.Spacing = 15;
+    layout.Direction = LayoutDirection.Horizontal;
+    layout.CrossAxisAlign = LayoutAlign.Start;
+    world.Add(panel, new UIStyle { Padding = UIEdges.All(15) });
+
+    // --- ColorPicker Section ---
+    var colorSection = CreateSection(world, panel, "Color Picker", font, 480);
+
+    var colorRow = WidgetFactory.CreatePanel(world, colorSection, "ColorRow", new PanelConfig(
+        Height: 350,
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Start,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 15
+    ));
+
+    // Create color picker
+    var colorPicker = WidgetFactory.CreateColorPicker(world, colorRow, new ColorPickerConfig(
+        Width: 400,
+        Height: 280,
+        InitialColor: new Vector4(0.3f, 0.6f, 0.9f, 1f),
+        ShowAlpha: true,
+        ShowHexInput: true,
+        ShowPreview: true
+    ));
+
+    WidgetFactory.CreateLabel(world, colorRow, "ColorPickerDesc",
+        "Click on the saturation/value area, or use the sliders", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Color presets row
+    var presetsLabel = WidgetFactory.CreateLabel(world, colorRow, "PresetsLabel", "Color Presets:", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
+
+    var presetsRow = WidgetFactory.CreatePanel(world, colorRow, "PresetsRow", new PanelConfig(
+        Height: 40,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        Spacing: 10
+    ));
+
+    // Add color preset buttons
+    var presetColors = new[] { Colors.Primary, Colors.Success, Colors.Warning, Colors.Danger, Colors.Info, Colors.AccentPurple };
+    for (int i = 0; i < presetColors.Length; i++)
+    {
+        var presetBtn = WidgetFactory.CreatePanel(world, presetsRow, $"Preset{i}", new PanelConfig(
+            Width: 32,
+            Height: 32,
+            BackgroundColor: presetColors[i],
+            CornerRadius: 4
+        ));
+        world.Add(presetBtn, new UIInteractable { CanClick = true });
+    }
+
+    // --- DatePicker Section ---
+    var dateSection = CreateSection(world, panel, "Date & Time Picker", font, 480);
+
+    var dateRow = WidgetFactory.CreatePanel(world, dateSection, "DateRow", new PanelConfig(
+        Height: 350,
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Start,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 15
+    ));
+
+    // Date picker
+    var datePicker = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
+        Width: 320,
+        InitialValue: DateTime.Now,
+        Mode: DatePickerMode.Date
+    ));
+
+    WidgetFactory.CreateLabel(world, dateRow, "DatePickerDesc",
+        "Navigate months with arrows, click to select", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Time picker
+    WidgetFactory.CreateLabel(world, dateRow, "TimeLabel", "Time Picker:", font,
+        new LabelConfig(FontSize: 13, TextColor: Colors.TextLight));
+
+    var timePicker = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
+        Width: 200,
+        InitialValue: DateTime.Now,
+        Mode: DatePickerMode.Time
+    ));
+
+    WidgetFactory.CreateLabel(world, dateRow, "TimePickerDesc",
+        "Use spinners to adjust hours and minutes", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+}
+
+// ============================================================================
+// Tab 9: Advanced (Spinner, DataGrid, Toast, RadialMenu)
+// ============================================================================
+
+static void PopulateAdvancedTab(World world, Entity panel, FontHandle font, Entity canvas)
+{
+    ref var layout = ref world.Get<UILayout>(panel);
+    layout.Spacing = 15;
+    layout.CrossAxisAlign = LayoutAlign.Center;
+    world.Add(panel, new UIStyle { Padding = UIEdges.All(15) });
+
+    // --- Spinner Section ---
+    var spinnerSection = CreateSection(world, panel, "Loading Spinners", font);
+
+    var spinnerRow = WidgetFactory.CreatePanel(world, spinnerSection, "SpinnerRow", new PanelConfig(
+        Height: 80,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 40
+    ));
+
+    // Circular spinner (default)
+    var spinnerCol1 = WidgetFactory.CreatePanel(world, spinnerRow, "SpinnerCol1", new PanelConfig(
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 8
+    ));
+    WidgetFactory.CreateSpinner(world, spinnerCol1, SpinnerConfig.Default);
+    WidgetFactory.CreateLabel(world, spinnerCol1, "SpinnerLabel1", "Circular", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // Small spinner
+    var spinnerCol2 = WidgetFactory.CreatePanel(world, spinnerRow, "SpinnerCol2", new PanelConfig(
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 8
+    ));
+    WidgetFactory.CreateSpinner(world, spinnerCol2, SpinnerConfig.Small());
+    WidgetFactory.CreateLabel(world, spinnerCol2, "SpinnerLabel2", "Small", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // Large spinner
+    var spinnerCol3 = WidgetFactory.CreatePanel(world, spinnerRow, "SpinnerCol3", new PanelConfig(
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 8
+    ));
+    WidgetFactory.CreateSpinner(world, spinnerCol3, SpinnerConfig.Large());
+    WidgetFactory.CreateLabel(world, spinnerCol3, "SpinnerLabel3", "Large", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // Dots spinner
+    var spinnerCol4 = WidgetFactory.CreatePanel(world, spinnerRow, "SpinnerCol4", new PanelConfig(
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 8
+    ));
+    WidgetFactory.CreateSpinner(world, spinnerCol4, SpinnerConfig.Dots());
+    WidgetFactory.CreateLabel(world, spinnerCol4, "SpinnerLabel4", "Dots", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // Bar spinner
+    var spinnerCol5 = WidgetFactory.CreatePanel(world, spinnerRow, "SpinnerCol5", new PanelConfig(
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 8
+    ));
+    WidgetFactory.CreateSpinner(world, spinnerCol5, SpinnerConfig.Bar());
+    WidgetFactory.CreateLabel(world, spinnerCol5, "SpinnerLabel5", "Bar", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // Custom colored spinner
+    var spinnerCol6 = WidgetFactory.CreatePanel(world, spinnerRow, "SpinnerCol6", new PanelConfig(
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 8
+    ));
+    WidgetFactory.CreateSpinner(world, spinnerCol6, new SpinnerConfig(
+        Size: 40,
+        Color: Colors.Success,
+        Style: SpinnerStyle.Circular,
+        Speed: 2f
+    ));
+    WidgetFactory.CreateLabel(world, spinnerCol6, "SpinnerLabel6", "Custom", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // --- DataGrid Section ---
+    var dataGridSection = CreateSection(world, panel, "Data Grid", font);
+
+    // Create data grid with columns
+    var columns = new DataGridColumnDef[]
+    {
+        new("ID", Width: 60, IsSortable: true),
+        new("Name", Width: 200, IsSortable: true, IsResizable: true),
+        new("Email", Width: 250, IsResizable: true),
+        new("Status", Width: 100, IsSortable: true),
+        new("Actions", Width: 120)
+    };
+
+    var dataGrid = WidgetFactory.CreateDataGrid(world, new DataGridConfig(
+        Columns: columns,
+        Size: new Vector2(750, 150),
+        RowHeight: 32,
+        HeaderHeight: 36,
+        SelectionMode: GridSelectionMode.Single,
+        AllowColumnResize: true,
+        AllowSorting: true,
+        AlternatingRowColors: true
+    ));
+
+    world.SetParent(dataGrid, dataGridSection);
+
+    // Add sample data rows
+    WidgetFactory.AddDataGridRow(world, dataGrid, ["1", "Alice Johnson", "alice@example.com", "Active", "Edit"]);
+    WidgetFactory.AddDataGridRow(world, dataGrid, ["2", "Bob Smith", "bob@example.com", "Pending", "Edit"]);
+    WidgetFactory.AddDataGridRow(world, dataGrid, ["3", "Carol White", "carol@example.com", "Active", "Edit"]);
+    WidgetFactory.AddDataGridRow(world, dataGrid, ["4", "David Brown", "david@example.com", "Inactive", "Edit"]);
+
+    // --- Toast Notifications Section ---
+    var toastSection = CreateSection(world, panel, "Toast Notifications (Click to show)", font);
+
+    var toastRow = WidgetFactory.CreatePanel(world, toastSection, "ToastRow", new PanelConfig(
+        Height: 50,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 15
+    ));
+
+    // Create toast container (positioned at top-right)
+    var toastContainer = WidgetFactory.CreateToastContainer(world, new ToastContainerConfig(
+        Position: ToastPosition.TopRight,
+        MaxVisible: 3,
+        Spacing: 10,
+        Margin: 20
+    ));
+    world.SetParent(toastContainer, canvas);
+
+    // Toast trigger buttons
+    var infoToastBtn = WidgetFactory.CreateButton(world, toastRow, "InfoToastBtn", "Info Toast", font, new ButtonConfig(
+        Width: 110, Height: 36,
+        BackgroundColor: Colors.Info,
+        CornerRadius: 6
+    ));
+
+    var successToastBtn = WidgetFactory.CreateButton(world, toastRow, "SuccessToastBtn", "Success Toast", font, new ButtonConfig(
+        Width: 120, Height: 36,
+        BackgroundColor: Colors.Success,
+        CornerRadius: 6
+    ));
+
+    var warningToastBtn = WidgetFactory.CreateButton(world, toastRow, "WarningToastBtn", "Warning Toast", font, new ButtonConfig(
+        Width: 125, Height: 36,
+        BackgroundColor: Colors.Warning,
+        CornerRadius: 6,
+        TextColor: Colors.TextDark
+    ));
+
+    var errorToastBtn = WidgetFactory.CreateButton(world, toastRow, "ErrorToastBtn", "Error Toast", font, new ButtonConfig(
+        Width: 110, Height: 36,
+        BackgroundColor: Colors.Danger,
+        CornerRadius: 6
+    ));
+
+    // Subscribe to button clicks to show toasts
+    world.Subscribe<UIClickEvent>(e =>
+    {
+        var name = world.GetName(e.Element);
+        if (name == "InfoToastBtn")
+        {
+            WidgetFactory.ShowInfoToast(world, toastContainer, "This is an informational message.", "Information", 3f);
+        }
+        else if (name == "SuccessToastBtn")
+        {
+            WidgetFactory.ShowSuccessToast(world, toastContainer, "Operation completed successfully!", "Success", 3f);
+        }
+        else if (name == "WarningToastBtn")
+        {
+            WidgetFactory.ShowWarningToast(world, toastContainer, "Please review your settings.", "Warning", 5f);
+        }
+        else if (name == "ErrorToastBtn")
+        {
+            WidgetFactory.ShowErrorToast(world, toastContainer, "An error occurred. Please try again.", "Error");
+        }
+    });
+
+    // --- Radial Menu Section ---
+    var radialSection = CreateSection(world, panel, "Radial Menu (Right-click demo area)", font);
+
+    // Create a demo area for radial menu
+    var radialDemoArea = WidgetFactory.CreatePanel(world, radialSection, "RadialDemoArea", new PanelConfig(
+        Width: 700,
+        Height: 120,
+        BackgroundColor: Colors.DarkPanel,
+        CornerRadius: 8,
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center
+    ));
+
+    WidgetFactory.CreateLabel(world, radialDemoArea, "RadialDemoLabel",
+        "Right-click anywhere in this area to open the radial menu", font,
+        new LabelConfig(FontSize: 13, TextColor: Colors.TextLight, HorizontalAlign: TextAlignH.Center));
+
+    WidgetFactory.CreateLabel(world, radialDemoArea, "RadialDemoDesc",
+        "Radial menus are ideal for gamepad-friendly selection", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Create radial menu (hidden by default)
+    var radialSlices = new RadialSliceDef[]
+    {
+        new("Attack", ItemId: "attack"),
+        new("Defend", ItemId: "defend"),
+        new("Magic", ItemId: "magic"),
+        new("Items", ItemId: "items"),
+        new("Run", ItemId: "run"),
+        new("Info", ItemId: "info")
+    };
+
+    var radialMenu = WidgetFactory.CreateRadialMenu(world, font, radialSlices, new RadialMenuConfig(
+        InnerRadius: 40,
+        OuterRadius: 120,
+        ShowLabels: true,
+        FontSize: 12
+    ));
+    world.SetParent(radialMenu, canvas);
 }
 
 // ============================================================================
