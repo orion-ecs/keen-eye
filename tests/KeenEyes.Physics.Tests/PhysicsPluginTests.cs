@@ -2,6 +2,8 @@ using System.Numerics;
 using KeenEyes.Common;
 using KeenEyes.Physics.Components;
 using KeenEyes.Physics.Core;
+using KeenEyes.Physics.Systems;
+using KeenEyes.Testing.Plugins;
 
 namespace KeenEyes.Physics.Tests;
 
@@ -343,6 +345,144 @@ public class PhysicsPluginTests : IDisposable
             .Build();
 
         Assert.Equal(4, physics.BodyCount);
+    }
+
+    #endregion
+
+    #region MockPluginContext Tests
+
+    [Fact]
+    public void Install_RegistersPhysicsWorldExtension()
+    {
+        using var world = new World();
+        var plugin = new PhysicsPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        context
+            .ShouldHaveSetExtension<PhysicsWorld>()
+            .ShouldHaveSetExtensionCount(1);
+    }
+
+    [Fact]
+    public void Install_RegistersPhysicsStepSystem()
+    {
+        using var world = new World();
+        var plugin = new PhysicsPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        Assert.True(context.WasSystemRegistered<PhysicsStepSystem>());
+        Assert.True(context.WasSystemRegisteredAtPhase<PhysicsStepSystem>(SystemPhase.FixedUpdate));
+    }
+
+    [Fact]
+    public void Install_WithInterpolation_RegistersPhysicsSyncSystem()
+    {
+        using var world = new World();
+        var config = new PhysicsConfig { EnableInterpolation = true };
+        var plugin = new PhysicsPlugin(config);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        Assert.True(context.WasSystemRegistered<PhysicsSyncSystem>());
+        Assert.True(context.WasSystemRegisteredAtPhase<PhysicsSyncSystem>(SystemPhase.LateUpdate));
+    }
+
+    [Fact]
+    public void Install_WithoutInterpolation_DoesNotRegisterPhysicsSyncSystem()
+    {
+        using var world = new World();
+        var config = new PhysicsConfig { EnableInterpolation = false };
+        var plugin = new PhysicsPlugin(config);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        Assert.False(context.WasSystemRegistered<PhysicsSyncSystem>());
+    }
+
+    [Fact]
+    public void Install_RegistersPhysicsComponents()
+    {
+        using var world = new World();
+        var plugin = new PhysicsPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        Assert.True(context.WasComponentRegistered<RigidBody>());
+        Assert.True(context.WasComponentRegistered<PhysicsShape>());
+        Assert.True(context.WasComponentRegistered<PhysicsMaterial>());
+        Assert.True(context.WasComponentRegistered<CollisionFilter>());
+    }
+
+    [Fact]
+    public void Install_CreatesPhysicsWorldWithConfig()
+    {
+        using var world = new World();
+        var config = new PhysicsConfig
+        {
+            FixedTimestep = 1f / 120f,
+            Gravity = new Vector3(0, -20f, 0)
+        };
+        var plugin = new PhysicsPlugin(config);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var physicsWorld = context.GetSetExtension<PhysicsWorld>();
+        Assert.NotNull(physicsWorld);
+        Assert.Equal(1f / 120f, physicsWorld.Config.FixedTimestep);
+    }
+
+    [Fact]
+    public void Install_SystemRegistrationOrder_PhysicsStepHasOrderZero()
+    {
+        using var world = new World();
+        var plugin = new PhysicsPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var registration = context.GetSystemRegistration<PhysicsStepSystem>();
+        Assert.NotNull(registration);
+        Assert.Equal(0, registration.Value.Order);
+    }
+
+    [Fact]
+    public void Install_DefaultConfig_RegistersBothSystems()
+    {
+        using var world = new World();
+        var plugin = new PhysicsPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        // Default config has interpolation enabled (both PhysicsStepSystem and PhysicsSyncSystem)
+        var systemCount = context.RegisteredSystems.Count;
+        Assert.Equal(2, systemCount);
+        Assert.True(context.WasSystemRegistered<PhysicsStepSystem>());
+        Assert.True(context.WasSystemRegistered<PhysicsSyncSystem>());
+    }
+
+    [Fact]
+    public void Install_WithAllFeatures_RegistersBothSystems()
+    {
+        using var world = new World();
+        var config = new PhysicsConfig { EnableInterpolation = true };
+        var plugin = new PhysicsPlugin(config);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var systemCount = context.RegisteredSystems.Count;
+        Assert.Equal(2, systemCount);
+        Assert.True(context.WasSystemRegistered<PhysicsStepSystem>());
+        Assert.True(context.WasSystemRegistered<PhysicsSyncSystem>());
     }
 
     #endregion

@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using KeenEyes.Persistence;
 using KeenEyes.Persistence.Encryption;
 using KeenEyes.Serialization;
+using KeenEyes.Testing.Encryption;
 
 namespace KeenEyes.Persistence.Tests;
 
@@ -350,6 +351,349 @@ public class PersistencePluginTests : IDisposable
         var (info, entityMap) = await api.LoadFromSlotAsync("slot1", serializer, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(world.GetAllEntities());
+    }
+
+    #endregion
+
+    #region MockEncryptionProvider Tests
+
+    [Fact]
+    public void SaveToSlot_WithMockEncryption_TracksEncryptionCall()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        api.SaveToSlot("mock_slot", serializer);
+
+        // Verify encryption was called using fluent assertions
+        mockEncryption
+            .ShouldHaveEncrypted()
+            .ShouldHaveEncryptedTimes(1)
+            .ShouldBeEncrypting();
+    }
+
+    [Fact]
+    public void LoadFromSlot_WithMockEncryption_TracksDecryptionCall()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("Player")
+            .With(new TestPosition { X = 100, Y = 200 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        api.SaveToSlot("mock_slot", serializer);
+        mockEncryption.ClearOperations(); // Reset counts
+
+        world.Clear();
+        api.LoadFromSlot("mock_slot", serializer);
+
+        // Verify decryption was called
+        mockEncryption
+            .ShouldHaveDecrypted()
+            .ShouldHaveDecryptedTimes(1)
+            .ShouldNotHaveEncrypted(); // No encryption after clear
+    }
+
+    [Fact]
+    public void SaveToSlot_WithMockEncryption_EncryptsData()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        api.SaveToSlot("data_slot", serializer);
+
+        // Verify data was encrypted (should have some size)
+        mockEncryption.ShouldHaveEncryptedDataOfSize(10);
+    }
+
+    [Fact]
+    public void SaveAndLoad_WithMockEncryption_RoundTripsData()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("Player")
+            .With(new TestPosition { X = 42, Y = 84 })
+            .With(new TestHealth { Current = 75, Max = 100 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        api.SaveToSlot("roundtrip_slot", serializer);
+        world.Clear();
+
+        api.LoadFromSlot("roundtrip_slot", serializer);
+
+        // Verify data was restored correctly
+        var player = world.GetEntityByName("Player");
+        Assert.True(player.IsValid);
+        Assert.Equal(42, world.Get<TestPosition>(player).X);
+        Assert.Equal(84, world.Get<TestPosition>(player).Y);
+        Assert.Equal(75, world.Get<TestHealth>(player).Current);
+
+        // Verify both operations occurred
+        mockEncryption
+            .ShouldHaveEncryptedTimes(1)
+            .ShouldHaveDecryptedTimes(1)
+            .ShouldHaveTotalOperations(2);
+    }
+
+    [Fact]
+    public void SaveToSlot_WithEncryptionFailure_ThrowsException()
+    {
+        var mockEncryption = new MockEncryptionProvider
+        {
+            Mode = MockEncryptionMode.Reversible,
+            ShouldFailEncrypt = true
+        };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+
+        Assert.Throws<InvalidOperationException>(() => api.SaveToSlot("fail_slot", serializer));
+    }
+
+    [Fact]
+    public void LoadFromSlot_WithDecryptionFailure_ThrowsCryptographicException()
+    {
+        // First save with working encryption
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        api.SaveToSlot("decrypt_fail_slot", serializer);
+        world.Clear();
+
+        // Now make decryption fail
+        mockEncryption.ShouldFailDecrypt = true;
+
+        Assert.Throws<CryptographicException>(() => api.LoadFromSlot("decrypt_fail_slot", serializer));
+    }
+
+    [Fact]
+    public void SaveToSlot_WithCustomEncryption_UsesCustomFunction()
+    {
+        var encryptedValues = new List<byte[]>();
+        var mockEncryption = new MockEncryptionProvider
+        {
+            Mode = MockEncryptionMode.Tracking,
+            CustomEncrypt = data =>
+            {
+                // Custom encryption: reverse bytes
+                var reversed = data.Reverse().ToArray();
+                encryptedValues.Add(reversed);
+                return reversed;
+            },
+            CustomDecrypt = data =>
+            {
+                // Custom decryption: reverse bytes back
+                return data.Reverse().ToArray();
+            }
+        };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        api.SaveToSlot("custom_slot", serializer);
+
+        Assert.Single(encryptedValues);
+        Assert.True(encryptedValues[0].Length > 0);
+    }
+
+    [Fact]
+    public void SaveToSlot_WithPassThroughMode_DataNotEncrypted()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.PassThrough };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+
+        // PassThrough mode reports IsEncrypted = false
+        Assert.False(api.IsEncryptionEnabled);
+        Assert.Equal("MockEncryptionProvider", api.EncryptionProviderName);
+    }
+
+    [Fact]
+    public void MultipleSaves_WithMockEncryption_TracksAllOperations()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+
+        // Save multiple times
+        api.SaveToSlot("slot1", serializer);
+        api.SaveToSlot("slot2", serializer);
+        api.SaveToSlot("slot3", serializer);
+
+        mockEncryption
+            .ShouldHaveEncryptedTimes(3)
+            .ShouldHaveTotalOperations(3);
+    }
+
+    [Fact]
+    public async Task SaveToSlotAsync_WithMockEncryption_TracksAsyncEncryption()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        await api.SaveToSlotAsync("async_mock_slot", serializer, cancellationToken: TestContext.Current.CancellationToken);
+
+        mockEncryption
+            .ShouldHaveEncrypted()
+            .ShouldHaveEncryptedTimes(1);
+    }
+
+    [Fact]
+    public async Task LoadFromSlotAsync_WithMockEncryption_TracksAsyncDecryption()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("Player")
+            .With(new TestPosition { X = 100, Y = 200 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        await api.SaveToSlotAsync("async_load_slot", serializer, cancellationToken: TestContext.Current.CancellationToken);
+        mockEncryption.ClearOperations();
+
+        world.Clear();
+        await api.LoadFromSlotAsync("async_load_slot", serializer, cancellationToken: TestContext.Current.CancellationToken);
+
+        mockEncryption
+            .ShouldHaveDecrypted()
+            .ShouldHaveDecryptedTimes(1);
+    }
+
+    [Fact]
+    public void MockEncryption_Reset_ClearsAllState()
+    {
+        var mockEncryption = new MockEncryptionProvider { Mode = MockEncryptionMode.Reversible };
+        var config = new PersistenceConfig
+        {
+            EncryptionProvider = mockEncryption,
+            SaveDirectory = testSaveDirectory
+        };
+
+        using var world = new World();
+        world.InstallPlugin(new PersistencePlugin(config));
+        world.Spawn("TestEntity")
+            .With(new TestPosition { X = 10, Y = 20 })
+            .Build();
+
+        var api = world.GetExtension<EncryptedPersistenceApi>();
+        api.SaveToSlot("reset_slot", serializer);
+
+        Assert.Equal(1, mockEncryption.EncryptCount);
+
+        mockEncryption.Reset();
+
+        Assert.Equal(0, mockEncryption.EncryptCount);
+        Assert.Equal(0, mockEncryption.DecryptCount);
+        Assert.Empty(mockEncryption.Operations);
+        Assert.Equal(MockEncryptionMode.PassThrough, mockEncryption.Mode);
     }
 
     #endregion
