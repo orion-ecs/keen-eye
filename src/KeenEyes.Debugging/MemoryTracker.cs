@@ -1,3 +1,5 @@
+using KeenEyes.Capabilities;
+
 namespace KeenEyes.Debugging;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace KeenEyes.Debugging;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The MemoryTracker provides convenient access to the built-in <see cref="World.GetMemoryStats"/>
+/// The MemoryTracker provides convenient access to memory statistics
 /// with additional formatting and reporting capabilities.
 /// </para>
 /// <para>
@@ -28,39 +30,26 @@ namespace KeenEyes.Debugging;
 /// </example>
 public sealed class MemoryTracker
 {
-    private readonly World world;
+    private readonly IStatisticsCapability statisticsCapability;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="MemoryTracker"/> class.
     /// </summary>
-    /// <param name="world">The world to track memory for.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="world"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="world"/> is not a concrete <see cref="World"/> instance.</exception>
-    public MemoryTracker(IWorld world)
+    /// <param name="statisticsCapability">The statistics capability to use.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="statisticsCapability"/> is null.</exception>
+    public MemoryTracker(IStatisticsCapability statisticsCapability)
     {
-        if (world == null)
-        {
-            throw new ArgumentNullException(nameof(world));
-        }
-
-        if (world is not World concreteWorld)
-        {
-            throw new ArgumentException("MemoryTracker requires a concrete World instance", nameof(world));
-        }
-
-        this.world = concreteWorld;
+        ArgumentNullException.ThrowIfNull(statisticsCapability);
+        this.statisticsCapability = statisticsCapability;
     }
 
     /// <summary>
     /// Gets memory statistics for the world.
     /// </summary>
     /// <returns>Current memory statistics.</returns>
-    /// <remarks>
-    /// This delegates to <see cref="World.GetMemoryStats"/> and returns the same information.
-    /// </remarks>
     public MemoryStats GetMemoryStats()
     {
-        return world.GetMemoryStats();
+        return statisticsCapability.GetMemoryStats();
     }
 
     /// <summary>

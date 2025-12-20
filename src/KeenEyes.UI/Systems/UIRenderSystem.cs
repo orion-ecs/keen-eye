@@ -25,23 +25,12 @@ namespace KeenEyes.UI;
 /// </remarks>
 public sealed class UIRenderSystem : SystemBase
 {
-    private World? concreteWorld;
     private I2DRenderer? renderer2D;
     private ITextRenderer? textRenderer;
 
     /// <inheritdoc />
-    protected override void OnInitialize()
-    {
-        concreteWorld = World as World;
-    }
-
-    /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        if (concreteWorld is null)
-        {
-            return;
-        }
 
         // Lazy initialization of renderers - keep trying until we find them
         // (renderer may not be available until window loads)
@@ -109,7 +98,7 @@ public sealed class UIRenderSystem : SystemBase
 
     private void RenderElement(Entity entity, int depth)
     {
-        if (concreteWorld is null || renderer2D is null)
+        if (renderer2D is null)
         {
             return;
         }
@@ -139,8 +128,8 @@ public sealed class UIRenderSystem : SystemBase
         // Render this element's visuals
         RenderElementVisuals(entity, bounds);
 
-        // Render children
-        var children = concreteWorld.GetChildren(entity);
+        // Render children - using IWorld.GetChildren
+        var children = World.GetChildren(entity);
         foreach (var child in children)
         {
             if (!World.Has<UIElement>(child) || !World.Has<UIRect>(child))

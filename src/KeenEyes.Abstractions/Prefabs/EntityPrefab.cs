@@ -45,12 +45,12 @@ public sealed class EntityPrefab
     /// Components are stored in the order they were added. When inheriting from a base prefab,
     /// components with the same type will override the base prefab's component values.
     /// </remarks>
-    internal IReadOnlyList<ComponentDefinition> Components => components;
+    public IReadOnlyList<ComponentDefinition> Components => components;
 
     /// <summary>
     /// Gets the tag component types in this prefab.
     /// </summary>
-    internal IReadOnlyCollection<Type> TagTypes => tagTypes;
+    public IReadOnlyCollection<Type> TagTypes => tagTypes;
 
     /// <summary>
     /// Creates a new empty entity prefab.
@@ -134,4 +134,4 @@ public sealed class EntityPrefab
 /// <param name="Type">The CLR type of the component.</param>
 /// <param name="Data">The component data (boxed struct).</param>
 /// <param name="IsTag">Whether this is a tag component.</param>
-internal readonly record struct ComponentDefinition(Type Type, object Data, bool IsTag);
+public readonly record struct ComponentDefinition(Type Type, object Data, bool IsTag);

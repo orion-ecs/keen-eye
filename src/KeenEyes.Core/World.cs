@@ -1,3 +1,4 @@
+using KeenEyes.Capabilities;
 using KeenEyes.Events;
 
 namespace KeenEyes;
@@ -18,7 +19,16 @@ namespace KeenEyes;
 /// iterate over entities with specific components.
 /// </para>
 /// </remarks>
-public sealed partial class World : IWorld
+public sealed partial class World : IWorld,
+    ISystemHookCapability,
+    IPersistenceCapability,
+    IHierarchyCapability,
+    IValidationCapability,
+    ITagCapability,
+    IPrefabCapability,
+    IStatisticsCapability,
+    IInspectionCapability,
+    ISerializationCapability
 {
     private readonly EntityPool entityPool;
     private readonly ArchetypeManager archetypeManager;
@@ -64,6 +74,11 @@ public sealed partial class World : IWorld
     /// Component IDs are unique per-world, not global.
     /// </summary>
     public ComponentRegistry Components { get; } = new();
+
+    /// <summary>
+    /// Gets the component registry as an interface for capability-based access.
+    /// </summary>
+    IComponentRegistry ISerializationCapability.Components => Components;
 
     /// <summary>
     /// Gets the total number of entities in the world.

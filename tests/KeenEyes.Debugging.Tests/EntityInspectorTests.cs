@@ -1,3 +1,5 @@
+using KeenEyes.Capabilities;
+
 namespace KeenEyes.Debugging.Tests;
 
 /// <summary>
@@ -5,6 +7,14 @@ namespace KeenEyes.Debugging.Tests;
 /// </summary>
 public partial class EntityInspectorTests
 {
+    /// <summary>
+    /// Helper method to create an EntityInspector with the proper capabilities from a World.
+    /// </summary>
+    private static EntityInspector CreateInspector(World world)
+    {
+        return new EntityInspector(world, world, world);
+    }
+
 #pragma warning disable CS0649 // Field is never assigned to
     [Component]
     private partial struct TestComponent
@@ -28,8 +38,21 @@ public partial class EntityInspectorTests
     [Fact]
     public void Constructor_WithNullWorld_ThrowsArgumentNullException()
     {
+        // Arrange
+        using var world = new World();
+
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => new EntityInspector(null!));
+        Assert.Throws<ArgumentNullException>(() => new EntityInspector(null!, world, world));
+    }
+
+    [Fact]
+    public void Constructor_WithNullInspectionCapability_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var world = new World();
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => new EntityInspector(world, null!, world));
     }
 
     [Fact]
@@ -39,7 +62,7 @@ public partial class EntityInspectorTests
         using var world = new World();
 
         // Act & Assert - should not throw
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
         Assert.NotNull(inspector);
     }
 
@@ -52,7 +75,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn().Build();
         world.Despawn(entity);
@@ -66,7 +89,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn().Build();
 
@@ -86,7 +109,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn()
             .With(new TestComponent { Value = 42 })
@@ -108,7 +131,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn("TestEntity").Build();
 
@@ -124,7 +147,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var parent = world.Spawn().Build();
         var child = world.Spawn().Build();
@@ -143,7 +166,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var parent = world.Spawn().Build();
         var child1 = world.Spawn().Build();
@@ -166,7 +189,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var parent = world.Spawn("Parent")
             .With(new TestComponent { Value = 1 })
@@ -194,7 +217,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn()
             .With(new TestComponent { Value = 42 })
@@ -219,7 +242,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         // Act
         var entities = inspector.GetAllEntities();
@@ -233,7 +256,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity1 = world.Spawn().Build();
         var entity2 = world.Spawn().Build();
@@ -254,7 +277,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity1 = world.Spawn().Build();
         var entity2 = world.Spawn().Build();
@@ -277,7 +300,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity1 = world.Spawn().Build();
 
@@ -302,7 +325,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn()
             .With(new TestComponent { Value = 42 })
@@ -320,7 +343,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn().Build();
 
@@ -336,7 +359,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn()
             .With(new TestComponent { Value = 42 })
@@ -354,7 +377,7 @@ public partial class EntityInspectorTests
     {
         // Arrange
         using var world = new World();
-        var inspector = new EntityInspector(world);
+        var inspector = CreateInspector(world);
 
         var entity = world.Spawn().Build();
 

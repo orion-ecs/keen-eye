@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BenchmarkDotNet.Attributes;
+using KeenEyes.Capabilities;
 using KeenEyes.Serialization;
 
 namespace KeenEyes.Benchmarks;
@@ -362,52 +363,52 @@ internal sealed class BenchmarkComponentSerializer : IComponentSerializer, IBina
         return null;
     }
 
-    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)
+    public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag)
     {
         if (typeName.Contains(nameof(Position)))
         {
-            return world.Components.Register<Position>();
+            return serialization.Components.Register<Position>();
         }
 
         if (typeName.Contains(nameof(Velocity)))
         {
-            return world.Components.Register<Velocity>();
+            return serialization.Components.Register<Velocity>();
         }
 
         if (typeName.Contains(nameof(Health)))
         {
-            return world.Components.Register<Health>();
+            return serialization.Components.Register<Health>();
         }
 
         if (typeName.Contains(nameof(Rotation)))
         {
-            return world.Components.Register<Rotation>();
+            return serialization.Components.Register<Rotation>();
         }
 
         if (typeName.Contains(nameof(ActiveTag)))
         {
-            return world.Components.Register<ActiveTag>(isTag: true);
+            return serialization.Components.Register<ActiveTag>(isTag: true);
         }
 
         if (typeName.Contains(nameof(FrozenTag)))
         {
-            return world.Components.Register<FrozenTag>(isTag: true);
+            return serialization.Components.Register<FrozenTag>(isTag: true);
         }
 
         return null;
     }
 
-    public bool SetSingleton(World world, string typeName, object value)
+    public bool SetSingleton(ISerializationCapability serialization, string typeName, object value)
     {
         if (typeName.Contains(nameof(GameTime)))
         {
-            world.SetSingleton((GameTime)value);
+            serialization.SetSingleton((GameTime)value);
             return true;
         }
 
         if (typeName.Contains(nameof(GameConfig)))
         {
-            world.SetSingleton((GameConfig)value);
+            serialization.SetSingleton((GameConfig)value);
             return true;
         }
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KeenEyes.Capabilities;
 
 namespace KeenEyes.Serialization;
 
@@ -65,30 +66,30 @@ public interface IComponentSerializer
     /// <summary>
     /// Registers a component type in the world's component registry.
     /// </summary>
-    /// <param name="world">The world to register the component in.</param>
+    /// <param name="serialization">The serialization capability providing component registry access.</param>
     /// <param name="typeName">The fully-qualified type name of the component.</param>
     /// <param name="isTag">Whether the component is a tag component.</param>
     /// <returns>The component info, or null if the type is not registered in this serializer.</returns>
     /// <remarks>
     /// This method enables AOT-compatible component registration without reflection.
-    /// The implementation should call <c>world.Components.Register&lt;T&gt;(isTag)</c>
+    /// The implementation should call <c>serialization.Components.Register&lt;T&gt;(isTag)</c>
     /// for the appropriate type.
     /// </remarks>
-    ComponentInfo? RegisterComponent(World world, string typeName, bool isTag);
+    ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag);
 
     /// <summary>
     /// Sets a singleton value in the world.
     /// </summary>
-    /// <param name="world">The world to set the singleton in.</param>
+    /// <param name="serialization">The serialization capability providing singleton access.</param>
     /// <param name="typeName">The fully-qualified type name of the singleton.</param>
     /// <param name="value">The singleton value.</param>
     /// <returns>True if the singleton was set; false if the type is not registered.</returns>
     /// <remarks>
     /// This method enables AOT-compatible singleton setting without reflection.
-    /// The implementation should call <c>world.SetSingleton&lt;T&gt;((T)value)</c>
+    /// The implementation should call <c>serialization.SetSingleton&lt;T&gt;((T)value)</c>
     /// for the appropriate type.
     /// </remarks>
-    bool SetSingleton(World world, string typeName, object value);
+    bool SetSingleton(ISerializationCapability serialization, string typeName, object value);
 
     /// <summary>
     /// Creates a default instance of a component type.

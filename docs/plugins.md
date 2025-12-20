@@ -388,6 +388,96 @@ public class SpawnerSystem : ISystem
 
 See the [Command Buffer Guide](command-buffer.md) for detailed usage patterns and the [Abstractions Guide](abstractions.md) for interface documentation.
 
+## Capability-Based Architecture
+
+Plugins can access World features through **capability interfaces** rather than casting to the concrete `World` type. This enables better testability and explicit dependency declaration.
+
+### Why Capabilities?
+
+```csharp
+// ❌ OLD: Casting to World (harder to test)
+public void Install(IPluginContext context)
+{
+    var world = (World)context.World;  // Requires concrete World
+    world.RegisterPrefab("Enemy", prefab);
+}
+
+// ✅ NEW: Request specific capability (easy to mock)
+public void Install(IPluginContext context)
+{
+    if (context.TryGetCapability<IPrefabCapability>(out var prefabs))
+    {
+        prefabs.RegisterPrefab("Enemy", prefab);
+    }
+}
+```
+
+### Available Capabilities
+
+| Capability | Purpose | Methods |
+|------------|---------|---------|
+| `ISystemHookCapability` | Before/after system hooks | `AddSystemHook()` |
+| `IPersistenceCapability` | World save/load | `CreateSnapshot()`, `RestoreSnapshot()` |
+| `IHierarchyCapability` | Entity parent-child relationships | `SetParent()`, `GetChildren()`, `GetDescendants()` |
+| `IValidationCapability` | Component validation | `RegisterValidator<T>()`, `ValidationMode` |
+| `ITagCapability` | String-based entity tagging | `AddTag()`, `RemoveTag()`, `QueryByTag()` |
+| `IStatisticsCapability` | Memory profiling | `GetMemoryStats()` |
+| `IPrefabCapability` | Entity templates | `RegisterPrefab()`, `SpawnFromPrefab()` |
+
+### Requesting Capabilities
+
+```csharp
+public void Install(IPluginContext context)
+{
+    // Optional capability - gracefully handle absence
+    if (context.TryGetCapability<IHierarchyCapability>(out var hierarchy))
+    {
+        // Use hierarchy features
+    }
+
+    // Required capability - throws if unavailable
+    var prefabs = context.GetCapability<IPrefabCapability>();
+    prefabs.RegisterPrefab("Player", playerPrefab);
+}
+```
+
+### Testing with Mocks
+
+Each capability has a mock implementation in `KeenEyes.Testing`:
+
+```csharp
+using KeenEyes.Testing;
+using KeenEyes.Testing.Capabilities;
+
+[Fact]
+public void Plugin_RegistersPrefabs()
+{
+    // Arrange - create mock capability
+    var mockPrefabs = new MockPrefabCapability();
+    var mockContext = new MockPluginContext("TestWorld")
+        .WithCapability<IPrefabCapability>(mockPrefabs);
+
+    // Act
+    var plugin = new EnemyPlugin();
+    plugin.Install(mockContext);
+
+    // Assert - verify behavior without real World
+    Assert.Contains("Enemy", mockPrefabs.RegistrationOrder);
+}
+```
+
+### Mock Capability Features
+
+| Mock | Key Properties |
+|------|----------------|
+| `MockHierarchyCapability` | `ParentMap`, `ChildrenMap`, `OperationLog` |
+| `MockValidationCapability` | `RegisteredValidators`, `ValidationMode` |
+| `MockTagCapability` | `EntityTags`, `OperationLog` |
+| `MockStatisticsCapability` | Configurable `TotalAllocatedBytes`, `EntityCount`, etc. |
+| `MockPrefabCapability` | `RegistrationOrder`, `SpawnLog` |
+
+See [Testing Guide](testing.md) for more testing patterns.
+
 ## World Isolation
 
 Each world has completely isolated plugins:
