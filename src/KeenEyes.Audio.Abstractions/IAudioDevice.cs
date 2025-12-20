@@ -1,3 +1,5 @@
+using System.Numerics;
+
 namespace KeenEyes.Audio.Abstractions;
 
 /// <summary>
@@ -93,4 +95,108 @@ public interface IAudioDevice : IDisposable
     /// </summary>
     /// <param name="gain">The gain value (0.0 to 1.0+).</param>
     void SetListenerGain(float gain);
+
+    // === 3D Source Properties ===
+
+    /// <summary>
+    /// Sets the 3D position of an audio source.
+    /// </summary>
+    /// <param name="sourceId">The source.</param>
+    /// <param name="position">The position in world space.</param>
+    void SetSourcePosition(uint sourceId, Vector3 position);
+
+    /// <summary>
+    /// Sets the velocity of an audio source for Doppler effect calculations.
+    /// </summary>
+    /// <param name="sourceId">The source.</param>
+    /// <param name="velocity">The velocity vector.</param>
+    void SetSourceVelocity(uint sourceId, Vector3 velocity);
+
+    /// <summary>
+    /// Sets the pitch multiplier of an audio source.
+    /// </summary>
+    /// <param name="sourceId">The source.</param>
+    /// <param name="pitch">The pitch multiplier (1.0 = normal, 0.5 = octave down, 2.0 = octave up).</param>
+    void SetSourcePitch(uint sourceId, float pitch);
+
+    /// <summary>
+    /// Sets whether a source loops.
+    /// </summary>
+    /// <param name="sourceId">The source.</param>
+    /// <param name="loop">True to loop, false to play once.</param>
+    void SetSourceLooping(uint sourceId, bool loop);
+
+    /// <summary>
+    /// Sets the minimum distance for distance attenuation.
+    /// </summary>
+    /// <remarks>
+    /// Within this distance, the source plays at full volume.
+    /// </remarks>
+    /// <param name="sourceId">The source.</param>
+    /// <param name="distance">The minimum distance.</param>
+    void SetSourceMinDistance(uint sourceId, float distance);
+
+    /// <summary>
+    /// Sets the maximum distance for distance attenuation.
+    /// </summary>
+    /// <remarks>
+    /// Beyond this distance, the source is inaudible (or clamped to minimum).
+    /// </remarks>
+    /// <param name="sourceId">The source.</param>
+    /// <param name="distance">The maximum distance.</param>
+    void SetSourceMaxDistance(uint sourceId, float distance);
+
+    /// <summary>
+    /// Sets the rolloff factor for distance attenuation.
+    /// </summary>
+    /// <param name="sourceId">The source.</param>
+    /// <param name="rolloff">The rolloff factor (higher = faster falloff).</param>
+    void SetSourceRolloff(uint sourceId, float rolloff);
+
+    /// <summary>
+    /// Pauses a playing source.
+    /// </summary>
+    /// <param name="sourceId">The source to pause.</param>
+    void PauseSource(uint sourceId);
+
+    // === 3D Listener Properties ===
+
+    /// <summary>
+    /// Sets the listener position in 3D space.
+    /// </summary>
+    /// <param name="position">The position in world space.</param>
+    void SetListenerPosition(Vector3 position);
+
+    /// <summary>
+    /// Sets the listener velocity for Doppler effect calculations.
+    /// </summary>
+    /// <param name="velocity">The velocity vector.</param>
+    void SetListenerVelocity(Vector3 velocity);
+
+    /// <summary>
+    /// Sets the listener orientation in 3D space.
+    /// </summary>
+    /// <param name="forward">The forward direction vector (normalized).</param>
+    /// <param name="up">The up direction vector (normalized).</param>
+    void SetListenerOrientation(Vector3 forward, Vector3 up);
+
+    // === Global Settings ===
+
+    /// <summary>
+    /// Sets the global distance attenuation model.
+    /// </summary>
+    /// <param name="mode">The rolloff mode to use.</param>
+    void SetDistanceModel(AudioRolloffMode mode);
+
+    /// <summary>
+    /// Sets the speed of sound for Doppler effect calculations.
+    /// </summary>
+    /// <param name="speed">The speed of sound in units per second (default: 343 m/s).</param>
+    void SetSpeedOfSound(float speed);
+
+    /// <summary>
+    /// Sets the global Doppler effect factor.
+    /// </summary>
+    /// <param name="factor">The Doppler factor (0 = disabled, 1 = normal, 2+ = exaggerated).</param>
+    void SetDopplerFactor(float factor);
 }

@@ -1,3 +1,4 @@
+using System.Numerics;
 using KeenEyes.Audio.Abstractions;
 using KeenEyes.Audio.Silk.Backend;
 using KeenEyes.Audio.Silk.Decoders;
@@ -25,7 +26,19 @@ public sealed class SilkAudioContext : IAudioContext
     private readonly SilkAudioConfig config;
     private readonly ISilkWindowProvider windowProvider;
     private readonly Dictionary<int, AudioBuffer> buffers = [];
+    private readonly Dictionary<int, SoundInstance> activeSounds = [];
+    private readonly Dictionary<AudioChannel, float> channelVolumes = new()
+    {
+        [AudioChannel.Master] = 1f,
+        [AudioChannel.Music] = 1f,
+        [AudioChannel.SFX] = 1f,
+        [AudioChannel.Voice] = 1f,
+        [AudioChannel.Ambient] = 1f
+    };
+    private readonly HashSet<int> pausedByPauseAll = [];
+
     private int nextBufferId = 1;
+    private int nextSoundId = 1;
 
     private OpenALDevice? device;
     private SourcePool? sourcePool;
@@ -46,7 +59,7 @@ public sealed class SilkAudioContext : IAudioContext
         set
         {
             masterVolume = Math.Clamp(value, 0f, 2f);
-            device?.SetListenerGain(masterVolume);
+            device?.SetListenerGain(masterVolume * channelVolumes[AudioChannel.Master]);
         }
     }
 
@@ -73,6 +86,8 @@ public sealed class SilkAudioContext : IAudioContext
     {
         DisposeAudioResources();
     }
+
+    #region Clip Operations
 
     /// <inheritdoc />
     public AudioClipHandle LoadClip(string path)
@@ -153,36 +168,311 @@ public sealed class SilkAudioContext : IAudioContext
     }
 
     /// <inheritdoc />
-    public void Play(AudioClipHandle handle, float volume = 1f)
+    public uint GetBufferId(AudioClipHandle handle)
+    {
+        return buffers.TryGetValue(handle.Id, out var buffer) ? buffer.BufferId : 0;
+    }
+
+    #endregion
+
+    #region Playback
+
+    /// <inheritdoc />
+    public SoundHandle Play(AudioClipHandle clip, float volume = 1f)
+    {
+        return Play(clip, new PlaybackOptions
+        {
+            Volume = volume,
+            Pitch = 1f,
+            Loop = false,
+            Channel = AudioChannel.SFX
+        });
+    }
+
+    /// <inheritdoc />
+    public SoundHandle Play(AudioClipHandle clip, PlaybackOptions options)
     {
         ThrowIfNotInitialized();
 
-        if (!buffers.TryGetValue(handle.Id, out var buffer))
+        if (!buffers.TryGetValue(clip.Id, out var buffer))
         {
-            return; // Invalid handle, silently ignore
+            return SoundHandle.Invalid;
         }
 
         var source = sourcePool!.AcquireSource();
         if (source == null)
         {
-            return; // Pool exhausted, silently ignore
+            return SoundHandle.Invalid;
         }
 
+        var effectiveVolume = ComputeEffectiveVolume(options.Volume, options.Channel);
+
         device!.SetSourceBuffer(source.Value, buffer.BufferId);
-        device.SetSourceGain(source.Value, volume);
+        device.SetSourceGain(source.Value, effectiveVolume);
+        device.SetSourcePitch(source.Value, options.Pitch);
+        device.SetSourceLooping(source.Value, options.Loop);
         device.PlaySource(source.Value);
+
+        int soundId = nextSoundId++;
+        activeSounds[soundId] = new SoundInstance(source.Value, clip, options.Channel, options.Volume, true);
+
+        return new SoundHandle(soundId);
+    }
+
+    /// <inheritdoc />
+    public SoundHandle PlayAt(AudioClipHandle clip, Vector3 position, float volume = 1f)
+    {
+        return PlayAt(clip, position, new PlaybackOptions
+        {
+            Volume = volume,
+            Pitch = 1f,
+            Loop = false,
+            Channel = AudioChannel.SFX
+        });
+    }
+
+    /// <inheritdoc />
+    public SoundHandle PlayAt(AudioClipHandle clip, Vector3 position, PlaybackOptions options)
+    {
+        ThrowIfNotInitialized();
+
+        if (!buffers.TryGetValue(clip.Id, out var buffer))
+        {
+            return SoundHandle.Invalid;
+        }
+
+        var source = sourcePool!.AcquireSource();
+        if (source == null)
+        {
+            return SoundHandle.Invalid;
+        }
+
+        var effectiveVolume = ComputeEffectiveVolume(options.Volume, options.Channel);
+
+        device!.SetSourceBuffer(source.Value, buffer.BufferId);
+        device.SetSourceGain(source.Value, effectiveVolume);
+        device.SetSourcePitch(source.Value, options.Pitch);
+        device.SetSourceLooping(source.Value, options.Loop);
+        device.SetSourcePosition(source.Value, position);
+        device.PlaySource(source.Value);
+
+        int soundId = nextSoundId++;
+        activeSounds[soundId] = new SoundInstance(source.Value, clip, options.Channel, options.Volume, true);
+
+        return new SoundHandle(soundId);
+    }
+
+    /// <inheritdoc />
+    public void Stop(SoundHandle sound)
+    {
+        if (!activeSounds.TryGetValue(sound.Id, out var instance))
+        {
+            return;
+        }
+
+        device?.StopSource(instance.SourceId);
+        activeSounds.Remove(sound.Id);
+        pausedByPauseAll.Remove(sound.Id);
+    }
+
+    /// <inheritdoc />
+    public void Pause(SoundHandle sound)
+    {
+        if (!activeSounds.TryGetValue(sound.Id, out var instance))
+        {
+            return;
+        }
+
+        device?.PauseSource(instance.SourceId);
+    }
+
+    /// <inheritdoc />
+    public void Resume(SoundHandle sound)
+    {
+        if (!activeSounds.TryGetValue(sound.Id, out var instance))
+        {
+            return;
+        }
+
+        device?.PlaySource(instance.SourceId);
+        pausedByPauseAll.Remove(sound.Id);
+    }
+
+    /// <inheritdoc />
+    public void SetVolume(SoundHandle sound, float volume)
+    {
+        if (!activeSounds.TryGetValue(sound.Id, out var instance))
+        {
+            return;
+        }
+
+        var effectiveVolume = ComputeEffectiveVolume(volume, instance.Channel);
+        device?.SetSourceGain(instance.SourceId, effectiveVolume);
+
+        // Update stored base volume
+        activeSounds[sound.Id] = instance with { BaseVolume = volume };
+    }
+
+    /// <inheritdoc />
+    public void SetPitch(SoundHandle sound, float pitch)
+    {
+        if (!activeSounds.TryGetValue(sound.Id, out var instance))
+        {
+            return;
+        }
+
+        device?.SetSourcePitch(instance.SourceId, pitch);
+    }
+
+    /// <inheritdoc />
+    public void SetPosition(SoundHandle sound, Vector3 position)
+    {
+        if (!activeSounds.TryGetValue(sound.Id, out var instance))
+        {
+            return;
+        }
+
+        device?.SetSourcePosition(instance.SourceId, position);
+    }
+
+    /// <inheritdoc />
+    public bool IsPlaying(SoundHandle sound)
+    {
+        if (!activeSounds.TryGetValue(sound.Id, out var instance))
+        {
+            return false;
+        }
+
+        var state = device?.GetSourceState(instance.SourceId);
+        return state == AudioPlayState.Playing;
     }
 
     /// <inheritdoc />
     public void StopAll()
     {
         sourcePool?.StopAll();
+        activeSounds.Clear();
+        pausedByPauseAll.Clear();
     }
+
+    /// <inheritdoc />
+    public void PauseAll()
+    {
+        foreach (var (soundId, instance) in activeSounds)
+        {
+            var state = device?.GetSourceState(instance.SourceId);
+            if (state == AudioPlayState.Playing)
+            {
+                device?.PauseSource(instance.SourceId);
+                pausedByPauseAll.Add(soundId);
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void ResumeAll()
+    {
+        foreach (var soundId in pausedByPauseAll)
+        {
+            if (activeSounds.TryGetValue(soundId, out var instance))
+            {
+                device?.PlaySource(instance.SourceId);
+            }
+        }
+        pausedByPauseAll.Clear();
+    }
+
+    #endregion
+
+    #region Channel Volume
+
+    /// <inheritdoc />
+    public float GetChannelVolume(AudioChannel channel)
+    {
+        return channelVolumes.TryGetValue(channel, out var volume) ? volume : 1f;
+    }
+
+    /// <inheritdoc />
+    public void SetChannelVolume(AudioChannel channel, float volume)
+    {
+        volume = Math.Clamp(volume, 0f, 2f);
+        channelVolumes[channel] = volume;
+
+        // Update master volume through the listener if Master channel changed
+        if (channel == AudioChannel.Master)
+        {
+            device?.SetListenerGain(masterVolume * volume);
+        }
+
+        // Update all active sounds on this channel
+        foreach (var (_, instance) in activeSounds)
+        {
+            if (instance.Channel == channel || channel == AudioChannel.Master)
+            {
+                var effectiveVolume = ComputeEffectiveVolume(instance.BaseVolume, instance.Channel);
+                device?.SetSourceGain(instance.SourceId, effectiveVolume);
+            }
+        }
+    }
+
+    private float ComputeEffectiveVolume(float baseVolume, AudioChannel channel)
+    {
+        var masterChannelVol = channelVolumes[AudioChannel.Master];
+        var channelVol = channelVolumes.TryGetValue(channel, out var vol) ? vol : 1f;
+        return baseVolume * masterChannelVol * channelVol * masterVolume;
+    }
+
+    #endregion
+
+    #region Listener
+
+    /// <inheritdoc />
+    public void SetListenerPosition(Vector3 position)
+    {
+        device?.SetListenerPosition(position);
+    }
+
+    /// <inheritdoc />
+    public void SetListenerOrientation(Vector3 forward, Vector3 up)
+    {
+        device?.SetListenerOrientation(forward, up);
+    }
+
+    /// <inheritdoc />
+    public void SetListenerVelocity(Vector3 velocity)
+    {
+        device?.SetListenerVelocity(velocity);
+    }
+
+    #endregion
+
+    #region Lifecycle
 
     /// <inheritdoc />
     public void Update()
     {
         sourcePool?.Update();
+
+        // Clean up finished sounds from tracking
+        List<int>? toRemove = null;
+        foreach (var (soundId, instance) in activeSounds)
+        {
+            var state = device?.GetSourceState(instance.SourceId);
+            if (state == AudioPlayState.Stopped)
+            {
+                toRemove ??= [];
+                toRemove.Add(soundId);
+            }
+        }
+
+        if (toRemove != null)
+        {
+            foreach (var soundId in toRemove)
+            {
+                activeSounds.Remove(soundId);
+                pausedByPauseAll.Remove(soundId);
+            }
+        }
     }
 
     private void ThrowIfNotInitialized()
@@ -210,6 +500,8 @@ public sealed class SilkAudioContext : IAudioContext
             device?.DeleteBuffer(buffer.BufferId);
         }
         buffers.Clear();
+        activeSounds.Clear();
+        pausedByPauseAll.Clear();
 
         device?.Dispose();
     }
@@ -221,4 +513,16 @@ public sealed class SilkAudioContext : IAudioContext
         windowProvider.Window.Closing -= HandleWindowClosing;
         DisposeAudioResources();
     }
+
+    #endregion
+
+    /// <summary>
+    /// Internal record for tracking active sound instances.
+    /// </summary>
+    private record SoundInstance(
+        uint SourceId,
+        AudioClipHandle Clip,
+        AudioChannel Channel,
+        float BaseVolume,
+        bool IsPooled);
 }

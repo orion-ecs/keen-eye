@@ -1,3 +1,4 @@
+using System.Numerics;
 using KeenEyes.Audio.Abstractions;
 using Silk.NET.OpenAL;
 using AudioExceptionType = KeenEyes.Audio.Abstractions.AudioException;
@@ -123,6 +124,114 @@ internal sealed unsafe class OpenALDevice : IAudioDevice
     public void SetListenerGain(float gain)
     {
         al.SetListenerProperty(ListenerFloat.Gain, gain);
+    }
+
+    // === 3D Source Properties ===
+
+    /// <inheritdoc />
+    public void SetSourcePosition(uint sourceId, Vector3 position)
+    {
+        al.SetSourceProperty(sourceId, SourceVector3.Position, position.X, position.Y, position.Z);
+    }
+
+    /// <inheritdoc />
+    public void SetSourceVelocity(uint sourceId, Vector3 velocity)
+    {
+        al.SetSourceProperty(sourceId, SourceVector3.Velocity, velocity.X, velocity.Y, velocity.Z);
+    }
+
+    /// <inheritdoc />
+    public void SetSourcePitch(uint sourceId, float pitch)
+    {
+        al.SetSourceProperty(sourceId, SourceFloat.Pitch, pitch);
+    }
+
+    /// <inheritdoc />
+    public void SetSourceLooping(uint sourceId, bool loop)
+    {
+        al.SetSourceProperty(sourceId, SourceBoolean.Looping, loop);
+    }
+
+    /// <inheritdoc />
+    public void SetSourceMinDistance(uint sourceId, float distance)
+    {
+        al.SetSourceProperty(sourceId, SourceFloat.ReferenceDistance, distance);
+    }
+
+    /// <inheritdoc />
+    public void SetSourceMaxDistance(uint sourceId, float distance)
+    {
+        al.SetSourceProperty(sourceId, SourceFloat.MaxDistance, distance);
+    }
+
+    /// <inheritdoc />
+    public void SetSourceRolloff(uint sourceId, float rolloff)
+    {
+        al.SetSourceProperty(sourceId, SourceFloat.RolloffFactor, rolloff);
+    }
+
+    /// <inheritdoc />
+    public void PauseSource(uint sourceId)
+    {
+        al.SourcePause(sourceId);
+    }
+
+    // === 3D Listener Properties ===
+
+    /// <inheritdoc />
+    public void SetListenerPosition(Vector3 position)
+    {
+        al.SetListenerProperty(ListenerVector3.Position, position.X, position.Y, position.Z);
+    }
+
+    /// <inheritdoc />
+    public void SetListenerVelocity(Vector3 velocity)
+    {
+        al.SetListenerProperty(ListenerVector3.Velocity, velocity.X, velocity.Y, velocity.Z);
+    }
+
+    /// <inheritdoc />
+    public void SetListenerOrientation(Vector3 forward, Vector3 up)
+    {
+        // OpenAL expects 6 floats: forward (at) vector followed by up vector
+        // Use unsafe pointer to pass the orientation array
+        Span<float> orientation = stackalloc float[6]
+        {
+            forward.X, forward.Y, forward.Z,
+            up.X, up.Y, up.Z
+        };
+        fixed (float* ptr = orientation)
+        {
+            al.SetListenerProperty(ListenerFloatArray.Orientation, ptr);
+        }
+    }
+
+    // === Global Settings ===
+
+    /// <inheritdoc />
+    public void SetDistanceModel(AudioRolloffMode mode)
+    {
+        var alModel = mode switch
+        {
+            AudioRolloffMode.Linear => DistanceModel.LinearDistanceClamped,
+            AudioRolloffMode.Logarithmic => DistanceModel.InverseDistanceClamped,
+            AudioRolloffMode.Exponential => DistanceModel.ExponentDistanceClamped,
+            AudioRolloffMode.Custom => DistanceModel.None,
+            _ => DistanceModel.InverseDistanceClamped
+        };
+        al.DistanceModel(alModel);
+    }
+
+    /// <inheritdoc />
+    public void SetSpeedOfSound(float speed)
+    {
+        al.SpeedOfSound(speed);
+    }
+
+    /// <inheritdoc />
+    public void SetDopplerFactor(float factor)
+    {
+        al.DopplerFactor(factor);
     }
 
     private static BufferFormat ToOpenALFormat(AudioFormat format) => format switch
