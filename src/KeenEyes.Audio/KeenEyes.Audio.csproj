@@ -9,11 +9,13 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="KeenEyes.Audio.Tests" />
+    <InternalsVisibleTo Include="KeenEyes.Audio.Silk" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Audio.Abstractions\KeenEyes.Audio.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
   </ItemGroup>
 
 </Project>

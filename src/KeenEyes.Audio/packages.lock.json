@@ -16,6 +16,12 @@
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
+      },
+      "keeneyes.common": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
       }
     }
   }
