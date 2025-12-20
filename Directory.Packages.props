@@ -24,4 +24,7 @@
     <PackageVersion Include="BepuPhysics" Version="2.4.0" />
     <PackageVersion Include="BepuUtilities" Version="2.4.0" />
   </ItemGroup>
+  <ItemGroup Label="Audio">
+    <PackageVersion Include="Silk.NET.OpenAL" Version="2.22.0" />
+  </ItemGroup>
 </Project>

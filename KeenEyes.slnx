@@ -27,7 +27,11 @@
     <Project Path="samples/KeenEyes.Sample.UI/KeenEyes.Sample.UI.csproj" />
     <Project Path="samples/KeenEyes.Sample/KeenEyes.Sample.csproj" />
   </Folder>
-  <Folder Name="/src/" />
+  <Folder Name="/src/">
+    <Project Path="src/KeenEyes.Audio.Abstractions/KeenEyes.Audio.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Audio.Silk/KeenEyes.Audio.Silk.csproj" />
+    <Project Path="src/KeenEyes.Audio/KeenEyes.Audio.csproj" />
+  </Folder>
   <Folder Name="/src/core/">
     <Project Path="src/KeenEyes.Abstractions/KeenEyes.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Common/KeenEyes.Common.csproj" />
