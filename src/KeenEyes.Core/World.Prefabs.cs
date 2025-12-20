@@ -53,7 +53,7 @@ public sealed partial class World
     /// <param name="name">The name of the prefab to spawn from.</param>
     /// <returns>
     /// An entity builder pre-configured with the prefab's components.
-    /// Call <see cref="EntityBuilder.Build"/> to create the entity.
+    /// Call <see cref="IEntityBuilder.Build"/> to create the entity.
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="name"/> is null.</exception>
     /// <exception cref="InvalidOperationException">
@@ -84,7 +84,7 @@ public sealed partial class World
     /// </example>
     /// <seealso cref="RegisterPrefab(string, EntityPrefab)"/>
     /// <seealso cref="SpawnFromPrefab(string, string?)"/>
-    public EntityBuilder SpawnFromPrefab(string name)
+    public IEntityBuilder SpawnFromPrefab(string name)
         => prefabManager.SpawnFromPrefab(name);
 
     /// <summary>
@@ -97,7 +97,7 @@ public sealed partial class World
     /// </param>
     /// <returns>
     /// An entity builder pre-configured with the prefab's components.
-    /// Call <see cref="EntityBuilder.Build"/> to create the entity.
+    /// Call <see cref="IEntityBuilder.Build"/> to create the entity.
     /// </returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="prefabName"/> is null.</exception>
     /// <exception cref="InvalidOperationException">
@@ -126,7 +126,7 @@ public sealed partial class World
     /// <seealso cref="RegisterPrefab(string, EntityPrefab)"/>
     /// <seealso cref="SpawnFromPrefab(string)"/>
     /// <seealso cref="GetEntityByName(string)"/>
-    public EntityBuilder SpawnFromPrefab(string prefabName, string? entityName)
+    public IEntityBuilder SpawnFromPrefab(string prefabName, string? entityName)
         => prefabManager.SpawnFromPrefab(prefabName, entityName);
 
     /// <summary>

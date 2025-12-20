@@ -147,6 +147,38 @@ public sealed class PluginContext : IPluginContext
         World.Components.GetOrRegister<T>(isTag);
     }
 
+    /// <inheritdoc />
+    public T GetCapability<T>() where T : class
+    {
+        if (TryGetCapability<T>(out var capability))
+        {
+            return capability!;
+        }
+
+        throw new InvalidOperationException(
+            $"Capability of type {typeof(T).Name} is not available in this context.");
+    }
+
+    /// <inheritdoc />
+    public bool TryGetCapability<T>(out T? capability) where T : class
+    {
+        // Check if World directly implements the capability
+        if (World is T worldCapability)
+        {
+            capability = worldCapability;
+            return true;
+        }
+
+        capability = null;
+        return false;
+    }
+
+    /// <inheritdoc />
+    public bool HasCapability<T>() where T : class
+    {
+        return World is T;
+    }
+
     /// <summary>
     /// Registers a system internally and tracks it for cleanup.
     /// </summary>

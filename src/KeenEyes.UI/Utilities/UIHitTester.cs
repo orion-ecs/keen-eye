@@ -17,7 +17,6 @@ namespace KeenEyes.UI;
 /// <param name="world">The world to perform hit tests on.</param>
 public sealed class UIHitTester(IWorld world)
 {
-    private readonly World? concreteWorld = world as World;
 
     /// <summary>
     /// Finds the topmost UI element at the specified screen position.
@@ -36,11 +35,6 @@ public sealed class UIHitTester(IWorld world)
     /// </remarks>
     public Entity HitTest(Vector2 screenPosition)
     {
-        if (concreteWorld is null)
-        {
-            return Entity.Null;
-        }
-
         Entity topHit = Entity.Null;
         int topDepth = int.MinValue;
 
@@ -76,11 +70,6 @@ public sealed class UIHitTester(IWorld world)
     /// <returns>A list of entities at the position, sorted by depth (topmost first).</returns>
     public List<Entity> HitTestAll(Vector2 screenPosition)
     {
-        if (concreteWorld is null)
-        {
-            return [];
-        }
-
         var hits = new List<(Entity Entity, int Depth)>();
 
         // Find all root canvases
@@ -110,15 +99,10 @@ public sealed class UIHitTester(IWorld world)
 
     private Entity HitTestRecursive(Entity entity, Vector2 position, int depth, ref int topDepth)
     {
-        if (concreteWorld is null)
-        {
-            return Entity.Null;
-        }
-
         Entity topHit = Entity.Null;
 
-        // Check children first (they render on top)
-        foreach (var child in concreteWorld.GetChildren(entity))
+        // Check children first (they render on top) - using IWorld.GetChildren
+        foreach (var child in world.GetChildren(entity))
         {
             if (!world.Has<UIElement>(child) || !world.Has<UIRect>(child))
             {
@@ -175,11 +159,6 @@ public sealed class UIHitTester(IWorld world)
 
     private void HitTestRecursiveAll(Entity entity, Vector2 position, int depth, List<(Entity, int)> hits)
     {
-        if (concreteWorld is null)
-        {
-            return;
-        }
-
         // Check this entity
         ref readonly var element = ref world.Get<UIElement>(entity);
         ref readonly var rect = ref world.Get<UIRect>(entity);
@@ -190,8 +169,8 @@ public sealed class UIHitTester(IWorld world)
             hits.Add((entity, depthScore));
         }
 
-        // Check children
-        foreach (var child in concreteWorld.GetChildren(entity))
+        // Check children - using IWorld.GetChildren
+        foreach (var child in world.GetChildren(entity))
         {
             if (!world.Has<UIElement>(child) || !world.Has<UIRect>(child))
             {

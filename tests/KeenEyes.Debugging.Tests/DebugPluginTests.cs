@@ -1,3 +1,5 @@
+using KeenEyes.Capabilities;
+using KeenEyes.Testing.Capabilities;
 using KeenEyes.Testing.Plugins;
 
 namespace KeenEyes.Debugging.Tests;
@@ -700,6 +702,172 @@ public partial class DebugPluginTests
         // Assert - phase filters don't affect extension registration
         Assert.True(context.WasExtensionSet<Profiler>());
         Assert.True(context.WasExtensionSet<GCTracker>());
+    }
+
+    #endregion
+
+    #region MockSystemHookCapability Tests
+
+    [Fact]
+    public void Install_WithMockHookCapability_RegistersProfilingHook()
+    {
+        // Arrange - Use mock context with mock capability instead of real World
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - verify hooks were registered via the mock
+        Assert.True(mockHooks.WasHookAdded);
+        Assert.Equal(2, mockHooks.HookCount); // Profiling + GC tracking hooks
+        Assert.True(mockHooks.HasBeforeHook);
+        Assert.True(mockHooks.HasAfterHook);
+    }
+
+    [Fact]
+    public void Install_WithMockHookCapability_ProfilingDisabled_OnlyRegistersGCHook()
+    {
+        // Arrange
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var options = new DebugOptions { EnableProfiling = false };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - only GC tracking hook should be registered
+        Assert.Equal(1, mockHooks.HookCount);
+    }
+
+    [Fact]
+    public void Install_WithMockHookCapability_GCTrackingDisabled_OnlyRegistersProfilingHook()
+    {
+        // Arrange
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var options = new DebugOptions { EnableGCTracking = false };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - only profiling hook should be registered
+        Assert.Equal(1, mockHooks.HookCount);
+    }
+
+    [Fact]
+    public void Install_WithMockHookCapability_AllDisabled_NoHooksRegistered()
+    {
+        // Arrange
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var options = new DebugOptions
+        {
+            EnableProfiling = false,
+            EnableGCTracking = false
+        };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - no hooks should be registered
+        Assert.False(mockHooks.WasHookAdded);
+        Assert.Equal(0, mockHooks.HookCount);
+    }
+
+    [Fact]
+    public void Install_WithMockHookCapability_ProfilingHookHasPhaseFilter()
+    {
+        // Arrange
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var options = new DebugOptions
+        {
+            EnableGCTracking = false,
+            ProfilingPhase = SystemPhase.Update
+        };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - verify phase filter was set
+        Assert.Single(mockHooks.RegisteredHooks);
+        var hook = mockHooks.GetHook(0);
+        Assert.Equal(SystemPhase.Update, hook.Phase);
+    }
+
+    [Fact]
+    public void Install_WithoutHookCapability_WhenHooksNeeded_Throws()
+    {
+        // Arrange - context without hook capability and without real World
+        var mockPlugin = new MockPlugin("MockPlugin");
+        var plugin = new DebugPlugin(); // default options need hooks
+        var context = new MockPluginContext(mockPlugin); // No world, no capabilities
+
+        // Act & Assert - should throw because hooks are needed but not available
+        Assert.Throws<InvalidOperationException>(() => plugin.Install(context));
+    }
+
+    [Fact]
+    public void Install_WithoutHookCapability_WhenNoHooksNeeded_Succeeds()
+    {
+        // Arrange - disable profiling and GC tracking so no hooks are needed
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var options = new DebugOptions
+        {
+            EnableProfiling = false,
+            EnableGCTracking = false
+        };
+        var plugin = new DebugPlugin(options);
+        // Note: We don't set ISystemHookCapability - it's not needed
+        var context = new MockPluginContext(plugin, world);
+
+        // Act - should not throw
+        plugin.Install(context);
+
+        // Assert - extensions should still be registered
+        Assert.True(context.WasExtensionSet<EntityInspector>());
+        Assert.True(context.WasExtensionSet<MemoryTracker>());
+    }
+
+    [Fact]
+    public void Install_MockHookCapability_HooksInvokedOnSimulation()
+    {
+        // Arrange
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var plugin = new DebugPlugin(new DebugOptions { EnableGCTracking = false });
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        plugin.Install(context);
+
+        var profiler = context.GetSetExtension<Profiler>()!;
+        var mockSystem = new TestSystem();
+
+        // Act - simulate system execution
+        mockHooks.SimulateSystemExecution(mockSystem, 0.016f);
+        mockHooks.SimulateSystemExecution(mockSystem, 0.016f);
+
+        // Assert - profiler should have captured the samples
+        var profile = profiler.GetSystemProfile(nameof(TestSystem));
+        Assert.Equal(2, profile.CallCount);
     }
 
     #endregion

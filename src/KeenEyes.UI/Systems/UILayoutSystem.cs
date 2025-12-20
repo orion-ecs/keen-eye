@@ -25,7 +25,6 @@ namespace KeenEyes.UI;
 /// </remarks>
 public sealed class UILayoutSystem : SystemBase
 {
-    private World? concreteWorld;
     private IFontManager? fontManager;
     private bool fontManagerInitialized;
     private Vector2 screenSize = new(1280, 720); // Default, should be updated from window
@@ -38,12 +37,6 @@ public sealed class UILayoutSystem : SystemBase
     public void SetScreenSize(float width, float height)
     {
         screenSize = new Vector2(width, height);
-    }
-
-    /// <inheritdoc />
-    protected override void OnInitialize()
-    {
-        concreteWorld = World as World;
     }
 
     private void TryInitializeFontManager()
@@ -64,11 +57,6 @@ public sealed class UILayoutSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        if (concreteWorld is null)
-        {
-            return;
-        }
-
         // Lazy initialize font manager
         TryInitializeFontManager();
 
@@ -97,12 +85,8 @@ public sealed class UILayoutSystem : SystemBase
 
     private void ProcessChildren(Entity parent, Rectangle parentBounds)
     {
-        if (concreteWorld is null)
-        {
-            return;
-        }
-
-        var children = concreteWorld.GetChildren(parent).ToList();
+        // Using IWorld.GetChildren for hierarchy access
+        var children = World.GetChildren(parent).ToList();
         if (children.Count == 0)
         {
             return;

@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using KeenEyes.Capabilities;
 
 namespace KeenEyes.Serialization;
 
@@ -855,9 +856,9 @@ public static class SnapshotManager
     /// <exception cref="InvalidOperationException">
     /// Thrown when the serializer cannot register the component type.
     /// </exception>
-    private static ComponentInfo RegisterComponent(World world, Type type, string typeName, bool isTag, IComponentSerializer serializer)
+    private static ComponentInfo RegisterComponent(ISerializationCapability serialization, Type type, string typeName, bool isTag, IComponentSerializer serializer)
     {
-        var info = serializer.RegisterComponent(world, typeName, isTag);
+        var info = serializer.RegisterComponent(serialization, typeName, isTag);
         if (info is not null)
         {
             return info;
@@ -866,7 +867,7 @@ public static class SnapshotManager
         // Also try with full name
         if (type.FullName is not null)
         {
-            info = serializer.RegisterComponent(world, type.FullName, isTag);
+            info = serializer.RegisterComponent(serialization, type.FullName, isTag);
             if (info is not null)
             {
                 return info;
@@ -884,15 +885,15 @@ public static class SnapshotManager
     /// <exception cref="InvalidOperationException">
     /// Thrown when the serializer cannot set the singleton value.
     /// </exception>
-    private static void SetSingleton(World world, Type type, string typeName, object value, IComponentSerializer serializer)
+    private static void SetSingleton(ISerializationCapability serialization, Type type, string typeName, object value, IComponentSerializer serializer)
     {
-        if (serializer.SetSingleton(world, typeName, value))
+        if (serializer.SetSingleton(serialization, typeName, value))
         {
             return;
         }
 
         // Also try with full name
-        if (type.FullName is not null && serializer.SetSingleton(world, type.FullName, value))
+        if (type.FullName is not null && serializer.SetSingleton(serialization, type.FullName, value))
         {
             return;
         }

@@ -14,6 +14,12 @@ namespace KeenEyes;
 /// up when the plugin is uninstalled. Extensions set through the context are
 /// stored in the world and can be retrieved by other code.
 /// </para>
+/// <para>
+/// Plugins that need advanced functionality should use capabilities via
+/// <see cref="GetCapability{T}"/> or <see cref="TryGetCapability{T}"/>
+/// instead of casting <see cref="World"/> to concrete types. This enables
+/// better testability with mock implementations.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -24,6 +30,15 @@ namespace KeenEyes;
 ///
 ///     // Expose a custom API through extensions
 ///     context.SetExtension(new PhysicsWorld());
+///
+///     // Request capabilities for advanced functionality
+///     if (context.TryGetCapability&lt;ISystemHookCapability&gt;(out var hooks))
+///     {
+///         hookSubscription = hooks.AddSystemHook(
+///             beforeHook: (system, dt) => /* ... */,
+///             afterHook: (system, dt) => /* ... */
+///         );
+///     }
 /// }
 /// </code>
 /// </example>
@@ -152,4 +167,46 @@ public interface IPluginContext
     /// </para>
     /// </remarks>
     void RegisterComponent<T>(bool isTag = false) where T : struct, IComponent;
+
+    /// <summary>
+    /// Gets a capability from the plugin context.
+    /// </summary>
+    /// <typeparam name="T">The capability interface type.</typeparam>
+    /// <returns>The capability implementation.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the capability is not available.</exception>
+    /// <remarks>
+    /// <para>
+    /// Capabilities provide access to advanced functionality without requiring plugins
+    /// to cast to concrete types. Common capabilities include:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description><c>ISystemHookCapability</c> - Add hooks to system execution</description></item>
+    /// <item><description><c>IPersistenceCapability</c> - Configure persistence settings</description></item>
+    /// </list>
+    /// <para>
+    /// Use <see cref="TryGetCapability{T}"/> if the capability is optional for your plugin.
+    /// </para>
+    /// </remarks>
+    T GetCapability<T>() where T : class;
+
+    /// <summary>
+    /// Tries to get a capability from the plugin context.
+    /// </summary>
+    /// <typeparam name="T">The capability interface type.</typeparam>
+    /// <param name="capability">When this method returns, contains the capability if available.</param>
+    /// <returns>True if the capability is available; false otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// Use this method when a capability is optional for your plugin's functionality.
+    /// For required capabilities, use <see cref="GetCapability{T}"/> which throws if unavailable.
+    /// </para>
+    /// </remarks>
+    bool TryGetCapability<T>(out T? capability) where T : class;
+
+    /// <summary>
+    /// Checks if a capability is available in this context.
+    /// </summary>
+    /// <typeparam name="T">The capability interface type.</typeparam>
+    /// <returns>True if the capability is available; false otherwise.</returns>
+    bool HasCapability<T>() where T : class;
 }

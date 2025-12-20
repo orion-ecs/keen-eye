@@ -40,6 +40,10 @@ public readonly record struct RegisteredComponentInfo(Type ComponentType, bool I
 /// Unlike a real plugin context, MockPluginContext does not actually register systems
 /// with a world. It only records the registration attempts for later verification.
 /// </para>
+/// <para>
+/// Mock capabilities can be registered via <see cref="SetCapability{T}"/> to provide
+/// test implementations of capability interfaces that plugins may request.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -56,6 +60,12 @@ public readonly record struct RegisteredComponentInfo(Type ComponentType, bool I
 /// mockContext
 ///     .ShouldHaveRegisteredSystem&lt;PhysicsSystem&gt;()
 ///     .ShouldHaveSetExtension&lt;PhysicsWorld&gt;();
+///
+/// // With mock capabilities
+/// var mockHooks = new MockSystemHookCapability();
+/// mockContext.SetCapability&lt;ISystemHookCapability&gt;(mockHooks);
+/// plugin.Install(mockContext);
+/// Assert.True(mockHooks.WasHookAdded);
 /// </code>
 /// </example>
 public sealed class MockPluginContext : IPluginContext
@@ -64,6 +74,7 @@ public sealed class MockPluginContext : IPluginContext
     private readonly List<RegisteredExtensionInfo> registeredExtensions = [];
     private readonly List<RegisteredComponentInfo> registeredComponents = [];
     private readonly Dictionary<Type, object> extensions = [];
+    private readonly Dictionary<Type, object> capabilities = [];
     private readonly IWorld? world;
 
     /// <summary>
@@ -164,6 +175,52 @@ public sealed class MockPluginContext : IPluginContext
         registeredExtensions.Clear();
         registeredComponents.Clear();
         extensions.Clear();
+        capabilities.Clear();
+    }
+
+    /// <summary>
+    /// Sets a mock capability that can be requested by plugins.
+    /// </summary>
+    /// <typeparam name="T">The capability interface type.</typeparam>
+    /// <param name="capability">The mock capability implementation.</param>
+    /// <returns>This context for fluent chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// Use this method to provide mock implementations of capability interfaces
+    /// that plugins may request via <see cref="GetCapability{T}"/> or
+    /// <see cref="TryGetCapability{T}"/>.
+    /// </para>
+    /// </remarks>
+    public MockPluginContext SetCapability<T>(T capability) where T : class
+    {
+        ArgumentNullException.ThrowIfNull(capability);
+        capabilities[typeof(T)] = capability;
+        return this;
+    }
+
+    /// <summary>
+    /// Gets a mock capability that was set.
+    /// </summary>
+    /// <typeparam name="T">The capability interface type.</typeparam>
+    /// <returns>The mock capability, or null if not set.</returns>
+    public T? GetSetCapability<T>() where T : class
+    {
+        if (capabilities.TryGetValue(typeof(T), out var cap))
+        {
+            return (T)cap;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if a capability was set.
+    /// </summary>
+    /// <typeparam name="T">The capability interface type.</typeparam>
+    /// <returns>True if the capability was set; false otherwise.</returns>
+    public bool WasCapabilitySet<T>() where T : class
+    {
+        return capabilities.ContainsKey(typeof(T));
     }
 
     #region IPluginContext Implementation
@@ -268,6 +325,46 @@ public sealed class MockPluginContext : IPluginContext
     public void RegisterComponent<T>(bool isTag = false) where T : struct, IComponent
     {
         registeredComponents.Add(new RegisteredComponentInfo(typeof(T), isTag));
+    }
+
+    /// <inheritdoc />
+    public T GetCapability<T>() where T : class
+    {
+        if (TryGetCapability<T>(out var capability))
+        {
+            return capability!;
+        }
+
+        throw new InvalidOperationException(
+            $"Capability of type {typeof(T).Name} is not available. " +
+            $"Use SetCapability<{typeof(T).Name}>() to provide a mock implementation.");
+    }
+
+    /// <inheritdoc />
+    public bool TryGetCapability<T>(out T? capability) where T : class
+    {
+        // First check mock capabilities
+        if (capabilities.TryGetValue(typeof(T), out var cap))
+        {
+            capability = (T)cap;
+            return true;
+        }
+
+        // Fall back to checking if World implements it
+        if (world is T worldCapability)
+        {
+            capability = worldCapability;
+            return true;
+        }
+
+        capability = null;
+        return false;
+    }
+
+    /// <inheritdoc />
+    public bool HasCapability<T>() where T : class
+    {
+        return capabilities.ContainsKey(typeof(T)) || world is T;
     }
 
     #endregion

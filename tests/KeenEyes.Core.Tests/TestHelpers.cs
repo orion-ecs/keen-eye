@@ -1,6 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using KeenEyes.Capabilities;
 using KeenEyes.Serialization;
 
 namespace KeenEyes.Tests;
@@ -77,8 +78,8 @@ internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryCom
     private readonly Dictionary<string, Type> typeMap = [];
     private readonly Dictionary<Type, Func<JsonElement, object>> deserializers = [];
     private readonly Dictionary<Type, Func<object, JsonElement>> serializers = [];
-    private readonly Dictionary<Type, Func<World, bool, ComponentInfo>> registrars = [];
-    private readonly Dictionary<Type, Action<World, object>> singletonSetters = [];
+    private readonly Dictionary<Type, Func<ISerializationCapability, bool, ComponentInfo>> registrars = [];
+    private readonly Dictionary<Type, Action<ISerializationCapability, object>> singletonSetters = [];
     private readonly Dictionary<string, Func<BinaryReader, object>> binaryDeserializers = [];
     private readonly Dictionary<Type, Action<object, BinaryWriter>> binarySerializers = [];
 
@@ -108,8 +109,8 @@ internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryCom
             using var doc = JsonDocument.Parse(jsonStr);
             return doc.RootElement.Clone();
         };
-        registrars[type] = (world, isTag) => world.Components.Register<T>(isTag);
-        singletonSetters[type] = (world, value) => world.SetSingleton((T)value);
+        registrars[type] = (serialization, isTag) => serialization.Components.Register<T>(isTag);
+        singletonSetters[type] = (serialization, value) => serialization.SetSingleton((T)value);
 
         // Binary serializers - serialize as JSON for simplicity in tests
         binaryDeserializers[name] = reader =>
@@ -156,7 +157,7 @@ internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryCom
             using var doc = JsonDocument.Parse(jsonStr);
             return doc.RootElement.Clone();
         };
-        singletonSetters[type] = (world, value) => world.SetSingleton((T)value);
+        singletonSetters[type] = (serialization, value) => serialization.SetSingleton((T)value);
         // Note: No registrar for non-component types
 
         // Binary serializers - serialize as JSON for simplicity in tests
@@ -206,22 +207,22 @@ internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryCom
         return typeMap.TryGetValue(typeName, out var type) ? type : null;
     }
 
-    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)
+    public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag)
     {
         if (typeMap.TryGetValue(typeName, out var type) &&
             registrars.TryGetValue(type, out var registrar))
         {
-            return registrar(world, isTag);
+            return registrar(serialization, isTag);
         }
         return null;
     }
 
-    public bool SetSingleton(World world, string typeName, object value)
+    public bool SetSingleton(ISerializationCapability serialization, string typeName, object value)
     {
         if (typeMap.TryGetValue(typeName, out var type) &&
             singletonSetters.TryGetValue(type, out var setter))
         {
-            setter(world, value);
+            setter(serialization, value);
             return true;
         }
         return false;

@@ -1,3 +1,5 @@
+using KeenEyes.Capabilities;
+
 namespace KeenEyes.Debugging;
 
 /// <summary>
@@ -59,26 +61,40 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
     /// <inheritdoc />
     public void Install(IPluginContext context)
     {
-        // Cast to concrete World to access system hooks
-        if (context.World is not World world)
+        // Install EntityInspector if inspection capability is available (no performance overhead)
+        if (context.TryGetCapability<IInspectionCapability>(out var inspectionCapability) && inspectionCapability is not null)
         {
-            throw new InvalidOperationException("DebugPlugin requires a concrete World instance");
+            context.TryGetCapability<IHierarchyCapability>(out var hierarchyCapability);
+            var inspector = new EntityInspector(context.World, inspectionCapability, hierarchyCapability);
+            context.SetExtension(inspector);
         }
 
-        // Always install EntityInspector and MemoryTracker (no performance overhead)
-        var inspector = new EntityInspector(context.World);
-        context.SetExtension(inspector);
+        // Get statistics capability for MemoryTracker
+        if (context.TryGetCapability<IStatisticsCapability>(out var statsCapability) && statsCapability is not null)
+        {
+            var memoryTracker = new MemoryTracker(statsCapability);
+            context.SetExtension(memoryTracker);
+        }
 
-        var memoryTracker = new MemoryTracker(context.World);
-        context.SetExtension(memoryTracker);
+        // Get the system hook capability for profiling and GC tracking
+        ISystemHookCapability? hookCapability = null;
+        if (options.EnableProfiling || options.EnableGCTracking)
+        {
+            if (!context.TryGetCapability<ISystemHookCapability>(out hookCapability))
+            {
+                throw new InvalidOperationException(
+                    "DebugPlugin requires ISystemHookCapability for profiling or GC tracking. " +
+                    "Disable these options or provide a world that supports system hooks.");
+            }
+        }
 
         // Conditionally install profiling
-        if (options.EnableProfiling)
+        if (options.EnableProfiling && hookCapability is not null)
         {
             var profiler = new Profiler();
             context.SetExtension(profiler);
 
-            profilingHook = world.AddSystemHook(
+            profilingHook = hookCapability.AddSystemHook(
                 beforeHook: (system, dt) => profiler.BeginSample(system.GetType().Name),
                 afterHook: (system, dt) => profiler.EndSample(system.GetType().Name),
                 phase: options.ProfilingPhase
@@ -86,12 +102,12 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
         }
 
         // Conditionally install GC tracking
-        if (options.EnableGCTracking)
+        if (options.EnableGCTracking && hookCapability is not null)
         {
             var gcTracker = new GCTracker();
             context.SetExtension(gcTracker);
 
-            gcTrackingHook = world.AddSystemHook(
+            gcTrackingHook = hookCapability.AddSystemHook(
                 beforeHook: (system, dt) => gcTracker.BeginTracking(system.GetType().Name),
                 afterHook: (system, dt) => gcTracker.EndTracking(system.GetType().Name),
                 phase: options.GCTrackingPhase

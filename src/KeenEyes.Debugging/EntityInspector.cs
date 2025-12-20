@@ -1,3 +1,5 @@
+using KeenEyes.Capabilities;
+
 namespace KeenEyes.Debugging;
 
 /// <summary>
@@ -9,10 +11,6 @@ namespace KeenEyes.Debugging;
 /// The EntityInspector allows you to query detailed information about entities at runtime,
 /// which is useful for debugging, tooling, and runtime introspection. It provides access to
 /// component data, entity names, parent-child relationships, and metadata.
-/// </para>
-/// <para>
-/// This class requires a concrete <see cref="World"/> instance to access inspection APIs
-/// that are not part of the core <see cref="IWorld"/> abstraction.
 /// </para>
 /// </remarks>
 /// <example>
@@ -30,27 +28,28 @@ namespace KeenEyes.Debugging;
 /// </example>
 public sealed class EntityInspector
 {
-    private readonly World world;
+    private readonly IWorld world;
+    private readonly IInspectionCapability inspectionCapability;
+    private readonly IHierarchyCapability? hierarchyCapability;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EntityInspector"/> class.
     /// </summary>
     /// <param name="world">The world to inspect entities in.</param>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="world"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown when <paramref name="world"/> is not a concrete <see cref="World"/> instance.</exception>
-    public EntityInspector(IWorld world)
+    /// <param name="inspectionCapability">The inspection capability.</param>
+    /// <param name="hierarchyCapability">Optional hierarchy capability for parent/child relationships.</param>
+    /// <exception cref="ArgumentNullException">Thrown when required parameters are null.</exception>
+    public EntityInspector(
+        IWorld world,
+        IInspectionCapability inspectionCapability,
+        IHierarchyCapability? hierarchyCapability = null)
     {
-        if (world == null)
-        {
-            throw new ArgumentNullException(nameof(world));
-        }
+        ArgumentNullException.ThrowIfNull(world);
+        ArgumentNullException.ThrowIfNull(inspectionCapability);
 
-        if (world is not World concreteWorld)
-        {
-            throw new ArgumentException("EntityInspector requires a concrete World instance", nameof(world));
-        }
-
-        this.world = concreteWorld;
+        this.world = world;
+        this.inspectionCapability = inspectionCapability;
+        this.hierarchyCapability = hierarchyCapability;
     }
 
     /// <summary>
@@ -70,22 +69,29 @@ public sealed class EntityInspector
             throw new InvalidOperationException($"Cannot inspect dead or invalid entity {entity.Id}");
         }
 
-        var name = world.GetName(entity);
-        var parent = world.GetParent(entity);
-        var children = world.GetChildren(entity).ToList();
+        var name = inspectionCapability.GetName(entity);
+
+        Entity parent = Entity.Null;
+        List<Entity> children = [];
+
+        if (hierarchyCapability is not null)
+        {
+            parent = hierarchyCapability.GetParent(entity);
+            children = hierarchyCapability.GetChildren(entity).ToList();
+        }
 
         // Get component types by iterating through all registered components
         // and checking which ones the entity has
         var components = new List<ComponentInfo>();
-        foreach (var componentInfo in world.Components.All)
+        foreach (var registeredComponent in inspectionCapability.GetRegisteredComponents())
         {
-            if (world.HasComponent(entity, componentInfo.Type))
+            if (inspectionCapability.HasComponent(entity, registeredComponent.Type))
             {
                 components.Add(new ComponentInfo
                 {
-                    TypeName = componentInfo.Type.Name,
-                    Type = componentInfo.Type,
-                    SizeInBytes = componentInfo.Size
+                    TypeName = registeredComponent.Name,
+                    Type = registeredComponent.Type,
+                    SizeInBytes = registeredComponent.Size
                 });
             }
         }
@@ -132,7 +138,7 @@ public sealed class EntityInspector
     /// <returns>True if the entity has the component; otherwise, false.</returns>
     public bool HasComponent(Entity entity, Type componentType)
     {
-        return world.HasComponent(entity, componentType);
+        return inspectionCapability.HasComponent(entity, componentType);
     }
 }
 

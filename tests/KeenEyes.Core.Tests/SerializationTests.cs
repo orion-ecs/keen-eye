@@ -1,3 +1,4 @@
+using KeenEyes.Capabilities;
 using KeenEyes.Serialization;
 
 namespace KeenEyes.Tests;
@@ -1359,8 +1360,8 @@ internal sealed class MockComponentSerializer : IComponentSerializer
         return null; // Return null to fall back to other resolvers
     }
 
-    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag) => null;
-    public bool SetSingleton(World world, string typeName, object value) => false;
+    public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag) => null;
+    public bool SetSingleton(ISerializationCapability serialization, string typeName, object value) => false;
     public object? CreateDefault(string typeName) => null;
 }
 
@@ -1400,16 +1401,16 @@ internal sealed class WorkingAotSerializer : IComponentSerializer
         return null;
     }
 
-    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)
+    public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag)
     {
         if (typeName.Contains("SerializablePosition"))
         {
-            return world.Components.Register<SerializablePosition>(isTag);
+            return serialization.Components.Register<SerializablePosition>(isTag);
         }
         return null;
     }
 
-    public bool SetSingleton(World world, string typeName, object value) => false;
+    public bool SetSingleton(ISerializationCapability serialization, string typeName, object value) => false;
 
     public object? CreateDefault(string typeName)
     {
@@ -1457,16 +1458,16 @@ internal sealed class DeserializingAotSerializer : IComponentSerializer
         return null;
     }
 
-    public ComponentInfo? RegisterComponent(World world, string typeName, bool isTag)
+    public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag)
     {
         if (typeName.Contains("SerializablePosition"))
         {
-            return world.Components.Register<SerializablePosition>(isTag);
+            return serialization.Components.Register<SerializablePosition>(isTag);
         }
         return null;
     }
 
-    public bool SetSingleton(World world, string typeName, object value) => false;
+    public bool SetSingleton(ISerializationCapability serialization, string typeName, object value) => false;
 
     public object? CreateDefault(string typeName)
     {

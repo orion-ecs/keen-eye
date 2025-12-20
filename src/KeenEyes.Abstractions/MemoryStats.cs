@@ -6,7 +6,7 @@ namespace KeenEyes;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Memory statistics are computed on-demand when <see cref="World.GetMemoryStats"/> is called.
+/// Memory statistics are computed on-demand when requested from the world.
 /// This is not a live view and represents a snapshot in time.
 /// </para>
 /// <para>

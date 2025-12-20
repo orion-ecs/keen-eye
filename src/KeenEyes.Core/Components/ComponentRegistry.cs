@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using KeenEyes.Capabilities;
 
 namespace KeenEyes;
 
@@ -6,7 +7,7 @@ namespace KeenEyes;
 /// Registry that tracks component types for a specific World.
 /// Each World has its own registry, allowing isolated ECS instances.
 /// </summary>
-public sealed class ComponentRegistry
+public sealed class ComponentRegistry : IComponentRegistry
 {
     private readonly Dictionary<Type, ComponentInfo> byType = [];
     private readonly List<ComponentInfo> all = [];

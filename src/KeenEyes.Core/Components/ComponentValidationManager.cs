@@ -3,16 +3,6 @@ using System.Runtime.CompilerServices;
 namespace KeenEyes;
 
 /// <summary>
-/// Delegate for custom component validators.
-/// </summary>
-/// <typeparam name="T">The component type being validated.</typeparam>
-/// <param name="world">The world containing the entity.</param>
-/// <param name="entity">The entity being validated.</param>
-/// <param name="component">The component data being added.</param>
-/// <returns><c>true</c> if validation passes; <c>false</c> otherwise.</returns>
-public delegate bool ComponentValidator<T>(World world, Entity entity, T component) where T : struct, IComponent;
-
-/// <summary>
 /// Manages component validation constraints including dependencies, conflicts, and custom validators.
 /// </summary>
 /// <remarks>
