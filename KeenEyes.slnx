@@ -28,6 +28,7 @@
     <Project Path="samples/KeenEyes.Sample/KeenEyes.Sample.csproj" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/KeenEyes.Animation/KeenEyes.Animation.csproj" />
     <Project Path="src/KeenEyes.Audio.Abstractions/KeenEyes.Audio.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Audio.Silk/KeenEyes.Audio.Silk.csproj" />
     <Project Path="src/KeenEyes.Audio/KeenEyes.Audio.csproj" />
@@ -65,6 +66,7 @@
     <Project Path="templates/KeenEyes.Templates/KeenEyes.Templates.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/KeenEyes.Animation.Tests/KeenEyes.Animation.Tests.csproj" />
     <Project Path="tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj" />
     <Project Path="tests/KeenEyes.Common.Tests/KeenEyes.Common.Tests.csproj" />
     <Project Path="tests/KeenEyes.Core.Tests/KeenEyes.Core.Tests.csproj" />
