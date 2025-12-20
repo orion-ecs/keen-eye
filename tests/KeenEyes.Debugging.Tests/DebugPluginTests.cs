@@ -1,3 +1,5 @@
+using KeenEyes.Testing.Plugins;
+
 namespace KeenEyes.Debugging.Tests;
 
 /// <summary>
@@ -492,6 +494,212 @@ public partial class DebugPluginTests
 
         // Assert
         Assert.Equal(options1, options2);
+    }
+
+    #endregion
+
+    #region MockPluginContext Tests
+
+    [Fact]
+    public void Install_WithMockContext_RegistersEntityInspectorExtension()
+    {
+        // Arrange
+        using var world = new World();
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert
+        context.ShouldHaveSetExtension<EntityInspector>();
+    }
+
+    [Fact]
+    public void Install_WithMockContext_RegistersMemoryTrackerExtension()
+    {
+        // Arrange
+        using var world = new World();
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert
+        context.ShouldHaveSetExtension<MemoryTracker>();
+    }
+
+    [Fact]
+    public void Install_WithMockContext_DefaultOptions_RegistersAllExtensions()
+    {
+        // Arrange
+        using var world = new World();
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - default options enable profiling and GC tracking
+        context.ShouldHaveSetExtensionCount(4);
+        Assert.True(context.WasExtensionSet<EntityInspector>());
+        Assert.True(context.WasExtensionSet<MemoryTracker>());
+        Assert.True(context.WasExtensionSet<Profiler>());
+        Assert.True(context.WasExtensionSet<GCTracker>());
+    }
+
+    [Fact]
+    public void Install_WithMockContext_ProfilingDisabled_DoesNotRegisterProfiler()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableProfiling = false };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert
+        Assert.False(context.WasExtensionSet<Profiler>());
+        Assert.True(context.WasExtensionSet<EntityInspector>());
+        Assert.True(context.WasExtensionSet<MemoryTracker>());
+        Assert.True(context.WasExtensionSet<GCTracker>());
+    }
+
+    [Fact]
+    public void Install_WithMockContext_GCTrackingDisabled_DoesNotRegisterGCTracker()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableGCTracking = false };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert
+        Assert.False(context.WasExtensionSet<GCTracker>());
+        Assert.True(context.WasExtensionSet<EntityInspector>());
+        Assert.True(context.WasExtensionSet<MemoryTracker>());
+        Assert.True(context.WasExtensionSet<Profiler>());
+    }
+
+    [Fact]
+    public void Install_WithMockContext_AllDisabled_RegistersOnlyBasicExtensions()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions
+        {
+            EnableProfiling = false,
+            EnableGCTracking = false
+        };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - only EntityInspector and MemoryTracker are always registered
+        context.ShouldHaveSetExtensionCount(2);
+        Assert.True(context.WasExtensionSet<EntityInspector>());
+        Assert.True(context.WasExtensionSet<MemoryTracker>());
+        Assert.False(context.WasExtensionSet<Profiler>());
+        Assert.False(context.WasExtensionSet<GCTracker>());
+    }
+
+    [Fact]
+    public void Install_WithoutWorld_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin); // No world provided
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() => plugin.Install(context));
+    }
+
+    [Fact]
+    public void Install_RegistersNoSystems()
+    {
+        // Arrange
+        using var world = new World();
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - DebugPlugin doesn't register any systems
+        Assert.Empty(context.RegisteredSystems);
+    }
+
+    [Fact]
+    public void Install_RegistersNoComponents()
+    {
+        // Arrange
+        using var world = new World();
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - DebugPlugin doesn't register any components
+        Assert.Empty(context.RegisteredComponents);
+    }
+
+    [Fact]
+    public void Install_CreatedExtensions_AreFullyFunctional()
+    {
+        // Arrange
+        using var world = new World();
+        var plugin = new DebugPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - verify extensions are actually working instances
+        var inspector = context.GetSetExtension<EntityInspector>();
+        var memoryTracker = context.GetSetExtension<MemoryTracker>();
+        var profiler = context.GetSetExtension<Profiler>();
+        var gcTracker = context.GetSetExtension<GCTracker>();
+
+        Assert.NotNull(inspector);
+        Assert.NotNull(memoryTracker);
+        Assert.NotNull(profiler);
+        Assert.NotNull(gcTracker);
+
+        // Verify profiler can be used
+        profiler.BeginSample("TestSample");
+        profiler.EndSample("TestSample");
+        var profile = profiler.GetSystemProfile("TestSample");
+        Assert.Equal("TestSample", profile.Name);
+    }
+
+    [Fact]
+    public void Install_WithPhaseFilters_RegistersExtensionsCorrectly()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions
+        {
+            ProfilingPhase = SystemPhase.Update,
+            GCTrackingPhase = SystemPhase.FixedUpdate
+        };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - phase filters don't affect extension registration
+        Assert.True(context.WasExtensionSet<Profiler>());
+        Assert.True(context.WasExtensionSet<GCTracker>());
     }
 
     #endregion

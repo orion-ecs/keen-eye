@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using KeenEyes.Parallelism;
+using KeenEyes.Testing.Plugins;
 
 namespace KeenEyes.Tests;
 
@@ -435,6 +436,131 @@ public class ParallelSystemPluginTests
                 Assert.Equal(dt * 2, pos.Y, 0.001f);
             }
         }
+    }
+
+    #endregion
+
+    #region MockPluginContext Tests
+
+    [Fact]
+    public void Install_WithMockContext_RegistersSchedulerExtension()
+    {
+        using var world = new World();
+        var plugin = new ParallelSystemPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        context
+            .ShouldHaveSetExtension<ParallelSystemScheduler>()
+            .ShouldHaveSetExtensionCount(1);
+    }
+
+    [Fact]
+    public void Install_WithMockContext_CreatesWorkingScheduler()
+    {
+        using var world = new World();
+        var plugin = new ParallelSystemPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var scheduler = context.GetSetExtension<ParallelSystemScheduler>();
+        Assert.NotNull(scheduler);
+        Assert.Equal(0, scheduler.SystemCount);
+    }
+
+    [Fact]
+    public void Install_WithOptions_CreatesSchedulerWithConfiguration()
+    {
+        using var world = new World();
+        var options = new ParallelSystemOptions
+        {
+            MaxDegreeOfParallelism = 4,
+            MinBatchSizeForParallel = 3
+        };
+        var plugin = new ParallelSystemPlugin(options);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var scheduler = context.GetSetExtension<ParallelSystemScheduler>();
+        Assert.NotNull(scheduler);
+    }
+
+    [Fact]
+    public void Install_WithoutWorld_ThrowsInvalidOperationException()
+    {
+        var plugin = new ParallelSystemPlugin();
+        var context = new MockPluginContext(plugin); // No world provided
+
+        // MockPluginContext.World throws when no world is provided
+        Assert.Throws<InvalidOperationException>(() => plugin.Install(context));
+    }
+
+    [Fact]
+    public void Install_RegistersNoSystems()
+    {
+        using var world = new World();
+        var plugin = new ParallelSystemPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        // ParallelSystemPlugin doesn't register any systems directly
+        Assert.Empty(context.RegisteredSystems);
+    }
+
+    [Fact]
+    public void Install_RegistersNoComponents()
+    {
+        using var world = new World();
+        var plugin = new ParallelSystemPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        // ParallelSystemPlugin doesn't register any components
+        Assert.Empty(context.RegisteredComponents);
+    }
+
+    [Fact]
+    public void Install_CreatedScheduler_CanRegisterSystems()
+    {
+        using var world = new World();
+        var plugin = new ParallelSystemPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var scheduler = context.GetSetExtension<ParallelSystemScheduler>()!;
+        var movement = new MovementSystem();
+        movement.Initialize(world);
+        scheduler.RegisterSystem(movement);
+
+        Assert.Equal(1, scheduler.SystemCount);
+    }
+
+    [Fact]
+    public void Install_MultipleInstallations_EachCreatesScheduler()
+    {
+        using var world1 = new World();
+        using var world2 = new World();
+
+        var plugin1 = new ParallelSystemPlugin();
+        var plugin2 = new ParallelSystemPlugin();
+        var context1 = new MockPluginContext(plugin1, world1);
+        var context2 = new MockPluginContext(plugin2, world2);
+
+        plugin1.Install(context1);
+        plugin2.Install(context2);
+
+        var scheduler1 = context1.GetSetExtension<ParallelSystemScheduler>();
+        var scheduler2 = context2.GetSetExtension<ParallelSystemScheduler>();
+
+        Assert.NotNull(scheduler1);
+        Assert.NotNull(scheduler2);
+        Assert.NotSame(scheduler1, scheduler2);
     }
 
     #endregion

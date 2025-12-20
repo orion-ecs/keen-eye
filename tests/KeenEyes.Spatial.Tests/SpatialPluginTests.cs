@@ -1,5 +1,7 @@
 using System.Numerics;
 using KeenEyes.Common;
+using KeenEyes.Spatial.Systems;
+using KeenEyes.Testing.Plugins;
 
 namespace KeenEyes.Spatial.Tests;
 
@@ -576,6 +578,140 @@ public class SpatialPluginTests : IDisposable
         // Plugin constructor should throw because validation fails
         var ex = Assert.Throws<ArgumentException>(() => new SpatialPlugin(config));
         Assert.Contains("Unknown spatial strategy", ex.Message);
+    }
+
+    #endregion
+
+    #region MockPluginContext Tests
+
+    [Fact]
+    public void Install_RegistersSpatialQueryApiExtension()
+    {
+        using var world = new World();
+        var plugin = new SpatialPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        context
+            .ShouldHaveSetExtension<SpatialQueryApi>()
+            .ShouldHaveSetExtensionCount(1);
+    }
+
+    [Fact]
+    public void Install_RegistersSpatialUpdateSystem()
+    {
+        using var world = new World();
+        var plugin = new SpatialPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        Assert.True(context.WasSystemRegistered<SpatialUpdateSystem>());
+        Assert.True(context.WasSystemRegisteredAtPhase<SpatialUpdateSystem>(SystemPhase.LateUpdate));
+    }
+
+    [Fact]
+    public void Install_RegistersSpatialIndexedComponent()
+    {
+        using var world = new World();
+        var plugin = new SpatialPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        Assert.True(context.WasComponentRegistered<SpatialIndexed>());
+    }
+
+    [Fact]
+    public void Install_SpatialUpdateSystem_HasNegativeOrder()
+    {
+        using var world = new World();
+        var plugin = new SpatialPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var registration = context.GetSystemRegistration<SpatialUpdateSystem>();
+        Assert.NotNull(registration);
+        // System runs early in LateUpdate phase (order = -100)
+        Assert.Equal(-100, registration.Value.Order);
+    }
+
+    [Fact]
+    public void Install_WithGridStrategy_CreatesSpatialQueryApi()
+    {
+        using var world = new World();
+        var config = new SpatialConfig { Strategy = SpatialStrategy.Grid };
+        var plugin = new SpatialPlugin(config);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var api = context.GetSetExtension<SpatialQueryApi>();
+        Assert.NotNull(api);
+    }
+
+    [Fact]
+    public void Install_WithQuadtreeStrategy_CreatesSpatialQueryApi()
+    {
+        using var world = new World();
+        var config = new SpatialConfig { Strategy = SpatialStrategy.Quadtree };
+        var plugin = new SpatialPlugin(config);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var api = context.GetSetExtension<SpatialQueryApi>();
+        Assert.NotNull(api);
+    }
+
+    [Fact]
+    public void Install_WithOctreeStrategy_CreatesSpatialQueryApi()
+    {
+        using var world = new World();
+        var config = new SpatialConfig { Strategy = SpatialStrategy.Octree };
+        var plugin = new SpatialPlugin(config);
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        var api = context.GetSetExtension<SpatialQueryApi>();
+        Assert.NotNull(api);
+    }
+
+    [Fact]
+    public void Install_RegistersExactlyOneSystem()
+    {
+        using var world = new World();
+        var plugin = new SpatialPlugin();
+        var context = new MockPluginContext(plugin, world);
+
+        plugin.Install(context);
+
+        Assert.Single(context.RegisteredSystems);
+    }
+
+    [Fact]
+    public void Install_AllStrategies_RegisterSameSystemsAndComponents()
+    {
+        var strategies = new[] { SpatialStrategy.Grid, SpatialStrategy.Quadtree, SpatialStrategy.Octree };
+
+        foreach (var strategy in strategies)
+        {
+            using var world = new World();
+            var config = new SpatialConfig { Strategy = strategy };
+            var plugin = new SpatialPlugin(config);
+            var context = new MockPluginContext(plugin, world);
+
+            plugin.Install(context);
+
+            Assert.True(context.WasSystemRegistered<SpatialUpdateSystem>(),
+                $"SpatialUpdateSystem not registered for {strategy}");
+            Assert.True(context.WasComponentRegistered<SpatialIndexed>(),
+                $"SpatialIndexed not registered for {strategy}");
+            context.ShouldHaveSetExtension<SpatialQueryApi>();
+        }
     }
 
     #endregion
