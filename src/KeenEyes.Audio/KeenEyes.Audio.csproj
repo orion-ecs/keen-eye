@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Audio</PackageId>
+    <Description>Backend-agnostic audio systems for KeenEyes ECS</Description>
+    <PackageTags>ecs;audio;sound;game</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Audio.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Audio.Abstractions\KeenEyes.Audio.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
