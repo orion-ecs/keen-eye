@@ -1,3 +1,11 @@
+using KeenEyes.Testing.Encryption;
+using KeenEyes.Testing.Events;
+using KeenEyes.Testing.Graphics;
+using KeenEyes.Testing.Input;
+using KeenEyes.Testing.Logging;
+using KeenEyes.Testing.Network;
+using KeenEyes.Testing.Platform;
+
 namespace KeenEyes.Testing;
 
 /// <summary>
@@ -7,7 +15,8 @@ namespace KeenEyes.Testing;
 /// <remarks>
 /// <para>
 /// TestWorld wraps a standard World instance and provides additional
-/// testing utilities such as deterministic entity IDs and manual time control.
+/// testing utilities such as deterministic entity IDs, manual time control,
+/// mock input support, and event recording.
 /// It implements <see cref="IDisposable"/> to properly clean up the underlying world.
 /// </para>
 /// </remarks>
@@ -16,15 +25,19 @@ namespace KeenEyes.Testing;
 /// using var testWorld = new TestWorldBuilder()
 ///     .WithDeterministicIds()
 ///     .WithManualTime()
+///     .WithMockInput()
+///     .WithEventRecording&lt;DamageEvent&gt;()
 ///     .Build();
 ///
 /// var entity = testWorld.World.Spawn().Build();
+/// testWorld.MockInput!.SetKeyDown(Key.W);
 /// testWorld.Step(); // Advance one frame
-/// testWorld.World.Update(testWorld.Clock.DeltaSeconds);
+/// testWorld.GetEventRecorder&lt;DamageEvent&gt;()?.ShouldNotHaveFired();
 /// </code>
 /// </example>
 public sealed class TestWorld : IDisposable
 {
+    private readonly Dictionary<Type, object> eventRecorders;
     private bool disposed;
 
     /// <summary>
@@ -55,16 +68,148 @@ public sealed class TestWorld : IDisposable
     public bool HasManualTime => Clock != null;
 
     /// <summary>
+    /// Gets the mock input context for simulating input in tests.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockInput"/>.
+    /// </remarks>
+    public MockInputContext? MockInput { get; }
+
+    /// <summary>
+    /// Gets whether mock input mode is enabled.
+    /// </summary>
+    public bool HasMockInput => MockInput != null;
+
+    /// <summary>
+    /// Gets the mock loop provider for step-through game loop testing.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockLoopProvider"/>.
+    /// </remarks>
+    public MockLoopProvider? MockLoopProvider { get; }
+
+    /// <summary>
+    /// Gets the mock window for headless window lifecycle testing.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockWindow"/>.
+    /// </remarks>
+    public MockWindow? MockWindow { get; }
+
+    /// <summary>
+    /// Gets the mock graphics context for GPU operation testing.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockGraphics"/>.
+    /// </remarks>
+    public MockGraphicsContext? MockGraphicsContext { get; }
+
+    /// <summary>
+    /// Gets the mock graphics device for low-level GPU testing.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockGraphics"/>.
+    /// </remarks>
+    public MockGraphicsDevice? MockGraphicsDevice { get; }
+
+    /// <summary>
+    /// Gets the mock 2D renderer for testing 2D rendering code.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMock2DRenderer"/>.
+    /// </remarks>
+    public Mock2DRenderer? Mock2DRenderer { get; }
+
+    /// <summary>
+    /// Gets the mock text renderer for testing text rendering code.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockTextRenderer"/>.
+    /// </remarks>
+    public MockTextRenderer? MockTextRenderer { get; }
+
+    /// <summary>
+    /// Gets the mock font manager for testing text layout without real fonts.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockFontManager"/>.
+    /// </remarks>
+    public MockFontManager? MockFontManager { get; }
+
+    /// <summary>
+    /// Gets the mock log provider for capturing and verifying log output.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockLogging"/>.
+    /// </remarks>
+    public MockLogProvider? MockLogProvider { get; }
+
+    /// <summary>
+    /// Gets the mock encryption provider for testing encryption operations.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockEncryption"/>.
+    /// </remarks>
+    public MockEncryptionProvider? MockEncryption { get; }
+
+    /// <summary>
+    /// Gets the mock network context for testing network code.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithMockNetwork"/>.
+    /// </remarks>
+    public MockNetworkContext? MockNetwork { get; }
+
+    /// <summary>
     /// Creates a new TestWorld instance.
     /// </summary>
     /// <param name="world">The underlying world.</param>
     /// <param name="clock">Optional test clock for manual time control.</param>
     /// <param name="deterministicIds">Whether deterministic ID mode is enabled.</param>
-    internal TestWorld(World world, TestClock? clock, bool deterministicIds)
+    /// <param name="mockInput">Optional mock input context.</param>
+    /// <param name="eventRecorders">Dictionary of event recorders by event type.</param>
+    /// <param name="mockLoopProvider">Optional mock loop provider.</param>
+    /// <param name="mockWindow">Optional mock window.</param>
+    /// <param name="mockGraphicsContext">Optional mock graphics context.</param>
+    /// <param name="mockGraphicsDevice">Optional mock graphics device.</param>
+    /// <param name="mock2DRenderer">Optional mock 2D renderer.</param>
+    /// <param name="mockTextRenderer">Optional mock text renderer.</param>
+    /// <param name="mockFontManager">Optional mock font manager.</param>
+    /// <param name="mockLogProvider">Optional mock log provider.</param>
+    /// <param name="mockEncryption">Optional mock encryption provider.</param>
+    /// <param name="mockNetwork">Optional mock network context.</param>
+    internal TestWorld(
+        World world,
+        TestClock? clock,
+        bool deterministicIds,
+        MockInputContext? mockInput = null,
+        Dictionary<Type, object>? eventRecorders = null,
+        MockLoopProvider? mockLoopProvider = null,
+        MockWindow? mockWindow = null,
+        MockGraphicsContext? mockGraphicsContext = null,
+        MockGraphicsDevice? mockGraphicsDevice = null,
+        Mock2DRenderer? mock2DRenderer = null,
+        MockTextRenderer? mockTextRenderer = null,
+        MockFontManager? mockFontManager = null,
+        MockLogProvider? mockLogProvider = null,
+        MockEncryptionProvider? mockEncryption = null,
+        MockNetworkContext? mockNetwork = null)
     {
         World = world;
         Clock = clock;
         HasDeterministicIds = deterministicIds;
+        MockInput = mockInput;
+        MockLoopProvider = mockLoopProvider;
+        MockWindow = mockWindow;
+        MockGraphicsContext = mockGraphicsContext;
+        MockGraphicsDevice = mockGraphicsDevice;
+        Mock2DRenderer = mock2DRenderer;
+        MockTextRenderer = mockTextRenderer;
+        MockFontManager = mockFontManager;
+        MockLogProvider = mockLogProvider;
+        MockEncryption = mockEncryption;
+        MockNetwork = mockNetwork;
+        this.eventRecorders = eventRecorders ?? [];
     }
 
     /// <summary>
@@ -192,12 +337,80 @@ public sealed class TestWorld : IDisposable
     }
 
     /// <summary>
-    /// Disposes the underlying world.
+    /// Gets the event recorder for the specified event type.
+    /// </summary>
+    /// <typeparam name="T">The event type to get the recorder for.</typeparam>
+    /// <returns>The event recorder, or null if event recording was not enabled for this type.</returns>
+    /// <remarks>
+    /// <para>
+    /// Event recording must be enabled during world construction using
+    /// <see cref="TestWorldBuilder.WithEventRecording{T}"/> for the recorder to be available.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var testWorld = new TestWorldBuilder()
+    ///     .WithEventRecording&lt;DamageEvent&gt;()
+    ///     .Build();
+    ///
+    /// // Fire events...
+    /// world.Events.Publish(new DamageEvent(entity, 50));
+    ///
+    /// // Verify events
+    /// testWorld.GetEventRecorder&lt;DamageEvent&gt;()!
+    ///     .ShouldHaveFired()
+    ///     .ShouldHaveFiredMatching(e => e.Amount == 50);
+    /// </code>
+    /// </example>
+    public EventRecorder<T>? GetEventRecorder<T>()
+    {
+        if (eventRecorders.TryGetValue(typeof(T), out var recorder))
+        {
+            return (EventRecorder<T>)recorder;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks if event recording is enabled for the specified event type.
+    /// </summary>
+    /// <typeparam name="T">The event type to check.</typeparam>
+    /// <returns>True if event recording is enabled for this type; otherwise, false.</returns>
+    public bool HasEventRecording<T>()
+    {
+        return eventRecorders.ContainsKey(typeof(T));
+    }
+
+    /// <summary>
+    /// Disposes the underlying world and all associated resources.
     /// </summary>
     public void Dispose()
     {
         if (!disposed)
         {
+            // Dispose event recorders
+            foreach (var recorder in eventRecorders.Values)
+            {
+                if (recorder is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                }
+            }
+
+            // Dispose mock instances
+            MockInput?.Dispose();
+            MockLoopProvider?.Dispose();
+            MockWindow?.Dispose();
+            MockGraphicsContext?.Dispose();
+            MockGraphicsDevice?.Dispose();
+            Mock2DRenderer?.Dispose();
+            MockTextRenderer?.Dispose();
+            MockFontManager?.Dispose();
+            MockLogProvider?.Dispose();
+            MockNetwork?.Dispose();
+
+            // Dispose the world
             World.Dispose();
             disposed = true;
         }

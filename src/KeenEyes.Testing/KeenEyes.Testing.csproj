@@ -3,11 +3,16 @@
 	<PropertyGroup>
 		<PackageId>KeenEyes.Testing</PackageId>
 		<Description>Testing utilities and assertion helpers for KeenEyes ECS framework</Description>
-		<PackageTags>ecs;testing;unit-testing;assertions;test-helpers</PackageTags>
+		<PackageTags>ecs;testing;unit-testing;assertions;test-helpers;mocking</PackageTags>
 	</PropertyGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
 		<ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+		<ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+		<ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
+		<ProjectReference Include="..\KeenEyes.Logging\KeenEyes.Logging.csproj" />
+		<ProjectReference Include="..\KeenEyes.Persistence\KeenEyes.Persistence.csproj" />
 		<ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 

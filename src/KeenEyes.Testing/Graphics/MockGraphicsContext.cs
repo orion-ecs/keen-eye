@@ -1,0 +1,611 @@
+using System.Numerics;
+using KeenEyes.Graphics.Abstractions;
+
+namespace KeenEyes.Testing.Graphics;
+
+/// <summary>
+/// A mock implementation of <see cref="IGraphicsContext"/> for testing high-level
+/// graphics operations without a real GPU.
+/// </summary>
+/// <remarks>
+/// <para>
+/// MockGraphicsContext tracks all resource creation, binding, and drawing operations,
+/// enabling verification of rendering code without actual GPU calls.
+/// </para>
+/// <para>
+/// Use the tracking collections (<see cref="Meshes"/>, <see cref="Textures"/>, etc.)
+/// and draw call lists to verify rendering behavior.
+/// </para>
+/// </remarks>
+/// <example>
+/// <code>
+/// var context = new MockGraphicsContext();
+///
+/// var mesh = context.CreateCube();
+/// var shader = context.CreateShader("vertex", "fragment");
+///
+/// context.BindShader(shader);
+/// context.DrawMesh(mesh);
+///
+/// context.MeshDrawCalls.Should().HaveCount(1);
+/// context.BoundShader.Should().Be(shader);
+/// </code>
+/// </example>
+public sealed class MockGraphicsContext : IGraphicsContext
+{
+    private int nextHandleId = 1;
+    private bool disposed;
+    private ShaderHandle boundShader;
+    private MeshHandle boundMesh;
+    private readonly Dictionary<int, TextureHandle> boundTextures = [];
+
+    /// <summary>
+    /// Creates a new mock graphics context.
+    /// </summary>
+    public MockGraphicsContext()
+    {
+        // Create default resources
+        LitShader = AllocateShaderHandle();
+        Shaders[LitShader] = new MockShaderInfo("lit_vertex", "lit_fragment");
+
+        UnlitShader = AllocateShaderHandle();
+        Shaders[UnlitShader] = new MockShaderInfo("unlit_vertex", "unlit_fragment");
+
+        SolidShader = AllocateShaderHandle();
+        Shaders[SolidShader] = new MockShaderInfo("solid_vertex", "solid_fragment");
+
+        WhiteTexture = AllocateTextureHandle();
+        Textures[WhiteTexture] = new MockTextureInfo(1, 1, null);
+    }
+
+    #region Resource Tracking
+
+    /// <summary>
+    /// Gets the dictionary of created meshes by handle.
+    /// </summary>
+    public Dictionary<MeshHandle, MockMeshInfo> Meshes { get; } = [];
+
+    /// <summary>
+    /// Gets the dictionary of created textures by handle.
+    /// </summary>
+    public Dictionary<TextureHandle, MockTextureInfo> Textures { get; } = [];
+
+    /// <summary>
+    /// Gets the dictionary of created shaders by handle.
+    /// </summary>
+    public Dictionary<ShaderHandle, MockShaderInfo> Shaders { get; } = [];
+
+    /// <summary>
+    /// Gets the list of all mesh draw calls.
+    /// </summary>
+    public List<MeshDrawCall> MeshDrawCalls { get; } = [];
+
+    /// <summary>
+    /// Gets the currently bound shader.
+    /// </summary>
+    public ShaderHandle BoundShader => boundShader;
+
+    /// <summary>
+    /// Gets the currently bound mesh.
+    /// </summary>
+    public MeshHandle BoundMesh => boundMesh;
+
+    /// <summary>
+    /// Gets the dictionary of bound textures by unit.
+    /// </summary>
+    public IReadOnlyDictionary<int, TextureHandle> BoundTextures => boundTextures;
+
+    /// <summary>
+    /// Gets the current render state.
+    /// </summary>
+    public MockContextRenderState RenderState { get; } = new();
+
+    /// <summary>
+    /// Gets the dictionary of uniform values set on the current shader.
+    /// </summary>
+    public Dictionary<string, object> UniformValues { get; } = [];
+
+    #endregion
+
+    #region IGraphicsContext Properties
+
+    /// <inheritdoc />
+    public IWindow? Window { get; set; }
+
+    /// <inheritdoc />
+    public IGraphicsDevice? Device { get; set; }
+
+    /// <inheritdoc />
+    public bool IsInitialized { get; set; } = true;
+
+    /// <inheritdoc />
+    public int Width { get; set; } = 800;
+
+    /// <inheritdoc />
+    public int Height { get; set; } = 600;
+
+    /// <inheritdoc />
+    public ShaderHandle LitShader { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle UnlitShader { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle SolidShader { get; }
+
+    /// <inheritdoc />
+    public TextureHandle WhiteTexture { get; }
+
+    #endregion
+
+    #region Lifecycle
+
+    /// <inheritdoc />
+    public void ProcessEvents()
+    {
+        RenderState.ProcessEventsCount++;
+    }
+
+    /// <inheritdoc />
+    public void SwapBuffers()
+    {
+        RenderState.SwapBuffersCount++;
+    }
+
+    #endregion
+
+    #region Mesh Operations
+
+    /// <inheritdoc />
+    public MeshHandle CreateMesh(ReadOnlySpan<byte> vertices, int vertexCount, ReadOnlySpan<uint> indices)
+    {
+        var handle = AllocateMeshHandle();
+        Meshes[handle] = new MockMeshInfo(vertexCount, indices.Length, vertices.ToArray(), indices.ToArray());
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public MeshHandle CreateCube(float size = 1f)
+    {
+        var handle = AllocateMeshHandle();
+        Meshes[handle] = new MockMeshInfo(24, 36, null, null) { IsCube = true, Size = size };
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public MeshHandle CreateQuad(float width = 1f, float height = 1f)
+    {
+        var handle = AllocateMeshHandle();
+        Meshes[handle] = new MockMeshInfo(4, 6, null, null) { IsQuad = true, Width = width, Height = height };
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void DeleteMesh(MeshHandle handle)
+    {
+        Meshes.Remove(handle);
+        if (boundMesh == handle)
+        {
+            boundMesh = default;
+        }
+    }
+
+    /// <inheritdoc />
+    public void BindMesh(MeshHandle handle)
+    {
+        boundMesh = handle;
+    }
+
+    /// <inheritdoc />
+    public void DrawMesh(MeshHandle handle)
+    {
+        MeshDrawCalls.Add(new MeshDrawCall(
+            handle,
+            boundShader,
+            new Dictionary<int, TextureHandle>(boundTextures),
+            new Dictionary<string, object>(UniformValues)));
+    }
+
+    #endregion
+
+    #region Texture Operations
+
+    /// <inheritdoc />
+    public TextureHandle CreateTexture(int width, int height, ReadOnlySpan<byte> pixels)
+    {
+        var handle = AllocateTextureHandle();
+        Textures[handle] = new MockTextureInfo(width, height, null) { Data = pixels.ToArray() };
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public TextureHandle LoadTexture(string path)
+    {
+        var handle = AllocateTextureHandle();
+        Textures[handle] = new MockTextureInfo(0, 0, path);
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void DeleteTexture(TextureHandle handle)
+    {
+        Textures.Remove(handle);
+        foreach (var unit in boundTextures.Where(kv => kv.Value == handle).Select(kv => kv.Key).ToList())
+        {
+            boundTextures.Remove(unit);
+        }
+    }
+
+    /// <inheritdoc />
+    public void BindTexture(TextureHandle handle, int unit = 0)
+    {
+        if (handle.Id == 0)
+        {
+            boundTextures.Remove(unit);
+        }
+        else
+        {
+            boundTextures[unit] = handle;
+        }
+    }
+
+    #endregion
+
+    #region Shader Operations
+
+    /// <inheritdoc />
+    public ShaderHandle CreateShader(string vertexSource, string fragmentSource)
+    {
+        var handle = AllocateShaderHandle();
+        Shaders[handle] = new MockShaderInfo(vertexSource, fragmentSource);
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void DeleteShader(ShaderHandle handle)
+    {
+        // Don't delete default shaders
+        if (handle == LitShader || handle == UnlitShader || handle == SolidShader)
+        {
+            return;
+        }
+
+        Shaders.Remove(handle);
+        if (boundShader == handle)
+        {
+            boundShader = default;
+        }
+    }
+
+    /// <inheritdoc />
+    public void BindShader(ShaderHandle handle)
+    {
+        boundShader = handle;
+        UniformValues.Clear();
+    }
+
+    /// <inheritdoc />
+    public void SetUniform(string name, float value)
+    {
+        UniformValues[name] = value;
+    }
+
+    /// <inheritdoc />
+    public void SetUniform(string name, int value)
+    {
+        UniformValues[name] = value;
+    }
+
+    /// <inheritdoc />
+    public void SetUniform(string name, Vector2 value)
+    {
+        UniformValues[name] = value;
+    }
+
+    /// <inheritdoc />
+    public void SetUniform(string name, Vector3 value)
+    {
+        UniformValues[name] = value;
+    }
+
+    /// <inheritdoc />
+    public void SetUniform(string name, Vector4 value)
+    {
+        UniformValues[name] = value;
+    }
+
+    /// <inheritdoc />
+    public void SetUniform(string name, in Matrix4x4 value)
+    {
+        UniformValues[name] = value;
+    }
+
+    #endregion
+
+    #region Render State
+
+    /// <inheritdoc />
+    public void SetClearColor(Vector4 color)
+    {
+        RenderState.ClearColor = color;
+    }
+
+    /// <inheritdoc />
+    public void Clear(ClearMask mask)
+    {
+        RenderState.LastClearMask = mask;
+        RenderState.ClearCount++;
+    }
+
+    /// <inheritdoc />
+    public void SetViewport(int x, int y, int width, int height)
+    {
+        RenderState.Viewport = (x, y, width, height);
+    }
+
+    /// <inheritdoc />
+    public void SetDepthTest(bool enabled)
+    {
+        RenderState.DepthTestEnabled = enabled;
+    }
+
+    /// <inheritdoc />
+    public void SetBlending(bool enabled)
+    {
+        RenderState.BlendingEnabled = enabled;
+    }
+
+    /// <inheritdoc />
+    public void SetCulling(bool enabled, CullFaceMode mode = CullFaceMode.Back)
+    {
+        RenderState.CullingEnabled = enabled;
+        RenderState.CullFaceMode = mode;
+    }
+
+    #endregion
+
+    #region Test Control
+
+    /// <summary>
+    /// Resets all tracking state.
+    /// </summary>
+    public void Reset()
+    {
+        // Clear non-default resources
+        var defaultShaders = new[] { LitShader, UnlitShader, SolidShader };
+        foreach (var shader in Shaders.Keys.Except(defaultShaders).ToList())
+        {
+            Shaders.Remove(shader);
+        }
+
+        var defaultTextures = new[] { WhiteTexture };
+        foreach (var texture in Textures.Keys.Except(defaultTextures).ToList())
+        {
+            Textures.Remove(texture);
+        }
+
+        Meshes.Clear();
+        MeshDrawCalls.Clear();
+        UniformValues.Clear();
+        boundTextures.Clear();
+        boundShader = default;
+        boundMesh = default;
+        RenderState.Reset();
+    }
+
+    /// <summary>
+    /// Clears only the draw calls, keeping resources.
+    /// </summary>
+    public void ClearDrawCalls()
+    {
+        MeshDrawCalls.Clear();
+    }
+
+    private MeshHandle AllocateMeshHandle()
+    {
+        return new MeshHandle(nextHandleId++);
+    }
+
+    private TextureHandle AllocateTextureHandle()
+    {
+        return new TextureHandle(nextHandleId++);
+    }
+
+    private ShaderHandle AllocateShaderHandle()
+    {
+        return new ShaderHandle(nextHandleId++);
+    }
+
+    #endregion
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        if (!disposed)
+        {
+            disposed = true;
+            Reset();
+        }
+    }
+}
+
+#region Supporting Types
+
+/// <summary>
+/// Information about a created mesh.
+/// </summary>
+/// <param name="VertexCount">The number of vertices.</param>
+/// <param name="IndexCount">The number of indices.</param>
+/// <param name="VertexData">The raw vertex data.</param>
+/// <param name="IndexData">The raw index data.</param>
+public sealed class MockMeshInfo(int VertexCount, int IndexCount, byte[]? VertexData, uint[]? IndexData)
+{
+    /// <summary>
+    /// Gets the number of vertices.
+    /// </summary>
+    public int VertexCount { get; } = VertexCount;
+
+    /// <summary>
+    /// Gets the number of indices.
+    /// </summary>
+    public int IndexCount { get; } = IndexCount;
+
+    /// <summary>
+    /// Gets the raw vertex data.
+    /// </summary>
+    public byte[]? VertexData { get; } = VertexData;
+
+    /// <summary>
+    /// Gets the raw index data.
+    /// </summary>
+    public uint[]? IndexData { get; } = IndexData;
+
+    /// <summary>
+    /// Gets or sets whether this is a cube primitive.
+    /// </summary>
+    public bool IsCube { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this is a quad primitive.
+    /// </summary>
+    public bool IsQuad { get; set; }
+
+    /// <summary>
+    /// Gets or sets the size (for cubes).
+    /// </summary>
+    public float Size { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width (for quads).
+    /// </summary>
+    public float Width { get; set; }
+
+    /// <summary>
+    /// Gets or sets the height (for quads).
+    /// </summary>
+    public float Height { get; set; }
+}
+
+/// <summary>
+/// Information about a created texture.
+/// </summary>
+/// <param name="Width">The texture width.</param>
+/// <param name="Height">The texture height.</param>
+/// <param name="SourcePath">The source file path, if loaded from file.</param>
+public sealed class MockTextureInfo(int Width, int Height, string? SourcePath)
+{
+    /// <summary>
+    /// Gets the texture width.
+    /// </summary>
+    public int Width { get; } = Width;
+
+    /// <summary>
+    /// Gets the texture height.
+    /// </summary>
+    public int Height { get; } = Height;
+
+    /// <summary>
+    /// Gets the source file path.
+    /// </summary>
+    public string? SourcePath { get; } = SourcePath;
+
+    /// <summary>
+    /// Gets or sets the raw pixel data.
+    /// </summary>
+    public byte[]? Data { get; set; }
+}
+
+/// <summary>
+/// Information about a created shader.
+/// </summary>
+/// <param name="VertexSource">The vertex shader source.</param>
+/// <param name="FragmentSource">The fragment shader source.</param>
+public sealed record MockShaderInfo(string? VertexSource, string? FragmentSource);
+
+/// <summary>
+/// A recorded mesh draw call.
+/// </summary>
+/// <param name="Mesh">The mesh that was drawn.</param>
+/// <param name="Shader">The shader that was bound.</param>
+/// <param name="Textures">The textures that were bound.</param>
+/// <param name="Uniforms">The uniform values that were set.</param>
+public sealed record MeshDrawCall(
+    MeshHandle Mesh,
+    ShaderHandle Shader,
+    Dictionary<int, TextureHandle> Textures,
+    Dictionary<string, object> Uniforms);
+
+/// <summary>
+/// Tracks render state for the mock context.
+/// </summary>
+public sealed class MockContextRenderState
+{
+    /// <summary>
+    /// Gets or sets the clear color.
+    /// </summary>
+    public Vector4 ClearColor { get; set; }
+
+    /// <summary>
+    /// Gets or sets the last clear mask.
+    /// </summary>
+    public ClearMask LastClearMask { get; set; }
+
+    /// <summary>
+    /// Gets the number of clear calls.
+    /// </summary>
+    public int ClearCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the viewport.
+    /// </summary>
+    public (int X, int Y, int Width, int Height) Viewport { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether depth testing is enabled.
+    /// </summary>
+    public bool DepthTestEnabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether blending is enabled.
+    /// </summary>
+    public bool BlendingEnabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether culling is enabled.
+    /// </summary>
+    public bool CullingEnabled { get; set; }
+
+    /// <summary>
+    /// Gets or sets the cull face mode.
+    /// </summary>
+    public CullFaceMode CullFaceMode { get; set; }
+
+    /// <summary>
+    /// Gets the number of ProcessEvents calls.
+    /// </summary>
+    public int ProcessEventsCount { get; set; }
+
+    /// <summary>
+    /// Gets the number of SwapBuffers calls.
+    /// </summary>
+    public int SwapBuffersCount { get; set; }
+
+    /// <summary>
+    /// Resets the render state.
+    /// </summary>
+    public void Reset()
+    {
+        ClearColor = Vector4.Zero;
+        LastClearMask = default;
+        ClearCount = 0;
+        Viewport = default;
+        DepthTestEnabled = false;
+        BlendingEnabled = false;
+        CullingEnabled = false;
+        CullFaceMode = default;
+        ProcessEventsCount = 0;
+        SwapBuffersCount = 0;
+    }
+}
+
+#endregion
