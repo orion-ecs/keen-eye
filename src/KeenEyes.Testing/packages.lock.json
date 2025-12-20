@@ -3,9 +3,12 @@
   "dependencies": {
     "net10.0": {
       "keeneyes.abstractions": {
+        "type": "Project"
+      },
+      "keeneyes.common": {
         "type": "Project",
         "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
+          "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
       "keeneyes.core": {
@@ -14,8 +17,28 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
-      "keeneyes.generators.attributes": {
+      "keeneyes.graphics.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )"
+        }
+      },
+      "keeneyes.input.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.logging": {
         "type": "Project"
+      },
+      "keeneyes.persistence": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )"
+        }
       }
     }
   }
