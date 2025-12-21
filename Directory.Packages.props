@@ -27,4 +27,9 @@
   <ItemGroup Label="Audio">
     <PackageVersion Include="Silk.NET.OpenAL" Version="2.22.0" />
   </ItemGroup>
+  <ItemGroup Label="Assets">
+    <PackageVersion Include="StbImageSharp" Version="2.30.15" />
+    <PackageVersion Include="SharpGLTF.Core" Version="1.0.5" />
+    <PackageVersion Include="NVorbis" Version="0.10.5" />
+  </ItemGroup>
 </Project>
