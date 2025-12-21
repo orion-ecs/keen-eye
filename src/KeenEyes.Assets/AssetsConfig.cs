@@ -80,6 +80,16 @@ public sealed record AssetsConfig
     public IServiceProvider? Services { get; init; }
 
     /// <summary>
+    /// Gets or sets an optional callback for load errors.
+    /// </summary>
+    /// <remarks>
+    /// When set, this callback is invoked when an async load fails in the
+    /// <see cref="AssetResolutionSystem"/>. Use this for logging or diagnostics.
+    /// The callback receives the asset path and exception.
+    /// </remarks>
+    public Action<string, Exception>? OnLoadError { get; init; }
+
+    /// <summary>
     /// Gets a default configuration suitable for production.
     /// </summary>
     public static AssetsConfig Default => new();

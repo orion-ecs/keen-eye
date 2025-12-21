@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace KeenEyes.Assets;
 
 /// <summary>
@@ -5,13 +7,14 @@ namespace KeenEyes.Assets;
 /// </summary>
 /// <remarks>
 /// <para>
-/// This system runs in the PreUpdate phase and automatically loads assets referenced
+/// This system runs in the EarlyUpdate phase and automatically loads assets referenced
 /// by <see cref="AssetRef{T}"/> components. Once an asset is loaded, the component's
 /// internal handle ID is set, and <see cref="AssetRef{T}.IsResolved"/> returns true.
 /// </para>
 /// <para>
 /// Assets are loaded asynchronously with <see cref="LoadPriority.Normal"/> priority.
 /// The system uses async loading to avoid frame hitches from loading large assets.
+/// Pending load tasks are tracked and observed to prevent unobserved exceptions.
 /// </para>
 /// </remarks>
 public sealed class AssetResolutionSystem : ISystem
@@ -19,8 +22,11 @@ public sealed class AssetResolutionSystem : ISystem
     private IWorld? world;
     private AssetManager? assetManager;
 
-    // Track pending loads to avoid duplicate requests
-    private readonly HashSet<string> pendingLoads = [];
+    // Track pending loads with their tasks to observe exceptions
+    private readonly ConcurrentDictionary<string, Task> pendingLoads = new();
+
+    // Completed tasks to process on next update
+    private readonly ConcurrentQueue<string> completedPaths = new();
 
     /// <inheritdoc />
     public bool Enabled { get; set; } = true;
@@ -45,6 +51,9 @@ public sealed class AssetResolutionSystem : ISystem
             return;
         }
 
+        // Process completed tasks first
+        ProcessCompletedTasks();
+
         // Resolve texture assets
         ResolveAssets<TextureAsset>();
 
@@ -56,6 +65,15 @@ public sealed class AssetResolutionSystem : ISystem
 
         // Resolve raw assets
         ResolveAssets<RawAsset>();
+    }
+
+    private void ProcessCompletedTasks()
+    {
+        // Clean up completed tasks from the dictionary
+        while (completedPaths.TryDequeue(out var path))
+        {
+            pendingLoads.TryRemove(path, out _);
+        }
     }
 
     private void ResolveAssets<T>() where T : class, IDisposable
@@ -80,14 +98,14 @@ public sealed class AssetResolutionSystem : ISystem
             }
 
             // Check if load is pending
-            if (pendingLoads.Contains(assetRef.Path))
+            if (pendingLoads.ContainsKey(assetRef.Path))
             {
                 continue;
             }
 
-            // Start async load
-            pendingLoads.Add(assetRef.Path);
-            _ = LoadAssetAsync<T>(assetRef.Path);
+            // Start async load and track the task
+            var loadTask = LoadAssetAsync<T>(assetRef.Path);
+            pendingLoads.TryAdd(assetRef.Path, loadTask);
         }
     }
 
@@ -99,18 +117,25 @@ public sealed class AssetResolutionSystem : ISystem
         }
         catch (Exception ex)
         {
-            // Log but don't throw - continue with other entities
-            Console.Error.WriteLine($"[AssetResolution] Failed to load {path}: {ex.Message}");
+            // Invoke error callback if configured
+            assetManager!.OnLoadError?.Invoke(path, ex);
         }
         finally
         {
-            pendingLoads.Remove(path);
+            // Queue for removal on next update
+            completedPaths.Enqueue(path);
         }
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
-        // Nothing to dispose
+        // Wait for all pending loads to complete to ensure no unobserved exceptions
+        var tasks = pendingLoads.Values.ToArray();
+        if (tasks.Length > 0)
+        {
+            Task.WhenAll(tasks).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+        pendingLoads.Clear();
     }
 }
