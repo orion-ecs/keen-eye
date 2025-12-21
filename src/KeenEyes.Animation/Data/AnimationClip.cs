@@ -69,6 +69,11 @@ public sealed class AnimationClip
     public IReadOnlyDictionary<string, BoneTrack> BoneTracks => boneTracks;
 
     /// <summary>
+    /// Gets the animation event track for this clip.
+    /// </summary>
+    public AnimationEventTrack Events { get; } = new();
+
+    /// <summary>
     /// Adds a bone track to this clip.
     /// </summary>
     /// <param name="track">The bone track to add.</param>
