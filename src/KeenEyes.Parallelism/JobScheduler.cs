@@ -311,15 +311,23 @@ public sealed class JobScheduler : IDisposable
         // Wait for any active jobs with timeout
         foreach (var kvp in activeJobs)
         {
-            var remaining = deadline - DateTime.UtcNow;
-            if (remaining <= TimeSpan.Zero)
+            if (deadline == DateTime.MaxValue)
             {
-                return false;
+                // Infinite timeout - use parameterless Wait
+                kvp.Value.Wait();
             }
-
-            if (!kvp.Value.Wait(remaining))
+            else
             {
-                return false;
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    return false;
+                }
+
+                if (!kvp.Value.Wait(remaining))
+                {
+                    return false;
+                }
             }
         }
 

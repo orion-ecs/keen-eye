@@ -180,6 +180,61 @@ public class CollisionPairKeyTests
         var reversedKey = new CollisionPairKey(entityB, entityA);
         Assert.Equal("test", dict[reversedKey]);
     }
+
+    [Fact]
+    public void InvolvesEntity_WithEntityA_ReturnsTrue()
+    {
+        var entityA = new Entity(1, 0);
+        var entityB = new Entity(2, 0);
+        var key = new CollisionPairKey(entityA, entityB);
+
+        Assert.True(key.InvolvesEntity(entityA));
+    }
+
+    [Fact]
+    public void InvolvesEntity_WithEntityB_ReturnsTrue()
+    {
+        var entityA = new Entity(1, 0);
+        var entityB = new Entity(2, 0);
+        var key = new CollisionPairKey(entityA, entityB);
+
+        Assert.True(key.InvolvesEntity(entityB));
+    }
+
+    [Fact]
+    public void InvolvesEntity_WithDifferentEntity_ReturnsFalse()
+    {
+        var entityA = new Entity(1, 0);
+        var entityB = new Entity(2, 0);
+        var entityC = new Entity(3, 0);
+        var key = new CollisionPairKey(entityA, entityB);
+
+        Assert.False(key.InvolvesEntity(entityC));
+    }
+
+    [Fact]
+    public void InvolvesEntity_WithReversedPair_ReturnsTrue()
+    {
+        var entityA = new Entity(5, 0);
+        var entityB = new Entity(2, 0);
+        // Key will swap these to (2, 5)
+        var key = new CollisionPairKey(entityA, entityB);
+
+        // Both should still be involved
+        Assert.True(key.InvolvesEntity(entityA));
+        Assert.True(key.InvolvesEntity(entityB));
+    }
+
+    [Fact]
+    public void InvolvesEntity_WithSameIdDifferentVersion_ReturnsFalse()
+    {
+        var entityA = new Entity(1, 0);
+        var entityB = new Entity(2, 0);
+        var entityC = new Entity(1, 1); // Same ID, different version
+        var key = new CollisionPairKey(entityA, entityB);
+
+        Assert.False(key.InvolvesEntity(entityC));
+    }
 }
 
 #endregion
