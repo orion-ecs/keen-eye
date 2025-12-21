@@ -877,4 +877,81 @@ public class MixinGeneratorTests
 
         return (diagnostics, generatedSources);
     }
+
+    [Fact]
+    public void MixinGenerator_OnClass_GeneratesNoOutput()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public struct MixinType
+            {
+                public int Field;
+            }
+
+            [Component]
+            [Mixin(typeof(MixinType))]
+            public partial class InvalidClass
+            {
+                public int OtherField;
+            }
+            """;
+
+        var (_, generatedTrees) = RunGenerator(source);
+
+        // Should not generate for classes
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("InvalidClass") && t.Contains("Mixin"));
+    }
+
+    [Fact]
+    public void MixinGenerator_WithNullTargetSymbol_GeneratesNoOutput()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct ValidComponent
+            {
+                public int Field;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Should not generate mixin code
+        Assert.DoesNotContain(generatedTrees, t => t.Contains(".Mixin.g.cs"));
+    }
+
+    [Fact]
+    public void MixinGenerator_WithInvalidMixinType_ReportsDiagnostic()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public class NotAStruct
+            {
+                public int Field;
+            }
+
+            [Component]
+            [Mixin(typeof(NotAStruct))]
+            public partial struct InvalidMixin
+            {
+                public int OtherField;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should report diagnostic for invalid mixin type
+        Assert.Contains(diagnostics, d => d.Id.Contains("KEEN") && d.Severity >= DiagnosticSeverity.Warning);
+    }
+
 }

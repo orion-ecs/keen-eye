@@ -520,4 +520,48 @@ public class QueryGeneratorTests
 
         return (diagnostics, generatedSources);
     }
+
+    [Fact]
+    public void QueryGenerator_WithNullTargetSymbol_GeneratesNoOutput()
+    {
+        var source = """
+            namespace TestApp;
+
+            public struct ValidStruct
+            {
+                public int Field;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should generate nothing since no [Query] attribute is present
+        Assert.Empty(generatedTrees);
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public void QueryGenerator_WithReadOnlyField_MarkesAsReadOnly()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public struct Position { public float X; public float Y; }
+
+            [Query]
+            public partial struct ReadOnlyQuery
+            {
+                [ReadOnly]
+                public Position Position;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Check that readonly modifier is present in generated code
+        Assert.Contains(generatedTrees, t => t.Contains("readonly") || t.Contains("ReadOnly"));
+    }
 }

@@ -984,4 +984,65 @@ public class BundleGeneratorTests
 
         return (allDiagnostics, generatedSources);
     }
+
+    [Fact]
+    public void BundleGenerator_CircularReference_ReportsDiagnostic()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Bundle]
+            public partial struct BundleA
+            {
+                public Position Position;
+                public BundleB NestedB;
+            }
+
+            [Bundle]
+            public partial struct BundleB
+            {
+                public Position Position;
+                public BundleA NestedA;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should report circular reference diagnostic
+        Assert.Contains(diagnostics, d => d.Id.Contains("KEEN") && d.GetMessage().Contains("circular"));
+    }
+
+
+    [Fact]
+    public void BundleGenerator_OnClass_ReportsDiagnostic()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position { public float X; }
+
+            [Bundle]
+            public class InvalidBundle
+            {
+                public Position Position;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should report diagnostic that bundles must be structs
+        Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+    }
 }

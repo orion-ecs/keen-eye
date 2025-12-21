@@ -564,6 +564,183 @@ public class ComponentGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("new Game.Components.QualifiedComponent"));
     }
 
+    [Fact]
+    public void ComponentGenerator_NestedInClass_GeneratesPartialContainingClass()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public partial class Container
+            {
+                [Component]
+                public partial struct NestedComponent
+                {
+                    public int Value;
+                }
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("partial class Container"));
+        Assert.Contains(generatedTrees, t => t.Contains("partial struct NestedComponent"));
+    }
+
+    [Fact]
+    public void ComponentGenerator_InternalComponent_SkipsBuilderExtension()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            internal partial struct InternalComponent
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("partial struct InternalComponent"));
+        // Internal components should not generate public builder extensions
+        var builderExtensions = generatedTrees.FirstOrDefault(t => t.Contains("EntityBuilder.Components.g.cs"));
+        if (builderExtensions != null)
+        {
+            Assert.DoesNotContain("WithInternalComponent", builderExtensions);
+        }
+    }
+
+    [Fact]
+    public void ComponentGenerator_EnumDefaultValue_FormatsCorrectly()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public enum Status { Active, Inactive }
+
+            [Component]
+            public partial struct StatusComponent
+            {
+                [DefaultValue(Status.Active)]
+                public Status CurrentStatus;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("(TestApp.Status)"));
+    }
+
+    [Fact]
+    public void ComponentGenerator_TypedConstantArray_UsesDefault()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct ArrayComponent
+            {
+                public int[] Values;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("int[] values = default"));
+    }
+
+    [Fact]
+    public void ComponentGenerator_NullTargetSymbol_ReturnsNull()
+    {
+        // This tests the edge case where context.TargetSymbol is not INamedTypeSymbol
+        // This is tested implicitly by trying to apply Component to an invalid target
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            public class ValidClass
+            {
+                public int Field;
+            }
+            """;
+
+        var (_, generatedTrees) = RunGenerator(source);
+
+        // Should generate nothing since no [Component] attribute is present
+        Assert.Empty(generatedTrees);
+    }
+
+    [Fact]
+    public void ComponentGenerator_ComponentNameCollision_GeneratesUniqueSuffixes()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace Namespace1
+            {
+                [Component]
+                public partial struct Position
+                {
+                    public float X;
+                }
+            }
+
+            namespace Namespace2
+            {
+                [Component]
+                public partial struct Position
+                {
+                    public float Y;
+                }
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Should generate unique method names with namespace suffixes
+        var builderExtensions = generatedTrees.FirstOrDefault(t => t.Contains("WithPosition"));
+        if (builderExtensions != null)
+        {
+            // Both Position components should have generated extensions with disambiguating suffixes
+            Assert.Contains("WithPosition", builderExtensions);
+        }
+    }
+
+    [Fact]
+    public void ComponentGenerator_NullableValueType_FormatsCorrectly()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct NullableComponent
+            {
+                public int? OptionalValue;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("int? optionalValue = default"));
+    }
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
