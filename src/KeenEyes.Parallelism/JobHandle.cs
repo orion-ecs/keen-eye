@@ -171,11 +171,12 @@ public readonly struct JobHandle : IEquatable<JobHandle>
 /// <summary>
 /// Internal completion source for tracking job state.
 /// </summary>
-internal class JobCompletionSource
+internal class JobCompletionSource : IDisposable
 {
     private readonly ManualResetEventSlim completionEvent = new(false);
     private volatile bool isCompleted;
     private volatile bool isFaulted;
+    private volatile bool isDisposed;
     private Exception? exception;
 
     public static JobCompletionSource CompletedSource { get; } = CreateCompleted();
@@ -194,7 +195,10 @@ internal class JobCompletionSource
     public void SetCompleted()
     {
         isCompleted = true;
-        completionEvent.Set();
+        if (!isDisposed)
+        {
+            completionEvent.Set();
+        }
     }
 
     public void SetFaulted(Exception ex)
@@ -202,17 +206,43 @@ internal class JobCompletionSource
         exception = ex;
         isFaulted = true;
         isCompleted = true;
-        completionEvent.Set();
+        if (!isDisposed)
+        {
+            completionEvent.Set();
+        }
     }
 
     public void Wait()
     {
+        if (isCompleted || isDisposed)
+        {
+            return;
+        }
+
         completionEvent.Wait();
     }
 
     public bool Wait(TimeSpan timeout)
     {
+        if (isCompleted || isDisposed)
+        {
+            return true;
+        }
+
         return completionEvent.Wait(timeout);
+    }
+
+    public void Dispose()
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        isDisposed = true;
+        isCompleted = true; // Mark as completed so waiters don't block
+        completionEvent.Set(); // Wake any waiters
+        completionEvent.Dispose();
     }
 }
 

@@ -338,7 +338,7 @@ public sealed class JobScheduler : IDisposable
     /// Releases resources used by the scheduler.
     /// </summary>
     /// <remarks>
-    /// Waits up to 5 seconds for all pending jobs to complete before disposing.
+    /// Waits up to 1 second for all pending jobs to complete before disposing.
     /// Jobs that do not complete within this timeout will be abandoned.
     /// </remarks>
     public void Dispose()
@@ -350,10 +350,20 @@ public sealed class JobScheduler : IDisposable
 
         isDisposed = true;
 
-        // Use a reasonable timeout to prevent test hangs when ThreadPool is contended.
+        // Use a short timeout to prevent test hangs when ThreadPool is contended.
         // In production, CompleteAll() should be called explicitly before Dispose if
         // all jobs must complete.
-        CompleteAll(TimeSpan.FromSeconds(5));
+        CompleteAll(TimeSpan.FromSeconds(1));
+
+        // Dispose all remaining completion sources to release kernel handles
+        foreach (var kvp in activeJobs)
+        {
+            if (!ReferenceEquals(kvp.Value, JobCompletionSource.CompletedSource))
+            {
+                kvp.Value.Dispose();
+            }
+        }
+
         activeJobs.Clear();
     }
 
@@ -400,7 +410,14 @@ public sealed class JobScheduler : IDisposable
         }
         finally
         {
-            activeJobs.TryRemove(scheduled.Id, out _);
+            if (activeJobs.TryRemove(scheduled.Id, out var source))
+            {
+                // Don't dispose the static CompletedSource
+                if (!ReferenceEquals(source, JobCompletionSource.CompletedSource))
+                {
+                    source.Dispose();
+                }
+            }
         }
     }
 
