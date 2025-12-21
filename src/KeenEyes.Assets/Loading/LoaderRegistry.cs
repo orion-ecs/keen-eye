@@ -10,6 +10,17 @@ internal sealed class LoaderRegistry
     private readonly ConcurrentDictionary<string, object> loadersByExtension = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<Type, object> loadersByType = new();
 
+    // Type-erased delegates for hot reload and streaming support
+    private readonly ConcurrentDictionary<Type, LoadDelegate> loadDelegates = new();
+
+    /// <summary>
+    /// Delegate for loading an asset without knowing the concrete type at compile time.
+    /// </summary>
+    internal delegate Task<(object Asset, long SizeBytes)> LoadDelegate(
+        Stream stream,
+        AssetLoadContext context,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Registers a loader for its supported extensions.
     /// </summary>
@@ -24,6 +35,14 @@ internal sealed class LoaderRegistry
             var normalizedExt = NormalizeExtension(ext);
             loadersByExtension[normalizedExt] = loader;
         }
+
+        // Store type-erased load delegate for hot reload and streaming support
+        loadDelegates[typeof(T)] = async (stream, context, ct) =>
+        {
+            var asset = await loader.LoadAsync(stream, context, ct);
+            var size = loader.EstimateSize(asset);
+            return (asset, size);
+        };
     }
 
     /// <summary>
@@ -59,6 +78,20 @@ internal sealed class LoaderRegistry
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Gets a type-erased load delegate for the specified asset type.
+    /// </summary>
+    /// <param name="assetType">The asset type.</param>
+    /// <returns>The load delegate, or null if no loader is registered.</returns>
+    /// <remarks>
+    /// This delegate is used for hot reload and streaming, where the asset type
+    /// is only known at runtime.
+    /// </remarks>
+    public LoadDelegate? GetLoadDelegate(Type assetType)
+    {
+        return loadDelegates.TryGetValue(assetType, out var del) ? del : null;
     }
 
     /// <summary>

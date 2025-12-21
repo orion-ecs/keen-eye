@@ -95,11 +95,39 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
     /// Adds reference count to an asset.
     /// </summary>
     /// <param name="id">Asset ID.</param>
+    /// <remarks>
+    /// When an asset is acquired, its dependencies also have their reference counts
+    /// incremented. This ensures dependencies remain loaded while the parent asset
+    /// is in use.
+    /// </remarks>
     public void AddRef(int id)
     {
         if (entriesById.TryGetValue(id, out var entry))
         {
             entry.AddRef();
+
+            // Also add refs to dependencies
+            foreach (var depId in entry.Dependencies)
+            {
+                AddRef(depId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Registers a dependency between two assets.
+    /// </summary>
+    /// <param name="parentId">The parent asset ID.</param>
+    /// <param name="dependencyId">The dependency asset ID.</param>
+    /// <remarks>
+    /// When the parent asset is released, all its dependencies are also released.
+    /// When the parent asset is acquired, all its dependencies are also acquired.
+    /// </remarks>
+    public void AddDependency(int parentId, int dependencyId)
+    {
+        if (entriesById.TryGetValue(parentId, out var entry))
+        {
+            entry.AddDependency(dependencyId);
         }
     }
 
@@ -108,6 +136,11 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
     /// </summary>
     /// <param name="id">Asset ID.</param>
     /// <returns>True if the asset should be unloaded (refcount hit zero with aggressive policy).</returns>
+    /// <remarks>
+    /// When an asset is released, its dependencies are also released. This ensures
+    /// that assets loaded by other assets (e.g., textures in a glTF model) are properly
+    /// reference-counted and can be evicted when no longer needed.
+    /// </remarks>
     public bool Release(int id)
     {
         if (!entriesById.TryGetValue(id, out var entry))
@@ -116,6 +149,12 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
         }
 
         var shouldUnload = entry.Release();
+
+        // Release dependencies when this asset is released
+        foreach (var depId in entry.Dependencies)
+        {
+            Release(depId);
+        }
 
         if (shouldUnload && Policy == CachePolicy.Aggressive)
         {
@@ -161,6 +200,22 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
     /// Trims the cache to the target size using LRU eviction.
     /// </summary>
     /// <param name="targetBytes">Target size in bytes.</param>
+    /// <remarks>
+    /// <para>
+    /// <strong>Important:</strong> Only assets with a reference count of zero are
+    /// eligible for eviction. Assets that are currently in use (held by active
+    /// <see cref="AssetHandle{T}"/> instances) will not be evicted, even if trimming
+    /// cannot reach the target size.
+    /// </para>
+    /// <para>
+    /// Eviction order is based on last access time (LRU - Least Recently Used).
+    /// The oldest unused assets are evicted first until the target size is reached
+    /// or no more eviction candidates remain.
+    /// </para>
+    /// <para>
+    /// This method has no effect when <see cref="Policy"/> is <see cref="CachePolicy.Manual"/>.
+    /// </para>
+    /// </remarks>
     public void TrimToSize(long targetBytes)
     {
         if (Policy == CachePolicy.Manual || CurrentSizeBytes <= targetBytes)
@@ -170,7 +225,8 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
 
         lock (evictionLock)
         {
-            // Get entries sorted by last access time (oldest first)
+            // Only evict assets that are not in use (refcount <= 0)
+            // Assets with active handles are protected from eviction
             var candidates = entriesById.Values
                 .Where(e => e.RefCount <= 0 && e.State == AssetState.Loaded)
                 .OrderBy(e => e.LastAccess)
