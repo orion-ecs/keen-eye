@@ -49,25 +49,60 @@ public sealed class AnimationPlayerSystem : SystemBase
                 continue;
             }
 
+            // Save previous time for event detection
+            player.PreviousTime = player.Time;
+
             // Advance time
             player.Time += deltaTime * player.Speed * clip.Speed;
 
             // Get wrap mode
             var wrapMode = player.WrapModeOverride ?? clip.WrapMode;
 
-            // Handle completion
-            if (wrapMode == WrapMode.Once && player.Time >= clip.Duration)
+            // Handle completion and wrap
+            if (clip.Duration <= 0f)
+            {
+                player.Time = 0f;
+                player.IsComplete = true;
+                player.IsPlaying = false;
+            }
+            else if (wrapMode == WrapMode.Once && player.Time >= clip.Duration)
             {
                 player.Time = clip.Duration;
                 player.IsComplete = true;
                 player.IsPlaying = false;
             }
+            else if (wrapMode == WrapMode.ClampForever)
+            {
+                player.Time = Math.Max(player.Time, 0f);
+                player.IsComplete = player.Time >= clip.Duration;
+            }
             else
             {
-                // Wrap the time
-                player.Time = clip.WrapTime(player.Time);
+                // Wrap the time based on the effective wrap mode
+                player.Time = WrapTime(player.Time, clip.Duration, wrapMode);
                 player.IsComplete = false;
             }
         }
+    }
+
+    private static float WrapTime(float time, float duration, WrapMode wrapMode)
+    {
+        return wrapMode switch
+        {
+            WrapMode.Once => Math.Clamp(time, 0f, duration),
+            WrapMode.Loop => time % duration,
+            WrapMode.PingPong => WrapPingPong(time, duration),
+            WrapMode.ClampForever => Math.Max(time, 0f),
+            _ => time
+        };
+    }
+
+    private static float WrapPingPong(float time, float duration)
+    {
+        var cycles = (int)(time / duration);
+        var t = time % duration;
+
+        // Odd cycles play in reverse
+        return (cycles % 2 == 1) ? duration - t : t;
     }
 }

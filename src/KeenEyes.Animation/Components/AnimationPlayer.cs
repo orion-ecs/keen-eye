@@ -39,6 +39,12 @@ public partial struct AnimationPlayer
     public float Time;
 
     /// <summary>
+    /// The previous frame's playback time (for event detection).
+    /// </summary>
+    [BuilderIgnore]
+    public float PreviousTime;
+
+    /// <summary>
     /// The playback speed multiplier (1 = normal, 2 = double speed, -1 = reverse).
     /// </summary>
     public float Speed;
@@ -71,6 +77,7 @@ public partial struct AnimationPlayer
     {
         ClipId = -1,
         Time = 0f,
+        PreviousTime = 0f,
         Speed = 1f,
         IsPlaying = false,
         WrapModeOverride = null,

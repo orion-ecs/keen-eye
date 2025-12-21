@@ -1,4 +1,5 @@
 using KeenEyes.Animation.Components;
+using KeenEyes.Animation.Events;
 using KeenEyes.Animation.Systems;
 
 namespace KeenEyes.Animation;
@@ -97,6 +98,7 @@ public sealed class AnimationPlugin : IWorldPlugin
         context.RegisterComponent<AnimationPlayer>();
         context.RegisterComponent<SpriteAnimator>();
         context.RegisterComponent<Animator>();
+        context.RegisterComponent<BoneReference>();
         context.RegisterComponent<TweenFloat>();
         context.RegisterComponent<TweenVector2>();
         context.RegisterComponent<TweenVector3>();
@@ -119,6 +121,16 @@ public sealed class AnimationPlugin : IWorldPlugin
         context.AddSystem<SpriteAnimationSystem>(
             SystemPhase.Update,
             order: 52);
+
+        // Animation events after playback update
+        context.AddSystem<AnimationEventSystem>(
+            SystemPhase.Update,
+            order: 53);
+
+        // Skeleton pose application after all animation updates
+        context.AddSystem<SkeletonPoseSystem>(
+            SystemPhase.Update,
+            order: 55);
 
         // Tweens update after animation state
         context.AddSystem<TweenSystem>(
