@@ -222,6 +222,142 @@ public sealed class AssetManager : IDisposable
     }
 
     /// <summary>
+    /// Loads an asset by runtime type (for streaming).
+    /// </summary>
+    /// <param name="path">Asset path.</param>
+    /// <param name="assetType">Asset type.</param>
+    /// <param name="priority">Load priority.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Task that completes when loading is done.</returns>
+    internal async Task LoadByTypeAsync(
+        string path,
+        Type assetType,
+        LoadPriority priority,
+        CancellationToken cancellationToken)
+    {
+        var loadDelegate = loaders.GetLoadDelegate(assetType)
+            ?? throw AssetLoadException.UnsupportedFormat(path, assetType, Path.GetExtension(path));
+
+        var entry = cache.GetOrCreate(path, assetType, out var wasCreated);
+
+        if (!wasCreated)
+        {
+            // Wait for existing load
+            await WaitForLoadAsync(entry, cancellationToken);
+            return;
+        }
+
+        entry.State = AssetState.Loading;
+
+        var fullPath = Path.Combine(config.RootPath, path);
+        if (!File.Exists(fullPath))
+        {
+            entry.State = AssetState.Failed;
+            throw AssetLoadException.FileNotFound(path, assetType);
+        }
+
+        await loadSemaphore.WaitAsync(cancellationToken);
+        try
+        {
+            await using var stream = File.OpenRead(fullPath);
+            var context = new AssetLoadContext(path, this, config.Services);
+            var (asset, sizeBytes) = await loadDelegate(stream, context, cancellationToken);
+
+            entry.Asset = asset;
+            entry.State = AssetState.Loaded;
+            entry.SizeBytes = sizeBytes;
+            cache.UpdateSize(entry.Id, sizeBytes);
+        }
+        catch (OperationCanceledException)
+        {
+            entry.State = AssetState.Failed;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            entry.State = AssetState.Failed;
+            entry.Error = ex;
+            throw AssetLoadException.ParseError(path, assetType, ex);
+        }
+        finally
+        {
+            loadSemaphore.Release();
+        }
+    }
+
+    /// <summary>
+    /// Loads an asset as a dependency of another asset.
+    /// </summary>
+    /// <typeparam name="T">The dependency asset type.</typeparam>
+    /// <param name="parentPath">Path of the parent asset.</param>
+    /// <param name="dependencyPath">Path of the dependency asset.</param>
+    /// <returns>A handle to the loaded dependency.</returns>
+    /// <remarks>
+    /// <para>
+    /// Use this when loading assets that reference other assets (e.g., a glTF model
+    /// that references textures). The dependency's reference count is tied to the
+    /// parent asset: when the parent is released, the dependency is also released.
+    /// </para>
+    /// <para>
+    /// The returned handle is not owned by the caller and should not be disposed.
+    /// The dependency's lifetime is managed by the parent asset.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // In a glTF loader, load embedded textures as dependencies
+    /// var texHandle = context.Manager.LoadDependency&lt;TextureAsset&gt;(
+    ///     context.Path,
+    ///     "textures/diffuse.png");
+    /// </code>
+    /// </example>
+    public AssetHandle<T> LoadDependency<T>(string parentPath, string dependencyPath)
+        where T : class, IDisposable
+    {
+        // Load the dependency
+        var depHandle = Load<T>(dependencyPath);
+
+        // Register the dependency relationship
+        var parentEntry = cache.GetByPath(parentPath);
+        if (parentEntry != null)
+        {
+            cache.AddDependency(parentEntry.Id, depHandle.Id);
+        }
+
+        return depHandle;
+    }
+
+    /// <summary>
+    /// Asynchronously loads an asset as a dependency of another asset.
+    /// </summary>
+    /// <typeparam name="T">The dependency asset type.</typeparam>
+    /// <param name="parentPath">Path of the parent asset.</param>
+    /// <param name="dependencyPath">Path of the dependency asset.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A handle to the loaded dependency.</returns>
+    /// <remarks>
+    /// See <see cref="LoadDependency{T}(string, string)"/> for details.
+    /// </remarks>
+    public async Task<AssetHandle<T>> LoadDependencyAsync<T>(
+        string parentPath,
+        string dependencyPath,
+        CancellationToken cancellationToken = default)
+        where T : class, IDisposable
+    {
+        // Load the dependency
+        var depHandle = await LoadAsync<T>(dependencyPath, LoadPriority.Normal, cancellationToken);
+
+        // Register the dependency relationship
+        var parentEntry = cache.GetByPath(parentPath);
+        if (parentEntry != null)
+        {
+            cache.AddDependency(parentEntry.Id, depHandle.Id);
+        }
+
+        return depHandle;
+    }
+
+    /// <summary>
     /// Manually unloads an asset regardless of reference count.
     /// </summary>
     /// <param name="path">Path of the asset to unload.</param>
@@ -243,9 +379,25 @@ public sealed class AssetManager : IDisposable
     }
 
     /// <summary>
-    /// Trims the cache to the specified size.
+    /// Trims the cache to the specified size using LRU eviction.
     /// </summary>
     /// <param name="targetBytes">Target size in bytes.</param>
+    /// <remarks>
+    /// <para>
+    /// <strong>Important:</strong> Only assets with zero active references are eligible
+    /// for eviction. Assets currently in use (held by <see cref="AssetHandle{T}"/> instances
+    /// that haven't been disposed) will not be evicted, even if the cache cannot reach
+    /// the target size.
+    /// </para>
+    /// <para>
+    /// To ensure assets can be evicted, dispose all <see cref="AssetHandle{T}"/> instances
+    /// when you're done using them. The asset will remain cached but becomes eligible for
+    /// eviction when memory pressure requires it.
+    /// </para>
+    /// <para>
+    /// This method has no effect when <see cref="CachePolicy"/> is <see cref="Assets.CachePolicy.Manual"/>.
+    /// </para>
+    /// </remarks>
     public void TrimCache(long targetBytes)
     {
         cache.TrimToSize(targetBytes);
@@ -263,6 +415,11 @@ public sealed class AssetManager : IDisposable
     /// </summary>
     /// <param name="path">Path of the asset to reload.</param>
     /// <returns>Task that completes when reload is finished.</returns>
+    /// <remarks>
+    /// Hot reload works with any registered asset type. When a loader is registered
+    /// via <see cref="RegisterLoader{T}"/>, it automatically becomes eligible for
+    /// hot reload without any additional configuration.
+    /// </remarks>
     public async Task ReloadAsync(string path)
     {
         var entry = cache.GetByPath(path);
@@ -271,26 +428,39 @@ public sealed class AssetManager : IDisposable
             return;
         }
 
-        // Get the loader for this asset type
-        var extension = Path.GetExtension(path);
-        var assetType = entry.AssetType;
+        // Get the load delegate for this asset type (works for any registered type)
+        var loadDelegate = loaders.GetLoadDelegate(entry.AssetType);
+        if (loadDelegate == null)
+        {
+            return;
+        }
 
-        // Reload using reflection-free approach with known types
-        if (assetType == typeof(TextureAsset))
+        var fullPath = Path.Combine(config.RootPath, path);
+        if (!File.Exists(fullPath))
         {
-            await ReloadAssetAsync<TextureAsset>(entry, path);
+            return;
         }
-        else if (assetType == typeof(AudioClipAsset))
+
+        try
         {
-            await ReloadAssetAsync<AudioClipAsset>(entry, path);
+            await using var stream = File.OpenRead(fullPath);
+            var context = new AssetLoadContext(path, this, config.Services);
+            var (newAsset, sizeBytes) = await loadDelegate(stream, context, CancellationToken.None);
+
+            // Dispose old asset and replace
+            var oldAsset = entry.Asset;
+            entry.Asset = newAsset;
+            entry.SizeBytes = sizeBytes;
+            cache.UpdateSize(entry.Id, sizeBytes);
+
+            if (oldAsset is IDisposable disposable)
+            {
+                disposable.Dispose();
+            }
         }
-        else if (assetType == typeof(MeshAsset))
+        catch
         {
-            await ReloadAssetAsync<MeshAsset>(entry, path);
-        }
-        else if (assetType == typeof(RawAsset))
-        {
-            await ReloadAssetAsync<RawAsset>(entry, path);
+            // Silently fail on reload - keep the old asset
         }
 
         OnAssetReloaded?.Invoke(path);
@@ -381,44 +551,6 @@ public sealed class AssetManager : IDisposable
         finally
         {
             loadSemaphore.Release();
-        }
-    }
-
-    private async Task ReloadAssetAsync<T>(AssetEntry entry, string path) where T : class, IDisposable
-    {
-        var extension = Path.GetExtension(path);
-        var loader = loaders.GetLoader<T>(extension);
-        if (loader == null)
-        {
-            return;
-        }
-
-        var fullPath = Path.Combine(config.RootPath, path);
-        if (!File.Exists(fullPath))
-        {
-            return;
-        }
-
-        try
-        {
-            await using var stream = File.OpenRead(fullPath);
-            var context = new AssetLoadContext(path, this, config.Services);
-            var newAsset = await loader.LoadAsync(stream, context);
-
-            // Dispose old asset and replace
-            var oldAsset = entry.Asset;
-            entry.Asset = newAsset;
-            entry.SizeBytes = loader.EstimateSize(newAsset);
-            cache.UpdateSize(entry.Id, entry.SizeBytes);
-
-            if (oldAsset is IDisposable disposable)
-            {
-                disposable.Dispose();
-            }
-        }
-        catch
-        {
-            // Silently fail on reload - keep the old asset
         }
     }
 

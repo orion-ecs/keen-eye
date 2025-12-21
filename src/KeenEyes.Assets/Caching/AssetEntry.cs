@@ -9,6 +9,7 @@ namespace KeenEyes.Assets;
 internal sealed class AssetEntry(int id, string path, Type assetType)
 {
     private int refCount = 1; // Start with one reference
+    private List<int>? dependencies;
 
     /// <summary>
     /// Gets the unique identifier for this asset.
@@ -54,6 +55,29 @@ internal sealed class AssetEntry(int id, string path, Type assetType)
     /// Gets or sets the size of the asset in bytes.
     /// </summary>
     public long SizeBytes { get; set; }
+
+    /// <summary>
+    /// Gets the IDs of assets this asset depends on.
+    /// </summary>
+    /// <remarks>
+    /// Dependencies are tracked so that when this asset is released,
+    /// its dependencies are also released. This prevents memory leaks
+    /// for assets that load other assets (e.g., glTF models with textures).
+    /// </remarks>
+    public IReadOnlyList<int> Dependencies => dependencies ?? (IReadOnlyList<int>)[];
+
+    /// <summary>
+    /// Adds a dependency to this asset.
+    /// </summary>
+    /// <param name="dependencyId">The ID of the dependent asset.</param>
+    public void AddDependency(int dependencyId)
+    {
+        dependencies ??= [];
+        if (!dependencies.Contains(dependencyId))
+        {
+            dependencies.Add(dependencyId);
+        }
+    }
 
     /// <summary>
     /// Increments the reference count.
