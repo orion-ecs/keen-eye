@@ -134,6 +134,18 @@ download_pkg "husky" "0.8.0"
 download_pkg "runtime.linux-x64.Microsoft.DotNet.ILCompiler" "10.0.1" "critical"
 download_pkg "Microsoft.DotNet.ILCompiler" "10.0.1" "critical"
 
+# Asset loading packages (KeenEyes.Assets dependencies)
+download_pkg "StbImageSharp" "2.30.15"
+download_pkg "SharpGLTF.Core" "1.0.5"
+download_pkg "SharpGLTF.Runtime" "1.0.5"
+download_pkg "SharpGLTF.Toolkit" "1.0.5"
+download_pkg "NVorbis" "0.10.5"
+# SharpGLTF transitive dependencies
+download_pkg "System.Numerics.Vectors" "4.5.0"
+download_pkg "System.Memory" "4.5.5"
+download_pkg "System.Buffers" "4.5.1"
+download_pkg "System.Runtime.CompilerServices.Unsafe" "6.0.0"
+
 # Clean up temp files
 rm -f "$PACKAGES_FILE"
 

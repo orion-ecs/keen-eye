@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<PackageId>KeenEyes.Assets</PackageId>
+		<Description>Asset loading, caching, and lifecycle management for KeenEyes ECS framework</Description>
+		<PackageTags>ecs;assets;loading;textures;audio;game;framework</PackageTags>
+		<IsAotCompatible>true</IsAotCompatible>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="KeenEyes.Assets.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+		<ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+		<ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+		<ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+		<ProjectReference Include="..\KeenEyes.Audio.Abstractions\KeenEyes.Audio.Abstractions.csproj" />
+		<ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<ItemGroup Label="Asset Loading">
+		<PackageReference Include="StbImageSharp" />
+		<PackageReference Include="SharpGLTF.Core" />
+		<PackageReference Include="NVorbis" />
+	</ItemGroup>
+
+</Project>
