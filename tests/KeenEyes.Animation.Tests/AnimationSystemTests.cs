@@ -397,6 +397,107 @@ public class AnimationSystemTests : IDisposable
         receivedEvents.Count.ShouldBe(0); // Not playing, so no events
     }
 
+    [Fact]
+    public void AnimationPlayerSystem_PingPongMode_Reverses()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "TestClip", Duration = 1f, WrapMode = WrapMode.PingPong };
+        var clipId = manager.RegisterClip(clip);
+
+        var entity = world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId))
+            .Build();
+
+        var system = new AnimationPlayerSystem();
+        world.AddSystem(system);
+
+        // First forward cycle
+        system.Update(0.5f);
+        ref readonly var player1 = ref world.Get<AnimationPlayer>(entity);
+        player1.Time.ShouldBe(0.5f, 0.001f);
+
+        // Complete forward, start reverse
+        system.Update(0.75f);
+        ref readonly var player2 = ref world.Get<AnimationPlayer>(entity);
+        player2.Time.ShouldBe(0.75f, 0.001f); // Reversed from 1.25 -> 0.75
+    }
+
+    [Fact]
+    public void AnimationPlayerSystem_ClampForeverMode_ClampsButContinues()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "TestClip", Duration = 1f, WrapMode = WrapMode.ClampForever };
+        var clipId = manager.RegisterClip(clip);
+
+        var entity = world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId))
+            .Build();
+
+        var system = new AnimationPlayerSystem();
+        world.AddSystem(system);
+
+        system.Update(1.5f);
+
+        ref readonly var player = ref world.Get<AnimationPlayer>(entity);
+        player.Time.ShouldBe(1.5f); // Time continues past duration
+        player.IsComplete.ShouldBeTrue(); // But marked as complete
+        player.IsPlaying.ShouldBeTrue(); // Still playing
+    }
+
+    [Fact]
+    public void AnimationPlayerSystem_ZeroDurationClip_CompletesImmediately()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "TestClip", Duration = 0f };
+        var clipId = manager.RegisterClip(clip);
+
+        var entity = world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId))
+            .Build();
+
+        var system = new AnimationPlayerSystem();
+        world.AddSystem(system);
+
+        system.Update(0.1f);
+
+        ref readonly var player = ref world.Get<AnimationPlayer>(entity);
+        player.Time.ShouldBe(0f);
+        player.IsComplete.ShouldBeTrue();
+        player.IsPlaying.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void AnimationPlayerSystem_NegativeSpeed_ReversesPlayback()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "TestClip", Duration = 2f };
+        var clipId = manager.RegisterClip(clip);
+
+        var entity = world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId) with { Time = 1f, Speed = -1f })
+            .Build();
+
+        var system = new AnimationPlayerSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var player = ref world.Get<AnimationPlayer>(entity);
+        player.Time.ShouldBe(0.5f, 0.001f); // 1f + (0.5f * -1f) = 0.5f
+    }
+
     #endregion
 
     #region SpriteAnimationSystem Tests
@@ -607,6 +708,194 @@ public class AnimationSystemTests : IDisposable
         tween.ElapsedTime.ShouldBe(0f); // Not updated because already complete
     }
 
+    [Fact]
+    public void TweenSystem_UpdatesTweenVector2()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenVector2.Create(Vector2.Zero, new Vector2(10f, 20f), 1f, EaseType.Linear))
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var tween = ref world.Get<TweenVector2>(entity);
+        tween.CurrentValue.X.ShouldBe(5f, 0.001f);
+        tween.CurrentValue.Y.ShouldBe(10f, 0.001f);
+    }
+
+    [Fact]
+    public void TweenSystem_UpdatesTweenVector4()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenVector4.Create(Vector4.Zero, new Vector4(10f, 20f, 30f, 40f), 1f, EaseType.Linear))
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var tween = ref world.Get<TweenVector4>(entity);
+        tween.CurrentValue.X.ShouldBe(5f, 0.001f);
+        tween.CurrentValue.Y.ShouldBe(10f, 0.001f);
+        tween.CurrentValue.Z.ShouldBe(15f, 0.001f);
+        tween.CurrentValue.W.ShouldBe(20f, 0.001f);
+    }
+
+    [Fact]
+    public void TweenSystem_ZeroDuration_CompletesImmediately()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenFloat.Create(0f, 10f, 0f, EaseType.Linear))
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(0.1f);
+
+        ref readonly var tween = ref world.Get<TweenFloat>(entity);
+        tween.CurrentValue.ShouldBe(10f, 0.001f);
+        tween.IsComplete.ShouldBeTrue();
+        tween.IsPlaying.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void TweenSystem_SkipsNotPlayingTweens()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenFloat.Create(0f, 10f, 1f, EaseType.Linear) with { IsPlaying = false })
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var tween = ref world.Get<TweenFloat>(entity);
+        tween.ElapsedTime.ShouldBe(0f);
+        tween.CurrentValue.ShouldBe(0f);
+    }
+
+    [Fact]
+    public void TweenSystem_EaseInQuad_AppliesEasing()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenFloat.Create(0f, 100f, 1f, EaseType.QuadIn))
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var tween = ref world.Get<TweenFloat>(entity);
+        // QuadIn: t^2 at 0.5 = 0.25, so value = 0 + (100-0) * 0.25 = 25
+        tween.CurrentValue.ShouldBe(25f, 1f);
+    }
+
+    [Fact]
+    public void TweenSystem_EaseOutQuad_AppliesEasing()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenFloat.Create(0f, 100f, 1f, EaseType.QuadOut))
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var tween = ref world.Get<TweenFloat>(entity);
+        // QuadOut: 1-(1-t)^2 at 0.5 = 1-0.25 = 0.75, so value = 75
+        tween.CurrentValue.ShouldBe(75f, 1f);
+    }
+
+    [Fact]
+    public void TweenSystem_Vector2LoopMode_WrapsTime()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenVector2.Create(Vector2.Zero, new Vector2(10f, 10f), 1f, EaseType.Linear) with { Loop = true })
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(1.5f);
+
+        ref readonly var tween = ref world.Get<TweenVector2>(entity);
+        tween.CurrentValue.X.ShouldBe(5f, 0.001f); // Wrapped to 0.5 progress
+        tween.IsComplete.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void TweenSystem_Vector3PingPongMode_Reverses()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenVector3.Create(Vector3.Zero, new Vector3(10f, 10f, 10f), 1f, EaseType.Linear) with { Loop = true, PingPong = true })
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(1.5f);
+
+        ref readonly var tween = ref world.Get<TweenVector3>(entity);
+        // PingPong at 1.5s: 1 full cycle + 0.5, reversing, so at 0.5 going back
+        tween.CurrentValue.X.ShouldBe(5f, 0.001f);
+        tween.IsComplete.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void TweenSystem_Vector4LoopMode_WrapsTime()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenVector4.Create(Vector4.Zero, new Vector4(10f, 20f, 30f, 40f), 1f, EaseType.Linear) with { Loop = true })
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        system.Update(1.25f);
+
+        ref readonly var tween = ref world.Get<TweenVector4>(entity);
+        // Wrapped to 0.25 progress
+        tween.CurrentValue.X.ShouldBe(2.5f, 0.001f);
+        tween.CurrentValue.Y.ShouldBe(5f, 0.001f);
+        tween.CurrentValue.Z.ShouldBe(7.5f, 0.001f);
+        tween.CurrentValue.W.ShouldBe(10f, 0.001f);
+        tween.IsComplete.ShouldBeFalse();
+    }
+
     #endregion
 
     #region AnimatorSystem Tests
@@ -687,6 +976,247 @@ public class AnimationSystemTests : IDisposable
 
         // Should not crash
         system.Update(0.5f);
+    }
+
+    [Fact]
+    public void AnimatorSystem_DisabledAnimator_SkipsUpdate()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "IdleClip", Duration = 2f };
+        var clipId = manager.RegisterClip(clip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var idleState = new AnimatorState { Name = "Idle", ClipId = clipId };
+        controller.AddState(idleState, isDefault: true);
+        var controllerId = manager.RegisterController(controller);
+
+        var entity = world.Spawn()
+            .With(Animator.ForController(controllerId) with { Enabled = false })
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var animator = ref world.Get<Animator>(entity);
+        animator.StateTime.ShouldBe(0f); // Not updated because disabled
+    }
+
+    [Fact]
+    public void AnimatorSystem_InvalidControllerId_SkipsUpdate()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        world.Spawn()
+            .With(new Animator { ControllerId = 999, Enabled = true })
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        // Should not crash
+        system.Update(0.5f);
+    }
+
+    [Fact]
+    public void AnimatorSystem_TriggerStateTransition_WithCrossfade()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var idleClip = new AnimationClip { Name = "IdleClip", Duration = 2f };
+        var walkClip = new AnimationClip { Name = "WalkClip", Duration = 1f };
+        var idleClipId = manager.RegisterClip(idleClip);
+        var walkClipId = manager.RegisterClip(walkClip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var idleState = new AnimatorState { Name = "Idle", ClipId = idleClipId };
+        var walkState = new AnimatorState { Name = "Walk", ClipId = walkClipId };
+
+        // Add transition from Idle to Walk with 0.3s duration
+        idleState.AddTransition("Walk", 0.3f);
+
+        controller.AddState(idleState, isDefault: true);
+        controller.AddState(walkState);
+        var controllerId = manager.RegisterController(controller);
+
+        var entity = world.Spawn()
+            .With(Animator.ForController(controllerId))
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        // Trigger transition to Walk state
+        ref var animator = ref world.Get<Animator>(entity);
+        animator.TriggerStateHash = walkState.Name.GetHashCode(StringComparison.Ordinal);
+
+        system.Update(0.15f); // Halfway through transition
+
+        ref readonly var animatorAfter = ref world.Get<Animator>(entity);
+        animatorAfter.NextStateHash.ShouldBe(walkState.Name.GetHashCode(StringComparison.Ordinal));
+        animatorAfter.TransitionProgress.ShouldBe(0.5f, 0.01f);
+        animatorAfter.TriggerStateHash.ShouldBe(0); // Cleared after processing
+    }
+
+    [Fact]
+    public void AnimatorSystem_TransitionCompletes_SwitchesState()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var idleClip = new AnimationClip { Name = "IdleClip", Duration = 2f };
+        var walkClip = new AnimationClip { Name = "WalkClip", Duration = 1f };
+        var idleClipId = manager.RegisterClip(idleClip);
+        var walkClipId = manager.RegisterClip(walkClip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var idleState = new AnimatorState { Name = "Idle", ClipId = idleClipId };
+        var walkState = new AnimatorState { Name = "Walk", ClipId = walkClipId };
+
+        idleState.AddTransition("Walk", 0.2f);
+
+        controller.AddState(idleState, isDefault: true);
+        controller.AddState(walkState);
+        var controllerId = manager.RegisterController(controller);
+
+        var entity = world.Spawn()
+            .With(Animator.ForController(controllerId))
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        // Trigger transition
+        ref var animator = ref world.Get<Animator>(entity);
+        animator.TriggerStateHash = walkState.Name.GetHashCode(StringComparison.Ordinal);
+
+        // Complete transition
+        system.Update(0.25f);
+
+        ref readonly var animatorAfter = ref world.Get<Animator>(entity);
+        animatorAfter.CurrentStateHash.ShouldBe(walkState.Name.GetHashCode(StringComparison.Ordinal));
+        animatorAfter.NextStateHash.ShouldBe(0); // No pending transition
+        animatorAfter.TransitionProgress.ShouldBe(0f);
+    }
+
+    [Fact]
+    public void AnimatorSystem_ImmediateTransition_NoDefinedCrossfade()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var idleClip = new AnimationClip { Name = "IdleClip", Duration = 2f };
+        var walkClip = new AnimationClip { Name = "WalkClip", Duration = 1f };
+        var idleClipId = manager.RegisterClip(idleClip);
+        var walkClipId = manager.RegisterClip(walkClip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var idleState = new AnimatorState { Name = "Idle", ClipId = idleClipId };
+        var walkState = new AnimatorState { Name = "Walk", ClipId = walkClipId };
+
+        // No transition defined from Idle to Walk
+        controller.AddState(idleState, isDefault: true);
+        controller.AddState(walkState);
+        var controllerId = manager.RegisterController(controller);
+
+        world.Spawn()
+            .With(Animator.ForController(controllerId))
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        // Update to advance initial state time
+        system.Update(0.5f);
+
+        // Trigger immediate transition
+        ref var animator = ref world.Get<Animator>(world.Query<Animator>().First());
+        animator.TriggerStateHash = walkState.Name.GetHashCode(StringComparison.Ordinal);
+
+        system.Update(0.1f);
+
+        ref readonly var animatorAfter = ref world.Get<Animator>(world.Query<Animator>().First());
+        animatorAfter.CurrentStateHash.ShouldBe(walkState.Name.GetHashCode(StringComparison.Ordinal));
+        animatorAfter.StateTime.ShouldBe(0.1f, 0.01f); // Reset to 0, then advanced by deltaTime
+        animatorAfter.NextStateHash.ShouldBe(0); // No pending transition
+    }
+
+    [Fact]
+    public void AnimatorSystem_AutoTransition_OnExitTime()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var idleClip = new AnimationClip { Name = "IdleClip", Duration = 1f };
+        var walkClip = new AnimationClip { Name = "WalkClip", Duration = 1f };
+        var idleClipId = manager.RegisterClip(idleClip);
+        var walkClipId = manager.RegisterClip(walkClip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var idleState = new AnimatorState { Name = "Idle", ClipId = idleClipId };
+        var walkState = new AnimatorState { Name = "Walk", ClipId = walkClipId };
+
+        // Auto-transition at 80% completion
+        idleState.AddTransition("Walk", 0.2f, exitTime: 0.8f);
+
+        controller.AddState(idleState, isDefault: true);
+        controller.AddState(walkState);
+        var controllerId = manager.RegisterController(controller);
+
+        var entity = world.Spawn()
+            .With(Animator.ForController(controllerId))
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        // Advance to 50% - should not trigger
+        system.Update(0.5f);
+        ref readonly var animator1 = ref world.Get<Animator>(entity);
+        animator1.NextStateHash.ShouldBe(0);
+
+        // Advance to 90% - should trigger auto-transition
+        system.Update(0.4f);
+        ref readonly var animator2 = ref world.Get<Animator>(entity);
+        animator2.NextStateHash.ShouldBe(walkState.Name.GetHashCode(StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AnimatorSystem_StateSpeed_AppliesMultiplier()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "FastClip", Duration = 2f };
+        var clipId = manager.RegisterClip(clip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var fastState = new AnimatorState { Name = "Fast", ClipId = clipId, Speed = 2f };
+        controller.AddState(fastState, isDefault: true);
+        var controllerId = manager.RegisterController(controller);
+
+        var entity = world.Spawn()
+            .With(Animator.ForController(controllerId))
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        system.Update(0.5f);
+
+        ref readonly var animator = ref world.Get<Animator>(entity);
+        animator.StateTime.ShouldBe(1f, 0.001f); // 0.5f * 2f = 1f
     }
 
     #endregion
@@ -898,6 +1428,253 @@ public class AnimationSystemTests : IDisposable
         boneTransform.Scale.X.ShouldBe(1.5f, 0.1f);
         boneTransform.Scale.Y.ShouldBe(1.5f, 0.1f);
         boneTransform.Scale.Z.ShouldBe(1.5f, 0.1f);
+    }
+
+    [Fact]
+    public void SkeletonPoseSystem_AnimatorBlending_DuringCrossfade()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+
+        // Create two clips with different positions
+        var positionCurve1 = new Vector3Curve();
+        positionCurve1.AddKeyframe(0f, Vector3.Zero);
+        var boneTrack1 = new BoneTrack { BoneName = "bone1", PositionCurve = positionCurve1 };
+        var clip1 = new AnimationClip { Name = "ClipA", Duration = 1f };
+        clip1.AddBoneTrack(boneTrack1);
+        var clipId1 = manager.RegisterClip(clip1);
+
+        var positionCurve2 = new Vector3Curve();
+        positionCurve2.AddKeyframe(0f, new Vector3(10f, 0f, 0f));
+        var boneTrack2 = new BoneTrack { BoneName = "bone1", PositionCurve = positionCurve2 };
+        var clip2 = new AnimationClip { Name = "ClipB", Duration = 1f };
+        clip2.AddBoneTrack(boneTrack2);
+        var clipId2 = manager.RegisterClip(clip2);
+
+        // Create controller with both states and transition
+        var controller = new AnimatorController { Name = "TestController" };
+        var stateA = new AnimatorState { Name = "StateA", ClipId = clipId1 };
+        var stateB = new AnimatorState { Name = "StateB", ClipId = clipId2 };
+
+        stateA.AddTransition("StateB", 1f);
+
+        controller.AddState(stateA, isDefault: true);
+        controller.AddState(stateB);
+        var controllerId = manager.RegisterController(controller);
+
+        // Create skeleton root with animator mid-transition (50% blend)
+        var skeletonRoot = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(new Animator
+            {
+                ControllerId = controllerId,
+                Enabled = true,
+                CurrentStateHash = stateA.Name.GetHashCode(StringComparison.Ordinal),
+                NextStateHash = stateB.Name.GetHashCode(StringComparison.Ordinal),
+                TransitionProgress = 0.5f,
+                StateTime = 0f,
+                NextStateTime = 0f
+            })
+            .Build();
+
+        // Create bone entity
+        var boneEntity = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(BoneReference.Create("bone1", skeletonRoot.Id))
+            .Build();
+
+        var system = new SkeletonPoseSystem();
+        world.AddSystem(system);
+
+        system.Update(1f / 60f);
+
+        ref readonly var boneTransform = ref world.Get<Transform3D>(boneEntity);
+        // Should be blended: 0.5 * 0 + 0.5 * 10 = 5
+        boneTransform.Position.X.ShouldBe(5f, 0.5f);
+    }
+
+    [Fact]
+    public void SkeletonPoseSystem_AnimatorBlending_OnlyNextClipAvailable()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+
+        // Create only one clip (for next state)
+        var positionCurve = new Vector3Curve();
+        positionCurve.AddKeyframe(0f, new Vector3(20f, 0f, 0f));
+        var boneTrack = new BoneTrack { BoneName = "bone1", PositionCurve = positionCurve };
+        var clip = new AnimationClip { Name = "ClipB", Duration = 1f };
+        clip.AddBoneTrack(boneTrack);
+        var clipId = manager.RegisterClip(clip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var stateA = new AnimatorState { Name = "StateA" }; // No clip
+        var stateB = new AnimatorState { Name = "StateB", ClipId = clipId };
+        controller.AddState(stateA, isDefault: true);
+        controller.AddState(stateB);
+        var controllerId = manager.RegisterController(controller);
+
+        // Create skeleton root with animator transitioning (current state has no clip)
+        var skeletonRoot = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(new Animator
+            {
+                ControllerId = controllerId,
+                Enabled = true,
+                CurrentStateHash = stateA.Name.GetHashCode(StringComparison.Ordinal),
+                NextStateHash = stateB.Name.GetHashCode(StringComparison.Ordinal),
+                TransitionProgress = 0.5f,
+                StateTime = 0f,
+                NextStateTime = 0f
+            })
+            .Build();
+
+        // Create bone entity
+        var boneEntity = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(BoneReference.Create("bone1", skeletonRoot.Id))
+            .Build();
+
+        var system = new SkeletonPoseSystem();
+        world.AddSystem(system);
+
+        system.Update(1f / 60f);
+
+        ref readonly var boneTransform = ref world.Get<Transform3D>(boneEntity);
+        // Should use next clip's position directly since current has no data
+        boneTransform.Position.X.ShouldBe(20f, 0.5f);
+    }
+
+    [Fact]
+    public void SkeletonPoseSystem_MultipleBones_AllUpdated()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+
+        // Create clip with multiple bone tracks
+        var positionCurve1 = new Vector3Curve();
+        positionCurve1.AddKeyframe(0f, new Vector3(1f, 0f, 0f));
+        var boneTrack1 = new BoneTrack { BoneName = "hip", PositionCurve = positionCurve1 };
+
+        var positionCurve2 = new Vector3Curve();
+        positionCurve2.AddKeyframe(0f, new Vector3(2f, 0f, 0f));
+        var boneTrack2 = new BoneTrack { BoneName = "spine", PositionCurve = positionCurve2 };
+
+        var positionCurve3 = new Vector3Curve();
+        positionCurve3.AddKeyframe(0f, new Vector3(3f, 0f, 0f));
+        var boneTrack3 = new BoneTrack { BoneName = "head", PositionCurve = positionCurve3 };
+
+        var clip = new AnimationClip { Name = "TestClip", Duration = 1f };
+        clip.AddBoneTrack(boneTrack1);
+        clip.AddBoneTrack(boneTrack2);
+        clip.AddBoneTrack(boneTrack3);
+        var clipId = manager.RegisterClip(clip);
+
+        // Create skeleton root
+        var skeletonRoot = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(AnimationPlayer.ForClip(clipId))
+            .Build();
+
+        // Create bone entities
+        var hipBone = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(BoneReference.Create("hip", skeletonRoot.Id))
+            .Build();
+
+        var spineBone = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(BoneReference.Create("spine", skeletonRoot.Id))
+            .Build();
+
+        var headBone = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(BoneReference.Create("head", skeletonRoot.Id))
+            .Build();
+
+        var system = new SkeletonPoseSystem();
+        world.AddSystem(system);
+
+        system.Update(1f / 60f);
+
+        ref readonly var hipTransform = ref world.Get<Transform3D>(hipBone);
+        ref readonly var spineTransform = ref world.Get<Transform3D>(spineBone);
+        ref readonly var headTransform = ref world.Get<Transform3D>(headBone);
+
+        hipTransform.Position.X.ShouldBe(1f, 0.1f);
+        spineTransform.Position.X.ShouldBe(2f, 0.1f);
+        headTransform.Position.X.ShouldBe(3f, 0.1f);
+    }
+
+    [Fact]
+    public void SkeletonPoseSystem_InvalidSkeletonRoot_SkipsBone()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        // Create bone with invalid skeleton root ID
+        var originalPos = new Vector3(5f, 5f, 5f);
+        var boneEntity = world.Spawn()
+            .With(new Transform3D(originalPos, Quaternion.Identity, Vector3.One))
+            .With(BoneReference.Create("bone1", 9999)) // Invalid skeleton root
+            .Build();
+
+        var system = new SkeletonPoseSystem();
+        world.AddSystem(system);
+
+        // Should not crash
+        system.Update(1f / 60f);
+
+        ref readonly var boneTransform = ref world.Get<Transform3D>(boneEntity);
+        boneTransform.Position.ShouldBe(originalPos); // Unchanged
+    }
+
+    [Fact]
+    public void SkeletonPoseSystem_DisabledAnimator_SkipsPose()
+    {
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+
+        var positionCurve = new Vector3Curve();
+        positionCurve.AddKeyframe(0f, new Vector3(10f, 0f, 0f));
+        var boneTrack = new BoneTrack { BoneName = "bone1", PositionCurve = positionCurve };
+        var clip = new AnimationClip { Name = "TestClip", Duration = 1f };
+        clip.AddBoneTrack(boneTrack);
+        var clipId = manager.RegisterClip(clip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var state = new AnimatorState { Name = "Idle", ClipId = clipId };
+        controller.AddState(state, isDefault: true);
+        var controllerId = manager.RegisterController(controller);
+
+        // Create skeleton root with disabled animator
+        var skeletonRoot = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(Animator.ForController(controllerId) with { Enabled = false })
+            .Build();
+
+        // Create bone entity
+        var originalPos = new Vector3(5f, 5f, 5f);
+        var boneEntity = world.Spawn()
+            .With(new Transform3D(originalPos, Quaternion.Identity, Vector3.One))
+            .With(BoneReference.Create("bone1", skeletonRoot.Id))
+            .Build();
+
+        var system = new SkeletonPoseSystem();
+        world.AddSystem(system);
+
+        system.Update(1f / 60f);
+
+        ref readonly var boneTransform = ref world.Get<Transform3D>(boneEntity);
+        boneTransform.Position.ShouldBe(originalPos); // Unchanged because animator is disabled
     }
 
     #endregion
