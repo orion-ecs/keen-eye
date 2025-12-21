@@ -1136,6 +1136,192 @@ public class WidgetFactoryTests
 
     #endregion
 
+    #region Tooltip Tests
+
+    [Fact]
+    public void AddTooltip_AddsTooltipComponent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var element = WidgetFactory.CreateButton(world, parent, "Hover Me", testFont);
+
+        WidgetFactory.AddTooltip(world, element, "This is a tooltip");
+
+        Assert.True(world.Has<UITooltip>(element));
+        ref readonly var tooltip = ref world.Get<UITooltip>(element);
+        Assert.Equal("This is a tooltip", tooltip.Text);
+    }
+
+    [Fact]
+    public void AddTooltip_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var element = WidgetFactory.CreateButton(world, parent, "Hover Me", testFont);
+        var config = new TooltipConfig
+        {
+            Delay = 1.5f,
+            MaxWidth = 250,
+            Position = TooltipPosition.Below,
+            FollowMouse = true
+        };
+
+        WidgetFactory.AddTooltip(world, element, "Tooltip Text", config);
+
+        ref readonly var tooltip = ref world.Get<UITooltip>(element);
+        Assert.Equal(1.5f, tooltip.Delay);
+        Assert.Equal(250, tooltip.MaxWidth);
+        Assert.Equal(TooltipPosition.Below, tooltip.Position);
+        Assert.True(tooltip.FollowMouse);
+    }
+
+    [Fact]
+    public void RemoveTooltip_RemovesTooltipComponent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var element = WidgetFactory.CreateButton(world, parent, "Hover Me", testFont);
+        WidgetFactory.AddTooltip(world, element, "Tooltip");
+
+        WidgetFactory.RemoveTooltip(world, element);
+
+        Assert.False(world.Has<UITooltip>(element));
+    }
+
+    [Fact]
+    public void RemoveTooltip_WhenNoTooltip_DoesNotThrow()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var element = WidgetFactory.CreateButton(world, parent, "Hover Me", testFont);
+
+        // Should not throw
+        WidgetFactory.RemoveTooltip(world, element);
+    }
+
+    #endregion
+
+    #region Popover Tests
+
+    [Fact]
+    public void CreatePopover_HasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var trigger = WidgetFactory.CreateButton(world, parent, "Click Me", testFont);
+
+        var popover = WidgetFactory.CreatePopover(world, trigger);
+
+        Assert.True(world.Has<UIElement>(popover));
+        Assert.True(world.Has<UIRect>(popover));
+        Assert.True(world.Has<UIStyle>(popover));
+        Assert.True(world.Has<UILayout>(popover));
+        Assert.True(world.Has<UIPopover>(popover));
+    }
+
+    [Fact]
+    public void CreatePopover_InitiallyHidden()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var trigger = WidgetFactory.CreateButton(world, parent, "Click Me", testFont);
+
+        var popover = WidgetFactory.CreatePopover(world, trigger);
+
+        ref readonly var element = ref world.Get<UIElement>(popover);
+        Assert.False(element.Visible);
+        ref readonly var popoverData = ref world.Get<UIPopover>(popover);
+        Assert.False(popoverData.IsOpen);
+    }
+
+    [Fact]
+    public void CreatePopover_SetsTriggerElement()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var trigger = WidgetFactory.CreateButton(world, parent, "Click Me", testFont);
+
+        var popover = WidgetFactory.CreatePopover(world, trigger);
+
+        ref readonly var popoverData = ref world.Get<UIPopover>(popover);
+        Assert.Equal(trigger, popoverData.TriggerElement);
+    }
+
+    [Fact]
+    public void CreatePopover_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var trigger = WidgetFactory.CreateButton(world, parent, "Click Me", testFont);
+        var config = new PopoverConfig
+        {
+            Width = 300,
+            Height = 200,
+            CornerRadius = 8,
+            Trigger = PopoverTrigger.Hover,
+            Position = TooltipPosition.Left,
+            CloseOnClickOutside = false
+        };
+
+        var popover = WidgetFactory.CreatePopover(world, trigger, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(popover);
+        Assert.Equal(new Vector2(300, 200), rect.Size);
+        ref readonly var style = ref world.Get<UIStyle>(popover);
+        Assert.Equal(8, style.CornerRadius);
+        ref readonly var popoverData = ref world.Get<UIPopover>(popover);
+        Assert.Equal(PopoverTrigger.Hover, popoverData.Trigger);
+        Assert.Equal(TooltipPosition.Left, popoverData.Position);
+        Assert.False(popoverData.CloseOnClickOutside);
+    }
+
+    [Fact]
+    public void CreatePopover_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var trigger = WidgetFactory.CreateButton(world, parent, "Click Me", testFont);
+
+        var popover = WidgetFactory.CreatePopover(world, "HelpPopover", trigger);
+
+        Assert.Equal("HelpPopover", world.GetName(popover));
+    }
+
+    [Fact]
+    public void OpenPopover_MakesPopoverVisible()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var trigger = WidgetFactory.CreateButton(world, parent, "Click Me", testFont);
+        var popover = WidgetFactory.CreatePopover(world, trigger);
+
+        WidgetFactory.OpenPopover(world, popover);
+
+        ref readonly var element = ref world.Get<UIElement>(popover);
+        Assert.True(element.Visible);
+        ref readonly var popoverData = ref world.Get<UIPopover>(popover);
+        Assert.True(popoverData.IsOpen);
+    }
+
+    [Fact]
+    public void ClosePopover_HidesPopover()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var trigger = WidgetFactory.CreateButton(world, parent, "Click Me", testFont);
+        var popover = WidgetFactory.CreatePopover(world, trigger);
+        WidgetFactory.OpenPopover(world, popover);
+
+        WidgetFactory.ClosePopover(world, popover);
+
+        ref readonly var element = ref world.Get<UIElement>(popover);
+        Assert.False(element.Visible);
+        ref readonly var popoverData = ref world.Get<UIPopover>(popover);
+        Assert.False(popoverData.IsOpen);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Entity CreateRootEntity(World world)
