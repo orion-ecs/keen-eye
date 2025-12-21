@@ -54,6 +54,11 @@ public sealed class AssetManager : IDisposable
     public CachePolicy CachePolicy => config.CachePolicy;
 
     /// <summary>
+    /// Gets the optional error callback for load failures.
+    /// </summary>
+    internal Action<string, Exception>? OnLoadError => config.OnLoadError;
+
+    /// <summary>
     /// Raised when an asset is reloaded (hot reload).
     /// </summary>
     public event Action<string>? OnAssetReloaded;
