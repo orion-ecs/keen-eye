@@ -34,6 +34,7 @@ public sealed class JobScheduler : IDisposable
 {
     private readonly ConcurrentQueue<ScheduledJob> jobQueue = new();
     private readonly ConcurrentDictionary<int, JobCompletionSource> activeJobs = new();
+    private readonly ConcurrentBag<JobCompletionSource> completedSources = [];
     private readonly ParallelOptions parallelOptions;
     private int nextJobId;
     private volatile bool isDisposed;
@@ -355,7 +356,7 @@ public sealed class JobScheduler : IDisposable
         // all jobs must complete.
         CompleteAll(TimeSpan.FromSeconds(1));
 
-        // Dispose all remaining completion sources to release kernel handles
+        // Dispose all remaining active completion sources
         foreach (var kvp in activeJobs)
         {
             if (!ReferenceEquals(kvp.Value, JobCompletionSource.CompletedSource))
@@ -365,6 +366,12 @@ public sealed class JobScheduler : IDisposable
         }
 
         activeJobs.Clear();
+
+        // Dispose all completed sources
+        while (completedSources.TryTake(out var source))
+        {
+            source.Dispose();
+        }
     }
 
     private void ProcessQueue()
@@ -410,13 +417,11 @@ public sealed class JobScheduler : IDisposable
         }
         finally
         {
-            if (activeJobs.TryRemove(scheduled.Id, out var source))
+            // Remove from active jobs and track for disposal
+            if (activeJobs.TryRemove(scheduled.Id, out var source) &&
+                !ReferenceEquals(source, JobCompletionSource.CompletedSource))
             {
-                // Don't dispose the static CompletedSource
-                if (!ReferenceEquals(source, JobCompletionSource.CompletedSource))
-                {
-                    source.Dispose();
-                }
+                completedSources.Add(source);
             }
         }
     }
