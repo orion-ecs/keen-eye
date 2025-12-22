@@ -13,9 +13,26 @@ namespace KeenEyes.Serialization;
 /// This validator ensures slot names contain only safe characters and cannot
 /// be used to escape the save directory.
 /// </para>
+/// <para>
+/// For cross-platform compatibility, this validator always rejects characters
+/// that are invalid on Windows, even when running on Linux/macOS. This ensures
+/// saves created on any platform can be opened on any other platform.
+/// </para>
 /// </remarks>
 public static class SlotNameValidator
 {
+    // Cross-platform invalid filename characters (Windows superset)
+    // We always use these rather than Path.GetInvalidFileNameChars() which varies by OS.
+    // This ensures saves created on Linux can be opened on Windows.
+    private static readonly char[] invalidFileNameChars =
+    [
+        '\0', '\x01', '\x02', '\x03', '\x04', '\x05', '\x06', '\x07',
+        '\x08', '\x09', '\x0A', '\x0B', '\x0C', '\x0D', '\x0E', '\x0F',
+        '\x10', '\x11', '\x12', '\x13', '\x14', '\x15', '\x16', '\x17',
+        '\x18', '\x19', '\x1A', '\x1B', '\x1C', '\x1D', '\x1E', '\x1F',
+        '"', '<', '>', '|', ':', '*', '?', '\\', '/'
+    ];
+
     /// <summary>
     /// Validates a slot name and throws if it contains unsafe characters.
     /// </summary>
@@ -51,11 +68,10 @@ public static class SlotNameValidator
                 nameof(slotName));
         }
 
-        // Check for invalid filename characters (excluding what we already checked)
-        var invalidChars = Path.GetInvalidFileNameChars();
+        // Check for invalid filename characters (cross-platform)
         foreach (var c in slotName)
         {
-            if (Array.IndexOf(invalidChars, c) >= 0)
+            if (Array.IndexOf(invalidFileNameChars, c) >= 0)
             {
                 throw new ArgumentException(
                     $"Slot name contains invalid character '{c}'.",
@@ -98,10 +114,9 @@ public static class SlotNameValidator
             return false;
         }
 
-        var invalidChars = Path.GetInvalidFileNameChars();
         foreach (var c in slotName)
         {
-            if (Array.IndexOf(invalidChars, c) >= 0)
+            if (Array.IndexOf(invalidFileNameChars, c) >= 0)
             {
                 errorMessage = $"Slot name contains invalid character '{c}'.";
                 return false;
