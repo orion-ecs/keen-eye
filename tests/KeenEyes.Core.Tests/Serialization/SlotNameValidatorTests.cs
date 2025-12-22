@@ -105,7 +105,8 @@ public class SlotNameValidatorTests
         var ex = Assert.Throws<ArgumentException>(() =>
             SlotNameValidator.Validate($"save{Path.AltDirectorySeparatorChar}game"));
 
-        Assert.Contains("alternate directory separator", ex.Message);
+        // On Linux, AltDirectorySeparatorChar == DirectorySeparatorChar, so the message varies
+        Assert.Contains("directory separator", ex.Message);
     }
 
     [Fact]
@@ -351,7 +352,8 @@ public class SlotNameValidatorTests
 
         Assert.False(result);
         Assert.NotNull(errorMessage);
-        Assert.Contains("alternate directory separator", errorMessage);
+        // On Linux, AltDirectorySeparatorChar == DirectorySeparatorChar, so the message varies
+        Assert.Contains("directory separator", errorMessage);
     }
 
     [Fact]
