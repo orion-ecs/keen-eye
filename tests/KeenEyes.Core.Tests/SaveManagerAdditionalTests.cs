@@ -232,6 +232,59 @@ public class SaveManagerAdditionalTests
 
     #endregion
 
+    #region ValidateSlotAsync Error Paths
+
+    [Fact]
+    public async Task ValidateSlotAsync_WithNonExistentSlot_ReturnsNull()
+    {
+        using var world = new World();
+        var manager = new SaveManager(world, "test-saves-validateasync");
+
+        try
+        {
+            var result = await manager.ValidateSlotAsync("NonExistentSlot", TestContext.Current.CancellationToken);
+
+            Assert.Null(result);
+        }
+        finally
+        {
+            if (Directory.Exists("test-saves-validateasync"))
+            {
+                Directory.Delete("test-saves-validateasync", true);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ValidateSlotAsync_WithCorruptedFile_ReturnsNull()
+    {
+        using var world = new World();
+        var saveDir = "test-saves-validateasync-corrupt";
+        var manager = new SaveManager(world, saveDir);
+
+        try
+        {
+            Directory.CreateDirectory(saveDir);
+
+            // Write corrupted data
+            var slotPath = Path.Combine(saveDir, "CorruptedSlot.kesave");
+            await File.WriteAllBytesAsync(slotPath, [0x00, 0x01, 0x02], TestContext.Current.CancellationToken);
+
+            var result = await manager.ValidateSlotAsync("CorruptedSlot", TestContext.Current.CancellationToken);
+
+            Assert.Null(result);
+        }
+        finally
+        {
+            if (Directory.Exists(saveDir))
+            {
+                Directory.Delete(saveDir, true);
+            }
+        }
+    }
+
+    #endregion
+
     #region Edge Cases
 
     [Fact]

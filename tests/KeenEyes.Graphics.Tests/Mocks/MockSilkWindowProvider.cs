@@ -1,22 +1,36 @@
 using KeenEyes.Platform.Silk;
-
 using Silk.NET.Input;
+using Silk.NET.Maths;
 using Silk.NET.Windowing;
 
 namespace KeenEyes.Graphics.Tests.Mocks;
 
 /// <summary>
 /// Mock implementation of <see cref="ISilkWindowProvider"/> for testing.
+/// This provider creates a headless window for testing graphics functionality without requiring a display.
 /// </summary>
-/// <param name="window">The window to use (null creates a mock).</param>
-/// <param name="inputContext">The input context to use (null creates a mock).</param>
-public sealed class MockSilkWindowProvider(IWindow? window = null, IInputContext? inputContext = null) : ISilkWindowProvider
+public sealed class MockSilkWindowProvider : ISilkWindowProvider
 {
     private bool disposed;
+    private readonly IWindow window;
 
-    public IWindow Window { get; } = window ?? CreateMockWindow();
+    public MockSilkWindowProvider()
+    {
+        // Create a headless Silk.NET window for testing
+        var options = WindowOptions.Default with
+        {
+            Title = "Mock Window",
+            Size = new Vector2D<int>(800, 600),
+            IsVisible = false, // Headless
+            API = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.ForwardCompatible, new APIVersion(3, 3))
+        };
 
-    public IInputContext InputContext { get; } = inputContext ?? CreateMockInputContext();
+        window = global::Silk.NET.Windowing.Window.Create(options);
+    }
+
+    public IWindow Window => window;
+
+    public IInputContext InputContext => null!; // Not needed for graphics tests
 
     public event Action? OnLoad;
     public event Action<double>? OnUpdate;
@@ -72,18 +86,7 @@ public sealed class MockSilkWindowProvider(IWindow? window = null, IInputContext
         }
 
         disposed = true;
-    }
-
-    private static IWindow CreateMockWindow()
-    {
-        // Return a minimal mock window
-        // In real tests, this would need to be a proper mock/stub
-        return null!;
-    }
-
-    private static IInputContext CreateMockInputContext()
-    {
-        // Return a minimal mock input context
-        return null!;
+        window?.Dispose();
     }
 }
+

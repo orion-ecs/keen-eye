@@ -132,7 +132,9 @@ public sealed class MockPluginContext : IPluginContext
     /// <returns>The registration info, or null if not registered.</returns>
     public RegisteredSystemInfo? GetSystemRegistration<T>() where T : ISystem
     {
-        return registeredSystems.FirstOrDefault(s => s.SystemType == typeof(T));
+        var match = registeredSystems.FirstOrDefault(s => s.SystemType == typeof(T));
+        // FirstOrDefault on structs returns default, not null. Check SystemType to determine if found.
+        return match.SystemType == typeof(T) ? match : null;
     }
 
     /// <summary>
