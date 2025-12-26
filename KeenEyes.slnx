@@ -20,6 +20,7 @@
     <Project Path="samples/KeenEyes.Sample.Prefabs/KeenEyes.Sample.Prefabs.csproj" />
     <Project Path="samples/KeenEyes.Sample.Relationships/KeenEyes.Sample.Relationships.csproj" />
     <Project Path="samples/KeenEyes.Sample.RenderingCulling/KeenEyes.Sample.RenderingCulling.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Replay/KeenEyes.Sample.Replay.csproj" />
     <Project Path="samples/KeenEyes.Sample.SaveLoad/KeenEyes.Sample.SaveLoad.csproj" />
     <Project Path="samples/KeenEyes.Sample.Showcase/KeenEyes.Sample.Showcase.csproj" />
     <Project Path="samples/KeenEyes.Sample.Simulation/KeenEyes.Sample.Simulation.csproj" />
@@ -56,6 +57,7 @@
     <Project Path="src/KeenEyes.Logging/KeenEyes.Logging.csproj" />
     <Project Path="src/KeenEyes.Parallelism/KeenEyes.Parallelism.csproj" />
     <Project Path="src/KeenEyes.Persistence/KeenEyes.Persistence.csproj" />
+    <Project Path="src/KeenEyes.Replay/KeenEyes.Replay.csproj" />
     <Project Path="src/KeenEyes.Physics/KeenEyes.Physics.csproj" />
     <Project Path="src/KeenEyes.Spatial/KeenEyes.Spatial.csproj" />
     <Project Path="src/KeenEyes.Testing/KeenEyes.Testing.csproj" />
@@ -78,6 +80,7 @@
     <Project Path="tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj" />
     <Project Path="tests/KeenEyes.Particles.Tests/KeenEyes.Particles.Tests.csproj" />
     <Project Path="tests/KeenEyes.Persistence.Tests/KeenEyes.Persistence.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Replay.Tests/KeenEyes.Replay.Tests.csproj" />
     <Project Path="tests/KeenEyes.Physics.Tests/KeenEyes.Physics.Tests.csproj" />
     <Project Path="tests/KeenEyes.Spatial.Tests/KeenEyes.Spatial.Tests.csproj" />
     <Project Path="tests/KeenEyes.Testing.Tests/KeenEyes.Testing.Tests.csproj" />
