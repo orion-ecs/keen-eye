@@ -40,24 +40,24 @@ namespace KeenEyes.Replay;
 /// </example>
 public sealed class ReplayRecorder
 {
-    private readonly IWorld _world;
-    private readonly ReplayOptions _options;
-    private readonly IComponentSerializer _serializer;
+    private readonly IWorld world;
+    private readonly ReplayOptions options;
+    private readonly IComponentSerializer serializer;
 
-    private readonly List<ReplayFrame> _frames = [];
-    private readonly List<SnapshotMarker> _snapshots = [];
-    private readonly List<ReplayEvent> _currentFrameEvents = [];
+    private readonly List<ReplayFrame> frames = [];
+    private readonly List<SnapshotMarker> snapshots = [];
+    private readonly List<ReplayEvent> currentFrameEvents = [];
 
-    private bool _isRecording;
-    private DateTimeOffset _recordingStarted;
-    private TimeSpan _elapsedTime;
-    private TimeSpan _timeSinceLastSnapshot;
-    private int _frameNumber;
-    private string? _recordingName;
-    private IReadOnlyDictionary<string, object>? _recordingMetadata;
+    private bool isRecording;
+    private DateTimeOffset recordingStarted;
+    private TimeSpan elapsedTime;
+    private TimeSpan timeSinceLastSnapshot;
+    private int frameNumber;
+    private string? recordingName;
+    private IReadOnlyDictionary<string, object>? recordingMetadata;
 
     // Ring buffer support
-    private int _ringBufferStart;
+    private int ringBufferStart;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ReplayRecorder"/> class.
@@ -73,15 +73,15 @@ public sealed class ReplayRecorder
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(serializer);
 
-        _world = world;
-        _serializer = serializer;
-        _options = options ?? new ReplayOptions();
+        this.world = world;
+        this.serializer = serializer;
+        this.options = options ?? new ReplayOptions();
     }
 
     /// <summary>
     /// Gets a value indicating whether recording is currently active.
     /// </summary>
-    public bool IsRecording => _isRecording;
+    public bool IsRecording => isRecording;
 
     /// <summary>
     /// Gets the current frame number during recording.
@@ -89,7 +89,7 @@ public sealed class ReplayRecorder
     /// <remarks>
     /// Returns -1 if not currently recording.
     /// </remarks>
-    public int CurrentFrameNumber => _isRecording ? _frameNumber : -1;
+    public int CurrentFrameNumber => isRecording ? frameNumber : -1;
 
     /// <summary>
     /// Gets the elapsed recording time.
@@ -97,7 +97,7 @@ public sealed class ReplayRecorder
     /// <remarks>
     /// Returns <see cref="TimeSpan.Zero"/> if not currently recording.
     /// </remarks>
-    public TimeSpan ElapsedTime => _isRecording ? _elapsedTime : TimeSpan.Zero;
+    public TimeSpan ElapsedTime => isRecording ? elapsedTime : TimeSpan.Zero;
 
     /// <summary>
     /// Gets the number of frames recorded so far.
@@ -106,17 +106,17 @@ public sealed class ReplayRecorder
     /// When using a ring buffer, this returns the current buffer size,
     /// not the total number of frames that have been recorded.
     /// </remarks>
-    public int RecordedFrameCount => _frames.Count;
+    public int RecordedFrameCount => frames.Count;
 
     /// <summary>
     /// Gets the number of snapshots captured so far.
     /// </summary>
-    public int SnapshotCount => _snapshots.Count;
+    public int SnapshotCount => snapshots.Count;
 
     /// <summary>
     /// Gets the recording options.
     /// </summary>
-    public ReplayOptions Options => _options;
+    public ReplayOptions Options => options;
 
     /// <summary>
     /// Starts a new recording session.
@@ -137,25 +137,25 @@ public sealed class ReplayRecorder
     /// </remarks>
     public void StartRecording(string? name = null, IReadOnlyDictionary<string, object>? metadata = null)
     {
-        if (_isRecording)
+        if (isRecording)
         {
             throw new InvalidOperationException("Recording is already in progress. Call StopRecording first.");
         }
 
         // Clear previous recording data
-        _frames.Clear();
-        _snapshots.Clear();
-        _currentFrameEvents.Clear();
-        _ringBufferStart = 0;
+        frames.Clear();
+        snapshots.Clear();
+        currentFrameEvents.Clear();
+        ringBufferStart = 0;
 
         // Initialize recording state
-        _isRecording = true;
-        _recordingStarted = DateTimeOffset.UtcNow;
-        _elapsedTime = TimeSpan.Zero;
-        _timeSinceLastSnapshot = TimeSpan.Zero;
-        _frameNumber = 0;
-        _recordingName = name ?? _options.DefaultRecordingName;
-        _recordingMetadata = metadata;
+        isRecording = true;
+        recordingStarted = DateTimeOffset.UtcNow;
+        elapsedTime = TimeSpan.Zero;
+        timeSinceLastSnapshot = TimeSpan.Zero;
+        frameNumber = 0;
+        recordingName = name ?? options.DefaultRecordingName;
+        recordingMetadata = metadata;
 
         // Capture initial snapshot
         CaptureSnapshot();
@@ -177,48 +177,48 @@ public sealed class ReplayRecorder
     /// </remarks>
     public ReplayData? StopRecording()
     {
-        if (!_isRecording)
+        if (!isRecording)
         {
             return null;
         }
 
-        _isRecording = false;
+        isRecording = false;
 
         // Build the final replay data
-        IReadOnlyList<ReplayFrame> frames;
-        IReadOnlyList<SnapshotMarker> snapshots;
+        IReadOnlyList<ReplayFrame> finalFrames;
+        IReadOnlyList<SnapshotMarker> finalSnapshots;
 
-        if (_options.UseRingBuffer && _ringBufferStart > 0)
+        if (options.UseRingBuffer && ringBufferStart > 0)
         {
             // Extract frames from ring buffer in correct order
-            var actualFrames = new List<ReplayFrame>(_frames.Count);
-            for (var i = 0; i < _frames.Count; i++)
+            var actualFrames = new List<ReplayFrame>(frames.Count);
+            for (var i = 0; i < frames.Count; i++)
             {
-                var index = (_ringBufferStart + i) % _frames.Count;
-                actualFrames.Add(_frames[index]);
+                var index = (ringBufferStart + i) % frames.Count;
+                actualFrames.Add(frames[index]);
             }
-            frames = actualFrames;
+            finalFrames = actualFrames;
 
             // Filter snapshots to only include those within the ring buffer window
             var minFrameNumber = actualFrames.Count > 0 ? actualFrames[0].FrameNumber : 0;
-            snapshots = _snapshots.Where(s => s.FrameNumber >= minFrameNumber).ToList();
+            finalSnapshots = snapshots.Where(s => s.FrameNumber >= minFrameNumber).ToList();
         }
         else
         {
-            frames = _frames.ToList();
-            snapshots = _snapshots.ToList();
+            finalFrames = frames.ToList();
+            finalSnapshots = snapshots.ToList();
         }
 
         return new ReplayData
         {
-            Name = _recordingName,
-            RecordingStarted = _recordingStarted,
+            Name = recordingName,
+            RecordingStarted = recordingStarted,
             RecordingEnded = DateTimeOffset.UtcNow,
-            Duration = _elapsedTime,
-            FrameCount = frames.Count,
-            Frames = frames,
-            Snapshots = snapshots,
-            Metadata = _recordingMetadata
+            Duration = elapsedTime,
+            FrameCount = finalFrames.Count,
+            Frames = finalFrames,
+            Snapshots = finalSnapshots,
+            Metadata = recordingMetadata
         };
     }
 
@@ -231,10 +231,10 @@ public sealed class ReplayRecorder
     /// </remarks>
     public void CancelRecording()
     {
-        _isRecording = false;
-        _frames.Clear();
-        _snapshots.Clear();
-        _currentFrameEvents.Clear();
+        isRecording = false;
+        frames.Clear();
+        snapshots.Clear();
+        currentFrameEvents.Clear();
     }
 
     /// <summary>
@@ -256,12 +256,12 @@ public sealed class ReplayRecorder
     {
         ArgumentNullException.ThrowIfNull(replayEvent);
 
-        if (!_isRecording)
+        if (!isRecording)
         {
             return;
         }
 
-        _currentFrameEvents.Add(replayEvent);
+        currentFrameEvents.Add(replayEvent);
     }
 
     /// <summary>
@@ -294,26 +294,26 @@ public sealed class ReplayRecorder
     /// </remarks>
     internal void BeginFrame(float deltaTime)
     {
-        if (!_isRecording)
+        if (!isRecording)
         {
             return;
         }
 
         // Check if we've exceeded the maximum duration or frame count
-        if (_options.MaxDuration.HasValue && _elapsedTime >= _options.MaxDuration.Value)
+        if (options.MaxDuration.HasValue && elapsedTime >= options.MaxDuration.Value)
         {
             return; // Recording will be stopped by plugin
         }
 
-        if (_options.MaxFrames.HasValue && _frameNumber >= _options.MaxFrames.Value)
+        if (options.MaxFrames.HasValue && frameNumber >= options.MaxFrames.Value)
         {
             return; // Recording will be stopped by plugin
         }
 
-        _currentFrameEvents.Clear();
+        currentFrameEvents.Clear();
 
         // Record frame start event
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.FrameStart,
             Timestamp = TimeSpan.Zero
@@ -330,7 +330,7 @@ public sealed class ReplayRecorder
     /// </remarks>
     internal void EndFrame(float deltaTime)
     {
-        if (!_isRecording)
+        if (!isRecording)
         {
             return;
         }
@@ -338,7 +338,7 @@ public sealed class ReplayRecorder
         var dt = TimeSpan.FromSeconds(deltaTime);
 
         // Record frame end event
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.FrameEnd,
             Timestamp = dt
@@ -346,51 +346,51 @@ public sealed class ReplayRecorder
 
         // Determine if this frame follows a snapshot
         int? precedingSnapshotIndex = null;
-        if (_snapshots.Count > 0 && _snapshots[^1].FrameNumber == _frameNumber)
+        if (snapshots.Count > 0 && snapshots[^1].FrameNumber == frameNumber)
         {
-            precedingSnapshotIndex = _snapshots.Count - 1;
+            precedingSnapshotIndex = snapshots.Count - 1;
         }
 
         // Create the frame record
         var frame = new ReplayFrame
         {
-            FrameNumber = _frameNumber,
+            FrameNumber = frameNumber,
             DeltaTime = dt,
-            ElapsedTime = _elapsedTime,
-            Events = _currentFrameEvents.ToList(),
+            ElapsedTime = elapsedTime,
+            Events = currentFrameEvents.ToList(),
             PrecedingSnapshotIndex = precedingSnapshotIndex
         };
 
         // Add to frames (with ring buffer support)
-        if (_options.UseRingBuffer && _options.MaxFrames.HasValue)
+        if (options.UseRingBuffer && options.MaxFrames.HasValue)
         {
-            if (_frames.Count < _options.MaxFrames.Value)
+            if (frames.Count < options.MaxFrames.Value)
             {
-                _frames.Add(frame);
+                frames.Add(frame);
             }
             else
             {
                 // Overwrite oldest frame
-                var index = _ringBufferStart % _options.MaxFrames.Value;
-                _frames[index] = frame;
-                _ringBufferStart = (index + 1) % _options.MaxFrames.Value;
+                var index = ringBufferStart % options.MaxFrames.Value;
+                frames[index] = frame;
+                ringBufferStart = (index + 1) % options.MaxFrames.Value;
             }
         }
         else
         {
-            _frames.Add(frame);
+            frames.Add(frame);
         }
 
         // Update timing
-        _elapsedTime += dt;
-        _timeSinceLastSnapshot += dt;
-        _frameNumber++;
+        elapsedTime += dt;
+        timeSinceLastSnapshot += dt;
+        frameNumber++;
 
         // Check if we need to capture a snapshot
-        if (_options.SnapshotInterval > TimeSpan.Zero && _timeSinceLastSnapshot >= _options.SnapshotInterval)
+        if (options.SnapshotInterval > TimeSpan.Zero && timeSinceLastSnapshot >= options.SnapshotInterval)
         {
             CaptureSnapshot();
-            _timeSinceLastSnapshot = TimeSpan.Zero;
+            timeSinceLastSnapshot = TimeSpan.Zero;
         }
     }
 
@@ -400,12 +400,12 @@ public sealed class ReplayRecorder
     /// <param name="systemTypeName">The type name of the system.</param>
     internal void RecordSystemStart(string systemTypeName)
     {
-        if (!_isRecording || !_options.RecordSystemEvents)
+        if (!isRecording || !options.RecordSystemEvents)
         {
             return;
         }
 
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.SystemStart,
             SystemTypeName = systemTypeName,
@@ -419,12 +419,12 @@ public sealed class ReplayRecorder
     /// <param name="systemTypeName">The type name of the system.</param>
     internal void RecordSystemEnd(string systemTypeName)
     {
-        if (!_isRecording || !_options.RecordSystemEvents)
+        if (!isRecording || !options.RecordSystemEvents)
         {
             return;
         }
 
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.SystemEnd,
             SystemTypeName = systemTypeName,
@@ -439,7 +439,7 @@ public sealed class ReplayRecorder
     /// <param name="name">The optional name of the entity.</param>
     internal void RecordEntityCreated(int entityId, string? name)
     {
-        if (!_isRecording || !_options.RecordEntityEvents)
+        if (!isRecording || !options.RecordEntityEvents)
         {
             return;
         }
@@ -448,7 +448,7 @@ public sealed class ReplayRecorder
             ? new Dictionary<string, object> { ["name"] = name }
             : null;
 
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.EntityCreated,
             EntityId = entityId,
@@ -463,12 +463,12 @@ public sealed class ReplayRecorder
     /// <param name="entityId">The ID of the destroyed entity.</param>
     internal void RecordEntityDestroyed(int entityId)
     {
-        if (!_isRecording || !_options.RecordEntityEvents)
+        if (!isRecording || !options.RecordEntityEvents)
         {
             return;
         }
 
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.EntityDestroyed,
             EntityId = entityId,
@@ -483,12 +483,12 @@ public sealed class ReplayRecorder
     /// <param name="componentTypeName">The type name of the added component.</param>
     internal void RecordComponentAdded(int entityId, string componentTypeName)
     {
-        if (!_isRecording || !_options.RecordComponentEvents)
+        if (!isRecording || !options.RecordComponentEvents)
         {
             return;
         }
 
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.ComponentAdded,
             EntityId = entityId,
@@ -504,12 +504,12 @@ public sealed class ReplayRecorder
     /// <param name="componentTypeName">The type name of the removed component.</param>
     internal void RecordComponentRemoved(int entityId, string componentTypeName)
     {
-        if (!_isRecording || !_options.RecordComponentEvents)
+        if (!isRecording || !options.RecordComponentEvents)
         {
             return;
         }
 
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.ComponentRemoved,
             EntityId = entityId,
@@ -527,29 +527,29 @@ public sealed class ReplayRecorder
     /// </remarks>
     public void CaptureSnapshot()
     {
-        if (!_isRecording)
+        if (!isRecording)
         {
             return;
         }
 
         // Get the concrete World for snapshot creation
-        if (_world is not World concreteWorld)
+        if (world is not World concreteWorld)
         {
             return; // Can't create snapshot without concrete World
         }
 
-        var snapshot = SnapshotManager.CreateSnapshot(concreteWorld, _serializer);
+        var snapshot = SnapshotManager.CreateSnapshot(concreteWorld, serializer);
         var marker = new SnapshotMarker
         {
-            FrameNumber = _frameNumber,
-            ElapsedTime = _elapsedTime,
+            FrameNumber = frameNumber,
+            ElapsedTime = elapsedTime,
             Snapshot = snapshot
         };
 
-        _snapshots.Add(marker);
+        snapshots.Add(marker);
 
         // Record snapshot event
-        _currentFrameEvents.Add(new ReplayEvent
+        currentFrameEvents.Add(new ReplayEvent
         {
             Type = ReplayEventType.Snapshot,
             Timestamp = TimeSpan.Zero
@@ -562,23 +562,23 @@ public sealed class ReplayRecorder
     /// <returns>True if recording should stop; otherwise, false.</returns>
     internal bool ShouldStopRecording()
     {
-        if (!_isRecording)
+        if (!isRecording)
         {
             return false;
         }
 
         // Don't auto-stop if using ring buffer (it just overwrites)
-        if (_options.UseRingBuffer)
+        if (options.UseRingBuffer)
         {
             return false;
         }
 
-        if (_options.MaxDuration.HasValue && _elapsedTime >= _options.MaxDuration.Value)
+        if (options.MaxDuration.HasValue && elapsedTime >= options.MaxDuration.Value)
         {
             return true;
         }
 
-        if (_options.MaxFrames.HasValue && _frameNumber >= _options.MaxFrames.Value)
+        if (options.MaxFrames.HasValue && frameNumber >= options.MaxFrames.Value)
         {
             return true;
         }

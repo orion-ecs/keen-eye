@@ -55,16 +55,16 @@ namespace KeenEyes.Replay;
 /// <param name="options">Optional configuration for the replay recording.</param>
 public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions? options = null) : IWorldPlugin
 {
-    private readonly IComponentSerializer _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
-    private readonly ReplayOptions _options = options ?? new ReplayOptions();
+    private readonly IComponentSerializer componentSerializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
+    private readonly ReplayOptions replayOptions = options ?? new ReplayOptions();
 
-    private ReplayRecorder? _recorder;
-    private ReplayFrameEndSystem? _frameEndSystem;
-    private EventSubscription? _frameHook;
-    private EventSubscription? _systemHook;
-    private EventSubscription? _entityCreatedSub;
-    private EventSubscription? _entityDestroyedSub;
-    private readonly List<EventSubscription> _componentSubs = [];
+    private ReplayRecorder? recorder;
+    private ReplayFrameEndSystem? frameEndSystem;
+    private EventSubscription? frameHook;
+    private EventSubscription? systemHook;
+    private EventSubscription? entityCreatedSub;
+    private EventSubscription? entityDestroyedSub;
+    private readonly List<EventSubscription> componentSubs = [];
 
     /// <summary>
     /// Gets the name of this plugin.
@@ -75,8 +75,8 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
     public void Install(IPluginContext context)
     {
         // Create the recorder
-        _recorder = new ReplayRecorder(context.World, _serializer, _options);
-        context.SetExtension(_recorder);
+        recorder = new ReplayRecorder(context.World, componentSerializer, replayOptions);
+        context.SetExtension(recorder);
 
         // Get the concrete world for event subscriptions
         if (context.World is not World world)
@@ -96,33 +96,33 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
 
         // Set up frame boundary tracking
         // We use a hook that runs on ALL phases to catch the first and last system executions
-        _frameHook = hookCapability.AddSystemHook(
+        frameHook = hookCapability.AddSystemHook(
             beforeHook: OnBeforeAnySystem,
             afterHook: OnAfterAnySystem,
             phase: null // All phases
         );
 
         // Set up system event recording if enabled
-        if (_options.RecordSystemEvents)
+        if (replayOptions.RecordSystemEvents)
         {
-            _systemHook = hookCapability.AddSystemHook(
-                beforeHook: (system, dt) => _recorder.RecordSystemStart(system.GetType().Name),
-                afterHook: (system, dt) => _recorder.RecordSystemEnd(system.GetType().Name),
-                phase: _options.SystemEventPhase
+            systemHook = hookCapability.AddSystemHook(
+                beforeHook: (system, dt) => recorder.RecordSystemStart(system.GetType().Name),
+                afterHook: (system, dt) => recorder.RecordSystemEnd(system.GetType().Name),
+                phase: replayOptions.SystemEventPhase
             );
         }
 
         // Set up entity event subscriptions if enabled
-        if (_options.RecordEntityEvents)
+        if (replayOptions.RecordEntityEvents)
         {
-            _entityCreatedSub = world.OnEntityCreated((entity, name) =>
+            entityCreatedSub = world.OnEntityCreated((entity, name) =>
             {
-                _recorder.RecordEntityCreated(entity.Id, name);
+                recorder.RecordEntityCreated(entity.Id, name);
             });
 
-            _entityDestroyedSub = world.OnEntityDestroyed(entity =>
+            entityDestroyedSub = world.OnEntityDestroyed(entity =>
             {
-                _recorder.RecordEntityDestroyed(entity.Id);
+                recorder.RecordEntityDestroyed(entity.Id);
             });
         }
 
@@ -132,48 +132,48 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
 
         // Register frame end system to automatically finalize frames
         // Runs at int.MaxValue order to ensure it executes after all other systems
-        _frameEndSystem = new ReplayFrameEndSystem(_recorder, this);
-        context.AddSystem(_frameEndSystem, SystemPhase.Update, int.MaxValue);
+        frameEndSystem = new ReplayFrameEndSystem(recorder, this);
+        context.AddSystem(frameEndSystem, SystemPhase.Update, int.MaxValue);
     }
 
     /// <inheritdoc />
     public void Uninstall(IPluginContext context)
     {
         // Stop any active recording
-        _recorder?.CancelRecording();
+        recorder?.CancelRecording();
 
         // Dispose all subscriptions
-        _frameHook?.Dispose();
-        _systemHook?.Dispose();
-        _entityCreatedSub?.Dispose();
-        _entityDestroyedSub?.Dispose();
+        frameHook?.Dispose();
+        systemHook?.Dispose();
+        entityCreatedSub?.Dispose();
+        entityDestroyedSub?.Dispose();
 
-        foreach (var sub in _componentSubs)
+        foreach (var sub in componentSubs)
         {
             sub.Dispose();
         }
-        _componentSubs.Clear();
+        componentSubs.Clear();
 
         // Remove extension
         context.RemoveExtension<ReplayRecorder>();
 
-        _recorder = null;
+        recorder = null;
     }
 
     // Track whether we've seen the first system this frame
-    private bool _firstSystemThisFrame = true;
+    private bool firstSystemThisFrame = true;
 
     private void OnBeforeAnySystem(ISystem system, float deltaTime)
     {
-        if (_recorder is null || !_recorder.IsRecording)
+        if (recorder is null || !recorder.IsRecording)
         {
             return;
         }
 
-        if (_firstSystemThisFrame)
+        if (firstSystemThisFrame)
         {
-            _firstSystemThisFrame = false;
-            _recorder.BeginFrame(deltaTime);
+            firstSystemThisFrame = false;
+            recorder.BeginFrame(deltaTime);
         }
     }
 
@@ -203,19 +203,19 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
     /// </returns>
     public ReplayData? OnFrameEnd(float deltaTime)
     {
-        if (_recorder is null || !_recorder.IsRecording)
+        if (recorder is null || !recorder.IsRecording)
         {
             return null;
         }
 
         // Note: EndFrame is already called by ReplayFrameEndSystem
         // This method is here for manual control if needed
-        _firstSystemThisFrame = true; // Reset for next frame
+        firstSystemThisFrame = true; // Reset for next frame
 
         // Check if we should auto-stop
-        if (_recorder.ShouldStopRecording())
+        if (recorder.ShouldStopRecording())
         {
-            return _recorder.StopRecording();
+            return recorder.StopRecording();
         }
 
         return null;
@@ -226,6 +226,6 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
     /// </summary>
     internal void ResetFrameTracking()
     {
-        _firstSystemThisFrame = true;
+        firstSystemThisFrame = true;
     }
 }

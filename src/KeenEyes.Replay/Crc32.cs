@@ -9,7 +9,7 @@ namespace KeenEyes.Replay;
 /// </remarks>
 internal static class Crc32
 {
-    private static readonly uint[] Table = GenerateTable();
+    private static readonly uint[] crcTable = GenerateTable();
 
     /// <summary>
     /// Generates the CRC32 lookup table.
@@ -43,7 +43,7 @@ internal static class Crc32
 
         foreach (var b in data)
         {
-            crc = Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+            crc = crcTable[(crc ^ b) & 0xFF] ^ (crc >> 8);
         }
 
         return crc ^ 0xFFFFFFFF;
