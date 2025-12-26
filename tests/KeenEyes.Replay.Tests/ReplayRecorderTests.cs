@@ -620,6 +620,222 @@ public partial class ReplayRecorderTests
     }
 
     #endregion
+
+    #region Sequential Recording Tests
+
+    [Fact]
+    public void SequentialRecordings_CanStartStopMultipleTimes()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        // Act - First recording
+        recorder.StartRecording("First Recording");
+        for (int i = 0; i < 5; i++)
+        {
+            recorder.BeginFrame(0.016f);
+            recorder.RecordCustomEvent($"Event1_{i}");
+            recorder.EndFrame(0.016f);
+        }
+        var firstResult = recorder.StopRecording();
+
+        // Second recording
+        recorder.StartRecording("Second Recording");
+        for (int i = 0; i < 3; i++)
+        {
+            recorder.BeginFrame(0.016f);
+            recorder.RecordCustomEvent($"Event2_{i}");
+            recorder.EndFrame(0.016f);
+        }
+        var secondResult = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(firstResult);
+        Assert.NotNull(secondResult);
+        Assert.Equal("First Recording", firstResult.Name);
+        Assert.Equal("Second Recording", secondResult.Name);
+        Assert.Equal(5, firstResult.FrameCount);
+        Assert.Equal(3, secondResult.FrameCount);
+    }
+
+    [Fact]
+    public void SequentialRecordings_ResetStateCorrectly()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        // Act - First recording
+        recorder.StartRecording();
+        for (int i = 0; i < 10; i++)
+        {
+            recorder.BeginFrame(0.016f);
+            recorder.EndFrame(0.016f);
+        }
+        recorder.StopRecording();
+
+        // Verify state is reset
+        Assert.False(recorder.IsRecording);
+        Assert.Equal(-1, recorder.CurrentFrameNumber);
+        Assert.Equal(TimeSpan.Zero, recorder.ElapsedTime);
+
+        // Second recording should start fresh
+        recorder.StartRecording();
+        Assert.True(recorder.IsRecording);
+        Assert.Equal(0, recorder.CurrentFrameNumber);
+    }
+
+    [Fact]
+    public void SequentialRecordings_CancelThenRecordAgain()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        // First recording - cancelled
+        recorder.StartRecording("Cancelled");
+        for (int i = 0; i < 3; i++)
+        {
+            recorder.BeginFrame(0.016f);
+            recorder.EndFrame(0.016f);
+        }
+        recorder.CancelRecording();
+
+        // Second recording - completed
+        recorder.StartRecording("Completed");
+        for (int i = 0; i < 5; i++)
+        {
+            recorder.BeginFrame(0.016f);
+            recorder.EndFrame(0.016f);
+        }
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Completed", result.Name);
+        Assert.Equal(5, result.FrameCount);
+    }
+
+    #endregion
+
+    #region Large-Scale Tests
+
+    [Fact]
+    public void LargeScale_1000FramesWith100Entities_PerformsCorrectly()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions
+        {
+            RecordEntityEvents = true,
+            SnapshotInterval = TimeSpan.FromSeconds(1) // Snapshot every second
+        };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Create 100 entities before recording
+        var entities = new List<Entity>();
+        for (int i = 0; i < 100; i++)
+        {
+            entities.Add(world.Spawn().Build());
+        }
+
+        // Act - Record 1000+ frames
+        recorder.StartRecording("Large Scale Test");
+
+        for (int frame = 0; frame < 1200; frame++)
+        {
+            recorder.BeginFrame(0.016f); // ~60 FPS
+
+            // Record some entity events on specific frames
+            if (frame % 100 == 0)
+            {
+                recorder.RecordCustomEvent("Checkpoint", new Dictionary<string, object>
+                {
+                    ["frame"] = frame,
+                    ["entityCount"] = entities.Count
+                });
+            }
+
+            recorder.EndFrame(0.016f);
+        }
+
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(1200, result.FrameCount);
+        Assert.Equal(1200, result.Frames.Count);
+
+        // Should have multiple snapshots due to 1-second interval over ~19 seconds of recording
+        Assert.True(result.Snapshots.Count >= 10,
+            $"Expected at least 10 snapshots, got {result.Snapshots.Count}");
+
+        // Verify custom events were recorded
+        var checkpointEvents = result.Frames
+            .SelectMany(f => f.Events)
+            .Where(e => e.Type == ReplayEventType.Custom && e.CustomType == "Checkpoint")
+            .ToList();
+        Assert.Equal(12, checkpointEvents.Count); // Frames 0, 100, 200, ..., 1100
+
+        // Verify duration is approximately correct (1200 frames * 16ms ≈ 19.2 seconds)
+        var expectedDuration = TimeSpan.FromSeconds(1200 * 0.016);
+        var durationDiff = Math.Abs((result.Duration - expectedDuration).TotalSeconds);
+        Assert.True(durationDiff < 0.1, $"Duration {result.Duration} differs from expected {expectedDuration}");
+    }
+
+    [Fact]
+    public void LargeScale_ManyEventsPerFrame_PerformsCorrectly()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        // Act - Record frames with many events
+        recorder.StartRecording();
+
+        for (int frame = 0; frame < 100; frame++)
+        {
+            recorder.BeginFrame(0.016f);
+
+            // Record 50 events per frame
+            for (int eventNum = 0; eventNum < 50; eventNum++)
+            {
+                recorder.RecordCustomEvent($"Event_{eventNum}", new Dictionary<string, object>
+                {
+                    ["frame"] = frame,
+                    ["index"] = eventNum
+                });
+            }
+
+            recorder.EndFrame(0.016f);
+        }
+
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(100, result.FrameCount);
+
+        // Each frame should have 50 events
+        foreach (var frameData in result.Frames)
+        {
+            var customEvents = frameData.Events.Where(e => e.Type == ReplayEventType.Custom).ToList();
+            Assert.Equal(50, customEvents.Count);
+        }
+
+        // Total custom events: 100 frames * 50 events = 5000
+        var totalCustomEvents = result.Frames.SelectMany(f => f.Events)
+            .Count(e => e.Type == ReplayEventType.Custom);
+        Assert.Equal(5000, totalCustomEvents);
+    }
+
+    #endregion
 }
 
 /// <summary>
