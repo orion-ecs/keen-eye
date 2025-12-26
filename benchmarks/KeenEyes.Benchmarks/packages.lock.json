@@ -153,10 +153,7 @@
         "contentHash": "VybpaOQQhqE6siHppMktjfGBw1GCwvCqiufqmP8F1nj7fTUNtW35LOEt3UZTEsECfo+ELAl/9o9nJx3U91i7vA=="
       },
       "keeneyes.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "keeneyes.common": {
         "type": "Project",
@@ -170,13 +167,11 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
-      },
-      "keeneyes.spatial": {
+      "keeneyes.replay": {
         "type": "Project",
         "dependencies": {
-          "KeenEyes.Common": "[1.0.0, )"
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )"
         }
       },
       "Microsoft.CodeAnalysis.Analyzers": {
