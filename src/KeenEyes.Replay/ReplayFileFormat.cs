@@ -21,7 +21,7 @@ namespace KeenEyes.Replay;
 /// File structure:
 /// <code>
 /// [Header: 16 bytes]
-///   - Magic: "KREP" (4 bytes)
+///   - Magic: "KRPL" (4 bytes)
 ///   - Version: uint16 (2 bytes)
 ///   - Flags: uint16 (2 bytes)
 ///   - MetadataLength: uint32 (4 bytes)
@@ -40,7 +40,7 @@ public static class ReplayFileFormat
     /// <summary>
     /// Magic bytes identifying .kreplay files.
     /// </summary>
-    public static ReadOnlySpan<byte> Magic => "KREP"u8;
+    public static ReadOnlySpan<byte> Magic => "KRPL"u8;
 
     /// <summary>
     /// Current file format version.
