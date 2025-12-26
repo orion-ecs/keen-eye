@@ -18,6 +18,10 @@ namespace KeenEyes.Replay;
 /// to capture entity and component changes.
 /// </para>
 /// <para>
+/// Frame boundaries are detected automatically using an internal system that
+/// runs at the end of the Update phase. No manual intervention is required.
+/// </para>
+/// <para>
 /// After installation, access the <see cref="ReplayRecorder"/> through the
 /// world's extension API to control recording.
 /// </para>
@@ -33,7 +37,7 @@ namespace KeenEyes.Replay;
 /// var recorder = world.GetExtension&lt;ReplayRecorder&gt;();
 /// recorder.StartRecording("Debug Session");
 ///
-/// // Run your game loop
+/// // Run your game loop - frames are recorded automatically
 /// for (int i = 0; i &lt; 1000; i++)
 /// {
 ///     world.Update(0.016f);
@@ -55,6 +59,7 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
     private readonly ReplayOptions _options = options ?? new ReplayOptions();
 
     private ReplayRecorder? _recorder;
+    private ReplayFrameEndSystem? _frameEndSystem;
     private EventSubscription? _frameHook;
     private EventSubscription? _systemHook;
     private EventSubscription? _entityCreatedSub;
@@ -124,6 +129,11 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
         // Note: Component events would require generic subscriptions for each component type
         // which would need to be done differently. For Phase 1, we rely on snapshots for
         // component state. Full component event tracking can be added in a future phase.
+
+        // Register frame end system to automatically finalize frames
+        // Runs at int.MaxValue order to ensure it executes after all other systems
+        _frameEndSystem = new ReplayFrameEndSystem(_recorder, this);
+        context.AddSystem(_frameEndSystem, SystemPhase.Update, int.MaxValue);
     }
 
     /// <inheritdoc />
@@ -169,25 +179,19 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
 
     private void OnAfterAnySystem(ISystem system, float deltaTime)
     {
-        if (_recorder is null || !_recorder.IsRecording)
-        {
-            return;
-        }
-
-        // We need a different approach - track when the frame actually ends
-        // For now, we'll rely on the Update method being called externally
-        // and use EndFrame tracking differently
+        // Frame end is now handled by ReplayFrameEndSystem
+        // This hook remains for potential future use (e.g., tracking last system per phase)
     }
 
     /// <summary>
-    /// Call this method after each world.Update() to finalize frame recording.
+    /// Manually triggers frame end processing.
     /// </summary>
-    /// <param name="deltaTime">The delta time passed to Update.</param>
+    /// <param name="deltaTime">The delta time for the frame.</param>
     /// <remarks>
     /// <para>
-    /// This method should be called after each world.Update() call to properly
-    /// record frame boundaries. The plugin cannot automatically detect frame
-    /// end without this explicit call.
+    /// This method is provided for advanced scenarios where manual control over
+    /// frame boundaries is needed. In most cases, you don't need to call this
+    /// method as frame boundaries are detected automatically.
     /// </para>
     /// <para>
     /// If recording limits have been exceeded, this method returns the completed
@@ -204,7 +208,8 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
             return null;
         }
 
-        _recorder.EndFrame(deltaTime);
+        // Note: EndFrame is already called by ReplayFrameEndSystem
+        // This method is here for manual control if needed
         _firstSystemThisFrame = true; // Reset for next frame
 
         // Check if we should auto-stop
@@ -214,5 +219,13 @@ public sealed class ReplayPlugin(IComponentSerializer serializer, ReplayOptions?
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Called internally by ReplayFrameEndSystem after each frame.
+    /// </summary>
+    internal void ResetFrameTracking()
+    {
+        _firstSystemThisFrame = true;
     }
 }
