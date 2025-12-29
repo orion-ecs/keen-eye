@@ -60,9 +60,11 @@ jobs:
       - name: Test (excluding Parallelism)
         run: |
           dotnet test --no-build --configuration Release --verbosity normal \
-            --filter "FullyQualifiedName!~Parallelism" \
             -- --coverage --coverage-output-format cobertura \
-            --report-github --report-github-summary-include-passed false
+            --report-github --report-github-summary-include-passed false \
+            --filter-not-class KeenEyes.Tests.JobSchedulerTests \
+            --filter-not-class KeenEyes.Tests.ParallelProfilerTests \
+            --filter-not-class KeenEyes.Tests.ParallelSystemPluginTests
 
       - name: Test Parallelism (isolated)
         run: |
