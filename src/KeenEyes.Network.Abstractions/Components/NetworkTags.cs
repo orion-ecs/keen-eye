@@ -7,7 +7,7 @@ namespace KeenEyes.Network.Components;
 /// Add this tag to entities that should be synchronized across the network.
 /// Entities without this tag are local-only.
 /// </remarks>
-public readonly record struct Networked : IComponent;
+public readonly record struct Networked : ITagComponent;
 
 /// <summary>
 /// Tag component marking an entity for interpolation.
@@ -22,7 +22,7 @@ public readonly record struct Networked : IComponent;
 /// that the local player doesn't control.
 /// </para>
 /// </remarks>
-public readonly record struct Interpolated : IComponent;
+public readonly record struct Interpolated : ITagComponent;
 
 /// <summary>
 /// Tag component marking an entity for client-side prediction.
@@ -37,7 +37,7 @@ public readonly record struct Interpolated : IComponent;
 /// Typically applied only to the local player entity.
 /// </para>
 /// </remarks>
-public readonly record struct Predicted : IComponent;
+public readonly record struct Predicted : ITagComponent;
 
 /// <summary>
 /// Tag component marking an entity as locally owned.
@@ -46,7 +46,7 @@ public readonly record struct Predicted : IComponent;
 /// Applied by the network plugin when the local client owns this entity.
 /// Useful for queries that should only affect the local player.
 /// </remarks>
-public readonly record struct LocallyOwned : IComponent;
+public readonly record struct LocallyOwned : ITagComponent;
 
 /// <summary>
 /// Tag component marking an entity as remotely owned.
@@ -55,4 +55,4 @@ public readonly record struct LocallyOwned : IComponent;
 /// Applied by the network plugin when a remote client or server owns this entity.
 /// Useful for queries that should only affect other players.
 /// </remarks>
-public readonly record struct RemotelyOwned : IComponent;
+public readonly record struct RemotelyOwned : ITagComponent;
