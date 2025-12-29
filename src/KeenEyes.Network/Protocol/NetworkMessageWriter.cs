@@ -112,4 +112,23 @@ public ref struct NetworkMessageWriter(Span<byte> buffer)
     {
         return writer.ToArray();
     }
+
+    /// <summary>
+    /// Writes a network ID.
+    /// </summary>
+    /// <param name="networkId">The network ID.</param>
+    public void WriteNetworkId(uint networkId)
+    {
+        writer.WriteUInt32(networkId);
+    }
+
+    /// <summary>
+    /// Writes an input using the input serializer.
+    /// </summary>
+    /// <param name="serializer">The input serializer.</param>
+    /// <param name="input">The input value (boxed).</param>
+    public void WriteInput(Prediction.IInputSerializer serializer, object input)
+    {
+        serializer.Serialize(input, ref writer);
+    }
 }

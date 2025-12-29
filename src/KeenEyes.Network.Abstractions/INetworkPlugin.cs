@@ -1,3 +1,4 @@
+using KeenEyes.Network.Prediction;
 using KeenEyes.Network.Serialization;
 using KeenEyes.Network.Transport;
 
@@ -167,4 +168,60 @@ public record class ClientNetworkConfig : NetworkPluginConfig
     /// Gets or sets whether to enable client-side prediction.
     /// </summary>
     public bool EnablePrediction { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the input serializer for client-side prediction.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This should be set to a game-specific input serializer that handles
+    /// packing player inputs for network transmission.
+    /// </para>
+    /// <para>
+    /// If null and prediction is enabled, inputs will not be sent to the server.
+    /// </para>
+    /// </remarks>
+    public IInputSerializer? InputSerializer { get; set; }
+
+    /// <summary>
+    /// Gets or sets the size of the input buffer for prediction replay.
+    /// </summary>
+    /// <remarks>
+    /// Larger values support higher latency but use more memory.
+    /// </remarks>
+    public int InputBufferSize { get; set; } = 64;
+
+    /// <summary>
+    /// Gets or sets the misprediction threshold.
+    /// </summary>
+    /// <remarks>
+    /// If the difference between predicted and server state exceeds this
+    /// threshold, reconciliation is triggered. Set to 0 for exact comparison.
+    /// </remarks>
+    public float MispredictionThreshold { get; set; } = 0.01f;
+
+    /// <summary>
+    /// Gets or sets the input applicator for prediction replay.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This callback is invoked during reconciliation to replay inputs.
+    /// The first parameter is the entity, the second is the input (boxed).
+    /// </para>
+    /// <para>
+    /// If null, prediction will detect mispredictions but cannot replay inputs.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// config.InputApplicator = (entity, input) =>
+    /// {
+    ///     if (input is PlayerInput playerInput)
+    ///     {
+    ///         ApplyPlayerMovement(entity, playerInput);
+    ///     }
+    /// };
+    /// </code>
+    /// </example>
+    public Action<Entity, object>? InputApplicator { get; set; }
 }

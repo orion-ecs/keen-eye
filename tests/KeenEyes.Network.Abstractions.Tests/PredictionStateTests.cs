@@ -70,4 +70,20 @@ public class PredictionStateTests
 
         Assert.Equal(5.5f, state.LastCorrectionMagnitude);
     }
+
+    [Fact]
+    public void SmoothingAvailable_DefaultsToFalse()
+    {
+        var state = new PredictionState();
+
+        Assert.False(state.SmoothingAvailable);
+    }
+
+    [Fact]
+    public void SmoothingAvailable_CanBeSet()
+    {
+        var state = new PredictionState { SmoothingAvailable = true };
+
+        Assert.True(state.SmoothingAvailable);
+    }
 }

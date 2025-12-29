@@ -1,4 +1,5 @@
 using KeenEyes.Network.Components;
+using KeenEyes.Network.Prediction;
 using KeenEyes.Network.Protocol;
 using KeenEyes.Network.Replication;
 using KeenEyes.Network.Serialization;
@@ -40,8 +41,10 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     private readonly ClientNetworkConfig config = config ?? new ClientNetworkConfig();
     private readonly NetworkIdManager networkIdManager = new(isServer: false);
     private readonly Dictionary<Entity, SnapshotBuffer> snapshotBuffers = [];
+    private readonly Dictionary<Entity, object> inputBuffers = []; // Stores InputBuffer<T> instances
 
     private IPluginContext? context;
+    private ClientPredictionSystem? predictionSystem;
     private uint currentTick;
     private uint lastReceivedTick;
     private int localClientId;
@@ -86,6 +89,11 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     public uint LastReceivedTick => lastReceivedTick;
 
     /// <summary>
+    /// Gets the prediction system, if enabled.
+    /// </summary>
+    public ClientPredictionSystem? PredictionSystem => predictionSystem;
+
+    /// <summary>
     /// Raised when connected to the server.
     /// </summary>
     public event Action? Connected;
@@ -110,6 +118,52 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
         return snapshotBuffers.TryGetValue(entity, out var buffer) ? buffer : null;
     }
 
+    /// <summary>
+    /// Gets the input buffer for an entity, if it exists.
+    /// </summary>
+    /// <param name="entity">The entity to get the input buffer for.</param>
+    /// <returns>The input buffer (as object), or null if the entity has no buffer.</returns>
+    internal object? GetInputBuffer(Entity entity)
+    {
+        return inputBuffers.TryGetValue(entity, out var buffer) ? buffer : null;
+    }
+
+    /// <summary>
+    /// Gets or creates a typed input buffer for an entity.
+    /// </summary>
+    /// <typeparam name="T">The input type.</typeparam>
+    /// <param name="entity">The entity.</param>
+    /// <returns>The input buffer.</returns>
+    public InputBuffer<T> GetOrCreateInputBuffer<T>(Entity entity) where T : struct, INetworkInput
+    {
+        if (inputBuffers.TryGetValue(entity, out var existing) && existing is InputBuffer<T> typed)
+        {
+            return typed;
+        }
+
+        var buffer = new InputBuffer<T>(config.InputBufferSize);
+        inputBuffers[entity] = buffer;
+        return buffer;
+    }
+
+    /// <summary>
+    /// Records an input for prediction and sends it to the server.
+    /// </summary>
+    /// <typeparam name="T">The input type.</typeparam>
+    /// <param name="entity">The entity the input is for.</param>
+    /// <param name="input">The input to record.</param>
+    public void RecordInput<T>(Entity entity, T input) where T : struct, INetworkInput
+    {
+        // Set the tick on the input
+        input.Tick = currentTick;
+
+        // Store in input buffer
+        var buffer = GetOrCreateInputBuffer<T>(entity);
+        buffer.Add(input);
+
+        // The input will be sent by NetworkClientSendSystem
+    }
+
     /// <inheritdoc/>
     public void Install(IPluginContext ctx)
     {
@@ -121,6 +175,17 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
         // Register systems
         ctx.AddSystem(new NetworkClientReceiveSystem(this), SystemPhase.EarlyUpdate);
+
+        // Add prediction system if enabled
+        if (config.EnablePrediction)
+        {
+            predictionSystem = new ClientPredictionSystem(
+                this,
+                config.Interpolator,
+                config.InputApplicator);
+            ctx.AddSystem(predictionSystem, SystemPhase.Update);
+        }
+
         ctx.AddSystem(new NetworkClientSendSystem(this), SystemPhase.LateUpdate);
     }
 
