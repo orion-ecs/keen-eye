@@ -114,6 +114,22 @@ public record class NetworkPluginConfig
     /// </code>
     /// </example>
     public INetworkSerializer? Serializer { get; set; }
+
+    /// <summary>
+    /// Gets or sets the network interpolator for smooth remote entity rendering.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This should be set to an instance of the generated <c>NetworkInterpolator</c>
+    /// class from your application. The generator creates this class when you have
+    /// components marked with <see cref="ReplicatedAttribute"/> with
+    /// <c>GenerateInterpolation = true</c>.
+    /// </para>
+    /// <para>
+    /// If null, interpolation will not be applied (remote entities may stutter).
+    /// </para>
+    /// </remarks>
+    public INetworkInterpolator? Interpolator { get; set; }
 }
 
 /// <summary>
