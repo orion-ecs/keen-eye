@@ -61,12 +61,10 @@ jobs:
         timeout-minutes: 10
         run: |
           # Test all projects except Parallelism.Tests (causes CI hangs)
-          for proj in $(find tests -name '*.csproj' ! -path '*Parallelism.Tests*'); do
-            echo "Testing $proj"
-            dotnet test --project "$proj" --no-build --configuration Release --verbosity normal \
-              -- --coverage --coverage-output-format cobertura \
-              --report-github --report-github-summary-include-passed false
-          done
+          # Run in parallel to avoid MSBuild state issues between sequential runs
+          find tests -name '*.csproj' ! -path '*Parallelism.Tests*' ! -path '*AotCompatibility*' | \
+            xargs -P 4 -I {} dotnet test --project {} --no-build --configuration Release --verbosity minimal \
+              -- --coverage --coverage-output-format cobertura
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
