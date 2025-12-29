@@ -60,17 +60,10 @@ jobs:
       - name: Test
         timeout-minutes: 10
         run: |
-          # Run tests on solution but skip Parallelism.Tests (causes CI hangs)
-          # and AotCompatibility.Tests (not standard tests)
-          failed=0
-          for project in $(find tests -name '*.csproj' ! -path '*Parallelism.Tests*' ! -path '*AotCompatibility*'); do
-            echo "Testing $project"
-            if ! dotnet test --project "$project" --no-build --configuration Release --verbosity minimal \
-              -- --coverage --coverage-output-format cobertura; then
-              failed=1
-            fi
-          done
-          exit $failed
+          # Run all tests - Parallelism.Tests excluded by adding <IsTestProject>false</IsTestProject>
+          # in CI via an environment variable check in Directory.Build.props
+          dotnet test --no-build --configuration Release --verbosity minimal \
+            -- --coverage --coverage-output-format cobertura
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
