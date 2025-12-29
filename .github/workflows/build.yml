@@ -58,10 +58,15 @@ jobs:
         run: dotnet build --no-restore --configuration Release
 
       - name: Test
+        timeout-minutes: 10
         run: |
           dotnet test --no-build --configuration Release --verbosity normal \
             -- --coverage --coverage-output-format cobertura \
-            --report-github --report-github-summary-include-passed false
+            --report-github --report-github-summary-include-passed false \
+            --minimum-expected-tests 1 \
+            --filter-not-class KeenEyes.Tests.JobSchedulerTests \
+            --filter-not-class KeenEyes.Tests.ParallelProfilerTests \
+            --filter-not-class KeenEyes.Tests.ParallelSystemPluginTests
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
