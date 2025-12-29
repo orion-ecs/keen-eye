@@ -15,6 +15,9 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 {
     private readonly byte[] sendBuffer = new byte[4096];
 
+    // Track last sent component values per entity for delta detection
+    private readonly Dictionary<Entity, Dictionary<Type, object>> lastSentState = [];
+
     /// <inheritdoc/>
     public override void Update(float deltaTime)
     {
@@ -24,6 +27,8 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             return; // Not time for a network tick yet
         }
 
+        var serializer = plugin.Config.Serializer;
+
         // Send entity updates to clients
         foreach (var entity in World.Query<NetworkId, NetworkState>())
         {
@@ -31,7 +36,7 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             ref readonly var networkId = ref World.Get<NetworkId>(entity);
 
             // Check if entity needs to be sent this tick
-            if (ShouldSendEntity(ref networkState))
+            if (ShouldSendEntity(entity, ref networkState, serializer))
             {
                 SendEntityUpdate(entity, networkId, ref networkState);
                 networkState.LastSentTick = plugin.CurrentTick;
@@ -42,7 +47,7 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         plugin.Transport.Update();
     }
 
-    private static bool ShouldSendEntity(ref NetworkState state)
+    private bool ShouldSendEntity(Entity entity, ref NetworkState state, INetworkSerializer? serializer)
     {
         // Always send if needs full sync
         if (state.NeedsFullSync)
@@ -50,9 +55,41 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             return true;
         }
 
-        // Check if entity is dirty (changed since last send)
-        // TODO: Check ChangeTracker for dirty components
-        return true; // For now, send every tick
+        // If no serializer, we can only send spawn/despawn
+        if (serializer is null)
+        {
+            return false;
+        }
+
+        // Check if any replicated component has changed
+        if (!lastSentState.TryGetValue(entity, out var entityState))
+        {
+            // Never sent this entity - needs update
+            return true;
+        }
+
+        // Compare current state to last sent state
+        foreach (var (type, value) in World.GetComponents(entity))
+        {
+            if (!serializer.IsNetworkSerializable(type))
+            {
+                continue;
+            }
+
+            if (!entityState.TryGetValue(type, out var lastValue))
+            {
+                // New component - needs update
+                return true;
+            }
+
+            // Compare values (simple equality check)
+            if (!Equals(lastValue, value))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void SendEntityUpdate(Entity entity, NetworkId networkId, ref NetworkState state)
@@ -72,7 +109,7 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             writer.WriteEntitySpawn(networkId.Value, owner.ClientId);
 
             // Write all replicated components
-            WriteReplicatedComponents(entity, ref writer, serializer);
+            WriteReplicatedComponents(entity, ref writer, serializer, isDelta: false);
 
             state.NeedsFullSync = false;
         }
@@ -82,14 +119,17 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             writer.WriteHeader(MessageType.ComponentUpdate, plugin.CurrentTick);
             writer.WriteUInt32(networkId.Value);
 
-            // Write components (for now, write all; later: check dirty flags)
-            WriteReplicatedComponents(entity, ref writer, serializer);
+            // Write only changed components
+            WriteReplicatedComponents(entity, ref writer, serializer, isDelta: true);
         }
 
         plugin.SendToAll(writer.GetWrittenSpan(), DeliveryMode.UnreliableSequenced);
+
+        // Update last sent state for delta tracking
+        SaveSentState(entity, serializer);
     }
 
-    private void WriteReplicatedComponents(Entity entity, ref NetworkMessageWriter writer, INetworkSerializer? serializer)
+    private void WriteReplicatedComponents(Entity entity, ref NetworkMessageWriter writer, INetworkSerializer? serializer, bool isDelta)
     {
         if (serializer is null)
         {
@@ -98,25 +138,69 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             return;
         }
 
-        // Count replicated components first
-        byte count = 0;
-        foreach (var (type, _) in World.GetComponents(entity))
+        // Get last sent state for delta comparison
+        lastSentState.TryGetValue(entity, out var entityLastState);
+
+        // Collect components to send
+        var toSend = new List<(Type, object)>();
+        foreach (var (type, value) in World.GetComponents(entity))
         {
-            if (serializer.IsNetworkSerializable(type))
+            if (!serializer.IsNetworkSerializable(type))
             {
-                count++;
+                continue;
             }
+
+            // For delta updates, only send changed components
+            if (isDelta && entityLastState is not null)
+            {
+                if (entityLastState.TryGetValue(type, out var lastValue) && Equals(lastValue, value))
+                {
+                    continue; // Component unchanged
+                }
+            }
+
+            toSend.Add((type, value));
         }
 
-        writer.WriteComponentCount(count);
+        writer.WriteComponentCount((byte)toSend.Count);
 
-        // Write each replicated component
+        // Write each component
+        foreach (var (type, value) in toSend)
+        {
+            writer.WriteComponent(serializer, type, value);
+        }
+    }
+
+    private void SaveSentState(Entity entity, INetworkSerializer? serializer)
+    {
+        if (serializer is null)
+        {
+            return;
+        }
+
+        if (!lastSentState.TryGetValue(entity, out var entityState))
+        {
+            entityState = [];
+            lastSentState[entity] = entityState;
+        }
+
+        // Save current state of all replicated components
         foreach (var (type, value) in World.GetComponents(entity))
         {
             if (serializer.IsNetworkSerializable(type))
             {
-                writer.WriteComponent(serializer, type, value);
+                // Store a copy of the value (boxing creates a copy for value types)
+                entityState[type] = value;
             }
         }
+    }
+
+    /// <summary>
+    /// Clears tracking state for an entity (call when entity is despawned).
+    /// </summary>
+    /// <param name="entity">The entity to clear.</param>
+    public void ClearEntityState(Entity entity)
+    {
+        lastSentState.Remove(entity);
     }
 }

@@ -57,6 +57,25 @@ public interface INetworkSerializer
     /// <param name="reader">The bit reader to read from.</param>
     /// <returns>The deserialized component, or null if type not registered.</returns>
     object? Deserialize(ushort networkTypeId, ref BitReader reader);
+
+    /// <summary>
+    /// Gets all registered network component types.
+    /// </summary>
+    /// <returns>
+    /// An enumerable of all component types registered for network serialization.
+    /// </returns>
+    /// <remarks>
+    /// Used by the network plugin to enable change tracking for all replicated types.
+    /// </remarks>
+    IEnumerable<Type> GetRegisteredTypes();
+
+    /// <summary>
+    /// Gets metadata for all registered network component types.
+    /// </summary>
+    /// <returns>
+    /// An enumerable of component metadata for all registered types.
+    /// </returns>
+    IEnumerable<NetworkComponentInfo> GetRegisteredComponentInfo();
 }
 
 /// <summary>
