@@ -365,4 +365,117 @@ public class ParallelQueryExtensionsAdditionalTests
     }
 
     #endregion
+
+    #region Two Component Tests for Fallback Paths
+
+    [Fact]
+    public void ForEachParallel_TwoComponents_SequentialFallback()
+    {
+        using var world = new World();
+
+        // Create fewer entities than default threshold to trigger sequential path
+        for (int i = 0; i < 5; i++)
+        {
+            world.Spawn()
+                .With(new Position { X = i, Y = 0 })
+                .With(new Velocity { X = 1, Y = 1 })
+                .Build();
+        }
+
+        var sum = 0;
+
+        world.Query<Position, Velocity>().ForEachParallel(
+            (Entity e, ref Position pos, ref Velocity vel) =>
+            {
+                Interlocked.Add(ref sum, (int)pos.X);
+            }
+        );
+
+        Assert.Equal(10, sum); // 0+1+2+3+4
+    }
+
+    [Fact]
+    public void ForEachParallelReadOnly_TwoComponents_SequentialFallback()
+    {
+        using var world = new World();
+
+        // Create fewer entities than default threshold to trigger sequential path
+        for (int i = 0; i < 5; i++)
+        {
+            world.Spawn()
+                .With(new Position { X = i, Y = i * 2 })
+                .With(new Velocity { X = 1, Y = 1 })
+                .Build();
+        }
+
+        var xSum = 0;
+        var ySum = 0;
+
+        world.Query<Position, Velocity>().ForEachParallelReadOnly(
+            (Entity e, in Position pos, in Velocity vel) =>
+            {
+                Interlocked.Add(ref xSum, (int)pos.X);
+                Interlocked.Add(ref ySum, (int)pos.Y);
+            }
+        );
+
+        Assert.Equal(10, xSum); // 0+1+2+3+4
+        Assert.Equal(20, ySum); // 0+2+4+6+8
+    }
+
+    [Fact]
+    public void ForEachParallel_TwoComponents_ParallelExecution()
+    {
+        using var world = new World();
+
+        // Create enough entities to trigger parallel execution
+        for (int i = 0; i < 200; i++)
+        {
+            world.Spawn()
+                .With(new Position { X = i, Y = 0 })
+                .With(new Velocity { X = 1, Y = 1 })
+                .Build();
+        }
+
+        var processedCount = 0;
+
+        world.Query<Position, Velocity>().ForEachParallel(
+            (Entity e, ref Position pos, ref Velocity vel) =>
+            {
+                Interlocked.Increment(ref processedCount);
+            },
+            minEntityCount: 0
+        );
+
+        Assert.Equal(200, processedCount);
+    }
+
+    [Fact]
+    public void ForEachParallelReadOnly_TwoComponents_ParallelExecution()
+    {
+        using var world = new World();
+
+        // Create enough entities to trigger parallel execution
+        for (int i = 0; i < 200; i++)
+        {
+            world.Spawn()
+                .With(new Position { X = i, Y = i })
+                .With(new Velocity { X = 1, Y = 1 })
+                .Build();
+        }
+
+        var processedCount = 0;
+
+        world.Query<Position, Velocity>().ForEachParallelReadOnly(
+            (Entity e, in Position pos, in Velocity vel) =>
+            {
+                Interlocked.Increment(ref processedCount);
+            },
+            minEntityCount: 0
+        );
+
+        Assert.Equal(200, processedCount);
+    }
+
+    #endregion
 }
