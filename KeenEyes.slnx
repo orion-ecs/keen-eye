@@ -33,6 +33,7 @@
     <Project Path="src/KeenEyes.Audio.Abstractions/KeenEyes.Audio.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Audio.Silk/KeenEyes.Audio.Silk.csproj" />
     <Project Path="src/KeenEyes.Audio/KeenEyes.Audio.csproj" />
+    <Project Path="src/KeenEyes.Network/KeenEyes.Network.csproj" />
     <Project Path="src/KeenEyes.Particles/KeenEyes.Particles.csproj" />
   </Folder>
   <Folder Name="/src/core/">
@@ -78,6 +79,8 @@
     <Project Path="tests/KeenEyes.Graphics.Tests/KeenEyes.Graphics.Tests.csproj" />
     <Project Path="tests/KeenEyes.Input.Abstractions.Tests/KeenEyes.Input.Abstractions.Tests.csproj" />
     <Project Path="tests/KeenEyes.Logging.Tests/KeenEyes.Logging.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Network.Abstractions.Tests/KeenEyes.Network.Abstractions.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Network.Tests/KeenEyes.Network.Tests.csproj" />
     <Project Path="tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj" />
     <Project Path="tests/KeenEyes.Particles.Tests/KeenEyes.Particles.Tests.csproj" />
     <Project Path="tests/KeenEyes.Persistence.Tests/KeenEyes.Persistence.Tests.csproj" />

@@ -1,0 +1,512 @@
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Text;
+using KeenEyes.Generators.Utilities;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
+
+namespace KeenEyes.Generators;
+
+/// <summary>
+/// Generates network serialization code for components marked with [Replicated].
+/// Produces INetworkSerializable implementations with bit-packed serialization,
+/// delta encoding, and optional interpolation helpers.
+/// </summary>
+[Generator]
+public sealed class ReplicatedGenerator : IIncrementalGenerator
+{
+    private const string ReplicatedAttribute = "KeenEyes.Network.ReplicatedAttribute";
+    private const string QuantizedAttribute = "KeenEyes.Network.QuantizedAttribute";
+
+    /// <inheritdoc />
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        // Find all structs with [Replicated] attribute
+        var replicatedComponents = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                ReplicatedAttribute,
+                predicate: static (node, _) => node is StructDeclarationSyntax,
+                transform: static (ctx, _) => GetReplicatedComponentInfo(ctx))
+            .Where(static info => info is not null);
+
+        var collected = replicatedComponents.Collect();
+
+        // Generate network serialization code
+        context.RegisterSourceOutput(collected, static (ctx, components) =>
+        {
+            var validComponents = components
+                .Where(c => c is not null)
+                .Select(c => c!)
+                .ToImmutableArray();
+
+            if (validComponents.Length == 0)
+            {
+                return;
+            }
+
+            // Generate partial class for each component with INetworkSerializable implementation
+            foreach (var component in validComponents)
+            {
+                var partialSource = GenerateNetworkSerializable(component);
+                ctx.AddSource($"{component.FullName}.Network.g.cs", SourceText.From(partialSource, Encoding.UTF8));
+            }
+
+            // Generate the network serializer registry
+            var registrySource = GenerateNetworkSerializerRegistry(validComponents);
+            ctx.AddSource("NetworkSerializer.g.cs", SourceText.From(registrySource, Encoding.UTF8));
+        });
+    }
+
+    private static ReplicatedComponentInfo? GetReplicatedComponentInfo(GeneratorAttributeSyntaxContext context)
+    {
+        var typeSymbol = (INamedTypeSymbol)context.TargetSymbol;
+        var attr = context.Attributes.First();
+
+        // Parse attribute properties
+        var strategy = 0; // Default: Authoritative
+        var generateInterpolation = false;
+        var generatePrediction = false;
+        var priority = (byte)128;
+        var frequency = 0;
+
+        foreach (var arg in attr.NamedArguments)
+        {
+            switch (arg.Key)
+            {
+                case "Strategy":
+                    strategy = (int)(arg.Value.Value ?? 0);
+                    break;
+                case "GenerateInterpolation":
+                    generateInterpolation = arg.Value.Value is true;
+                    break;
+                case "GeneratePrediction":
+                    generatePrediction = arg.Value.Value is true;
+                    break;
+                case "Priority":
+                    priority = (byte)(arg.Value.Value ?? 128);
+                    break;
+                case "Frequency":
+                    frequency = (int)(arg.Value.Value ?? 0);
+                    break;
+            }
+        }
+
+        // Collect fields
+        var fields = new List<ReplicatedFieldInfo>();
+        foreach (var member in typeSymbol.GetMembers())
+        {
+            if (member is not IFieldSymbol field)
+            {
+                continue;
+            }
+
+            if (field.IsStatic || field.IsConst)
+            {
+                continue;
+            }
+
+            // Check for [Quantized] attribute
+            QuantizedInfo? quantized = null;
+            var quantizedAttr = field.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == QuantizedAttribute);
+
+            if (quantizedAttr is not null)
+            {
+                var args = quantizedAttr.ConstructorArguments;
+                if (args.Length >= 3)
+                {
+                    var min = (float)(args[0].Value ?? 0f);
+                    var max = (float)(args[1].Value ?? 0f);
+                    var resolution = (float)(args[2].Value ?? 0.01f);
+                    quantized = new QuantizedInfo(min, max, resolution);
+                }
+            }
+
+            fields.Add(new ReplicatedFieldInfo(
+                field.Name,
+                field.Type.ToDisplayString(),
+                GetFieldSerializationType(field.Type),
+                quantized,
+                IsInterpolatable(field.Type)));
+        }
+
+        return new ReplicatedComponentInfo(
+            typeSymbol.Name,
+            typeSymbol.ContainingNamespace.ToDisplayString(),
+            typeSymbol.ToDisplayString(),
+            strategy,
+            generateInterpolation,
+            generatePrediction,
+            priority,
+            frequency,
+            fields.ToImmutableArray());
+    }
+
+    private static FieldSerializationType GetFieldSerializationType(ITypeSymbol type)
+    {
+        return type.SpecialType switch
+        {
+            SpecialType.System_Boolean => FieldSerializationType.Bool,
+            SpecialType.System_Byte => FieldSerializationType.Byte,
+            SpecialType.System_SByte => FieldSerializationType.SByte,
+            SpecialType.System_Int16 => FieldSerializationType.Int16,
+            SpecialType.System_UInt16 => FieldSerializationType.UInt16,
+            SpecialType.System_Int32 => FieldSerializationType.Int32,
+            SpecialType.System_UInt32 => FieldSerializationType.UInt32,
+            SpecialType.System_Int64 => FieldSerializationType.Int64,
+            SpecialType.System_UInt64 => FieldSerializationType.UInt64,
+            SpecialType.System_Single => FieldSerializationType.Float,
+            SpecialType.System_Double => FieldSerializationType.Double,
+            _ => type.TypeKind == TypeKind.Enum ? FieldSerializationType.Enum : FieldSerializationType.Custom
+        };
+    }
+
+    private static bool IsInterpolatable(ITypeSymbol type)
+    {
+        // Common interpolatable types
+        return type.SpecialType is
+            SpecialType.System_Single or
+            SpecialType.System_Double or
+            SpecialType.System_Int32 or
+            SpecialType.System_Int64;
+    }
+
+    private static string GenerateNetworkSerializable(ReplicatedComponentInfo info)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+        sb.AppendLine("using KeenEyes.Network.Serialization;");
+        sb.AppendLine();
+
+        if (!string.IsNullOrEmpty(info.Namespace))
+        {
+            sb.AppendLine($"namespace {info.Namespace};");
+            sb.AppendLine();
+        }
+
+        // Generate partial struct implementing interfaces
+        var interfaces = new List<string> { "INetworkSerializable" };
+        if (info.Fields.Length > 0)
+        {
+            interfaces.Add($"INetworkDeltaSerializable<{info.Name}>");
+        }
+        if (info.GenerateInterpolation && info.Fields.Any(f => f.IsInterpolatable))
+        {
+            interfaces.Add($"INetworkInterpolatable<{info.Name}>");
+        }
+
+        sb.AppendLine($"public partial struct {info.Name} : {string.Join(", ", interfaces)}");
+        sb.AppendLine("{");
+
+        // Generate NetworkSerialize
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Serializes all fields to the network writer.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public void NetworkSerialize(ref BitWriter writer)");
+        sb.AppendLine("    {");
+        foreach (var field in info.Fields)
+        {
+            GenerateFieldWrite(sb, field);
+        }
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Generate NetworkDeserialize
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Deserializes all fields from the network reader.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    public void NetworkDeserialize(ref BitReader reader)");
+        sb.AppendLine("    {");
+        foreach (var field in info.Fields)
+        {
+            GenerateFieldRead(sb, field);
+        }
+        sb.AppendLine("    }");
+
+        // Generate delta serialization if we have fields
+        if (info.Fields.Length > 0)
+        {
+            sb.AppendLine();
+            GenerateDeltaMethods(sb, info);
+        }
+
+        // Generate interpolation if requested
+        if (info.GenerateInterpolation && info.Fields.Any(f => f.IsInterpolatable))
+        {
+            sb.AppendLine();
+            GenerateInterpolateMethod(sb, info);
+        }
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private static void GenerateFieldWrite(StringBuilder sb, ReplicatedFieldInfo field)
+    {
+        if (field.Quantized is not null)
+        {
+            var q = field.Quantized;
+            sb.AppendLine($"        writer.WriteQuantized({field.Name}, {q.Min}f, {q.Max}f, {q.Resolution}f);");
+        }
+        else
+        {
+            var writeMethod = field.SerializationType switch
+            {
+                FieldSerializationType.Bool => $"writer.WriteBool({field.Name});",
+                FieldSerializationType.Byte => $"writer.WriteByte({field.Name});",
+                FieldSerializationType.SByte => $"writer.WriteSignedBits({field.Name}, 8);",
+                FieldSerializationType.Int16 => $"writer.WriteSignedBits({field.Name}, 16);",
+                FieldSerializationType.UInt16 => $"writer.WriteUInt16({field.Name});",
+                FieldSerializationType.Int32 => $"writer.WriteSignedBits({field.Name}, 32);",
+                FieldSerializationType.UInt32 => $"writer.WriteUInt32({field.Name});",
+                FieldSerializationType.Float => $"writer.WriteFloat({field.Name});",
+                FieldSerializationType.Double => $"writer.WriteFloat((float){field.Name});", // Lossy for network
+                FieldSerializationType.Enum => $"writer.WriteBits((uint){field.Name}, 8);", // Assume 8-bit enum
+                _ => $"// TODO: Custom serialization for {field.TypeName}"
+            };
+            sb.AppendLine($"        {writeMethod}");
+        }
+    }
+
+    private static void GenerateFieldRead(StringBuilder sb, ReplicatedFieldInfo field)
+    {
+        if (field.Quantized is not null)
+        {
+            var q = field.Quantized;
+            sb.AppendLine($"        {field.Name} = reader.ReadQuantized({q.Min}f, {q.Max}f, {q.Resolution}f);");
+        }
+        else
+        {
+            var readMethod = field.SerializationType switch
+            {
+                FieldSerializationType.Bool => $"{field.Name} = reader.ReadBool();",
+                FieldSerializationType.Byte => $"{field.Name} = reader.ReadByte();",
+                FieldSerializationType.SByte => $"{field.Name} = (sbyte)reader.ReadSignedBits(8);",
+                FieldSerializationType.Int16 => $"{field.Name} = (short)reader.ReadSignedBits(16);",
+                FieldSerializationType.UInt16 => $"{field.Name} = reader.ReadUInt16();",
+                FieldSerializationType.Int32 => $"{field.Name} = reader.ReadSignedBits(32);",
+                FieldSerializationType.UInt32 => $"{field.Name} = reader.ReadUInt32();",
+                FieldSerializationType.Float => $"{field.Name} = reader.ReadFloat();",
+                FieldSerializationType.Double => $"{field.Name} = reader.ReadFloat();",
+                FieldSerializationType.Enum => $"{field.Name} = ({field.TypeName})reader.ReadBits(8);",
+                _ => $"// TODO: Custom deserialization for {field.TypeName}"
+            };
+            sb.AppendLine($"        {readMethod}");
+        }
+    }
+
+    private static void GenerateDeltaMethods(StringBuilder sb, ReplicatedComponentInfo info)
+    {
+        // GetDirtyMask
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Gets a bitmask of fields that differ from baseline.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public uint GetDirtyMask(in {info.Name} baseline)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        uint mask = 0;");
+        for (int i = 0; i < info.Fields.Length && i < 32; i++)
+        {
+            var field = info.Fields[i];
+            var comparison = field.SerializationType == FieldSerializationType.Float
+                ? $"MathF.Abs({field.Name} - baseline.{field.Name}) > 0.0001f"
+                : $"{field.Name} != baseline.{field.Name}";
+            sb.AppendLine($"        if ({comparison}) mask |= {1u << i};");
+        }
+        sb.AppendLine("        return mask;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // NetworkSerializeDelta
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Serializes only changed fields.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public void NetworkSerializeDelta(ref BitWriter writer, in {info.Name} baseline, uint dirtyMask)");
+        sb.AppendLine("    {");
+        for (int i = 0; i < info.Fields.Length && i < 32; i++)
+        {
+            var field = info.Fields[i];
+            sb.AppendLine($"        if ((dirtyMask & {1u << i}) != 0)");
+            sb.AppendLine("        {");
+            GenerateFieldWrite(sb, field);
+            sb.AppendLine("        }");
+        }
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // NetworkDeserializeDelta
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Deserializes changed fields onto baseline.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public void NetworkDeserializeDelta(ref BitReader reader, ref {info.Name} baseline, uint dirtyMask)");
+        sb.AppendLine("    {");
+        for (int i = 0; i < info.Fields.Length && i < 32; i++)
+        {
+            var field = info.Fields[i];
+            sb.AppendLine($"        if ((dirtyMask & {1u << i}) != 0)");
+            sb.AppendLine("        {");
+            GenerateFieldRead(sb, field);
+            sb.AppendLine("        }");
+        }
+        sb.AppendLine("    }");
+    }
+
+    private static void GenerateInterpolateMethod(StringBuilder sb, ReplicatedComponentInfo info)
+    {
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine("    /// Interpolates between two component states.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    public static {info.Name} Interpolate(in {info.Name} from, in {info.Name} to, float t)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        return new {info.Name}");
+        sb.AppendLine("        {");
+        foreach (var field in info.Fields)
+        {
+            if (field.IsInterpolatable && field.SerializationType is FieldSerializationType.Float or FieldSerializationType.Double)
+            {
+                sb.AppendLine($"            {field.Name} = from.{field.Name} + (to.{field.Name} - from.{field.Name}) * t,");
+            }
+            else if (field.IsInterpolatable && field.SerializationType is FieldSerializationType.Int32 or FieldSerializationType.Int64)
+            {
+                sb.AppendLine($"            {field.Name} = (int)(from.{field.Name} + (to.{field.Name} - from.{field.Name}) * t),");
+            }
+            else
+            {
+                // Non-interpolatable fields snap to 'to' at t >= 0.5
+                sb.AppendLine($"            {field.Name} = t >= 0.5f ? to.{field.Name} : from.{field.Name},");
+            }
+        }
+        sb.AppendLine("        };");
+        sb.AppendLine("    }");
+    }
+
+    private static string GenerateNetworkSerializerRegistry(ImmutableArray<ReplicatedComponentInfo> components)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("// <auto-generated />");
+        sb.AppendLine("#nullable enable");
+        sb.AppendLine();
+        sb.AppendLine("using System;");
+        sb.AppendLine("using System.Collections.Generic;");
+        sb.AppendLine("using KeenEyes.Network;");
+        sb.AppendLine("using KeenEyes.Network.Serialization;");
+        sb.AppendLine();
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Auto-generated network serializer registry for replicated components.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("public sealed class NetworkSerializer : INetworkSerializer");
+        sb.AppendLine("{");
+        sb.AppendLine("    private static readonly Dictionary<Type, ushort> typeToId = new()");
+        sb.AppendLine("    {");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            sb.AppendLine($"        [typeof({components[i].FullName})] = {i + 1},");
+        }
+        sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    private static readonly Dictionary<ushort, Type> idToType = new()");
+        sb.AppendLine("    {");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            sb.AppendLine($"        [{i + 1}] = typeof({components[i].FullName}),");
+        }
+        sb.AppendLine("    };");
+        sb.AppendLine();
+
+        // IsNetworkSerializable
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool IsNetworkSerializable(Type type) => typeToId.ContainsKey(type);");
+        sb.AppendLine();
+
+        // GetNetworkTypeId
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public ushort? GetNetworkTypeId(Type type) => typeToId.TryGetValue(type, out var id) ? id : null;");
+        sb.AppendLine();
+
+        // GetTypeFromNetworkId
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public Type? GetTypeFromNetworkId(ushort networkTypeId) => idToType.TryGetValue(networkTypeId, out var type) ? type : null;");
+        sb.AppendLine();
+
+        // Serialize
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool Serialize(Type type, object value, ref BitWriter writer)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (!typeToId.TryGetValue(type, out var id)) return false;");
+        sb.AppendLine("        switch (id)");
+        sb.AppendLine("        {");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            sb.AppendLine($"            case {i + 1}:");
+            sb.AppendLine($"                (({components[i].FullName})value).NetworkSerialize(ref writer);");
+            sb.AppendLine("                return true;");
+        }
+        sb.AppendLine("            default: return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Deserialize
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public object? Deserialize(ushort networkTypeId, ref BitReader reader)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        switch (networkTypeId)");
+        sb.AppendLine("        {");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            sb.AppendLine($"            case {i + 1}:");
+            sb.AppendLine($"                var v{i} = new {components[i].FullName}();");
+            sb.AppendLine($"                v{i}.NetworkDeserialize(ref reader);");
+            sb.AppendLine($"                return v{i};");
+        }
+        sb.AppendLine("            default: return null;");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+}
+
+// Data classes for generator
+internal sealed record ReplicatedComponentInfo(
+    string Name,
+    string Namespace,
+    string FullName,
+    int Strategy,
+    bool GenerateInterpolation,
+    bool GeneratePrediction,
+    byte Priority,
+    int Frequency,
+    ImmutableArray<ReplicatedFieldInfo> Fields);
+
+internal sealed record ReplicatedFieldInfo(
+    string Name,
+    string TypeName,
+    FieldSerializationType SerializationType,
+    QuantizedInfo? Quantized,
+    bool IsInterpolatable);
+
+internal sealed record QuantizedInfo(float Min, float Max, float Resolution);
+
+internal enum FieldSerializationType
+{
+    Bool,
+    Byte,
+    SByte,
+    Int16,
+    UInt16,
+    Int32,
+    UInt32,
+    Int64,
+    UInt64,
+    Float,
+    Double,
+    Enum,
+    Custom
+}
