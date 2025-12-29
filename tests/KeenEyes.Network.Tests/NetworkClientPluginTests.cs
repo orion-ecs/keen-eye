@@ -536,16 +536,17 @@ public sealed class NetworkClientPluginTests
 
         await plugin.ConnectAsync();
 
-        // Manually send rejection message
+        // Manually send rejection message with reason code
         Span<byte> buffer = stackalloc byte[16];
         var writer = new NetworkMessageWriter(buffer);
         writer.WriteHeader(MessageType.ConnectionRejected, 0);
+        writer.WriteByte(1); // Server is full reason code
         server.SendToAll(writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
         server.Update();
         client.Update();
 
         Assert.NotNull(rejectionReason);
-        Assert.Contains("rejected", rejectionReason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("full", rejectionReason, StringComparison.OrdinalIgnoreCase);
 
         client.Dispose();
         server.Dispose();

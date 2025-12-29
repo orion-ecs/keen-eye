@@ -73,6 +73,15 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     /// </summary>
     public ServerNetworkConfig Config => config;
 
+    /// <summary>
+    /// Raised when a client input is received.
+    /// </summary>
+    /// <remarks>
+    /// The parameters are (clientId, inputTick, rawInputData).
+    /// The input data span is only valid during the event callback.
+    /// </remarks>
+    public event Action<int, uint, ReadOnlySpan<byte>>? ClientInputReceived;
+
     /// <inheritdoc/>
     public void Install(IPluginContext ctx)
     {
@@ -330,7 +339,10 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
                 break;
 
             case MessageType.ClientInput:
-                // TODO: Process client input
+                // Notify listeners with remaining data as input payload
+                // The remaining bytes in the message after the header contain the input
+                var inputPayload = data[5..]; // Skip header (1 byte type + 4 bytes tick)
+                ClientInputReceived?.Invoke(clientId, tick, inputPayload);
                 break;
 
             case MessageType.Ping:

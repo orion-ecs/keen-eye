@@ -49,6 +49,8 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     private uint lastReceivedTick;
     private int localClientId;
     private bool isConnected;
+    private long lastPingSentTimestamp;
+    private float roundTripTimeMs;
 
     /// <inheritdoc/>
     public string Name => "NetworkClient";
@@ -107,6 +109,19 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     /// Raised when connection is rejected.
     /// </summary>
     public event Action<string>? ConnectionRejected;
+
+    /// <summary>
+    /// Raised when ownership of an entity is transferred.
+    /// </summary>
+    /// <remarks>
+    /// The parameters are (entity, oldOwnerId, newOwnerId).
+    /// </remarks>
+    public event Action<Entity, int, int>? OwnershipChanged;
+
+    /// <summary>
+    /// Gets the round-trip time to the server in milliseconds.
+    /// </summary>
+    public float RoundTripTimeMs => roundTripTimeMs;
 
     /// <summary>
     /// Gets the snapshot buffer for an entity, if it exists.
@@ -239,6 +254,18 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     }
 
     /// <summary>
+    /// Sends a ping to the server to measure round-trip time.
+    /// </summary>
+    public void SendPing()
+    {
+        lastPingSentTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        Span<byte> buffer = stackalloc byte[8];
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.Ping, currentTick);
+        transport.Send(0, writer.GetWrittenSpan(), DeliveryMode.Unreliable);
+    }
+
+    /// <summary>
     /// Spawns a local entity to represent a networked entity.
     /// </summary>
     /// <param name="networkId">The network ID from the server.</param>
@@ -350,8 +377,7 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
                 break;
 
             case MessageType.ConnectionRejected:
-                // TODO: Read rejection reason
-                ConnectionRejected?.Invoke("Connection rejected by server");
+                HandleConnectionRejected(ref reader);
                 break;
 
             case MessageType.EntitySpawn:
@@ -379,11 +405,11 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
                 break;
 
             case MessageType.Pong:
-                // TODO: Calculate RTT
+                HandlePong();
                 break;
 
             case MessageType.OwnershipTransfer:
-                // TODO: Handle ownership transfer
+                HandleOwnershipTransfer(ref reader);
                 break;
         }
 
@@ -514,4 +540,97 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     }
 
     private double serverTime; // Track server time for interpolation timestamps
+
+    private void HandleConnectionRejected(ref NetworkMessageReader reader)
+    {
+        // Read rejection reason code (1 byte)
+        var reasonCode = reader.ReadByte();
+        var reason = reasonCode switch
+        {
+            1 => "Server is full",
+            2 => "Authentication failed",
+            3 => "Version mismatch",
+            4 => "Banned",
+            _ => $"Connection rejected (code: {reasonCode})"
+        };
+        ConnectionRejected?.Invoke(reason);
+    }
+
+    private void HandlePong()
+    {
+        // Calculate RTT from ping timestamp
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        roundTripTimeMs = now - lastPingSentTimestamp;
+    }
+
+    private void HandleOwnershipTransfer(ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var networkId = reader.ReadNetworkId();
+        var newOwnerId = reader.ReadSignedBits(16);
+
+        if (!networkIdManager.TryGetLocalEntity(networkId, out var entity))
+        {
+            return;
+        }
+
+        // Get old owner before updating
+        var oldOwnerId = 0;
+        if (context.World.Has<NetworkOwner>(entity))
+        {
+            oldOwnerId = context.World.Get<NetworkOwner>(entity).ClientId;
+        }
+
+        // Update owner component
+        context.World.Set(entity, new NetworkOwner { ClientId = newOwnerId });
+
+        // Update ownership tags
+        var wasLocal = context.World.Has<LocallyOwned>(entity);
+        var willBeLocal = newOwnerId == localClientId;
+
+        if (wasLocal && !willBeLocal)
+        {
+            // Transfer from local to remote
+            context.World.Remove<LocallyOwned>(entity);
+            if (context.World.Has<Predicted>(entity))
+            {
+                context.World.Remove<Predicted>(entity);
+            }
+            if (context.World.Has<PredictionState>(entity))
+            {
+                context.World.Remove<PredictionState>(entity);
+            }
+            context.World.Add(entity, default(RemotelyOwned));
+            context.World.Add(entity, default(Interpolated));
+            context.World.Add(entity, new InterpolationState());
+            snapshotBuffers[entity] = new SnapshotBuffer();
+        }
+        else if (!wasLocal && willBeLocal)
+        {
+            // Transfer from remote to local
+            context.World.Remove<RemotelyOwned>(entity);
+            if (context.World.Has<Interpolated>(entity))
+            {
+                context.World.Remove<Interpolated>(entity);
+            }
+            if (context.World.Has<InterpolationState>(entity))
+            {
+                context.World.Remove<InterpolationState>(entity);
+            }
+            snapshotBuffers.Remove(entity);
+            context.World.Add(entity, default(LocallyOwned));
+            if (config.EnablePrediction)
+            {
+                context.World.Add(entity, default(Predicted));
+                context.World.Add(entity, new PredictionState());
+            }
+        }
+
+        // Notify listeners
+        OwnershipChanged?.Invoke(entity, oldOwnerId, newOwnerId);
+    }
 }
