@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Network.Abstractions</PackageId>
+    <Description>Abstractions and interfaces for KeenEyes ECS networking and multiplayer support</Description>
+    <PackageTags>ecs;entity;component;system;networking;multiplayer;replication;abstractions</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
