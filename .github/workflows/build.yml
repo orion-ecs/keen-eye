@@ -62,7 +62,7 @@ jobs:
           # Run all test projects except Parallelism.Tests
           for proj in tests/*/*.csproj; do
             if [[ ! "$proj" == *"Parallelism.Tests"* ]]; then
-              dotnet test "$proj" --no-build --configuration Release --verbosity normal \
+              dotnet test --project "$proj" --no-build --configuration Release --verbosity normal \
                 -- --coverage --coverage-output-format cobertura \
                 --report-github --report-github-summary-include-passed false
             fi
@@ -70,7 +70,7 @@ jobs:
 
       - name: Test Parallelism (isolated)
         run: |
-          dotnet test tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj \
+          dotnet test --project tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj \
             --no-build --configuration Release --verbosity normal \
             -- --coverage --coverage-output-format cobertura \
             --report-github --report-github-summary-include-passed false
