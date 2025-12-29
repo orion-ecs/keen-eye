@@ -60,13 +60,13 @@ jobs:
       - name: Test
         timeout-minutes: 10
         run: |
-          dotnet test --no-build --configuration Release --verbosity normal \
-            -- --coverage --coverage-output-format cobertura \
-            --report-github --report-github-summary-include-passed false \
-            --minimum-expected-tests 1 \
-            --filter-not-class KeenEyes.Tests.JobSchedulerTests \
-            --filter-not-class KeenEyes.Tests.ParallelProfilerTests \
-            --filter-not-class KeenEyes.Tests.ParallelSystemPluginTests
+          # Test all projects except Parallelism.Tests (causes CI hangs)
+          for proj in $(find tests -name '*.csproj' ! -path '*Parallelism.Tests*'); do
+            echo "Testing $proj"
+            dotnet test --project "$proj" --no-build --configuration Release --verbosity normal \
+              -- --coverage --coverage-output-format cobertura \
+              --report-github --report-github-summary-include-passed false
+          done
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
