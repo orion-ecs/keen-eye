@@ -474,6 +474,42 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
         sb.AppendLine("            default: return null;");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetRegisteredTypes
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public IEnumerable<Type> GetRegisteredTypes() => typeToId.Keys;");
+        sb.AppendLine();
+
+        // GetRegisteredComponentInfo
+        sb.AppendLine("    private static readonly NetworkComponentInfo[] componentInfos =");
+        sb.AppendLine("    [");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            var comp = components[i];
+            var strategy = comp.Strategy switch
+            {
+                0 => "SyncStrategy.Authoritative",
+                1 => "SyncStrategy.OwnerPredicted",
+                2 => "SyncStrategy.InterpolatedOnly",
+                _ => "SyncStrategy.Authoritative"
+            };
+            sb.AppendLine($"        new NetworkComponentInfo");
+            sb.AppendLine("        {");
+            sb.AppendLine($"            Type = typeof({comp.FullName}),");
+            sb.AppendLine($"            NetworkTypeId = {i + 1},");
+            sb.AppendLine($"            Strategy = {strategy},");
+            sb.AppendLine($"            Frequency = {comp.Frequency},");
+            sb.AppendLine($"            Priority = {comp.Priority},");
+            sb.AppendLine($"            SupportsInterpolation = {(comp.GenerateInterpolation ? "true" : "false")},");
+            sb.AppendLine($"            SupportsPrediction = {(comp.GeneratePrediction ? "true" : "false")},");
+            sb.AppendLine($"            SupportsDelta = {(comp.Fields.Length > 0 ? "true" : "false")},");
+            sb.AppendLine("        },");
+        }
+        sb.AppendLine("    ];");
+        sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public IEnumerable<NetworkComponentInfo> GetRegisteredComponentInfo() => componentInfos;");
 
         sb.AppendLine("}");
 
