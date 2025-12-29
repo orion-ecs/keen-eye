@@ -32,110 +32,199 @@ public sealed class NetworkSystemsTests
     }
 
     [Fact]
-    public void InterpolationSystem_Update_AdvancesServerTime()
+    public void InterpolationSystem_Update_AdvancesServerTimeAndCalculatesFactor()
     {
-        var (_, client) = LocalTransport.CreatePair();
         using var world = new World();
-        var plugin = new NetworkClientPlugin(client);
-        world.InstallPlugin(plugin);
+
+        // Register the InterpolationSystem with a short delay (10ms)
+        var system = new InterpolationSystem(interpolationDelayMs: 10f);
+        world.AddSystem(system, SystemPhase.Update);
+
+        // Create interpolated entity with time window from 0 to 0.1 seconds
+        var entity = world.Spawn()
+            .With(default(Interpolated))
+            .With(new InterpolationState { FromTime = 0, ToTime = 0.1, Factor = 0 })
+            .Build();
+
+        // First update: 50ms delta
+        // Server time = 0.05, render time = 0.05 - 0.01 = 0.04
+        // Factor = 0.04 / 0.1 = 0.4
+        world.Update(0.05f);
+
+        ref var interpState = ref world.Get<InterpolationState>(entity);
+        Assert.Equal(0.4f, interpState.Factor, 0.01f);
+    }
+
+    [Fact]
+    public void InterpolationSystem_Update_ClampsFactorAtZero()
+    {
+        using var world = new World();
+
+        // Use a long delay so render time is negative initially
+        var system = new InterpolationSystem(interpolationDelayMs: 200f);
+        world.AddSystem(system, SystemPhase.Update);
 
         // Create interpolated entity
         var entity = world.Spawn()
             .With(default(Interpolated))
-            .With(new InterpolationState { FromTime = 0, ToTime = 1 })
+            .With(new InterpolationState { FromTime = 0, ToTime = 1, Factor = 0.5f })
             .Build();
 
-        // Run world update (which runs systems including InterpolationSystem)
-        world.Update(0.05f); // 50ms
+        // Update with 50ms - server time = 0.05, render time = 0.05 - 0.2 = -0.15
+        // elapsed = -0.15 - 0 = -0.15, factor should be clamped to 0
+        world.Update(0.05f);
 
-        // Interpolation factor should be updated
         ref var interpState = ref world.Get<InterpolationState>(entity);
-        // Server time advances, but render time is behind by interpolation delay
-        Assert.True(interpState.Factor >= 0f);
-
-        world.UninstallPlugin("NetworkClient");
-        client.Dispose();
+        Assert.Equal(0f, interpState.Factor);
     }
 
     [Fact]
-    public void InterpolationSystem_Update_CalculatesInterpolationFactor()
+    public void InterpolationSystem_Update_ClampsFactorAtOne()
     {
-        var (_, client) = LocalTransport.CreatePair();
         using var world = new World();
-        var plugin = new NetworkClientPlugin(client);
-        world.InstallPlugin(plugin);
 
-        // Create interpolated entity with specific time window
+        // Use a very short delay (1ms)
+        var system = new InterpolationSystem(interpolationDelayMs: 1f);
+        world.AddSystem(system, SystemPhase.Update);
+
+        // Create entity with very short time window
         var entity = world.Spawn()
             .With(default(Interpolated))
-            .With(new InterpolationState { FromTime = 0, ToTime = 0.2 })
+            .With(new InterpolationState { FromTime = 0, ToTime = 0.01f, Factor = 0 })
             .Build();
 
-        // Run multiple updates to advance past interpolation delay (100ms default)
-        for (int i = 0; i < 10; i++)
-        {
-            world.Update(0.02f); // 20ms each = 200ms total
-        }
+        // Update with 500ms - well past the window
+        // Server time = 0.5, render time = 0.5 - 0.001 = 0.499
+        // elapsed = 0.499 - 0 = 0.499, duration = 0.01
+        // factor = 0.499 / 0.01 = 49.9, clamped to 1
+        world.Update(0.5f);
 
         ref var interpState = ref world.Get<InterpolationState>(entity);
-        // Factor should be clamped between 0 and 1
-        Assert.InRange(interpState.Factor, 0f, 1f);
-
-        world.UninstallPlugin("NetworkClient");
-        client.Dispose();
+        Assert.Equal(1f, interpState.Factor);
     }
 
     [Fact]
-    public void InterpolationSystem_Update_FactorStaysInRange()
+    public void InterpolationSystem_Update_SkipsWhenToTimeNotGreaterThanFromTime()
     {
-        var (_, client) = LocalTransport.CreatePair();
         using var world = new World();
-        var plugin = new NetworkClientPlugin(client);
-        world.InstallPlugin(plugin);
 
-        // Create entity with time window that will be exceeded
+        var system = new InterpolationSystem(interpolationDelayMs: 10f);
+        world.AddSystem(system, SystemPhase.Update);
+
+        // Create entity with invalid time window (ToTime < FromTime)
         var entity = world.Spawn()
             .With(default(Interpolated))
-            .With(new InterpolationState { FromTime = 0, ToTime = 0.01 })
+            .With(new InterpolationState { FromTime = 1.0, ToTime = 0.5, Factor = 0.25f })
             .Build();
 
-        // Run for longer than the interpolation window
-        for (int i = 0; i < 20; i++)
-        {
-            world.Update(0.02f);
-        }
+        // Update should not modify factor when ToTime <= FromTime
+        world.Update(0.05f);
 
         ref var interpState = ref world.Get<InterpolationState>(entity);
-        // Factor should be clamped in range [0, 1]
-        Assert.InRange(interpState.Factor, 0f, 1f);
-
-        world.UninstallPlugin("NetworkClient");
-        client.Dispose();
+        // Factor should remain unchanged
+        Assert.Equal(0.25f, interpState.Factor);
     }
 
     [Fact]
     public void InterpolationSystem_Update_HandlesZeroDuration()
     {
-        var (_, client) = LocalTransport.CreatePair();
         using var world = new World();
-        var plugin = new NetworkClientPlugin(client);
-        world.InstallPlugin(plugin);
+
+        var system = new InterpolationSystem(interpolationDelayMs: 10f);
+        world.AddSystem(system, SystemPhase.Update);
 
         // Create entity with zero duration (FromTime == ToTime)
         var entity = world.Spawn()
             .With(default(Interpolated))
-            .With(new InterpolationState { FromTime = 0.5, ToTime = 0.5 })
+            .With(new InterpolationState { FromTime = 0.5, ToTime = 0.5, Factor = 0.3f })
             .Build();
 
         // Should not throw or produce NaN
         world.Update(0.1f);
 
         ref var interpState = ref world.Get<InterpolationState>(entity);
-        // When duration is 0, factor should remain unchanged
+        // When duration is 0 (ToTime == FromTime), factor should remain unchanged
+        Assert.Equal(0.3f, interpState.Factor);
         Assert.False(float.IsNaN(interpState.Factor));
+    }
 
-        world.UninstallPlugin("NetworkClient");
-        client.Dispose();
+    [Fact]
+    public void InterpolationSystem_Update_ProcessesMultipleEntities()
+    {
+        using var world = new World();
+
+        var system = new InterpolationSystem(interpolationDelayMs: 10f);
+        world.AddSystem(system, SystemPhase.Update);
+
+        // Create multiple interpolated entities with different time windows
+        var entity1 = world.Spawn()
+            .With(default(Interpolated))
+            .With(new InterpolationState { FromTime = 0, ToTime = 0.1, Factor = 0 })
+            .Build();
+
+        var entity2 = world.Spawn()
+            .With(default(Interpolated))
+            .With(new InterpolationState { FromTime = 0, ToTime = 0.2, Factor = 0 })
+            .Build();
+
+        // Update: server time = 0.05, render time = 0.04
+        world.Update(0.05f);
+
+        ref var interpState1 = ref world.Get<InterpolationState>(entity1);
+        ref var interpState2 = ref world.Get<InterpolationState>(entity2);
+
+        // entity1: factor = 0.04 / 0.1 = 0.4
+        Assert.Equal(0.4f, interpState1.Factor, 0.01f);
+
+        // entity2: factor = 0.04 / 0.2 = 0.2
+        Assert.Equal(0.2f, interpState2.Factor, 0.01f);
+    }
+
+    [Fact]
+    public void InterpolationSystem_Update_IgnoresEntitiesWithoutInterpolatedTag()
+    {
+        using var world = new World();
+
+        var system = new InterpolationSystem(interpolationDelayMs: 10f);
+        world.AddSystem(system, SystemPhase.Update);
+
+        // Create entity with InterpolationState but NO Interpolated tag
+        var entity = world.Spawn()
+            .With(new InterpolationState { FromTime = 0, ToTime = 0.1, Factor = 0 })
+            .Build();
+
+        world.Update(0.05f);
+
+        ref var interpState = ref world.Get<InterpolationState>(entity);
+        // Factor should remain unchanged because entity lacks Interpolated tag
+        Assert.Equal(0f, interpState.Factor);
+    }
+
+    [Fact]
+    public void InterpolationSystem_Update_AccumulatesServerTimeAcrossUpdates()
+    {
+        using var world = new World();
+
+        // Use zero delay for simpler math
+        var system = new InterpolationSystem(interpolationDelayMs: 0f);
+        world.AddSystem(system, SystemPhase.Update);
+
+        var entity = world.Spawn()
+            .With(default(Interpolated))
+            .With(new InterpolationState { FromTime = 0, ToTime = 1.0, Factor = 0 })
+            .Build();
+
+        // First update: 0.1s
+        world.Update(0.1f);
+        Assert.Equal(0.1f, world.Get<InterpolationState>(entity).Factor, 0.01f);
+
+        // Second update: another 0.2s (total 0.3s)
+        world.Update(0.2f);
+        Assert.Equal(0.3f, world.Get<InterpolationState>(entity).Factor, 0.01f);
+
+        // Third update: another 0.3s (total 0.6s)
+        world.Update(0.3f);
+        Assert.Equal(0.6f, world.Get<InterpolationState>(entity).Factor, 0.01f);
     }
 
     #endregion
