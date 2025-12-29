@@ -55,6 +55,7 @@
     <Project Path="src/KeenEyes.Input.Abstractions/KeenEyes.Input.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Input/KeenEyes.Input.csproj" />
     <Project Path="src/KeenEyes.Logging/KeenEyes.Logging.csproj" />
+    <Project Path="src/KeenEyes.Network.Abstractions/KeenEyes.Network.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Parallelism/KeenEyes.Parallelism.csproj" />
     <Project Path="src/KeenEyes.Persistence/KeenEyes.Persistence.csproj" />
     <Project Path="src/KeenEyes.Replay/KeenEyes.Replay.csproj" />
