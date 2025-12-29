@@ -367,11 +367,11 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
                 break;
 
             case MessageType.FullSnapshot:
-                // TODO: Handle full snapshot
+                HandleFullSnapshot(ref reader);
                 break;
 
             case MessageType.DeltaSnapshot:
-                // TODO: Handle delta snapshot
+                HandleDeltaSnapshot(ref reader);
                 break;
 
             case MessageType.ComponentUpdate:
@@ -389,6 +389,60 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
         // Acknowledge received tick
         AcknowledgeTick(tick);
+    }
+
+    private void HandleFullSnapshot(ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var entityCount = reader.ReadEntityCount();
+        for (int i = 0; i < entityCount; i++)
+        {
+            reader.ReadEntitySpawn(out var networkId, out var ownerId);
+
+            // Check if entity already exists
+            Entity entity;
+            if (networkIdManager.TryGetLocalEntity(networkId, out var existingEntity))
+            {
+                entity = existingEntity;
+            }
+            else
+            {
+                entity = SpawnNetworkedEntity(networkId, ownerId);
+            }
+
+            // Apply all components
+            ApplyComponentUpdates(entity, ref reader);
+        }
+    }
+
+    private void HandleDeltaSnapshot(ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var entityCount = reader.ReadEntityCount();
+        for (int i = 0; i < entityCount; i++)
+        {
+            var networkId = reader.ReadNetworkId();
+
+            if (!networkIdManager.TryGetLocalEntity(networkId, out var entity))
+            {
+                // Entity not found - we cannot safely skip its components
+                // without knowing component sizes. In production, components would
+                // be length-prefixed or we'd track sizes in the serializer.
+                // For now, skip reading components for unknown entities.
+                _ = reader.ReadComponentCount();
+                continue;
+            }
+
+            ApplyComponentUpdates(entity, ref reader);
+        }
     }
 
     private void HandleComponentUpdate(ref NetworkMessageReader reader)

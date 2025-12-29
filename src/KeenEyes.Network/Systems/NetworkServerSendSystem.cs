@@ -30,6 +30,16 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             return; // Not time for a network tick yet
         }
 
+        // Check for clients that need full snapshots
+        foreach (var client in plugin.GetConnectedClients())
+        {
+            if (client.NeedsFullSnapshot)
+            {
+                plugin.SendFullSnapshot(client.ClientId);
+                client.NeedsFullSnapshot = false;
+            }
+        }
+
         var serializer = plugin.Config.Serializer;
         var config = plugin.Config;
 

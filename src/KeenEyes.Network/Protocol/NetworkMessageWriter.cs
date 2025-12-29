@@ -131,4 +131,22 @@ public ref struct NetworkMessageWriter(Span<byte> buffer)
     {
         serializer.Serialize(input, ref writer);
     }
+
+    /// <summary>
+    /// Writes the entity count for a snapshot message.
+    /// </summary>
+    /// <param name="count">The number of entities in the snapshot.</param>
+    public void WriteEntityCount(ushort count)
+    {
+        writer.WriteUInt16(count);
+    }
+
+    /// <summary>
+    /// Writes a byte value.
+    /// </summary>
+    /// <param name="value">The byte value.</param>
+    public void WriteByte(byte value)
+    {
+        writer.WriteByte(value);
+    }
 }
