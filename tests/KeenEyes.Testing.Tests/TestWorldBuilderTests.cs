@@ -184,6 +184,51 @@ public class TestWorldBuilderTests
 
     #endregion
 
+    #region WithMockNetwork Tests
+
+    [Fact]
+    public void WithMockNetwork_CreatesMockNetworkContext()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockNetwork()
+            .Build();
+
+        testWorld.MockNetwork.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void WithMockNetwork_WithOptions_AppliesOptions()
+    {
+        var options = new Testing.Network.NetworkOptions
+        {
+            SimulatedLatency = 50f,
+            SimulatedLatencyVariance = 10f,
+            SimulatedPacketLoss = 0.01f
+        };
+
+        using var testWorld = new TestWorldBuilder()
+            .WithMockNetwork(options)
+            .Build();
+
+        testWorld.MockNetwork.ShouldNotBeNull();
+        testWorld.MockNetwork!.Options.SimulatedLatency.ShouldBe(50f);
+        testWorld.MockNetwork!.Options.SimulatedLatencyVariance.ShouldBe(10f);
+        testWorld.MockNetwork!.Options.SimulatedPacketLoss.ShouldBe(0.01f);
+    }
+
+    [Fact]
+    public void WithMockNetwork_WithNullOptions_UsesDefaults()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockNetwork(null)
+            .Build();
+
+        testWorld.MockNetwork.ShouldNotBeNull();
+        testWorld.MockNetwork!.Options.ShouldNotBeNull();
+    }
+
+    #endregion
+
     #region Chaining Tests
 
     [Fact]

@@ -613,6 +613,43 @@ public class QueryCachingTests
         Assert.NotEqual(desc1, desc2);
     }
 
+    [Fact]
+    public void QueryDescriptor_DifferentWithLength_NotEqual()
+    {
+        var desc1 = new QueryDescriptor([typeof(Position), typeof(Velocity)], []);
+        var desc2 = new QueryDescriptor([typeof(Position)], []);
+
+        Assert.NotEqual(desc1, desc2);
+    }
+
+    [Fact]
+    public void QueryDescriptor_DifferentWithoutLength_NotEqual()
+    {
+        var desc1 = new QueryDescriptor([typeof(Position)], [typeof(Velocity), typeof(Health)]);
+        var desc2 = new QueryDescriptor([typeof(Position)], [typeof(Velocity)]);
+
+        Assert.NotEqual(desc1, desc2);
+    }
+
+    [Fact]
+    public void QueryDescriptor_DifferentWithOrder_NotEqual()
+    {
+        // QueryDescriptor uses sorted arrays, but if elements differ at any position, should not equal
+        var desc1 = new QueryDescriptor([typeof(Position)], []);
+        var desc2 = new QueryDescriptor([typeof(Velocity)], []);
+
+        Assert.NotEqual(desc1, desc2);
+    }
+
+    [Fact]
+    public void QueryDescriptor_DifferentWithoutOrder_NotEqual()
+    {
+        var desc1 = new QueryDescriptor([], [typeof(Position)]);
+        var desc2 = new QueryDescriptor([], [typeof(Velocity)]);
+
+        Assert.NotEqual(desc1, desc2);
+    }
+
     #endregion
 
     #region Thread Safety Tests
@@ -950,6 +987,95 @@ public class QueryCachingTests
         // Final result should have all matching archetypes (Position only + Position+Velocity)
         var finalResult = queryManager.GetMatchingArchetypes(description);
         Assert.Equal(2, finalResult.Count);
+    }
+
+    #endregion
+
+    #region Query Cache Invalidation Edge Cases
+
+    [Fact]
+    public void QueryManager_InvalidateAll_ClearsAllCachedQueries()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        manager.GetOrCreateArchetype([typeof(Position)]);
+        manager.GetOrCreateArchetype([typeof(Velocity)]);
+
+        var posDescription = new QueryDescription();
+        posDescription.AddWrite<Position>();
+
+        var velDescription = new QueryDescription();
+        velDescription.AddWrite<Velocity>();
+
+        // Cache two different queries
+        queryManager.GetMatchingArchetypes(posDescription);
+        queryManager.GetMatchingArchetypes(velDescription);
+
+        Assert.Equal(2, queryManager.CachedQueryCount);
+
+        // Invalidate all caches
+        queryManager.InvalidateCache();
+
+        Assert.Equal(0, queryManager.CachedQueryCount);
+    }
+
+    [Fact]
+    public void QueryManager_SameQueryRepeated_UsesCache()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+
+        // First query - cache miss
+        var result1 = queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(1, queryManager.CacheMisses);
+
+        // Same query again - cache hit
+        var result2 = queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(1, queryManager.CacheHits);
+
+        // Results should be identical (same cached instance)
+        Assert.Same(result1, result2);
+    }
+
+    [Fact]
+    public void QueryManager_OnArchetypeCreated_UpdatesMatchingCaches()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        // Create first archetype
+        manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+
+        // Query and cache
+        var result1 = queryManager.GetMatchingArchetypes(description);
+        Assert.Single(result1);
+
+        // Create new archetype that matches the cached query
+        manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+
+        // Query again - should include new archetype
+        var result2 = queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(2, result2.Count);
     }
 
     #endregion
