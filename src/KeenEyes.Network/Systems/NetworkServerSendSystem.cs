@@ -18,6 +18,9 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
     // Track last sent component values per entity for delta detection
     private readonly Dictionary<Entity, Dictionary<Type, object>> lastSentState = [];
 
+    // Track bytes sent this tick for bandwidth limiting
+    private int bytesSentThisTick;
+
     /// <inheritdoc/>
     public override void Update(float deltaTime)
     {
@@ -28,18 +31,63 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         }
 
         var serializer = plugin.Config.Serializer;
+        var config = plugin.Config;
 
-        // Send entity updates to clients
+        // Calculate bytes per tick budget
+        var bytesPerTick = config.EnableBandwidthLimiting
+            ? config.MaxBandwidthBytesPerSecond / config.TickRate
+            : int.MaxValue;
+        bytesSentThisTick = 0;
+
+        // Collect entities that need updates and sort by priority
+        var entitiesToUpdate = new List<(Entity entity, float priority, bool needsFullSync)>();
+
         foreach (var entity in World.Query<NetworkId, NetworkState>())
+        {
+            ref var networkState = ref World.Get<NetworkState>(entity);
+
+            // Accumulate priority over time
+            networkState.AccumulatedPriority += deltaTime;
+
+            if (ShouldSendEntity(entity, ref networkState, serializer))
+            {
+                entitiesToUpdate.Add((entity, networkState.AccumulatedPriority, networkState.NeedsFullSync));
+            }
+        }
+
+        // Sort by priority (higher first), with full sync entities always at front
+        entitiesToUpdate.Sort((a, b) =>
+        {
+            // Full sync entities have highest priority
+            if (a.needsFullSync != b.needsFullSync)
+            {
+                return a.needsFullSync ? -1 : 1;
+            }
+            return b.priority.CompareTo(a.priority);
+        });
+
+        // Send entity updates within bandwidth budget
+        foreach (var (entity, _, _) in entitiesToUpdate)
         {
             ref var networkState = ref World.Get<NetworkState>(entity);
             ref readonly var networkId = ref World.Get<NetworkId>(entity);
 
-            // Check if entity needs to be sent this tick
-            if (ShouldSendEntity(entity, ref networkState, serializer))
+            // Check bandwidth budget
+            if (config.EnableBandwidthLimiting && bytesSentThisTick >= bytesPerTick)
             {
-                SendEntityUpdate(entity, networkId, ref networkState);
-                networkState.LastSentTick = plugin.CurrentTick;
+                // Don't reset priority for entities we couldn't send
+                break;
+            }
+
+            var bytesBefore = bytesSentThisTick;
+            SendEntityUpdate(entity, networkId, ref networkState);
+            networkState.LastSentTick = plugin.CurrentTick;
+            networkState.AccumulatedPriority = 0; // Reset priority after sending
+
+            // Stop if we've exceeded budget (but we already sent this message)
+            if (config.EnableBandwidthLimiting && bytesSentThisTick > bytesPerTick)
+            {
+                break;
             }
         }
 
@@ -123,7 +171,9 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             WriteReplicatedComponents(entity, ref writer, serializer, isDelta: true);
         }
 
-        plugin.SendToAll(writer.GetWrittenSpan(), DeliveryMode.UnreliableSequenced);
+        var span = writer.GetWrittenSpan();
+        bytesSentThisTick += span.Length;
+        plugin.SendToAll(span, DeliveryMode.UnreliableSequenced);
 
         // Update last sent state for delta tracking
         SaveSentState(entity, serializer);
