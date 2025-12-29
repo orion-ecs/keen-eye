@@ -59,21 +59,21 @@ jobs:
 
       - name: Test (excluding Parallelism)
         run: |
-          dotnet test --no-build --configuration Release --verbosity normal \
-            -- --coverage --coverage-output-format cobertura \
-            --report-github --report-github-summary-include-passed false \
-            --filter-not-class KeenEyes.Tests.JobSchedulerTests \
-            --filter-not-class KeenEyes.Tests.ParallelProfilerTests \
-            --filter-not-class KeenEyes.Tests.ParallelSystemPluginTests
+          # Run all test projects except Parallelism.Tests
+          for proj in tests/*/*.csproj; do
+            if [[ ! "$proj" == *"Parallelism.Tests"* ]]; then
+              dotnet test "$proj" --no-build --configuration Release --verbosity normal \
+                -- --coverage --coverage-output-format cobertura \
+                --report-github --report-github-summary-include-passed false
+            fi
+          done
 
       - name: Test Parallelism (isolated)
         run: |
-          dotnet test --no-build --configuration Release --verbosity normal \
+          dotnet test tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj \
+            --no-build --configuration Release --verbosity normal \
             -- --coverage --coverage-output-format cobertura \
-            --report-github --report-github-summary-include-passed false \
-            --filter-class KeenEyes.Tests.JobSchedulerTests \
-            --filter-class KeenEyes.Tests.ParallelProfilerTests \
-            --filter-class KeenEyes.Tests.ParallelSystemPluginTests
+            --report-github --report-github-summary-include-passed false
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
