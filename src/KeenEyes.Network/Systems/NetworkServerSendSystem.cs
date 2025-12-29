@@ -1,5 +1,6 @@
 using KeenEyes.Network.Components;
 using KeenEyes.Network.Protocol;
+using KeenEyes.Network.Serialization;
 using KeenEyes.Network.Transport;
 
 namespace KeenEyes.Network.Systems;
@@ -57,6 +58,7 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
     private void SendEntityUpdate(Entity entity, NetworkId networkId, ref NetworkState state)
     {
         var writer = new NetworkMessageWriter(sendBuffer);
+        var serializer = plugin.Config.Serializer;
 
         if (state.NeedsFullSync)
         {
@@ -69,19 +71,52 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 
             writer.WriteEntitySpawn(networkId.Value, owner.ClientId);
 
-            // TODO: Write all replicated components
+            // Write all replicated components
+            WriteReplicatedComponents(entity, ref writer, serializer);
 
             state.NeedsFullSync = false;
         }
         else
         {
-            // Send delta update
+            // Send delta update (only changed components)
             writer.WriteHeader(MessageType.ComponentUpdate, plugin.CurrentTick);
             writer.WriteUInt32(networkId.Value);
 
-            // TODO: Write dirty components only
+            // Write components (for now, write all; later: check dirty flags)
+            WriteReplicatedComponents(entity, ref writer, serializer);
         }
 
         plugin.SendToAll(writer.GetWrittenSpan(), DeliveryMode.UnreliableSequenced);
+    }
+
+    private void WriteReplicatedComponents(Entity entity, ref NetworkMessageWriter writer, INetworkSerializer? serializer)
+    {
+        if (serializer is null)
+        {
+            // No serializer configured, write 0 components
+            writer.WriteComponentCount(0);
+            return;
+        }
+
+        // Count replicated components first
+        byte count = 0;
+        foreach (var (type, _) in World.GetComponents(entity))
+        {
+            if (serializer.IsNetworkSerializable(type))
+            {
+                count++;
+            }
+        }
+
+        writer.WriteComponentCount(count);
+
+        // Write each replicated component
+        foreach (var (type, value) in World.GetComponents(entity))
+        {
+            if (serializer.IsNetworkSerializable(type))
+            {
+                writer.WriteComponent(serializer, type, value);
+            }
+        }
     }
 }

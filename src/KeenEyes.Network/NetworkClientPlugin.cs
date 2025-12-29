@@ -1,6 +1,7 @@
 using KeenEyes.Network.Components;
 using KeenEyes.Network.Protocol;
 using KeenEyes.Network.Replication;
+using KeenEyes.Network.Serialization;
 using KeenEyes.Network.Systems;
 using KeenEyes.Network.Transport;
 
@@ -272,7 +273,9 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
             case MessageType.EntitySpawn:
                 reader.ReadEntitySpawn(out var spawnNetworkId, out var ownerId);
-                SpawnNetworkedEntity(spawnNetworkId, ownerId);
+                var spawnedEntity = SpawnNetworkedEntity(spawnNetworkId, ownerId);
+                // Read and apply initial components
+                ApplyComponentUpdates(spawnedEntity, ref reader);
                 break;
 
             case MessageType.EntityDespawn:
@@ -289,7 +292,7 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
                 break;
 
             case MessageType.ComponentUpdate:
-                // TODO: Handle component update
+                HandleComponentUpdate(ref reader);
                 break;
 
             case MessageType.Pong:
@@ -303,5 +306,49 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
         // Acknowledge received tick
         AcknowledgeTick(tick);
+    }
+
+    private void HandleComponentUpdate(ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var networkId = reader.ReadNetworkId();
+        if (!networkIdManager.TryGetLocalEntity(networkId, out var entity))
+        {
+            // Entity not found, skip the component data
+            return;
+        }
+
+        ApplyComponentUpdates(entity, ref reader);
+    }
+
+    private void ApplyComponentUpdates(Entity entity, ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var serializer = config.Serializer;
+        if (serializer is null)
+        {
+            // No serializer, skip component data by reading count
+            _ = reader.ReadComponentCount();
+            // Cannot skip actual data without knowing sizes, so just return
+            return;
+        }
+
+        var componentCount = reader.ReadComponentCount();
+        for (int i = 0; i < componentCount; i++)
+        {
+            var component = reader.ReadComponent(serializer, out var componentType);
+            if (component is not null && componentType is not null)
+            {
+                context.World.SetComponent(entity, componentType, component);
+            }
+        }
     }
 }

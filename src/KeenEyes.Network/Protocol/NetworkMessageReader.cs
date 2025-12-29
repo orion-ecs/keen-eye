@@ -78,4 +78,40 @@ public ref struct NetworkMessageReader(ReadOnlySpan<byte> data)
     {
         return reader.ReadUInt16();
     }
+
+    /// <summary>
+    /// Reads a component using the network serializer.
+    /// </summary>
+    /// <param name="serializer">The network serializer.</param>
+    /// <param name="componentType">Output: The type of the deserialized component.</param>
+    /// <returns>The deserialized component, or null if type not registered.</returns>
+    public object? ReadComponent(INetworkSerializer serializer, out Type? componentType)
+    {
+        var typeId = reader.ReadUInt16();
+        componentType = serializer.GetTypeFromNetworkId(typeId);
+        if (componentType is null)
+        {
+            return null;
+        }
+
+        return serializer.Deserialize(typeId, ref reader);
+    }
+
+    /// <summary>
+    /// Reads the component count for an entity update.
+    /// </summary>
+    /// <returns>The number of components.</returns>
+    public byte ReadComponentCount()
+    {
+        return reader.ReadByte();
+    }
+
+    /// <summary>
+    /// Reads the network ID from a component update message.
+    /// </summary>
+    /// <returns>The network entity ID.</returns>
+    public uint ReadNetworkId()
+    {
+        return reader.ReadUInt32();
+    }
 }

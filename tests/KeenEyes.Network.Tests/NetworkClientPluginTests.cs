@@ -463,11 +463,12 @@ public sealed class NetworkClientPluginTests
         server.Update();
         client.Update(); // Process ConnectionAccepted
 
-        // Server sends EntitySpawn
+        // Server sends EntitySpawn (with 0 components)
         Span<byte> buffer = stackalloc byte[32];
         var writer = new NetworkMessageWriter(buffer);
         writer.WriteHeader(MessageType.EntitySpawn, 1);
         writer.WriteEntitySpawn(networkId: 55, ownerId: 0);
+        writer.WriteComponentCount(0); // No components attached
         server.SendToAll(writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
         server.Update();
         client.Update();

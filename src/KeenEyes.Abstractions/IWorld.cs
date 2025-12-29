@@ -403,6 +403,38 @@ public interface IWorld : IDisposable
     /// <returns>An enumerable of all alive entities.</returns>
     IEnumerable<Entity> GetAllEntities();
 
+    /// <summary>
+    /// Gets all components on an entity as type/value pairs.
+    /// </summary>
+    /// <param name="entity">The entity to get components from.</param>
+    /// <returns>An enumerable of (Type, object) tuples for each component.</returns>
+    /// <remarks>
+    /// <para>
+    /// This is primarily used for serialization, debugging, and network replication
+    /// where component types are not known at compile time. Values are boxed.
+    /// </para>
+    /// </remarks>
+    IEnumerable<(Type Type, object Value)> GetComponents(Entity entity);
+
+    /// <summary>
+    /// Sets or adds a component value on an entity using a boxed value and type.
+    /// </summary>
+    /// <param name="entity">The entity to set the component on.</param>
+    /// <param name="componentType">The type of the component.</param>
+    /// <param name="value">The boxed component value.</param>
+    /// <remarks>
+    /// <para>
+    /// This method adds the component if the entity doesn't have it, or updates
+    /// the existing value if it does. The component type must already be registered.
+    /// </para>
+    /// <para>
+    /// This is primarily used for network replication where components are deserialized
+    /// as boxed values. For typed component operations, prefer <see cref="Add{T}"/> and
+    /// <see cref="Set{T}"/>.
+    /// </para>
+    /// </remarks>
+    void SetComponent(Entity entity, Type componentType, object value);
+
     #endregion
 
     #region System Execution

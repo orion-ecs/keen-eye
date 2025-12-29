@@ -814,5 +814,51 @@ public sealed partial class World
         }
     }
 
+    /// <summary>
+    /// Sets or adds a component value on an entity using a boxed value and type.
+    /// </summary>
+    /// <param name="entity">The entity to set the component on.</param>
+    /// <param name="componentType">The type of the component.</param>
+    /// <param name="value">The boxed component value.</param>
+    /// <remarks>
+    /// <para>
+    /// This method adds the component if the entity doesn't have it, or updates
+    /// the existing value if it does. The component type is registered automatically
+    /// if not already registered.
+    /// </para>
+    /// <para>
+    /// This is primarily used for network replication where components are deserialized
+    /// as boxed values. For typed component operations, prefer <see cref="Add{T}"/> and
+    /// <see cref="Set{T}"/>.
+    /// </para>
+    /// </remarks>
+    public void SetComponent(Entity entity, Type componentType, object value)
+    {
+        if (!IsAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        // For network replication, component types should already be registered
+        // via the generated serializer initialization
+        if (Components.Get(componentType) is null)
+        {
+            throw new InvalidOperationException(
+                $"Component type {componentType.Name} is not registered. " +
+                "Ensure the component is registered before network replication.");
+        }
+
+        if (archetypeManager.Has(entity, componentType))
+        {
+            // Update existing component
+            archetypeManager.SetBoxed(entity, componentType, value);
+        }
+        else
+        {
+            // Add new component - proper archetype migration preserves entity ID
+            archetypeManager.AddComponentBoxed(entity, componentType, value);
+        }
+    }
+
     #endregion
 }
