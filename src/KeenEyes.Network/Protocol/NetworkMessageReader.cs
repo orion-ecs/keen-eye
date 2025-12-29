@@ -114,4 +114,22 @@ public ref struct NetworkMessageReader(ReadOnlySpan<byte> data)
     {
         return reader.ReadUInt32();
     }
+
+    /// <summary>
+    /// Reads the entity count from a snapshot message.
+    /// </summary>
+    /// <returns>The number of entities in the snapshot.</returns>
+    public ushort ReadEntityCount()
+    {
+        return reader.ReadUInt16();
+    }
+
+    /// <summary>
+    /// Reads a byte value.
+    /// </summary>
+    /// <returns>The byte value.</returns>
+    public byte ReadByte()
+    {
+        return reader.ReadByte();
+    }
 }

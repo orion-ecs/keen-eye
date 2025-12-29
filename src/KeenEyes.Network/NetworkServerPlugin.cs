@@ -194,6 +194,77 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         return clients.TryGetValue(clientId, out state);
     }
 
+    /// <summary>
+    /// Gets all connected clients.
+    /// </summary>
+    /// <returns>An enumerable of client states.</returns>
+    public IEnumerable<ClientState> GetConnectedClients()
+    {
+        return clients.Values;
+    }
+
+    /// <summary>
+    /// Sends a full world snapshot to a client.
+    /// </summary>
+    /// <param name="clientId">The client to send to.</param>
+    /// <remarks>
+    /// <para>
+    /// A full snapshot contains all networked entities and their current state.
+    /// This is used for late joiners to sync up with the world state.
+    /// </para>
+    /// </remarks>
+    public void SendFullSnapshot(int clientId)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var serializer = config.Serializer;
+        if (serializer is null)
+        {
+            return;
+        }
+
+        // Collect all networked entities
+        var entities = new List<(Entity entity, NetworkId netId, int ownerId)>();
+        foreach (var entity in context.World.Query<NetworkId, NetworkOwner>())
+        {
+            ref readonly var netId = ref context.World.Get<NetworkId>(entity);
+            ref readonly var owner = ref context.World.Get<NetworkOwner>(entity);
+            entities.Add((entity, netId, owner.ClientId));
+        }
+
+        // Use a large buffer for the snapshot
+        var buffer = new byte[64 * 1024]; // 64KB buffer
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.FullSnapshot, currentTick);
+        writer.WriteEntityCount((ushort)entities.Count);
+
+        foreach (var (entity, netId, ownerId) in entities)
+        {
+            writer.WriteEntitySpawn(netId.Value, ownerId);
+
+            // Write all replicated components
+            var toSend = new List<(Type, object)>();
+            foreach (var (type, value) in context.World.GetComponents(entity))
+            {
+                if (serializer.IsNetworkSerializable(type))
+                {
+                    toSend.Add((type, value));
+                }
+            }
+
+            writer.WriteComponentCount((byte)toSend.Count);
+            foreach (var (type, value) in toSend)
+            {
+                writer.WriteComponent(serializer, type, value);
+            }
+        }
+
+        transport.Send(clientId, writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+    }
+
     private void OnClientConnected(int clientId)
     {
         if (clients.Count >= config.MaxClients)
