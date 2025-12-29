@@ -78,12 +78,6 @@
           "EmptyFiles": "4.4.0"
         }
       },
-      "xunit.runner.visualstudio": {
-        "type": "Direct",
-        "requested": "[3.1.5, )",
-        "resolved": "3.1.5",
-        "contentHash": "tKi7dSTwP4m5m9eXPM2Ime4Kn7xNf4x4zT9sdLO/G4hZVnQCRiMTWoSZqI/pYTVeI27oPPqHBKYI/DjJ9GsYgA=="
-      },
       "xunit.v3.mtp-v2": {
         "type": "Direct",
         "requested": "[3.2.1, )",
@@ -428,10 +422,7 @@
         }
       },
       "keeneyes.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "keeneyes.core": {
         "type": "Project",
@@ -442,12 +433,8 @@
       "keeneyes.generators": {
         "type": "Project",
         "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )",
           "Microsoft.CodeAnalysis.CSharp": "[5.0.0, )"
         }
-      },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
       },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "CentralTransitive",
