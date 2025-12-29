@@ -115,9 +115,6 @@
         "dependencies": {
           "System.Runtime.CompilerServices.Unsafe": "6.1.0"
         }
-      },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
       }
     }
   }
