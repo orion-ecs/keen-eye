@@ -57,8 +57,19 @@ jobs:
       - name: Build
         run: dotnet build --no-restore --configuration Release
 
-      - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal --coverage --coverage-output-format cobertura --report-github --report-github-summary-include-passed false
+      - name: Test (excluding Parallelism)
+        run: |
+          dotnet test --no-build --configuration Release --verbosity normal \
+            --coverage --coverage-output-format cobertura \
+            --report-github --report-github-summary-include-passed false \
+            --filter "FullyQualifiedName!~KeenEyes.Parallelism.Tests"
+
+      - name: Test Parallelism (isolated)
+        run: |
+          dotnet test tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj \
+            --no-build --configuration Release --verbosity normal \
+            --coverage --coverage-output-format cobertura \
+            --report-github --report-github-summary-include-passed false
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
