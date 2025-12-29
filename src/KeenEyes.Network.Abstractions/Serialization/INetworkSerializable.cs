@@ -130,3 +130,33 @@ public interface INetworkExtrapolatable<TSelf>
     /// <returns>The extrapolated state.</returns>
     static abstract TSelf Extrapolate(in TSelf current, float deltaTime);
 }
+
+/// <summary>
+/// Runtime registry for network interpolation operations.
+/// </summary>
+/// <remarks>
+/// <para>
+/// This interface is implemented by generated code that can interpolate components
+/// marked with <see cref="ReplicatedAttribute"/> that have interpolation enabled.
+/// It provides type-erased interpolation for use at runtime.
+/// </para>
+/// </remarks>
+public interface INetworkInterpolator
+{
+    /// <summary>
+    /// Checks if a component type supports interpolation.
+    /// </summary>
+    /// <param name="type">The component type to check.</param>
+    /// <returns>True if the type can be interpolated; false otherwise.</returns>
+    bool IsInterpolatable(Type type);
+
+    /// <summary>
+    /// Interpolates between two component values.
+    /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="from">The starting value (boxed).</param>
+    /// <param name="to">The target value (boxed).</param>
+    /// <param name="factor">The interpolation factor (0 = from, 1 = to).</param>
+    /// <returns>The interpolated value (boxed), or null if type not interpolatable.</returns>
+    object? Interpolate(Type type, object from, object to, float factor);
+}

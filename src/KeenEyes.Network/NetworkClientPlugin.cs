@@ -39,6 +39,7 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     private readonly INetworkTransport transport = transport;
     private readonly ClientNetworkConfig config = config ?? new ClientNetworkConfig();
     private readonly NetworkIdManager networkIdManager = new(isServer: false);
+    private readonly Dictionary<Entity, SnapshotBuffer> snapshotBuffers = [];
 
     private IPluginContext? context;
     private uint currentTick;
@@ -98,6 +99,16 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     /// Raised when connection is rejected.
     /// </summary>
     public event Action<string>? ConnectionRejected;
+
+    /// <summary>
+    /// Gets the snapshot buffer for an entity, if it exists.
+    /// </summary>
+    /// <param name="entity">The entity to get the snapshot buffer for.</param>
+    /// <returns>The snapshot buffer, or null if the entity has no buffer.</returns>
+    public SnapshotBuffer? GetSnapshotBuffer(Entity entity)
+    {
+        return snapshotBuffers.TryGetValue(entity, out var buffer) ? buffer : null;
+    }
 
     /// <inheritdoc/>
     public void Install(IPluginContext ctx)
@@ -201,6 +212,8 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             context.World.Add(entity, default(RemotelyOwned));
             context.World.Add(entity, default(Interpolated));
             context.World.Add(entity, new InterpolationState());
+            // Create snapshot buffer for interpolation
+            snapshotBuffers[entity] = new SnapshotBuffer();
         }
 
         return entity;
@@ -220,6 +233,7 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
         if (networkIdManager.TryGetLocalEntity(networkId, out var entity))
         {
             networkIdManager.UnregisterNetworkId(new NetworkId { Value = networkId });
+            snapshotBuffers.Remove(entity); // Clean up snapshot buffer
             context.World.Despawn(entity);
         }
     }
@@ -232,6 +246,10 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     {
         lastReceivedTick = serverTick;
         currentTick = serverTick;
+
+        // Update server time estimate based on tick (assuming fixed tick rate)
+        var tickInterval = 1.0 / config.TickRate;
+        serverTime = serverTick * tickInterval;
     }
 
     private void OnStateChanged(ConnectionState state)
@@ -341,14 +359,40 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             return;
         }
 
+        var interpolator = config.Interpolator;
+        snapshotBuffers.TryGetValue(entity, out var snapshotBuffer);
+
         var componentCount = reader.ReadComponentCount();
         for (int i = 0; i < componentCount; i++)
         {
             var component = reader.ReadComponent(serializer, out var componentType);
             if (component is not null && componentType is not null)
             {
-                context.World.SetComponent(entity, componentType, component);
+                // If interpolation is enabled for this entity and component,
+                // push to snapshot buffer instead of applying directly
+                if (snapshotBuffer is not null &&
+                    interpolator is not null &&
+                    interpolator.IsInterpolatable(componentType))
+                {
+                    snapshotBuffer.PushSnapshot(componentType, component);
+
+                    // Update interpolation timestamps
+                    if (context.World.Has<InterpolationState>(entity))
+                    {
+                        ref var interpState = ref context.World.Get<InterpolationState>(entity);
+                        interpState.FromTime = interpState.ToTime;
+                        interpState.ToTime = serverTime;
+                        interpState.Factor = 0f; // Reset factor for new interpolation window
+                    }
+                }
+                else
+                {
+                    // No interpolation, apply directly
+                    context.World.SetComponent(entity, componentType, component);
+                }
             }
         }
     }
+
+    private double serverTime; // Track server time for interpolation timestamps
 }

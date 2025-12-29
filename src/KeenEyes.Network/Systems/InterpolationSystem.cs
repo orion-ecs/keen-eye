@@ -1,4 +1,5 @@
 using KeenEyes.Network.Components;
+using KeenEyes.Network.Serialization;
 
 namespace KeenEyes.Network.Systems;
 
@@ -12,7 +13,13 @@ namespace KeenEyes.Network.Systems;
 /// smooth movement.
 /// </para>
 /// </remarks>
-public sealed class InterpolationSystem(float interpolationDelayMs = 100f) : SystemBase
+/// <param name="interpolationDelayMs">The interpolation delay in milliseconds.</param>
+/// <param name="interpolator">The network interpolator for component interpolation.</param>
+/// <param name="getSnapshotBuffer">Function to get the snapshot buffer for an entity.</param>
+public sealed class InterpolationSystem(
+    float interpolationDelayMs = 100f,
+    INetworkInterpolator? interpolator = null,
+    Func<Entity, SnapshotBuffer?>? getSnapshotBuffer = null) : SystemBase
 {
     private readonly float interpolationDelay = interpolationDelayMs / 1000f;
     private double serverTime;
@@ -38,8 +45,35 @@ public sealed class InterpolationSystem(float interpolationDelayMs = 100f) : Sys
                 interpState.Factor = Math.Clamp((float)(elapsed / duration), 0f, 1f);
             }
 
-            // TODO: Apply interpolation to replicated components
-            // This requires the generated INetworkInterpolatable interface
+            // Apply interpolation to components if interpolator is available
+            if (interpolator is not null && getSnapshotBuffer is not null)
+            {
+                var snapshotBuffer = getSnapshotBuffer(entity);
+                if (snapshotBuffer is not null)
+                {
+                    ApplyInterpolation(entity, snapshotBuffer, interpState.Factor);
+                }
+            }
+        }
+    }
+
+    private void ApplyInterpolation(Entity entity, SnapshotBuffer snapshotBuffer, float factor)
+    {
+        foreach (var (componentType, toValue) in snapshotBuffer.ToSnapshots)
+        {
+            if (!snapshotBuffer.FromSnapshots.TryGetValue(componentType, out var fromValue))
+            {
+                // No "from" snapshot yet, just apply "to" directly
+                World.SetComponent(entity, componentType, toValue);
+                continue;
+            }
+
+            // Interpolate between from and to
+            var interpolated = interpolator!.Interpolate(componentType, fromValue, toValue, factor);
+            if (interpolated is not null)
+            {
+                World.SetComponent(entity, componentType, interpolated);
+            }
         }
     }
 }

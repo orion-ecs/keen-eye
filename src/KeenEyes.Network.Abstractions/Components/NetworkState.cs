@@ -98,3 +98,57 @@ public record struct PredictionState : IComponent
     /// </summary>
     public float LastCorrectionMagnitude { get; set; }
 }
+
+/// <summary>
+/// Stores component snapshots for interpolation.
+/// </summary>
+/// <remarks>
+/// <para>
+/// When component updates are received from the server, the previous state becomes
+/// the "from" snapshot and the new state becomes the "to" snapshot. The
+/// InterpolationSystem interpolates between these snapshots.
+/// </para>
+/// <para>
+/// This is not an ECS component - it's stored in the network plugin and looked up
+/// by entity ID since it contains reference types that can't be stored in a struct.
+/// </para>
+/// </remarks>
+public sealed class SnapshotBuffer
+{
+    /// <summary>
+    /// Gets the "from" snapshots (previous state) keyed by component type.
+    /// </summary>
+    public Dictionary<Type, object> FromSnapshots { get; } = [];
+
+    /// <summary>
+    /// Gets the "to" snapshots (target state) keyed by component type.
+    /// </summary>
+    public Dictionary<Type, object> ToSnapshots { get; } = [];
+
+    /// <summary>
+    /// Updates the snapshot buffer with a new component value.
+    /// </summary>
+    /// <param name="componentType">The component type.</param>
+    /// <param name="newValue">The new component value.</param>
+    /// <remarks>
+    /// The current "to" snapshot becomes the new "from" snapshot,
+    /// and the new value becomes the new "to" snapshot.
+    /// </remarks>
+    public void PushSnapshot(Type componentType, object newValue)
+    {
+        if (ToSnapshots.TryGetValue(componentType, out var previousTo))
+        {
+            FromSnapshots[componentType] = previousTo;
+        }
+        ToSnapshots[componentType] = newValue;
+    }
+
+    /// <summary>
+    /// Clears all stored snapshots.
+    /// </summary>
+    public void Clear()
+    {
+        FromSnapshots.Clear();
+        ToSnapshots.Clear();
+    }
+}
