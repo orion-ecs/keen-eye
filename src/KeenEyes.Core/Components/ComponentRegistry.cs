@@ -40,14 +40,17 @@ public sealed class ComponentRegistry : IComponentRegistry
             return existing;
         }
 
+        // Auto-detect if type implements ITagComponent (AOT-compatible type check)
+        var actuallyTag = isTag || typeof(ITagComponent).IsAssignableFrom(type);
+
         var id = new ComponentId(nextId++);
-        var size = isTag ? 0 : ComponentMeta<T>.Size;
+        var size = actuallyTag ? 0 : ComponentMeta<T>.Size;
 
         // Pre-create default value for tags at registration time (AOT-compatible)
-        object? defaultValue = isTag ? (object)default(T)! : null;
+        object? defaultValue = actuallyTag ? (object)default(T)! : null;
 
         ComponentInfo? infoRef = null;
-        var info = new ComponentInfo(id, type, size, isTag)
+        var info = new ComponentInfo(id, type, size, actuallyTag)
         {
             // Store setup function that knows how to create the dispatcher for this component type
             // This avoids reflection during entity creation (cold path setup, hot path usage)
@@ -71,7 +74,7 @@ public sealed class ComponentRegistry : IComponentRegistry
         // Set up tag applicator after info is created (needs to capture info reference)
         // Uses WithBoxed with pre-created default value to avoid reflection
         infoRef = info;
-        if (isTag)
+        if (actuallyTag)
         {
             info.ApplyTagToBuilder = builder => builder.WithBoxed(infoRef, defaultValue!);
         }

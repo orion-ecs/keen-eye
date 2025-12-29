@@ -420,4 +420,52 @@ public class AddComponentTests
     }
 
     #endregion
+
+    #region Tag Component Tests
+
+    /// <summary>
+    /// Test tag component for AddComponentTests.
+    /// </summary>
+    public struct AddTestTag : ITagComponent;
+
+    [Fact]
+    public void Add_TagToEntityWithExistingComponents_Works()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 2f })
+            .Build();
+
+        world.Add(entity, default(AddTestTag));
+
+        Assert.True(world.Has<AddTestTag>(entity), "Entity should have tag after Add");
+        Assert.True(world.Has<TestPosition>(entity), "Entity should still have Position");
+    }
+
+    [Fact]
+    public void Add_TagToEntityWithMultipleExistingComponents_Works()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 1f, Y = 2f })
+            .With(new TestVelocity { X = 3f, Y = 4f })
+            .With(new TestHealth { Current = 100, Max = 100 })
+            .Build();
+
+        world.Add(entity, default(AddTestTag));
+
+        Assert.True(world.Has<AddTestTag>(entity), "Entity should have tag after Add");
+        Assert.True(world.Has<TestPosition>(entity), "Entity should still have Position");
+        Assert.True(world.Has<TestVelocity>(entity), "Entity should still have Velocity");
+        Assert.True(world.Has<TestHealth>(entity), "Entity should still have Health");
+
+        // Verify component data is preserved
+        ref var pos = ref world.Get<TestPosition>(entity);
+        Assert.Equal(1f, pos.X);
+        Assert.Equal(2f, pos.Y);
+    }
+
+    #endregion
 }

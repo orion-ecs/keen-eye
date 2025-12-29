@@ -37,8 +37,9 @@ public readonly struct ArchetypeId : IEquatable<ArchetypeId>
     /// <param name="types">The component types for this archetype.</param>
     public ArchetypeId(IEnumerable<Type> types)
     {
-        // Sort types by full name for consistent ordering
-        componentTypes = [.. types.OrderBy(t => t.FullName)];
+        // Sort types by full name using ordinal comparison for consistent ordering
+        // Must use ordinal to match the binary search in Archetype.Has() which uses CompareOrdinal
+        componentTypes = [.. types.OrderBy(t => t.FullName, StringComparer.Ordinal)];
 
         // Compute hash using HashCode.Combine for stability
         var hash = new HashCode();

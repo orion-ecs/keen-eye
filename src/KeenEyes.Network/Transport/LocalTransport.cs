@@ -43,6 +43,7 @@ public sealed class LocalTransport : INetworkTransport
     private readonly Dictionary<int, bool> connections = [];
     private bool isServer;
     private bool disposed;
+    private int assignedConnectionId; // For clients: the ID assigned by the server
 
     // Simulation settings
     private float simulatedLatencyMs;
@@ -186,6 +187,7 @@ public sealed class LocalTransport : INetworkTransport
 
         // Notify server of connection
         var connectionId = peer.AcceptConnection();
+        assignedConnectionId = connectionId;
 
         lock (stateLock)
         {
@@ -234,7 +236,7 @@ public sealed class LocalTransport : INetworkTransport
 
         var message = new PendingMessage
         {
-            ConnectionId = isServer ? connectionId : 0,
+            ConnectionId = isServer ? connectionId : assignedConnectionId,
             Data = data.ToArray(),
             DeliveryTime = simulatedLatencyMs > 0
                 ? DateTime.UtcNow.AddMilliseconds(simulatedLatencyMs)
@@ -394,12 +396,13 @@ public sealed class LocalTransport : INetworkTransport
             return;
         }
 
-        disposed = true;
-
+        // Disconnect before marking as disposed to avoid ThrowIfDisposed in Disconnect()
         if (State != ConnectionState.Disconnected)
         {
             Disconnect();
         }
+
+        disposed = true;
 
         // Break the peer reference to allow GC
         if (peer is not null)
