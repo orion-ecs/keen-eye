@@ -97,6 +97,11 @@ public record struct PredictionState : IComponent
     /// Gets or sets the magnitude of the last correction (for smoothing).
     /// </summary>
     public float LastCorrectionMagnitude { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether smoothing interpolation is available.
+    /// </summary>
+    public bool SmoothingAvailable { get; set; }
 }
 
 /// <summary>
