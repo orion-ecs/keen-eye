@@ -68,6 +68,34 @@ public ref struct NetworkMessageWriter(Span<byte> buffer)
     }
 
     /// <summary>
+    /// Writes a component using the network serializer.
+    /// </summary>
+    /// <param name="serializer">The network serializer.</param>
+    /// <param name="componentType">The type of the component.</param>
+    /// <param name="componentValue">The component value.</param>
+    /// <returns>True if the component was serialized; false if not registered.</returns>
+    public bool WriteComponent(INetworkSerializer serializer, Type componentType, object componentValue)
+    {
+        var typeId = serializer.GetNetworkTypeId(componentType);
+        if (typeId is null)
+        {
+            return false;
+        }
+
+        writer.WriteUInt16(typeId.Value);
+        return serializer.Serialize(componentType, componentValue, ref writer);
+    }
+
+    /// <summary>
+    /// Writes the number of components that will follow.
+    /// </summary>
+    /// <param name="count">The component count.</param>
+    public void WriteComponentCount(byte count)
+    {
+        writer.WriteByte(count);
+    }
+
+    /// <summary>
     /// Gets the written data as a span.
     /// </summary>
     /// <returns>A span containing all written bytes.</returns>

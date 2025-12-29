@@ -1,3 +1,4 @@
+using KeenEyes.Network.Serialization;
 using KeenEyes.Network.Transport;
 
 namespace KeenEyes.Network;
@@ -90,6 +91,29 @@ public record class NetworkPluginConfig
     /// Gets or sets the maximum bandwidth in bytes per second.
     /// </summary>
     public int MaxBandwidthBytesPerSecond { get; set; } = 64 * 1024; // 64 KB/s
+
+    /// <summary>
+    /// Gets or sets the network serializer for replicated components.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This should be set to an instance of the generated <c>NetworkSerializer</c>
+    /// class from your application. The generator creates this class when you have
+    /// components marked with <see cref="ReplicatedAttribute"/>.
+    /// </para>
+    /// <para>
+    /// If null, component state will not be replicated (only entity spawn/despawn).
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var config = new ServerNetworkConfig
+    /// {
+    ///     Serializer = new NetworkSerializer() // Generated class
+    /// };
+    /// </code>
+    /// </example>
+    public INetworkSerializer? Serializer { get; set; }
 }
 
 /// <summary>
