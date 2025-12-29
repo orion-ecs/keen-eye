@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Network</PackageId>
+    <Description>Network synchronization and multiplayer support for KeenEyes ECS</Description>
+    <PackageTags>ecs;entity;component;system;networking;multiplayer;replication</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\KeenEyes.Network.Abstractions\KeenEyes.Network.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
