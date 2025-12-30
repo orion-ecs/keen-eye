@@ -90,6 +90,16 @@ public sealed class TcpTransport : INetworkTransport
     /// <inheritdoc/>
     public bool IsClient => !isServer && State == ConnectionState.Connected;
 
+    /// <summary>
+    /// Gets the local port the transport is bound to.
+    /// </summary>
+    /// <remarks>
+    /// For servers, returns the port the listener is bound to after calling <see cref="ListenAsync"/>.
+    /// Useful when listening on port 0 to get the OS-assigned ephemeral port.
+    /// For clients, returns -1.
+    /// </remarks>
+    public int LocalPort => listener?.LocalEndpoint is IPEndPoint ep ? ep.Port : -1;
+
     /// <inheritdoc/>
     public event Action<ConnectionState>? StateChanged;
 

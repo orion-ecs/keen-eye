@@ -15,20 +15,19 @@ namespace KeenEyes.Network.Tests;
 /// </remarks>
 public class UdpTransportTests
 {
-    private static int GetRandomPort() => Random.Shared.Next(10000, 60000);
-
     /// <summary>
     /// Helper to create a connected client-server pair, skipping if UDP is unavailable.
+    /// Uses port 0 for dynamic port allocation to avoid port conflicts.
     /// </summary>
     private static async Task<(UdpTransport Server, UdpTransport Client, int Port)?> CreateConnectedPairAsync(int timeoutMs = 2000)
     {
         var server = new UdpTransport();
         var client = new UdpTransport();
-        var port = GetRandomPort();
 
         try
         {
-            await server.ListenAsync(port);
+            await server.ListenAsync(0);
+            var port = server.LocalPort;
 
             using var cts = new CancellationTokenSource(timeoutMs);
             await client.ConnectAsync("127.0.0.1", port, cts.Token);
@@ -55,12 +54,12 @@ public class UdpTransportTests
     public async Task ListenAsync_SetsStateToConnected()
     {
         using var server = new UdpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
 
         Assert.Equal(ConnectionState.Connected, server.State);
         Assert.True(server.IsServer);
+        Assert.True(server.LocalPort > 0);
     }
 
     [Fact]
@@ -137,11 +136,11 @@ public class UdpTransportTests
     {
         var server = new UdpTransport();
         var client = new UdpTransport();
-        var port = GetRandomPort();
 
         try
         {
-            await server.ListenAsync(port);
+            await server.ListenAsync(0);
+            var port = server.LocalPort;
 
             int? connectedClientId = null;
             server.ClientConnected += id => connectedClientId = id;
@@ -305,11 +304,10 @@ public class UdpTransportTests
     public async Task StateChanged_FiredOnConnectionStateChange()
     {
         using var transport = new UdpTransport();
-        var port = GetRandomPort();
         var stateChanges = new List<ConnectionState>();
         transport.StateChanged += state => stateChanges.Add(state);
 
-        await transport.ListenAsync(port);
+        await transport.ListenAsync(0);
 
         Assert.Contains(ConnectionState.Connected, stateChanges);
     }
@@ -331,12 +329,11 @@ public class UdpTransportTests
     public async Task ListenAsync_WhenAlreadyListening_Throws()
     {
         using var server = new UdpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => server.ListenAsync(port + 1));
+            () => server.ListenAsync(0));
     }
 
     [Fact]
@@ -486,6 +483,14 @@ public class UdpTransportTests
         Assert.Null(received1); // First client was excluded
         Assert.NotNull(received2);
         Assert.Equal(testData, received2);
+    }
+
+    [Fact]
+    public void LocalPort_BeforeListen_ReturnsNegativeOne()
+    {
+        using var transport = new UdpTransport();
+
+        Assert.Equal(-1, transport.LocalPort);
     }
 
     /// <summary>
