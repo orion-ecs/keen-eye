@@ -109,6 +109,16 @@ public sealed class UdpTransport : INetworkTransport
     /// <inheritdoc/>
     public bool IsClient => !isServer && State == ConnectionState.Connected;
 
+    /// <summary>
+    /// Gets the local port the transport is bound to.
+    /// </summary>
+    /// <remarks>
+    /// For servers, returns the port the socket is bound to after calling <see cref="ListenAsync"/>.
+    /// Useful when listening on port 0 to get the OS-assigned ephemeral port.
+    /// For clients, returns the ephemeral port assigned by the OS.
+    /// </remarks>
+    public int LocalPort => socket?.Client.LocalEndPoint is IPEndPoint ep ? ep.Port : -1;
+
     /// <inheritdoc/>
     public event Action<ConnectionState>? StateChanged;
 
@@ -184,6 +194,10 @@ public sealed class UdpTransport : INetworkTransport
 
             // Create server connection tracker
             serverConnection = new UdpConnection(0, serverEndpoint);
+
+            // Bind to ephemeral port before starting receive loop
+            // (UdpClient doesn't bind until first Send/Receive, but we need to receive first)
+            socket.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
 
             // Start receiving
             _ = ReceiveLoopAsync(receiveCts.Token);

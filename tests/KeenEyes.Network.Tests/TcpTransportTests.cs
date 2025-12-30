@@ -10,18 +10,16 @@ namespace KeenEyes.Network.Tests;
 /// </summary>
 public class TcpTransportTests
 {
-    private static int GetRandomPort() => Random.Shared.Next(10000, 60000);
-
     [Fact]
     public async Task ListenAsync_SetsStateToConnected()
     {
         using var server = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
 
         Assert.Equal(ConnectionState.Connected, server.State);
         Assert.True(server.IsServer);
+        Assert.True(server.LocalPort > 0);
     }
 
     [Fact]
@@ -29,9 +27,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
         await client.ConnectAsync("127.0.0.1", port);
 
         Assert.Equal(ConnectionState.Connected, client.State);
@@ -43,9 +41,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
         await client.ConnectAsync("127.0.0.1", port);
 
         // Wait for server to accept connection
@@ -77,9 +75,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
 
         int? connectedClientId = null;
         server.ClientConnected += id => connectedClientId = id;
@@ -114,9 +112,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
 
         int? connectedClientId = null;
         server.ClientConnected += id => connectedClientId = id;
@@ -136,9 +134,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
         await client.ConnectAsync("127.0.0.1", port);
 
         client.Disconnect();
@@ -151,9 +149,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
 
         int? connectedClientId = null;
         server.ClientConnected += id => connectedClientId = id;
@@ -192,9 +190,9 @@ public class TcpTransportTests
         using var server = new TcpTransport();
         using var client1 = new TcpTransport();
         using var client2 = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
         await client1.ConnectAsync("127.0.0.1", port);
         await client2.ConnectAsync("127.0.0.1", port);
 
@@ -225,9 +223,9 @@ public class TcpTransportTests
         using var server = new TcpTransport();
         using var client1 = new TcpTransport();
         using var client2 = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
 
         var connectedClients = new List<int>();
         server.ClientConnected += id => connectedClients.Add(id);
@@ -264,9 +262,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
 
         int? clientId = null;
         server.ClientConnected += id => clientId = id;
@@ -290,9 +288,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
         await client.ConnectAsync("127.0.0.1", port);
 
         var rtt = client.GetRoundTripTime(0);
@@ -328,11 +326,10 @@ public class TcpTransportTests
     public async Task StateChanged_FiredOnConnectionStateChange()
     {
         using var server = new TcpTransport();
-        var port = GetRandomPort();
         var stateChanges = new List<ConnectionState>();
         server.StateChanged += state => stateChanges.Add(state);
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
 
         Assert.Contains(ConnectionState.Connected, stateChanges);
     }
@@ -342,9 +339,9 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
         await client.ConnectAsync("127.0.0.1", port);
 
         byte[] testData = [1, 2, 3];
@@ -355,12 +352,11 @@ public class TcpTransportTests
     public async Task ListenAsync_WhenAlreadyListening_Throws()
     {
         using var server = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => server.ListenAsync(port + 1));
+            () => server.ListenAsync(0));
     }
 
     [Fact]
@@ -368,12 +364,20 @@ public class TcpTransportTests
     {
         using var server = new TcpTransport();
         using var client = new TcpTransport();
-        var port = GetRandomPort();
 
-        await server.ListenAsync(port);
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
         await client.ConnectAsync("127.0.0.1", port);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
             () => client.ConnectAsync("127.0.0.1", port));
+    }
+
+    [Fact]
+    public void LocalPort_BeforeListen_ReturnsNegativeOne()
+    {
+        using var transport = new TcpTransport();
+
+        Assert.Equal(-1, transport.LocalPort);
     }
 }
