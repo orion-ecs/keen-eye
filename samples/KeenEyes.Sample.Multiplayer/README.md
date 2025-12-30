@@ -13,9 +13,60 @@ This sample demonstrates the KeenEyes networking system with server-authoritativ
 
 ## Running the Sample
 
+The sample supports three transport modes: Local, TCP, and UDP.
+
+### Local Mode (Default)
+
+Runs both server and client in a single process for quick testing:
+
 ```bash
 cd samples/KeenEyes.Sample.Multiplayer
 dotnet run
+```
+
+### TCP Mode
+
+For real network testing, run server and client in separate terminals:
+
+```bash
+# Terminal 1: Start server
+dotnet run -- --transport tcp --server
+
+# Terminal 2: Start client
+dotnet run -- --transport tcp --client
+```
+
+### UDP Mode
+
+Same pattern as TCP, with configurable reliability:
+
+```bash
+# Terminal 1: Start server
+dotnet run -- --transport udp --server --port 8888
+
+# Terminal 2: Start client
+dotnet run -- --transport udp --client --port 8888
+```
+
+### Command-Line Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--transport` | `-t` | Transport type: `local`, `tcp`, `udp` |
+| `--server` | `-s` | Run as server |
+| `--client` | `-c` | Run as client |
+| `--address` | `-a` | Server address (default: `localhost`) |
+| `--port` | `-p` | Port number (default: `7777`) |
+| `--help` | `-h` | Show help |
+
+### Examples
+
+```bash
+# Connect to remote server
+dotnet run -- -t tcp -c -a 192.168.1.100 -p 7777
+
+# UDP server on custom port
+dotnet run -- -t udp -s -p 9999
 ```
 
 ## Architecture Overview
@@ -41,7 +92,8 @@ dotnet run
 
 | File | Description |
 |------|-------------|
-| `Program.cs` | Main demo showing server/client setup and game loop |
+| `Program.cs` | Main demo with Local, TCP, and UDP modes |
+| `TransportOptions.cs` | Command-line argument parsing and transport factory |
 | `Components.cs` | Networked components (Position, Velocity, PlayerInput) |
 | `GameSerializer.cs` | Network serializer for component replication |
 
@@ -109,27 +161,37 @@ serverPlugin.SendFullSnapshot(clientId);
 
 ## Transport Layer
 
-This sample uses `LocalTransport` for in-process testing. For production networking, KeenEyes provides optional transport packages:
+This sample demonstrates all built-in transports. Use `--help` to see available options.
 
-| Package | Transport | Use Case |
-|---------|-----------|----------|
-| `KeenEyes.Network.Transport.Tcp` | `TcpTransport` | Reliable ordered delivery, NAT-friendly |
-| `KeenEyes.Network.Transport.Udp` | `UdpTransport` | Low-latency, configurable reliability |
+| Transport | Package | Use Case |
+|-----------|---------|----------|
+| `LocalTransport` | `KeenEyes.Network` | In-process testing, unit tests |
+| `TcpTransport` | `KeenEyes.Network.Transport.Tcp` | Reliable ordered delivery, NAT-friendly |
+| `UdpTransport` | `KeenEyes.Network.Transport.Udp` | Low-latency, configurable reliability |
 
-Example with `TcpTransport`:
+### Choosing a Transport
+
+- **Local**: Quick testing without network overhead. Great for development.
+- **TCP**: Simple and reliable. Works through NAT/firewalls. Good for turn-based or slower-paced games.
+- **UDP**: Lower latency, but requires reliability handling. Best for fast-paced games.
+
+### Bring Your Own Transport
+
+Implement `INetworkTransport` to integrate third-party networking libraries:
+
 ```csharp
-using KeenEyes.Network.Transport.Tcp;
+using KeenEyes.Network.Transport;
 
-// Server
-var serverTransport = new TcpTransport();
-await serverTransport.ListenAsync(7777);
-
-// Client
-var clientTransport = new TcpTransport();
-await clientTransport.ConnectAsync("game.example.com", 7777);
+public class SteamTransport : INetworkTransport
+{
+    // Implement interface using Steamworks.NET
+}
 ```
 
-Or bring your own transport by implementing `INetworkTransport` (Steam, LiteNetLib, etc.).
+Popular options:
+- **Steam Networking** - Steamworks.NET for Steam games
+- **LiteNetLib** - Lightweight reliable UDP
+- **ENet** - Fast, reliable UDP with channels
 
 ## See Also
 

@@ -9,6 +9,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Network\KeenEyes.Network.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Network.Transport.Tcp\KeenEyes.Network.Transport.Tcp.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Network.Transport.Udp\KeenEyes.Network.Transport.Udp.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
