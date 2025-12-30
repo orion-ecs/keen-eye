@@ -1,6 +1,7 @@
 #pragma warning disable xUnit1051 // Use TestContext.Current.CancellationToken
 
 using KeenEyes.Network.Transport;
+using KeenEyes.Network.Transport.Tcp;
 
 namespace KeenEyes.Network.Tests;
 

@@ -235,6 +235,18 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
+      "keeneyes.network.transport.tcp": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Network.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.network.transport.udp": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Network.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.persistence": {
         "type": "Project",
         "dependencies": {
@@ -250,6 +262,7 @@
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.Input.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
+          "KeenEyes.Network.Abstractions": "[1.0.0, )",
           "KeenEyes.Persistence": "[1.0.0, )"
         }
       }

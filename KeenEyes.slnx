@@ -33,6 +33,8 @@
     <Project Path="src/KeenEyes.Audio.Abstractions/KeenEyes.Audio.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Audio.Silk/KeenEyes.Audio.Silk.csproj" />
     <Project Path="src/KeenEyes.Audio/KeenEyes.Audio.csproj" />
+    <Project Path="src/KeenEyes.Network.Transport.Tcp/KeenEyes.Network.Transport.Tcp.csproj" />
+    <Project Path="src/KeenEyes.Network.Transport.Udp/KeenEyes.Network.Transport.Udp.csproj" />
     <Project Path="src/KeenEyes.Network/KeenEyes.Network.csproj" />
     <Project Path="src/KeenEyes.Particles/KeenEyes.Particles.csproj" />
   </Folder>

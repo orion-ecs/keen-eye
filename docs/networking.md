@@ -374,9 +374,13 @@ var (serverTransport, clientTransport) = LocalTransport.CreatePair();
 
 ### TcpTransport
 
+**Package:** `KeenEyes.Network.Transport.Tcp`
+
 Use `TcpTransport` for reliable, ordered delivery over TCP:
 
 ```csharp
+using KeenEyes.Network.Transport.Tcp;
+
 // Server
 var serverTransport = new TcpTransport();
 await serverTransport.ListenAsync(7777);
@@ -394,9 +398,13 @@ await clientTransport.ConnectAsync("192.168.1.100", 7777);
 
 ### UdpTransport
 
+**Package:** `KeenEyes.Network.Transport.Udp`
+
 Use `UdpTransport` for low-latency networking with configurable reliability:
 
 ```csharp
+using KeenEyes.Network.Transport.Udp;
+
 // Server
 var serverTransport = new UdpTransport();
 await serverTransport.ListenAsync(7777);

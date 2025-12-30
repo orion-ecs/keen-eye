@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using KeenEyes.Network.Transport;
 
-namespace KeenEyes.Network;
+namespace KeenEyes.Network.Transport.Tcp;
 
 /// <summary>
 /// TCP-based network transport providing reliable ordered delivery.
@@ -18,7 +18,8 @@ namespace KeenEyes.Network;
 /// Messages are framed using a 4-byte length prefix to handle TCP's stream nature.
 /// </para>
 /// <para>
-/// For games requiring unreliable delivery or lower latency, consider <see cref="UdpTransport"/>.
+/// For games requiring unreliable delivery or lower latency, consider UdpTransport
+/// from the KeenEyes.Network.Transport.Udp package.
 /// </para>
 /// </remarks>
 /// <example>

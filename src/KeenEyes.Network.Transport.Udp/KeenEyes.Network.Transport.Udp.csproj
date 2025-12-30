@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Network.Transport.Udp</PackageId>
+    <Description>UDP transport implementation with reliability layer for KeenEyes networking</Description>
+    <PackageTags>ecs;networking;udp;transport;reliability</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Network.Abstractions\KeenEyes.Network.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -109,15 +109,17 @@ serverPlugin.SendFullSnapshot(clientId);
 
 ## Transport Layer
 
-This sample uses `LocalTransport` for in-process testing. For production networking, KeenEyes provides:
+This sample uses `LocalTransport` for in-process testing. For production networking, KeenEyes provides optional transport packages:
 
-| Transport | Use Case |
-|-----------|----------|
-| `TcpTransport` | Reliable ordered delivery, NAT-friendly, higher latency |
-| `UdpTransport` | Low-latency, configurable reliability per-message |
+| Package | Transport | Use Case |
+|---------|-----------|----------|
+| `KeenEyes.Network.Transport.Tcp` | `TcpTransport` | Reliable ordered delivery, NAT-friendly |
+| `KeenEyes.Network.Transport.Udp` | `UdpTransport` | Low-latency, configurable reliability |
 
 Example with `TcpTransport`:
 ```csharp
+using KeenEyes.Network.Transport.Tcp;
+
 // Server
 var serverTransport = new TcpTransport();
 await serverTransport.ListenAsync(7777);
@@ -126,6 +128,8 @@ await serverTransport.ListenAsync(7777);
 var clientTransport = new TcpTransport();
 await clientTransport.ConnectAsync("game.example.com", 7777);
 ```
+
+Or bring your own transport by implementing `INetworkTransport` (Steam, LiteNetLib, etc.).
 
 ## See Also
 

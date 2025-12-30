@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Network.Transport.Tcp</PackageId>
+    <Description>TCP transport implementation for KeenEyes networking</Description>
+    <PackageTags>ecs;networking;tcp;transport</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Network.Abstractions\KeenEyes.Network.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
