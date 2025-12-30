@@ -1092,6 +1092,97 @@ public class UIColorPickerSystemTests
         Assert.Equal(testEntity, area.ColorPicker);
     }
 
+    [Fact]
+    public void UIColorPicker_GrayColor_HasZeroSaturation()
+    {
+        // Gray color - all components equal, delta near zero
+        var picker = new UIColorPicker(new Vector4(0.5f, 0.5f, 0.5f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(0f)); // No hue for gray
+        Assert.True(picker.Saturation.ApproximatelyEquals(0f)); // No saturation for gray
+        Assert.True(picker.Value.ApproximatelyEquals(0.5f));
+    }
+
+    [Fact]
+    public void UIColorPicker_BlackColor_HasZeroSaturation()
+    {
+        // Black color - all zeros, max < 0.0001
+        var picker = new UIColorPicker(new Vector4(0f, 0f, 0f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(0f));
+        Assert.True(picker.Saturation.ApproximatelyEquals(0f)); // Zero saturation for black
+        Assert.True(picker.Value.ApproximatelyEquals(0f));
+    }
+
+    [Fact]
+    public void UIColorPicker_RedColor_HasHueZero()
+    {
+        // Pure red - max is R channel
+        var picker = new UIColorPicker(new Vector4(1f, 0f, 0f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(0f)); // Red is at 0 degrees
+        Assert.True(picker.Saturation.ApproximatelyEquals(1f));
+        Assert.True(picker.Value.ApproximatelyEquals(1f));
+    }
+
+    [Fact]
+    public void UIColorPicker_BlueColor_HasHue240()
+    {
+        // Pure blue - max is B channel
+        var picker = new UIColorPicker(new Vector4(0f, 0f, 1f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(240f)); // Blue is at 240 degrees
+        Assert.True(picker.Saturation.ApproximatelyEquals(1f));
+        Assert.True(picker.Value.ApproximatelyEquals(1f));
+    }
+
+    [Fact]
+    public void UIColorPicker_CyanColor_HasHue180()
+    {
+        // Cyan - green max with blue equal (or close)
+        var picker = new UIColorPicker(new Vector4(0f, 1f, 1f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(180f)); // Cyan is at 180 degrees
+    }
+
+    [Fact]
+    public void UIColorPicker_MagentaColor_HasHue300()
+    {
+        // Magenta - red and blue equal, max is R (or B), hue wraps
+        var picker = new UIColorPicker(new Vector4(1f, 0f, 1f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(300f)); // Magenta is at 300 degrees
+    }
+
+    [Fact]
+    public void UIColorPicker_YellowColor_HasHue60()
+    {
+        // Yellow - red max with G close
+        var picker = new UIColorPicker(new Vector4(1f, 1f, 0f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(60f)); // Yellow is at 60 degrees
+    }
+
+    [Fact]
+    public void UIColorPicker_OrangeColor_HasCorrectHue()
+    {
+        // Orange (R=1, G=0.5, B=0) - red is max, hue = 60 * ((0.5 - 0) / 1) = 30
+        var picker = new UIColorPicker(new Vector4(1f, 0.5f, 0f, 1f));
+
+        Assert.True(picker.Hue.ApproximatelyEquals(30f, 1f)); // Orange around 30 degrees
+    }
+
+    [Fact]
+    public void UIColorPicker_NegativeHueNormalization()
+    {
+        // Color that produces negative hue before normalization
+        // When R is max and (g-b)/delta is negative, we get negative mod result
+        // R=1, G=0, B=0.5: delta=1, hue = 60 * ((0 - 0.5) / 1 % 6) = 60 * -0.5 = -30 + 360 = 330
+        var picker = new UIColorPicker(new Vector4(1f, 0f, 0.5f, 1f));
+
+        Assert.True(picker.Hue >= 0f && picker.Hue <= 360f); // Hue should be normalized to positive
+    }
+
     #endregion
 
     #region Helper Methods
