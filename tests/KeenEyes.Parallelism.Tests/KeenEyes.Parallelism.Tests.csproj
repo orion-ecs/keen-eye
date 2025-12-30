@@ -3,9 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
-    <!-- Disable on CI - these tests cause hangs in containerized environments -->
-    <IsTestProject Condition="'$(CI)' != 'true'">true</IsTestProject>
-    <IsTestProject Condition="'$(CI)' == 'true'">false</IsTestProject>
+    <IsTestProject>true</IsTestProject>
     <TargetFramework>net10.0</TargetFramework>
   </PropertyGroup>
 

@@ -60,8 +60,6 @@ jobs:
       - name: Test
         timeout-minutes: 10
         run: |
-          # Run all tests - Parallelism.Tests excluded by adding <IsTestProject>false</IsTestProject>
-          # in CI via an environment variable check in Directory.Build.props
           dotnet test --no-build --configuration Release --verbosity minimal \
             -- --coverage --coverage-output-format cobertura
 
