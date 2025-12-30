@@ -217,6 +217,356 @@ public class UICheckboxSystemTests
 
     #endregion
 
+    #region Edge Case Tests
+
+    [Fact]
+    public void Checkbox_InvalidBoxEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Checkbox with invalid box entity
+        var checkbox = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UICheckbox(false) { BoxEntity = Entity.Null })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        SimulateClick(world, checkbox);
+
+        // Should not throw
+        system.Update(0);
+
+        ref readonly var checkboxData = ref world.Get<UICheckbox>(checkbox);
+        Assert.True(checkboxData.IsChecked);
+    }
+
+    [Fact]
+    public void Checkbox_DeadBoxEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Create and despawn box entity
+        var box = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIStyle())
+            .Build();
+
+        var checkbox = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UICheckbox(false) { BoxEntity = box })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        world.Despawn(box);
+
+        SimulateClick(world, checkbox);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Checkbox_BoxWithoutUIStyle_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Box without UIStyle
+        var box = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        var checkbox = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UICheckbox(false) { BoxEntity = box })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        SimulateClick(world, checkbox);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Toggle_InvalidTrackEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Create thumb entity
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 20, 20))
+            .With(new UIStyle())
+            .Build();
+
+        // Toggle with invalid track entity
+        var toggle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIToggle(false) { TrackEntity = Entity.Null, ThumbEntity = thumb })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        SimulateClick(world, toggle);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Toggle_InvalidThumbEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Create track entity
+        var track = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 50, 24))
+            .With(new UIStyle())
+            .Build();
+
+        // Toggle with invalid thumb entity
+        var toggle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIToggle(false) { TrackEntity = track, ThumbEntity = Entity.Null })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        SimulateClick(world, toggle);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Toggle_DeadTrackEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Create and despawn track
+        var track = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 50, 24))
+            .With(new UIStyle())
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 20, 20))
+            .With(new UIStyle())
+            .Build();
+
+        var toggle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIToggle(false) { TrackEntity = track, ThumbEntity = thumb })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        world.Despawn(track);
+
+        SimulateClick(world, toggle);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Toggle_DeadThumbEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        var track = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 50, 24))
+            .With(new UIStyle())
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 20, 20))
+            .With(new UIStyle())
+            .Build();
+
+        var toggle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIToggle(false) { TrackEntity = track, ThumbEntity = thumb })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        world.Despawn(thumb);
+
+        SimulateClick(world, toggle);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Toggle_TrackWithoutUIStyle_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Track without UIStyle
+        var track = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 50, 24))
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 20, 20))
+            .With(new UIStyle())
+            .Build();
+
+        var toggle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIToggle(false) { TrackEntity = track, ThumbEntity = thumb })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        SimulateClick(world, toggle);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Toggle_ThumbWithoutUIRect_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        var track = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 50, 24))
+            .With(new UIStyle())
+            .Build();
+
+        // Thumb without UIRect
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIStyle())
+            .Build();
+
+        var toggle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIToggle(false) { TrackEntity = track, ThumbEntity = thumb })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        SimulateClick(world, toggle);
+
+        // Should not throw
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Toggle_TrackWithoutUIRect_DoesNotUpdateThumb()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        // Track without UIRect
+        var track = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIStyle())
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(2, 0, 20, 20))
+            .With(new UIStyle())
+            .Build();
+
+        var toggle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIToggle(false) { TrackEntity = track, ThumbEntity = thumb })
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        var initialOffset = world.Get<UIRect>(thumb).Offset.Left;
+
+        SimulateClick(world, toggle);
+        system.Update(0);
+
+        // Thumb position should not change without track UIRect
+        var newOffset = world.Get<UIRect>(thumb).Offset.Left;
+        Assert.Equal(initialOffset, newOffset);
+    }
+
+    [Fact]
+    public void Toggle_ThumbAlreadyDirty_DoesNotAddDuplicateTag()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        var toggle = CreateToggle(world, false);
+        var thumbEntity = world.Get<UIToggle>(toggle).ThumbEntity;
+
+        // Pre-add dirty tag
+        world.Add(thumbEntity, new UILayoutDirtyTag());
+
+        SimulateClick(world, toggle);
+
+        // Should not throw with duplicate tag
+        system.Update(0);
+
+        // Should still have the tag
+        Assert.True(world.Has<UILayoutDirtyTag>(thumbEntity));
+    }
+
+    [Fact]
+    public void Checkbox_NoClickEvent_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        var checkbox = CreateCheckbox(world, false);
+
+        // Don't simulate click
+        system.Update(0);
+
+        ref readonly var checkboxData = ref world.Get<UICheckbox>(checkbox);
+        Assert.False(checkboxData.IsChecked);
+    }
+
+    [Fact]
+    public void Toggle_NoClickEvent_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UICheckboxSystem();
+        world.AddSystem(system);
+
+        var toggle = CreateToggle(world, false);
+
+        // Don't simulate click
+        system.Update(0);
+
+        ref readonly var toggleData = ref world.Get<UIToggle>(toggle);
+        Assert.False(toggleData.IsOn);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Entity CreateCheckbox(World world, bool isChecked)
