@@ -6,14 +6,16 @@ namespace KeenEyes.Network.Transport;
 /// <remarks>
 /// <para>
 /// This interface allows swapping transport implementations without changing
-/// networking logic. Implementations may include:
+/// networking logic. Built-in implementations:
 /// </para>
 /// <list type="bullet">
-/// <item><description>LocalTransport - In-memory for singleplayer/testing</description></item>
-/// <item><description>UdpTransport - Raw UDP with reliability layer</description></item>
-/// <item><description>WebSocketTransport - Browser-compatible</description></item>
-/// <item><description>SteamTransport - Steam networking integration</description></item>
+/// <item><description>LocalTransport (KeenEyes.Network) - In-memory for singleplayer/testing</description></item>
+/// <item><description>TcpTransport (KeenEyes.Network.Transport.Tcp) - Reliable ordered delivery</description></item>
+/// <item><description>UdpTransport (KeenEyes.Network.Transport.Udp) - Configurable reliability</description></item>
 /// </list>
+/// <para>
+/// Or implement your own for Steam, WebSocket, LiteNetLib, etc.
+/// </para>
 /// </remarks>
 public interface INetworkTransport : IDisposable
 {

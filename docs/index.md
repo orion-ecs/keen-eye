@@ -192,6 +192,9 @@ using var world = new WorldBuilder()
 - [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
 - [Input](input.md) - Keyboard, mouse, and gamepad input handling
 - [Networking](networking.md) - Server-authoritative multiplayer with prediction
+  - `KeenEyes.Network` - Core networking plugins and LocalTransport
+  - `KeenEyes.Network.Transport.Tcp` - TCP transport (reliable ordered)
+  - `KeenEyes.Network.Transport.Udp` - UDP transport (configurable reliability)
 - [UI](ui.md) - ECS-based retained-mode UI system
 
 ## Architecture Decisions
