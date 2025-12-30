@@ -17,7 +17,8 @@
          "name": "dotnet-test",
          "group": "pre-push",
          "command": "dotnet",
-         "args": ["test", "--no-build", "-c", "Release"]
+         "args": ["test", "--no-build", "-c", "Release"],
+         "timeout": 300000
       }
    ]
 }
