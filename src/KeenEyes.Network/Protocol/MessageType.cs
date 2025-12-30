@@ -84,6 +84,11 @@ public enum MessageType : byte
     /// </summary>
     ComponentDelta = 0x17,
 
+    /// <summary>
+    /// Entity hierarchy (parent-child) change.
+    /// </summary>
+    HierarchyChange = 0x18,
+
     // Client input (0x20-0x2F)
 
     /// <summary>

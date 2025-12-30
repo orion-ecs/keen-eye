@@ -415,6 +415,10 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             case MessageType.OwnershipTransfer:
                 HandleOwnershipTransfer(ref reader);
                 break;
+
+            case MessageType.HierarchyChange:
+                HandleHierarchyChange(ref reader);
+                break;
         }
 
         // Acknowledge received tick
@@ -715,5 +719,34 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
         // Notify listeners
         OwnershipChanged?.Invoke(entity, oldOwnerId, newOwnerId);
+    }
+
+    private void HandleHierarchyChange(ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        reader.ReadHierarchyChange(out var childNetworkId, out var parentNetworkId);
+
+        // Look up child entity
+        if (!networkIdManager.TryGetLocalEntity(childNetworkId, out var childEntity))
+        {
+            return;
+        }
+
+        // Look up parent entity (0 = no parent)
+        Entity parentEntity = Entity.Null;
+        if (parentNetworkId != 0)
+        {
+            if (!networkIdManager.TryGetLocalEntity(parentNetworkId, out parentEntity))
+            {
+                return;
+            }
+        }
+
+        // Apply the hierarchy change
+        context.World.SetParent(childEntity, parentEntity);
     }
 }
