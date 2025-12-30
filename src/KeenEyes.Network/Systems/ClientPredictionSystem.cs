@@ -155,27 +155,35 @@ public sealed class ClientPredictionSystem(
         return false;
     }
 
-    private static bool ValuesApproximatelyEqual(object a, object b, float threshold)
+    private bool ValuesApproximatelyEqual(object predicted, object server, float threshold)
     {
-        if (a.Equals(b))
+        // Fast path: exact equality
+        if (predicted.Equals(server))
         {
             return true;
         }
 
-        // For floating point comparisons, use threshold
+        // Types must match
+        var type = predicted.GetType();
+        if (type != server.GetType())
+        {
+            return false;
+        }
+
+        // For threshold-based comparison, use the network serializer's delta detection
         if (threshold > 0)
         {
-            // Check if both are float structs and compare fields
-            // This is a simplified comparison - a full implementation would
-            // use reflection or generated comparers
-            if (a.GetType() == b.GetType())
+            var serializer = plugin.Config.Serializer;
+            if (serializer is not null && serializer.SupportsDelta(type))
             {
-                // For now, return false if not exactly equal
-                // A proper implementation would compare field-by-field with threshold
-                return false;
+                // If the dirty mask is 0, no fields have changed significantly
+                // The dirty mask uses epsilon-based comparison for floats
+                var dirtyMask = serializer.GetDirtyMask(type, predicted, server);
+                return dirtyMask == 0;
             }
         }
 
+        // Fallback: not approximately equal if not exactly equal
         return false;
     }
 
