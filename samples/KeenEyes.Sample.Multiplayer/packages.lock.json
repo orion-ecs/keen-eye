@@ -23,6 +23,18 @@
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
+      },
+      "keeneyes.network.transport.tcp": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Network.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.network.transport.udp": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Network.Abstractions": "[1.0.0, )"
+        }
       }
     }
   }
