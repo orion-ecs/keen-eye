@@ -404,6 +404,10 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
                 HandleComponentUpdate(ref reader);
                 break;
 
+            case MessageType.ComponentDelta:
+                HandleComponentDelta(ref reader);
+                break;
+
             case MessageType.Pong:
                 HandlePong();
                 break;
@@ -486,6 +490,85 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
         }
 
         ApplyComponentUpdates(entity, ref reader);
+    }
+
+    private void HandleComponentDelta(ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var networkId = reader.ReadNetworkId();
+        if (!networkIdManager.TryGetLocalEntity(networkId, out var entity))
+        {
+            // Entity not found, skip the component data
+            return;
+        }
+
+        ApplyDeltaComponentUpdates(entity, ref reader);
+    }
+
+    private void ApplyDeltaComponentUpdates(Entity entity, ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var serializer = config.Serializer;
+        if (serializer is null)
+        {
+            _ = reader.ReadComponentCount();
+            return;
+        }
+
+        var interpolator = config.Interpolator;
+        snapshotBuffers.TryGetValue(entity, out var snapshotBuffer);
+
+        var componentCount = reader.ReadComponentCount();
+        for (int i = 0; i < componentCount; i++)
+        {
+            // Read the component (with delta encoding)
+            // ReadComponentDeltaWithBaseline looks up the entity's current value as baseline
+            var component = reader.ReadComponentDeltaWithBaseline(serializer, entity, context.World, out var componentType);
+
+            if (component is not null && componentType is not null)
+            {
+                ApplyComponent(entity, componentType, component, snapshotBuffer, interpolator);
+            }
+        }
+    }
+
+    private void ApplyComponent(Entity entity, Type componentType, object component, SnapshotBuffer? snapshotBuffer, INetworkInterpolator? interpolator)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        // If interpolation is enabled for this entity and component,
+        // push to snapshot buffer instead of applying directly
+        if (snapshotBuffer is not null &&
+            interpolator is not null &&
+            interpolator.IsInterpolatable(componentType))
+        {
+            snapshotBuffer.PushSnapshot(componentType, component);
+
+            // Update interpolation timestamps
+            if (context.World.Has<InterpolationState>(entity))
+            {
+                ref var interpState = ref context.World.Get<InterpolationState>(entity);
+                interpState.FromTime = interpState.ToTime;
+                interpState.ToTime = serverTime;
+                interpState.Factor = 0f;
+            }
+        }
+        else
+        {
+            // No interpolation, apply directly
+            context.World.SetComponent(entity, componentType, component);
+        }
     }
 
     private void ApplyComponentUpdates(Entity entity, ref NetworkMessageReader reader)

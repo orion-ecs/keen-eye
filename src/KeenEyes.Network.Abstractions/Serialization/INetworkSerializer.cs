@@ -76,6 +76,41 @@ public interface INetworkSerializer
     /// An enumerable of component metadata for all registered types.
     /// </returns>
     IEnumerable<NetworkComponentInfo> GetRegisteredComponentInfo();
+
+    /// <summary>
+    /// Checks if a component type supports delta serialization.
+    /// </summary>
+    /// <param name="type">The component type to check.</param>
+    /// <returns>True if the type supports delta encoding; false otherwise.</returns>
+    bool SupportsDelta(Type type);
+
+    /// <summary>
+    /// Computes the dirty mask for a component by comparing current and baseline values.
+    /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="current">The current component value.</param>
+    /// <param name="baseline">The baseline component value to compare against.</param>
+    /// <returns>A bitmask where each bit represents a changed field, or 0 if no changes.</returns>
+    uint GetDirtyMask(Type type, object current, object baseline);
+
+    /// <summary>
+    /// Serializes only the changed fields of a component (delta encoding).
+    /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="current">The current component value to serialize.</param>
+    /// <param name="baseline">The baseline component value for delta comparison.</param>
+    /// <param name="writer">The bit writer to write to.</param>
+    /// <returns>True if serialized successfully; false if type not registered or doesn't support delta.</returns>
+    bool SerializeDelta(Type type, object current, object baseline, ref BitWriter writer);
+
+    /// <summary>
+    /// Deserializes changed fields and applies them to a baseline value (delta decoding).
+    /// </summary>
+    /// <param name="networkTypeId">The network type ID of the component.</param>
+    /// <param name="reader">The bit reader to read from.</param>
+    /// <param name="baseline">The baseline value to apply changes to (will be modified).</param>
+    /// <returns>The updated component, or null if type not registered.</returns>
+    object? DeserializeDelta(ushort networkTypeId, ref BitReader reader, object baseline);
 }
 
 /// <summary>

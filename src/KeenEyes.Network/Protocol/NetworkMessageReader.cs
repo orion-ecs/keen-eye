@@ -1,3 +1,4 @@
+using KeenEyes;
 using KeenEyes.Network.Serialization;
 
 namespace KeenEyes.Network.Protocol;
@@ -94,6 +95,63 @@ public ref struct NetworkMessageReader(ReadOnlySpan<byte> data)
             return null;
         }
 
+        return serializer.Deserialize(typeId, ref reader);
+    }
+
+    /// <summary>
+    /// Reads a component using delta deserialization, applying changes to a baseline.
+    /// </summary>
+    /// <param name="serializer">The network serializer.</param>
+    /// <param name="baseline">The baseline component value to apply changes to.</param>
+    /// <param name="componentType">Output: The type of the deserialized component.</param>
+    /// <returns>The updated component, or null if type not registered.</returns>
+    public object? ReadComponentDelta(INetworkSerializer serializer, object baseline, out Type? componentType)
+    {
+        var typeId = reader.ReadUInt16();
+        componentType = serializer.GetTypeFromNetworkId(typeId);
+        if (componentType is null)
+        {
+            return null;
+        }
+
+        return serializer.DeserializeDelta(typeId, ref reader, baseline);
+    }
+
+    /// <summary>
+    /// Reads a delta-encoded component, using the entity's current component value as baseline.
+    /// </summary>
+    /// <param name="serializer">The network serializer.</param>
+    /// <param name="entity">The entity to get the baseline from.</param>
+    /// <param name="world">The world containing the entity.</param>
+    /// <param name="componentType">Output: The type of the deserialized component.</param>
+    /// <returns>The updated component, or null if type not registered.</returns>
+    public object? ReadComponentDeltaWithBaseline(INetworkSerializer serializer, Entity entity, IWorld world, out Type? componentType)
+    {
+        var typeId = reader.ReadUInt16();
+        componentType = serializer.GetTypeFromNetworkId(typeId);
+        if (componentType is null)
+        {
+            return null;
+        }
+
+        // Look up current component value as baseline
+        object? baseline = null;
+        foreach (var (type, value) in world.GetComponents(entity))
+        {
+            if (type == componentType)
+            {
+                baseline = value;
+                break;
+            }
+        }
+
+        // Use delta deserialization if we have a baseline and the type supports it
+        if (baseline is not null && serializer.SupportsDelta(componentType))
+        {
+            return serializer.DeserializeDelta(typeId, ref reader, baseline);
+        }
+
+        // Fall back to full deserialization
         return serializer.Deserialize(typeId, ref reader);
     }
 
