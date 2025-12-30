@@ -453,6 +453,468 @@ public class UIDatePickerSystemTests
 
     #endregion
 
+    #region Time Spinner Tests
+
+    [Fact]
+    public void TimeSpinner_HourClick_IncrementsHour()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Hour);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Hour);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(11, pickerData.Value.Hour);
+    }
+
+    [Fact]
+    public void TimeSpinner_HourClick_WrapsAt24()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 23, 30, 0);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Hour);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Hour);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(0, pickerData.Value.Hour);
+        Assert.Equal(15, pickerData.Value.Day); // Same day
+    }
+
+    [Fact]
+    public void TimeSpinner_MinuteClick_IncrementsMinute()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Minute);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Minute);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(31, pickerData.Value.Minute);
+    }
+
+    [Fact]
+    public void TimeSpinner_MinuteClick_WrapsAt60()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 59, 0);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Minute);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Minute);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(0, pickerData.Value.Minute);
+        Assert.Equal(10, pickerData.Value.Hour); // Same hour
+    }
+
+    [Fact]
+    public void TimeSpinner_SecondClick_IncrementsSecond()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 45);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Second);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Second);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(46, pickerData.Value.Second);
+    }
+
+    [Fact]
+    public void TimeSpinner_SecondClick_WrapsAt60()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 59);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Second);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Second);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(0, pickerData.Value.Second);
+        Assert.Equal(30, pickerData.Value.Minute); // Same minute
+    }
+
+    [Fact]
+    public void TimeSpinner_AmPmClick_TogglesAmPm()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0); // AM
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.AmPm);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.AmPm);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(22, pickerData.Value.Hour); // PM
+    }
+
+    [Fact]
+    public void TimeSpinner_AmPmClick_KeepsSameDay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 22, 30, 0); // PM
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.AmPm);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.AmPm);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(10, pickerData.Value.Hour); // AM
+        Assert.Equal(15, pickerData.Value.Day); // Same day
+    }
+
+    [Fact]
+    public void TimeSpinner_Click_RaisesDateChangedEvent()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Hour);
+        layout.Update(0);
+
+        UIDateChangedEvent? receivedEvent = null;
+        world.Subscribe<UIDateChangedEvent>(evt => receivedEvent = evt);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Hour);
+        Assert.NotNull(spinnerEntity);
+
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        Assert.NotNull(receivedEvent);
+        Assert.Equal(10, receivedEvent.Value.OldValue.Hour);
+        Assert.Equal(11, receivedEvent.Value.NewValue.Hour);
+    }
+
+    [Fact]
+    public void TimeSpinner_DeadPicker_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Hour);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Hour);
+        Assert.NotNull(spinnerEntity);
+
+        world.Despawn(picker);
+
+        // Should not throw
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+    }
+
+    #endregion
+
+    #region Navigation Button Tests
+
+    [Fact]
+    public void PrevMonthButton_Click_NavigatesToPreviousMonth()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithNavigation(world, initialDate);
+        layout.Update(0);
+
+        ref var pickerData = ref world.Get<UIDatePicker>(picker);
+        var prevButton = pickerData.PrevMonthButton;
+
+        SimulateClick(world, prevButton, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var updatedData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(5, updatedData.DisplayMonth);
+        Assert.Equal(2024, updatedData.DisplayYear);
+    }
+
+    [Fact]
+    public void PrevMonthButton_January_WrapsToDecember()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 1, 15);
+        var picker = CreateDatePickerWithNavigation(world, initialDate);
+        layout.Update(0);
+
+        ref var pickerData = ref world.Get<UIDatePicker>(picker);
+        var prevButton = pickerData.PrevMonthButton;
+
+        SimulateClick(world, prevButton, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var updatedData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(12, updatedData.DisplayMonth);
+        Assert.Equal(2023, updatedData.DisplayYear);
+    }
+
+    [Fact]
+    public void NextMonthButton_Click_NavigatesToNextMonth()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithNavigation(world, initialDate);
+        layout.Update(0);
+
+        ref var pickerData = ref world.Get<UIDatePicker>(picker);
+        var nextButton = pickerData.NextMonthButton;
+
+        SimulateClick(world, nextButton, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var updatedData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(7, updatedData.DisplayMonth);
+        Assert.Equal(2024, updatedData.DisplayYear);
+    }
+
+    [Fact]
+    public void NextMonthButton_December_WrapsToJanuary()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 12, 15);
+        var picker = CreateDatePickerWithNavigation(world, initialDate);
+        layout.Update(0);
+
+        ref var pickerData = ref world.Get<UIDatePicker>(picker);
+        var nextButton = pickerData.NextMonthButton;
+
+        SimulateClick(world, nextButton, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var updatedData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(1, updatedData.DisplayMonth);
+        Assert.Equal(2025, updatedData.DisplayYear);
+    }
+
+    [Fact]
+    public void Navigation_Click_RaisesCalendarNavigatedEvent()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithNavigation(world, initialDate);
+        layout.Update(0);
+
+        UICalendarNavigatedEvent? receivedEvent = null;
+        world.Subscribe<UICalendarNavigatedEvent>(evt => receivedEvent = evt);
+
+        ref var pickerData = ref world.Get<UIDatePicker>(picker);
+        var nextButton = pickerData.NextMonthButton;
+
+        SimulateClick(world, nextButton, new Vector2(16, 16));
+        system.Update(0);
+
+        Assert.NotNull(receivedEvent);
+        Assert.Equal(2024, receivedEvent.Value.Year);
+        Assert.Equal(7, receivedEvent.Value.Month);
+    }
+
+    #endregion
+
+    #region Calendar Day Overflow Tests
+
+    [Fact]
+    public void CalendarDay_ClickPreviousMonthDay_NavigatesToPreviousMonth()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithDays(world, initialDate);
+        layout.Update(0);
+
+        // Add a day from the previous month (May 31)
+        var prevMonthDay = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 31, 5, 2024)
+            {
+                IsCurrentMonth = false,
+                IsDisabled = false
+            })
+            .With(UIInteractable.Clickable())
+            .Build();
+        world.SetParent(prevMonthDay, picker);
+
+        UICalendarNavigatedEvent? navigatedEvent = null;
+        world.Subscribe<UICalendarNavigatedEvent>(evt => navigatedEvent = evt);
+
+        SimulateClick(world, prevMonthDay, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(31, pickerData.Value.Day);
+        Assert.Equal(5, pickerData.Value.Month);
+        Assert.NotNull(navigatedEvent);
+        Assert.Equal(5, navigatedEvent.Value.Month);
+    }
+
+    [Fact]
+    public void CalendarDay_Click_MinDateConstraint_Rejected()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var minDate = new DateTime(2024, 6, 10);
+        var picker = CreateDatePickerWithConstraints(world, initialDate, minDate, null);
+        layout.Update(0);
+
+        // Add a day before the min date
+        var dayBeforeMin = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 5, 6, 2024)
+            {
+                IsCurrentMonth = true,
+                IsDisabled = false // Not disabled from component perspective
+            })
+            .With(UIInteractable.Clickable())
+            .Build();
+        world.SetParent(dayBeforeMin, picker);
+
+        SimulateClick(world, dayBeforeMin, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(15, pickerData.Value.Day); // Unchanged - rejected by min date
+    }
+
+    [Fact]
+    public void CalendarDay_Click_MaxDateConstraint_Rejected()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var maxDate = new DateTime(2024, 6, 20);
+        var picker = CreateDatePickerWithConstraints(world, initialDate, null, maxDate);
+        layout.Update(0);
+
+        // Add a day after the max date
+        var dayAfterMax = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 25, 6, 2024)
+            {
+                IsCurrentMonth = true,
+                IsDisabled = false
+            })
+            .With(UIInteractable.Clickable())
+            .Build();
+        world.SetParent(dayAfterMax, picker);
+
+        SimulateClick(world, dayAfterMax, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(15, pickerData.Value.Day); // Unchanged - rejected by max date
+    }
+
+    #endregion
+
     #region Config Tests
 
     [Fact]
@@ -640,6 +1102,97 @@ public class UIDatePickerSystemTests
     {
         var clickEvent = new UIClickEvent(entity, position, MouseButton.Left);
         world.Send(clickEvent);
+    }
+
+    private static Entity CreateDatePickerWithTimeSpinner(World world, DateTime initialValue, TimeField field)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create date picker entity
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.DateTime,
+                TimeFormat = TimeFormat.Hour12
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+
+        // Create time spinner
+        var spinner = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 50, 30))
+            .With(new UITimeSpinner(picker, field))
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        world.SetParent(spinner, picker);
+
+        return picker;
+    }
+
+    private static Entity? FindTimeSpinner(World world, Entity picker, TimeField field)
+    {
+        foreach (var entity in world.Query<UITimeSpinner>())
+        {
+            ref readonly var spinner = ref world.Get<UITimeSpinner>(entity);
+            if (spinner.DatePicker == picker && spinner.Field == field)
+            {
+                return entity;
+            }
+        }
+        return null;
+    }
+
+    private static Entity CreateDatePickerWithNavigation(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create navigation buttons
+        var prevButton = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 30, 30))
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        var nextButton = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(250, 0, 30, 30))
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        // Create date picker entity
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.Date,
+                PrevMonthButton = prevButton,
+                NextMonthButton = nextButton
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+        world.SetParent(prevButton, picker);
+        world.SetParent(nextButton, picker);
+
+        return picker;
     }
 
     #endregion
