@@ -33,6 +33,12 @@
       "keeneyes.logging": {
         "type": "Project"
       },
+      "keeneyes.network.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.persistence": {
         "type": "Project",
         "dependencies": {
