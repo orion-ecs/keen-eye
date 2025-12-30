@@ -518,4 +518,555 @@ public class UIMenuSystemTests
     }
 
     #endregion
+
+    #region Edge Case Tests
+
+    [Fact]
+    public void MenuBarItem_Click_NoMenuBarComponent_DoesNotThrow()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        // Menu bar item with invalid menu bar reference
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = Entity.Null, DropdownMenu = dropdown })
+            .Build();
+
+        var clickEvent = new UIClickEvent(menuBarItem, new Vector2(50, 20), MouseButton.Left);
+        world.Send(clickEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void MenuBarItem_Click_DropdownWithoutUIMenu_DoesNotOpen()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menuBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBar())
+            .Build();
+
+        // Dropdown without UIMenu component
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .Build();
+
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = menuBar, DropdownMenu = dropdown })
+            .Build();
+
+        var clickEvent = new UIClickEvent(menuBarItem, new Vector2(50, 20), MouseButton.Left);
+        world.Send(clickEvent);
+
+        menuSystem.Update(0);
+
+        // Should not throw and menu bar should not become active
+        ref readonly var menuBarState = ref world.Get<UIMenuBar>(menuBar);
+        Assert.False(menuBarState.IsActive);
+    }
+
+    [Fact]
+    public void MenuBarItem_Hover_NoMenuBarComponent_DoesNotThrow()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        // Menu bar item with invalid menu bar reference
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = Entity.Null, DropdownMenu = dropdown })
+            .Build();
+
+        var pointerEnterEvent = new UIPointerEnterEvent(menuBarItem, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void MenuBarItem_Hover_InactiveMenuBar_DoesNotSwitch()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menuBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBar { IsActive = false }) // Not active
+            .Build();
+
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = menuBar, DropdownMenu = dropdown })
+            .Build();
+
+        var pointerEnterEvent = new UIPointerEnterEvent(menuBarItem, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        menuSystem.Update(0);
+
+        // Menu should not open because menu bar is not active
+        ref readonly var menu = ref world.Get<UIMenu>(dropdown);
+        Assert.False(menu.IsOpen);
+    }
+
+    [Fact]
+    public void MenuItem_Hover_DisabledWithSubmenu_DoesNotOpenSubmenu()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var parentMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenu())
+            .Build();
+
+        var submenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        // Disabled menu item with submenu
+        var menuItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuItem { Menu = parentMenu, IsEnabled = false, Submenu = submenu })
+            .Build();
+
+        var pointerEnterEvent = new UIPointerEnterEvent(menuItem, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        menuSystem.Update(0);
+
+        ref readonly var submenuState = ref world.Get<UIMenu>(submenu);
+        Assert.False(submenuState.IsOpen);
+    }
+
+    [Fact]
+    public void MenuItem_Hover_InvalidSubmenu_DoesNotThrow()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var parentMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenu())
+            .Build();
+
+        var menuItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuItem { Menu = parentMenu, IsEnabled = true, Submenu = Entity.Null })
+            .Build();
+
+        var pointerEnterEvent = new UIPointerEnterEvent(menuItem, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void ContextMenuRequest_MenuWithoutUIRect_DoesNotOpen()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        // Context menu without UIRect
+        var contextMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        var requestEvent = new UIContextMenuRequestEvent(contextMenu, new Vector2(100, 150), Entity.Null);
+        world.Send(requestEvent);
+
+        menuSystem.Update(0);
+
+        ref readonly var menu = ref world.Get<UIMenu>(contextMenu);
+        Assert.False(menu.IsOpen);
+    }
+
+    [Fact]
+    public void ContextMenuRequest_MenuWithoutUIMenu_DoesNothing()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        // Context menu without UIMenu component
+        var contextMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(UIRect.Fixed(0, 0, 150, 200))
+            .Build();
+
+        var requestEvent = new UIContextMenuRequestEvent(contextMenu, new Vector2(100, 150), Entity.Null);
+        world.Send(requestEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void OpenSubmenu_SubmenuWithoutUIMenu_DoesNotOpen()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var parentMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenu())
+            .Build();
+
+        // Submenu without UIMenu component
+        var submenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .Build();
+
+        var menuItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuItem { Menu = parentMenu, IsEnabled = true, Submenu = submenu })
+            .Build();
+
+        var pointerEnterEvent = new UIPointerEnterEvent(menuItem, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void OpenSubmenu_ClosesSiblingSubmenu()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var parentMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenu())
+            .Build();
+
+        var submenu1 = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIMenu { IsOpen = true })
+            .Build();
+
+        var submenu2 = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        // Set first submenu as open
+        ref var parentMenuState = ref world.Get<UIMenu>(parentMenu);
+        parentMenuState.OpenSubmenu = submenu1;
+
+        var menuItem1 = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuItem { Menu = parentMenu, IsEnabled = true, Submenu = submenu1 })
+            .Build();
+
+        var menuItem2 = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuItem { Menu = parentMenu, IsEnabled = true, Submenu = submenu2 })
+            .Build();
+
+        // Hover over second menu item to open its submenu
+        var pointerEnterEvent = new UIPointerEnterEvent(menuItem2, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        menuSystem.Update(0);
+
+        ref readonly var submenu1State = ref world.Get<UIMenu>(submenu1);
+        ref readonly var submenu2State = ref world.Get<UIMenu>(submenu2);
+
+        Assert.False(submenu1State.IsOpen);
+        Assert.True(submenu2State.IsOpen);
+    }
+
+    [Fact]
+    public void OpenMenu_WithoutUIElement_DoesNotThrow()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menuBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBar())
+            .Build();
+
+        // Dropdown without UIElement
+        var dropdown = world.Spawn()
+            .With(new UIMenu())
+            .Build();
+
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = menuBar, DropdownMenu = dropdown })
+            .Build();
+
+        var clickEvent = new UIClickEvent(menuBarItem, new Vector2(50, 20), MouseButton.Left);
+        world.Send(clickEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void OpenMenu_WithExistingUIHiddenTag_RemovesTag()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menuBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBar())
+            .Build();
+
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .With(new UIHiddenTag())
+            .Build();
+
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = menuBar, DropdownMenu = dropdown })
+            .Build();
+
+        var clickEvent = new UIClickEvent(menuBarItem, new Vector2(50, 20), MouseButton.Left);
+        world.Send(clickEvent);
+
+        menuSystem.Update(0);
+
+        Assert.False(world.Has<UIHiddenTag>(dropdown));
+    }
+
+    [Fact]
+    public void OpenMenu_WithExistingUILayoutDirtyTag_DoesNotAddDuplicate()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menuBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBar())
+            .Build();
+
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .With(new UILayoutDirtyTag())
+            .Build();
+
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = menuBar, DropdownMenu = dropdown })
+            .Build();
+
+        var clickEvent = new UIClickEvent(menuBarItem, new Vector2(50, 20), MouseButton.Left);
+        world.Send(clickEvent);
+
+        // Should not throw with duplicate tag
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void CloseMenu_WithoutUIElement_DoesNotThrow()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        // Menu without UIElement
+        var menu = world.Spawn()
+            .With(new UIMenu { IsOpen = true })
+            .Build();
+
+        var outsideElement = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        var clickEvent = new UIClickEvent(outsideElement, new Vector2(500, 500), MouseButton.Left);
+        world.Send(clickEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void CloseMenu_AlreadyHasUIHiddenTag_DoesNotAddDuplicate()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menu = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIMenu { IsOpen = true })
+            .With(new UIHiddenTag())
+            .Build();
+
+        var outsideElement = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        var clickEvent = new UIClickEvent(outsideElement, new Vector2(500, 500), MouseButton.Left);
+        world.Send(clickEvent);
+
+        // Should not throw with existing tag
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void PositionDropdown_NoUIRect_DoesNotThrow()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menuBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBar())
+            .Build();
+
+        // Dropdown without UIRect
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        // Menu bar item without UIRect
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = menuBar, DropdownMenu = dropdown })
+            .Build();
+
+        var clickEvent = new UIClickEvent(menuBarItem, new Vector2(50, 20), MouseButton.Left);
+        world.Send(clickEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void PositionSubmenu_NoUIRect_DoesNotThrow()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var parentMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenu())
+            .Build();
+
+        // Submenu without UIRect
+        var submenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIMenu())
+            .Build();
+
+        // Menu item without UIRect
+        var menuItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuItem { Menu = parentMenu, IsEnabled = true, Submenu = submenu })
+            .Build();
+
+        var pointerEnterEvent = new UIPointerEnterEvent(menuItem, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        // Should not throw
+        menuSystem.Update(0);
+    }
+
+    [Fact]
+    public void UIMenuSystem_Dispose_CleansUpSubscriptions()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        // Should not throw
+        menuSystem.Dispose();
+
+        // System should be disposed and not process events
+        var menu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenu())
+            .Build();
+
+        var clickEvent = new UIClickEvent(menu, new Vector2(50, 20), MouseButton.Left);
+
+        // Should not throw even after dispose
+        world.Send(clickEvent);
+    }
+
+    [Fact]
+    public void SwitchToMenu_SameMenu_DoesNotReopen()
+    {
+        using var world = new World();
+        var menuSystem = new UIMenuSystem();
+        world.AddSystem(menuSystem);
+
+        var menuBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBar { IsActive = true })
+            .Build();
+
+        var dropdown = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIMenu { IsOpen = true })
+            .Build();
+
+        ref var menuBarState = ref world.Get<UIMenuBar>(menuBar);
+        menuBarState.ActiveMenu = dropdown;
+
+        var menuBarItem = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIMenuBarItem { MenuBar = menuBar, DropdownMenu = dropdown })
+            .Build();
+
+        // Hover over same item
+        var pointerEnterEvent = new UIPointerEnterEvent(menuBarItem, new Vector2(50, 20));
+        world.Send(pointerEnterEvent);
+
+        menuSystem.Update(0);
+
+        // Menu should still be open
+        ref readonly var menu = ref world.Get<UIMenu>(dropdown);
+        Assert.True(menu.IsOpen);
+    }
+
+    #endregion
 }
