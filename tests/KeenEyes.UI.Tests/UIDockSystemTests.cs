@@ -2047,4 +2047,534 @@ public class UIDockSystemTests
     }
 
     #endregion
+
+    #region Preview Overlay Zone Tests
+
+    [Fact]
+    public void UpdatePreviewOverlay_PositionsForRightZone()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var previewOverlay = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect())
+            .Build();
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 800, 600)
+            })
+            .With(new UIDockContainer { PreviewOverlay = previewOverlay })
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { DockContainer = container })
+            .With(new UIDockDraggingTag()) // Must have dragging tag for OnDrag to process
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Drag to right edge - Position is the current cursor position
+        var dragEvent = new UIDragEvent(titleBar, new Vector2(750, 300), new Vector2(0, 0));
+        world.Send(dragEvent);
+
+        dockSystem.Update(0);
+
+        ref readonly var previewRect = ref world.Get<UIRect>(previewOverlay);
+        Assert.True(previewRect.Size.X.ApproximatelyEquals(400f)); // Half width
+    }
+
+    [Fact]
+    public void UpdatePreviewOverlay_PositionsForTopZone()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var previewOverlay = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect())
+            .Build();
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 800, 600)
+            })
+            .With(new UIDockContainer { PreviewOverlay = previewOverlay })
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { DockContainer = container })
+            .With(new UIDockDraggingTag()) // Must have dragging tag for OnDrag to process
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Drag to top edge
+        var dragEvent = new UIDragEvent(titleBar, new Vector2(400, 50), new Vector2(0, 0));
+        world.Send(dragEvent);
+
+        dockSystem.Update(0);
+
+        ref readonly var previewRect = ref world.Get<UIRect>(previewOverlay);
+        Assert.True(previewRect.Size.Y.ApproximatelyEquals(300f)); // Half height
+    }
+
+    [Fact]
+    public void UpdatePreviewOverlay_PositionsForBottomZone()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var previewOverlay = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect())
+            .Build();
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 800, 600)
+            })
+            .With(new UIDockContainer { PreviewOverlay = previewOverlay })
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { DockContainer = container })
+            .With(new UIDockDraggingTag()) // Must have dragging tag for OnDrag to process
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Drag to bottom edge
+        var dragEvent = new UIDragEvent(titleBar, new Vector2(400, 550), new Vector2(0, 0));
+        world.Send(dragEvent);
+
+        dockSystem.Update(0);
+
+        ref readonly var previewRect = ref world.Get<UIRect>(previewOverlay);
+        Assert.True(previewRect.Size.Y.ApproximatelyEquals(300f)); // Half height
+    }
+
+    [Fact]
+    public void UpdatePreviewOverlay_PositionsForCenterZone()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var previewOverlay = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect())
+            .Build();
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 800, 600)
+            })
+            .With(new UIDockContainer { PreviewOverlay = previewOverlay })
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { DockContainer = container })
+            .With(new UIDockDraggingTag()) // Must have dragging tag for OnDrag to process
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Drag to center
+        var dragEvent = new UIDragEvent(titleBar, new Vector2(400, 300), new Vector2(0, 0));
+        world.Send(dragEvent);
+
+        dockSystem.Update(0);
+
+        ref readonly var previewRect = ref world.Get<UIRect>(previewOverlay);
+        Assert.True(previewRect.Size.X.ApproximatelyEquals(400f)); // Half width
+        Assert.True(previewRect.Size.Y.ApproximatelyEquals(300f)); // Half height
+    }
+
+    [Fact]
+    public void UpdatePreviewOverlay_InvalidContainerWithNoRect_DoesNotThrow()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockContainer())
+            // No UIRect
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { DockContainer = container })
+            .With(new UIDockDraggingTag())
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Should not throw even without UIRect on container
+        var dragEvent = new UIDragEvent(titleBar, new Vector2(0, 0), new Vector2(400, 300));
+        world.Send(dragEvent);
+
+        dockSystem.Update(0);
+    }
+
+    [Fact]
+    public void UpdatePreviewOverlay_PreviewWithNoRect_DoesNotThrow()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var previewOverlay = world.Spawn()
+            .With(new UIElement { Visible = true })
+            // No UIRect
+            .Build();
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 800, 600)
+            })
+            .With(new UIDockContainer { PreviewOverlay = previewOverlay })
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { DockContainer = container })
+            .With(new UIDockDraggingTag())
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Should not throw even without UIRect on preview overlay
+        var dragEvent = new UIDragEvent(titleBar, new Vector2(0, 0), new Vector2(400, 300));
+        world.Send(dragEvent);
+
+        dockSystem.Update(0);
+    }
+
+    #endregion
+
+    #region Show Preview Overlay Edge Cases
+
+    [Fact]
+    public void ShowPreviewOverlay_HidesOnDragEnd()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var previewOverlay = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect())
+            .Build();
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 800, 600) })
+            .With(new UIDockContainer { PreviewOverlay = previewOverlay })
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(100, 100, 300, 200))
+            .With(new UIDockPanel
+            {
+                CanFloat = true,
+                DockContainer = container,
+                State = DockState.Floating,
+                FloatingSize = new Vector2(300, 200)
+            })
+            .With(new UIDockDraggingTag())
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // End drag hides preview
+        var dragEndEvent = new UIDragEndEvent(titleBar, new Vector2(200, 100));
+        world.Send(dragEndEvent);
+        dockSystem.Update(0);
+
+        Assert.False(world.Get<UIElement>(previewOverlay).Visible);
+        Assert.True(world.Has<UIHiddenTag>(previewOverlay));
+    }
+
+    [Fact]
+    public void ShowPreviewOverlay_DeadPreviewOverlay_DoesNotThrow()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var previewOverlay = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .Build();
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockContainer { PreviewOverlay = previewOverlay })
+            .Build();
+
+        // Despawn the preview overlay
+        world.Despawn(previewOverlay);
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel
+            {
+                CanFloat = true,
+                DockContainer = container
+            })
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Should not throw with dead preview overlay
+        var dragStartEvent = new UIDragStartEvent(titleBar, new Vector2(100, 50));
+        world.Send(dragStartEvent);
+        dockSystem.Update(0);
+    }
+
+    #endregion
+
+    #region Tab Panel Edge Cases
+
+    [Fact]
+    public void SelectTab_PanelWithNoUIElement_DoesNotThrow()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var tabGroup = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockTabGroup { TabCount = 2, SelectedIndex = 0 })
+            .Build();
+
+        var panel0 = world.Spawn()
+            // No UIElement
+            .Build();
+
+        var panel1 = world.Spawn()
+            // No UIElement
+            .Build();
+
+        var tab0 = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockTab(panel0, tabGroup) { Index = 0 })
+            .Build();
+
+        var tab1 = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockTab(panel1, tabGroup) { Index = 1 })
+            .Build();
+
+        // Should not throw even when panels have no UIElement
+        dockSystem.SelectTab(tabGroup, 1);
+
+        ref readonly var tabGroupState = ref world.Get<UIDockTabGroup>(tabGroup);
+        Assert.Equal(1, tabGroupState.SelectedIndex);
+    }
+
+    [Fact]
+    public void SelectTab_DeadPanel_DoesNotThrow()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var tabGroup = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockTabGroup { TabCount = 2, SelectedIndex = 0 })
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        var tab = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockTab(panel, tabGroup) { Index = 1 })
+            .Build();
+
+        // Despawn the panel
+        world.Despawn(panel);
+
+        // Should not throw with dead panel
+        dockSystem.SelectTab(tabGroup, 1);
+    }
+
+    #endregion
+
+    #region DragEnd Without CanFloat Tests
+
+    [Fact]
+    public void DragEnd_DockedCannotFloat_StaysDocked()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 800, 600)
+            })
+            .With(new UIDockContainer())
+            .Build();
+
+        var centerZone = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockZone())
+            .Build();
+
+        ref var containerState = ref world.Get<UIDockContainer>(container);
+        containerState.CenterZone = centerZone;
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel
+            {
+                CanDock = true,
+                CanFloat = false, // Cannot float
+                AllowedZones = DockZone.Center,
+                State = DockState.Docked,
+                CurrentZone = DockZone.Center,
+                DockContainer = container
+            })
+            .With(new UIDockDraggingTag())
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // End drag outside bounds (would float if allowed)
+        var dragEndEvent = new UIDragEndEvent(titleBar, new Vector2(-100, 300));
+        world.Send(dragEndEvent);
+
+        dockSystem.Update(0);
+
+        ref readonly var panelState = ref world.Get<UIDockPanel>(panel);
+        // Still docked since it cannot float
+        Assert.Equal(DockState.Docked, panelState.State);
+    }
+
+    #endregion
+
+    #region Zone Detection Edge Cases
+
+    [Fact]
+    public void ZoneDetection_NoUIRect_ReturnsNone()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockContainer())
+            // No UIRect
+            .Build();
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { DockContainer = container })
+            .With(new UIDockDraggingTag())
+            .Build();
+
+        var titleBar = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIWindowTitleBar(panel))
+            .Build();
+
+        // Should not crash when container has no UIRect
+        var dragEvent = new UIDragEvent(titleBar, new Vector2(0, 0), new Vector2(100, 100));
+        world.Send(dragEvent);
+
+        dockSystem.Update(0);
+    }
+
+    #endregion
+
+    #region AddPanelToZone Edge Cases
+
+    [Fact]
+    public void AddPanelToZone_ZoneWithNoTabGroup_ParentsPanel()
+    {
+        using var world = new World();
+        var dockSystem = new UIDockSystem();
+        world.AddSystem(dockSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Stretch())
+            .With(new UIDockContainer())
+            .Build();
+
+        var centerZone = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockZone { TabGroup = Entity.Null }) // No tab group
+            .Build();
+
+        ref var containerState = ref world.Get<UIDockContainer>(container);
+        containerState.CenterZone = centerZone;
+
+        var panel = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIDockPanel { Title = "Panel" })
+            .Build();
+
+        dockSystem.DockPanel(panel, DockZone.Center, container);
+
+        // Panel should be docked
+        ref readonly var panelState = ref world.Get<UIDockPanel>(panel);
+        Assert.Equal(DockState.Docked, panelState.State);
+    }
+
+    #endregion
 }
