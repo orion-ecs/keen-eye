@@ -276,6 +276,6 @@ Console.WriteLine("  - Entity hierarchy replication (parent-child)");
 Console.WriteLine("  - Delta compression for bandwidth efficiency");
 Console.WriteLine("  - Component pre-registration for network types");
 Console.WriteLine("\nFor real multiplayer, replace LocalTransport with:");
-Console.WriteLine("  - LiteNetLib (UDP with reliability)");
-Console.WriteLine("  - ENet (reliable UDP protocol)");
+Console.WriteLine("  - TcpTransport (built-in, reliable ordered)");
+Console.WriteLine("  - UdpTransport (built-in, configurable reliability)");
 Console.WriteLine("  - WebSocket (for browser clients)");
