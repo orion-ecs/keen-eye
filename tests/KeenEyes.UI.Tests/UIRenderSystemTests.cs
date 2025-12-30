@@ -821,6 +821,426 @@ public class UIRenderSystemTests
 
     #endregion
 
+    #region Renderer Provider Fallback
+
+    [Fact]
+    public void RenderSystem_WithRendererProvider_UsesProvider()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        var provider = new MockRendererProvider(renderer2D);
+        world.SetExtension<I2DRendererProvider>(provider);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        CreateSimpleCanvas(world);
+
+        renderSystem.Update(0);
+
+        Assert.Equal(1, renderer2D.BeginCount);
+        Assert.Equal(1, renderer2D.EndCount);
+    }
+
+    [Fact]
+    public void RenderSystem_WithTextRendererProvider_UsesProvider()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        var textRenderer = new MockTextRenderer();
+        var textProvider = new MockTextRendererProvider(textRenderer);
+        world.SetExtension<I2DRenderer>(renderer2D);
+        world.SetExtension<ITextRendererProvider>(textProvider);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 200, 40))
+            .With(new UIText
+            {
+                Content = "Test",
+                Font = new FontHandle(1),
+                Color = new Vector4(1, 1, 1, 1)
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 200, 40);
+
+        renderSystem.Update(0);
+
+        Assert.Equal(1, textRenderer.BeginCount);
+    }
+
+    #endregion
+
+    #region Scrollable Elements
+
+    [Fact]
+    public void RenderSystem_WithScrollableElement_ReadsScrollPosition()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var scrollable = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 200, 100))
+            .With(new UIScrollable { ScrollPosition = new Vector2(50, 100) })
+            .With(new UIStyle { BackgroundColor = new Vector4(1, 0, 0, 1) })
+            .Build();
+        world.SetParent(scrollable, canvas);
+        SetComputedBounds(world, scrollable, 10, 10, 200, 100);
+
+        // Should not throw and should render normally
+        renderSystem.Update(0);
+
+        var fillCommands = renderer2D.Commands.OfType<FillRectCommand>().ToList();
+        Assert.NotEmpty(fillCommands);
+    }
+
+    #endregion
+
+    #region Style Edge Cases
+
+    [Fact]
+    public void RenderSystem_WithTransparentBackground_SkipsBackgroundRender()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 100, 50))
+            .With(new UIStyle
+            {
+                BackgroundColor = new Vector4(1, 0, 0, 0) // Alpha = 0
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 100, 50);
+
+        renderSystem.Update(0);
+
+        // Should not have any fill commands for the transparent element
+        var fillCommands = renderer2D.Commands.OfType<FillRectCommand>().ToList();
+        Assert.Empty(fillCommands);
+    }
+
+    [Fact]
+    public void RenderSystem_WithTransparentBorder_SkipsBorderRender()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 100, 50))
+            .With(new UIStyle
+            {
+                BorderColor = new Vector4(0, 1, 0, 0), // Alpha = 0
+                BorderWidth = 2
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 100, 50);
+
+        renderSystem.Update(0);
+
+        // Should not have any border commands
+        var borderCommands = renderer2D.Commands.OfType<DrawRectCommand>().ToList();
+        Assert.Empty(borderCommands);
+    }
+
+    [Fact]
+    public void RenderSystem_WithZeroBorderWidth_SkipsBorderRender()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 100, 50))
+            .With(new UIStyle
+            {
+                BorderColor = new Vector4(0, 1, 0, 1),
+                BorderWidth = 0 // Zero width
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 100, 50);
+
+        renderSystem.Update(0);
+
+        // Should not have any border commands
+        var borderCommands = renderer2D.Commands.OfType<DrawRectCommand>().ToList();
+        Assert.Empty(borderCommands);
+    }
+
+    #endregion
+
+    #region Image Edge Cases
+
+    [Fact]
+    public void RenderSystem_WithImageZeroSourceRect_UsesNormalizedDefault()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var texture = new TextureHandle(2);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(20, 30, 64, 64))
+            .With(new UIImage
+            {
+                Texture = texture,
+                SourceRect = new Rectangle(0, 0, 0, 0) // Zero dimensions
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 20, 30, 64, 64);
+
+        renderSystem.Update(0);
+
+        var regionCommand = renderer2D.Commands.OfType<DrawTextureRegionCommand>().FirstOrDefault();
+        Assert.NotNull(regionCommand);
+        // Should use normalized (0,0,1,1) rect
+        Assert.True(regionCommand.SourceRect.Width.ApproximatelyEquals(1f));
+        Assert.True(regionCommand.SourceRect.Height.ApproximatelyEquals(1f));
+    }
+
+    [Fact]
+    public void RenderSystem_WithImageNegativeSourceRect_UsesNormalizedDefault()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var texture = new TextureHandle(2);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(20, 30, 64, 64))
+            .With(new UIImage
+            {
+                Texture = texture,
+                SourceRect = new Rectangle(0, 0, -10, -10) // Negative dimensions
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 20, 30, 64, 64);
+
+        renderSystem.Update(0);
+
+        var regionCommand = renderer2D.Commands.OfType<DrawTextureRegionCommand>().FirstOrDefault();
+        Assert.NotNull(regionCommand);
+        // Should use normalized (0,0,1,1) rect
+        Assert.True(regionCommand.SourceRect.Width.ApproximatelyEquals(1f));
+        Assert.True(regionCommand.SourceRect.Height.ApproximatelyEquals(1f));
+    }
+
+    #endregion
+
+    #region Text Alignment Edge Cases
+
+    [Fact]
+    public void RenderSystem_WithTextLeftAlignment_PositionsCorrectly()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        var textRenderer = new MockTextRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+        world.SetExtension<ITextRenderer>(textRenderer);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 200, 40))
+            .With(new UIText
+            {
+                Content = "Test",
+                Font = new FontHandle(1),
+                Color = new Vector4(1, 1, 1, 1),
+                HorizontalAlign = TextAlignH.Left,
+                VerticalAlign = TextAlignV.Top
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 200, 40);
+
+        renderSystem.Update(0);
+
+        var textCommand = textRenderer.Commands.OfType<DrawTextCommand>().FirstOrDefault();
+        Assert.NotNull(textCommand);
+        Assert.Equal(TextAlignH.Left, textCommand.AlignH);
+        Assert.Equal(TextAlignV.Top, textCommand.AlignV);
+        // For left/top alignment, Position should be at bounds origin
+        Assert.True(textCommand.Position.X.ApproximatelyEquals(10f));
+        Assert.True(textCommand.Position.Y.ApproximatelyEquals(10f));
+    }
+
+    [Fact]
+    public void RenderSystem_WithTextRightAlignment_PositionsCorrectly()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        var textRenderer = new MockTextRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+        world.SetExtension<ITextRenderer>(textRenderer);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 200, 40))
+            .With(new UIText
+            {
+                Content = "Test",
+                Font = new FontHandle(1),
+                Color = new Vector4(1, 1, 1, 1),
+                HorizontalAlign = TextAlignH.Right,
+                VerticalAlign = TextAlignV.Bottom
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 200, 40);
+
+        renderSystem.Update(0);
+
+        var textCommand = textRenderer.Commands.OfType<DrawTextCommand>().FirstOrDefault();
+        Assert.NotNull(textCommand);
+        Assert.Equal(TextAlignH.Right, textCommand.AlignH);
+        Assert.Equal(TextAlignV.Bottom, textCommand.AlignV);
+        // For right/bottom alignment, Position.X = bounds.X + bounds.Width, Position.Y = bounds.Y + bounds.Height
+        Assert.True(textCommand.Position.X.ApproximatelyEquals(210f)); // 10 + 200
+        Assert.True(textCommand.Position.Y.ApproximatelyEquals(50f));  // 10 + 40
+    }
+
+    [Fact]
+    public void RenderSystem_SkipsNullTextContent()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        var textRenderer = new MockTextRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+        world.SetExtension<ITextRenderer>(textRenderer);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 200, 40))
+            .With(new UIText
+            {
+                Content = null!,
+                Font = new FontHandle(1),
+                Color = new Vector4(1, 1, 1, 1)
+            })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 200, 40);
+
+        renderSystem.Update(0);
+
+        Assert.Empty(textRenderer.Commands);
+    }
+
+    #endregion
+
+    #region Interaction State Edge Cases
+
+    [Fact]
+    public void RenderSystem_WithInteractableNormalState_NoOverlay()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        var canvas = CreateSimpleCanvas(world);
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(10, 10, 100, 50))
+            .With(new UIInteractable { State = UIInteractionState.Normal })
+            .Build();
+        world.SetParent(element, canvas);
+        SetComputedBounds(world, element, 10, 10, 100, 50);
+
+        renderSystem.Update(0);
+
+        // Should not have any overlay (0.1f or 0.2f alpha)
+        var overlays = renderer2D.Commands.OfType<FillRectCommand>()
+            .Where(cmd => cmd.Color.W.ApproximatelyEquals(0.1f) || cmd.Color.W.ApproximatelyEquals(0.2f))
+            .ToList();
+        Assert.Empty(overlays);
+    }
+
+    #endregion
+
+    #region Multiple Update Cycles
+
+    [Fact]
+    public void RenderSystem_MultipleUpdates_ReinitializesOnceOnly()
+    {
+        using var world = new World();
+        var renderer2D = new Mock2DRenderer();
+        world.SetExtension<I2DRenderer>(renderer2D);
+
+        var renderSystem = new UIRenderSystem();
+        world.AddSystem(renderSystem);
+
+        CreateSimpleCanvas(world);
+
+        // Multiple updates
+        renderSystem.Update(0);
+        renderSystem.Update(0);
+        renderSystem.Update(0);
+
+        // Begin/End should be called each time
+        Assert.Equal(3, renderer2D.BeginCount);
+        Assert.Equal(3, renderer2D.EndCount);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Entity CreateSimpleCanvas(World world)
@@ -853,4 +1273,20 @@ public class UIRenderSystemTests
     }
 
     #endregion
+}
+
+/// <summary>
+/// Mock renderer provider for testing fallback initialization.
+/// </summary>
+internal sealed class MockRendererProvider(I2DRenderer renderer) : I2DRendererProvider
+{
+    public I2DRenderer Get2DRenderer() => renderer;
+}
+
+/// <summary>
+/// Mock text renderer provider for testing fallback initialization.
+/// </summary>
+internal sealed class MockTextRendererProvider(ITextRenderer renderer) : ITextRendererProvider
+{
+    public ITextRenderer GetTextRenderer() => renderer;
 }
