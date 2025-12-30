@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using KeenEyes.Network.Transport;
 
-namespace KeenEyes.Network;
+namespace KeenEyes.Network.Transport.Udp;
 
 /// <summary>
 /// UDP-based network transport with optional reliability layer.
