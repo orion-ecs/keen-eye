@@ -985,6 +985,811 @@ public class UIDatePickerSystemTests
 
     #endregion
 
+    #region Day Cell Update Tests
+
+    [Fact]
+    public void CalendarDay_UpdateDayCell_SetsIsTodayCorrectly()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var today = DateTime.Today;
+        var picker = CreateDatePickerWithDays(world, today);
+        layout.Update(0);
+
+        // Find the day cell for today
+        Entity? todayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == today.Day && day.Month == today.Month && day.Year == today.Year)
+            {
+                todayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(todayEntity);
+
+        // Navigate away and back to trigger UpdateCalendarGrid
+        system.NavigateTo(picker, today.Year, today.Month);
+
+        ref readonly var dayData = ref world.Get<UICalendarDay>(todayEntity.Value);
+        Assert.True(dayData.IsToday);
+    }
+
+    [Fact]
+    public void CalendarDay_UpdateDayCell_SetsIsSelectedCorrectly()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithDays(world, date);
+        layout.Update(0);
+
+        // Find the day cell for selected day
+        Entity? selectedEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 15 && day.Month == 6 && day.Year == 2024)
+            {
+                selectedEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(selectedEntity);
+
+        // Trigger an update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var dayData = ref world.Get<UICalendarDay>(selectedEntity.Value);
+        Assert.True(dayData.IsSelected);
+    }
+
+    [Fact]
+    public void CalendarDay_Click_UpdatesStyleForSelectedDay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithStyledDays(world, initialDate);
+        layout.Update(0);
+
+        // Find a day cell for day 20 with style
+        Entity? dayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 20 && day.Month == 6 && day.Year == 2024 && world.Has<UIStyle>(entity))
+            {
+                dayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(dayEntity);
+
+        // Click to select the day
+        SimulateClick(world, dayEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        // Verify selection updated
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(20, pickerData.Value.Day);
+    }
+
+    [Fact]
+    public void CalendarDay_UpdateDayCell_SetsDisabledForDateBeforeMin()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var minDate = new DateTime(2024, 6, 10);
+        var picker = CreateDatePickerWithConstraints(world, date, minDate, null);
+        layout.Update(0);
+
+        // Create a day cell before min date
+        var dayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 5, 6, 2024)
+            {
+                IsCurrentMonth = true
+            })
+            .With(new UIStyle())
+            .Build();
+        world.SetParent(dayCell, picker);
+
+        // Trigger calendar grid update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var dayData = ref world.Get<UICalendarDay>(dayCell);
+        Assert.True(dayData.IsDisabled);
+    }
+
+    [Fact]
+    public void CalendarDay_UpdateDayCell_SetsDisabledForDateAfterMax()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var maxDate = new DateTime(2024, 6, 20);
+        var picker = CreateDatePickerWithConstraints(world, date, null, maxDate);
+        layout.Update(0);
+
+        // Create a day cell after max date
+        var dayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 25, 6, 2024)
+            {
+                IsCurrentMonth = true
+            })
+            .With(new UIStyle())
+            .Build();
+        world.SetParent(dayCell, picker);
+
+        // Trigger calendar grid update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var dayData = ref world.Get<UICalendarDay>(dayCell);
+        Assert.True(dayData.IsDisabled);
+    }
+
+    [Fact]
+    public void CalendarDay_UpdateDayCell_UpdatesTextContent()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var picker = CreateDatePicker(world, date);
+        layout.Update(0);
+
+        // Create a day cell with text
+        var dayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 20, 6, 2024)
+            {
+                IsCurrentMonth = true
+            })
+            .With(new UIText { Content = "" })
+            .Build();
+        world.SetParent(dayCell, picker);
+
+        // Trigger calendar grid update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var text = ref world.Get<UIText>(dayCell);
+        Assert.Equal("20", text.Content);
+    }
+
+    [Fact]
+    public void CalendarDay_UpdateDayCell_GraysOutDisabledText()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var minDate = new DateTime(2024, 6, 10);
+        var picker = CreateDatePickerWithConstraints(world, date, minDate, null);
+        layout.Update(0);
+
+        // Create a disabled day cell with text
+        var dayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 5, 6, 2024)
+            {
+                IsCurrentMonth = true
+            })
+            .With(new UIText { Content = "5" })
+            .Build();
+        world.SetParent(dayCell, picker);
+
+        // Trigger calendar grid update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var text = ref world.Get<UIText>(dayCell);
+        Assert.Equal(0.5f, text.Color.X); // Grayed out
+    }
+
+    [Fact]
+    public void CalendarDay_UpdateDayCell_GraysOutNonCurrentMonthText()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var picker = CreateDatePicker(world, date);
+        layout.Update(0);
+
+        // Create a day cell from previous month with text
+        var dayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 31, 5, 2024)
+            {
+                IsCurrentMonth = false
+            })
+            .With(new UIText { Content = "31" })
+            .Build();
+        world.SetParent(dayCell, picker);
+
+        // Trigger calendar grid update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var text = ref world.Get<UIText>(dayCell);
+        Assert.Equal(0.5f, text.Color.X); // Grayed out
+    }
+
+    #endregion
+
+    #region Header Display Tests
+
+    [Fact]
+    public void SetValue_UpdatesHeaderDisplay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 1, 15);
+        var picker = CreateDatePickerWithHeader(world, initialDate);
+        layout.Update(0);
+
+        var newDate = new DateTime(2024, 6, 20);
+        system.SetValue(picker, newDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HeaderEntity) && world.Has<UIText>(pickerData.HeaderEntity))
+        {
+            ref readonly var headerText = ref world.Get<UIText>(pickerData.HeaderEntity);
+            Assert.Contains("June", headerText.Content);
+            Assert.Contains("2024", headerText.Content);
+        }
+    }
+
+    [Fact]
+    public void NavigateTo_UpdatesHeaderDisplay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 1, 15);
+        var picker = CreateDatePickerWithHeader(world, initialDate);
+        layout.Update(0);
+
+        system.NavigateTo(picker, 2024, 12);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HeaderEntity) && world.Has<UIText>(pickerData.HeaderEntity))
+        {
+            ref readonly var headerText = ref world.Get<UIText>(pickerData.HeaderEntity);
+            Assert.Contains("December", headerText.Content);
+            Assert.Contains("2024", headerText.Content);
+        }
+    }
+
+    [Fact]
+    public void UpdateHeaderDisplay_DeadHeaderEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 1, 15);
+        var picker = CreateDatePickerWithHeader(world, initialDate);
+        layout.Update(0);
+
+        // Destroy the header entity
+        ref var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HeaderEntity))
+        {
+            world.Despawn(pickerData.HeaderEntity);
+        }
+
+        // Should not throw
+        system.NavigateTo(picker, 2024, 6);
+    }
+
+    #endregion
+
+    #region Time Display Tests
+
+    [Fact]
+    public void UpdateTimeDisplay_Hour12Format_DisplaysCorrectHour()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 13, 30, 0); // 1 PM
+        var picker = CreateDatePickerWithTimeDisplay(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HourEntity) && world.Has<UIText>(pickerData.HourEntity))
+        {
+            ref readonly var hourText = ref world.Get<UIText>(pickerData.HourEntity);
+            Assert.Equal("01", hourText.Content); // 12-hour format
+        }
+    }
+
+    [Fact]
+    public void UpdateTimeDisplay_Hour12Format_Midnight_DisplaysAs12()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 0, 30, 0); // Midnight
+        var picker = CreateDatePickerWithTimeDisplay(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HourEntity) && world.Has<UIText>(pickerData.HourEntity))
+        {
+            ref readonly var hourText = ref world.Get<UIText>(pickerData.HourEntity);
+            Assert.Equal("12", hourText.Content); // Midnight is 12 AM
+        }
+    }
+
+    [Fact]
+    public void UpdateTimeDisplay_Hour12Format_Noon_DisplaysAs12()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 12, 30, 0); // Noon
+        var picker = CreateDatePickerWithTimeDisplay(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HourEntity) && world.Has<UIText>(pickerData.HourEntity))
+        {
+            ref readonly var hourText = ref world.Get<UIText>(pickerData.HourEntity);
+            Assert.Equal("12", hourText.Content); // Noon is 12 PM
+        }
+    }
+
+    [Fact]
+    public void UpdateTimeDisplay_UpdatesMinuteDisplay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 5, 0);
+        var picker = CreateDatePickerWithTimeDisplay(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.MinuteEntity) && world.Has<UIText>(pickerData.MinuteEntity))
+        {
+            ref readonly var minuteText = ref world.Get<UIText>(pickerData.MinuteEntity);
+            Assert.Equal("05", minuteText.Content);
+        }
+    }
+
+    [Fact]
+    public void UpdateTimeDisplay_UpdatesSecondDisplay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 5);
+        var picker = CreateDatePickerWithTimeDisplayAndSeconds(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.SecondEntity) && world.Has<UIText>(pickerData.SecondEntity))
+        {
+            ref readonly var secondText = ref world.Get<UIText>(pickerData.SecondEntity);
+            Assert.Equal("05", secondText.Content);
+        }
+    }
+
+    [Fact]
+    public void UpdateTimeDisplay_UpdatesAmPmDisplay_AM()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0); // AM
+        var picker = CreateDatePickerWithTimeDisplay(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.AmPmEntity) && world.Has<UIText>(pickerData.AmPmEntity))
+        {
+            ref readonly var ampmText = ref world.Get<UIText>(pickerData.AmPmEntity);
+            Assert.Equal("AM", ampmText.Content);
+        }
+    }
+
+    [Fact]
+    public void UpdateTimeDisplay_UpdatesAmPmDisplay_PM()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 14, 30, 0); // PM
+        var picker = CreateDatePickerWithTimeDisplay(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.AmPmEntity) && world.Has<UIText>(pickerData.AmPmEntity))
+        {
+            ref readonly var ampmText = ref world.Get<UIText>(pickerData.AmPmEntity);
+            Assert.Equal("PM", ampmText.Content);
+        }
+    }
+
+    [Fact]
+    public void UpdateTimeDisplay_DeadHourEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+        var picker = CreateDatePickerWithTimeDisplay(world, initialDate);
+        layout.Update(0);
+
+        // Destroy the hour entity
+        ref var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HourEntity))
+        {
+            world.Despawn(pickerData.HourEntity);
+        }
+
+        // Should not throw
+        system.SetValue(picker, new DateTime(2024, 6, 15, 11, 30, 0));
+    }
+
+    #endregion
+
+    #region Calendar Day Click Event Tests
+
+    [Fact]
+    public void CalendarDay_Click_RaisesDateChangedEvent()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithDays(world, initialDate);
+        layout.Update(0);
+
+        UIDateChangedEvent? receivedEvent = null;
+        world.Subscribe<UIDateChangedEvent>(evt => receivedEvent = evt);
+
+        // Find a day cell for day 20
+        Entity? dayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 20 && day.Month == 6 && day.Year == 2024 && !day.IsDisabled)
+            {
+                dayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(dayEntity);
+
+        SimulateClick(world, dayEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        Assert.NotNull(receivedEvent);
+        Assert.Equal(15, receivedEvent.Value.OldValue.Day);
+        Assert.Equal(20, receivedEvent.Value.NewValue.Day);
+    }
+
+    [Fact]
+    public void CalendarDay_Click_SameDay_DoesNotRaiseEvent()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithDays(world, initialDate);
+        layout.Update(0);
+
+        UIDateChangedEvent? receivedEvent = null;
+        world.Subscribe<UIDateChangedEvent>(evt => receivedEvent = evt);
+
+        // Find the currently selected day
+        Entity? dayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 15 && day.Month == 6 && day.Year == 2024)
+            {
+                dayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(dayEntity);
+
+        SimulateClick(world, dayEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        Assert.Null(receivedEvent);
+    }
+
+    [Fact]
+    public void CalendarDay_Click_DeadPicker_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithDays(world, initialDate);
+        layout.Update(0);
+
+        // Find a day cell
+        Entity? dayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 20)
+            {
+                dayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(dayEntity);
+
+        // Destroy the picker
+        world.Despawn(picker);
+
+        // Should not throw
+        SimulateClick(world, dayEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+    }
+
+    #endregion
+
+    #region Navigation Edge Case Tests
+
+    [Fact]
+    public void NavigateTo_InvalidEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        // Should not throw
+        system.NavigateTo(Entity.Null, 2024, 6);
+    }
+
+    [Fact]
+    public void NavigateTo_EntityWithoutDatePicker_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var entity = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        // Should not throw
+        system.NavigateTo(entity, 2024, 6);
+    }
+
+    [Fact]
+    public void NavigateTo_MonthZero_DoesNotChange()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePicker(world, initialDate);
+        layout.Update(0);
+
+        system.NavigateTo(picker, 2024, 0); // Invalid month
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(6, pickerData.DisplayMonth); // Unchanged
+    }
+
+    [Fact]
+    public void NavigateToToday_InvalidEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        // Should not throw
+        system.NavigateToToday(Entity.Null);
+    }
+
+    #endregion
+
+    #region Day Selection Update Tests
+
+    [Fact]
+    public void UpdateDaySelection_UpdatesOnlySelectedDay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithStyledDays(world, initialDate);
+        layout.Update(0);
+
+        // Count initially selected days
+        int initialSelectedCount = 0;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.IsSelected)
+            {
+                initialSelectedCount++;
+            }
+        }
+
+        // Find a different day and click it
+        Entity? newDayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 20 && day.Month == 6 && !day.IsDisabled)
+            {
+                newDayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(newDayEntity);
+
+        SimulateClick(world, newDayEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        // Count selected days after selection change
+        int finalSelectedCount = 0;
+        Entity? selectedEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.IsSelected)
+            {
+                finalSelectedCount++;
+                selectedEntity = entity;
+            }
+        }
+
+        Assert.Equal(1, finalSelectedCount);
+        Assert.NotNull(selectedEntity);
+        ref readonly var selectedDay = ref world.Get<UICalendarDay>(selectedEntity.Value);
+        Assert.Equal(20, selectedDay.Day);
+    }
+
+    [Fact]
+    public void UpdateDaySelection_UpdatesStyleForDeselectedDay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithStyledDays(world, initialDate);
+        layout.Update(0);
+
+        // Find the currently selected day
+        Entity? currentlySelected = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 15 && day.IsSelected)
+            {
+                currentlySelected = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(currentlySelected);
+
+        // Find and click a different day
+        Entity? newDayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 20 && !day.IsDisabled)
+            {
+                newDayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(newDayEntity);
+
+        SimulateClick(world, newDayEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+
+        // Verify the previously selected day is no longer selected
+        ref readonly var oldSelectedDay = ref world.Get<UICalendarDay>(currentlySelected.Value);
+        Assert.False(oldSelectedDay.IsSelected);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static UILayoutSystem SetupLayout(World world)
@@ -1191,6 +1996,198 @@ public class UIDatePickerSystemTests
         world.SetParent(picker, canvas);
         world.SetParent(prevButton, picker);
         world.SetParent(nextButton, picker);
+
+        return picker;
+    }
+
+    private static Entity CreateDatePickerWithStyledDays(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create date picker entity
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.Date
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+
+        // Create calendar day cells with styles
+        for (int day = 1; day <= 30; day++)
+        {
+            var dayCell = world.Spawn()
+                .With(UIElement.Default)
+                .With(UIRect.Fixed((day % 7) * 32, (day / 7) * 32, 32, 32))
+                .With(new UICalendarDay(picker, day, initialValue.Month, initialValue.Year)
+                {
+                    IsCurrentMonth = true,
+                    IsSelected = day == initialValue.Day,
+                    IsToday = day == DateTime.Today.Day &&
+                              initialValue.Month == DateTime.Today.Month &&
+                              initialValue.Year == DateTime.Today.Year,
+                    IsDisabled = false
+                })
+                .With(new UIStyle())
+                .With(UIInteractable.Clickable())
+                .Build();
+
+            world.SetParent(dayCell, picker);
+        }
+
+        return picker;
+    }
+
+    private static Entity CreateDatePickerWithHeader(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create header entity
+        var header = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(40, 0, 200, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        // Create date picker entity
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.Date,
+                HeaderEntity = header
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+        world.SetParent(header, picker);
+
+        return picker;
+    }
+
+    private static Entity CreateDatePickerWithTimeDisplay(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create time display entities
+        var hourEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var minuteEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(35, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var ampmEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(70, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        // Create date picker entity
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.DateTime,
+                TimeFormat = TimeFormat.Hour12,
+                HourEntity = hourEntity,
+                MinuteEntity = minuteEntity,
+                AmPmEntity = ampmEntity
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+        world.SetParent(hourEntity, picker);
+        world.SetParent(minuteEntity, picker);
+        world.SetParent(ampmEntity, picker);
+
+        return picker;
+    }
+
+    private static Entity CreateDatePickerWithTimeDisplayAndSeconds(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create time display entities
+        var hourEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var minuteEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(35, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var secondEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(70, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var ampmEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(105, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        // Create date picker entity
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.DateTime,
+                TimeFormat = TimeFormat.Hour12,
+                ShowSeconds = true,
+                HourEntity = hourEntity,
+                MinuteEntity = minuteEntity,
+                SecondEntity = secondEntity,
+                AmPmEntity = ampmEntity
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+        world.SetParent(hourEntity, picker);
+        world.SetParent(minuteEntity, picker);
+        world.SetParent(secondEntity, picker);
+        world.SetParent(ampmEntity, picker);
 
         return picker;
     }
