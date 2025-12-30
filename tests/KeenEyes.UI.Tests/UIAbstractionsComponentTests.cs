@@ -743,4 +743,768 @@ public class UIAbstractionsComponentTests
     }
 
     #endregion
+
+    #region UI Event Equality Tests
+
+    [Fact]
+    public void UIClickEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(1, 1);
+        var position = new Vector2(100, 200);
+        var evt1 = new UIClickEvent(element, position, MouseButton.Left);
+        var evt2 = new UIClickEvent(element, position, MouseButton.Left);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.False(evt1 != evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIClickEvent_Equals_ReturnsFalseForDifferentButton()
+    {
+        var element = new Entity(1, 1);
+        var position = new Vector2(100, 200);
+        var evt1 = new UIClickEvent(element, position, MouseButton.Left);
+        var evt2 = new UIClickEvent(element, position, MouseButton.Right);
+
+        Assert.False(evt1.Equals(evt2));
+        Assert.False(evt1 == evt2);
+        Assert.True(evt1 != evt2);
+    }
+
+    [Fact]
+    public void UIClickEvent_ToString_ContainsValues()
+    {
+        var element = new Entity(1, 1);
+        var evt = new UIClickEvent(element, new Vector2(100, 200), MouseButton.Left);
+        var str = evt.ToString();
+
+        Assert.Contains("Element", str);
+        Assert.Contains("Position", str);
+        Assert.Contains("Button", str);
+    }
+
+    [Fact]
+    public void UIPointerEnterEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(2, 1);
+        var position = new Vector2(50, 75);
+        var evt1 = new UIPointerEnterEvent(element, position);
+        var evt2 = new UIPointerEnterEvent(element, position);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIPointerExitEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(3, 1);
+        var evt1 = new UIPointerExitEvent(element);
+        var evt2 = new UIPointerExitEvent(element);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIFocusGainedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(4, 1);
+        var previous = new Entity(5, 1);
+        var evt1 = new UIFocusGainedEvent(element, previous);
+        var evt2 = new UIFocusGainedEvent(element, previous);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIFocusLostEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(6, 1);
+        var next = new Entity(7, 1);
+        var evt1 = new UIFocusLostEvent(element, next);
+        var evt2 = new UIFocusLostEvent(element, next);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDragStartEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(8, 1);
+        var startPos = new Vector2(25, 50);
+        var evt1 = new UIDragStartEvent(element, startPos);
+        var evt2 = new UIDragStartEvent(element, startPos);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDragEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(9, 1);
+        var position = new Vector2(100, 100);
+        var delta = new Vector2(5, -3);
+        var evt1 = new UIDragEvent(element, position, delta);
+        var evt2 = new UIDragEvent(element, position, delta);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDragEndEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(10, 1);
+        var endPos = new Vector2(150, 200);
+        var evt1 = new UIDragEndEvent(element, endPos);
+        var evt2 = new UIDragEndEvent(element, endPos);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIValueChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(11, 1);
+        var evt1 = new UIValueChangedEvent(element, 5, 10);
+        var evt2 = new UIValueChangedEvent(element, 5, 10);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UISubmitEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(12, 1);
+        var evt1 = new UISubmitEvent(element);
+        var evt2 = new UISubmitEvent(element);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIWindowClosedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var window = new Entity(13, 1);
+        var evt1 = new UIWindowClosedEvent(window);
+        var evt2 = new UIWindowClosedEvent(window);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UISplitterChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var splitter = new Entity(14, 1);
+        var evt1 = new UISplitterChangedEvent(splitter, 0.3f, 0.5f);
+        var evt2 = new UISplitterChangedEvent(splitter, 0.3f, 0.5f);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UITooltipShowEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(15, 1);
+        var position = new Vector2(300, 400);
+        var evt1 = new UITooltipShowEvent(element, "Tooltip", position);
+        var evt2 = new UITooltipShowEvent(element, "Tooltip", position);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UITooltipHideEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(16, 1);
+        var evt1 = new UITooltipHideEvent(element);
+        var evt2 = new UITooltipHideEvent(element);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIPopoverOpenedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var popover = new Entity(17, 1);
+        var trigger = new Entity(18, 1);
+        var evt1 = new UIPopoverOpenedEvent(popover, trigger);
+        var evt2 = new UIPopoverOpenedEvent(popover, trigger);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIPopoverClosedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var popover = new Entity(19, 1);
+        var evt1 = new UIPopoverClosedEvent(popover);
+        var evt2 = new UIPopoverClosedEvent(popover);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIMenuItemClickEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menuItem = new Entity(20, 1);
+        var menu = new Entity(21, 1);
+        var evt1 = new UIMenuItemClickEvent(menuItem, menu, "item-1", 3);
+        var evt2 = new UIMenuItemClickEvent(menuItem, menu, "item-1", 3);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIMenuOpenedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menu = new Entity(22, 1);
+        var parent = new Entity(23, 1);
+        var evt1 = new UIMenuOpenedEvent(menu, parent);
+        var evt2 = new UIMenuOpenedEvent(menu, parent);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIMenuClosedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menu = new Entity(24, 1);
+        var evt1 = new UIMenuClosedEvent(menu);
+        var evt2 = new UIMenuClosedEvent(menu);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIMenuToggleChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menuItem = new Entity(25, 1);
+        var evt1 = new UIMenuToggleChangedEvent(menuItem, true);
+        var evt2 = new UIMenuToggleChangedEvent(menuItem, true);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIContextMenuRequestEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menu = new Entity(26, 1);
+        var target = new Entity(27, 1);
+        var position = new Vector2(100, 200);
+        var evt1 = new UIContextMenuRequestEvent(menu, position, target);
+        var evt2 = new UIContextMenuRequestEvent(menu, position, target);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIRadialMenuOpenedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menu = new Entity(28, 1);
+        var position = new Vector2(150, 250);
+        var evt1 = new UIRadialMenuOpenedEvent(menu, position);
+        var evt2 = new UIRadialMenuOpenedEvent(menu, position);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIRadialMenuClosedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menu = new Entity(29, 1);
+        var evt1 = new UIRadialMenuClosedEvent(menu, false);
+        var evt2 = new UIRadialMenuClosedEvent(menu, false);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIRadialSliceChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menu = new Entity(30, 1);
+        var evt1 = new UIRadialSliceChangedEvent(menu, 0, 1);
+        var evt2 = new UIRadialSliceChangedEvent(menu, 0, 1);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIRadialSliceSelectedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var slice = new Entity(31, 1);
+        var menu = new Entity(32, 1);
+        var evt1 = new UIRadialSliceSelectedEvent(slice, menu, "slice-1", 2);
+        var evt2 = new UIRadialSliceSelectedEvent(slice, menu, "slice-1", 2);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIRadialMenuRequestEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var menu = new Entity(33, 1);
+        var position = new Vector2(200, 300);
+        var evt1 = new UIRadialMenuRequestEvent(menu, position);
+        var evt2 = new UIRadialMenuRequestEvent(menu, position);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDockPanelDockedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var panel = new Entity(34, 1);
+        var container = new Entity(35, 1);
+        var evt1 = new UIDockPanelDockedEvent(panel, DockZone.Left, container);
+        var evt2 = new UIDockPanelDockedEvent(panel, DockZone.Left, container);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDockPanelUndockedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var panel = new Entity(36, 1);
+        var evt1 = new UIDockPanelUndockedEvent(panel, DockZone.Right);
+        var evt2 = new UIDockPanelUndockedEvent(panel, DockZone.Right);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDockStateChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var panel = new Entity(37, 1);
+        var evt1 = new UIDockStateChangedEvent(panel, DockState.Floating, DockState.Docked);
+        var evt2 = new UIDockStateChangedEvent(panel, DockState.Floating, DockState.Docked);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDockZoneResizedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var zone = new Entity(38, 1);
+        var evt1 = new UIDockZoneResizedEvent(zone, 100f, 150f);
+        var evt2 = new UIDockZoneResizedEvent(zone, 100f, 150f);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDockTabChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var tabGroup = new Entity(39, 1);
+        var evt1 = new UIDockTabChangedEvent(tabGroup, 0, 1);
+        var evt2 = new UIDockTabChangedEvent(tabGroup, 0, 1);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDockRequestEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var panel = new Entity(40, 1);
+        var container = new Entity(41, 1);
+        var evt1 = new UIDockRequestEvent(panel, DockZone.Center, container);
+        var evt2 = new UIDockRequestEvent(panel, DockZone.Center, container);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIFloatRequestEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var panel = new Entity(42, 1);
+        var position = new Vector2(50, 75);
+        var evt1 = new UIFloatRequestEvent(panel, position);
+        var evt2 = new UIFloatRequestEvent(panel, position);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UITreeNodeSelectedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var node = new Entity(43, 1);
+        var treeView = new Entity(44, 1);
+        var evt1 = new UITreeNodeSelectedEvent(node, treeView);
+        var evt2 = new UITreeNodeSelectedEvent(node, treeView);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UITreeNodeExpandedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var node = new Entity(45, 1);
+        var treeView = new Entity(46, 1);
+        var evt1 = new UITreeNodeExpandedEvent(node, treeView);
+        var evt2 = new UITreeNodeExpandedEvent(node, treeView);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UITreeNodeCollapsedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var node = new Entity(47, 1);
+        var treeView = new Entity(48, 1);
+        var evt1 = new UITreeNodeCollapsedEvent(node, treeView);
+        var evt2 = new UITreeNodeCollapsedEvent(node, treeView);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UITreeNodeDoubleClickedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var node = new Entity(49, 1);
+        var treeView = new Entity(50, 1);
+        var evt1 = new UITreeNodeDoubleClickedEvent(node, treeView);
+        var evt2 = new UITreeNodeDoubleClickedEvent(node, treeView);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIPropertyChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var grid = new Entity(51, 1);
+        var row = new Entity(52, 1);
+        var evt1 = new UIPropertyChangedEvent(grid, row, "Prop", "old", "new");
+        var evt2 = new UIPropertyChangedEvent(grid, row, "Prop", "old", "new");
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIPropertyCategoryExpandedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var grid = new Entity(53, 1);
+        var category = new Entity(54, 1);
+        var evt1 = new UIPropertyCategoryExpandedEvent(grid, category);
+        var evt2 = new UIPropertyCategoryExpandedEvent(grid, category);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIPropertyCategoryCollapsedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var grid = new Entity(55, 1);
+        var category = new Entity(56, 1);
+        var evt1 = new UIPropertyCategoryCollapsedEvent(grid, category);
+        var evt2 = new UIPropertyCategoryCollapsedEvent(grid, category);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIModalOpenedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var modal = new Entity(57, 1);
+        var evt1 = new UIModalOpenedEvent(modal);
+        var evt2 = new UIModalOpenedEvent(modal);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIModalClosedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var modal = new Entity(58, 1);
+        var evt1 = new UIModalClosedEvent(modal, ModalResult.Cancel);
+        var evt2 = new UIModalClosedEvent(modal, ModalResult.Cancel);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIModalResultEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var modal = new Entity(59, 1);
+        var button = new Entity(60, 1);
+        var evt1 = new UIModalResultEvent(modal, button, ModalResult.Yes);
+        var evt2 = new UIModalResultEvent(modal, button, ModalResult.Yes);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIToastShownEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var toast = new Entity(61, 1);
+        var evt1 = new UIToastShownEvent(toast);
+        var evt2 = new UIToastShownEvent(toast);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIToastDismissedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var toast = new Entity(62, 1);
+        var evt1 = new UIToastDismissedEvent(toast, true);
+        var evt2 = new UIToastDismissedEvent(toast, true);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIAccordionSectionExpandedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var accordion = new Entity(63, 1);
+        var section = new Entity(64, 1);
+        var evt1 = new UIAccordionSectionExpandedEvent(accordion, section);
+        var evt2 = new UIAccordionSectionExpandedEvent(accordion, section);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIAccordionSectionCollapsedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var accordion = new Entity(65, 1);
+        var section = new Entity(66, 1);
+        var evt1 = new UIAccordionSectionCollapsedEvent(accordion, section);
+        var evt2 = new UIAccordionSectionCollapsedEvent(accordion, section);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIWindowMinimizedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var window = new Entity(67, 1);
+        var evt1 = new UIWindowMinimizedEvent(window);
+        var evt2 = new UIWindowMinimizedEvent(window);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIWindowMaximizedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var window = new Entity(68, 1);
+        var evt1 = new UIWindowMaximizedEvent(window);
+        var evt2 = new UIWindowMaximizedEvent(window);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIWindowRestoredEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var window = new Entity(69, 1);
+        var evt1 = new UIWindowRestoredEvent(window, WindowState.Minimized);
+        var evt2 = new UIWindowRestoredEvent(window, WindowState.Minimized);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIGridColumnResizedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var grid = new Entity(70, 1);
+        var column = new Entity(71, 1);
+        var evt1 = new UIGridColumnResizedEvent(grid, column, 0, 100f, 150f);
+        var evt2 = new UIGridColumnResizedEvent(grid, column, 0, 100f, 150f);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIGridRowSelectedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var grid = new Entity(72, 1);
+        var row = new Entity(73, 1);
+        var evt1 = new UIGridRowSelectedEvent(grid, row, 5, true);
+        var evt2 = new UIGridRowSelectedEvent(grid, row, 5, true);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIGridSortEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var grid = new Entity(74, 1);
+        var column = new Entity(75, 1);
+        var evt1 = new UIGridSortEvent(grid, column, 0, KeenEyes.UI.Abstractions.SortDirection.Ascending);
+        var evt2 = new UIGridSortEvent(grid, column, 0, KeenEyes.UI.Abstractions.SortDirection.Ascending);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIGridRowDoubleClickEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var grid = new Entity(76, 1);
+        var row = new Entity(77, 1);
+        var evt1 = new UIGridRowDoubleClickEvent(grid, row, 3);
+        var evt2 = new UIGridRowDoubleClickEvent(grid, row, 3);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UITextChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var element = new Entity(78, 1);
+        var evt1 = new UITextChangedEvent(element, "old", "new");
+        var evt2 = new UITextChangedEvent(element, "old", "new");
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIColorChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var picker = new Entity(79, 1);
+        var oldColor = new Vector4(1, 0, 0, 1);
+        var newColor = new Vector4(0, 1, 0, 1);
+        var evt1 = new UIColorChangedEvent(picker, oldColor, newColor);
+        var evt2 = new UIColorChangedEvent(picker, oldColor, newColor);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UIDateChangedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var picker = new Entity(80, 1);
+        var oldDate = new DateTime(2024, 1, 1);
+        var newDate = new DateTime(2024, 12, 25);
+        var evt1 = new UIDateChangedEvent(picker, oldDate, newDate);
+        var evt2 = new UIDateChangedEvent(picker, oldDate, newDate);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    [Fact]
+    public void UICalendarNavigatedEvent_Equals_ReturnsTrueForSameValues()
+    {
+        var picker = new Entity(81, 1);
+        var evt1 = new UICalendarNavigatedEvent(picker, 2024, 12);
+        var evt2 = new UICalendarNavigatedEvent(picker, 2024, 12);
+
+        Assert.True(evt1.Equals(evt2));
+        Assert.True(evt1 == evt2);
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    #endregion
 }
