@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Common;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.UI.Abstractions;
 using KeenEyes.UI.Widgets;
@@ -374,6 +375,48 @@ public class WidgetFactoryTreeViewToastWindowTests
     }
 
     [Fact]
+    public void CreateToastContainer_TopCenter_Position()
+    {
+        using var world = new World();
+        var config = new ToastContainerConfig(Position: ToastPosition.TopCenter);
+
+        var container = WidgetFactory.CreateToastContainer(world, config);
+
+        ref readonly var containerData = ref world.Get<UIToastContainer>(container);
+        ref readonly var rect = ref world.Get<UIRect>(container);
+        Assert.Equal(ToastPosition.TopCenter, containerData.Position);
+        Assert.Equal(new Vector2(0.5f, 0), rect.AnchorMin);
+    }
+
+    [Fact]
+    public void CreateToastContainer_BottomCenter_Position()
+    {
+        using var world = new World();
+        var config = new ToastContainerConfig(Position: ToastPosition.BottomCenter);
+
+        var container = WidgetFactory.CreateToastContainer(world, config);
+
+        ref readonly var containerData = ref world.Get<UIToastContainer>(container);
+        ref readonly var rect = ref world.Get<UIRect>(container);
+        Assert.Equal(ToastPosition.BottomCenter, containerData.Position);
+        Assert.Equal(new Vector2(0.5f, 0), rect.AnchorMin);
+    }
+
+    [Fact]
+    public void CreateToastContainer_BottomRight_Position()
+    {
+        using var world = new World();
+        var config = new ToastContainerConfig(Position: ToastPosition.BottomRight);
+
+        var container = WidgetFactory.CreateToastContainer(world, config);
+
+        ref readonly var containerData = ref world.Get<UIToastContainer>(container);
+        ref readonly var rect = ref world.Get<UIRect>(container);
+        Assert.Equal(ToastPosition.BottomRight, containerData.Position);
+        Assert.Equal(new Vector2(1, 0), rect.AnchorMin);
+    }
+
+    [Fact]
     public void CreateToast_HasRequiredComponents()
     {
         using var world = new World();
@@ -498,6 +541,113 @@ public class WidgetFactoryTreeViewToastWindowTests
 
         ref readonly var toastData = ref world.Get<UIToast>(toast);
         Assert.Equal(ToastType.Error, toastData.Type);
+    }
+
+    [Fact]
+    public void CreateToast_WithShowCloseButton_CreatesCloseButton()
+    {
+        using var world = new World();
+        var container = WidgetFactory.CreateToastContainer(world);
+        var config = new ToastConfig("Message", ShowCloseButton: true);
+
+        var toast = WidgetFactory.CreateToast(world, container, config);
+
+        // Find the close button among children
+        var children = world.GetChildren(toast);
+        bool foundCloseButton = false;
+        foreach (var child in children)
+        {
+            if (world.Has<UIToastCloseButton>(child))
+            {
+                foundCloseButton = true;
+                break;
+            }
+        }
+        Assert.True(foundCloseButton);
+    }
+
+    [Fact]
+    public void ShowInfoToast_WithTitle_CreatesWithTitle()
+    {
+        using var world = new World();
+        var container = WidgetFactory.CreateToastContainer(world);
+
+        var toast = WidgetFactory.ShowInfoToast(world, container, "Info message", "My Title");
+
+        ref readonly var toastData = ref world.Get<UIToast>(toast);
+        Assert.Equal("My Title", toastData.Title);
+    }
+
+    [Fact]
+    public void ShowSuccessToast_WithTitle_CreatesWithTitle()
+    {
+        using var world = new World();
+        var container = WidgetFactory.CreateToastContainer(world);
+
+        var toast = WidgetFactory.ShowSuccessToast(world, container, "Success message", "Success Title");
+
+        ref readonly var toastData = ref world.Get<UIToast>(toast);
+        Assert.Equal("Success Title", toastData.Title);
+    }
+
+    [Fact]
+    public void ShowWarningToast_WithTitle_CreatesWithTitle()
+    {
+        using var world = new World();
+        var container = WidgetFactory.CreateToastContainer(world);
+
+        var toast = WidgetFactory.ShowWarningToast(world, container, "Warning message", "Warning Title");
+
+        ref readonly var toastData = ref world.Get<UIToast>(toast);
+        Assert.Equal("Warning Title", toastData.Title);
+    }
+
+    [Fact]
+    public void ShowErrorToast_WithTitle_CreatesWithTitle()
+    {
+        using var world = new World();
+        var container = WidgetFactory.CreateToastContainer(world);
+
+        var toast = WidgetFactory.ShowErrorToast(world, container, "Error message", "Error Title");
+
+        ref readonly var toastData = ref world.Get<UIToast>(toast);
+        Assert.Equal("Error Title", toastData.Title);
+    }
+
+    [Fact]
+    public void ShowInfoToast_WithCustomDuration_SetsCorrectDuration()
+    {
+        using var world = new World();
+        var container = WidgetFactory.CreateToastContainer(world);
+
+        var toast = WidgetFactory.ShowInfoToast(world, container, "Info message", null, 10f);
+
+        ref readonly var toastData = ref world.Get<UIToast>(toast);
+        Assert.True(toastData.Duration.ApproximatelyEquals(10f));
+    }
+
+    [Fact]
+    public void CreateToastContainer_BottomPosition_HasEndMainAxisAlign()
+    {
+        using var world = new World();
+        var config = new ToastContainerConfig(Position: ToastPosition.BottomRight);
+
+        var container = WidgetFactory.CreateToastContainer(world, config);
+
+        ref readonly var layout = ref world.Get<UILayout>(container);
+        Assert.Equal(LayoutAlign.End, layout.MainAxisAlign);
+    }
+
+    [Fact]
+    public void CreateToastContainer_TopPosition_HasStartMainAxisAlign()
+    {
+        using var world = new World();
+        var config = new ToastContainerConfig(Position: ToastPosition.TopRight);
+
+        var container = WidgetFactory.CreateToastContainer(world, config);
+
+        ref readonly var layout = ref world.Get<UILayout>(container);
+        Assert.Equal(LayoutAlign.Start, layout.MainAxisAlign);
     }
 
     #endregion
