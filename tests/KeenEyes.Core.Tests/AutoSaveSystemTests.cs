@@ -1203,4 +1203,121 @@ public class AutoSaveSystemTests : IDisposable
     }
 
     #endregion
+
+    #region DeltaDiffer ArgumentNullException Tests
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithNullWorld_ThrowsArgumentNullException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        var baseline = SnapshotManager.CreateSnapshot(world, serializer);
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaDiffer.CreateDelta(null!, baseline, serializer, "baseline"));
+    }
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithNullBaseline_ThrowsArgumentNullException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaDiffer.CreateDelta(world, null!, serializer, "baseline"));
+    }
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithNullSerializer_ThrowsArgumentNullException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        var baseline = SnapshotManager.CreateSnapshot(world, serializer);
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaDiffer.CreateDelta(world, baseline, null!, "baseline"));
+    }
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithNullBaselineSlotName_ThrowsArgumentNullException()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        var baseline = SnapshotManager.CreateSnapshot(world, serializer);
+
+        Assert.Throws<ArgumentNullException>(() =>
+            DeltaDiffer.CreateDelta(world, baseline, serializer, null!));
+    }
+
+    #endregion
+
+    #region DeltaDiffer Entity Tests
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithParentRemoved_SetsParentRemovedFlag()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Components.Register<SerializablePosition>();
+
+        var parent = world.Spawn().With(new SerializablePosition()).Build();
+        var child = world.Spawn().With(new SerializablePosition()).Build();
+        world.SetParent(child, parent);
+
+        var baseline = SnapshotManager.CreateSnapshot(world, serializer);
+
+        world.SetParent(child, Entity.Null);
+        // Also need a component change since parent-only changes are considered empty
+        world.Set(child, new SerializablePosition { X = 99, Y = 99 });
+
+        var delta = DeltaDiffer.CreateDelta(world, baseline, serializer, "baseline", 1);
+
+        Assert.Single(delta.ModifiedEntities);
+        Assert.True(delta.ModifiedEntities[0].ParentRemoved);
+    }
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithSequenceNumber_SetsCorrectValue()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        var baseline = SnapshotManager.CreateSnapshot(world, serializer);
+
+        var delta = DeltaDiffer.CreateDelta(world, baseline, serializer, "my_baseline", 42);
+
+        Assert.Equal(42, delta.SequenceNumber);
+        Assert.Equal("my_baseline", delta.BaselineSlotName);
+    }
+
+    #endregion
+
+    #region DeltaDiffer Singleton Tests
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithRemovedSingleton_IncludesInRemovedSingletonTypes()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        world.SetSingleton(new SerializableGameTime { TotalTime = 10f, DeltaTime = 0.016f });
+
+        var baseline = SnapshotManager.CreateSnapshot(world, serializer);
+
+        world.RemoveSingleton<SerializableGameTime>();
+
+        var delta = DeltaDiffer.CreateDelta(world, baseline, serializer, "baseline", 1);
+
+        Assert.Single(delta.RemovedSingletonTypes);
+    }
+
+    [Fact]
+    public void DeltaDiffer_CreateDelta_WithUnchangedSingleton_DoesNotIncludeInDelta()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        world.SetSingleton(new SerializableGameTime { TotalTime = 10f, DeltaTime = 0.016f });
+
+        var baseline = SnapshotManager.CreateSnapshot(world, serializer);
+
+        var delta = DeltaDiffer.CreateDelta(world, baseline, serializer, "baseline", 1);
+
+        Assert.Empty(delta.ModifiedSingletons);
+        Assert.Empty(delta.RemovedSingletonTypes);
+    }
+
+    #endregion
 }

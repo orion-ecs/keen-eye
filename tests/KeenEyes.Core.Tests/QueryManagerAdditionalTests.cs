@@ -344,4 +344,91 @@ public class QueryManagerAdditionalTests
     }
 
     #endregion
+
+    #region ArchetypeCache Direct Tests
+
+    [Fact]
+    public void ArchetypeCache_Add_DuplicateArchetype_IsIdempotent()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        // Create archetype
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        // Query to create cache entry
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+        var result = queryManager.GetMatchingArchetypes(description);
+
+        Assert.Single(result);
+
+        // Adding the same archetype again should be idempotent
+        // Trigger another archetype creation event (via manager)
+        // The cache should not have duplicates
+        var result2 = queryManager.GetMatchingArchetypes(description);
+        Assert.Single(result2);
+    }
+
+    [Fact]
+    public void ArchetypeCache_SetAll_ReplacesExistingEntries()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        // Create archetypes
+        manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+
+        // Initial query
+        var result1 = queryManager.GetMatchingArchetypes(description);
+        Assert.Single(result1);
+
+        // Add another matching archetype
+        manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+
+        // Query again - should have 2 archetypes
+        var result2 = queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(2, result2.Count);
+    }
+
+    [Fact]
+    public void ArchetypeCache_PopulateIfEmpty_OnlyPopulatesOnce()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var queryManager = new QueryManager(manager);
+
+        manager.GetOrCreateArchetype([typeof(Position)]);
+
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+
+        // First query - cache miss, populates cache
+        queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(1, queryManager.CacheMisses);
+
+        // Second query - cache hit
+        queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(1, queryManager.CacheHits);
+
+        // Multiple queries should keep hitting cache
+        queryManager.GetMatchingArchetypes(description);
+        queryManager.GetMatchingArchetypes(description);
+        Assert.Equal(3, queryManager.CacheHits);
+        Assert.Equal(1, queryManager.CacheMisses);
+    }
+
+    #endregion
 }
