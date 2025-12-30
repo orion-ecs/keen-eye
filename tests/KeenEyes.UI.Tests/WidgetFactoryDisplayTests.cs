@@ -511,6 +511,601 @@ public class WidgetFactoryDisplayTests
 
     #endregion
 
+    #region TabView Tests
+
+    [Fact]
+    public void CreateTabView_ReturnsContainerAndContentPanels()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
+
+        var (tabView, contentPanels) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        Assert.True(world.IsAlive(tabView));
+        Assert.Equal(2, contentPanels.Length);
+        Assert.True(world.IsAlive(contentPanels[0]));
+        Assert.True(world.IsAlive(contentPanels[1]));
+    }
+
+    [Fact]
+    public void CreateTabView_ContainerHasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        Assert.True(world.Has<UIElement>(tabView));
+        Assert.True(world.Has<UIRect>(tabView));
+        Assert.True(world.Has<UILayout>(tabView));
+        Assert.True(world.Has<UITabViewState>(tabView));
+    }
+
+    [Fact]
+    public void CreateTabView_SetsParent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        Assert.Equal(parent, world.GetParent(tabView));
+    }
+
+    [Fact]
+    public void CreateTabView_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, "MyTabs", tabs, testFont);
+
+        Assert.Equal("MyTabs", world.GetName(tabView));
+    }
+
+    [Fact]
+    public void CreateTabView_WithName_NamesChildEntities()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
+
+        var (tabView, contentPanels) = WidgetFactory.CreateTabView(world, parent, "MyTabs", tabs, testFont);
+
+        // Find tab bar by name
+        var children = world.GetChildren(tabView).ToList();
+        var tabBar = children.FirstOrDefault(c => world.GetName(c) == "MyTabs_TabBar");
+        Assert.True(world.IsAlive(tabBar));
+
+        // Find content area by name
+        var contentArea = children.FirstOrDefault(c => world.GetName(c) == "MyTabs_Content");
+        Assert.True(world.IsAlive(contentArea));
+    }
+
+    [Fact]
+    public void CreateTabView_FirstTabIsSelectedByDefault()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
+
+        var (tabView, contentPanels) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        // First panel should be visible, second should be hidden
+        ref readonly var panel0Element = ref world.Get<UIElement>(contentPanels[0]);
+        ref readonly var panel1Element = ref world.Get<UIElement>(contentPanels[1]);
+
+        Assert.True(panel0Element.Visible);
+        Assert.False(panel1Element.Visible);
+    }
+
+    [Fact]
+    public void CreateTabView_NonSelectedPanels_HaveHiddenTag()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2"), new TabConfig("Tab3") };
+
+        var (_, contentPanels) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        // First panel should NOT have hidden tag
+        Assert.False(world.Has<UIHiddenTag>(contentPanels[0]));
+        // Other panels SHOULD have hidden tag
+        Assert.True(world.Has<UIHiddenTag>(contentPanels[1]));
+        Assert.True(world.Has<UIHiddenTag>(contentPanels[2]));
+    }
+
+    [Fact]
+    public void CreateTabView_WithSelectedIndex_SelectsCorrectTab()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2"), new TabConfig("Tab3") };
+        var config = new TabViewConfig(SelectedIndex: 1);
+
+        var (tabView, contentPanels) = WidgetFactory.CreateTabView(world, parent, tabs, testFont, config);
+
+        ref readonly var tabState = ref world.Get<UITabViewState>(tabView);
+        Assert.Equal(1, tabState.SelectedIndex);
+
+        // Second panel should be visible
+        ref readonly var panel1Element = ref world.Get<UIElement>(contentPanels[1]);
+        Assert.True(panel1Element.Visible);
+        Assert.False(world.Has<UIHiddenTag>(contentPanels[1]));
+    }
+
+    [Fact]
+    public void CreateTabView_SelectedIndexClampedToValidRange()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
+        var config = new TabViewConfig(SelectedIndex: 10); // Out of range
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont, config);
+
+        ref readonly var tabState = ref world.Get<UITabViewState>(tabView);
+        Assert.Equal(1, tabState.SelectedIndex); // Clamped to max valid index
+    }
+
+    [Fact]
+    public void CreateTabView_WithWidthOnly_SetsFixedWidthFillHeight()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+        var config = new TabViewConfig(Width: 400);
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(tabView);
+        Assert.Equal(400f, rect.Size.X);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateTabView_WithHeightOnly_SetsFillWidthFixedHeight()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+        var config = new TabViewConfig(Height: 300);
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(tabView);
+        Assert.Equal(300f, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fill, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateTabView_WithWidthAndHeight_SetsFixedBoth()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+        var config = new TabViewConfig(Width: 400, Height: 300);
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(tabView);
+        Assert.Equal(400f, rect.Size.X);
+        Assert.Equal(300f, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateTabView_WithNoSize_UsesStretch()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        ref readonly var rect = ref world.Get<UIRect>(tabView);
+        Assert.Equal(UISizeMode.Fill, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateTabView_TabsHaveUITabButtonComponent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        // Find tab buttons
+        var children = world.GetChildren(tabView).ToList();
+        var tabBar = children.First(); // Tab bar is first child
+        var tabButtons = world.GetChildren(tabBar).ToList();
+
+        Assert.Equal(2, tabButtons.Count);
+        foreach (var button in tabButtons)
+        {
+            Assert.True(world.Has<UITabButton>(button));
+            Assert.True(world.Has<UIInteractable>(button));
+        }
+    }
+
+    [Fact]
+    public void CreateTabView_ContentPanelsHaveUITabPanelComponent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
+
+        var (_, contentPanels) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        foreach (var panel in contentPanels)
+        {
+            Assert.True(world.Has<UITabPanel>(panel));
+        }
+    }
+
+    [Fact]
+    public void CreateTabView_TabSpacing_IsApplied()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
+        var config = new TabViewConfig(TabSpacing: 10f);
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont, config);
+
+        // Find tab bar and check layout spacing
+        var children = world.GetChildren(tabView).ToList();
+        var tabBar = children.First();
+        ref readonly var layout = ref world.Get<UILayout>(tabBar);
+        Assert.Equal(10f, layout.Spacing);
+    }
+
+    [Fact]
+    public void CreateTabView_ContentAreaHasClipTag()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var tabs = new[] { new TabConfig("Tab1") };
+
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+
+        // Content area is second child of container
+        var children = world.GetChildren(tabView).ToList();
+        var contentArea = children[1]; // Second child
+        Assert.True(world.Has<UIClipChildrenTag>(contentArea));
+    }
+
+    #endregion
+
+    #region ScrollView Tests
+
+    [Fact]
+    public void CreateScrollView_ReturnsContainerAndContentPanel()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (scrollView, contentPanel) = WidgetFactory.CreateScrollView(world, parent);
+
+        Assert.True(world.IsAlive(scrollView));
+        Assert.True(world.IsAlive(contentPanel));
+    }
+
+    [Fact]
+    public void CreateScrollView_ContainerHasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent);
+
+        Assert.True(world.Has<UIElement>(scrollView));
+        Assert.True(world.Has<UIRect>(scrollView));
+        Assert.True(world.Has<UIStyle>(scrollView));
+        Assert.True(world.Has<UIScrollable>(scrollView));
+        Assert.True(world.Has<UIClipChildrenTag>(scrollView));
+    }
+
+    [Fact]
+    public void CreateScrollView_SetsParent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent);
+
+        Assert.Equal(parent, world.GetParent(scrollView));
+    }
+
+    [Fact]
+    public void CreateScrollView_ContentPanelIsChildOfContainer()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (scrollView, contentPanel) = WidgetFactory.CreateScrollView(world, parent);
+
+        Assert.Equal(scrollView, world.GetParent(contentPanel));
+    }
+
+    [Fact]
+    public void CreateScrollView_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, "MyScrollView");
+
+        Assert.Equal("MyScrollView", world.GetName(scrollView));
+    }
+
+    [Fact]
+    public void CreateScrollView_WithName_NamesContentPanel()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (_, contentPanel) = WidgetFactory.CreateScrollView(world, parent, "MyScrollView");
+
+        Assert.Equal("MyScrollView_Content", world.GetName(contentPanel));
+    }
+
+    [Fact]
+    public void CreateScrollView_WithWidthOnly_SetsFixedWidthFillHeight()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(Width: 300);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(scrollView);
+        Assert.Equal(300f, rect.Size.X);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithHeightOnly_SetsFillWidthFixedHeight()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(Height: 200);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(scrollView);
+        Assert.Equal(200f, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fill, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithWidthAndHeight_SetsFixedBoth()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(Width: 300, Height: 200);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(scrollView);
+        Assert.Equal(300f, rect.Size.X);
+        Assert.Equal(200f, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithNoSize_UsesStretch()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent);
+
+        ref readonly var rect = ref world.Get<UIRect>(scrollView);
+        Assert.Equal(UISizeMode.Fill, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithContentSize_SetsScrollableContentSize()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ContentWidth: 800, ContentHeight: 1200);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        ref readonly var scrollable = ref world.Get<UIScrollable>(scrollView);
+        Assert.Equal(800f, scrollable.ContentSize.X);
+        Assert.Equal(1200f, scrollable.ContentSize.Y);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithVerticalScrollbar_CreatesScrollbar()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ShowVerticalScrollbar: true);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        // Should have content panel and vertical scrollbar
+        var children = world.GetChildren(scrollView).ToList();
+        Assert.True(children.Count >= 2);
+
+        // Find scrollbar with thumb
+        var hasThumb = children.Any(c =>
+        {
+            var grandchildren = world.GetChildren(c).ToList();
+            return grandchildren.Any(gc => world.Has<UIScrollbarThumb>(gc));
+        });
+        Assert.True(hasThumb);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithHorizontalScrollbar_CreatesScrollbar()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ShowHorizontalScrollbar: true);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        // Should have content panel and horizontal scrollbar
+        var children = world.GetChildren(scrollView).ToList();
+        Assert.True(children.Count >= 2);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithBothScrollbars_CreatesBothScrollbars()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ShowVerticalScrollbar: true, ShowHorizontalScrollbar: true);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        // Should have content panel and two scrollbars
+        var children = world.GetChildren(scrollView).ToList();
+        Assert.True(children.Count >= 3);
+    }
+
+    [Fact]
+    public void CreateScrollView_ScrollbarThumb_HasInteractable()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ShowVerticalScrollbar: true);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        // Find thumb
+        var thumbs = world.Query<UIScrollbarThumb>().ToList();
+        Assert.Single(thumbs);
+
+        var thumb = thumbs[0];
+        Assert.True(world.Has<UIInteractable>(thumb));
+        ref readonly var interactable = ref world.Get<UIInteractable>(thumb);
+        Assert.True(interactable.CanDrag);
+    }
+
+    [Fact]
+    public void CreateScrollView_ScrollbarThumb_HasCorrectOrientation()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ShowVerticalScrollbar: true, ShowHorizontalScrollbar: true);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        // Find thumbs
+        var thumbs = world.Query<UIScrollbarThumb>().ToList();
+        Assert.Equal(2, thumbs.Count);
+
+        var hasVertical = thumbs.Any(t =>
+        {
+            ref readonly var thumb = ref world.Get<UIScrollbarThumb>(t);
+            return thumb.IsVertical;
+        });
+        var hasHorizontal = thumbs.Any(t =>
+        {
+            ref readonly var thumb = ref world.Get<UIScrollbarThumb>(t);
+            return !thumb.IsVertical;
+        });
+
+        Assert.True(hasVertical);
+        Assert.True(hasHorizontal);
+    }
+
+    [Fact]
+    public void CreateScrollView_ContentPanel_HasLayout()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (_, contentPanel) = WidgetFactory.CreateScrollView(world, parent);
+
+        Assert.True(world.Has<UILayout>(contentPanel));
+        ref readonly var layout = ref world.Get<UILayout>(contentPanel);
+        Assert.Equal(LayoutDirection.Vertical, layout.Direction);
+    }
+
+    [Fact]
+    public void CreateScrollView_ContentPanel_SizeModesBasedOnConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ContentWidth: 500, ContentHeight: 1000);
+
+        var (_, contentPanel) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(contentPanel);
+        Assert.Equal(500f, rect.Size.X);
+        Assert.Equal(1000f, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateScrollView_ContentPanel_FillsWhenNoContentSize()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var (_, contentPanel) = WidgetFactory.CreateScrollView(world, parent);
+
+        ref readonly var rect = ref world.Get<UIRect>(contentPanel);
+        Assert.Equal(UISizeMode.Fill, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateScrollView_WithName_NamesScrollbars()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ShowVerticalScrollbar: true, ShowHorizontalScrollbar: true);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, "MyScroll", config);
+
+        var children = world.GetChildren(scrollView).ToList();
+
+        // Find by name
+        var vScrollbar = children.FirstOrDefault(c => world.GetName(c) == "MyScroll_VScrollbar");
+        var hScrollbar = children.FirstOrDefault(c => world.GetName(c) == "MyScroll_HScrollbar");
+
+        Assert.True(world.IsAlive(vScrollbar));
+        Assert.True(world.IsAlive(hScrollbar));
+    }
+
+    [Fact]
+    public void CreateScrollView_ScrollableFlags_MatchConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ScrollViewConfig(ShowVerticalScrollbar: true, ShowHorizontalScrollbar: false);
+
+        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+
+        ref readonly var scrollable = ref world.Get<UIScrollable>(scrollView);
+        Assert.True(scrollable.VerticalScroll);
+        Assert.False(scrollable.HorizontalScroll);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Entity CreateRootEntity(World world)
