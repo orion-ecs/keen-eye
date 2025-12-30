@@ -514,4 +514,427 @@ public class UIRadialMenuSystemTests
     }
 
     #endregion
+
+    #region Invalid Entity Tests
+
+    [Fact]
+    public void RadialMenu_OpenRequestWithoutRadialMenuComponent_IsIgnored()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        // Entity without UIRadialMenu component
+        var notAMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .Build();
+
+        bool eventFired = false;
+        world.Subscribe<UIRadialMenuOpenedEvent>(_ => eventFired = true);
+
+        var requestEvent = new UIRadialMenuRequestEvent(notAMenu, new Vector2(400, 300));
+        world.Send(requestEvent);
+
+        radialMenuSystem.Update(0);
+
+        Assert.False(eventFired);
+    }
+
+    [Fact]
+    public void RadialMenu_OpenWithoutUIRect_StillOpens()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            // No UIRect
+            .With(new UIRadialMenu { OuterRadius = 100 })
+            .Build();
+
+        radialMenuSystem.OpenRadialMenu(radialMenu, new Vector2(400, 300));
+
+        ref readonly var menu = ref world.Get<UIRadialMenu>(radialMenu);
+        Assert.True(menu.IsOpen);
+    }
+
+    [Fact]
+    public void RadialMenu_UpdateInputWithoutInputState_IsIgnored()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialMenu())
+            // No UIRadialMenuInputState
+            .Build();
+
+        // Should not throw
+        radialMenuSystem.UpdateInput(radialMenu, new Vector2(1, 0), 0.8f);
+    }
+
+    [Fact]
+    public void RadialMenu_ConfirmWithoutRadialMenuComponent_IsIgnored()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var entity = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        // Should not throw
+        radialMenuSystem.ConfirmSelection(entity);
+    }
+
+    [Fact]
+    public void RadialMenu_CloseWithoutRadialMenuComponent_IsIgnored()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var entity = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        // Should not throw
+        radialMenuSystem.CloseRadialMenu(entity);
+    }
+
+    [Fact]
+    public void RadialMenu_ConfirmWithNoMatchingSlice_ClosesAsCancelled()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialMenu { IsOpen = true, SelectedIndex = 5, SliceCount = 4 }) // Index 5 doesn't exist
+            .Build();
+
+        // No slice at index 5
+        world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialSlice(radialMenu, 0) { IsEnabled = true })
+            .Build();
+
+        bool closedAsCancelled = false;
+        world.Subscribe<UIRadialMenuClosedEvent>(e =>
+        {
+            if (e.Menu == radialMenu)
+            {
+                closedAsCancelled = e.WasCancelled;
+            }
+        });
+
+        radialMenuSystem.ConfirmSelection(radialMenu);
+
+        Assert.True(closedAsCancelled);
+    }
+
+    #endregion
+
+    #region Input State Reinitialization Tests
+
+    [Fact]
+    public void RadialMenu_OpenWithExistingInputState_ResetState()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIRadialMenu())
+            .With(new UIRadialMenuInputState
+            {
+                InputDirection = new Vector2(1, 0),
+                InputMagnitude = 0.9f,
+                IsTriggerHeld = false,
+                OpenTime = 5f
+            })
+            .Build();
+
+        radialMenuSystem.OpenRadialMenu(radialMenu, new Vector2(400, 300));
+
+        ref readonly var inputState = ref world.Get<UIRadialMenuInputState>(radialMenu);
+
+        Assert.Equal(Vector2.Zero, inputState.InputDirection);
+        Assert.Equal(0f, inputState.InputMagnitude);
+        Assert.True(inputState.IsTriggerHeld);
+        Assert.Equal(0f, inputState.OpenTime);
+    }
+
+    #endregion
+
+    #region Open Tag Tests
+
+    [Fact]
+    public void RadialMenu_Open_AddsOpenTag()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIRadialMenu())
+            .Build();
+
+        radialMenuSystem.OpenRadialMenu(radialMenu, new Vector2(400, 300));
+
+        Assert.True(world.Has<UIRadialMenuOpenTag>(radialMenu));
+    }
+
+    [Fact]
+    public void RadialMenu_Close_RemovesOpenTag()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRadialMenu { IsOpen = true })
+            .With(new UIRadialMenuOpenTag())
+            .Build();
+
+        radialMenuSystem.CloseRadialMenu(radialMenu);
+
+        Assert.False(world.Has<UIRadialMenuOpenTag>(radialMenu));
+    }
+
+    [Fact]
+    public void RadialMenu_Close_AddsHiddenTag()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRadialMenu { IsOpen = true })
+            .Build();
+
+        Assert.False(world.Has<UIHiddenTag>(radialMenu));
+
+        radialMenuSystem.CloseRadialMenu(radialMenu);
+
+        Assert.True(world.Has<UIHiddenTag>(radialMenu));
+    }
+
+    [Fact]
+    public void RadialMenu_Close_ClearsSelectedSliceTags()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRadialMenu { IsOpen = true })
+            .Build();
+
+        var slice = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialSlice(radialMenu, 0))
+            .With(new UIRadialSliceSelectedTag())
+            .Build();
+
+        radialMenuSystem.CloseRadialMenu(radialMenu);
+
+        Assert.False(world.Has<UIRadialSliceSelectedTag>(slice));
+    }
+
+    #endregion
+
+    #region Animation Completion Tests
+
+    [Fact]
+    public void RadialMenu_OpenProgress_CapsAtOne()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialMenu { IsOpen = true, OpenProgress = 0.95f })
+            .With(new UIRadialMenuInputState())
+            .Build();
+
+        // Large delta time that would exceed 1.0
+        radialMenuSystem.Update(1.0f);
+
+        ref readonly var menu = ref world.Get<UIRadialMenu>(radialMenu);
+
+        Assert.Equal(1f, menu.OpenProgress);
+    }
+
+    [Fact]
+    public void RadialMenu_CloseProgress_FloorAtZero()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialMenu { IsOpen = false, OpenProgress = 0.05f })
+            .With(new UIRadialMenuInputState())
+            .Build();
+
+        // Large delta time that would go below 0
+        radialMenuSystem.Update(1.0f);
+
+        ref readonly var menu = ref world.Get<UIRadialMenu>(radialMenu);
+
+        Assert.Equal(0f, menu.OpenProgress);
+    }
+
+    [Fact]
+    public void RadialMenu_Update_IncrementsOpenTime()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialMenu { IsOpen = true })
+            .With(new UIRadialMenuInputState { OpenTime = 0f })
+            .Build();
+
+        radialMenuSystem.Update(0.5f);
+
+        ref readonly var inputState = ref world.Get<UIRadialMenuInputState>(radialMenu);
+
+        Assert.Equal(0.5f, inputState.OpenTime);
+    }
+
+    #endregion
+
+    #region Dispose Tests
+
+    [Fact]
+    public void RadialMenu_Dispose_CleansUpSubscription()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(UIRect.Fixed(0, 0, 200, 200))
+            .With(new UIRadialMenu { OuterRadius = 100 })
+            .Build();
+
+        // Dispose the system
+        radialMenuSystem.Dispose();
+
+        bool eventFired = false;
+        world.Subscribe<UIRadialMenuOpenedEvent>(_ => eventFired = true);
+
+        // Request should not be handled after dispose
+        var requestEvent = new UIRadialMenuRequestEvent(radialMenu, new Vector2(400, 300));
+        world.Send(requestEvent);
+
+        Assert.False(eventFired);
+    }
+
+    #endregion
+
+    #region Angle Normalization Edge Cases
+
+    [Fact]
+    public void RadialMenu_NegativeAngleInput_CalculatesCorrectSlice()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = MathF.PI, SelectedIndex = -1 })
+            .With(new UIRadialMenuInputState { InputDirection = new Vector2(-1, 0), InputMagnitude = 0.8f }) // Pointing left
+            .Build();
+
+        radialMenuSystem.Update(0);
+
+        ref readonly var menu = ref world.Get<UIRadialMenu>(radialMenu);
+
+        // Should select a valid slice
+        Assert.True(menu.SelectedIndex >= 0 && menu.SelectedIndex < 4);
+    }
+
+    [Fact]
+    public void RadialMenu_LargeStartAngle_CalculatesCorrectSlice()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        // StartAngle greater than 2*PI
+        var radialMenu = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRadialMenu { IsOpen = true, SliceCount = 4, StartAngle = 3 * MathF.PI, SelectedIndex = -1 })
+            .With(new UIRadialMenuInputState { InputDirection = new Vector2(1, 0), InputMagnitude = 0.8f })
+            .Build();
+
+        radialMenuSystem.Update(0);
+
+        ref readonly var menu = ref world.Get<UIRadialMenu>(radialMenu);
+
+        // Should select a valid slice
+        Assert.True(menu.SelectedIndex >= 0 && menu.SelectedIndex < 4);
+    }
+
+    #endregion
+
+    #region Open Already Open Tag Test
+
+    [Fact]
+    public void RadialMenu_OpenWithExistingOpenTag_NoDoubleAdd()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIRadialMenu())
+            .With(new UIRadialMenuOpenTag()) // Already has tag
+            .Build();
+
+        // Should not throw
+        radialMenuSystem.OpenRadialMenu(radialMenu, new Vector2(400, 300));
+
+        Assert.True(world.Has<UIRadialMenuOpenTag>(radialMenu));
+    }
+
+    [Fact]
+    public void RadialMenu_Open_RemovesHiddenTag()
+    {
+        using var world = new World();
+        var radialMenuSystem = new UIRadialMenuSystem();
+        world.AddSystem(radialMenuSystem);
+
+        var radialMenu = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIRadialMenu())
+            .With(new UIHiddenTag())
+            .Build();
+
+        radialMenuSystem.OpenRadialMenu(radialMenu, new Vector2(400, 300));
+
+        Assert.False(world.Has<UIHiddenTag>(radialMenu));
+    }
+
+    #endregion
 }
