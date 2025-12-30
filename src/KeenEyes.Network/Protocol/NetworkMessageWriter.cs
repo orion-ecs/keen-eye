@@ -87,6 +87,26 @@ public ref struct NetworkMessageWriter(Span<byte> buffer)
     }
 
     /// <summary>
+    /// Writes a component using delta serialization (only changed fields).
+    /// </summary>
+    /// <param name="serializer">The network serializer.</param>
+    /// <param name="componentType">The type of the component.</param>
+    /// <param name="current">The current component value.</param>
+    /// <param name="baseline">The baseline component value for delta comparison.</param>
+    /// <returns>True if the component was serialized; false if not registered or delta not supported.</returns>
+    public bool WriteComponentDelta(INetworkSerializer serializer, Type componentType, object current, object baseline)
+    {
+        var typeId = serializer.GetNetworkTypeId(componentType);
+        if (typeId is null)
+        {
+            return false;
+        }
+
+        writer.WriteUInt16(typeId.Value);
+        return serializer.SerializeDelta(componentType, current, baseline, ref writer);
+    }
+
+    /// <summary>
     /// Writes the number of components that will follow.
     /// </summary>
     /// <param name="count">The component count.</param>

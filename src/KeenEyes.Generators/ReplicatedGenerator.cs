@@ -510,6 +510,91 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public IEnumerable<NetworkComponentInfo> GetRegisteredComponentInfo() => componentInfos;");
+        sb.AppendLine();
+
+        // SupportsDelta
+        sb.AppendLine("    private static readonly HashSet<Type> deltaTypes = new()");
+        sb.AppendLine("    {");
+        foreach (var comp in components.Where(c => c.Fields.Length > 0))
+        {
+            sb.AppendLine($"        typeof({comp.FullName}),");
+        }
+        sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool SupportsDelta(Type type) => deltaTypes.Contains(type);");
+        sb.AppendLine();
+
+        // GetDirtyMask
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public uint GetDirtyMask(Type type, object current, object baseline)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (!typeToId.TryGetValue(type, out var id)) return 0;");
+        sb.AppendLine("        switch (id)");
+        sb.AppendLine("        {");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            if (components[i].Fields.Length > 0)
+            {
+                sb.AppendLine($"            case {i + 1}:");
+                sb.AppendLine($"                return (({components[i].FullName})current).GetDirtyMask(({components[i].FullName})baseline);");
+            }
+        }
+        sb.AppendLine("            default: return 0;");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // SerializeDelta
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool SerializeDelta(Type type, object current, object baseline, ref BitWriter writer)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (!typeToId.TryGetValue(type, out var id)) return false;");
+        sb.AppendLine("        switch (id)");
+        sb.AppendLine("        {");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            if (components[i].Fields.Length > 0)
+            {
+                sb.AppendLine($"            case {i + 1}:");
+                sb.AppendLine("            {");
+                sb.AppendLine($"                var c = ({components[i].FullName})current;");
+                sb.AppendLine($"                var b = ({components[i].FullName})baseline;");
+                sb.AppendLine("                var mask = c.GetDirtyMask(b);");
+                sb.AppendLine("                writer.WriteUInt32(mask);");
+                sb.AppendLine("                if (mask != 0) c.NetworkSerializeDelta(ref writer, b, mask);");
+                sb.AppendLine("                return true;");
+                sb.AppendLine("            }");
+            }
+        }
+        sb.AppendLine("            default: return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // DeserializeDelta
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public object? DeserializeDelta(ushort networkTypeId, ref BitReader reader, object baseline)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var mask = reader.ReadUInt32();");
+        sb.AppendLine("        if (mask == 0) return baseline;");
+        sb.AppendLine("        switch (networkTypeId)");
+        sb.AppendLine("        {");
+        for (ushort i = 0; i < components.Length; i++)
+        {
+            if (components[i].Fields.Length > 0)
+            {
+                sb.AppendLine($"            case {i + 1}:");
+                sb.AppendLine("            {");
+                sb.AppendLine($"                var b = ({components[i].FullName})baseline;");
+                sb.AppendLine($"                new {components[i].FullName}().NetworkDeserializeDelta(ref reader, ref b, mask);");
+                sb.AppendLine("                return b;");
+                sb.AppendLine("            }");
+            }
+        }
+        sb.AppendLine("            default: return baseline;");
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
 
         sb.AppendLine("}");
 

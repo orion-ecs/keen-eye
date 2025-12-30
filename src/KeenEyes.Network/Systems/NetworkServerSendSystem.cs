@@ -126,7 +126,7 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             return true;
         }
 
-        // Compare current state to last sent state
+        // Compare current state to last sent state using delta masks for efficiency
         foreach (var (type, value) in World.GetComponents(entity))
         {
             if (!serializer.IsNetworkSerializable(type))
@@ -140,8 +140,15 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
                 return true;
             }
 
-            // Compare values (simple equality check)
-            if (!Equals(lastValue, value))
+            // Use dirty mask for delta-supported types, fallback to Equals for others
+            if (serializer.SupportsDelta(type))
+            {
+                if (serializer.GetDirtyMask(type, value, lastValue) != 0)
+                {
+                    return true;
+                }
+            }
+            else if (!Equals(lastValue, value))
             {
                 return true;
             }
@@ -166,19 +173,19 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 
             writer.WriteEntitySpawn(networkId.Value, owner.ClientId);
 
-            // Write all replicated components
-            WriteReplicatedComponents(entity, ref writer, serializer, isDelta: false);
+            // Write all replicated components (full serialization)
+            WriteReplicatedComponentsFull(entity, ref writer, serializer);
 
             state.NeedsFullSync = false;
         }
         else
         {
-            // Send delta update (only changed components)
-            writer.WriteHeader(MessageType.ComponentUpdate, plugin.CurrentTick);
+            // Send delta update (only changed fields within components)
+            writer.WriteHeader(MessageType.ComponentDelta, plugin.CurrentTick);
             writer.WriteUInt32(networkId.Value);
 
-            // Write only changed components
-            WriteReplicatedComponents(entity, ref writer, serializer, isDelta: true);
+            // Write components with delta encoding
+            WriteReplicatedComponentsDelta(entity, ref writer, serializer);
         }
 
         var span = writer.GetWrittenSpan();
@@ -189,11 +196,35 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         SaveSentState(entity, serializer);
     }
 
-    private void WriteReplicatedComponents(Entity entity, ref NetworkMessageWriter writer, INetworkSerializer? serializer, bool isDelta)
+    private void WriteReplicatedComponentsFull(Entity entity, ref NetworkMessageWriter writer, INetworkSerializer? serializer)
     {
         if (serializer is null)
         {
-            // No serializer configured, write 0 components
+            writer.WriteComponentCount(0);
+            return;
+        }
+
+        // Collect all replicated components
+        var toSend = new List<(Type, object)>();
+        foreach (var (type, value) in World.GetComponents(entity))
+        {
+            if (serializer.IsNetworkSerializable(type))
+            {
+                toSend.Add((type, value));
+            }
+        }
+
+        writer.WriteComponentCount((byte)toSend.Count);
+        foreach (var (type, value) in toSend)
+        {
+            writer.WriteComponent(serializer, type, value);
+        }
+    }
+
+    private void WriteReplicatedComponentsDelta(Entity entity, ref NetworkMessageWriter writer, INetworkSerializer? serializer)
+    {
+        if (serializer is null)
+        {
             writer.WriteComponentCount(0);
             return;
         }
@@ -201,8 +232,8 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         // Get last sent state for delta comparison
         lastSentState.TryGetValue(entity, out var entityLastState);
 
-        // Collect components to send
-        var toSend = new List<(Type, object)>();
+        // Collect components that have changed
+        var toSend = new List<(Type type, object current, object? baseline)>();
         foreach (var (type, value) in World.GetComponents(entity))
         {
             if (!serializer.IsNetworkSerializable(type))
@@ -210,24 +241,48 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
                 continue;
             }
 
-            // For delta updates, only send changed components
-            if (isDelta && entityLastState is not null)
+            object? lastValue = null;
+            if (entityLastState is not null)
             {
-                if (entityLastState.TryGetValue(type, out var lastValue) && Equals(lastValue, value))
-                {
-                    continue; // Component unchanged
-                }
+                entityLastState.TryGetValue(type, out lastValue);
             }
 
-            toSend.Add((type, value));
+            // Check if changed using delta mask or equality
+            bool hasChanged;
+            if (lastValue is null)
+            {
+                hasChanged = true; // New component
+            }
+            else if (serializer.SupportsDelta(type))
+            {
+                hasChanged = serializer.GetDirtyMask(type, value, lastValue) != 0;
+            }
+            else
+            {
+                hasChanged = !Equals(lastValue, value);
+            }
+
+            if (hasChanged)
+            {
+                toSend.Add((type, value, lastValue));
+            }
         }
 
         writer.WriteComponentCount((byte)toSend.Count);
 
-        // Write each component
-        foreach (var (type, value) in toSend)
+        // Write each component with delta encoding where supported
+        foreach (var (type, current, baseline) in toSend)
         {
-            writer.WriteComponent(serializer, type, value);
+            // Use delta serialization if we have a baseline and the type supports it
+            if (baseline is not null && serializer.SupportsDelta(type))
+            {
+                writer.WriteComponentDelta(serializer, type, current, baseline);
+            }
+            else
+            {
+                // Fall back to full serialization
+                writer.WriteComponent(serializer, type, current);
+            }
         }
     }
 

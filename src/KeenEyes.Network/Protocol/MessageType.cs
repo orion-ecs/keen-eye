@@ -75,9 +75,14 @@ public enum MessageType : byte
     ComponentRemove = 0x15,
 
     /// <summary>
-    /// Component updated on entity.
+    /// Component updated on entity (full serialization).
     /// </summary>
     ComponentUpdate = 0x16,
+
+    /// <summary>
+    /// Component delta update (only changed fields).
+    /// </summary>
+    ComponentDelta = 0x17,
 
     // Client input (0x20-0x2F)
 
