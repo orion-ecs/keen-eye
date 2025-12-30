@@ -443,4 +443,376 @@ public class UISplitterSystemTests
     }
 
     #endregion
+
+    #region Invalid Entity Tests
+
+    [Fact]
+    public void Splitter_DragOnNonHandle_IsIgnored()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 300) })
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Horizontal,
+                SplitRatio = 0.5f,
+                HandleSize = 10
+            })
+            .Build();
+
+        // Element without UISplitterHandle
+        var nonHandle = world.Spawn()
+            .With(UIElement.Default)
+            .Build();
+
+        bool eventFired = false;
+        world.Subscribe<UISplitterChangedEvent>(_ => eventFired = true);
+
+        // Send drag event for non-handle element
+        var dragEvent = new UIDragEvent(nonHandle, new Vector2(200, 150), new Vector2(50, 0));
+        world.Send(dragEvent);
+
+        splitterSystem.Update(0);
+
+        Assert.False(eventFired);
+
+        // Original ratio should be unchanged
+        ref readonly var splitter = ref world.Get<UISplitter>(container);
+        Assert.Equal(0.5f, splitter.SplitRatio);
+    }
+
+    [Fact]
+    public void Splitter_DragWithDeadContainer_IsIgnored()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 300) })
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Horizontal,
+                SplitRatio = 0.5f,
+                HandleSize = 10
+            })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        // Despawn the container
+        world.Despawn(container);
+
+        bool eventFired = false;
+        world.Subscribe<UISplitterChangedEvent>(_ => eventFired = true);
+
+        // Should not throw and not fire event
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 150), new Vector2(50, 0));
+        world.Send(dragEvent);
+
+        Assert.False(eventFired);
+    }
+
+    [Fact]
+    public void Splitter_DragWithContainerMissingSplitterComponent_IsIgnored()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        // Container without UISplitter component
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 300) })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        bool eventFired = false;
+        world.Subscribe<UISplitterChangedEvent>(_ => eventFired = true);
+
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 150), new Vector2(50, 0));
+        world.Send(dragEvent);
+
+        Assert.False(eventFired);
+    }
+
+    [Fact]
+    public void Splitter_DragWithContainerMissingUIRect_IsIgnored()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        // Container without UIRect component
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Horizontal,
+                SplitRatio = 0.5f,
+                HandleSize = 10
+            })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        bool eventFired = false;
+        world.Subscribe<UISplitterChangedEvent>(_ => eventFired = true);
+
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 150), new Vector2(50, 0));
+        world.Send(dragEvent);
+
+        Assert.False(eventFired);
+    }
+
+    #endregion
+
+    #region Zero/Negative Size Tests
+
+    [Fact]
+    public void HorizontalSplitter_ZeroWidth_IsIgnored()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 10, 300) }) // Width = HandleSize
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Horizontal,
+                SplitRatio = 0.5f,
+                HandleSize = 10
+            })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        bool eventFired = false;
+        world.Subscribe<UISplitterChangedEvent>(_ => eventFired = true);
+
+        var dragEvent = new UIDragEvent(handle, new Vector2(5, 150), new Vector2(50, 0));
+        world.Send(dragEvent);
+
+        Assert.False(eventFired);
+
+        ref readonly var splitter = ref world.Get<UISplitter>(container);
+        Assert.Equal(0.5f, splitter.SplitRatio);
+    }
+
+    [Fact]
+    public void VerticalSplitter_ZeroHeight_IsIgnored()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 10) }) // Height = HandleSize
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Vertical,
+                SplitRatio = 0.5f,
+                HandleSize = 10
+            })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        bool eventFired = false;
+        world.Subscribe<UISplitterChangedEvent>(_ => eventFired = true);
+
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 5), new Vector2(0, 50));
+        world.Send(dragEvent);
+
+        Assert.False(eventFired);
+
+        ref readonly var splitter = ref world.Get<UISplitter>(container);
+        Assert.Equal(0.5f, splitter.SplitRatio);
+    }
+
+    #endregion
+
+    #region Dispose Tests
+
+    [Fact]
+    public void Splitter_Dispose_CleansUpSubscription()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 300) })
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Horizontal,
+                SplitRatio = 0.5f,
+                HandleSize = 10
+            })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        // Dispose the system
+        splitterSystem.Dispose();
+
+        bool eventFired = false;
+        world.Subscribe<UISplitterChangedEvent>(_ => eventFired = true);
+
+        // Drag should not change splitter anymore (subscription disposed)
+        var dragEvent = new UIDragEvent(handle, new Vector2(250, 150), new Vector2(50, 0));
+        world.Send(dragEvent);
+
+        Assert.False(eventFired);
+
+        ref readonly var splitter = ref world.Get<UISplitter>(container);
+        Assert.Equal(0.5f, splitter.SplitRatio);
+    }
+
+    #endregion
+
+    #region Layout Dirty Tag Edge Cases
+
+    [Fact]
+    public void Splitter_AlreadyHasLayoutDirtyTag_NoDoubleAdd()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 300) })
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Horizontal,
+                SplitRatio = 0.5f,
+                HandleSize = 10
+            })
+            .With(new UILayoutDirtyTag())
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        // Should not throw when tag already exists
+        var dragEvent = new UIDragEvent(handle, new Vector2(250, 150), new Vector2(50, 0));
+        world.Send(dragEvent);
+
+        splitterSystem.Update(0);
+
+        Assert.True(world.Has<UILayoutDirtyTag>(container));
+    }
+
+    #endregion
+
+    #region Vertical Min Size Constraint Tests
+
+    [Fact]
+    public void VerticalSplitter_RespectsMinFirstPane()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 300) })
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Vertical,
+                SplitRatio = 0.3f,
+                HandleSize = 10,
+                MinFirstPane = 100,
+                MinSecondPane = 50
+            })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        // Try to drag up beyond minimum
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 0), new Vector2(0, -200));
+        world.Send(dragEvent);
+
+        splitterSystem.Update(0);
+
+        ref readonly var splitter = ref world.Get<UISplitter>(container);
+        float totalHeight = 300 - 10;
+        float firstPaneHeight = totalHeight * splitter.SplitRatio;
+
+        Assert.True(firstPaneHeight >= 100f);
+    }
+
+    [Fact]
+    public void VerticalSplitter_RespectsMinSecondPane()
+    {
+        using var world = new World();
+        var splitterSystem = new UISplitterSystem();
+        world.AddSystem(splitterSystem);
+
+        var container = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 400, 300) })
+            .With(new UISplitter
+            {
+                Orientation = LayoutDirection.Vertical,
+                SplitRatio = 0.7f,
+                HandleSize = 10,
+                MinFirstPane = 50,
+                MinSecondPane = 100
+            })
+            .Build();
+
+        var handle = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UISplitterHandle(container))
+            .Build();
+
+        // Try to drag down beyond minimum second pane
+        var dragEvent = new UIDragEvent(handle, new Vector2(200, 300), new Vector2(0, 200));
+        world.Send(dragEvent);
+
+        splitterSystem.Update(0);
+
+        ref readonly var splitter = ref world.Get<UISplitter>(container);
+        float totalHeight = 300 - 10;
+        float secondPaneHeight = totalHeight * (1f - splitter.SplitRatio);
+
+        Assert.True(secondPaneHeight >= 100f - 0.01f);
+    }
+
+    #endregion
 }
