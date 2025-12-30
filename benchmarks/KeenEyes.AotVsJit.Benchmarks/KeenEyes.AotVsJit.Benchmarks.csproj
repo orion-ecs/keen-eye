@@ -9,7 +9,7 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
-  <!-- AOT compilation mode (set via --property:BenchmarkMode=AOT) -->
+  <!-- AOT compilation mode (set via /p:BenchmarkMode=AOT) -->
   <PropertyGroup Condition="'$(BenchmarkMode)' == 'AOT'">
     <PublishAot>true</PublishAot>
     <IsAotCompatible>true</IsAotCompatible>
