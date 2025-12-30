@@ -190,6 +190,52 @@ public class WidgetFactoryTests
         Assert.Equal("MainPanel", world.GetName(panel));
     }
 
+    [Fact]
+    public void CreatePanel_WithWidthOnly_SetsFixedWidthFillHeight()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new PanelConfig { Width = 400 };
+
+        var panel = WidgetFactory.CreatePanel(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(panel);
+        Assert.Equal(400, rect.Size.X);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreatePanel_WithHeightOnly_SetsFillWidthFixedHeight()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new PanelConfig { Height = 300 };
+
+        var panel = WidgetFactory.CreatePanel(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(panel);
+        Assert.Equal(300, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fill, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreatePanel_WithName_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new PanelConfig { Width = 500, Spacing = 20f };
+
+        var panel = WidgetFactory.CreatePanel(world, parent, "ConfiguredPanel", config);
+
+        Assert.Equal("ConfiguredPanel", world.GetName(panel));
+        ref readonly var rect = ref world.Get<UIRect>(panel);
+        Assert.Equal(500, rect.Size.X);
+        ref readonly var layout = ref world.Get<UILayout>(panel);
+        Assert.Equal(20f, layout.Spacing);
+    }
+
     #endregion
 
     #region Label Tests
@@ -304,6 +350,22 @@ public class WidgetFactoryTests
         var textField = WidgetFactory.CreateTextField(world, parent, "EmailField", testFont);
 
         Assert.Equal("EmailField", world.GetName(textField));
+    }
+
+    [Fact]
+    public void CreateTextField_WithName_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new TextFieldConfig { Width = 400, PlaceholderText = "Search..." };
+
+        var textField = WidgetFactory.CreateTextField(world, parent, "SearchBox", testFont, config);
+
+        Assert.Equal("SearchBox", world.GetName(textField));
+        ref readonly var rect = ref world.Get<UIRect>(textField);
+        Assert.Equal(400, rect.Size.X);
+        ref readonly var input = ref world.Get<UITextInput>(textField);
+        Assert.Equal("Search...", input.PlaceholderText);
     }
 
     #endregion
@@ -430,6 +492,20 @@ public class WidgetFactoryTests
         Assert.Equal("VolumeSlider_Thumb", world.GetName(children[2]));
     }
 
+    [Fact]
+    public void CreateSlider_WithName_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new SliderConfig { MinValue = 0, MaxValue = 100, Value = 50, Width = 250 };
+
+        var slider = WidgetFactory.CreateSlider(world, parent, "BrightnessSlider", config);
+
+        Assert.Equal("BrightnessSlider", world.GetName(slider));
+        ref readonly var sliderData = ref world.Get<UISlider>(slider);
+        Assert.Equal(50f, sliderData.Value, 2);
+    }
+
     #endregion
 
     #region ProgressBar Tests
@@ -552,6 +628,20 @@ public class WidgetFactoryTests
         var children = world.GetChildren(toggle).ToList();
         Assert.Equal("DarkMode_Track", world.GetName(children[0]));
         Assert.Equal("DarkMode_Label", world.GetName(children[1]));
+    }
+
+    [Fact]
+    public void CreateToggle_WithName_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ToggleConfig { IsOn = true };
+
+        var toggle = WidgetFactory.CreateToggle(world, parent, "Feature", "Feature", testFont, config);
+
+        Assert.Equal("Feature", world.GetName(toggle));
+        ref readonly var interactable = ref world.Get<UIInteractable>(toggle);
+        Assert.True(interactable.IsPressed);
     }
 
     #endregion
@@ -750,6 +840,64 @@ public class WidgetFactoryTests
         ref readonly var rect = ref world.Get<UIRect>(divider);
         Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
         Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateDivider_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var divider = WidgetFactory.CreateDivider(world, parent, "Separator");
+
+        Assert.Equal("Separator", world.GetName(divider));
+    }
+
+    [Fact]
+    public void CreateDivider_WithName_AppliesVerticalConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DividerConfig { Orientation = LayoutDirection.Vertical, Thickness = 3 };
+
+        var divider = WidgetFactory.CreateDivider(world, parent, "VerticalDivider", config);
+
+        Assert.Equal("VerticalDivider", world.GetName(divider));
+        ref readonly var rect = ref world.Get<UIRect>(divider);
+        Assert.Equal(3, rect.Size.X);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+    }
+
+    [Fact]
+    public void CreateDivider_HorizontalWithFixedLength_SetsSize()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DividerConfig { Orientation = LayoutDirection.Horizontal, Length = 200, Thickness = 2 };
+
+        var divider = WidgetFactory.CreateDivider(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(divider);
+        Assert.Equal(200, rect.Size.X);
+        Assert.Equal(2, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
+    }
+
+    [Fact]
+    public void CreateDivider_VerticalWithFixedLength_SetsSize()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DividerConfig { Orientation = LayoutDirection.Vertical, Length = 150, Thickness = 2 };
+
+        var divider = WidgetFactory.CreateDivider(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(divider);
+        Assert.Equal(2, rect.Size.X);
+        Assert.Equal(150, rect.Size.Y);
+        Assert.Equal(UISizeMode.Fixed, rect.WidthMode);
+        Assert.Equal(UISizeMode.Fixed, rect.HeightMode);
     }
 
     #endregion
@@ -1318,6 +1466,234 @@ public class WidgetFactoryTests
         Assert.False(element.Visible);
         ref readonly var popoverData = ref world.Get<UIPopover>(popover);
         Assert.False(popoverData.IsOpen);
+    }
+
+    #endregion
+
+    #region Dropdown Named Overload Tests
+
+    [Fact]
+    public void CreateDropdown_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var items = new[] { "Option 1", "Option 2" };
+
+        var dropdown = WidgetFactory.CreateDropdown(world, parent, "CountryDropdown", items, testFont);
+
+        Assert.Equal("CountryDropdown", world.GetName(dropdown));
+    }
+
+    [Fact]
+    public void CreateDropdown_WithName_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var items = new[] { "Option 1", "Option 2", "Option 3" };
+        var config = new DropdownConfig { Width = 250, SelectedIndex = 1 };
+
+        var dropdown = WidgetFactory.CreateDropdown(world, parent, "LanguageDropdown", items, testFont, config);
+
+        Assert.Equal("LanguageDropdown", world.GetName(dropdown));
+        ref readonly var rect = ref world.Get<UIRect>(dropdown);
+        Assert.Equal(250f, rect.Size.X);
+        ref readonly var scrollable = ref world.Get<UIScrollable>(dropdown);
+        Assert.Equal(1, (int)scrollable.ScrollPosition.X);
+    }
+
+    #endregion
+
+    #region ColorPicker Tests
+
+    [Fact]
+    public void CreateColorPicker_HasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var colorPicker = WidgetFactory.CreateColorPicker(world, parent);
+
+        Assert.True(world.Has<UIElement>(colorPicker));
+        Assert.True(world.Has<UIRect>(colorPicker));
+        Assert.True(world.Has<UIStyle>(colorPicker));
+        Assert.True(world.Has<UILayout>(colorPicker));
+        Assert.True(world.Has<UIColorPicker>(colorPicker));
+    }
+
+    [Fact]
+    public void CreateColorPicker_HasChildComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var colorPicker = WidgetFactory.CreateColorPicker(world, parent);
+
+        var children = world.GetChildren(colorPicker);
+        Assert.True(children.Count() >= 2); // At least satval area and hue slider
+    }
+
+    [Fact]
+    public void CreateColorPicker_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ColorPickerConfig { Width = 300, Height = 280, ShowAlpha = true, ShowPreview = true };
+
+        var colorPicker = WidgetFactory.CreateColorPicker(world, parent, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(colorPicker);
+        Assert.Equal(new Vector2(300, 280), rect.Size);
+        ref readonly var picker = ref world.Get<UIColorPicker>(colorPicker);
+        Assert.True(picker.ShowAlpha);
+    }
+
+    [Fact]
+    public void CreateColorPicker_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var colorPicker = WidgetFactory.CreateColorPicker(world, parent, "BackgroundColorPicker");
+
+        Assert.Equal("BackgroundColorPicker", world.GetName(colorPicker));
+    }
+
+    [Fact]
+    public void CreateColorPicker_WithName_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new ColorPickerConfig { ShowAlpha = true, Mode = ColorPickerMode.HSV };
+
+        var colorPicker = WidgetFactory.CreateColorPicker(world, parent, "ThemeColorPicker", config);
+
+        Assert.Equal("ThemeColorPicker", world.GetName(colorPicker));
+        ref readonly var picker = ref world.Get<UIColorPicker>(colorPicker);
+        Assert.True(picker.ShowAlpha);
+        Assert.Equal(ColorPickerMode.HSV, picker.Mode);
+    }
+
+    [Fact]
+    public void CreateColorPicker_SetsParent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var colorPicker = WidgetFactory.CreateColorPicker(world, parent);
+
+        Assert.Equal(parent, world.GetParent(colorPicker));
+    }
+
+    #endregion
+
+    #region DatePicker Tests
+
+    [Fact]
+    public void CreateDatePicker_HasRequiredComponents()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont);
+
+        Assert.True(world.Has<UIElement>(datePicker));
+        Assert.True(world.Has<UIRect>(datePicker));
+        Assert.True(world.Has<UILayout>(datePicker));
+        Assert.True(world.Has<UIStyle>(datePicker));
+        Assert.True(world.Has<UIDatePicker>(datePicker));
+    }
+
+    [Fact]
+    public void CreateDatePicker_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DatePickerConfig { Width = 320, Height = 350, Mode = DatePickerMode.DateTime };
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(datePicker);
+        Assert.Equal(new Vector2(320, 350), rect.Size);
+        ref readonly var picker = ref world.Get<UIDatePicker>(datePicker);
+        Assert.Equal(DatePickerMode.DateTime, picker.Mode);
+    }
+
+    [Fact]
+    public void CreateDatePicker_WithName_SetsEntityName()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont, "BirthdayPicker");
+
+        Assert.Equal("BirthdayPicker", world.GetName(datePicker));
+    }
+
+    [Fact]
+    public void CreateDatePicker_WithName_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DatePickerConfig { Mode = DatePickerMode.Time, ShowSeconds = true };
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont, "AppointmentPicker", config);
+
+        Assert.Equal("AppointmentPicker", world.GetName(datePicker));
+        ref readonly var picker = ref world.Get<UIDatePicker>(datePicker);
+        Assert.Equal(DatePickerMode.Time, picker.Mode);
+        Assert.True(picker.ShowSeconds);
+    }
+
+    [Fact]
+    public void CreateDatePicker_SetsParent()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont);
+
+        Assert.Equal(parent, world.GetParent(datePicker));
+    }
+
+    [Fact]
+    public void CreateDatePicker_TimeModeCreatesTimeSpinners()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DatePickerConfig { Mode = DatePickerMode.Time };
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont, config);
+
+        ref readonly var picker = ref world.Get<UIDatePicker>(datePicker);
+        Assert.NotEqual(Entity.Null, picker.HourEntity);
+        Assert.NotEqual(Entity.Null, picker.MinuteEntity);
+    }
+
+    [Fact]
+    public void CreateDatePicker_DateModeCreatesCalendarGrid()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DatePickerConfig { Mode = DatePickerMode.Date };
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont, config);
+
+        ref readonly var picker = ref world.Get<UIDatePicker>(datePicker);
+        Assert.NotEqual(Entity.Null, picker.CalendarGridEntity);
+        Assert.NotEqual(Entity.Null, picker.HeaderEntity);
+    }
+
+    [Fact]
+    public void CreateDatePicker_12HourFormat_HasAmPmSpinner()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new DatePickerConfig { Mode = DatePickerMode.Time, TimeFormat = TimeFormat.Hour12 };
+
+        var datePicker = WidgetFactory.CreateDatePicker(world, parent, testFont, config);
+
+        ref readonly var picker = ref world.Get<UIDatePicker>(datePicker);
+        Assert.NotEqual(Entity.Null, picker.AmPmEntity);
     }
 
     #endregion
