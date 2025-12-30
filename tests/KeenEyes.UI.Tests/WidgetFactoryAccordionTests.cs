@@ -357,6 +357,350 @@ public class WidgetFactoryAccordionTests
 
     #endregion
 
+    #region CreateAccordionWithSections Tests
+
+    [Fact]
+    public void CreateAccordionWithSections_ReturnsAccordionAndSections()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var sections = new[]
+        {
+            new AccordionSectionDef("Section 1", false),
+            new AccordionSectionDef("Section 2", true),
+            new AccordionSectionDef("Section 3", false)
+        };
+
+        var (accordion, sectionEntities) = WidgetFactory.CreateAccordionWithSections(world, parent, testFont, sections);
+
+        Assert.True(world.IsAlive(accordion));
+        Assert.Equal(3, sectionEntities.Length);
+        foreach (var section in sectionEntities)
+        {
+            Assert.True(world.IsAlive(section));
+        }
+    }
+
+    [Fact]
+    public void CreateAccordionWithSections_SetsExpandedStates()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var sections = new[]
+        {
+            new AccordionSectionDef("Section 1", false),
+            new AccordionSectionDef("Section 2", true)
+        };
+
+        var (_, sectionEntities) = WidgetFactory.CreateAccordionWithSections(world, parent, testFont, sections);
+
+        ref readonly var section1 = ref world.Get<UIAccordionSection>(sectionEntities[0]);
+        Assert.False(section1.IsExpanded);
+
+        ref readonly var section2 = ref world.Get<UIAccordionSection>(sectionEntities[1]);
+        Assert.True(section2.IsExpanded);
+    }
+
+    [Fact]
+    public void CreateAccordionWithSections_SetsSectionTitles()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var sections = new[]
+        {
+            new AccordionSectionDef("First", false),
+            new AccordionSectionDef("Second", false)
+        };
+
+        var (_, sectionEntities) = WidgetFactory.CreateAccordionWithSections(world, parent, testFont, sections);
+
+        ref readonly var section1 = ref world.Get<UIAccordionSection>(sectionEntities[0]);
+        Assert.Equal("First", section1.Title);
+
+        ref readonly var section2 = ref world.Get<UIAccordionSection>(sectionEntities[1]);
+        Assert.Equal("Second", section2.Title);
+    }
+
+    [Fact]
+    public void CreateAccordionWithSections_AppliesConfig()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var sections = new[] { new AccordionSectionDef("Section", false) };
+        var config = new AccordionConfig { Width = 500 };
+
+        var (accordion, _) = WidgetFactory.CreateAccordionWithSections(world, parent, testFont, sections, config);
+
+        ref readonly var rect = ref world.Get<UIRect>(accordion);
+        Assert.Equal(500, rect.Size.X);
+    }
+
+    #endregion
+
+    #region SetAccordionSectionExpanded Tests
+
+    [Fact]
+    public void SetAccordionSectionExpanded_ExpandsCollapsedSection()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var accordion = WidgetFactory.CreateAccordion(world, parent);
+        var (section, content) = WidgetFactory.CreateAccordionSection(world, accordion, "Section", testFont, null, false);
+
+        WidgetFactory.SetAccordionSectionExpanded(world, section, true);
+
+        ref readonly var sectionData = ref world.Get<UIAccordionSection>(section);
+        Assert.True(sectionData.IsExpanded);
+
+        ref readonly var contentElement = ref world.Get<UIElement>(content);
+        Assert.True(contentElement.Visible);
+    }
+
+    [Fact]
+    public void SetAccordionSectionExpanded_CollapsesExpandedSection()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var accordion = WidgetFactory.CreateAccordion(world, parent);
+        var (section, content) = WidgetFactory.CreateAccordionSection(world, accordion, "Section", testFont, null, true);
+
+        WidgetFactory.SetAccordionSectionExpanded(world, section, false);
+
+        ref readonly var sectionData = ref world.Get<UIAccordionSection>(section);
+        Assert.False(sectionData.IsExpanded);
+
+        ref readonly var contentElement = ref world.Get<UIElement>(content);
+        Assert.False(contentElement.Visible);
+    }
+
+    [Fact]
+    public void SetAccordionSectionExpanded_DoesNothingIfAlreadyInState()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var accordion = WidgetFactory.CreateAccordion(world, parent);
+        var (section, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section", testFont, null, true);
+
+        // Should return early without issues
+        WidgetFactory.SetAccordionSectionExpanded(world, section, true);
+
+        ref readonly var sectionData = ref world.Get<UIAccordionSection>(section);
+        Assert.True(sectionData.IsExpanded);
+    }
+
+    [Fact]
+    public void SetAccordionSectionExpanded_UpdatesArrowSymbol()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var accordion = WidgetFactory.CreateAccordion(world, parent);
+        var (section, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section", testFont, null, false);
+
+        // Find arrow before expansion
+        ref readonly var sectionData = ref world.Get<UIAccordionSection>(section);
+        Entity? arrowEntity = null;
+        foreach (var child in world.GetChildren(sectionData.Header))
+        {
+            if (world.Has<UIAccordionArrowTag>(child) && world.Has<UIText>(child))
+            {
+                arrowEntity = child;
+                break;
+            }
+        }
+        Assert.NotNull(arrowEntity);
+
+        ref readonly var arrowTextBefore = ref world.Get<UIText>(arrowEntity.Value);
+        Assert.Equal("▶", arrowTextBefore.Content); // Collapsed arrow
+
+        WidgetFactory.SetAccordionSectionExpanded(world, section, true);
+
+        ref readonly var arrowTextAfter = ref world.Get<UIText>(arrowEntity.Value);
+        Assert.Equal("▼", arrowTextAfter.Content); // Expanded arrow
+    }
+
+    [Fact]
+    public void SetAccordionSectionExpanded_SingleMode_CollapsesOtherSections()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AccordionConfig { AllowMultipleExpanded = false };
+        var accordion = WidgetFactory.CreateAccordion(world, parent, config);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 1", testFont, config, true);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 2", testFont, config, false);
+
+        // Expand section2 - should collapse section1
+        WidgetFactory.SetAccordionSectionExpanded(world, section2, true);
+
+        ref readonly var section1Data = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var section2Data = ref world.Get<UIAccordionSection>(section2);
+
+        Assert.False(section1Data.IsExpanded);
+        Assert.True(section2Data.IsExpanded);
+    }
+
+    [Fact]
+    public void SetAccordionSectionExpanded_MultipleMode_DoesNotCollapseOtherSections()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AccordionConfig { AllowMultipleExpanded = true };
+        var accordion = WidgetFactory.CreateAccordion(world, parent, config);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 1", testFont, config, true);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 2", testFont, config, false);
+
+        // Expand section2 - should NOT collapse section1
+        WidgetFactory.SetAccordionSectionExpanded(world, section2, true);
+
+        ref readonly var section1Data = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var section2Data = ref world.Get<UIAccordionSection>(section2);
+
+        Assert.True(section1Data.IsExpanded);
+        Assert.True(section2Data.IsExpanded);
+    }
+
+    #endregion
+
+    #region ExpandAllAccordionSections Tests
+
+    [Fact]
+    public void ExpandAllAccordionSections_ExpandsAllSections()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AccordionConfig { AllowMultipleExpanded = true };
+        var accordion = WidgetFactory.CreateAccordion(world, parent, config);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 1", testFont, config, false);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 2", testFont, config, false);
+        var (section3, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 3", testFont, config, false);
+
+        WidgetFactory.ExpandAllAccordionSections(world, accordion);
+
+        ref readonly var s1 = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var s2 = ref world.Get<UIAccordionSection>(section2);
+        ref readonly var s3 = ref world.Get<UIAccordionSection>(section3);
+
+        Assert.True(s1.IsExpanded);
+        Assert.True(s2.IsExpanded);
+        Assert.True(s3.IsExpanded);
+    }
+
+    [Fact]
+    public void ExpandAllAccordionSections_DoesNothingInSingleMode()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AccordionConfig { AllowMultipleExpanded = false };
+        var accordion = WidgetFactory.CreateAccordion(world, parent, config);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 1", testFont, config, false);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 2", testFont, config, false);
+
+        WidgetFactory.ExpandAllAccordionSections(world, accordion);
+
+        ref readonly var s1 = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var s2 = ref world.Get<UIAccordionSection>(section2);
+
+        // Should remain collapsed due to single-mode restriction
+        Assert.False(s1.IsExpanded);
+        Assert.False(s2.IsExpanded);
+    }
+
+    [Fact]
+    public void ExpandAllAccordionSections_InvalidEntity_DoesNotThrow()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+
+        // Should not throw
+        var exception = Record.Exception(() => WidgetFactory.ExpandAllAccordionSections(world, parent));
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void ExpandAllAccordionSections_SkipsAlreadyExpandedSections()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AccordionConfig { AllowMultipleExpanded = true };
+        var accordion = WidgetFactory.CreateAccordion(world, parent, config);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 1", testFont, config, true);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 2", testFont, config, false);
+
+        WidgetFactory.ExpandAllAccordionSections(world, accordion);
+
+        ref readonly var s1 = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var s2 = ref world.Get<UIAccordionSection>(section2);
+
+        Assert.True(s1.IsExpanded);
+        Assert.True(s2.IsExpanded);
+    }
+
+    #endregion
+
+    #region CollapseAllAccordionSections Tests
+
+    [Fact]
+    public void CollapseAllAccordionSections_CollapsesAllSections()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AccordionConfig { AllowMultipleExpanded = true };
+        var accordion = WidgetFactory.CreateAccordion(world, parent, config);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 1", testFont, config, true);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 2", testFont, config, true);
+        var (section3, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 3", testFont, config, true);
+
+        WidgetFactory.CollapseAllAccordionSections(world, accordion);
+
+        ref readonly var s1 = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var s2 = ref world.Get<UIAccordionSection>(section2);
+        ref readonly var s3 = ref world.Get<UIAccordionSection>(section3);
+
+        Assert.False(s1.IsExpanded);
+        Assert.False(s2.IsExpanded);
+        Assert.False(s3.IsExpanded);
+    }
+
+    [Fact]
+    public void CollapseAllAccordionSections_SkipsAlreadyCollapsedSections()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var accordion = WidgetFactory.CreateAccordion(world, parent);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 1", testFont, null, false);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion, "Section 2", testFont, null, true);
+
+        WidgetFactory.CollapseAllAccordionSections(world, accordion);
+
+        ref readonly var s1 = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var s2 = ref world.Get<UIAccordionSection>(section2);
+
+        Assert.False(s1.IsExpanded);
+        Assert.False(s2.IsExpanded);
+    }
+
+    [Fact]
+    public void CollapseAllAccordionSections_DoesNotAffectOtherAccordions()
+    {
+        using var world = new World();
+        var parent = CreateRootEntity(world);
+        var config = new AccordionConfig { AllowMultipleExpanded = true };
+        var accordion1 = WidgetFactory.CreateAccordion(world, parent, config);
+        var accordion2 = WidgetFactory.CreateAccordion(world, parent, config);
+        var (section1, _) = WidgetFactory.CreateAccordionSection(world, accordion1, "Accordion1 Section", testFont, config, true);
+        var (section2, _) = WidgetFactory.CreateAccordionSection(world, accordion2, "Accordion2 Section", testFont, config, true);
+
+        // Collapse only accordion1
+        WidgetFactory.CollapseAllAccordionSections(world, accordion1);
+
+        ref readonly var s1 = ref world.Get<UIAccordionSection>(section1);
+        ref readonly var s2 = ref world.Get<UIAccordionSection>(section2);
+
+        Assert.False(s1.IsExpanded);
+        Assert.True(s2.IsExpanded); // Should remain expanded
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static Entity CreateRootEntity(World world)
