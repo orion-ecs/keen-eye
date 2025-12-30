@@ -312,4 +312,105 @@ public class SaveManagerAdditionalTests
     }
 
     #endregion
+
+    #region GetSlotInfo Tests
+
+    [Fact]
+    public void GetSlotInfo_WithNonExistentSlot_ThrowsFileNotFoundException()
+    {
+        using var world = new World();
+        var saveDir = "test-saves-getslotinfo";
+        var manager = new SaveManager(world, saveDir);
+
+        try
+        {
+            Directory.CreateDirectory(saveDir);
+
+            var ex = Assert.Throws<FileNotFoundException>(() =>
+                manager.GetSlotInfo("NonExistentSlot"));
+
+            Assert.Contains("NonExistentSlot", ex.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(saveDir))
+            {
+                Directory.Delete(saveDir, true);
+            }
+        }
+    }
+
+    #endregion
+
+    #region SlotExists Error Paths
+
+    [Fact]
+    public void SlotExists_WithCorruptedFile_ReturnsFalse()
+    {
+        using var world = new World();
+        var saveDir = "test-saves-slotexists-corrupt";
+        var manager = new SaveManager(world, saveDir);
+
+        try
+        {
+            Directory.CreateDirectory(saveDir);
+
+            // Write corrupted data that will cause an exception when reading
+            var slotPath = Path.Combine(saveDir, "CorruptedSlot.kesave");
+            File.WriteAllBytes(slotPath, [0xDE, 0xAD, 0xBE, 0xEF]);
+
+            var result = manager.SlotExists("CorruptedSlot");
+
+            // SlotExists calls ValidateSlot which catches exceptions
+            Assert.False(result);
+        }
+        finally
+        {
+            if (Directory.Exists(saveDir))
+            {
+                Directory.Delete(saveDir, true);
+            }
+        }
+    }
+
+    #endregion
+
+    #region LoadDelta with Non-Delta Save
+
+    [Fact]
+    public void LoadDelta_WithNonDeltaSave_ThrowsInvalidDataException()
+    {
+        var saveDir = "test-saves-loaddelta-nondelta";
+
+        try
+        {
+            Directory.CreateDirectory(saveDir);
+
+            using var world = new World();
+            world.Components.Register<SerializablePosition>();
+            world.SaveDirectory = saveDir;
+
+            // Create a regular (non-delta) save
+            var serializer = new TestComponentSerializer()
+                .WithComponent<SerializablePosition>();
+            world.SaveToSlot("RegularSave", serializer);
+
+            var manager = new SaveManager(world, saveDir);
+
+            // LoadDelta should throw because this is not a delta
+            var ex = Assert.Throws<InvalidDataException>(() =>
+                manager.LoadDelta("RegularSave"));
+
+            Assert.Contains("not a delta snapshot", ex.Message);
+        }
+        finally
+        {
+            if (Directory.Exists(saveDir))
+            {
+                Directory.Delete(saveDir, true);
+            }
+        }
+    }
+
+    #endregion
 }
