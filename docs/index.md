@@ -172,6 +172,7 @@ using var world = new WorldBuilder()
 - [Singletons](singletons.md) - World-level resources
 - [Serialization](serialization.md) - Save and restore world state
 - [Plugins](plugins.md) - Modular extensions and feature packaging
+- [Networking](networking.md) - Multiplayer replication, prediction, and interpolation
 - [Logging](logging.md) - Pluggable logging system
 
 ### UI Features
@@ -190,6 +191,7 @@ using var world = new WorldBuilder()
   - [Performance Tuning](spatial-partitioning/performance-tuning.md)
 - [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
 - [Input](input.md) - Keyboard, mouse, and gamepad input handling
+- [Networking](networking.md) - Server-authoritative multiplayer with prediction
 - [UI](ui.md) - ECS-based retained-mode UI system
 
 ## Architecture Decisions
