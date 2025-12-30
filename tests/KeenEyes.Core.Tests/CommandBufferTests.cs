@@ -1299,5 +1299,82 @@ public class CommandBufferTests
         Assert.True(world.Has<ActiveTag>(entity));
     }
 
+    [Fact]
+    public void EntityCommands_WithParent_EstablishesParentChildRelationship()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Create a parent entity first
+        var parent = world.Spawn()
+            .With(new TestPosition { X = 0f, Y = 0f })
+            .Build();
+
+        // Spawn child with parent via CommandBuffer
+        var childCmd = buffer.Spawn()
+            .With(new TestPosition { X = 10f, Y = 10f })
+            .WithParent(parent);
+
+        var entityMap = buffer.Flush(world);
+        var child = entityMap[childCmd.PlaceholderId];
+
+        // Verify parent-child relationship
+        var retrievedParent = world.GetParent(child);
+        Assert.Equal(parent, retrievedParent);
+
+        // Verify child is in parent's children
+        var children = world.GetChildren(parent);
+        Assert.Contains(child, children);
+    }
+
+    [Fact]
+    public void EntityCommands_AsIEntityBuilder_WithParent_Works()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        // Create a parent entity first
+        var parent = world.Spawn()
+            .With(new TestPosition { X = 0f, Y = 0f })
+            .Build();
+
+        // Use EntityCommands through the non-generic IEntityBuilder interface
+        IEntityBuilder builder = buffer.Spawn();
+        builder
+            .With(new TestPosition { X = 5f, Y = 5f })
+            .WithParent(parent);
+
+        var entityMap = buffer.Flush(world);
+        var child = entityMap[-1];
+
+        // Verify parent-child relationship
+        var retrievedParent = world.GetParent(child);
+        Assert.Equal(parent, retrievedParent);
+    }
+
+    [Fact]
+    public void EntityCommands_WithParent_ChainingWorks()
+    {
+        using var world = new World();
+        var buffer = new CommandBuffer();
+
+        var parent = world.Spawn().With(new TestPosition { X = 0f, Y = 0f }).Build();
+
+        // Chain WithParent with other methods
+        var childCmd = buffer.Spawn()
+            .With(new TestPosition { X = 1f, Y = 1f })
+            .WithParent(parent)
+            .With(new TestVelocity { X = 2f, Y = 2f })
+            .WithTag<ActiveTag>();
+
+        var entityMap = buffer.Flush(world);
+        var child = entityMap[childCmd.PlaceholderId];
+
+        Assert.True(world.Has<TestPosition>(child));
+        Assert.True(world.Has<TestVelocity>(child));
+        Assert.True(world.Has<ActiveTag>(child));
+        Assert.Equal(parent, world.GetParent(child));
+    }
+
     #endregion
 }

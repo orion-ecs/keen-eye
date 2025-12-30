@@ -348,6 +348,96 @@ public class QueryManagerAdditionalTests
     #region ArchetypeCache Direct Tests
 
     [Fact]
+    public void ArchetypeCache_Add_SameArchetypeTwice_Deduplicates()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+
+        // Create an ArchetypeCache directly to test the deduplication
+        var cache = new ArchetypeCache();
+        cache.Add(archetype);
+        cache.Add(archetype); // Add same archetype again
+
+        // Should only have one archetype (deduplication worked)
+        Assert.Single(cache.Archetypes);
+    }
+
+    [Fact]
+    public void ArchetypeCache_SetAll_MarksAsPopulated()
+    {
+        var cache = new ArchetypeCache();
+
+        Assert.False(cache.IsPopulated);
+
+        cache.SetAll([]);
+
+        Assert.True(cache.IsPopulated);
+    }
+
+    [Fact]
+    public void ArchetypeCache_PopulateIfEmpty_WhenAlreadyPopulated_DoesNothing()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var arch1 = manager.GetOrCreateArchetype([typeof(Position)]);
+        var arch2 = manager.GetOrCreateArchetype([typeof(Velocity)]);
+
+        var cache = new ArchetypeCache();
+
+        // Pre-populate with just arch1
+        cache.SetAll([arch1]);
+        Assert.True(cache.IsPopulated);
+        Assert.Single(cache.Archetypes);
+
+        // Create a descriptor that would match both archetypes
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+        var descriptor = QueryDescriptor.FromDescription(description);
+
+        // Try to populate again - should be a no-op
+        cache.PopulateIfEmpty(manager.Archetypes, descriptor);
+
+        // Should still only have arch1
+        Assert.Single(cache.Archetypes);
+    }
+
+    [Fact]
+    public void ArchetypeCache_PopulateIfEmpty_MergesConcurrentlyAddedArchetypes()
+    {
+        using var world = new World();
+        world.Components.Register<Position>();
+        world.Components.Register<Velocity>();
+
+        using var manager = new ArchetypeManager(world.Components);
+        var arch1 = manager.GetOrCreateArchetype([typeof(Position)]);
+        var arch2 = manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
+
+        var cache = new ArchetypeCache();
+
+        // Simulate a concurrent Add before PopulateIfEmpty
+        cache.Add(arch2);
+
+        // Create a descriptor that matches both archetypes
+        var description = new QueryDescription();
+        description.AddWrite<Position>();
+        var descriptor = QueryDescriptor.FromDescription(description);
+
+        // Now populate - should merge the concurrently added arch2 with the discovered arch1
+        cache.PopulateIfEmpty(manager.Archetypes, descriptor);
+
+        // Should have both archetypes
+        Assert.Equal(2, cache.Archetypes.Count);
+        Assert.Contains(arch1, cache.Archetypes);
+        Assert.Contains(arch2, cache.Archetypes);
+    }
+
+    [Fact]
     public void ArchetypeCache_Add_DuplicateArchetype_IsIdempotent()
     {
         using var world = new World();
