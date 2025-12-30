@@ -1790,6 +1790,275 @@ public class UIDatePickerSystemTests
 
     #endregion
 
+    #region Edge Case Tests
+
+    [Fact]
+    public void HandleNavigationClick_UnmatchedButton_DoesNothing()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithNavigation(world, initialDate);
+        layout.Update(0);
+
+        // Create a random button not associated with any picker
+        var randomButton = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 30, 30))
+            .With(UIInteractable.Clickable())
+            .Build();
+
+        // Should not throw and should not change anything
+        SimulateClick(world, randomButton, new Vector2(16, 16));
+        system.Update(0);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        Assert.Equal(6, pickerData.DisplayMonth);
+        Assert.Equal(2024, pickerData.DisplayYear);
+    }
+
+    [Fact]
+    public void TimeDisplay_Hour24Format_DisplaysCorrectHour()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 13, 30, 0); // 1 PM
+        var picker = CreateDatePickerWithTimeDisplay24Hour(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, initialDate);
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        if (world.IsAlive(pickerData.HourEntity) && world.Has<UIText>(pickerData.HourEntity))
+        {
+            ref readonly var hourText = ref world.Get<UIText>(pickerData.HourEntity);
+            Assert.Equal("13", hourText.Content); // 24-hour format
+        }
+    }
+
+    [Fact]
+    public void TimeDisplay_ShowSecondsDisabled_DoesNotUpdateSecondDisplay()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 45);
+        var picker = CreateDatePickerWithTimeDisplayNoSeconds(world, initialDate);
+        layout.Update(0);
+
+        // Trigger UpdateTimeDisplay by calling SetValue
+        system.SetValue(picker, new DateTime(2024, 6, 15, 10, 30, 50));
+
+        ref readonly var pickerData = ref world.Get<UIDatePicker>(picker);
+        // SecondEntity should still have original content (empty or not updated)
+        if (world.IsAlive(pickerData.SecondEntity) && world.Has<UIText>(pickerData.SecondEntity))
+        {
+            ref readonly var secondText = ref world.Get<UIText>(pickerData.SecondEntity);
+            Assert.Equal("", secondText.Content); // Not updated because ShowSeconds is false
+        }
+    }
+
+    [Fact]
+    public void UpdateHeaderDisplay_HeaderWithoutUIText_DoesNotThrow()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 1, 15);
+        var picker = CreateDatePickerWithHeaderNoText(world, initialDate);
+        layout.Update(0);
+
+        // Should not throw
+        system.NavigateTo(picker, 2024, 6);
+    }
+
+    [Fact]
+    public void UpdateDayCell_NotCurrentMonthDay_SetsCorrectStyle()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var picker = CreateDatePicker(world, date);
+        layout.Update(0);
+
+        // Create a day cell from previous month (not selected, not today, not disabled, not current month)
+        var dayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 31, 5, 2024)
+            {
+                IsCurrentMonth = false
+            })
+            .With(new UIStyle())
+            .Build();
+        world.SetParent(dayCell, picker);
+
+        // Trigger calendar grid update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var style = ref world.Get<UIStyle>(dayCell);
+        // Should be semi-transparent style for non-current month days
+        Assert.True(style.BackgroundColor.W < 1f);
+    }
+
+    [Fact]
+    public void UpdateDayCell_CurrentMonthNormalDay_SetsCorrectStyle()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var date = new DateTime(2024, 6, 15);
+        var picker = CreateDatePicker(world, date);
+        layout.Update(0);
+
+        // Create a normal current month day cell (not selected, not today, not disabled)
+        var dayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, 25, 6, 2024)
+            {
+                IsCurrentMonth = true
+            })
+            .With(new UIStyle())
+            .Build();
+        world.SetParent(dayCell, picker);
+
+        // Trigger calendar grid update
+        system.NavigateTo(picker, 2024, 6);
+
+        ref readonly var style = ref world.Get<UIStyle>(dayCell);
+        // Should be normal background style for current month days (0.25 RGB)
+        Assert.True(style.BackgroundColor.X > 0.2f && style.BackgroundColor.X < 0.3f);
+    }
+
+    [Fact]
+    public void UpdateDaySelection_TodayDay_UsesTodayStyleWhenDeselected()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        // Use today's date so we have a "today" day
+        var today = DateTime.Today;
+        var picker = CreateDatePicker(world, today);
+        layout.Update(0);
+
+        // Create a day cell for today
+        var todayCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 32, 32))
+            .With(new UICalendarDay(picker, today.Day, today.Month, today.Year)
+            {
+                IsCurrentMonth = true,
+                IsToday = true,
+                IsSelected = true
+            })
+            .With(new UIStyle())
+            .With(UIInteractable.Clickable())
+            .Build();
+        world.SetParent(todayCell, picker);
+
+        // Create another day cell for a different day
+        var otherDay = today.Day == 28 ? 27 : 28;
+        var otherCell = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(32, 0, 32, 32))
+            .With(new UICalendarDay(picker, otherDay, today.Month, today.Year)
+            {
+                IsCurrentMonth = true,
+                IsToday = false,
+                IsSelected = false
+            })
+            .With(new UIStyle())
+            .With(UIInteractable.Clickable())
+            .Build();
+        world.SetParent(otherCell, picker);
+
+        // Click the other day to deselect today
+        SimulateClick(world, otherCell, new Vector2(16, 16));
+        system.Update(0);
+
+        // Today cell should have "today" style (darker gray)
+        ref readonly var todayStyle = ref world.Get<UIStyle>(todayCell);
+        Assert.True(todayStyle.BackgroundColor.X > 0.35f && todayStyle.BackgroundColor.X < 0.45f);
+    }
+
+    [Fact]
+    public void TimeSpinner_DeadPickerComponent_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15, 10, 30, 0);
+        var picker = CreateDatePickerWithTimeSpinner(world, initialDate, TimeField.Hour);
+        layout.Update(0);
+
+        var spinnerEntity = FindTimeSpinner(world, picker, TimeField.Hour);
+        Assert.NotNull(spinnerEntity);
+
+        // Remove the UIDatePicker component
+        world.Remove<UIDatePicker>(picker);
+
+        // Should not throw
+        SimulateClick(world, spinnerEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+    }
+
+    [Fact]
+    public void CalendarDay_DeadPickerComponent_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIDatePickerSystem();
+        world.AddSystem(system);
+
+        var initialDate = new DateTime(2024, 6, 15);
+        var picker = CreateDatePickerWithDays(world, initialDate);
+        layout.Update(0);
+
+        // Find a day cell
+        Entity? dayEntity = null;
+        foreach (var entity in world.Query<UICalendarDay>())
+        {
+            ref readonly var day = ref world.Get<UICalendarDay>(entity);
+            if (day.Day == 20)
+            {
+                dayEntity = entity;
+                break;
+            }
+        }
+
+        Assert.NotNull(dayEntity);
+
+        // Remove the UIDatePicker component
+        world.Remove<UIDatePicker>(picker);
+
+        // Should not throw
+        SimulateClick(world, dayEntity.Value, new Vector2(16, 16));
+        system.Update(0);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static UILayoutSystem SetupLayout(World world)
@@ -2188,6 +2457,134 @@ public class UIDatePickerSystemTests
         world.SetParent(minuteEntity, picker);
         world.SetParent(secondEntity, picker);
         world.SetParent(ampmEntity, picker);
+
+        return picker;
+    }
+
+    private static Entity CreateDatePickerWithTimeDisplay24Hour(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create time display entities
+        var hourEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var minuteEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(35, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        // Create date picker entity with 24-hour format
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.DateTime,
+                TimeFormat = TimeFormat.Hour24, // 24-hour format
+                HourEntity = hourEntity,
+                MinuteEntity = minuteEntity
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+        world.SetParent(hourEntity, picker);
+        world.SetParent(minuteEntity, picker);
+
+        return picker;
+    }
+
+    private static Entity CreateDatePickerWithTimeDisplayNoSeconds(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create time display entities including seconds (but ShowSeconds = false)
+        var hourEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var minuteEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(35, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        var secondEntity = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(70, 0, 30, 30))
+            .With(new UIText { Content = "" })
+            .Build();
+
+        // Create date picker entity with ShowSeconds = false
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.DateTime,
+                TimeFormat = TimeFormat.Hour24,
+                ShowSeconds = false, // Seconds disabled
+                HourEntity = hourEntity,
+                MinuteEntity = minuteEntity,
+                SecondEntity = secondEntity
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+        world.SetParent(hourEntity, picker);
+        world.SetParent(minuteEntity, picker);
+        world.SetParent(secondEntity, picker);
+
+        return picker;
+    }
+
+    private static Entity CreateDatePickerWithHeaderNoText(World world, DateTime initialValue)
+    {
+        // Create canvas root
+        if (!world.TryGetExtension<UIContext>(out var uiContext))
+        {
+            uiContext = new UIContext(world);
+            world.SetExtension(uiContext);
+        }
+        var canvas = uiContext.CreateCanvas();
+
+        // Create header entity WITHOUT UIText component
+        var header = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(40, 0, 200, 30))
+            .Build(); // No UIText
+
+        // Create date picker entity
+        var picker = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 280, 320))
+            .With(new UIDatePicker(initialValue)
+            {
+                Mode = DatePickerMode.Date,
+                HeaderEntity = header
+            })
+            .Build();
+
+        world.SetParent(picker, canvas);
+        world.SetParent(header, picker);
 
         return picker;
     }
