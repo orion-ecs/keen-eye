@@ -348,6 +348,321 @@ public class UIInputSystemTests
 
     #endregion
 
+    #region Edge Case Tests
+
+    [Fact]
+    public void Update_WithNoInputContext_DoesNothing()
+    {
+        using var world = new World();
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        // No InputContext extension set - should not crash
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Update_WithNoUIContext_DoesNothing()
+    {
+        using var world = new World();
+        var input = new MockInputContext();
+        world.SetExtension<IInputContext>(input);
+        // No UIContext set
+
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        // Should not crash
+        system.Update(0);
+    }
+
+    [Fact]
+    public void ProcessHover_WithDeadHoveredEntity_HandlesGracefully()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 100, 100, 200, 100);
+        var button2 = CreateButton(world, canvas, 100, 250, 200, 100);
+        layoutSystem.Update(0);
+
+        // Hover first button
+        input.SetMousePosition(150, 150);
+        system.Update(0);
+
+        // Despawn the hovered button
+        world.Despawn(button);
+
+        // Move to second button - should handle dead first button gracefully
+        input.SetMousePosition(150, 300);
+        system.Update(0);
+
+        ref readonly var interactable2 = ref world.Get<UIInteractable>(button2);
+        Assert.True(interactable2.IsHovered);
+    }
+
+    [Fact]
+    public void DoubleClick_WithinThreshold_FiresDoubleClickEvent()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
+        layoutSystem.Update(0);
+        input.SetMousePosition(150, 150);
+
+        // First click
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+        input.SetMouseButton(MouseButton.Left, false);
+        system.Update(0);
+
+        // Second click immediately
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+        input.SetMouseButton(MouseButton.Left, false);
+        system.Update(0);
+
+        ref readonly var interactable = ref world.Get<UIInteractable>(button);
+        Assert.True(interactable.HasEvent(UIEventFlags.DoubleClick));
+    }
+
+    [Fact]
+    public void DragStart_FiresDragStartEvent()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var draggable = CreateDraggable(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
+        layoutSystem.Update(0);
+
+        UIDragStartEvent? receivedEvent = null;
+        world.Subscribe<UIDragStartEvent>(e => receivedEvent = e);
+
+        // Press
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+
+        // Move enough to trigger drag start
+        input.SetMousePosition(160, 150);
+        system.Update(0);
+
+        Assert.NotNull(receivedEvent);
+        Assert.Equal(draggable, receivedEvent.Value.Element);
+    }
+
+    [Fact]
+    public void Press_OnNonClickableNonDraggable_DoesNotSetPressed()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        // Create element with interactable but no click/drag
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(100, 100, 200, 100))
+            .With(new UIInteractable { CanClick = false, CanDrag = false, CanFocus = false })
+            .Build();
+        world.SetParent(element, uiContext.CreateCanvas());
+        layoutSystem.Update(0);
+
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+
+        ref readonly var interactable = ref world.Get<UIInteractable>(element);
+        Assert.False(interactable.IsPressed);
+    }
+
+    [Fact]
+    public void Press_OnDraggableOnly_SetsPressedState()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        // Create element that is draggable but not clickable
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(100, 100, 200, 100))
+            .With(new UIInteractable { CanClick = false, CanDrag = true, CanFocus = false })
+            .Build();
+        world.SetParent(element, uiContext.CreateCanvas());
+        layoutSystem.Update(0);
+
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+
+        ref readonly var interactable = ref world.Get<UIInteractable>(element);
+        Assert.True(interactable.IsPressed);
+    }
+
+    [Fact]
+    public void Release_OnDeadPressedEntity_DoesNotCrash()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
+        layoutSystem.Update(0);
+
+        // Press
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+
+        // Despawn the pressed entity
+        world.Despawn(button);
+
+        // Release should not crash
+        input.SetMouseButton(MouseButton.Left, false);
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Release_WhileDragging_EndsWithDragEndEvent()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var draggable = CreateDraggable(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
+        layoutSystem.Update(0);
+
+        // Start drag
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+        input.SetMousePosition(160, 150);
+        system.Update(0);
+
+        ref var interactable = ref world.Get<UIInteractable>(draggable);
+        Assert.True(interactable.IsDragging);
+
+        // Release
+        input.SetMouseButton(MouseButton.Left, false);
+        system.Update(0);
+
+        ref readonly var interactable2 = ref world.Get<UIInteractable>(draggable);
+        Assert.False(interactable2.IsDragging);
+        Assert.True(interactable2.HasEvent(UIEventFlags.DragEnd));
+    }
+
+    [Fact]
+    public void Hover_OnNonInteractableElement_DoesNotSetHovered()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        // Create element without UIInteractable
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(100, 100, 200, 100))
+            .Build();
+        world.SetParent(element, uiContext.CreateCanvas());
+        layoutSystem.Update(0);
+
+        input.SetMousePosition(150, 150);
+        system.Update(0);
+
+        Assert.False(world.Has<UIInteractable>(element));
+    }
+
+    [Fact]
+    public void HoverExit_ToNonInteractableElement_StillClearsHover()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 100, 100, 200, 100);
+
+        // Create non-interactable element
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(100, 250, 200, 100))
+            .Build();
+        world.SetParent(element, canvas);
+        layoutSystem.Update(0);
+
+        // Hover button
+        input.SetMousePosition(150, 150);
+        system.Update(0);
+
+        ref var buttonInteractable = ref world.Get<UIInteractable>(button);
+        Assert.True(buttonInteractable.IsHovered);
+
+        // Move to non-interactable element
+        input.SetMousePosition(150, 300);
+        system.Update(0);
+
+        ref readonly var buttonInteractable2 = ref world.Get<UIInteractable>(button);
+        Assert.False(buttonInteractable2.IsHovered);
+    }
+
+    [Fact]
+    public void Press_WithAlreadyPressedEntity_DoesNotPressTwice()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button1 = CreateButton(world, canvas, 100, 100, 200, 100);
+        var button2 = CreateButton(world, canvas, 100, 250, 200, 100);
+        layoutSystem.Update(0);
+
+        // Press button1
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+
+        ref var button1Interactable = ref world.Get<UIInteractable>(button1);
+        Assert.True(button1Interactable.IsPressed);
+
+        // Move to button2 while still pressed - should not press button2
+        input.SetMousePosition(150, 300);
+        system.Update(0);
+
+        ref readonly var button2Interactable = ref world.Get<UIInteractable>(button2);
+        Assert.False(button2Interactable.IsPressed);
+    }
+
+    [Fact]
+    public void Click_OnNonFocusable_DoesNotRequestFocus()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        // Create clickable but non-focusable button
+        var button = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(100, 100, 200, 100))
+            .With(new UIInteractable { CanClick = true, CanDrag = false, CanFocus = false })
+            .Build();
+        world.SetParent(button, uiContext.CreateCanvas());
+        layoutSystem.Update(0);
+
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+
+        Assert.Equal(Entity.Null, uiContext.FocusedEntity);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static World CreateWorldWithInput(out MockInputContext input, out UIContext uiContext, out UILayoutSystem layoutSystem)
