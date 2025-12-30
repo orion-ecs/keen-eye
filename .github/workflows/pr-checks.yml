@@ -9,6 +9,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Detect changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+              - '.github/markdown-link-check-config.json'
+
   size-label:
     name: Size Label
     runs-on: ubuntu-latest
@@ -100,6 +121,8 @@ jobs:
 
   check-links:
     name: Check Links
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
 
     steps:
