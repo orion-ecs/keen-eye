@@ -457,6 +457,110 @@ public class MockNetworkContextTests
 
     #endregion
 
+    #region NetworkOptions Tests
+
+    [Fact]
+    public void NetworkOptions_DefaultValues()
+    {
+        var options = new NetworkOptions();
+
+        options.SimulatedLatency.ShouldBe(0f);
+        options.SimulatedLatencyVariance.ShouldBe(0f);
+        options.SimulatedPacketLoss.ShouldBe(0f);
+        options.SimulatedPacketDuplication.ShouldBe(0f);
+        options.SimulatedPacketReordering.ShouldBe(0f);
+        options.ConnectionTimeout.ShouldBe(5000f);
+        options.AutoReconnect.ShouldBeFalse();
+        options.ReconnectDelay.ShouldBe(1000f);
+        options.MaxReconnectAttempts.ShouldBe(5);
+    }
+
+    [Fact]
+    public void NetworkOptions_CanSetAllProperties()
+    {
+        var options = new NetworkOptions
+        {
+            SimulatedLatency = 100f,
+            SimulatedLatencyVariance = 20f,
+            SimulatedPacketLoss = 0.1f,
+            SimulatedPacketDuplication = 0.05f,
+            SimulatedPacketReordering = 0.02f,
+            ConnectionTimeout = 10000f,
+            AutoReconnect = true,
+            ReconnectDelay = 2000f,
+            MaxReconnectAttempts = 10
+        };
+
+        options.SimulatedLatency.ShouldBe(100f);
+        options.SimulatedLatencyVariance.ShouldBe(20f);
+        options.SimulatedPacketLoss.ShouldBe(0.1f);
+        options.SimulatedPacketDuplication.ShouldBe(0.05f);
+        options.SimulatedPacketReordering.ShouldBe(0.02f);
+        options.ConnectionTimeout.ShouldBe(10000f);
+        options.AutoReconnect.ShouldBeTrue();
+        options.ReconnectDelay.ShouldBe(2000f);
+        options.MaxReconnectAttempts.ShouldBe(10);
+    }
+
+    [Fact]
+    public void MockNetworkContext_Options_IsAccessible()
+    {
+        using var network = new MockNetworkContext();
+
+        network.Options.ShouldNotBeNull();
+        network.Options.ShouldBeOfType<NetworkOptions>();
+    }
+
+    #endregion
+
+    #region SentMessage Tests
+
+    [Fact]
+    public void SentMessage_StoresAllProperties()
+    {
+        using var network = new MockNetworkContext();
+        network.Connect("server:7777");
+        network.SimulateConnect();
+        var message = new TestMessage { Value = 42 };
+
+        network.Send(message, reliable: false, channel: 3);
+
+        var sent = network.SentMessages[0];
+        sent.Endpoint.ShouldBe("server:7777");
+        sent.Data.ShouldBe(message);
+        sent.DataType.ShouldBe(typeof(TestMessage));
+        sent.Reliable.ShouldBeFalse();
+        sent.Channel.ShouldBe(3);
+        sent.Timestamp.ShouldNotBe(default);
+    }
+
+    [Fact]
+    public void SentMessage_RecordEquality()
+    {
+        var timestamp = DateTime.UtcNow;
+        var data = new TestMessage { Value = 1 };
+
+        var msg1 = new SentMessage("endpoint", data, typeof(TestMessage), true, 0, timestamp);
+        var msg2 = new SentMessage("endpoint", data, typeof(TestMessage), true, 0, timestamp);
+
+        msg1.ShouldBe(msg2);
+        msg1.GetHashCode().ShouldBe(msg2.GetHashCode());
+    }
+
+    [Fact]
+    public void SentMessage_DifferentEndpoint_NotEqual()
+    {
+        var timestamp = DateTime.UtcNow;
+        var data = new TestMessage { Value = 1 };
+
+        var msg1 = new SentMessage("endpoint1", data, typeof(TestMessage), true, 0, timestamp);
+        var msg2 = new SentMessage("endpoint2", data, typeof(TestMessage), true, 0, timestamp);
+
+        msg1.ShouldNotBe(msg2);
+    }
+
+    #endregion
+
     #region Test Helper Types
 
     private sealed class TestMessage

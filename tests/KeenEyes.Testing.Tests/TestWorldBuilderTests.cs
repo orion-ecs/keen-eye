@@ -229,6 +229,174 @@ public class TestWorldBuilderTests
 
     #endregion
 
+    #region WithMockInput Tests
+
+    [Fact]
+    public void WithMockInput_CreatesMockInputContext()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockInput()
+            .Build();
+
+        testWorld.MockInput.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void WithMockInput_CustomGamepadCount_CreatesCorrectNumberOfGamepads()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockInput(gamepadCount: 2)
+            .Build();
+
+        testWorld.MockInput.ShouldNotBeNull();
+        testWorld.MockInput!.Gamepads.Length.ShouldBe(2);
+    }
+
+    #endregion
+
+    #region WithMockLoopProvider Tests
+
+    [Fact]
+    public void WithMockLoopProvider_CreatesMockLoopProvider()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockLoopProvider()
+            .Build();
+
+        testWorld.MockLoopProvider.ShouldNotBeNull();
+    }
+
+    #endregion
+
+    #region WithMockWindow Tests
+
+    [Fact]
+    public void WithMockWindow_CreatesMockWindow()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockWindow()
+            .Build();
+
+        testWorld.MockWindow.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void WithMockWindow_CustomDimensions_SetsWindowSize()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockWindow(width: 1024, height: 768)
+            .Build();
+
+        testWorld.MockWindow.ShouldNotBeNull();
+        testWorld.MockWindow!.Width.ShouldBe(1024);
+        testWorld.MockWindow!.Height.ShouldBe(768);
+    }
+
+    #endregion
+
+    #region WithMockGraphics Tests
+
+    [Fact]
+    public void WithMockGraphics_CreatesMockGraphicsContextAndDevice()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockGraphics()
+            .Build();
+
+        testWorld.MockGraphicsContext.ShouldNotBeNull();
+        testWorld.MockGraphicsDevice.ShouldNotBeNull();
+    }
+
+    #endregion
+
+    #region WithMock2DRenderer Tests
+
+    [Fact]
+    public void WithMock2DRenderer_CreatesMock2DRenderer()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMock2DRenderer()
+            .Build();
+
+        testWorld.Mock2DRenderer.ShouldNotBeNull();
+    }
+
+    #endregion
+
+    #region WithMockTextRenderer Tests
+
+    [Fact]
+    public void WithMockTextRenderer_CreatesMockTextRenderer()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockTextRenderer()
+            .Build();
+
+        testWorld.MockTextRenderer.ShouldNotBeNull();
+    }
+
+    #endregion
+
+    #region WithMockFontManager Tests
+
+    [Fact]
+    public void WithMockFontManager_CreatesMockFontManager()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockFontManager()
+            .Build();
+
+        testWorld.MockFontManager.ShouldNotBeNull();
+    }
+
+    #endregion
+
+    #region WithMockLogging Tests
+
+    [Fact]
+    public void WithMockLogging_CreatesMockLogProvider()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockLogging()
+            .Build();
+
+        testWorld.MockLogProvider.ShouldNotBeNull();
+    }
+
+    #endregion
+
+    #region WithMockEncryption Tests
+
+    [Fact]
+    public void WithMockEncryption_CreatesMockEncryption()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockEncryption()
+            .Build();
+
+        testWorld.MockEncryption.ShouldNotBeNull();
+    }
+
+    #endregion
+
+    #region WithEventRecording Tests
+
+    [Fact]
+    public void WithEventRecording_CreatesEventRecorder()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithManualTime()
+            .WithEventRecording<TestEvent>()
+            .Build();
+
+        var recorder = testWorld.GetEventRecorder<TestEvent>();
+        recorder.ShouldNotBeNull();
+    }
+
+    private readonly record struct TestEvent(int Value);
+
+    #endregion
+
     #region Chaining Tests
 
     [Fact]
