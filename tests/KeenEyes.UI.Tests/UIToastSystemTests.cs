@@ -466,4 +466,354 @@ public class UIToastSystemTests
     }
 
     #endregion
+
+    #region Calculate Y Position Tests
+
+    [Fact]
+    public void Toast_CalculateToastYPosition_ReturnsMarginForFirstToast()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer { Margin = 10f, Spacing = 5f })
+            .Build();
+
+        float yPosition = toastSystem.CalculateToastYPosition(container, 50f);
+
+        Assert.Equal(10f, yPosition);
+    }
+
+    [Fact]
+    public void Toast_CalculateToastYPosition_StacksMultipleToasts()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer { Margin = 10f, Spacing = 5f })
+            .Build();
+
+        // Create an existing toast with height 50
+        world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect { Size = new Vector2(200, 50) })
+            .With(new UIToast("Existing Toast") { Container = container, IsClosing = false })
+            .Build();
+
+        // Second toast should be positioned after the first one
+        float yPosition = toastSystem.CalculateToastYPosition(container, 50f);
+
+        // 10 (margin) + 50 (first toast height) + 5 (spacing) = 65
+        Assert.Equal(65f, yPosition);
+    }
+
+    [Fact]
+    public void Toast_CalculateToastYPosition_IgnoresClosingToasts()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer { Margin = 10f, Spacing = 5f })
+            .Build();
+
+        // Create a closing toast that should be ignored
+        world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect { Size = new Vector2(200, 50) })
+            .With(new UIToast("Closing Toast") { Container = container, IsClosing = true })
+            .Build();
+
+        float yPosition = toastSystem.CalculateToastYPosition(container, 50f);
+
+        // Should still be just the margin since closing toasts are ignored
+        Assert.Equal(10f, yPosition);
+    }
+
+    [Fact]
+    public void Toast_CalculateToastYPosition_IgnoresToastsInOtherContainers()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container1 = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer { Margin = 10f, Spacing = 5f })
+            .Build();
+
+        var container2 = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer { Margin = 10f, Spacing = 5f })
+            .Build();
+
+        // Create a toast in container2
+        world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIRect { Size = new Vector2(200, 50) })
+            .With(new UIToast("Toast in Container 2") { Container = container2, IsClosing = false })
+            .Build();
+
+        // Calculate position for container1 should ignore toast in container2
+        float yPosition = toastSystem.CalculateToastYPosition(container1, 50f);
+
+        Assert.Equal(10f, yPosition);
+    }
+
+    [Fact]
+    public void Toast_CalculateToastYPosition_HandlesInvalidContainer()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        float yPosition = toastSystem.CalculateToastYPosition(Entity.Null, 50f);
+
+        Assert.Equal(0f, yPosition);
+    }
+
+    [Fact]
+    public void Toast_CalculateToastYPosition_HandlesContainerWithoutToastContainerComponent()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var entity = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .Build();
+
+        float yPosition = toastSystem.CalculateToastYPosition(entity, 50f);
+
+        Assert.Equal(0f, yPosition);
+    }
+
+    #endregion
+
+    #region Click Edge Cases
+
+    [Fact]
+    public void Toast_ClickOnToast_IgnoresWhenAlreadyClosing()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        var toast = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToast("Test message") { Container = container, CanDismiss = true, IsClosing = true })
+            .Build();
+
+        UIToastDismissedEvent? receivedEvent = null;
+        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+
+        world.Send(new UIClickEvent(toast, new Vector2(50, 50), MouseButton.Left));
+
+        // Should be null because toast is already closing
+        Assert.Null(receivedEvent);
+        Assert.True(world.IsAlive(toast));
+
+        subscription.Dispose();
+    }
+
+    [Fact]
+    public void Toast_ClickCloseButton_HandlesDeadToast()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        var toast = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToast("Test message") { Container = container })
+            .Build();
+
+        var closeButton = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastCloseButton(toast))
+            .Build();
+
+        // Despawn the toast before clicking
+        world.Despawn(toast);
+
+        // Should not throw
+        world.Send(new UIClickEvent(closeButton, new Vector2(10, 10), MouseButton.Left));
+    }
+
+    #endregion
+
+    #region Dispose Tests
+
+    [Fact]
+    public void Toast_Dispose_CleansUpSubscription()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        var toast = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToast("Test message") { Container = container, CanDismiss = true })
+            .Build();
+
+        // Dispose the system
+        toastSystem.Dispose();
+
+        UIToastDismissedEvent? receivedEvent = null;
+        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+
+        // Click should not dismiss toast anymore (subscription disposed)
+        world.Send(new UIClickEvent(toast, new Vector2(50, 50), MouseButton.Left));
+
+        Assert.Null(receivedEvent);
+        Assert.True(world.IsAlive(toast));
+
+        subscription.Dispose();
+    }
+
+    #endregion
+
+    #region Show/Dismiss Edge Cases
+
+    [Fact]
+    public void Toast_ShowToast_HandlesMissingUIElement()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        // Toast without UIElement component
+        var toast = world.Spawn()
+            .With(new UIToast("Test message") { Container = container })
+            .Build();
+
+        // Should not throw
+        toastSystem.ShowToast(toast);
+    }
+
+    [Fact]
+    public void Toast_DismissToast_HandlesMissingUIElement()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        // Toast without UIElement component
+        var toast = world.Spawn()
+            .With(new UIToast("Test message") { Container = container })
+            .Build();
+
+        // Should not throw
+        toastSystem.DismissToast(toast, wasManual: true);
+
+        Assert.False(world.IsAlive(toast));
+    }
+
+    [Fact]
+    public void Toast_DismissToast_HandlesMissingHiddenTag()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        var toast = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToast("Test message") { Container = container })
+            .Build();
+
+        // No UIHiddenTag initially - should add one during dismiss
+        Assert.False(world.Has<UIHiddenTag>(toast));
+
+        toastSystem.DismissToast(toast, wasManual: true);
+
+        // Toast is despawned, so we can't check for the tag
+        Assert.False(world.IsAlive(toast));
+    }
+
+    [Fact]
+    public void Toast_ShowToast_ClearsIsClosingFlag()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        var toast = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIToast("Test message", duration: 5f) { Container = container, IsClosing = true, TimeRemaining = 1f })
+            .Build();
+
+        toastSystem.ShowToast(toast);
+
+        ref readonly var toastComponent = ref world.Get<UIToast>(toast);
+
+        Assert.False(toastComponent.IsClosing);
+    }
+
+    [Fact]
+    public void Toast_ShowToast_WithoutHiddenTag_StillWorks()
+    {
+        using var world = new World();
+        var toastSystem = new UIToastSystem();
+        world.AddSystem(toastSystem);
+
+        var container = world.Spawn()
+            .With(new UIElement { Visible = true })
+            .With(new UIToastContainer())
+            .Build();
+
+        var toast = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIToast("Test message") { Container = container })
+            .Build();
+
+        // No UIHiddenTag added - ShowToast should still work
+        toastSystem.ShowToast(toast);
+
+        ref readonly var element = ref world.Get<UIElement>(toast);
+        Assert.True(element.Visible);
+    }
+
+    #endregion
 }
