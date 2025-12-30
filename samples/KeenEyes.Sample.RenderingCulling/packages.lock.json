@@ -3,10 +3,7 @@
   "dependencies": {
     "net10.0": {
       "keeneyes.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "keeneyes.common": {
         "type": "Project",
@@ -19,9 +16,6 @@
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
-      },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
       },
       "keeneyes.spatial": {
         "type": "Project",

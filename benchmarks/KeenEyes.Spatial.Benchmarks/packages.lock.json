@@ -153,10 +153,7 @@
         "contentHash": "VybpaOQQhqE6siHppMktjfGBw1GCwvCqiufqmP8F1nj7fTUNtW35LOEt3UZTEsECfo+ELAl/9o9nJx3U91i7vA=="
       },
       "keeneyes.abstractions": {
-        "type": "Project",
-        "dependencies": {
-          "KeenEyes.Generators.Attributes": "[1.0.0, )"
-        }
+        "type": "Project"
       },
       "keeneyes.common": {
         "type": "Project",
@@ -169,9 +166,6 @@
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
-      },
-      "keeneyes.generators.attributes": {
-        "type": "Project"
       },
       "keeneyes.spatial": {
         "type": "Project",

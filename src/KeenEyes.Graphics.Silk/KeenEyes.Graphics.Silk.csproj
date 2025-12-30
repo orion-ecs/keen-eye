@@ -24,7 +24,7 @@
   <ItemGroup>
     <PackageReference Include="Silk.NET.OpenGL" />
     <PackageReference Include="Silk.NET.Maths" />
-    <PackageReference Include="FontStashSharp" />
+    <PackageReference Include="FontStashSharp.PlatformAgnostic" />
   </ItemGroup>
 
 </Project>

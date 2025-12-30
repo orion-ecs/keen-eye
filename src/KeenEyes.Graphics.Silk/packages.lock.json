@@ -2,23 +2,23 @@
   "version": 2,
   "dependencies": {
     "net10.0": {
-      "FontStashSharp": {
+      "FontStashSharp.PlatformAgnostic": {
         "type": "Direct",
-        "requested": "[1.3.10, )",
-        "resolved": "1.3.10",
-        "contentHash": "7JTrihTt3DR8LYbb4L1eZcnbwOUOu/mvY+PJoZ3WVWiKjA6xNUk93GSW3OC/kZBD3iYzrXK8QlmKyYY5Lef/Rg==",
+        "requested": "[1.5.2, )",
+        "resolved": "1.5.2",
+        "contentHash": "/Srtf2DyIBBTbaZ4jpOQZnGFoEcbiXPMZnPuSft8MkMdbMYgCXPD5S123a992qTGVFKQjD9IGapd7Kyg2GD6sw==",
         "dependencies": {
           "Cyotek.Drawing.BitmapFont": "2.0.4",
-          "FontStashSharp.Base": "1.1.9",
-          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.1.9",
+          "FontStashSharp.Base": "1.2.2",
+          "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.2.2",
           "StbImageSharp": "2.30.15"
         }
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[10.0.1, )",
-        "resolved": "10.0.1",
-        "contentHash": "ISahzLHsHY7vrwqr2p1YWZ+gsxoBRtH7gWRDK8fDUst9pp2He0GiesaqEfeX0V8QMCJM3eNEHGGpnIcPjFo2NQ=="
+        "requested": "[10.0.0, )",
+        "resolved": "10.0.0",
+        "contentHash": "kICGrGYEzCNI3wPzfEXcwNHgTvlvVn9yJDhSdRK+oZQy4jvYH529u7O0xf5ocQKzOMjfS07+3z9PKRIjrFMJDA=="
       },
       "Silk.NET.Maths": {
         "type": "Direct",
@@ -43,15 +43,15 @@
       },
       "FontStashSharp.Base": {
         "type": "Transitive",
-        "resolved": "1.1.9",
-        "contentHash": "/AjkOcPNijs8vyNgcCj3FfBJbVWmsSH744hqkhLfBt8qspDz/tEoD+U09my5u9eRBX6zX+RLQ/gdCvwy+ZBOtg=="
+        "resolved": "1.2.2",
+        "contentHash": "t2PT+/Sat9WPLm4AVYU1Aa/PrOgNQ4npSUGDHTYufXzLUHxrN3+BaRhAU0DZXkJNfuGCS5iKaQNopNXe9ES24g=="
       },
       "FontStashSharp.Rasterizers.StbTrueTypeSharp": {
         "type": "Transitive",
-        "resolved": "1.1.9",
-        "contentHash": "yi5iuTERem46uyHC5p+jRi3Jh8dKWzgNWLqcvHciGlyVHD1cWFdERgnxshZU4xWB2hRGnogxaCudCirbMpg4eQ==",
+        "resolved": "1.2.2",
+        "contentHash": "OoXoGkxNMhyQeYR/wjeN6Bs8Guea7FisKXLcVJdeNtSYT+5iKxIh4ETi9x9OIk7GEQtNbE0yVhG3rb8RS04Kmg==",
         "dependencies": {
-          "FontStashSharp.Base": "1.1.9",
+          "FontStashSharp.Base": "1.2.2",
           "StbTrueTypeSharp": "1.26.12"
         }
       },
