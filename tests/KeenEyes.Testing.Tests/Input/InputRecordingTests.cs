@@ -370,4 +370,138 @@ public class InputRecordingTests
     }
 
     #endregion
+
+    #region Recorded Event Property Tests
+
+    [Fact]
+    public void RecordedKeyDownEvent_StoresAllProperties()
+    {
+        var evt = new RecordedKeyDownEvent(150f, Key.Space, KeyModifiers.Shift | KeyModifiers.Control, true);
+
+        Assert.Equal(150f, evt.Timestamp);
+        Assert.Equal(Key.Space, evt.Key);
+        Assert.Equal(KeyModifiers.Shift | KeyModifiers.Control, evt.Modifiers);
+        Assert.True(evt.IsRepeat);
+    }
+
+    [Fact]
+    public void RecordedKeyUpEvent_StoresAllProperties()
+    {
+        var evt = new RecordedKeyUpEvent(250f, Key.Enter, KeyModifiers.Alt);
+
+        Assert.Equal(250f, evt.Timestamp);
+        Assert.Equal(Key.Enter, evt.Key);
+        Assert.Equal(KeyModifiers.Alt, evt.Modifiers);
+    }
+
+    [Fact]
+    public void RecordedTextInputEvent_StoresCharacter()
+    {
+        var evt = new RecordedTextInputEvent(100f, 'X');
+
+        Assert.Equal(100f, evt.Timestamp);
+        Assert.Equal('X', evt.Character);
+    }
+
+    [Fact]
+    public void RecordedMouseMoveEvent_StoresAllProperties()
+    {
+        var evt = new RecordedMouseMoveEvent(200f, 100.5f, 200.5f, 5.0f, -3.0f);
+
+        Assert.Equal(200f, evt.Timestamp);
+        Assert.Equal(100.5f, evt.PositionX);
+        Assert.Equal(200.5f, evt.PositionY);
+        Assert.Equal(5.0f, evt.DeltaX);
+        Assert.Equal(-3.0f, evt.DeltaY);
+    }
+
+    [Fact]
+    public void RecordedMouseButtonDownEvent_StoresAllProperties()
+    {
+        var evt = new RecordedMouseButtonDownEvent(300f, MouseButton.Right, 150f, 250f, KeyModifiers.Control);
+
+        Assert.Equal(300f, evt.Timestamp);
+        Assert.Equal(MouseButton.Right, evt.Button);
+        Assert.Equal(150f, evt.PositionX);
+        Assert.Equal(250f, evt.PositionY);
+        Assert.Equal(KeyModifiers.Control, evt.Modifiers);
+    }
+
+    [Fact]
+    public void RecordedMouseButtonUpEvent_StoresAllProperties()
+    {
+        var evt = new RecordedMouseButtonUpEvent(400f, MouseButton.Middle, 175f, 275f, KeyModifiers.Shift);
+
+        Assert.Equal(400f, evt.Timestamp);
+        Assert.Equal(MouseButton.Middle, evt.Button);
+        Assert.Equal(175f, evt.PositionX);
+        Assert.Equal(275f, evt.PositionY);
+        Assert.Equal(KeyModifiers.Shift, evt.Modifiers);
+    }
+
+    [Fact]
+    public void RecordedMouseScrollEvent_StoresAllProperties()
+    {
+        var evt = new RecordedMouseScrollEvent(500f, 0f, 120f, 300f, 400f);
+
+        Assert.Equal(500f, evt.Timestamp);
+        Assert.Equal(0f, evt.DeltaX);
+        Assert.Equal(120f, evt.DeltaY);
+        Assert.Equal(300f, evt.PositionX);
+        Assert.Equal(400f, evt.PositionY);
+    }
+
+    [Fact]
+    public void RecordedGamepadButtonDownEvent_StoresAllProperties()
+    {
+        var evt = new RecordedGamepadButtonDownEvent(600f, 1, GamepadButton.East);
+
+        Assert.Equal(600f, evt.Timestamp);
+        Assert.Equal(1, evt.GamepadIndex);
+        Assert.Equal(GamepadButton.East, evt.Button);
+    }
+
+    [Fact]
+    public void RecordedGamepadButtonUpEvent_StoresAllProperties()
+    {
+        var evt = new RecordedGamepadButtonUpEvent(700f, 2, GamepadButton.West);
+
+        Assert.Equal(700f, evt.Timestamp);
+        Assert.Equal(2, evt.GamepadIndex);
+        Assert.Equal(GamepadButton.West, evt.Button);
+    }
+
+    [Fact]
+    public void RecordedGamepadAxisEvent_StoresAllProperties()
+    {
+        var evt = new RecordedGamepadAxisEvent(800f, 0, GamepadAxis.RightStickY, 0.75f, 0.5f);
+
+        Assert.Equal(800f, evt.Timestamp);
+        Assert.Equal(0, evt.GamepadIndex);
+        Assert.Equal(GamepadAxis.RightStickY, evt.Axis);
+        Assert.Equal(0.75f, evt.Value);
+        Assert.Equal(0.5f, evt.PreviousValue);
+    }
+
+    [Fact]
+    public void RecordedInputEvent_EqualityByValue()
+    {
+        var evt1 = new RecordedKeyDownEvent(100f, Key.A, KeyModifiers.None, false);
+        var evt2 = new RecordedKeyDownEvent(100f, Key.A, KeyModifiers.None, false);
+        var evt3 = new RecordedKeyDownEvent(100f, Key.B, KeyModifiers.None, false);
+
+        Assert.Equal(evt1, evt2);
+        Assert.NotEqual(evt1, evt3);
+    }
+
+    [Fact]
+    public void RecordedInputEvent_HashCodeConsistent()
+    {
+        var evt1 = new RecordedMouseScrollEvent(100f, 1f, 2f, 3f, 4f);
+        var evt2 = new RecordedMouseScrollEvent(100f, 1f, 2f, 3f, 4f);
+
+        Assert.Equal(evt1.GetHashCode(), evt2.GetHashCode());
+    }
+
+    #endregion
 }
