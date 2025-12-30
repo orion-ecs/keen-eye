@@ -795,6 +795,250 @@ public class UIColorPickerSystemTests
 
     #endregion
 
+    #region Edge Case Tests
+
+    [Fact]
+    public void SatValArea_ClickWithDeadPicker_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        var satValEntity = world.Get<UIColorPicker>(picker).SatValAreaEntity;
+
+        // Despawn picker
+        world.Despawn(picker);
+
+        // Should not crash
+        SimulateClick(world, satValEntity, new Vector2(128, 128));
+        system.Update(0);
+    }
+
+    [Fact]
+    public void SatValArea_ClickWithoutUIRect_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        var satValEntity = world.Get<UIColorPicker>(picker).SatValAreaEntity;
+
+        // Remove UIRect
+        world.Remove<UIRect>(satValEntity);
+
+        // Should not crash
+        SimulateClick(world, satValEntity, new Vector2(128, 128));
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Slider_ClickWithDeadPicker_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        var hueSliderEntity = world.Get<UIColorPicker>(picker).HueSliderEntity;
+
+        // Despawn picker
+        world.Despawn(picker);
+
+        // Should not crash
+        SimulateClick(world, hueSliderEntity, new Vector2(128, 10));
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Slider_ClickWithoutUIRect_IsIgnored()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        var hueSliderEntity = world.Get<UIColorPicker>(picker).HueSliderEntity;
+
+        // Remove UIRect
+        world.Remove<UIRect>(hueSliderEntity);
+
+        // Should not crash
+        SimulateClick(world, hueSliderEntity, new Vector2(128, 10));
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Preview_WithoutUIStyle_DoesNotCrash()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        var previewEntity = world.Get<UIColorPicker>(picker).PreviewEntity;
+
+        // Remove UIStyle from preview
+        world.Remove<UIStyle>(previewEntity);
+
+        // Should not crash
+        var satValEntity = world.Get<UIColorPicker>(picker).SatValAreaEntity;
+        SimulateClick(world, satValEntity, new Vector2(128, 128));
+        system.Update(0);
+    }
+
+    [Fact]
+    public void GetColor_DeadEntity_ReturnsZero()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        // Despawn picker
+        world.Despawn(picker);
+
+        var color = system.GetColor(picker);
+
+        Assert.Equal(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void SetColor_DeadEntity_DoesNotCrash()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        // Despawn picker
+        world.Despawn(picker);
+
+        // Should not crash
+        system.SetColor(picker, new Vector4(0f, 1f, 0f, 1f));
+    }
+
+    [Fact]
+    public void SetColor_WithDeadPreview_DoesNotCrash()
+    {
+        using var world = new World();
+        var layout = SetupLayout(world);
+        var system = new UIColorPickerSystem();
+        world.AddSystem(system);
+
+        var picker = CreateColorPicker(world, new Vector4(1f, 0f, 0f, 1f), 0, 0, 256, 256);
+        layout.Update(0);
+
+        var previewEntity = world.Get<UIColorPicker>(picker).PreviewEntity;
+
+        // Despawn preview
+        world.Despawn(previewEntity);
+
+        // Should not crash
+        system.SetColor(picker, new Vector4(0f, 1f, 0f, 1f));
+    }
+
+    [Fact]
+    public void HsvToRgb_OrangishHue_CalculatesCorrectly()
+    {
+        // Test the 0-60 hue range
+        var result = UIColorPickerSystem.HsvToRgb(30f, 1f, 1f);
+
+        Assert.True(result.X.ApproximatelyEquals(1f)); // Red = 1
+        Assert.True(result.Y.ApproximatelyEquals(0.5f)); // Green = 0.5
+        Assert.True(result.Z.ApproximatelyEquals(0f)); // Blue = 0
+    }
+
+    [Fact]
+    public void HsvToRgb_LimeishHue_CalculatesCorrectly()
+    {
+        // Test the 60-120 hue range
+        var result = UIColorPickerSystem.HsvToRgb(90f, 1f, 1f);
+
+        Assert.True(result.X.ApproximatelyEquals(0.5f)); // Red = 0.5
+        Assert.True(result.Y.ApproximatelyEquals(1f)); // Green = 1
+        Assert.True(result.Z.ApproximatelyEquals(0f)); // Blue = 0
+    }
+
+    [Fact]
+    public void HsvToRgb_TealishHue_CalculatesCorrectly()
+    {
+        // Test the 120-180 hue range
+        var result = UIColorPickerSystem.HsvToRgb(150f, 1f, 1f);
+
+        Assert.True(result.X.ApproximatelyEquals(0f)); // Red = 0
+        Assert.True(result.Y.ApproximatelyEquals(1f)); // Green = 1
+        Assert.True(result.Z.ApproximatelyEquals(0.5f)); // Blue = 0.5
+    }
+
+    [Fact]
+    public void HsvToRgb_SkyBlueishHue_CalculatesCorrectly()
+    {
+        // Test the 180-240 hue range
+        var result = UIColorPickerSystem.HsvToRgb(210f, 1f, 1f);
+
+        Assert.True(result.X.ApproximatelyEquals(0f)); // Red = 0
+        Assert.True(result.Y.ApproximatelyEquals(0.5f)); // Green = 0.5
+        Assert.True(result.Z.ApproximatelyEquals(1f)); // Blue = 1
+    }
+
+    [Fact]
+    public void HsvToRgb_PurpleishHue_CalculatesCorrectly()
+    {
+        // Test the 240-300 hue range
+        var result = UIColorPickerSystem.HsvToRgb(270f, 1f, 1f);
+
+        Assert.True(result.X.ApproximatelyEquals(0.5f)); // Red = 0.5
+        Assert.True(result.Y.ApproximatelyEquals(0f)); // Green = 0
+        Assert.True(result.Z.ApproximatelyEquals(1f)); // Blue = 1
+    }
+
+    [Fact]
+    public void HsvToRgb_PinkishHue_CalculatesCorrectly()
+    {
+        // Test the 300-360 hue range
+        var result = UIColorPickerSystem.HsvToRgb(330f, 1f, 1f);
+
+        Assert.True(result.X.ApproximatelyEquals(1f)); // Red = 1
+        Assert.True(result.Y.ApproximatelyEquals(0f)); // Green = 0
+        Assert.True(result.Z.ApproximatelyEquals(0.5f)); // Blue = 0.5
+    }
+
+    [Fact]
+    public void RgbToHue_NegativeResultNormalization_ReturnsPositive()
+    {
+        // Color that would produce negative hue before normalization
+        // Red slightly more than blue in a blueish color
+        var color = new Vector4(0.5f, 0f, 0.4f, 1f);
+        var hue = UIColorPickerSystem.RgbToHue(color);
+
+        Assert.True(hue >= 0f && hue < 360f);
+    }
+
+    #endregion
+
     #region Component Tests
 
     [Fact]
