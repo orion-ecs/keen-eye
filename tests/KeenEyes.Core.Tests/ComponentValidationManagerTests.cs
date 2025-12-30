@@ -398,6 +398,359 @@ public class ComponentValidationManagerTests
         ComponentValidationManager.RegisterConstraintProvider(provider);
     }
 
+    [Fact]
+    public void RegisterConstraintProvider_WithConstraintProvider_ProvidesConstraints()
+    {
+        // Register a provider that returns constraints for TestHealth requiring TestPosition
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                if (componentType == typeof(TestHealth))
+                {
+                    required = [typeof(TestPosition)];
+                    conflicts = [typeof(TestDamage)];
+                    return true;
+                }
+
+                required = [];
+                conflicts = [];
+                return false;
+            };
+
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+
+        // The provider is now registered for subsequent validation operations
+    }
+
+    #endregion
+
+    #region ValidateRequirements Exception Tests
+
+    [Fact]
+    public void ValidateAdd_WithMissingRequiredComponent_ThrowsComponentValidationException()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a constraint provider that requires TestPosition for TestVelocity
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                if (componentType == typeof(TestVelocity))
+                {
+                    required = [typeof(TestPosition)];
+                    conflicts = [];
+                    return true;
+                }
+
+                required = [];
+                conflicts = [];
+                return false;
+            };
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+
+        var entity = world.Spawn().Build();
+
+        // Entity doesn't have TestPosition, so adding TestVelocity should fail
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateAdd(entity, new TestVelocity { X = 1, Y = 2 }));
+
+        Assert.Contains("requires", ex.Message);
+        Assert.Contains("TestPosition", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAdd_WithConflictingComponent_ThrowsComponentValidationException()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a constraint provider that makes TestHealth conflict with TestDamage
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                if (componentType == typeof(TestHealth))
+                {
+                    required = [];
+                    conflicts = [typeof(TestDamage)];
+                    return true;
+                }
+
+                required = [];
+                conflicts = [];
+                return false;
+            };
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+
+        var entity = world.Spawn()
+            .With(new TestDamage { Amount = 10 })
+            .Build();
+
+        // Entity has TestDamage, so adding TestHealth should fail
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateAdd(entity, new TestHealth { Current = 100, Max = 100 }));
+
+        Assert.Contains("conflicts", ex.Message);
+        Assert.Contains("TestDamage", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAdd_WithRequiredComponentPresent_Succeeds()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a constraint provider that requires TestPosition for TestVelocity
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                if (componentType == typeof(TestVelocity))
+                {
+                    required = [typeof(TestPosition)];
+                    conflicts = [];
+                    return true;
+                }
+
+                required = [];
+                conflicts = [];
+                return false;
+            };
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+
+        var entity = world.Spawn()
+            .With(new TestPosition { X = 0, Y = 0 })
+            .Build();
+
+        // Entity has TestPosition, so adding TestVelocity should succeed
+        manager.ValidateAdd(entity, new TestVelocity { X = 1, Y = 2 });
+    }
+
+    #endregion
+
+    #region ValidateBuild Exception Tests
+
+    [Fact]
+    public void ValidateBuild_WithMissingRequiredComponent_ThrowsComponentValidationException()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a constraint provider that requires TestPosition for TestVelocity
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                if (componentType == typeof(TestVelocity))
+                {
+                    required = [typeof(TestPosition)];
+                    conflicts = [];
+                    return true;
+                }
+
+                required = [];
+                conflicts = [];
+                return false;
+            };
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var info = world.Components.GetOrRegister<TestVelocity>();
+        components.Add((info, new TestVelocity { X = 1, Y = 2 }));
+
+        // TestPosition is not in the build set, so validation should fail
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateBuild(components));
+
+        Assert.Contains("requires", ex.Message);
+        Assert.Contains("TestPosition", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateBuild_WithConflictingComponent_ThrowsComponentValidationException()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a constraint provider that makes TestHealth conflict with TestDamage
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                if (componentType == typeof(TestHealth))
+                {
+                    required = [];
+                    conflicts = [typeof(TestDamage)];
+                    return true;
+                }
+
+                required = [];
+                conflicts = [];
+                return false;
+            };
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var healthInfo = world.Components.GetOrRegister<TestHealth>();
+        var damageInfo = world.Components.GetOrRegister<TestDamage>();
+        components.Add((healthInfo, new TestHealth { Current = 100, Max = 100 }));
+        components.Add((damageInfo, new TestDamage { Amount = 10 }));
+
+        // Both conflicting components are in the build set
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateBuild(components));
+
+        Assert.Contains("conflicts", ex.Message);
+        Assert.Contains("TestDamage", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateBuild_WithRequiredComponentPresent_Succeeds()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a constraint provider that requires TestPosition for TestVelocity
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                if (componentType == typeof(TestVelocity))
+                {
+                    required = [typeof(TestPosition)];
+                    conflicts = [];
+                    return true;
+                }
+
+                required = [];
+                conflicts = [];
+                return false;
+            };
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var posInfo = world.Components.GetOrRegister<TestPosition>();
+        var velInfo = world.Components.GetOrRegister<TestVelocity>();
+        components.Add((posInfo, new TestPosition { X = 0, Y = 0 }));
+        components.Add((velInfo, new TestVelocity { X = 1, Y = 2 }));
+
+        // Both required and dependent components are in the build set
+        manager.ValidateBuild(components);
+    }
+
+    #endregion
+
+    #region ValidateBuildCustom Exception Tests
+
+    [Fact]
+    public void ValidateBuildCustom_WithFailingValidator_ThrowsComponentValidationException()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a failing validator
+        ComponentValidator<TestPosition> validator = (w, e, comp) => false;
+        manager.RegisterValidator(validator);
+
+        var entity = world.Spawn().Build();
+
+        // Use the actual ComponentInfo from GetOrRegister (it has InvokeValidator set)
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var info = world.Components.GetOrRegister<TestPosition>();
+        components.Add((info, new TestPosition { X = 1, Y = 2 }));
+
+        // Should throw ComponentValidationException because validator returns false
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateBuildCustom(entity, components));
+
+        Assert.Contains("Custom validation failed", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateBuildCustom_WithPassingValidator_Succeeds()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a passing validator
+        ComponentValidator<TestPosition> validator = (w, e, comp) => comp.X >= 0 && comp.Y >= 0;
+        manager.RegisterValidator(validator);
+
+        var entity = world.Spawn().Build();
+
+        // Use the actual ComponentInfo from GetOrRegister
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var info = world.Components.GetOrRegister<TestPosition>();
+        components.Add((info, new TestPosition { X = 1, Y = 2 }));
+
+        // Should not throw
+        manager.ValidateBuildCustom(entity, components);
+    }
+
+    [Fact]
+    public void ValidateBuildCustom_WithNoRegisteredValidator_Succeeds()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // No validator registered
+        var entity = world.Spawn().Build();
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var info = world.Components.GetOrRegister<TestPosition>();
+        components.Add((info, new TestPosition { X = 1, Y = 2 }));
+
+        // Should not throw when no validator is registered
+        manager.ValidateBuildCustom(entity, components);
+    }
+
+    [Fact]
+    public void ValidateBuildCustom_WithMultipleValidators_ValidatesAll()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register validators for multiple components
+        ComponentValidator<TestPosition> posValidator = (w, e, comp) => comp.X >= 0;
+        ComponentValidator<TestVelocity> velValidator = (w, e, comp) => comp.Y >= 0;
+        manager.RegisterValidator(posValidator);
+        manager.RegisterValidator(velValidator);
+
+        var entity = world.Spawn().Build();
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var posInfo = world.Components.GetOrRegister<TestPosition>();
+        var velInfo = world.Components.GetOrRegister<TestVelocity>();
+        components.Add((posInfo, new TestPosition { X = 1, Y = 2 }));
+        components.Add((velInfo, new TestVelocity { X = 3, Y = 4 }));
+
+        // Both validators should pass
+        manager.ValidateBuildCustom(entity, components);
+    }
+
+    [Fact]
+    public void ValidateBuildCustom_WithSecondValidatorFailing_ThrowsComponentValidationException()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register validators - second one will fail
+        ComponentValidator<TestPosition> posValidator = (w, e, comp) => true;
+        ComponentValidator<TestVelocity> velValidator = (w, e, comp) => false;
+        manager.RegisterValidator(posValidator);
+        manager.RegisterValidator(velValidator);
+
+        var entity = world.Spawn().Build();
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var posInfo = world.Components.GetOrRegister<TestPosition>();
+        var velInfo = world.Components.GetOrRegister<TestVelocity>();
+        components.Add((posInfo, new TestPosition { X = 1, Y = 2 }));
+        components.Add((velInfo, new TestVelocity { X = 3, Y = 4 }));
+
+        // Second validator fails
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateBuildCustom(entity, components));
+
+        Assert.Contains("TestVelocity", ex.Message);
+    }
+
     #endregion
 
     #region ComponentValidationInfo Tests
