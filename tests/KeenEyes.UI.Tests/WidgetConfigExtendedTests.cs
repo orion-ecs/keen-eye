@@ -1172,4 +1172,730 @@ public sealed class WidgetConfigExtendedTests
     }
 
     #endregion
+
+    #region TextFieldConfig Tests
+
+    [Fact]
+    public void TextFieldConfig_Default_HasExpectedValues()
+    {
+        var config = TextFieldConfig.Default;
+
+        Assert.Equal(200f, config.Width);
+        Assert.Equal(32f, config.Height);
+        Assert.Equal("", config.PlaceholderText);
+        Assert.Equal(0, config.MaxLength);
+        Assert.Equal(1f, config.BorderWidth);
+        Assert.Equal(14f, config.FontSize);
+        Assert.Equal(0, config.TabIndex);
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetBackgroundColor_ReturnsDefaultWhenNull()
+    {
+        var config = new TextFieldConfig();
+        var color = config.GetBackgroundColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetBackgroundColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0.2f, 0.2f, 0.2f, 1f);
+        var config = new TextFieldConfig(BackgroundColor: customColor);
+        Assert.Equal(customColor, config.GetBackgroundColor());
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetBorderColor_ReturnsDefaultWhenNull()
+    {
+        var config = new TextFieldConfig();
+        var color = config.GetBorderColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetBorderColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0.5f, 0.5f, 0.5f, 1f);
+        var config = new TextFieldConfig(BorderColor: customColor);
+        Assert.Equal(customColor, config.GetBorderColor());
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetTextColor_ReturnsDefaultWhenNull()
+    {
+        var config = new TextFieldConfig();
+        var color = config.GetTextColor();
+        Assert.Equal(Vector4.One, color);
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetTextColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0.8f, 0.8f, 0.8f, 1f);
+        var config = new TextFieldConfig(TextColor: customColor);
+        Assert.Equal(customColor, config.GetTextColor());
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetPlaceholderColor_ReturnsDefaultWhenNull()
+    {
+        var config = new TextFieldConfig();
+        var color = config.GetPlaceholderColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void TextFieldConfig_GetPlaceholderColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0.3f, 0.3f, 0.3f, 1f);
+        var config = new TextFieldConfig(PlaceholderColor: customColor);
+        Assert.Equal(customColor, config.GetPlaceholderColor());
+    }
+
+    #endregion
+
+    #region CheckboxConfig Extended Tests
+
+    [Fact]
+    public void CheckboxConfig_GetBackgroundColor_ReturnsDefaultWhenNull()
+    {
+        var config = new CheckboxConfig();
+        var color = config.GetBackgroundColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void CheckboxConfig_GetBackgroundColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0.1f, 0.1f, 0.1f, 1f);
+        var config = new CheckboxConfig(BackgroundColor: customColor);
+        Assert.Equal(customColor, config.GetBackgroundColor());
+    }
+
+    [Fact]
+    public void CheckboxConfig_GetCheckColor_ReturnsDefaultWhenNull()
+    {
+        var config = new CheckboxConfig();
+        var color = config.GetCheckColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void CheckboxConfig_GetCheckColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0f, 1f, 0f, 1f);
+        var config = new CheckboxConfig(CheckColor: customColor);
+        Assert.Equal(customColor, config.GetCheckColor());
+    }
+
+    [Fact]
+    public void CheckboxConfig_GetBorderColor_ReturnsDefaultWhenNull()
+    {
+        var config = new CheckboxConfig();
+        var color = config.GetBorderColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void CheckboxConfig_GetBorderColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0.6f, 0.6f, 0.6f, 1f);
+        var config = new CheckboxConfig(BorderColor: customColor);
+        Assert.Equal(customColor, config.GetBorderColor());
+    }
+
+    [Fact]
+    public void CheckboxConfig_GetTextColor_ReturnsDefaultWhenNull()
+    {
+        var config = new CheckboxConfig();
+        var color = config.GetTextColor();
+        Assert.Equal(Vector4.One, color);
+    }
+
+    [Fact]
+    public void CheckboxConfig_GetTextColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0.9f, 0.9f, 0.9f, 1f);
+        var config = new CheckboxConfig(TextColor: customColor);
+        Assert.Equal(customColor, config.GetTextColor());
+    }
+
+    [Fact]
+    public void CheckboxConfig_WithAllParameters_StoresAllValues()
+    {
+        var config = new CheckboxConfig(
+            IsChecked: true,
+            Size: 24f,
+            Spacing: 12f,
+            BorderWidth: 2f,
+            FontSize: 16f,
+            TabIndex: 5);
+
+        Assert.True(config.IsChecked);
+        Assert.Equal(24f, config.Size);
+        Assert.Equal(12f, config.Spacing);
+        Assert.Equal(2f, config.BorderWidth);
+        Assert.Equal(16f, config.FontSize);
+        Assert.Equal(5, config.TabIndex);
+    }
+
+    #endregion
+
+    #region DropdownConfig Extended Tests
+
+    [Fact]
+    public void DropdownConfig_GetBackgroundColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DropdownConfig();
+        var color = config.GetBackgroundColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DropdownConfig_GetDropdownColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DropdownConfig();
+        var color = config.GetDropdownColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DropdownConfig_GetSelectedColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DropdownConfig();
+        var color = config.GetSelectedColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DropdownConfig_GetHoverColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DropdownConfig();
+        var color = config.GetHoverColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DropdownConfig_GetBorderColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DropdownConfig();
+        var color = config.GetBorderColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DropdownConfig_GetTextColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DropdownConfig();
+        var color = config.GetTextColor();
+        Assert.Equal(Vector4.One, color);
+    }
+
+    [Fact]
+    public void DropdownConfig_WithAllParameters_StoresAllValues()
+    {
+        var config = new DropdownConfig(
+            Width: 250f,
+            Height: 36f,
+            MaxDropdownHeight: 250f,
+            SelectedIndex: 2,
+            BorderWidth: 2f,
+            FontSize: 16f,
+            TabIndex: 3);
+
+        Assert.Equal(250f, config.Width);
+        Assert.Equal(36f, config.Height);
+        Assert.Equal(250f, config.MaxDropdownHeight);
+        Assert.Equal(2, config.SelectedIndex);
+        Assert.Equal(2f, config.BorderWidth);
+        Assert.Equal(16f, config.FontSize);
+        Assert.Equal(3, config.TabIndex);
+    }
+
+    #endregion
+
+    #region MenuBarConfig Extended Tests
+
+    [Fact]
+    public void MenuBarConfig_GetTextColor_ReturnsDefaultWhenNull()
+    {
+        var config = new MenuBarConfig();
+        var color = config.GetTextColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void MenuBarConfig_GetItemHoverColor_ReturnsDefaultWhenNull()
+    {
+        var config = new MenuBarConfig();
+        var color = config.GetItemHoverColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void MenuBarConfig_WithAllParameters_StoresAllValues()
+    {
+        var customColor = new Vector4(0.2f, 0.2f, 0.25f, 1f);
+        var config = new MenuBarConfig(
+            Height: 32f,
+            BackgroundColor: customColor,
+            FontSize: 16f,
+            ItemPadding: 16f);
+
+        Assert.Equal(32f, config.Height);
+        Assert.Equal(customColor, config.GetBackgroundColor());
+        Assert.Equal(16f, config.FontSize);
+        Assert.Equal(16f, config.ItemPadding);
+    }
+
+    #endregion
+
+    #region MenuConfig Extended Tests
+
+    [Fact]
+    public void MenuConfig_Default_HasExpectedValues()
+    {
+        var config = new MenuConfig();
+
+        Assert.Equal(180f, config.MinWidth);
+        Assert.Equal(0f, config.MaxWidth);
+        Assert.Equal(26f, config.ItemHeight);
+    }
+
+    [Fact]
+    public void MenuConfig_GetItemHoverColor_ReturnsDefaultWhenNull()
+    {
+        var config = new MenuConfig();
+        var color = config.GetItemHoverColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void MenuConfig_GetTextColor_ReturnsDefaultWhenNull()
+    {
+        var config = new MenuConfig();
+        var color = config.GetTextColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void MenuConfig_GetSeparatorColor_ReturnsDefaultWhenNull()
+    {
+        var config = new MenuConfig();
+        var color = config.GetSeparatorColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void MenuConfig_GetShortcutColor_ReturnsDefaultWhenNull()
+    {
+        var config = new MenuConfig();
+        var color = config.GetShortcutColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void MenuConfig_GetDisabledTextColor_ReturnsDefaultWhenNull()
+    {
+        var config = new MenuConfig();
+        var color = config.GetDisabledTextColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    #endregion
+
+    #region DockPanelConfig Extended Tests
+
+    [Fact]
+    public void DockPanelConfig_Default_HasExpectedValues()
+    {
+        var config = new DockPanelConfig();
+
+        Assert.True(config.CanClose);
+        Assert.True(config.CanFloat);
+        Assert.True(config.CanDock);
+        Assert.Equal(300f, config.Width);
+        Assert.Equal(200f, config.Height);
+        Assert.Equal(28f, config.TitleBarHeight);
+    }
+
+    [Fact]
+    public void DockPanelConfig_GetTitleBarColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DockPanelConfig();
+        var color = config.GetTitleBarColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DockPanelConfig_GetContentColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DockPanelConfig();
+        var color = config.GetContentColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DockPanelConfig_GetTitleTextColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DockPanelConfig();
+        var color = config.GetTitleTextColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DockPanelConfig_GetTabColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DockPanelConfig();
+        var color = config.GetTabColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DockPanelConfig_GetActiveTabColor_ReturnsDefaultWhenNull()
+    {
+        var config = new DockPanelConfig();
+        var color = config.GetActiveTabColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void DockPanelConfig_WithAllParameters_StoresAllValues()
+    {
+        var config = new DockPanelConfig(
+            Width: 400f,
+            Height: 300f,
+            CanClose: false,
+            CanFloat: false,
+            CanDock: false,
+            AllowedZones: DockZone.Left | DockZone.Right,
+            TitleBarHeight: 32f,
+            FontSize: 14f);
+
+        Assert.Equal(400f, config.Width);
+        Assert.Equal(300f, config.Height);
+        Assert.False(config.CanClose);
+        Assert.False(config.CanFloat);
+        Assert.False(config.CanDock);
+        Assert.Equal(DockZone.Left | DockZone.Right, config.AllowedZones);
+        Assert.Equal(32f, config.TitleBarHeight);
+        Assert.Equal(14f, config.FontSize);
+    }
+
+    #endregion
+
+    #region SpinnerConfig Extended Tests
+
+    [Fact]
+    public void SpinnerConfig_Small_CreatesSmallSpinner()
+    {
+        var config = SpinnerConfig.Small();
+
+        Assert.Equal(24f, config.Size);
+        Assert.Equal(2f, config.Thickness);
+    }
+
+    [Fact]
+    public void SpinnerConfig_Small_WithCustomColor_StoresColor()
+    {
+        var customColor = new Vector4(1f, 0f, 0f, 1f);
+        var config = SpinnerConfig.Small(color: customColor);
+
+        Assert.Equal(customColor, config.Color);
+    }
+
+    [Fact]
+    public void SpinnerConfig_Medium_CreatesMediumSpinner()
+    {
+        var config = SpinnerConfig.Medium();
+
+        Assert.Equal(40f, config.Size);
+    }
+
+    [Fact]
+    public void SpinnerConfig_Large_CreatesLargeSpinner()
+    {
+        var config = SpinnerConfig.Large();
+
+        Assert.Equal(64f, config.Size);
+        Assert.Equal(4f, config.Thickness);
+    }
+
+    [Fact]
+    public void SpinnerConfig_Dots_CreatesDotSpinner()
+    {
+        var config = SpinnerConfig.Dots();
+
+        Assert.Equal(SpinnerStyle.Dots, config.Style);
+        Assert.Equal(40f, config.Size);
+        Assert.Equal(8, config.ElementCount);
+    }
+
+    [Fact]
+    public void SpinnerConfig_Dots_WithCustomParameters_StoresValues()
+    {
+        var config = SpinnerConfig.Dots(size: 60f, dotCount: 12);
+
+        Assert.Equal(60f, config.Size);
+        Assert.Equal(12, config.ElementCount);
+    }
+
+    [Fact]
+    public void SpinnerConfig_Bar_CreatesBarSpinner()
+    {
+        var config = SpinnerConfig.Bar();
+
+        Assert.Equal(SpinnerStyle.Bar, config.Style);
+        Assert.Equal(200f, config.Size);
+    }
+
+    [Fact]
+    public void SpinnerConfig_Bar_WithCustomWidth_StoresWidth()
+    {
+        var config = SpinnerConfig.Bar(width: 300f);
+
+        Assert.Equal(300f, config.Size);
+    }
+
+    [Fact]
+    public void SpinnerConfig_GetColor_ReturnsDefaultWhenNull()
+    {
+        var config = new SpinnerConfig();
+        var color = config.GetColor();
+        Assert.NotEqual(Vector4.Zero, color);
+    }
+
+    [Fact]
+    public void SpinnerConfig_GetColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0f, 1f, 0f, 1f);
+        var config = new SpinnerConfig(Color: customColor);
+        Assert.Equal(customColor, config.GetColor());
+    }
+
+    [Fact]
+    public void SpinnerConfig_WithAllParameters_StoresAllValues()
+    {
+        var config = new SpinnerConfig(
+            Style: SpinnerStyle.Circular,
+            Size: 50f,
+            Speed: 5f,
+            Thickness: 4f,
+            ArcLength: 0.5f,
+            ElementCount: 10);
+
+        Assert.Equal(SpinnerStyle.Circular, config.Style);
+        Assert.Equal(50f, config.Size);
+        Assert.Equal(5f, config.Speed);
+        Assert.Equal(4f, config.Thickness);
+        Assert.Equal(0.5f, config.ArcLength);
+        Assert.Equal(10, config.ElementCount);
+    }
+
+    #endregion
+
+    #region ColorPickerConfig Extended Tests
+
+    [Fact]
+    public void ColorPickerConfig_HSV_CreatesHsvPicker()
+    {
+        var config = ColorPickerConfig.HSV();
+
+        Assert.Equal(ColorPickerMode.HSV, config.Mode);
+        Assert.True(config.ShowAlpha);
+    }
+
+    [Fact]
+    public void ColorPickerConfig_HSV_WithInitialColor_StoresColor()
+    {
+        var initialColor = new Vector4(1f, 0.5f, 0f, 1f);
+        var config = ColorPickerConfig.HSV(initialColor: initialColor);
+
+        Assert.Equal(initialColor, config.InitialColor);
+    }
+
+    [Fact]
+    public void ColorPickerConfig_RGB_CreatesRgbPicker()
+    {
+        var config = ColorPickerConfig.RGB();
+
+        Assert.Equal(ColorPickerMode.RGB, config.Mode);
+    }
+
+    [Fact]
+    public void ColorPickerConfig_Compact_CreatesCompactPicker()
+    {
+        var config = ColorPickerConfig.Compact();
+
+        Assert.False(config.ShowHexInput);
+        Assert.Equal(200f, config.Width);
+        Assert.Equal(220f, config.Height);
+    }
+
+    [Fact]
+    public void ColorPickerConfig_Opaque_HidesAlpha()
+    {
+        var config = ColorPickerConfig.Opaque();
+
+        Assert.False(config.ShowAlpha);
+    }
+
+    [Fact]
+    public void ColorPickerConfig_GetInitialColor_ReturnsDefaultWhenNull()
+    {
+        var config = new ColorPickerConfig();
+        var color = config.GetInitialColor();
+        // Default is red
+        Assert.Equal(1f, color.X);
+        Assert.Equal(0f, color.Y);
+        Assert.Equal(0f, color.Z);
+        Assert.Equal(1f, color.W);
+    }
+
+    [Fact]
+    public void ColorPickerConfig_GetInitialColor_ReturnsCustomWhenSet()
+    {
+        var customColor = new Vector4(0f, 1f, 0f, 0.5f);
+        var config = new ColorPickerConfig(InitialColor: customColor);
+        Assert.Equal(customColor, config.GetInitialColor());
+    }
+
+    [Fact]
+    public void ColorPickerConfig_WithAllParameters_StoresAllValues()
+    {
+        var config = new ColorPickerConfig(
+            Mode: ColorPickerMode.Both,
+            ShowAlpha: false,
+            ShowHexInput: false,
+            ShowPreview: false,
+            Width: 300f,
+            Height: 400f,
+            CornerRadius: 8f);
+
+        Assert.Equal(ColorPickerMode.Both, config.Mode);
+        Assert.False(config.ShowAlpha);
+        Assert.False(config.ShowHexInput);
+        Assert.False(config.ShowPreview);
+        Assert.Equal(300f, config.Width);
+        Assert.Equal(400f, config.Height);
+        Assert.Equal(8f, config.CornerRadius);
+    }
+
+    #endregion
+
+    #region ToastContainerConfig Extended Tests
+
+    [Fact]
+    public void ToastContainerConfig_WithMaxVisible_StoresMaxVisible()
+    {
+        var config = new ToastContainerConfig(MaxVisible: 5);
+        Assert.Equal(5, config.MaxVisible);
+    }
+
+    [Fact]
+    public void ToastContainerConfig_WithSpacing_StoresSpacing()
+    {
+        var config = new ToastContainerConfig(Spacing: 16f);
+        Assert.Equal(16f, config.Spacing);
+    }
+
+    [Fact]
+    public void ToastContainerConfig_WithMargin_StoresMargin()
+    {
+        var config = new ToastContainerConfig(Margin: 20f);
+        Assert.Equal(20f, config.Margin);
+    }
+
+    [Fact]
+    public void ToastContainerConfig_AllPositions_StoreCorrectly()
+    {
+        var positions = new[]
+        {
+            ToastPosition.TopLeft, ToastPosition.TopCenter, ToastPosition.TopRight,
+            ToastPosition.BottomLeft, ToastPosition.BottomCenter, ToastPosition.BottomRight
+        };
+
+        foreach (var position in positions)
+        {
+            var config = new ToastContainerConfig(Position: position);
+            Assert.Equal(position, config.Position);
+        }
+    }
+
+    [Fact]
+    public void ToastContainerConfig_TopRight_Factory()
+    {
+        var config = ToastContainerConfig.TopRight(maxVisible: 10);
+        Assert.Equal(ToastPosition.TopRight, config.Position);
+        Assert.Equal(10, config.MaxVisible);
+    }
+
+    [Fact]
+    public void ToastContainerConfig_BottomRight_Factory()
+    {
+        var config = ToastContainerConfig.BottomRight();
+        Assert.Equal(ToastPosition.BottomRight, config.Position);
+    }
+
+    [Fact]
+    public void ToastContainerConfig_TopCenter_Factory()
+    {
+        var config = ToastContainerConfig.TopCenter();
+        Assert.Equal(ToastPosition.TopCenter, config.Position);
+    }
+
+    [Fact]
+    public void ToastContainerConfig_BottomCenter_Factory()
+    {
+        var config = ToastContainerConfig.BottomCenter();
+        Assert.Equal(ToastPosition.BottomCenter, config.Position);
+    }
+
+    #endregion
+
+    #region TooltipConfig Extended Tests
+
+    [Fact]
+    public void TooltipConfig_AllPositions_StoreCorrectly()
+    {
+        var positions = new[]
+        {
+            TooltipPosition.Auto, TooltipPosition.Above, TooltipPosition.Below,
+            TooltipPosition.Left, TooltipPosition.Right
+        };
+
+        foreach (var position in positions)
+        {
+            var config = new TooltipConfig(Position: position);
+            Assert.Equal(position, config.Position);
+        }
+    }
+
+    [Fact]
+    public void TooltipConfig_WithAllParameters_StoresAllValues()
+    {
+        var bgColor = new Vector4(0.1f, 0.1f, 0.1f, 0.9f);
+        var textColor = new Vector4(1f, 1f, 1f, 1f);
+        var config = new TooltipConfig(
+            Delay: 1f,
+            MaxWidth: 400f,
+            Position: TooltipPosition.Below,
+            FollowMouse: true,
+            BackgroundColor: bgColor,
+            TextColor: textColor,
+            FontSize: 14f,
+            CornerRadius: 6f);
+
+        Assert.Equal(1f, config.Delay);
+        Assert.Equal(400f, config.MaxWidth);
+        Assert.Equal(TooltipPosition.Below, config.Position);
+        Assert.True(config.FollowMouse);
+        Assert.Equal(bgColor, config.GetBackgroundColor());
+        Assert.Equal(textColor, config.GetTextColor());
+        Assert.Equal(14f, config.FontSize);
+        Assert.Equal(6f, config.CornerRadius);
+    }
+
+    #endregion
 }
