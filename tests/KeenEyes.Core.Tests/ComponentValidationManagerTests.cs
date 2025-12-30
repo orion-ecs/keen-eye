@@ -221,4 +221,228 @@ public class ComponentValidationManagerTests
     }
 
     #endregion
+
+    #region ValidationMode Tests
+
+    [Fact]
+    public void Mode_DefaultValue_IsEnabled()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        Assert.Equal(ValidationMode.Enabled, manager.Mode);
+    }
+
+    [Fact]
+    public void Mode_CanBeSetToDisabled()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world) { Mode = ValidationMode.Disabled };
+
+        Assert.Equal(ValidationMode.Disabled, manager.Mode);
+    }
+
+    [Fact]
+    public void Mode_CanBeSetToDebugOnly()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world) { Mode = ValidationMode.DebugOnly };
+
+        Assert.Equal(ValidationMode.DebugOnly, manager.Mode);
+    }
+
+    [Fact]
+    public void ValidateAdd_WhenModeDisabled_SkipsValidation()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world) { Mode = ValidationMode.Disabled };
+
+        // Register a failing validator
+        ComponentValidator<TestPosition> validator = (w, e, comp) => false;
+        manager.RegisterValidator(validator);
+
+        var entity = world.Spawn().Build();
+
+        // With mode disabled, validation should be skipped even with a failing validator
+        manager.ValidateAdd(entity, new TestPosition { X = 1, Y = 2 });
+
+        // No exception thrown
+        Assert.True(true);
+    }
+
+    [Fact]
+    public void ValidateBuild_WhenModeDisabled_SkipsValidation()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world) { Mode = ValidationMode.Disabled };
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var info = world.Components.GetOrRegister<TestPosition>();
+        components.Add((info, new TestPosition { X = 1, Y = 2 }));
+
+        // With mode disabled, validation should be skipped
+        manager.ValidateBuild(components);
+
+        // No exception thrown
+        Assert.True(true);
+    }
+
+    [Fact]
+    public void ValidateBuildCustom_WhenModeDisabled_SkipsValidation()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world) { Mode = ValidationMode.Disabled };
+
+        // Register a failing validator
+        ComponentValidator<TestPosition> validator = (w, e, comp) => false;
+        manager.RegisterValidator(validator);
+
+        var entity = world.Spawn().Build();
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var info = world.Components.GetOrRegister<TestPosition>();
+        components.Add((info, new TestPosition { X = 1, Y = 2 }));
+
+        // With mode disabled, validation should be skipped
+        manager.ValidateBuildCustom(entity, components);
+
+        // No exception thrown
+        Assert.True(true);
+    }
+
+    #endregion
+
+    #region ValidateAdd Custom Validator Tests
+
+    [Fact]
+    public void ValidateAdd_WithFailingCustomValidator_ThrowsComponentValidationException()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a failing validator
+        ComponentValidator<TestPosition> validator = (w, e, comp) => false;
+        manager.RegisterValidator(validator);
+
+        var entity = world.Spawn().Build();
+
+        // Should throw ComponentValidationException
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateAdd(entity, new TestPosition { X = 1, Y = 2 }));
+
+        Assert.Contains("Custom validation failed", ex.Message);
+    }
+
+    [Fact]
+    public void ValidateAdd_WithPassingCustomValidator_Succeeds()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Register a passing validator
+        ComponentValidator<TestPosition> validator = (w, e, comp) => comp.X >= 0 && comp.Y >= 0;
+        manager.RegisterValidator(validator);
+
+        var entity = world.Spawn().Build();
+
+        // Should not throw
+        manager.ValidateAdd(entity, new TestPosition { X = 1, Y = 2 });
+    }
+
+    [Fact]
+    public void ValidateAdd_WithConditionalValidator_ValidatesCorrectly()
+    {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
+        // Validator that checks for positive health values
+        ComponentValidator<TestHealth> validator = (w, e, comp) =>
+            comp.Current >= 0 && comp.Max >= 0 && comp.Current <= comp.Max;
+        manager.RegisterValidator(validator);
+
+        var entity = world.Spawn().Build();
+
+        // Valid health
+        manager.ValidateAdd(entity, new TestHealth { Current = 50, Max = 100 });
+
+        // Invalid: Current > Max
+        var ex = Assert.Throws<ComponentValidationException>(() =>
+            manager.ValidateAdd(entity, new TestHealth { Current = 150, Max = 100 }));
+
+        Assert.Contains("Custom validation failed", ex.Message);
+    }
+
+    #endregion
+
+    #region RegisterConstraintProvider Tests
+
+    [Fact]
+    public void RegisterConstraintProvider_WithNullProvider_ThrowsArgumentNullException()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            ComponentValidationManager.RegisterConstraintProvider(null!));
+    }
+
+    [Fact]
+    public void RegisterConstraintProvider_WithValidProvider_Succeeds()
+    {
+        // Create a simple provider that always returns false (no constraints)
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                required = [];
+                conflicts = [];
+                return false;
+            };
+
+        // Should not throw
+        ComponentValidationManager.RegisterConstraintProvider(provider);
+    }
+
+    #endregion
+
+    #region ComponentValidationInfo Tests
+
+    [Fact]
+    public void ComponentValidationInfo_HasConstraints_ReturnsTrueWhenHasRequiredComponents()
+    {
+        var info = new ComponentValidationInfo([typeof(TestPosition)], []);
+
+        Assert.True(info.HasConstraints);
+    }
+
+    [Fact]
+    public void ComponentValidationInfo_HasConstraints_ReturnsTrueWhenHasConflictingComponents()
+    {
+        var info = new ComponentValidationInfo([], [typeof(TestVelocity)]);
+
+        Assert.True(info.HasConstraints);
+    }
+
+    [Fact]
+    public void ComponentValidationInfo_HasConstraints_ReturnsFalseWhenEmpty()
+    {
+        var info = new ComponentValidationInfo([], []);
+
+        Assert.False(info.HasConstraints);
+    }
+
+    [Fact]
+    public void ComponentValidationInfo_RequiredComponents_ReturnsCorrectArray()
+    {
+        var required = new[] { typeof(TestPosition), typeof(TestVelocity) };
+        var info = new ComponentValidationInfo(required, []);
+
+        Assert.Equal(required, info.RequiredComponents);
+    }
+
+    [Fact]
+    public void ComponentValidationInfo_ConflictingComponents_ReturnsCorrectArray()
+    {
+        var conflicts = new[] { typeof(TestHealth), typeof(TestDamage) };
+        var info = new ComponentValidationInfo([], conflicts);
+
+        Assert.Equal(conflicts, info.ConflictingComponents);
+    }
+
+    #endregion
 }
