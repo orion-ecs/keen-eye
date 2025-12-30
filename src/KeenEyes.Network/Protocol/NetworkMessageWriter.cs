@@ -169,4 +169,15 @@ public ref struct NetworkMessageWriter(Span<byte> buffer)
     {
         writer.WriteByte(value);
     }
+
+    /// <summary>
+    /// Writes a hierarchy change message (parent-child relationship).
+    /// </summary>
+    /// <param name="childNetworkId">The network ID of the child entity.</param>
+    /// <param name="parentNetworkId">The network ID of the parent entity (0 for no parent).</param>
+    public void WriteHierarchyChange(uint childNetworkId, uint parentNetworkId)
+    {
+        writer.WriteUInt32(childNetworkId);
+        writer.WriteUInt32(parentNetworkId);
+    }
 }

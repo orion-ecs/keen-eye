@@ -190,4 +190,15 @@ public ref struct NetworkMessageReader(ReadOnlySpan<byte> data)
     {
         return reader.ReadByte();
     }
+
+    /// <summary>
+    /// Reads a hierarchy change message (parent-child relationship).
+    /// </summary>
+    /// <param name="childNetworkId">The network ID of the child entity.</param>
+    /// <param name="parentNetworkId">The network ID of the parent entity (0 for no parent).</param>
+    public void ReadHierarchyChange(out uint childNetworkId, out uint parentNetworkId)
+    {
+        childNetworkId = reader.ReadUInt32();
+        parentNetworkId = reader.ReadUInt32();
+    }
 }

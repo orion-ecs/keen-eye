@@ -272,6 +272,75 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         }
 
         transport.Send(clientId, writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+
+        // Send hierarchy relationships
+        SendHierarchySnapshot(clientId);
+    }
+
+    private void SendHierarchySnapshot(int clientId)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        // Collect entities with parents
+        var hierarchyChanges = new List<(uint childNetId, uint parentNetId)>();
+        foreach (var entity in context.World.Query<NetworkId>())
+        {
+            var parent = context.World.GetParent(entity);
+            if (parent != Entity.Null && context.World.IsAlive(parent))
+            {
+                if (context.World.Has<NetworkId>(parent))
+                {
+                    ref readonly var childNetId = ref context.World.Get<NetworkId>(entity);
+                    ref readonly var parentNetId = ref context.World.Get<NetworkId>(parent);
+                    hierarchyChanges.Add((childNetId.Value, parentNetId.Value));
+                }
+            }
+        }
+
+        // Send hierarchy changes
+        Span<byte> hierBuffer = stackalloc byte[24];
+        foreach (var (childNetId, parentNetId) in hierarchyChanges)
+        {
+            var writer = new NetworkMessageWriter(hierBuffer);
+            writer.WriteHeader(MessageType.HierarchyChange, currentTick);
+            writer.WriteHierarchyChange(childNetId, parentNetId);
+            transport.Send(clientId, writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+        }
+    }
+
+    /// <summary>
+    /// Sends a hierarchy change to all connected clients.
+    /// </summary>
+    /// <param name="childEntity">The child entity.</param>
+    /// <param name="parentEntity">The parent entity, or Entity.Null for no parent.</param>
+    public void SendHierarchyChange(Entity childEntity, Entity parentEntity)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        if (!context.World.Has<NetworkId>(childEntity))
+        {
+            return;
+        }
+
+        uint parentNetId = 0;
+        if (parentEntity != Entity.Null && context.World.Has<NetworkId>(parentEntity))
+        {
+            parentNetId = context.World.Get<NetworkId>(parentEntity).Value;
+        }
+
+        ref readonly var childNetId = ref context.World.Get<NetworkId>(childEntity);
+
+        Span<byte> buffer = stackalloc byte[24];
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.HierarchyChange, currentTick);
+        writer.WriteHierarchyChange(childNetId.Value, parentNetId);
+        SendToAll(writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
     }
 
     private void OnClientConnected(int clientId)
