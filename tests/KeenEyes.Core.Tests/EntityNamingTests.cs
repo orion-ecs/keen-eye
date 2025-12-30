@@ -545,4 +545,93 @@ public class EntityNamingTests
     }
 
     #endregion
+
+    #region SetName Tests
+
+    [Fact]
+    public void SetName_ToExistingName_ThrowsArgumentException()
+    {
+        using var world = new World();
+
+        var entity1 = world.Spawn("Player").Build();
+        var entity2 = world.Spawn("Enemy").Build();
+
+        // Try to rename entity2 to "Player" which already exists
+        var ex = Assert.Throws<ArgumentException>(() =>
+            world.SetName(entity2, "Player"));
+
+        Assert.Contains("Player", ex.Message);
+        Assert.Contains("already exists", ex.Message);
+    }
+
+    [Fact]
+    public void SetName_ToSameName_DoesNotThrow()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn("Player").Build();
+
+        // Renaming to the same name should not throw
+        world.SetName(entity, "Player");
+
+        Assert.Equal("Player", world.GetName(entity));
+    }
+
+    [Fact]
+    public void SetName_ToNull_RemovesName()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn("Player").Build();
+
+        world.SetName(entity, null);
+
+        Assert.Null(world.GetName(entity));
+        Assert.Equal(Entity.Null, world.GetEntityByName("Player"));
+    }
+
+    [Fact]
+    public void SetName_ToNewName_UpdatesNameMapping()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn("OldName").Build();
+
+        world.SetName(entity, "NewName");
+
+        Assert.Equal("NewName", world.GetName(entity));
+        Assert.Equal(Entity.Null, world.GetEntityByName("OldName"));
+        Assert.Equal(entity, world.GetEntityByName("NewName"));
+    }
+
+    [Fact]
+    public void SetName_FromNullToName_AddsNameMapping()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn().Build();
+        Assert.Null(world.GetName(entity));
+
+        world.SetName(entity, "NewName");
+
+        Assert.Equal("NewName", world.GetName(entity));
+        Assert.Equal(entity, world.GetEntityByName("NewName"));
+    }
+
+    [Fact]
+    public void SetName_OnDeadEntity_ThrowsInvalidOperationException()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn("Player").Build();
+        world.Despawn(entity);
+
+        // SetName on dead entity throws InvalidOperationException
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            world.SetName(entity, "NewName"));
+
+        Assert.Contains("not alive", ex.Message);
+    }
+
+    #endregion
 }
