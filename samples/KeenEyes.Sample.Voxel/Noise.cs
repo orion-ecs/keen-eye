@@ -12,10 +12,10 @@ namespace KeenEyes.Sample.Voxel;
 /// </summary>
 public sealed class SimplexNoise
 {
-    private readonly int[] _perm = new int[512];
-    private readonly int[] _permMod12 = new int[512];
+    private readonly int[] perm = new int[512];
+    private readonly int[] permMod12 = new int[512];
 
-    private static readonly int[] Grad3 =
+    private static readonly int[] grad3 =
     [
         1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0,
         1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, -1,
@@ -47,8 +47,8 @@ public sealed class SimplexNoise
 
         for (int i = 0; i < 512; i++)
         {
-            _perm[i] = p[i & 255];
-            _permMod12[i] = _perm[i] % 12;
+            perm[i] = p[i & 255];
+            permMod12[i] = perm[i] % 12;
         }
     }
 
@@ -80,9 +80,9 @@ public sealed class SimplexNoise
         int ii = i & 255;
         int jj = j & 255;
 
-        float n0 = CalculateCorner(x0, y0, _permMod12[ii + _perm[jj]]);
-        float n1 = CalculateCorner(x1, y1, _permMod12[ii + i1 + _perm[jj + j1]]);
-        float n2 = CalculateCorner(x2, y2, _permMod12[ii + 1 + _perm[jj + 1]]);
+        float n0 = CalculateCorner(x0, y0, permMod12[ii + perm[jj]]);
+        float n1 = CalculateCorner(x1, y1, permMod12[ii + i1 + perm[jj + j1]]);
+        float n2 = CalculateCorner(x2, y2, permMod12[ii + 1 + perm[jj + 1]]);
 
         return 70.0f * (n0 + n1 + n2);
     }
@@ -117,7 +117,7 @@ public sealed class SimplexNoise
         }
 
         t *= t;
-        return t * t * Dot2D(Grad3, gi * 3, x, y);
+        return t * t * Dot2D(grad3, gi * 3, x, y);
     }
 
     private static float Dot2D(int[] g, int offset, float x, float y)

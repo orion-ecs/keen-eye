@@ -76,7 +76,7 @@ public readonly record struct BlockType(
 /// </summary>
 public sealed class BlockRegistry
 {
-    private readonly BlockType[] _blocks = new BlockType[256];
+    private readonly BlockType[] blocks = new BlockType[256];
 
     /// <summary>
     /// Initializes the block registry with default block types.
@@ -103,36 +103,36 @@ public sealed class BlockRegistry
 
     private void Register(BlockType block)
     {
-        _blocks[block.Id] = block;
+        blocks[block.Id] = block;
     }
 
     /// <summary>
     /// Gets the block type for the given ID.
     /// </summary>
-    public ref readonly BlockType Get(byte id) => ref _blocks[id];
+    public ref readonly BlockType Get(byte id) => ref blocks[id];
 
     /// <summary>
     /// Checks if a block is solid (blocks movement).
     /// </summary>
-    public bool IsSolid(byte id) => _blocks[id].IsSolid;
+    public bool IsSolid(byte id) => blocks[id].IsSolid;
 
     /// <summary>
     /// Checks if a block is transparent (can see through).
     /// </summary>
-    public bool IsTransparent(byte id) => _blocks[id].IsTransparent;
+    public bool IsTransparent(byte id) => blocks[id].IsTransparent;
 
     /// <summary>
     /// Checks if a block is a liquid.
     /// </summary>
-    public bool IsLiquid(byte id) => _blocks[id].IsLiquid;
+    public bool IsLiquid(byte id) => blocks[id].IsLiquid;
 
     /// <summary>
     /// Gets the display symbol for a block.
     /// </summary>
-    public char GetSymbol(byte id) => _blocks[id].Symbol;
+    public char GetSymbol(byte id) => blocks[id].Symbol;
 
     /// <summary>
     /// Gets the display color for a block.
     /// </summary>
-    public ConsoleColor GetColor(byte id) => _blocks[id].Color;
+    public ConsoleColor GetColor(byte id) => blocks[id].Color;
 }

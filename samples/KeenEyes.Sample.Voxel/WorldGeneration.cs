@@ -25,10 +25,10 @@ public readonly record struct BiomeProperties(
 /// <param name="seed">World seed for reproducible generation.</param>
 public sealed class WorldGenerator(int seed)
 {
-    private readonly SimplexNoise _heightNoise = new(seed);
-    private readonly SimplexNoise _temperatureNoise = new(seed + 2);
-    private readonly SimplexNoise _moistureNoise = new(seed + 3);
-    private readonly SimplexNoise _detailNoise = new(seed + 4);
+    private readonly SimplexNoise heightNoise = new(seed);
+    private readonly SimplexNoise temperatureNoise = new(seed + 2);
+    private readonly SimplexNoise moistureNoise = new(seed + 3);
+    private readonly SimplexNoise detailNoise = new(seed + 4);
 
     /// <summary>World seed for reproducible generation.</summary>
     public int Seed { get; } = seed;
@@ -39,7 +39,7 @@ public sealed class WorldGenerator(int seed)
     /// <summary>Bedrock layer height.</summary>
     public int BedrockHeight { get; } = 1;
 
-    private static readonly BiomeProperties[] BiomeData =
+    private static readonly BiomeProperties[] biomeData =
     [
         new(BiomeType.Plains, 28, 40, BlockId.Grass, BlockId.Dirt, 0.02f, 0.15f),
         new(BiomeType.Forest, 30, 45, BlockId.Grass, BlockId.Dirt, 0.25f, 0.3f),
@@ -61,7 +61,7 @@ public sealed class WorldGenerator(int seed)
         int centerX = chunkX * VoxelData.Size + VoxelData.Size / 2;
         int centerZ = chunkZ * VoxelData.Size + VoxelData.Size / 2;
         biome = DetermineBiome(centerX, centerZ);
-        var biomeProps = BiomeData[(int)biome];
+        var biomeProps = biomeData[(int)biome];
 
         // Generate terrain for each column
         for (int lz = 0; lz < VoxelData.Size; lz++)
@@ -73,7 +73,7 @@ public sealed class WorldGenerator(int seed)
 
                 // Get local biome (may differ from chunk center)
                 var localBiome = DetermineBiome(worldX, worldZ);
-                var localBiomeProps = BiomeData[(int)localBiome];
+                var localBiomeProps = biomeData[(int)localBiome];
 
                 // Calculate terrain height
                 int terrainHeight = CalculateTerrainHeight(worldX, worldZ, localBiomeProps);
@@ -106,15 +106,15 @@ public sealed class WorldGenerator(int seed)
     public BiomeType DetermineBiome(int worldX, int worldZ)
     {
         float scale = 0.005f;
-        float temperature = _temperatureNoise.Noise2D(worldX * scale, worldZ * scale);
-        float moisture = _moistureNoise.Noise2D(worldX * scale * 1.5f, worldZ * scale * 1.5f);
+        float temperature = temperatureNoise.Noise2D(worldX * scale, worldZ * scale);
+        float moisture = moistureNoise.Noise2D(worldX * scale * 1.5f, worldZ * scale * 1.5f);
 
         // Normalize to 0-1 range
         temperature = (temperature + 1) * 0.5f;
         moisture = (moisture + 1) * 0.5f;
 
         // Check for ocean first (low elevation areas)
-        float elevation = _heightNoise.FBM(worldX * 0.01f, worldZ * 0.01f, 3, 0.5f, 2.0f);
+        float elevation = heightNoise.FBM(worldX * 0.01f, worldZ * 0.01f, 3, 0.5f, 2.0f);
         if (elevation < -0.3f)
         {
             return BiomeType.Ocean;
@@ -146,10 +146,10 @@ public sealed class WorldGenerator(int seed)
     private int CalculateTerrainHeight(int worldX, int worldZ, BiomeProperties biome)
     {
         // Base terrain using FBM
-        float baseHeight = _heightNoise.FBM(worldX * 0.02f, worldZ * 0.02f, 4, 0.5f, 2.0f);
+        float baseHeight = heightNoise.FBM(worldX * 0.02f, worldZ * 0.02f, 4, 0.5f, 2.0f);
 
         // Detail noise for local variation
-        float detail = _detailNoise.Noise2D(worldX * 0.1f, worldZ * 0.1f) * 0.2f;
+        float detail = detailNoise.Noise2D(worldX * 0.1f, worldZ * 0.1f) * 0.2f;
 
         // Combine and scale to biome height range
         float normalized = (baseHeight + detail + 1) * 0.5f;
@@ -232,7 +232,7 @@ public sealed class WorldGenerator(int seed)
                 // Use noise for deterministic feature placement
                 int worldX = chunkX * VoxelData.Size + lx;
                 int worldZ = chunkZ * VoxelData.Size + lz;
-                float roll = (_detailNoise.Noise2D(worldX * 0.5f, worldZ * 0.5f) + 1) * 0.5f;
+                float roll = (detailNoise.Noise2D(worldX * 0.5f, worldZ * 0.5f) + 1) * 0.5f;
 
                 // Trees
                 if (roll < biomeProps.TreeDensity && localY < VoxelData.Size - 6)
@@ -253,7 +253,7 @@ public sealed class WorldGenerator(int seed)
         if (biome == BiomeType.Desert)
         {
             // Cactus in desert - use noise for height variation
-            int height = 2 + (int)((_detailNoise.Noise2D(worldX * 0.7f, worldZ * 0.7f) + 1) * 1.5f);
+            int height = 2 + (int)((detailNoise.Noise2D(worldX * 0.7f, worldZ * 0.7f) + 1) * 1.5f);
             height = Math.Clamp(height, 2, 4);
             for (int i = 0; i < height && y + i < VoxelData.Size; i++)
             {
@@ -263,7 +263,7 @@ public sealed class WorldGenerator(int seed)
         else
         {
             // Regular tree - use noise for trunk height
-            int trunkHeight = 4 + (int)((_detailNoise.Noise2D(worldX * 0.3f, worldZ * 0.3f) + 1) * 1.5f);
+            int trunkHeight = 4 + (int)((detailNoise.Noise2D(worldX * 0.3f, worldZ * 0.3f) + 1) * 1.5f);
             trunkHeight = Math.Clamp(trunkHeight, 4, 7);
 
             // Trunk

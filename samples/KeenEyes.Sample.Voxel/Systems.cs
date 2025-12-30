@@ -12,9 +12,9 @@ namespace KeenEyes.Sample.Voxel;
 [System(Phase = SystemPhase.EarlyUpdate, Order = 0)]
 public partial class ChunkLoaderSystem : SystemBase
 {
-    private readonly Dictionary<(int, int, int), Entity> _loadedChunks = [];
-    private readonly HashSet<(int, int, int)> _chunksToLoad = [];
-    private readonly HashSet<(int, int, int)> _chunksToUnload = [];
+    private readonly Dictionary<(int, int, int), Entity> loadedChunks = [];
+    private readonly HashSet<(int, int, int)> chunksToLoad = [];
+    private readonly HashSet<(int, int, int)> chunksToUnload = [];
 
     /// <summary>Reference to the world generator.</summary>
     public WorldGenerator Generator { get; init; } = null!;
@@ -36,7 +36,7 @@ public partial class ChunkLoaderSystem : SystemBase
             int playerChunkZ = (int)MathF.Floor(pos.Z / VoxelData.Size);
 
             // Determine chunks that should be loaded
-            _chunksToLoad.Clear();
+            chunksToLoad.Clear();
             for (int dy = -view.Vertical; dy <= view.Vertical; dy++)
             {
                 for (int dz = -view.Horizontal; dz <= view.Horizontal; dz++)
@@ -44,17 +44,17 @@ public partial class ChunkLoaderSystem : SystemBase
                     for (int dx = -view.Horizontal; dx <= view.Horizontal; dx++)
                     {
                         var coord = (playerChunkX + dx, playerChunkY + dy, playerChunkZ + dz);
-                        if (!_loadedChunks.ContainsKey(coord))
+                        if (!loadedChunks.ContainsKey(coord))
                         {
-                            _chunksToLoad.Add(coord);
+                            chunksToLoad.Add(coord);
                         }
                     }
                 }
             }
 
             // Determine chunks to unload
-            _chunksToUnload.Clear();
-            foreach (var coord in _loadedChunks.Keys)
+            chunksToUnload.Clear();
+            foreach (var coord in loadedChunks.Keys)
             {
                 int dx = Math.Abs(coord.Item1 - playerChunkX);
                 int dy = Math.Abs(coord.Item2 - playerChunkY);
@@ -62,23 +62,23 @@ public partial class ChunkLoaderSystem : SystemBase
 
                 if (dx > view.Horizontal + 1 || dy > view.Vertical + 1 || dz > view.Horizontal + 1)
                 {
-                    _chunksToUnload.Add(coord);
+                    chunksToUnload.Add(coord);
                 }
             }
 
             // Unload distant chunks
-            foreach (var coord in _chunksToUnload)
+            foreach (var coord in chunksToUnload)
             {
-                if (_loadedChunks.TryGetValue(coord, out var chunkEntity))
+                if (loadedChunks.TryGetValue(coord, out var chunkEntity))
                 {
                     World.Despawn(chunkEntity);
-                    _loadedChunks.Remove(coord);
+                    loadedChunks.Remove(coord);
                 }
             }
 
             // Load new chunks (limited per frame)
             int loaded = 0;
-            foreach (var coord in _chunksToLoad)
+            foreach (var coord in chunksToLoad)
             {
                 if (loaded >= MaxChunksPerFrame)
                 {
@@ -104,7 +104,7 @@ public partial class ChunkLoaderSystem : SystemBase
             .WithChunkDirty()
             .Build();
 
-        _loadedChunks[(cx, cy, cz)] = chunk;
+        loadedChunks[(cx, cy, cz)] = chunk;
     }
 
     /// <summary>
@@ -112,7 +112,7 @@ public partial class ChunkLoaderSystem : SystemBase
     /// </summary>
     public Entity? GetChunk(int cx, int cy, int cz)
     {
-        return _loadedChunks.TryGetValue((cx, cy, cz), out var entity) ? entity : null;
+        return loadedChunks.TryGetValue((cx, cy, cz), out var entity) ? entity : null;
     }
 
     /// <summary>
@@ -124,7 +124,7 @@ public partial class ChunkLoaderSystem : SystemBase
         int cy = (int)MathF.Floor(worldY / (float)VoxelData.Size);
         int cz = (int)MathF.Floor(worldZ / (float)VoxelData.Size);
 
-        if (!_loadedChunks.TryGetValue((cx, cy, cz), out var chunk))
+        if (!loadedChunks.TryGetValue((cx, cy, cz), out var chunk))
         {
             return BlockId.Air;
         }
@@ -146,7 +146,7 @@ public partial class ChunkLoaderSystem : SystemBase
     /// <summary>
     /// Gets the number of loaded chunks.
     /// </summary>
-    public int LoadedChunkCount => _loadedChunks.Count;
+    public int LoadedChunkCount => loadedChunks.Count;
 }
 
 /// <summary>

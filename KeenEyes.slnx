@@ -16,6 +16,7 @@
     <Project Path="samples/KeenEyes.Sample.Input/KeenEyes.Sample.Input.csproj" />
     <Project Path="samples/KeenEyes.Sample.MassSimulation/KeenEyes.Sample.MassSimulation.csproj" />
     <Project Path="samples/KeenEyes.Sample.Messaging/KeenEyes.Sample.Messaging.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Multiplayer/KeenEyes.Sample.Multiplayer.csproj" />
     <Project Path="samples/KeenEyes.Sample.Physics/KeenEyes.Sample.Physics.csproj" />
     <Project Path="samples/KeenEyes.Sample.Prefabs/KeenEyes.Sample.Prefabs.csproj" />
     <Project Path="samples/KeenEyes.Sample.Relationships/KeenEyes.Sample.Relationships.csproj" />
@@ -26,6 +27,7 @@
     <Project Path="samples/KeenEyes.Sample.Simulation/KeenEyes.Sample.Simulation.csproj" />
     <Project Path="samples/KeenEyes.Sample.StringTags/KeenEyes.Sample.StringTags.csproj" />
     <Project Path="samples/KeenEyes.Sample.UI/KeenEyes.Sample.UI.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Voxel/KeenEyes.Sample.Voxel.csproj" />
     <Project Path="samples/KeenEyes.Sample/KeenEyes.Sample.csproj" />
   </Folder>
   <Folder Name="/src/" />
@@ -62,8 +64,8 @@
     <Project Path="src/KeenEyes.Parallelism/KeenEyes.Parallelism.csproj" />
     <Project Path="src/KeenEyes.Particles/KeenEyes.Particles.csproj" />
     <Project Path="src/KeenEyes.Persistence/KeenEyes.Persistence.csproj" />
-    <Project Path="src/KeenEyes.Replay/KeenEyes.Replay.csproj" />
     <Project Path="src/KeenEyes.Physics/KeenEyes.Physics.csproj" />
+    <Project Path="src/KeenEyes.Replay/KeenEyes.Replay.csproj" />
     <Project Path="src/KeenEyes.Spatial/KeenEyes.Spatial.csproj" />
     <Project Path="src/KeenEyes.Testing/KeenEyes.Testing.csproj" />
     <Project Path="src/KeenEyes.UI.Abstractions/KeenEyes.UI.Abstractions.csproj" />
@@ -88,8 +90,8 @@
     <Project Path="tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj" />
     <Project Path="tests/KeenEyes.Particles.Tests/KeenEyes.Particles.Tests.csproj" />
     <Project Path="tests/KeenEyes.Persistence.Tests/KeenEyes.Persistence.Tests.csproj" />
-    <Project Path="tests/KeenEyes.Replay.Tests/KeenEyes.Replay.Tests.csproj" />
     <Project Path="tests/KeenEyes.Physics.Tests/KeenEyes.Physics.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Replay.Tests/KeenEyes.Replay.Tests.csproj" />
     <Project Path="tests/KeenEyes.Spatial.Tests/KeenEyes.Spatial.Tests.csproj" />
     <Project Path="tests/KeenEyes.Testing.Tests/KeenEyes.Testing.Tests.csproj" />
     <Project Path="tests/KeenEyes.UI.Tests/KeenEyes.UI.Tests.csproj" />
