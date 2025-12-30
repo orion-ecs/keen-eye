@@ -125,6 +125,52 @@ public partial class ReplayRecorderTests
         Assert.Equal(1, recorder.SnapshotCount);
     }
 
+    [Fact]
+    public void StartRecording_WithNullName_UsesDefaultRecordingName()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { DefaultRecordingName = "Default Session" };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act
+        recorder.StartRecording(null);
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Default Session", result.Name);
+    }
+
+    [Fact]
+    public void StartRecording_WithMetadata_IncludesMetadataInResult()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+        var metadata = new Dictionary<string, object>
+        {
+            ["Player"] = "TestPlayer",
+            ["Level"] = 5
+        };
+
+        // Act
+        recorder.StartRecording("Test", metadata);
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.NotNull(result.Metadata);
+        Assert.Equal("TestPlayer", result.Metadata["Player"]);
+        Assert.Equal(5, result.Metadata["Level"]);
+    }
+
     #endregion
 
     #region StopRecording Tests
@@ -277,6 +323,19 @@ public partial class ReplayRecorderTests
     }
 
     [Fact]
+    public void RecordEvent_WithNull_ThrowsArgumentNullException()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+        recorder.StartRecording();
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => recorder.RecordEvent(null!));
+    }
+
+    [Fact]
     public void RecordCustomEvent_WhenRecording_AddsCustomEvent()
     {
         // Arrange
@@ -411,6 +470,93 @@ public partial class ReplayRecorderTests
         Assert.True(recorder.SnapshotCount >= 2);
     }
 
+    [Fact]
+    public void CaptureSnapshot_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        // Verify not recording
+        Assert.False(recorder.IsRecording);
+        var initialCount = recorder.SnapshotCount;
+
+        // Act - should not throw and should not add snapshot
+        recorder.CaptureSnapshot();
+
+        // Assert
+        Assert.Equal(initialCount, recorder.SnapshotCount);
+    }
+
+    [Fact]
+    public void BeginFrame_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        // Act & Assert - should not throw
+        recorder.BeginFrame(0.016f);
+        Assert.Equal(0, recorder.RecordedFrameCount);
+    }
+
+    [Fact]
+    public void EndFrame_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        // Act & Assert - should not throw
+        recorder.EndFrame(0.016f);
+        Assert.Equal(0, recorder.RecordedFrameCount);
+    }
+
+    [Fact]
+    public void BeginFrame_AfterMaxDurationReached_SkipsFrameStartEvent()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { MaxDuration = TimeSpan.FromSeconds(0.032) };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Record frames until max duration
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        // Now at 32ms = max duration
+
+        // Act - ShouldStopRecording should return true
+        Assert.True(recorder.ShouldStopRecording());
+    }
+
+    [Fact]
+    public void BeginFrame_AfterMaxFramesReached_SkipsFrameStartEvent()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { MaxFrames = 2, UseRingBuffer = false };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Record frames until max
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        // Now at 2 frames = max
+
+        // Act - ShouldStopRecording should return true
+        Assert.True(recorder.ShouldStopRecording());
+    }
+
     #endregion
 
     #region Ring Buffer Tests
@@ -519,6 +665,40 @@ public partial class ReplayRecorderTests
         Assert.True(recorder.ShouldStopRecording());
     }
 
+    [Fact]
+    public void ShouldStopRecording_WhenNotRecording_ReturnsFalse()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { MaxFrames = 3, UseRingBuffer = false };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act & Assert - not recording, should return false
+        Assert.False(recorder.ShouldStopRecording());
+    }
+
+    [Fact]
+    public void ShouldStopRecording_WithRingBuffer_ReturnsFalse()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { MaxFrames = 3, UseRingBuffer = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Record more than MaxFrames
+        for (int i = 0; i < 5; i++)
+        {
+            recorder.BeginFrame(0.016f);
+            recorder.EndFrame(0.016f);
+        }
+
+        // Act & Assert - ring buffer should never trigger stop
+        Assert.False(recorder.ShouldStopRecording());
+    }
+
     #endregion
 
     #region Entity Event Recording Tests
@@ -569,6 +749,79 @@ public partial class ReplayRecorderTests
         Assert.Equal(42, entityEvent.EntityId);
     }
 
+    [Fact]
+    public void RecordEntityCreated_WithNullName_DoesNotIncludeDataField()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordEntityEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+        recorder.BeginFrame(0.016f);
+
+        // Act
+        recorder.RecordEntityCreated(42, null);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        var entityEvent = result.Frames[0].Events.FirstOrDefault(e => e.Type == ReplayEventType.EntityCreated);
+        Assert.NotNull(entityEvent);
+        Assert.Equal(42, entityEvent.EntityId);
+        Assert.Null(entityEvent.Data);
+    }
+
+    [Fact]
+    public void RecordEntityEvents_WhenDisabled_DoesNotAddEvents()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordEntityEvents = false };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+        recorder.BeginFrame(0.016f);
+
+        // Act
+        recorder.RecordEntityCreated(42, "TestEntity");
+        recorder.RecordEntityDestroyed(43);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain(result.Frames[0].Events, e => e.Type == ReplayEventType.EntityCreated);
+        Assert.DoesNotContain(result.Frames[0].Events, e => e.Type == ReplayEventType.EntityDestroyed);
+    }
+
+    [Fact]
+    public void RecordEntityCreated_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordEntityEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act & Assert - should not throw
+        recorder.RecordEntityCreated(42, "TestEntity");
+    }
+
+    [Fact]
+    public void RecordEntityDestroyed_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordEntityEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act & Assert - should not throw
+        recorder.RecordEntityDestroyed(42);
+    }
+
     #endregion
 
     #region System Event Recording Tests
@@ -617,6 +870,156 @@ public partial class ReplayRecorderTests
         Assert.NotNull(result);
         Assert.DoesNotContain(result.Frames[0].Events, e => e.Type == ReplayEventType.SystemStart);
         Assert.DoesNotContain(result.Frames[0].Events, e => e.Type == ReplayEventType.SystemEnd);
+    }
+
+    [Fact]
+    public void RecordSystemEnd_WhenEnabled_AddsEvent()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordSystemEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+        recorder.BeginFrame(0.016f);
+
+        // Act
+        recorder.RecordSystemEnd("TestSystem");
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        var systemEvent = result.Frames[0].Events.FirstOrDefault(e => e.Type == ReplayEventType.SystemEnd);
+        Assert.NotNull(systemEvent);
+        Assert.Equal("TestSystem", systemEvent.SystemTypeName);
+    }
+
+    [Fact]
+    public void RecordSystemStart_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordSystemEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act & Assert - should not throw
+        recorder.RecordSystemStart("TestSystem");
+    }
+
+    [Fact]
+    public void RecordSystemEnd_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordSystemEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act & Assert - should not throw
+        recorder.RecordSystemEnd("TestSystem");
+    }
+
+    #endregion
+
+    #region Component Event Recording Tests
+
+    [Fact]
+    public void RecordComponentAdded_WhenEnabled_AddsEvent()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordComponentEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+        recorder.BeginFrame(0.016f);
+
+        // Act
+        recorder.RecordComponentAdded(42, "Position");
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        var componentEvent = result.Frames[0].Events.FirstOrDefault(e => e.Type == ReplayEventType.ComponentAdded);
+        Assert.NotNull(componentEvent);
+        Assert.Equal(42, componentEvent.EntityId);
+        Assert.Equal("Position", componentEvent.ComponentTypeName);
+    }
+
+    [Fact]
+    public void RecordComponentRemoved_WhenEnabled_AddsEvent()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordComponentEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+        recorder.BeginFrame(0.016f);
+
+        // Act
+        recorder.RecordComponentRemoved(42, "Velocity");
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        var componentEvent = result.Frames[0].Events.FirstOrDefault(e => e.Type == ReplayEventType.ComponentRemoved);
+        Assert.NotNull(componentEvent);
+        Assert.Equal(42, componentEvent.EntityId);
+        Assert.Equal("Velocity", componentEvent.ComponentTypeName);
+    }
+
+    [Fact]
+    public void RecordComponentEvents_WhenDisabled_DoesNotAddEvents()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordComponentEvents = false };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+        recorder.BeginFrame(0.016f);
+
+        // Act
+        recorder.RecordComponentAdded(42, "Position");
+        recorder.RecordComponentRemoved(42, "Velocity");
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.DoesNotContain(result.Frames[0].Events, e => e.Type == ReplayEventType.ComponentAdded);
+        Assert.DoesNotContain(result.Frames[0].Events, e => e.Type == ReplayEventType.ComponentRemoved);
+    }
+
+    [Fact]
+    public void RecordComponentAdded_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordComponentEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act & Assert - should not throw
+        recorder.RecordComponentAdded(42, "Position");
+    }
+
+    [Fact]
+    public void RecordComponentRemoved_WhenNotRecording_DoesNotThrow()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordComponentEvents = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+
+        // Act & Assert - should not throw
+        recorder.RecordComponentRemoved(42, "Position");
     }
 
     #endregion
