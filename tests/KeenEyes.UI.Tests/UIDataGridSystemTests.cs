@@ -952,4 +952,464 @@ public class UIDataGridSystemTests
     }
 
     #endregion
+
+    #region Multiple Selection Tests
+
+    [Fact]
+    public void MultipleSelectionMode_ClickWithoutModifier_ClearsAndSelects()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var config = DataGridConfig.MultiSelect(
+            new DataGridColumnDef("ID"),
+            new DataGridColumnDef("Name"));
+        var grid = WidgetFactory.CreateDataGrid(world, config);
+        var row1 = WidgetFactory.AddDataGridRow(world, grid, ["1", "Alice"]);
+        var row2 = WidgetFactory.AddDataGridRow(world, grid, ["2", "Bob"]);
+
+        // Select first row
+        world.Send(new UIClickEvent(row1, Vector2.Zero, MouseButton.Left));
+        system.Update(0);
+
+        // Select second row without modifier - should clear first
+        world.Send(new UIClickEvent(row2, Vector2.Zero, MouseButton.Left));
+        system.Update(0);
+
+        ref readonly var row1Comp = ref world.Get<UIDataGridRow>(row1);
+        ref readonly var row2Comp = ref world.Get<UIDataGridRow>(row2);
+
+        Assert.False(row1Comp.IsSelected);
+        Assert.True(row2Comp.IsSelected);
+    }
+
+    #endregion
+
+    #region Resize Handle Edge Cases
+
+    [Fact]
+    public void ColumnResizeDrag_WhenNotDragging_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+
+        Entity columnEntity = Entity.Null;
+        foreach (var col in world.Query<UIDataGridColumn>())
+        {
+            ref readonly var column = ref world.Get<UIDataGridColumn>(col);
+            if (column.DataGrid == grid && column.ColumnIndex == 0)
+            {
+                columnEntity = col;
+                break;
+            }
+        }
+
+        float originalWidth = 100f;
+        if (world.Has<UIDataGridColumn>(columnEntity))
+        {
+            originalWidth = world.Get<UIDataGridColumn>(columnEntity).Width;
+        }
+
+        Entity handleEntity = Entity.Null;
+        foreach (var handle in world.Query<UIDataGridResizeHandle>())
+        {
+            ref readonly var handleComp = ref world.Get<UIDataGridResizeHandle>(handle);
+            if (handleComp.Column == columnEntity)
+            {
+                handleEntity = handle;
+                break;
+            }
+        }
+
+        if (handleEntity.IsValid)
+        {
+            // Send drag event without starting drag first
+            world.Send(new UIDragEvent(handleEntity, new Vector2(150f, 10f), new Vector2(50f, 0f)));
+            system.Update(0);
+
+            ref readonly var column = ref world.Get<UIDataGridColumn>(columnEntity);
+            // Width should not have changed
+            Assert.Equal(originalWidth, column.Width);
+        }
+    }
+
+    [Fact]
+    public void ColumnResizeDrag_WhenNotResizable_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var config = DataGridConfig.WithColumns(
+            new DataGridColumnDef("ID", IsResizable: false),
+            new DataGridColumnDef("Name"));
+        var grid = WidgetFactory.CreateDataGrid(world, config);
+
+        Entity columnEntity = Entity.Null;
+        foreach (var col in world.Query<UIDataGridColumn>())
+        {
+            ref readonly var column = ref world.Get<UIDataGridColumn>(col);
+            if (column.DataGrid == grid && column.ColumnIndex == 0)
+            {
+                columnEntity = col;
+                break;
+            }
+        }
+
+        float originalWidth = world.Get<UIDataGridColumn>(columnEntity).Width;
+
+        Entity handleEntity = Entity.Null;
+        foreach (var handle in world.Query<UIDataGridResizeHandle>())
+        {
+            ref readonly var handleComp = ref world.Get<UIDataGridResizeHandle>(handle);
+            if (handleComp.Column == columnEntity)
+            {
+                handleEntity = handle;
+                break;
+            }
+        }
+
+        if (handleEntity.IsValid)
+        {
+            // Start drag
+            world.Send(new UIDragStartEvent(handleEntity, new Vector2(100f, 10f)));
+            system.Update(0);
+
+            // Drag right
+            world.Send(new UIDragEvent(handleEntity, new Vector2(150f, 10f), new Vector2(50f, 0f)));
+            system.Update(0);
+
+            ref readonly var column = ref world.Get<UIDataGridColumn>(columnEntity);
+            // Width should not change for non-resizable column
+            Assert.Equal(originalWidth, column.Width);
+        }
+    }
+
+    [Fact]
+    public void ColumnResizeDrag_BelowMinWidth_ClampsToMinWidth()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var config = DataGridConfig.WithColumns(
+            new DataGridColumnDef("ID", Width: 150f, MinWidth: 80f),
+            new DataGridColumnDef("Name"));
+        var grid = WidgetFactory.CreateDataGrid(world, config);
+
+        Entity columnEntity = Entity.Null;
+        foreach (var col in world.Query<UIDataGridColumn>())
+        {
+            ref readonly var column = ref world.Get<UIDataGridColumn>(col);
+            if (column.DataGrid == grid && column.ColumnIndex == 0)
+            {
+                columnEntity = col;
+                break;
+            }
+        }
+
+        Entity handleEntity = Entity.Null;
+        foreach (var handle in world.Query<UIDataGridResizeHandle>())
+        {
+            ref readonly var handleComp = ref world.Get<UIDataGridResizeHandle>(handle);
+            if (handleComp.Column == columnEntity)
+            {
+                handleEntity = handle;
+                break;
+            }
+        }
+
+        if (handleEntity.IsValid)
+        {
+            // Start drag
+            world.Send(new UIDragStartEvent(handleEntity, new Vector2(100f, 10f)));
+            system.Update(0);
+
+            // Drag left by 100 pixels (below min width)
+            world.Send(new UIDragEvent(handleEntity, new Vector2(0f, 10f), new Vector2(-100f, 0f)));
+            system.Update(0);
+
+            ref readonly var column = ref world.Get<UIDataGridColumn>(columnEntity);
+            // Width should be clamped to min width
+            Assert.True(column.Width >= 80f);
+        }
+    }
+
+    [Fact]
+    public void ColumnResizeDragEnd_WhenNotDragging_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+
+        Entity columnEntity = Entity.Null;
+        foreach (var col in world.Query<UIDataGridColumn>())
+        {
+            ref readonly var column = ref world.Get<UIDataGridColumn>(col);
+            if (column.DataGrid == grid && column.ColumnIndex == 0)
+            {
+                columnEntity = col;
+                break;
+            }
+        }
+
+        Entity handleEntity = Entity.Null;
+        foreach (var handle in world.Query<UIDataGridResizeHandle>())
+        {
+            ref readonly var handleComp = ref world.Get<UIDataGridResizeHandle>(handle);
+            if (handleComp.Column == columnEntity)
+            {
+                handleEntity = handle;
+                break;
+            }
+        }
+
+        bool eventFired = false;
+        world.Subscribe<UIGridColumnResizedEvent>(evt => eventFired = true);
+
+        if (handleEntity.IsValid)
+        {
+            // End drag without starting - should not fire event
+            world.Send(new UIDragEndEvent(handleEntity, new Vector2(150f, 10f)));
+            system.Update(0);
+
+            Assert.False(eventFired);
+        }
+    }
+
+    [Fact]
+    public void ColumnResizeDragEnd_NoWidthChange_DoesNotFireEvent()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+
+        Entity columnEntity = Entity.Null;
+        foreach (var col in world.Query<UIDataGridColumn>())
+        {
+            ref readonly var column = ref world.Get<UIDataGridColumn>(col);
+            if (column.DataGrid == grid && column.ColumnIndex == 0)
+            {
+                columnEntity = col;
+                break;
+            }
+        }
+
+        Entity handleEntity = Entity.Null;
+        foreach (var handle in world.Query<UIDataGridResizeHandle>())
+        {
+            ref readonly var handleComp = ref world.Get<UIDataGridResizeHandle>(handle);
+            if (handleComp.Column == columnEntity)
+            {
+                handleEntity = handle;
+                break;
+            }
+        }
+
+        bool eventFired = false;
+        world.Subscribe<UIGridColumnResizedEvent>(evt => eventFired = true);
+
+        if (handleEntity.IsValid)
+        {
+            // Start drag
+            world.Send(new UIDragStartEvent(handleEntity, new Vector2(100f, 10f)));
+            system.Update(0);
+
+            // End drag without moving (same position)
+            world.Send(new UIDragEndEvent(handleEntity, new Vector2(100f, 10f)));
+            system.Update(0);
+
+            Assert.False(eventFired);
+        }
+    }
+
+    #endregion
+
+    #region Sort Indicator Tests
+
+    [Fact]
+    public void SortByColumn_WithSortIndicator_UpdatesText()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+
+        Entity columnEntity = Entity.Null;
+        foreach (var col in world.Query<UIDataGridColumn>())
+        {
+            ref readonly var column = ref world.Get<UIDataGridColumn>(col);
+            if (column.DataGrid == grid && column.ColumnIndex == 0)
+            {
+                columnEntity = col;
+                break;
+            }
+        }
+
+        // Check if sort indicator exists and get updated
+        ref readonly var columnComp = ref world.Get<UIDataGridColumn>(columnEntity);
+        if (world.IsAlive(columnComp.SortIndicator) && world.Has<UIText>(columnComp.SortIndicator))
+        {
+            system.SortByColumn(grid, 0, SortDirection.Ascending);
+
+            ref readonly var text = ref world.Get<UIText>(columnComp.SortIndicator);
+            Assert.Equal("\u25B2", text.Content); // ▲
+
+            system.SortByColumn(grid, 0, SortDirection.Descending);
+
+            ref readonly var text2 = ref world.Get<UIText>(columnComp.SortIndicator);
+            Assert.Equal("\u25BC", text2.Content); // ▼
+        }
+    }
+
+    #endregion
+
+    #region Dead Entity Edge Cases
+
+    [Fact]
+    public void CellClick_WithDeadRow_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+        var row = WidgetFactory.AddDataGridRow(world, grid, ["1", "Alice"]);
+
+        // Find a cell in this row
+        Entity cellEntity = Entity.Null;
+        foreach (var cell in world.Query<UIDataGridCell>())
+        {
+            ref readonly var cellComp = ref world.Get<UIDataGridCell>(cell);
+            if (cellComp.Row == row)
+            {
+                cellEntity = cell;
+                break;
+            }
+        }
+
+        // Despawn the row but keep the cell (unusual but possible)
+        if (cellEntity.IsValid)
+        {
+            world.Despawn(row);
+
+            // Should not throw
+            world.Send(new UIClickEvent(cellEntity, Vector2.Zero, MouseButton.Left));
+            system.Update(0);
+        }
+    }
+
+    [Fact]
+    public void ColumnClick_WithDeadGrid_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+
+        Entity columnEntity = Entity.Null;
+        foreach (var col in world.Query<UIDataGridColumn>())
+        {
+            ref readonly var column = ref world.Get<UIDataGridColumn>(col);
+            if (column.DataGrid == grid && column.ColumnIndex == 0)
+            {
+                columnEntity = col;
+                break;
+            }
+        }
+
+        // Despawn grid but not column (unusual but tests the guard)
+        world.Despawn(grid);
+
+        // Should not throw - grid is dead so sorting should be ignored
+        world.Send(new UIClickEvent(columnEntity, Vector2.Zero, MouseButton.Left));
+        system.Update(0);
+    }
+
+    [Fact]
+    public void RowClick_WithDeadGrid_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+        var row = WidgetFactory.AddDataGridRow(world, grid, ["1", "Alice"]);
+
+        // Keep row reference
+        var rowEntity = row;
+
+        // Despawn grid but not row
+        world.Despawn(grid);
+
+        // Should not throw - grid is dead so selection should be ignored
+        world.Send(new UIClickEvent(rowEntity, Vector2.Zero, MouseButton.Left));
+        system.Update(0);
+    }
+
+    #endregion
+
+    #region Select Already Selected Row
+
+    [Fact]
+    public void SelectRow_AlreadySelected_DoesNotFireEvent()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+        var row = WidgetFactory.AddDataGridRow(world, grid, ["1", "Alice"]);
+
+        // Select row first time
+        system.SelectRowByIndex(grid, 0);
+
+        int eventCount = 0;
+        world.Subscribe<UIGridRowSelectedEvent>(evt => eventCount++);
+
+        // Try to select again - should not fire new event
+        world.Send(new UIClickEvent(row, Vector2.Zero, MouseButton.Left));
+        system.Update(0);
+
+        // No additional event should have been fired since row was already selected
+        Assert.Equal(0, eventCount);
+    }
+
+    [Fact]
+    public void DeselectRow_NotSelected_DoesNotFireEvent()
+    {
+        using var world = new World();
+        var system = new UIDataGridSystem();
+        system.Initialize(world);
+
+        var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
+        WidgetFactory.AddDataGridRow(world, grid, ["1", "Alice"]);
+
+        int eventCount = 0;
+        world.Subscribe<UIGridRowSelectedEvent>(evt =>
+        {
+            if (!evt.IsSelected)
+            {
+                eventCount++;
+            }
+        });
+
+        // Clear selection when nothing is selected
+        system.ClearSelection(grid);
+
+        // No deselection event should fire
+        Assert.Equal(0, eventCount);
+    }
+
+    #endregion
 }
