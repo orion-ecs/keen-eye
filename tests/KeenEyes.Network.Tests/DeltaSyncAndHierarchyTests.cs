@@ -2,6 +2,7 @@ using KeenEyes.Network.Components;
 using KeenEyes.Network.Protocol;
 using KeenEyes.Network.Serialization;
 using KeenEyes.Network.Transport;
+using KeenEyes.Testing.Network;
 
 namespace KeenEyes.Network.Tests;
 
@@ -154,172 +155,84 @@ public struct TestVelocity : INetworkSerializable, INetworkDeltaSerializable<Tes
 }
 
 /// <summary>
-/// Mock network serializer for testing delta sync.
+/// Helper class to create a MockNetworkSerializer configured for the test components.
 /// </summary>
-public sealed class MockNetworkSerializer : INetworkSerializer
+internal static class TestSerializerFactory
 {
-    private readonly Dictionary<Type, ushort> typeToId = new()
+    /// <summary>
+    /// Creates a MockNetworkSerializer configured with TestPosition and TestVelocity.
+    /// </summary>
+    public static MockNetworkSerializer Create()
     {
-        [typeof(TestPosition)] = 1,
-        [typeof(TestVelocity)] = 2,
-    };
+        var serializer = new MockNetworkSerializer();
 
-    private readonly Dictionary<ushort, Type> idToType = new()
-    {
-        [1] = typeof(TestPosition),
-        [2] = typeof(TestVelocity),
-    };
-
-    public bool IsNetworkSerializable(Type type) => typeToId.ContainsKey(type);
-
-    public ushort? GetNetworkTypeId(Type type) =>
-        typeToId.TryGetValue(type, out var id) ? id : null;
-
-    public Type? GetTypeFromNetworkId(ushort networkTypeId) =>
-        idToType.TryGetValue(networkTypeId, out var type) ? type : null;
-
-    public bool Serialize(Type type, object value, ref BitWriter writer)
-    {
-        if (!typeToId.ContainsKey(type))
-        {
-            return false;
-        }
-
-        if (type == typeof(TestPosition))
-        {
-            ((TestPosition)value).NetworkSerialize(ref writer);
-            return true;
-        }
-
-        if (type == typeof(TestVelocity))
-        {
-            ((TestVelocity)value).NetworkSerialize(ref writer);
-            return true;
-        }
-
-        return false;
-    }
-
-    public object? Deserialize(ushort networkTypeId, ref BitReader reader)
-    {
-        switch (networkTypeId)
-        {
-            case 1:
-                var pos = new TestPosition();
-                pos.NetworkDeserialize(ref reader);
-                return pos;
-            case 2:
-                var vel = new TestVelocity();
-                vel.NetworkDeserialize(ref reader);
-                return vel;
-            default:
-                return null;
-        }
-    }
-
-    public IEnumerable<Type> GetRegisteredTypes() => typeToId.Keys;
-
-    public IEnumerable<NetworkComponentInfo> GetRegisteredComponentInfo()
-    {
-        yield return new NetworkComponentInfo
-        {
-            Type = typeof(TestPosition),
-            NetworkTypeId = 1,
-            Strategy = SyncStrategy.Authoritative,
-            Frequency = 0,
-            Priority = 128,
-            SupportsInterpolation = true,
-            SupportsPrediction = false,
-            SupportsDelta = true,
-        };
-        yield return new NetworkComponentInfo
-        {
-            Type = typeof(TestVelocity),
-            NetworkTypeId = 2,
-            Strategy = SyncStrategy.Authoritative,
-            Frequency = 0,
-            Priority = 128,
-            SupportsInterpolation = false,
-            SupportsPrediction = false,
-            SupportsDelta = true,
-        };
-    }
-
-    public bool SupportsDelta(Type type) => type == typeof(TestPosition) || type == typeof(TestVelocity);
-
-    public uint GetDirtyMask(Type type, object current, object baseline)
-    {
-        if (type == typeof(TestPosition))
-        {
-            return ((TestPosition)current).GetDirtyMask((TestPosition)baseline);
-        }
-
-        if (type == typeof(TestVelocity))
-        {
-            return ((TestVelocity)current).GetDirtyMask((TestVelocity)baseline);
-        }
-
-        return 0;
-    }
-
-    public bool SerializeDelta(Type type, object current, object baseline, ref BitWriter writer)
-    {
-        if (type == typeof(TestPosition))
-        {
-            var c = (TestPosition)current;
-            var b = (TestPosition)baseline;
-            var mask = c.GetDirtyMask(b);
-            writer.WriteUInt32(mask);
-            if (mask != 0)
+        // Register TestPosition with delta support
+        serializer.RegisterComponentWithDelta<TestPosition>(
+            serialize: (ref BitWriter w, TestPosition p) =>
             {
-                c.NetworkSerializeDelta(ref writer, b, mask);
-            }
-
-            return true;
-        }
-
-        if (type == typeof(TestVelocity))
-        {
-            var c = (TestVelocity)current;
-            var b = (TestVelocity)baseline;
-            var mask = c.GetDirtyMask(b);
-            writer.WriteUInt32(mask);
-            if (mask != 0)
+                w.WriteFloat(p.X);
+                w.WriteFloat(p.Y);
+                w.WriteFloat(p.Z);
+            },
+            deserialize: (ref BitReader r) => new TestPosition
             {
-                c.NetworkSerializeDelta(ref writer, b, mask);
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    public object? DeserializeDelta(ushort networkTypeId, ref BitReader reader, object baseline)
-    {
-        var mask = reader.ReadUInt32();
-        if (mask == 0)
-        {
-            return baseline;
-        }
-
-        switch (networkTypeId)
-        {
-            case 1:
+                X = r.ReadFloat(),
+                Y = r.ReadFloat(),
+                Z = r.ReadFloat(),
+            },
+            getDirtyMask: (TestPosition current, TestPosition baseline) => current.GetDirtyMask(baseline),
+            serializeDelta: (ref BitWriter w, TestPosition current, TestPosition baseline, uint mask) =>
+                current.NetworkSerializeDelta(ref w, baseline, mask),
+            deserializeDelta: (ref BitReader r, TestPosition baseline, uint mask) =>
             {
-                var b = (TestPosition)baseline;
-                new TestPosition().NetworkDeserializeDelta(ref reader, ref b, mask);
-                return b;
-            }
-            case 2:
-            {
-                var b = (TestVelocity)baseline;
-                new TestVelocity().NetworkDeserializeDelta(ref reader, ref b, mask);
-                return b;
-            }
-            default:
+                new TestPosition().NetworkDeserializeDelta(ref r, ref baseline, mask);
                 return baseline;
-        }
+            },
+            new NetworkComponentInfo
+            {
+                Type = typeof(TestPosition),
+                NetworkTypeId = 1,
+                Strategy = SyncStrategy.Authoritative,
+                Frequency = 0,
+                Priority = 128,
+                SupportsInterpolation = true,
+                SupportsPrediction = false,
+                SupportsDelta = true,
+            });
+
+        // Register TestVelocity with delta support
+        serializer.RegisterComponentWithDelta<TestVelocity>(
+            serialize: (ref BitWriter w, TestVelocity v) =>
+            {
+                w.WriteFloat(v.VX);
+                w.WriteFloat(v.VY);
+            },
+            deserialize: (ref BitReader r) => new TestVelocity
+            {
+                VX = r.ReadFloat(),
+                VY = r.ReadFloat(),
+            },
+            getDirtyMask: (TestVelocity current, TestVelocity baseline) => current.GetDirtyMask(baseline),
+            serializeDelta: (ref BitWriter w, TestVelocity current, TestVelocity baseline, uint mask) =>
+                current.NetworkSerializeDelta(ref w, baseline, mask),
+            deserializeDelta: (ref BitReader r, TestVelocity baseline, uint mask) =>
+            {
+                new TestVelocity().NetworkDeserializeDelta(ref r, ref baseline, mask);
+                return baseline;
+            },
+            new NetworkComponentInfo
+            {
+                Type = typeof(TestVelocity),
+                NetworkTypeId = 2,
+                Strategy = SyncStrategy.Authoritative,
+                Frequency = 0,
+                Priority = 128,
+                SupportsInterpolation = false,
+                SupportsPrediction = false,
+                SupportsDelta = true,
+            });
+
+        return serializer;
     }
 }
 
@@ -399,7 +312,7 @@ public sealed class DeltaSyncTests
     [Fact]
     public void SerializeDelta_DeserializeDelta_RoundTrip_SingleField()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
         var baseline = new TestPosition { X = 1.0f, Y = 2.0f, Z = 3.0f };
         var current = new TestPosition { X = 10.0f, Y = 2.0f, Z = 3.0f }; // Only X changed
 
@@ -423,7 +336,7 @@ public sealed class DeltaSyncTests
     [Fact]
     public void SerializeDelta_DeserializeDelta_RoundTrip_MultipleFields()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
         var baseline = new TestPosition { X = 0.0f, Y = 0.0f, Z = 0.0f };
         var current = new TestPosition { X = 100.0f, Y = 200.0f, Z = 0.0f }; // X and Y changed
 
@@ -444,7 +357,7 @@ public sealed class DeltaSyncTests
     [Fact]
     public void SerializeDelta_NoChanges_ReturnsBaseline()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
         var baseline = new TestPosition { X = 5.0f, Y = 10.0f, Z = 15.0f };
         var current = new TestPosition { X = 5.0f, Y = 10.0f, Z = 15.0f }; // No changes
 
@@ -468,7 +381,7 @@ public sealed class DeltaSyncTests
     [Fact]
     public void SerializeDelta_SmallerThanFullSerialization()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
         var baseline = new TestPosition { X = 1.0f, Y = 2.0f, Z = 3.0f };
         var current = new TestPosition { X = 10.0f, Y = 2.0f, Z = 3.0f }; // Only X changed
 
@@ -496,7 +409,7 @@ public sealed class DeltaSyncTests
     [Fact]
     public void WriteComponentDelta_ReadComponentDelta_RoundTrip()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
         var baseline = new TestPosition { X = 0.0f, Y = 0.0f, Z = 0.0f };
         var current = new TestPosition { X = 50.0f, Y = 0.0f, Z = 100.0f }; // X and Z changed
 
@@ -534,7 +447,7 @@ public sealed class DeltaSyncTests
     [Fact]
     public void WriteComponentDelta_MultipleComponents_RoundTrip()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         var posBaseline = new TestPosition { X = 0.0f, Y = 0.0f, Z = 0.0f };
         var posCurrent = new TestPosition { X = 10.0f, Y = 0.0f, Z = 0.0f };
@@ -810,7 +723,7 @@ public sealed class HierarchyReplicationTests
         using var serverWorld = new World();
 
         // Set up server with serializer
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
         var serverPlugin = new NetworkServerPlugin(server, new ServerNetworkConfig
         {
             TickRate = 60,
@@ -862,14 +775,14 @@ public sealed class HierarchyReplicationTests
 }
 
 /// <summary>
-/// Tests for the MockNetworkSerializer itself.
+/// Tests for the MockNetworkSerializer from KeenEyes.Testing.Network.
 /// </summary>
 public sealed class MockNetworkSerializerTests
 {
     [Fact]
     public void IsNetworkSerializable_RegisteredType_ReturnsTrue()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         Assert.True(serializer.IsNetworkSerializable(typeof(TestPosition)));
         Assert.True(serializer.IsNetworkSerializable(typeof(TestVelocity)));
@@ -878,7 +791,7 @@ public sealed class MockNetworkSerializerTests
     [Fact]
     public void IsNetworkSerializable_UnregisteredType_ReturnsFalse()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         Assert.False(serializer.IsNetworkSerializable(typeof(int)));
         Assert.False(serializer.IsNetworkSerializable(typeof(string)));
@@ -887,7 +800,7 @@ public sealed class MockNetworkSerializerTests
     [Fact]
     public void GetNetworkTypeId_RegisteredType_ReturnsId()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         Assert.Equal((ushort)1, serializer.GetNetworkTypeId(typeof(TestPosition)));
         Assert.Equal((ushort)2, serializer.GetNetworkTypeId(typeof(TestVelocity)));
@@ -896,7 +809,7 @@ public sealed class MockNetworkSerializerTests
     [Fact]
     public void GetNetworkTypeId_UnregisteredType_ReturnsNull()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         Assert.Null(serializer.GetNetworkTypeId(typeof(int)));
     }
@@ -904,7 +817,7 @@ public sealed class MockNetworkSerializerTests
     [Fact]
     public void GetTypeFromNetworkId_ValidId_ReturnsType()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         Assert.Equal(typeof(TestPosition), serializer.GetTypeFromNetworkId(1));
         Assert.Equal(typeof(TestVelocity), serializer.GetTypeFromNetworkId(2));
@@ -913,7 +826,7 @@ public sealed class MockNetworkSerializerTests
     [Fact]
     public void GetTypeFromNetworkId_InvalidId_ReturnsNull()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         Assert.Null(serializer.GetTypeFromNetworkId(99));
     }
@@ -921,7 +834,7 @@ public sealed class MockNetworkSerializerTests
     [Fact]
     public void Serialize_Deserialize_FullRoundTrip()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
         var original = new TestPosition { X = 1.5f, Y = 2.5f, Z = 3.5f };
 
         Span<byte> buffer = stackalloc byte[64];
@@ -942,7 +855,7 @@ public sealed class MockNetworkSerializerTests
     [Fact]
     public void SupportsDelta_DeltaType_ReturnsTrue()
     {
-        var serializer = new MockNetworkSerializer();
+        var serializer = TestSerializerFactory.Create();
 
         Assert.True(serializer.SupportsDelta(typeof(TestPosition)));
         Assert.True(serializer.SupportsDelta(typeof(TestVelocity)));

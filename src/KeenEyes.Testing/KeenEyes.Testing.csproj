@@ -12,6 +12,7 @@
 		<ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
 		<ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
 		<ProjectReference Include="..\KeenEyes.Logging\KeenEyes.Logging.csproj" />
+		<ProjectReference Include="..\KeenEyes.Network.Abstractions\KeenEyes.Network.Abstractions.csproj" />
 		<ProjectReference Include="..\KeenEyes.Persistence\KeenEyes.Persistence.csproj" />
 		<ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
