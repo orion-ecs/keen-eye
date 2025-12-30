@@ -5,38 +5,20 @@ on:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'docs/**'
-      - 'api/**'
-      - '**/*.md'
-      - 'docfx.json'
-      - 'toc.yml'
-      - 'index.md'
-      - 'LICENSE'
-      - '.editorconfig'
-      - '.gitignore'
-      - '.gitattributes'
-      - '.github/workflows/docs.yml'
-      - '.github/labeler.yml'
-      - '.github/dependabot.yml'
+    paths:
+      - 'src/**'
+      - 'benchmarks/**'
+      - 'Directory.Packages.props'
+      - 'Directory.Build.props'
   pull_request:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'docs/**'
-      - 'api/**'
-      - '**/*.md'
-      - 'docfx.json'
-      - 'toc.yml'
-      - 'index.md'
-      - 'LICENSE'
-      - '.editorconfig'
-      - '.gitignore'
-      - '.gitattributes'
-      - '.github/workflows/docs.yml'
-      - '.github/labeler.yml'
-      - '.github/dependabot.yml'
+    paths:
+      - 'src/**'
+      - 'benchmarks/**'
+      - 'Directory.Packages.props'
+      - 'Directory.Build.props'
   workflow_dispatch:
     inputs:
       benchmark_filter:
