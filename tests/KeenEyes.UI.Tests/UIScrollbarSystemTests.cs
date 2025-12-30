@@ -1,5 +1,6 @@
 using System.Numerics;
 using KeenEyes.Common;
+using KeenEyes.Graphics.Abstractions;
 using KeenEyes.UI.Abstractions;
 
 namespace KeenEyes.UI.Tests;
@@ -186,6 +187,247 @@ public class UIScrollbarSystemTests
     #endregion
 
     #region Edge Cases
+
+    [Fact]
+    public void Scrollbar_DragWithDeletedThumb_DoesNotCrash()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        var layout = SetupLayout(world);
+        var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
+        layout.Update(0);
+
+        // Delete thumb entity
+        world.Despawn(thumb);
+
+        // Create drag event for dead entity - should not crash
+        var dragEvent = new UIDragEvent(thumb, Vector2.Zero, new Vector2(0, 50));
+        world.Send(dragEvent);
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Scrollbar_DragElementWithoutScrollbarThumb_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        var layout = SetupLayout(world);
+
+        // Create an element without UIScrollbarThumb component
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 100, 100))
+            .Build();
+
+        // Should not crash or throw
+        var dragEvent = new UIDragEvent(element, Vector2.Zero, new Vector2(0, 50));
+        world.Send(dragEvent);
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Scrollbar_ScrollViewWithoutUIRect_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        // Create scroll view without UIRect
+        var scrollView = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIScrollable
+            {
+                VerticalScroll = true,
+                ContentSize = new Vector2(200, 800),
+                ScrollPosition = Vector2.Zero
+            })
+            // No UIRect!
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 20, 40))
+            .With(new UIScrollbarThumb(scrollView, isVertical: true))
+            .Build();
+
+        // Should not crash
+        var dragEvent = new UIDragEvent(thumb, Vector2.Zero, new Vector2(0, 50));
+        world.Send(dragEvent);
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Scrollbar_ScrollViewWithoutUIScrollable_IsIgnored()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        // Create scroll view without UIScrollable
+        var scrollView = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 200, 400))
+            // No UIScrollable!
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 20, 40))
+            .With(new UIScrollbarThumb(scrollView, isVertical: true))
+            .Build();
+
+        // Should not crash
+        var dragEvent = new UIDragEvent(thumb, Vector2.Zero, new Vector2(0, 50));
+        world.Send(dragEvent);
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Scrollbar_Dispose_CleansUpSubscriptions()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        var layout = SetupLayout(world);
+        var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
+        layout.Update(0);
+
+        // Dispose should not throw
+        system.Dispose();
+
+        // After dispose, events should not be processed
+        var dragEvent = new UIDragEvent(thumb, Vector2.Zero, new Vector2(0, 50));
+        world.Send(dragEvent);
+
+        // Scroll position should still be 0 since event was not processed
+        ref readonly var scrollable = ref world.Get<UIScrollable>(scrollView);
+        Assert.True(scrollable.ScrollPosition.Y.ApproximatelyEquals(0f));
+    }
+
+    [Fact]
+    public void VerticalScrollbar_ZeroViewportHeight_DoesNotScroll()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        // Create scroll view with zero viewport height
+        var scrollView = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 200, 0) // Zero height
+            })
+            .With(new UIScrollable
+            {
+                VerticalScroll = true,
+                ContentSize = new Vector2(200, 800),
+                ScrollPosition = Vector2.Zero
+            })
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 20, 40))
+            .With(new UIScrollbarThumb(scrollView, isVertical: true))
+            .Build();
+
+        // Should not crash or scroll
+        var dragEvent = new UIDragEvent(thumb, Vector2.Zero, new Vector2(0, 50));
+        world.Send(dragEvent);
+        system.Update(0);
+
+        ref readonly var scrollable = ref world.Get<UIScrollable>(scrollView);
+        Assert.True(scrollable.ScrollPosition.Y.ApproximatelyEquals(0f));
+    }
+
+    [Fact]
+    public void HorizontalScrollbar_ZeroViewportWidth_DoesNotScroll()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        // Create scroll view with zero viewport width
+        var scrollView = world.Spawn()
+            .With(UIElement.Default)
+            .With(new UIRect
+            {
+                ComputedBounds = new Rectangle(0, 0, 0, 200) // Zero width
+            })
+            .With(new UIScrollable
+            {
+                HorizontalScroll = true,
+                ContentSize = new Vector2(800, 200),
+                ScrollPosition = Vector2.Zero
+            })
+            .Build();
+
+        var thumb = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 40, 20))
+            .With(new UIScrollbarThumb(scrollView, isVertical: false))
+            .Build();
+
+        // Should not crash or scroll
+        var dragEvent = new UIDragEvent(thumb, Vector2.Zero, new Vector2(50, 0));
+        world.Send(dragEvent);
+        system.Update(0);
+
+        ref readonly var scrollable = ref world.Get<UIScrollable>(scrollView);
+        Assert.True(scrollable.ScrollPosition.X.ApproximatelyEquals(0f));
+    }
+
+    [Fact]
+    public void Scrollbar_DragClampsToZero()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        var layout = SetupLayout(world);
+        var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
+        layout.Update(0);
+
+        // Set scroll position to some value
+        ref var scrollable = ref world.Get<UIScrollable>(scrollView);
+        scrollable.ScrollPosition = new Vector2(0, 100);
+
+        // Drag up way past the beginning
+        SimulateDrag(world, thumb, new Vector2(0, -200));
+        system.Update(0);
+
+        // Should clamp to 0
+        Assert.True(scrollable.ScrollPosition.Y.ApproximatelyEquals(0f));
+    }
+
+    [Fact]
+    public void HorizontalScrollbar_DragClampsToZero()
+    {
+        using var world = new World();
+        var system = new UIScrollbarSystem();
+        world.AddSystem(system);
+
+        var layout = SetupLayout(world);
+        var (scrollView, thumb) = CreateHorizontalScrollView(world, 400, 200, 800);
+        layout.Update(0);
+
+        // Set scroll position to some value
+        ref var scrollable = ref world.Get<UIScrollable>(scrollView);
+        scrollable.ScrollPosition = new Vector2(100, 0);
+
+        // Drag left way past the beginning
+        SimulateDrag(world, thumb, new Vector2(-200, 0));
+        system.Update(0);
+
+        // Should clamp to 0
+        Assert.True(scrollable.ScrollPosition.X.ApproximatelyEquals(0f));
+    }
 
     [Fact]
     public void Scrollbar_DragWithDeletedScrollView_DoesNotCrash()
