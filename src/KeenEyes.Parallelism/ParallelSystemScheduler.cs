@@ -176,28 +176,42 @@ public sealed class ParallelSystemScheduler
             return;
         }
 
-        if (systems.Count == 1)
-        {
-            // Single system - execute sequentially
-            ExecuteSystem(systems[0], deltaTime);
-        }
-        else
-        {
-            // Multiple systems - execute in parallel
-            Parallel.ForEach(systems, parallelOptions, system =>
-            {
-                ExecuteSystem(system, deltaTime);
-            });
-        }
-
-        // Flush all command buffers from this batch
-        var systemIds = new List<int>();
+        // Collect system IDs upfront for buffer management
+        var systemIds = new List<int>(systems.Count);
         for (int i = 0; i < systems.Count; i++)
         {
             systemIds.Add(systems[i].GetHashCode());
         }
 
-        commandBufferPool.FlushBatches(world, [systemIds]);
+        try
+        {
+            if (systems.Count == 1)
+            {
+                // Single system - execute sequentially
+                ExecuteSystem(systems[0], deltaTime);
+            }
+            else
+            {
+                // Multiple systems - execute in parallel
+                Parallel.ForEach(systems, parallelOptions, system =>
+                {
+                    ExecuteSystem(system, deltaTime);
+                });
+            }
+
+            // Flush all command buffers from this batch (also returns them to pool)
+            commandBufferPool.FlushBatches(world, [systemIds]);
+        }
+        catch
+        {
+            // On exception, clear buffers without flushing to avoid partial state
+            // and return them to the pool for reuse
+            foreach (var systemId in systemIds)
+            {
+                commandBufferPool.Return(systemId);
+            }
+            throw;
+        }
     }
 
     private void ExecuteSystem(ISystem system, float deltaTime)
@@ -208,31 +222,26 @@ public sealed class ParallelSystemScheduler
         }
 
         // Get a CommandBuffer for this system
+        // Note: Buffer is NOT returned here - ExecuteBatch handles flushing and returning
+        // after all systems in the batch have completed, ensuring commands are not lost.
         var systemId = system.GetHashCode();
         var commandBuffer = commandBufferPool.Rent(systemId);
 
-        try
+        if (system is SystemBase systemBase)
         {
-            if (system is SystemBase systemBase)
+            // Inject command buffer if system supports it
+            if (systemBase is ICommandBufferConsumer consumer)
             {
-                // Inject command buffer if system supports it
-                if (systemBase is ICommandBufferConsumer consumer)
-                {
-                    consumer.SetCommandBuffer(commandBuffer);
-                }
+                consumer.SetCommandBuffer(commandBuffer);
+            }
 
-                systemBase.InvokeBeforeUpdate(deltaTime);
-                systemBase.Update(deltaTime);
-                systemBase.InvokeAfterUpdate(deltaTime);
-            }
-            else
-            {
-                system.Update(deltaTime);
-            }
+            systemBase.InvokeBeforeUpdate(deltaTime);
+            systemBase.Update(deltaTime);
+            systemBase.InvokeAfterUpdate(deltaTime);
         }
-        finally
+        else
         {
-            commandBufferPool.Return(systemId);
+            system.Update(deltaTime);
         }
     }
 }

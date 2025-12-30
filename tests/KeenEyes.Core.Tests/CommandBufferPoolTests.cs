@@ -398,7 +398,8 @@ public class CommandBufferPoolTests
         var exceptions = new List<Exception>();
         var exceptionLock = new object();
         var threads = new Thread[threadCount];
-        var barrier = new Barrier(threadCount);
+        using var barrier = new Barrier(threadCount);
+        using var allStarted = new CountdownEvent(threadCount);
 
         for (var i = 0; i < threadCount; i++)
         {
@@ -407,7 +408,8 @@ public class CommandBufferPoolTests
             {
                 try
                 {
-                    barrier.SignalAndWait();
+                    allStarted.Signal();
+                    barrier.SignalAndWait(TimeSpan.FromSeconds(10));
                     var buffer = pool.Rent(systemId);
                     buffer.Spawn().With(new Position { X = systemId, Y = systemId });
                 }
@@ -426,9 +428,14 @@ public class CommandBufferPoolTests
             thread.Start();
         }
 
+        // Wait for all threads to start (with timeout and cancellation support)
+        Assert.True(
+            allStarted.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken),
+            "Threads failed to start in time");
+
         foreach (var thread in threads)
         {
-            thread.Join();
+            Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "Thread failed to complete in time");
         }
 
         Assert.Empty(exceptions);
@@ -443,20 +450,34 @@ public class CommandBufferPoolTests
         const int threadCount = 5;
         const int commandsPerThread = 100;
 
+        var exceptions = new List<Exception>();
+        var exceptionLock = new object();
         var threads = new Thread[threadCount];
-        var barrier = new Barrier(threadCount);
+        using var barrier = new Barrier(threadCount);
+        using var allStarted = new CountdownEvent(threadCount);
 
         for (var i = 0; i < threadCount; i++)
         {
             var systemId = i;
             threads[i] = new Thread(() =>
             {
-                var buffer = pool.Rent(systemId);
-                barrier.SignalAndWait();
-
-                for (var j = 0; j < commandsPerThread; j++)
+                try
                 {
-                    buffer.Spawn().With(new Position { X = systemId, Y = j });
+                    var buffer = pool.Rent(systemId);
+                    allStarted.Signal();
+                    barrier.SignalAndWait(TimeSpan.FromSeconds(10));
+
+                    for (var j = 0; j < commandsPerThread; j++)
+                    {
+                        buffer.Spawn().With(new Position { X = systemId, Y = j });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lock (exceptionLock)
+                    {
+                        exceptions.Add(ex);
+                    }
                 }
             });
         }
@@ -466,10 +487,17 @@ public class CommandBufferPoolTests
             thread.Start();
         }
 
+        // Wait for all threads to start (with timeout and cancellation support)
+        Assert.True(
+            allStarted.Wait(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken),
+            "Threads failed to start in time");
+
         foreach (var thread in threads)
         {
-            thread.Join();
+            Assert.True(thread.Join(TimeSpan.FromSeconds(30)), "Thread failed to complete in time");
         }
+
+        Assert.Empty(exceptions);
 
         // Flush all should succeed
         pool.FlushAll(world);
