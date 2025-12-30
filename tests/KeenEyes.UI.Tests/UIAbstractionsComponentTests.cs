@@ -286,6 +286,147 @@ public class UIAbstractionsComponentTests
 
     #endregion
 
+    #region UITextInput Tests
+
+    [Fact]
+    public void UITextInput_SingleLine_CreatesWithDefaultValues()
+    {
+        var input = UITextInput.SingleLine();
+
+        Assert.Equal(0, input.CursorPosition);
+        Assert.Equal(0, input.SelectionStart);
+        Assert.Equal(0, input.SelectionEnd);
+        Assert.False(input.IsEditing);
+        Assert.Equal(0, input.MaxLength);
+        Assert.False(input.Multiline);
+        Assert.Equal("", input.PlaceholderText);
+        Assert.True(input.ShowingPlaceholder);
+    }
+
+    [Fact]
+    public void UITextInput_SingleLine_WithPlaceholder_SetsPlaceholder()
+    {
+        var input = UITextInput.SingleLine("Enter name");
+
+        Assert.Equal("Enter name", input.PlaceholderText);
+        Assert.False(input.Multiline);
+    }
+
+    [Fact]
+    public void UITextInput_SingleLine_WithMaxLength_SetsMaxLength()
+    {
+        var input = UITextInput.SingleLine("", 100);
+
+        Assert.Equal(100, input.MaxLength);
+        Assert.False(input.Multiline);
+    }
+
+    [Fact]
+    public void UITextInput_MultiLine_CreatesWithMultilineTrue()
+    {
+        var input = UITextInput.MultiLine();
+
+        Assert.Equal(0, input.CursorPosition);
+        Assert.Equal(0, input.SelectionStart);
+        Assert.Equal(0, input.SelectionEnd);
+        Assert.False(input.IsEditing);
+        Assert.Equal(0, input.MaxLength);
+        Assert.True(input.Multiline);
+        Assert.Equal("", input.PlaceholderText);
+        Assert.True(input.ShowingPlaceholder);
+    }
+
+    [Fact]
+    public void UITextInput_MultiLine_WithPlaceholder_SetsPlaceholder()
+    {
+        var input = UITextInput.MultiLine("Enter description");
+
+        Assert.Equal("Enter description", input.PlaceholderText);
+        Assert.True(input.Multiline);
+    }
+
+    [Fact]
+    public void UITextInput_MultiLine_WithMaxLength_SetsMaxLength()
+    {
+        var input = UITextInput.MultiLine("", 500);
+
+        Assert.Equal(500, input.MaxLength);
+        Assert.True(input.Multiline);
+    }
+
+    [Fact]
+    public void UITextInput_HasSelection_WhenSelectionStartDiffersFromEnd_ReturnsTrue()
+    {
+        var input = new UITextInput
+        {
+            SelectionStart = 5,
+            SelectionEnd = 10
+        };
+
+        Assert.True(input.HasSelection);
+    }
+
+    [Fact]
+    public void UITextInput_HasSelection_WhenSelectionStartEqualsEnd_ReturnsFalse()
+    {
+        var input = new UITextInput
+        {
+            SelectionStart = 5,
+            SelectionEnd = 5
+        };
+
+        Assert.False(input.HasSelection);
+    }
+
+    [Fact]
+    public void UITextInput_GetSelectionRange_WhenStartLessThanEnd_ReturnsInOrder()
+    {
+        var input = new UITextInput
+        {
+            SelectionStart = 3,
+            SelectionEnd = 8
+        };
+
+        var (start, end) = input.GetSelectionRange();
+
+        Assert.Equal(3, start);
+        Assert.Equal(8, end);
+    }
+
+    [Fact]
+    public void UITextInput_GetSelectionRange_WhenStartGreaterThanEnd_ReturnsNormalized()
+    {
+        var input = new UITextInput
+        {
+            SelectionStart = 10,
+            SelectionEnd = 2
+        };
+
+        var (start, end) = input.GetSelectionRange();
+
+        Assert.Equal(2, start);
+        Assert.Equal(10, end);
+    }
+
+    [Fact]
+    public void UITextInput_ClearSelection_SetsStartAndEndToCursorPosition()
+    {
+        var input = new UITextInput
+        {
+            CursorPosition = 15,
+            SelectionStart = 5,
+            SelectionEnd = 20
+        };
+
+        input.ClearSelection();
+
+        Assert.Equal(15, input.SelectionStart);
+        Assert.Equal(15, input.SelectionEnd);
+        Assert.False(input.HasSelection);
+    }
+
+    #endregion
+
     #region UIEdges Tests
 
     [Fact]
