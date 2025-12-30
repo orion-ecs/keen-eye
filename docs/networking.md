@@ -32,6 +32,25 @@ KeenEyes networking uses a **server-authoritative** model:
 - **Prediction** allows responsive local player controls
 - **Interpolation** smooths remote entity movement
 
+## Packages
+
+| Package | Purpose |
+|---------|---------|
+| `KeenEyes.Network.Abstractions` | Transport interface (`INetworkTransport`) and enums |
+| `KeenEyes.Network` | Server/client plugins, LocalTransport for testing |
+| `KeenEyes.Network.Transport.Tcp` | TCP transport - reliable ordered delivery |
+| `KeenEyes.Network.Transport.Udp` | UDP transport - configurable reliability |
+
+Install only what you need:
+```bash
+# Core networking (required)
+dotnet add package KeenEyes.Network
+
+# Pick a transport (or implement your own)
+dotnet add package KeenEyes.Network.Transport.Tcp   # For TCP
+dotnet add package KeenEyes.Network.Transport.Udp   # For UDP
+```
+
 ## Getting Started
 
 ### 1. Define Replicated Components
