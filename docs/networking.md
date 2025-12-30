@@ -372,12 +372,59 @@ var (serverTransport, clientTransport) = LocalTransport.CreatePair();
 // Messages are delivered synchronously
 ```
 
-### Production Transports
+### TcpTransport
 
-For production, integrate with networking libraries like:
-- **LiteNetLib** - UDP with reliability layers
-- **ENet** - Reliable UDP protocol
+Use `TcpTransport` for reliable, ordered delivery over TCP:
+
+```csharp
+// Server
+var serverTransport = new TcpTransport();
+await serverTransport.ListenAsync(7777);
+
+// Client
+var clientTransport = new TcpTransport();
+await clientTransport.ConnectAsync("192.168.1.100", 7777);
+```
+
+**Characteristics:**
+- Reliable, ordered delivery (like `DeliveryMode.ReliableOrdered`)
+- Higher latency due to TCP head-of-line blocking
+- Good for turn-based games or low-action scenarios
+- Easier to work with firewalls and NAT
+
+### UdpTransport
+
+Use `UdpTransport` for low-latency networking with configurable reliability:
+
+```csharp
+// Server
+var serverTransport = new UdpTransport();
+await serverTransport.ListenAsync(7777);
+
+// Client
+var clientTransport = new UdpTransport();
+await clientTransport.ConnectAsync("192.168.1.100", 7777);
+```
+
+**Delivery Modes:**
+- `DeliveryMode.Unreliable` - Fire and forget (lowest latency)
+- `DeliveryMode.UnreliableSequenced` - Drops out-of-order packets
+- `DeliveryMode.ReliableUnordered` - ACK/resend, any order
+- `DeliveryMode.ReliableOrdered` - ACK/resend, ordered delivery
+
+**Characteristics:**
+- Lower latency than TCP
+- Configurable reliability per-message
+- Best for real-time action games
+- Built-in connection management and keepalive
+- Max message size: 1192 bytes (safe MTU)
+
+### Custom Transports
+
+For specialized needs, implement `INetworkTransport`:
 - **WebSocket** - For browser clients
+- **Steam Networking** - Steam P2P and relay servers
+- **Epic Online Services** - Epic Games integration
 
 ## Message Types
 
