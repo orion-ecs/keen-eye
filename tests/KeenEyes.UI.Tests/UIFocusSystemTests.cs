@@ -317,6 +317,287 @@ public class UIFocusSystemTests
 
     #endregion
 
+    #region Edge Case Tests
+
+    [Fact]
+    public void Update_WithNoInputContext_DoesNothing()
+    {
+        using var world = new World();
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        // No InputContext - should not crash
+        system.Update(0);
+    }
+
+    [Fact]
+    public void Update_WithNoUIContext_DoesNothing()
+    {
+        using var world = new World();
+        var input = new MockInputContext();
+        world.SetExtension<IInputContext>(input);
+        // No UIContext
+
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        // Should not crash
+        system.Update(0);
+    }
+
+    [Fact]
+    public void TabKey_SkipsInvisibleElements()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button1 = CreateButton(world, canvas, 0);
+        var button2 = CreateButton(world, canvas, 1);
+        var button3 = CreateButton(world, canvas, 2);
+
+        // Make middle button invisible
+        ref var element = ref world.Get<UIElement>(button2);
+        element.Visible = false;
+
+        // Focus first button
+        uiContext.RequestFocus(button1);
+
+        // Press Tab (should skip invisible button2)
+        input.PressKey(Key.Tab);
+        system.Update(0);
+
+        Assert.Equal(button3, uiContext.FocusedEntity);
+    }
+
+    [Fact]
+    public void SpaceKey_OnNonClickable_DoesNotFireClick()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+
+        // Create non-clickable focusable element
+        var element = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 100, 50))
+            .With(new UIInteractable { CanFocus = true, CanClick = false, TabIndex = 0 })
+            .Build();
+        world.SetParent(element, canvas);
+
+        UIClickEvent? receivedEvent = null;
+        world.Subscribe<UIClickEvent>(e => receivedEvent = e);
+
+        // Focus and press Space
+        uiContext.RequestFocus(element);
+        input.PressKey(Key.Space);
+        system.Update(0);
+
+        Assert.Null(receivedEvent);
+    }
+
+    [Fact]
+    public void EnterAndSpace_SimultaneousPress_FiresBothEvents()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 0);
+
+        UISubmitEvent? submitEvent = null;
+        UIClickEvent? clickEvent = null;
+        world.Subscribe<UISubmitEvent>(e => submitEvent = e);
+        world.Subscribe<UIClickEvent>(e => clickEvent = e);
+
+        // Focus and press both Enter and Space
+        uiContext.RequestFocus(button);
+        input.PressKey(Key.Enter);
+        input.PressKeyOnly(Key.Space); // Press Space without resetting modifiers
+        system.Update(0);
+
+        Assert.NotNull(submitEvent);
+        Assert.NotNull(clickEvent);
+    }
+
+    [Fact]
+    public void FocusedEntity_BecomesDeadDuringUpdate_DoesNotCrash()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 0);
+
+        // Focus button then despawn it
+        uiContext.RequestFocus(button);
+        world.Despawn(button);
+
+        // Press Enter - should not crash
+        input.PressKey(Key.Enter);
+        system.Update(0);
+    }
+
+    [Fact]
+    public void FocusedEntity_LosesInteractableComponent_DoesNotCrash()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 0);
+
+        // Focus button then remove interactable
+        uiContext.RequestFocus(button);
+        world.Remove<UIInteractable>(button);
+
+        // Press Enter - should not crash
+        input.PressKey(Key.Enter);
+        system.Update(0);
+    }
+
+    [Fact]
+    public void TabKey_SkipsNonFocusableElements()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button1 = CreateButton(world, canvas, 0);
+
+        // Create non-focusable element
+        var nonFocusable = world.Spawn()
+            .With(UIElement.Default)
+            .With(UIRect.Fixed(0, 0, 100, 50))
+            .With(new UIInteractable { CanFocus = false, CanClick = true, TabIndex = 1 })
+            .Build();
+        world.SetParent(nonFocusable, canvas);
+
+        var button3 = CreateButton(world, canvas, 2);
+
+        // Focus first button
+        uiContext.RequestFocus(button1);
+
+        // Press Tab (should skip non-focusable element)
+        input.PressKey(Key.Tab);
+        system.Update(0);
+
+        Assert.Equal(button3, uiContext.FocusedEntity);
+    }
+
+    [Fact]
+    public void ShiftTab_WithNoFocus_FocusesLastElement()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button1 = CreateButton(world, canvas, 0);
+        var button2 = CreateButton(world, canvas, 1);
+
+        // Press Shift+Tab with no focus (should focus last element)
+        input.PressKey(Key.Tab, KeyModifiers.Shift);
+        system.Update(0);
+
+        Assert.Equal(button2, uiContext.FocusedEntity);
+    }
+
+    [Fact]
+    public void TabKey_SameTabIndex_NavigatesConsistently()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        // All buttons have same tab index
+        var button1 = CreateButton(world, canvas, 0);
+        var button2 = CreateButton(world, canvas, 0);
+        var button3 = CreateButton(world, canvas, 0);
+
+        // Press Tab - should focus some button
+        input.PressKey(Key.Tab);
+        system.Update(0);
+
+        var firstFocused = uiContext.FocusedEntity;
+        Assert.True(firstFocused == button1 || firstFocused == button2 || firstFocused == button3);
+
+        // Release and press again - should move to different button
+        input.ReleaseKey(Key.Tab);
+        system.Update(0);
+        input.PressKey(Key.Tab);
+        system.Update(0);
+
+        var secondFocused = uiContext.FocusedEntity;
+        Assert.NotEqual(firstFocused, secondFocused);
+    }
+
+    [Fact]
+    public void TabKey_HeldDown_OnlyNavigatesOnce()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button1 = CreateButton(world, canvas, 0);
+        var button2 = CreateButton(world, canvas, 1);
+        var button3 = CreateButton(world, canvas, 2);
+
+        // Press Tab
+        input.PressKey(Key.Tab);
+        system.Update(0);
+        Assert.Equal(button1, uiContext.FocusedEntity);
+
+        // Keep Tab pressed - should not navigate again
+        system.Update(0);
+        Assert.Equal(button1, uiContext.FocusedEntity);
+
+        // Release and press again
+        input.ReleaseKey(Key.Tab);
+        system.Update(0);
+        input.PressKey(Key.Tab);
+        system.Update(0);
+        Assert.Equal(button2, uiContext.FocusedEntity);
+    }
+
+    [Fact]
+    public void EscapeKey_HeldDown_OnlyClearsFocusOnce()
+    {
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 0);
+
+        // Focus button
+        uiContext.RequestFocus(button);
+
+        // Press Escape
+        input.PressKey(Key.Escape);
+        system.Update(0);
+        Assert.False(uiContext.HasFocus);
+
+        // Focus again
+        uiContext.RequestFocus(button);
+        Assert.True(uiContext.HasFocus);
+
+        // Escape still held - should not clear focus again
+        system.Update(0);
+        Assert.True(uiContext.HasFocus);
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static World CreateWorldWithInput(out MockInputContext input, out UIContext uiContext)
@@ -383,6 +664,12 @@ public class UIFocusSystemTests
         {
             keyboard.SetKey(key, true);
             keyboard.SetModifiers(modifiers);
+        }
+
+        public void PressKeyOnly(Key key)
+        {
+            // Press key without changing modifiers
+            keyboard.SetKey(key, true);
         }
 
         public void ReleaseKey(Key key)
