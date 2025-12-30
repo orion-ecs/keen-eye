@@ -5,22 +5,30 @@ on:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - 'docfx.json'
-      - 'LICENSE'
-      - '.github/workflows/docs.yml'
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'tools/**'
+      - '**/*.csproj'
+      - '*.sln'
+      - 'Directory.Packages.props'
+      - 'Directory.Build.props'
+      - '.editorconfig'
   pull_request:
     branches:
       - main
       - develop
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - 'docfx.json'
-      - 'LICENSE'
-      - '.github/workflows/docs.yml'
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'samples/**'
+      - 'tools/**'
+      - '**/*.csproj'
+      - '*.sln'
+      - 'Directory.Packages.props'
+      - 'Directory.Build.props'
+      - '.editorconfig'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
