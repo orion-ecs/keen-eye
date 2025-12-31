@@ -2148,8 +2148,9 @@ public class UIDatePickerSystemTests
 
         world.SetParent(picker, canvas);
 
-        // Create some calendar day cells
-        for (int day = 1; day <= 30; day++)
+        // Create calendar day cells for all days in the month
+        var daysInMonth = DateTime.DaysInMonth(initialValue.Year, initialValue.Month);
+        for (int day = 1; day <= daysInMonth; day++)
         {
             var dayCell = world.Spawn()
                 .With(UIElement.Default)
@@ -2291,8 +2292,9 @@ public class UIDatePickerSystemTests
 
         world.SetParent(picker, canvas);
 
-        // Create calendar day cells with styles
-        for (int day = 1; day <= 30; day++)
+        // Create calendar day cells with styles for all days in the month
+        var daysInMonth = DateTime.DaysInMonth(initialValue.Year, initialValue.Month);
+        for (int day = 1; day <= daysInMonth; day++)
         {
             var dayCell = world.Spawn()
                 .With(UIElement.Default)
