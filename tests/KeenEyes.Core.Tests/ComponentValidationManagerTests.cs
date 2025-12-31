@@ -3,8 +3,20 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for ComponentValidationManager class focusing on uncovered paths.
 /// </summary>
-public class ComponentValidationManagerTests
+public class ComponentValidationManagerTests : IDisposable
 {
+    public ComponentValidationManagerTests()
+    {
+        // Clear any constraint provider from previous tests
+        ComponentValidationManager.ClearConstraintProvider();
+    }
+
+    public void Dispose()
+    {
+        // Clean up constraint provider after each test
+        ComponentValidationManager.ClearConstraintProvider();
+    }
+
     #region Test Components
 
     public struct TestPosition : IComponent
