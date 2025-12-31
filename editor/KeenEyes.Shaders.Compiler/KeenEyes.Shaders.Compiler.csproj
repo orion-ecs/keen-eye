@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>KeenEyes.Shaders.Compiler</PackageId>
+    <Description>KESL (KeenEyes Shader Language) compiler - parses .kesl files and generates GLSL and C# bindings</Description>
+    <PackageTags>ecs;shaders;compiler;glsl;gpu;compute</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Shaders.Compiler.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,27 @@
+<Project>
+  <!-- Import parent props -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+  <PropertyGroup>
+    <!-- Editor/tool code has relaxed documentation requirements -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Suppress documentation and style warnings for prototype code -->
+    <NoWarn>$(NoWarn);CS1591;IDE0011;IDE0290;IDE1006</NoWarn>
+  </PropertyGroup>
+
+  <!-- Test project configuration -->
+  <PropertyGroup Condition="'$(IsTestProject)' == 'true'">
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <Using Include="Xunit"/>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(IsTestProject)' == 'true'">
+    <PackageReference Include="Microsoft.Testing.Platform" />
+    <PackageReference Include="Microsoft.Testing.Platform.MSBuild" />
+    <PackageReference Include="xunit.v3.mtp-v2" />
+  </ItemGroup>
+</Project>

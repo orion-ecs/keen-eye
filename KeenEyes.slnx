@@ -104,6 +104,10 @@
   <Folder Name="/tools/">
     <Project Path="tools/BenchmarkCompare/BenchmarkCompare.csproj" />
   </Folder>
+  <Folder Name="/editor/">
+    <Project Path="editor/KeenEyes.Shaders.Compiler/KeenEyes.Shaders.Compiler.csproj" />
+    <Project Path="editor/KeenEyes.Shaders.Compiler.Tests/KeenEyes.Shaders.Compiler.Tests.csproj" />
+  </Folder>
   <Folder Name="/_/">
     <File Path=".editorconfig" />
     <File Path="Directory.Build.props" />
