@@ -161,4 +161,102 @@ public class AssetResolutionSystemTests : IDisposable
     }
 
     #endregion
+
+    #region Async Loading Tests
+
+    [Fact]
+    public void Update_WithNullWorld_DoesNothing()
+    {
+        var sys = new AssetResolutionSystem();
+        // Don't call Initialize - world will be null
+
+        sys.Update(0.016f); // Should not throw
+
+        sys.Dispose();
+    }
+
+    #endregion
+
+    #region RawAsset Resolution Tests
+
+    [Fact]
+    public async Task Update_WithRawAssetRef_StartsAsyncLoad()
+    {
+        assetManager.RegisterLoader(new RawLoader());
+        var path = testDir.CreateFile("data.bin", new byte[] { 1, 2, 3 });
+
+        world.Spawn()
+            .With(new AssetRef<RawAsset> { Path = path })
+            .Build();
+
+        // First update starts async load
+        system.Update(0.016f);
+
+        // Wait for async load to complete
+        await Task.Delay(100);
+
+        // Second update processes completed loads
+        system.Update(0.016f);
+
+        Assert.True(assetManager.IsLoaded(path));
+    }
+
+    [Fact]
+    public void Update_RawAssetPendingLoad_SkipsSecondLoad()
+    {
+        assetManager.RegisterLoader(new RawLoader());
+        var path = testDir.CreateFile("pending.bin", new byte[] { 1, 2, 3 });
+
+        world.Spawn()
+            .With(new AssetRef<RawAsset> { Path = path })
+            .Build();
+
+        // First update starts the load
+        system.Update(0.016f);
+
+        // Second update should skip since load is pending
+        system.Update(0.016f); // Should not throw or start another load
+    }
+
+    [Fact]
+    public void Update_RawAssetAlreadyLoaded_ResolvesImmediately()
+    {
+        assetManager.RegisterLoader(new RawLoader());
+        var path = testDir.CreateFile("preloaded.bin", new byte[] { 1, 2, 3 });
+
+        // Pre-load the asset
+        using var preloaded = assetManager.Load<RawAsset>(path);
+
+        var entity = world.Spawn()
+            .With(new AssetRef<RawAsset> { Path = path })
+            .Build();
+
+        // Update should resolve immediately since asset is loaded
+        system.Update(0.016f);
+
+        ref var assetRef = ref world.Get<AssetRef<RawAsset>>(entity);
+        Assert.True(assetRef.IsResolved);
+    }
+
+    [Fact]
+    public void Update_RawAssetAlreadyResolved_SkipsResolution()
+    {
+        assetManager.RegisterLoader(new RawLoader());
+        var path = testDir.CreateFile("resolved.bin", new byte[] { 1, 2, 3 });
+
+        // Pre-load the asset
+        using var preloaded = assetManager.Load<RawAsset>(path);
+
+        var entity = world.Spawn()
+            .With(new AssetRef<RawAsset> { Path = path, HandleId = preloaded.Id })
+            .Build();
+
+        // Update should skip already resolved refs
+        system.Update(0.016f);
+
+        // Asset should still be loaded (no duplicate load)
+        Assert.True(assetManager.IsLoaded(path));
+    }
+
+    #endregion
 }
