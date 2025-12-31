@@ -346,6 +346,14 @@ internal sealed class ComponentValidationManager(World world)
     }
 
     /// <summary>
+    /// Clears the registered constraint provider. For testing only.
+    /// </summary>
+    internal static void ClearConstraintProvider()
+    {
+        registeredConstraintProvider = null;
+    }
+
+    /// <summary>
     /// Attempts to get validation constraints from the registered constraint provider.
     /// </summary>
     /// <param name="componentType">The component type to look up.</param>
