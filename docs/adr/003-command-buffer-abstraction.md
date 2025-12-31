@@ -339,7 +339,7 @@ All 2,172 tests passing, zero warnings.
   - `src/KeenEyes.Abstractions/CommandBuffer.cs` - Moved from Core
   - `src/KeenEyes.Abstractions/EntityCommands.cs` - Moved from Core, delegate-based
   - `src/KeenEyes.Abstractions/Commands/*.cs` - All command classes moved from Core
-  - `src/KeenEyes.Generators/ComponentGenerator.cs` - Dual extension method generation
+  - `editor/KeenEyes.Generators/ComponentGenerator.cs` - Dual extension method generation
   - `docs/command-buffer.md` - Updated with plugin usage and performance notes
   - `docs/abstractions.md` - Documented CommandBuffer in Abstractions
   - `docs/plugins.md` - Added command buffer usage section

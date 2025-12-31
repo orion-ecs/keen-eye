@@ -143,11 +143,13 @@ keen-eye/
 │   │   ├── Entities/                 # Entity, EntityBuilder
 │   │   ├── Queries/                  # QueryBuilder, QueryEnumerator
 │   │   └── Systems/                  # ISystem, SystemBase
+│   └── KeenEyes.Abstractions/         # Interfaces and attributes
+├── editor/                           # Build-time tooling
 │   ├── KeenEyes.Generators/           # Source generators
-│   ├── KeenEyes.Abstractions/         # Interfaces and attributes
 │   ├── KeenEyes.Sdk/                  # MSBuild SDK for games
 │   ├── KeenEyes.Sdk.Plugin/           # MSBuild SDK for plugins
-│   └── KeenEyes.Sdk.Library/          # MSBuild SDK for libraries
+│   ├── KeenEyes.Sdk.Library/          # MSBuild SDK for libraries
+│   └── KeenEyes.Shaders.*/            # KESL shader compiler and generator
 ├── tests/                            # Unit and integration tests
 ├── samples/                          # Example projects
 ├── templates/                        # dotnet new templates
@@ -171,9 +173,9 @@ KeenEyes provides custom MSBuild SDK packages that simplify project setup for co
 
 | Package | Use Case | Location |
 |---------|----------|----------|
-| `KeenEyes.Sdk` | Games/apps | `src/KeenEyes.Sdk/` |
-| `KeenEyes.Sdk.Plugin` | Plugin libraries | `src/KeenEyes.Sdk.Plugin/` |
-| `KeenEyes.Sdk.Library` | Reusable ECS libraries | `src/KeenEyes.Sdk.Library/` |
+| `KeenEyes.Sdk` | Games/apps | `editor/KeenEyes.Sdk/` |
+| `KeenEyes.Sdk.Plugin` | Plugin libraries | `editor/KeenEyes.Sdk.Plugin/` |
+| `KeenEyes.Sdk.Library` | Reusable ECS libraries | `editor/KeenEyes.Sdk.Library/` |
 
 ### Usage
 

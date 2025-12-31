@@ -13,7 +13,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
-		<ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 </Project>
