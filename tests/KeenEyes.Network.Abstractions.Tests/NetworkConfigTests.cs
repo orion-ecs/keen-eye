@@ -95,6 +95,26 @@ public class NetworkConfigTests
         Assert.IsAssignableFrom<NetworkPluginConfig>(config);
     }
 
+    [Fact]
+    public void ServerNetworkConfig_RecordEquality_Works()
+    {
+        var config1 = new ServerNetworkConfig { Port = 8080, MaxClients = 32 };
+        var config2 = new ServerNetworkConfig { Port = 8080, MaxClients = 32 };
+        var config3 = new ServerNetworkConfig { Port = 9999, MaxClients = 32 };
+
+        Assert.Equal(config1, config2);
+        Assert.NotEqual(config1, config3);
+    }
+
+    [Fact]
+    public void ServerNetworkConfig_GetHashCode_ConsistentWithEquals()
+    {
+        var config1 = new ServerNetworkConfig { Port = 8080, MaxClients = 32 };
+        var config2 = new ServerNetworkConfig { Port = 8080, MaxClients = 32 };
+
+        Assert.Equal(config1.GetHashCode(), config2.GetHashCode());
+    }
+
     #endregion
 
     #region ClientNetworkConfig Tests
