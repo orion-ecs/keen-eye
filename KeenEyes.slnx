@@ -35,7 +35,6 @@
     <Project Path="src/KeenEyes.Abstractions/KeenEyes.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Common/KeenEyes.Common.csproj" />
     <Project Path="src/KeenEyes.Core/KeenEyes.Core.csproj" />
-    <Project Path="src/KeenEyes.Generators/KeenEyes.Generators.csproj" />
     <Project Path="src/KeenEyes.Runtime/KeenEyes.Runtime.csproj" />
   </Folder>
   <Folder Name="/src/platforms/" />
@@ -105,8 +104,14 @@
     <Project Path="tools/BenchmarkCompare/BenchmarkCompare.csproj" />
   </Folder>
   <Folder Name="/editor/">
+    <Project Path="editor/KeenEyes.Generators/KeenEyes.Generators.csproj" />
+    <Project Path="editor/KeenEyes.Sdk/KeenEyes.Sdk.csproj" />
+    <Project Path="editor/KeenEyes.Sdk.Library/KeenEyes.Sdk.Library.csproj" />
+    <Project Path="editor/KeenEyes.Sdk.Plugin/KeenEyes.Sdk.Plugin.csproj" />
     <Project Path="editor/KeenEyes.Shaders.Compiler/KeenEyes.Shaders.Compiler.csproj" />
     <Project Path="editor/KeenEyes.Shaders.Compiler.Tests/KeenEyes.Shaders.Compiler.Tests.csproj" />
+    <Project Path="editor/KeenEyes.Shaders.Generator/KeenEyes.Shaders.Generator.csproj" />
+    <Project Path="editor/KeenEyes.Shaders.Generator.IntegrationTests/KeenEyes.Shaders.Generator.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/_/">
     <File Path=".editorconfig" />
