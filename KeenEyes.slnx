@@ -92,6 +92,8 @@
     <Project Path="tests/KeenEyes.Persistence.Tests/KeenEyes.Persistence.Tests.csproj" />
     <Project Path="tests/KeenEyes.Physics.Tests/KeenEyes.Physics.Tests.csproj" />
     <Project Path="tests/KeenEyes.Replay.Tests/KeenEyes.Replay.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Shaders.Compiler.Tests/KeenEyes.Shaders.Compiler.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Shaders.Generator.IntegrationTests/KeenEyes.Shaders.Generator.IntegrationTests.csproj" />
     <Project Path="tests/KeenEyes.Spatial.Tests/KeenEyes.Spatial.Tests.csproj" />
     <Project Path="tests/KeenEyes.Testing.Tests/KeenEyes.Testing.Tests.csproj" />
     <Project Path="tests/KeenEyes.UI.Tests/KeenEyes.UI.Tests.csproj" />
@@ -110,9 +112,7 @@
     <Project Path="editor/KeenEyes.Sdk.Library/KeenEyes.Sdk.Library.csproj" />
     <Project Path="editor/KeenEyes.Sdk.Plugin/KeenEyes.Sdk.Plugin.csproj" />
     <Project Path="editor/KeenEyes.Shaders.Compiler/KeenEyes.Shaders.Compiler.csproj" />
-    <Project Path="editor/KeenEyes.Shaders.Compiler.Tests/KeenEyes.Shaders.Compiler.Tests.csproj" />
     <Project Path="editor/KeenEyes.Shaders.Generator/KeenEyes.Shaders.Generator.csproj" />
-    <Project Path="editor/KeenEyes.Shaders.Generator.IntegrationTests/KeenEyes.Shaders.Generator.IntegrationTests.csproj" />
   </Folder>
   <Folder Name="/_/">
     <File Path=".editorconfig" />
