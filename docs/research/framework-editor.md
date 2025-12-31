@@ -4,6 +4,8 @@
 **Author:** Claude (Anthropic)
 **Purpose:** Evaluate the feasibility of building a rudimentary editor for the KeenEyes ECS framework, including live entity editing, debugging/diagnostics, and hot reload capabilities
 
+> **See Also:** [Scene Editor Architecture](scene-editor-architecture.md) - Complete architecture design for a Unity/Godot-class editor, including project system, source-generated assets, and implementation phases.
+
 ## Executive Summary
 
 Building a rudimentary editor for KeenEyes is **highly feasible**. The framework now provides an extraordinarily comprehensive set of foundational pieces including: plugin system, entity inspection APIs, change tracking, event subscriptions, inter-system messaging, **complete debugging plugin** (profiler, entity inspector, memory/GC tracking), **parallelism with dependency visualization**, **save/load with delta saves and encryption**, **physics integration**, **spatial partitioning**, **binary serialization**, **multi-world support**, **deterministic RNG**, and **global system hooks**.

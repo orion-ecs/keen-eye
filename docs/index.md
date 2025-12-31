@@ -210,6 +210,10 @@ Key design decisions are documented as Architecture Decision Records:
 
 Technical research reports for planned features:
 
+### Editor & Tooling
+- [Scene Editor Architecture](research/scene-editor-architecture.md) - Complete Unity/Godot-class editor design
+- [Framework Editor Feasibility](research/framework-editor.md) - Editor infrastructure analysis
+
 ### Planned Systems
 - [Graphics & Input Abstraction](research/graphics-input-abstraction.md)
 - [UI System](research/ui-system.md)
@@ -221,6 +225,7 @@ Technical research reports for planned features:
 ### Foundation Research
 - [OpenGL C# Bindings](research/opengl-csharp-bindings.md)
 - [Shader Management](research/shader-management.md)
+- [Shader Language (KESL)](research/shader-language.md)
 - [Windowing & Input](research/windowing-input.md)
 - [Cross-Platform Deployment](research/cross-platform-deployment.md)
 
