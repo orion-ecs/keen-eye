@@ -72,8 +72,8 @@ public sealed class Parser
             return ParseComputeDeclaration();
         }
 
-        Error(Current, "Expected 'component' or 'compute' declaration");
-        return null;
+        // Throw to trigger synchronization - otherwise we'd loop infinitely
+        throw Error(Current, "Expected 'component' or 'compute' declaration");
     }
 
     private ComponentDeclaration ParseComponentDeclaration()
@@ -618,16 +618,12 @@ public sealed class Parser
             if (Previous.Kind == TokenKind.Semicolon) return;
             if (Previous.Kind == TokenKind.RightBrace) return;
 
-            // Synchronize at declaration keywords
+            // Only synchronize at top-level declaration keywords
+            // (not Query, Params, Execute, etc. which are only valid inside declarations)
             switch (Current.Kind)
             {
                 case TokenKind.Component:
                 case TokenKind.Compute:
-                case TokenKind.Query:
-                case TokenKind.Params:
-                case TokenKind.Execute:
-                case TokenKind.If:
-                case TokenKind.For:
                     return;
             }
 
