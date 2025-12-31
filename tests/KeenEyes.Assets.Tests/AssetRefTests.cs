@@ -111,5 +111,112 @@ public class AssetRefTests
         Assert.True(ref1 != ref2);
     }
 
+    [Fact]
+    public void Equals_WithObjectOfSameType_ReturnsTrue()
+    {
+        var ref1 = new AssetRef<TestAsset> { Path = "same.txt" };
+        object ref2 = new AssetRef<TestAsset> { Path = "same.txt" };
+
+        Assert.True(ref1.Equals(ref2));
+    }
+
+    [Fact]
+    public void Equals_WithObjectOfDifferentType_ReturnsFalse()
+    {
+        var ref1 = new AssetRef<TestAsset> { Path = "same.txt" };
+        object ref2 = "not an AssetRef";
+
+        Assert.False(ref1.Equals(ref2));
+    }
+
+    [Fact]
+    public void Equals_WithNull_ReturnsFalse()
+    {
+        var ref1 = new AssetRef<TestAsset> { Path = "same.txt" };
+
+        Assert.False(ref1.Equals(null));
+    }
+
+    #endregion
+
+    #region FromPath Tests
+
+    [Fact]
+    public void FromPath_CreatesAssetRefWithPath()
+    {
+        var assetRef = AssetRef<TestAsset>.FromPath("textures/sprite.png");
+
+        Assert.Equal("textures/sprite.png", assetRef.Path);
+        Assert.False(assetRef.IsResolved);
+    }
+
+    [Fact]
+    public void FromPath_CreatesUnresolvedRef()
+    {
+        var assetRef = AssetRef<TestAsset>.FromPath("test.png");
+
+        Assert.True(assetRef.HasPath);
+        Assert.False(assetRef.IsResolved);
+    }
+
+    #endregion
+
+    #region Invalidate Tests
+
+    [Fact]
+    public void Invalidate_ClearsHandleId()
+    {
+        var assetRef = new AssetRef<TestAsset> { Path = "test.png" };
+
+        // Initially not resolved
+        Assert.False(assetRef.IsResolved);
+
+        // Invalidate (should be safe to call even if not resolved)
+        assetRef.Invalidate();
+
+        // Still not resolved
+        Assert.False(assetRef.IsResolved);
+    }
+
+    #endregion
+
+    #region ToString Tests
+
+    [Fact]
+    public void ToString_UnresolvedRef_ContainsPath()
+    {
+        var assetRef = new AssetRef<TestAsset> { Path = "textures/player.png" };
+
+        var str = assetRef.ToString();
+
+        Assert.Contains("textures/player.png", str);
+        Assert.Contains("TestAsset", str);
+        Assert.DoesNotContain("Resolved", str);
+    }
+
+    [Fact]
+    public void ToString_WithNullPath_DoesNotThrow()
+    {
+        var assetRef = new AssetRef<TestAsset> { Path = null! };
+
+        var str = assetRef.ToString();
+
+        Assert.Contains("TestAsset", str);
+    }
+
+    #endregion
+
+    #region GetHashCode Tests
+
+    [Fact]
+    public void GetHashCode_NullPath_DoesNotThrow()
+    {
+        var assetRef = new AssetRef<TestAsset> { Path = null! };
+
+        var hash = assetRef.GetHashCode();
+
+        Assert.Equal(0, hash);
+    }
+
     #endregion
 }
