@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
-    <ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" Publish="false" />
+    <ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" Publish="false" />
   </ItemGroup>
 
 </Project>

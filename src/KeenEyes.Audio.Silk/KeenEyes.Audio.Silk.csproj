@@ -16,7 +16,7 @@
     <ProjectReference Include="..\KeenEyes.Audio\KeenEyes.Audio.csproj" />
     <ProjectReference Include="..\KeenEyes.Audio.Abstractions\KeenEyes.Audio.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Platform.Silk.Abstractions\KeenEyes.Platform.Silk.Abstractions.csproj" />
-    <ProjectReference Include="..\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <ItemGroup>

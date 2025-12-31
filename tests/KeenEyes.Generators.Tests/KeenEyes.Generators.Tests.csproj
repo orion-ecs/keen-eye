@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <!-- Reference the generator project directly (not as an analyzer) -->
-    <ProjectReference Include="..\..\src\KeenEyes.Generators\KeenEyes.Generators.csproj" ReferenceOutputAssembly="true" OutputItemType="None" />
+    <ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" ReferenceOutputAssembly="true" OutputItemType="None" />
     <ProjectReference Include="..\..\src\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
   </ItemGroup>

@@ -404,7 +404,7 @@ world.AddSystemHook((system, phase) =>
 
 ### Component Bundles (NEW)
 
-**Location:** `src/KeenEyes.Generators/BundleGenerator.cs`
+**Location:** `editor/KeenEyes.Generators/BundleGenerator.cs`
 
 Group commonly-used components with generated builder methods.
 
@@ -431,7 +431,7 @@ foreach (var e in world.Query<TransformBundle>())
 
 ### Component Mixins (NEW)
 
-**Location:** `src/KeenEyes.Generators/MixinGenerator.cs`
+**Location:** `editor/KeenEyes.Generators/MixinGenerator.cs`
 
 Compile-time field composition for component reuse.
 
@@ -1431,9 +1431,9 @@ The framework provides approximately **95% of the infrastructure** needed for a 
 - Graphics Plugin: `src/KeenEyes.Graphics/`
 
 ### KeenEyes Framework - Source Generators
-- Bundle Generator: `src/KeenEyes.Generators/BundleGenerator.cs`
-- Mixin Generator: `src/KeenEyes.Generators/MixinGenerator.cs`
-- Component Generator: `src/KeenEyes.Generators/ComponentGenerator.cs`
+- Bundle Generator: `editor/KeenEyes.Generators/BundleGenerator.cs`
+- Mixin Generator: `editor/KeenEyes.Generators/MixinGenerator.cs`
+- Component Generator: `editor/KeenEyes.Generators/ComponentGenerator.cs`
 
 ### KeenEyes Framework - Templates
 - Game Template: `templates/keeneyes-game/`
