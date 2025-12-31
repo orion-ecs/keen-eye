@@ -55,4 +55,18 @@ public class NetworkIdTests
 
         Assert.Equal(id1.GetHashCode(), id2.GetHashCode());
     }
+
+    [Fact]
+    public void ToString_ReturnsFormattedString()
+    {
+        var id = new NetworkId { Value = 123 };
+
+        Assert.Equal("NetworkId(123)", id.ToString());
+    }
+
+    [Fact]
+    public void Invalid_IsNotValid()
+    {
+        Assert.False(NetworkId.Invalid.IsValid);
+    }
 }
