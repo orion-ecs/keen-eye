@@ -196,4 +196,46 @@ public class PredictionBufferTests
 
         Assert.Equal(99.0f, ((TestComponent)state!).X);
     }
+
+    [Fact]
+    public void RemoveOlderThan_RemovesAllStates_ResetsToZero()
+    {
+        var buffer = new PredictionBuffer();
+        buffer.SaveState(1, typeof(TestComponent), new TestComponent { X = 1.0f });
+        buffer.SaveState(2, typeof(TestComponent), new TestComponent { X = 2.0f });
+        buffer.SaveState(3, typeof(TestComponent), new TestComponent { X = 3.0f });
+
+        // Remove all states by specifying tick beyond newest
+        buffer.RemoveOlderThan(10);
+
+        Assert.Equal(0u, buffer.OldestTick);
+        Assert.Equal(0u, buffer.NewestTick);
+        Assert.Null(buffer.GetStatesForTick(1));
+        Assert.Null(buffer.GetStatesForTick(2));
+        Assert.Null(buffer.GetStatesForTick(3));
+    }
+
+    [Fact]
+    public void CleanupOldTicks_WithNonContiguousTicks_FindsNextOldest()
+    {
+        // Use a small buffer to force cleanup
+        var buffer = new PredictionBuffer(maxTicks: 3);
+
+        // Add non-contiguous ticks (gaps in sequence)
+        buffer.SaveState(1, typeof(TestComponent), new TestComponent { X = 1.0f });
+        buffer.SaveState(3, typeof(TestComponent), new TestComponent { X = 3.0f });
+        buffer.SaveState(5, typeof(TestComponent), new TestComponent { X = 5.0f });
+
+        // Add more to trigger cleanup
+        buffer.SaveState(7, typeof(TestComponent), new TestComponent { X = 7.0f });
+        buffer.SaveState(9, typeof(TestComponent), new TestComponent { X = 9.0f });
+
+        // Old ticks should be cleaned up
+        Assert.Null(buffer.GetStatesForTick(1));
+        Assert.Null(buffer.GetStatesForTick(3));
+
+        // Recent ticks should exist
+        Assert.NotNull(buffer.GetStatesForTick(7));
+        Assert.NotNull(buffer.GetStatesForTick(9));
+    }
 }

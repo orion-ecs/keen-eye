@@ -188,5 +188,60 @@ public class NetworkConfigTests
         Assert.IsAssignableFrom<NetworkPluginConfig>(config);
     }
 
+    [Fact]
+    public void ClientNetworkConfig_RecordEquality_Works()
+    {
+        var config1 = new ClientNetworkConfig { ServerAddress = "192.168.1.1", ServerPort = 8080 };
+        var config2 = new ClientNetworkConfig { ServerAddress = "192.168.1.1", ServerPort = 8080 };
+        var config3 = new ClientNetworkConfig { ServerAddress = "10.0.0.1", ServerPort = 8080 };
+
+        Assert.Equal(config1, config2);
+        Assert.NotEqual(config1, config3);
+    }
+
+    [Fact]
+    public void ClientNetworkConfig_GetHashCode_ConsistentWithEquals()
+    {
+        var config1 = new ClientNetworkConfig { ServerAddress = "192.168.1.1", ServerPort = 8080 };
+        var config2 = new ClientNetworkConfig { ServerAddress = "192.168.1.1", ServerPort = 8080 };
+
+        Assert.Equal(config1.GetHashCode(), config2.GetHashCode());
+    }
+
+    #endregion
+
+    #region NetworkPluginConfig Additional Tests
+
+    [Fact]
+    public void NetworkPluginConfig_Serializer_CanBeSetToNull()
+    {
+        var config = new NetworkPluginConfig
+        {
+            Serializer = null
+        };
+
+        Assert.Null(config.Serializer);
+    }
+
+    [Fact]
+    public void NetworkPluginConfig_Interpolator_CanBeSetToNull()
+    {
+        var config = new NetworkPluginConfig
+        {
+            Interpolator = null
+        };
+
+        Assert.Null(config.Interpolator);
+    }
+
+    [Fact]
+    public void NetworkPluginConfig_GetHashCode_ConsistentWithEquals()
+    {
+        var config1 = new NetworkPluginConfig { TickRate = 60, InterpolationDelayMs = 50f };
+        var config2 = new NetworkPluginConfig { TickRate = 60, InterpolationDelayMs = 50f };
+
+        Assert.Equal(config1.GetHashCode(), config2.GetHashCode());
+    }
+
     #endregion
 }

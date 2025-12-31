@@ -172,4 +172,44 @@ public class InputBufferTests
         Assert.Equal(10u, iBuffer.NewestTick);
         Assert.Equal(2, iBuffer.Count);
     }
+
+    [Fact]
+    public void RemoveOlderThan_TickBeyondNewestTick_ResetsCount()
+    {
+        var buffer = new InputBuffer<TestInput>();
+        buffer.Add(new TestInput { Tick = 1, Value = 1.0f });
+        buffer.Add(new TestInput { Tick = 2, Value = 2.0f });
+        buffer.Add(new TestInput { Tick = 3, Value = 3.0f });
+
+        // Remove with tick beyond newest should result in count = 0
+        buffer.RemoveOlderThan(10);
+
+        Assert.Equal(0, buffer.Count);
+    }
+
+    [Fact]
+    public void IInputBuffer_RemoveOlderThan_WorksViaInterface()
+    {
+        var buffer = new InputBuffer<TestInput>();
+        buffer.Add(new TestInput { Tick = 1, Value = 1.0f });
+        buffer.Add(new TestInput { Tick = 2, Value = 2.0f });
+
+        IInputBuffer iBuffer = buffer;
+        iBuffer.RemoveOlderThan(2);
+
+        Assert.Equal(2u, buffer.OldestTick);
+        Assert.Equal(1, buffer.Count);
+    }
+
+    [Fact]
+    public void IInputBuffer_Clear_WorksViaInterface()
+    {
+        var buffer = new InputBuffer<TestInput>();
+        buffer.Add(new TestInput { Tick = 1, Value = 1.0f });
+
+        IInputBuffer iBuffer = buffer;
+        iBuffer.Clear();
+
+        Assert.Equal(0, buffer.Count);
+    }
 }
