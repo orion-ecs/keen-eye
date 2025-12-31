@@ -25,6 +25,13 @@ Research reports document:
 | [AI System](ai-system.md) | Research Complete | FSM, behavior trees, utility AI |
 | [Engine Systems Roadmap](engine-systems-roadmap.md) | Research Complete | Pathfinding, Scene Management, Localization, Networking |
 
+### Editor & Tooling
+
+| Topic | Status | Purpose |
+|-------|--------|---------|
+| [Scene Editor Architecture](scene-editor-architecture.md) | Research Complete | Complete Unity/Godot-class editor design |
+| [Framework Editor](framework-editor.md) | Research Complete | Editor feasibility and plugin designs |
+
 ### Foundation Research
 
 | Topic | Status | Purpose |
@@ -33,10 +40,10 @@ Research reports document:
 | [Audio Systems](audio-systems.md) | Research Complete | Cross-platform audio library evaluation |
 | [Asset Loading](asset-loading.md) | Research Complete | Asset pipeline and loading strategies |
 | [Cross-Platform Deployment](cross-platform-deployment.md) | Research Complete | Platform targeting and distribution |
-| [Framework Editor](framework-editor.md) | Research Complete | Editor tooling approaches |
 | [Game Math Libraries](game-math-libraries.md) | Research Complete | Math library evaluation |
 | [OpenGL C# Bindings](opengl-csharp-bindings.md) | Research Complete | Graphics API bindings |
 | [Shader Management](shader-management.md) | Research Complete | Shader compilation and management |
+| [Shader Language (KESL)](shader-language.md) | Research Complete | Custom shader language design |
 | [Windowing & Input](windowing-input.md) | Research Complete | Window management and input handling |
 
 ## Contributing
