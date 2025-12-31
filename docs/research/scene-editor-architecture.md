@@ -1,0 +1,1762 @@
+# Scene/World Editor Architecture
+
+**Date:** December 2024
+**Status:** Research / Planning
+**Author:** Claude (Anthropic)
+
+## Executive Summary
+
+This document outlines the complete architecture for a Unity/Godot-class scene and world editor for KeenEyes. The editor leverages KeenEyes' existing infrastructure (~95% complete) and uses the custom MSBuild SDK for project detection and asset tracking.
+
+**Key Architectural Decisions:**
+- **Project-centric**: Editor opens `.csproj` or `.slnx` files, not custom project formats
+- **SDK-based detection**: `KeenEyes.Sdk` provides project metadata and custom item types
+- **Multi-world isolation**: Separate editor and game worlds
+- **Plugin-based features**: Editor functionality delivered via `IEditorPlugin` plugins
+- **ECS-native UI**: Uses existing `KeenEyes.UI` widget system
+
+---
+
+## Table of Contents
+
+1. [Project System](#1-project-system)
+2. [Editor Application Shell](#2-editor-application-shell)
+3. [Scene Hierarchy Panel](#3-scene-hierarchy-panel)
+4. [Inspector Panel](#4-inspector-panel)
+5. [Scene Viewport](#5-scene-viewport)
+6. [Asset Management](#6-asset-management)
+7. [Undo/Redo System](#7-undoredo-system)
+8. [Play Mode](#8-play-mode)
+9. [Hot Reload](#9-hot-reload)
+10. [Debugging & Profiling](#10-debugging--profiling)
+11. [Graph Node Editor](#11-graph-node-editor)
+12. [Build Pipeline](#12-build-pipeline)
+13. [Editor Plugin System](#13-editor-plugin-system)
+14. [Implementation Phases](#14-implementation-phases)
+
+---
+
+## 1. Project System
+
+### 1.1 Project Detection
+
+The editor opens standard MSBuild project files (`.csproj`) or solution files (`.slnx`). KeenEyes projects are detected via the custom SDK.
+
+**Detection Flow:**
+```
+User opens MyGame.csproj (or MyGame.slnx)
+    ↓
+Editor reads project XML
+    ↓
+Check for SDK="KeenEyes.Sdk/x.x.x" or $(IsKeenEyesProject)=true
+    ↓
+If KeenEyes project → Load into editor
+If not → Show error "Not a KeenEyes project"
+```
+
+**Project Detection Markers:**
+```xml
+<!-- Option 1: SDK-style project -->
+<Project Sdk="KeenEyes.Sdk/0.1.0">
+  <!-- KeenEyes project detected via SDK -->
+</Project>
+
+<!-- Option 2: Traditional with SDK package -->
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsKeenEyesProject>true</IsKeenEyesProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="KeenEyes.Sdk" Version="0.1.0" />
+  </ItemGroup>
+</Project>
+```
+
+### 1.2 Solution Support (.slnx)
+
+For multi-project games, the editor supports the new `.slnx` format (XML-based solutions):
+
+```xml
+<Solution>
+  <Project Path="src/MyGame/MyGame.csproj" Type="Game" />
+  <Project Path="src/MyGame.Plugins/MyGame.Plugins.csproj" Type="Plugin" />
+  <Project Path="src/MyGame.Shared/MyGame.Shared.csproj" Type="Library" />
+</Solution>
+```
+
+**Editor Behavior with Solutions:**
+- Detects all KeenEyes projects in solution
+- Primary game project (first `KeenEyes.Sdk` project) is the "active" project
+- Plugin projects are available for hot-reload
+- Shared libraries are referenced but not directly edited
+
+### 1.3 Project Metadata
+
+The SDK generates `keeneyes.project.json` in the output directory:
+
+```json
+{
+  "sdkVersion": "0.1.0",
+  "coreVersion": "0.1.0",
+  "projectType": "Game",
+  "targetFramework": "net10.0",
+  "scenes": ["Scenes/Main.kescene", "Scenes/Menu.kescene"],
+  "prefabs": ["Prefabs/Player.keprefab", "Prefabs/Enemy.keprefab"],
+  "worlds": ["Worlds/Default.keworld"]
+}
+```
+
+### 1.4 Custom Item Types
+
+The SDK defines item types that the editor tracks:
+
+| Item Type | File Extension | Purpose |
+|-----------|----------------|---------|
+| `<KeenEyesScene>` | `.kescene` | Scene definitions |
+| `<KeenEyesPrefab>` | `.keprefab` | Prefab templates |
+| `<KeenEyesWorld>` | `.keworld` | World configurations |
+| `<KeenEyesAsset>` | `*` | General game assets |
+
+**Example Project Structure:**
+```xml
+<Project Sdk="KeenEyes.Sdk/0.1.0">
+  <ItemGroup>
+    <!-- Auto-detected by convention -->
+    <KeenEyesScene Include="Scenes/**/*.kescene" />
+    <KeenEyesPrefab Include="Prefabs/**/*.keprefab" />
+    <KeenEyesAsset Include="Assets/**/*" />
+  </ItemGroup>
+</Project>
+```
+
+### 1.5 Project Browser Integration
+
+The editor's Project panel mirrors the csproj structure:
+
+```
+MyGame (Project Root)
+├── Scenes/
+│   ├── Main.kescene        [KeenEyesScene]
+│   └── Menu.kescene        [KeenEyesScene]
+├── Prefabs/
+│   ├── Player.keprefab     [KeenEyesPrefab]
+│   └── Enemy.keprefab      [KeenEyesPrefab]
+├── Assets/
+│   ├── Textures/           [KeenEyesAsset]
+│   ├── Audio/              [KeenEyesAsset]
+│   └── Models/             [KeenEyesAsset]
+├── Scripts/
+│   ├── Systems/            [C# source]
+│   └── Components/         [C# source]
+└── MyGame.csproj           [Project file]
+```
+
+### 1.6 Project State
+
+```csharp
+public sealed class EditorProject
+{
+    public string ProjectPath { get; }          // Path to .csproj
+    public string? SolutionPath { get; }        // Path to .slnx (if opened via solution)
+    public string RootDirectory { get; }        // Project root folder
+    public string OutputDirectory { get; }      // bin/Debug/net10.0
+
+    public string SdkVersion { get; }           // KeenEyes.Sdk version
+    public string CoreVersion { get; }          // KeenEyes.Core version
+    public ProjectType Type { get; }            // Game, Plugin, Library
+
+    public IReadOnlyList<string> Scenes { get; }
+    public IReadOnlyList<string> Prefabs { get; }
+    public IReadOnlyList<string> Worlds { get; }
+    public IReadOnlyList<string> Assets { get; }
+
+    public bool IsDirty { get; }                // Unsaved changes
+    public DateTime LastBuildTime { get; }
+}
+
+public enum ProjectType { Game, Plugin, Library }
+```
+
+---
+
+## 2. Editor Application Shell
+
+### 2.1 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Editor Application                           │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                         Menu Bar                               │  │
+│  │  File  Edit  View  Scene  Entity  Component  Window  Help      │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+│  ┌───────────────────────────────────────────────────────────────┐  │
+│  │                         Toolbar                                │  │
+│  │  [▶ Play] [⏸ Pause] [⏭ Step] | [Move] [Rotate] [Scale] | ...  │  │
+│  └───────────────────────────────────────────────────────────────┘  │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┬───────────────────────────┬───────────────────┐  │
+│  │  Hierarchy  │                           │    Inspector      │  │
+│  │             │                           │                   │  │
+│  │  ▼ Root     │      Scene Viewport       │  [Entity Name]    │  │
+│  │    Player   │                           │                   │  │
+│  │    ▼ Enemies│                           │  ▼ Transform      │  │
+│  │      Goblin │                           │    Position: ...  │  │
+│  │      Orc    │                           │    Rotation: ...  │  │
+│  │    Camera   │                           │                   │  │
+│  │             │                           │  ▼ Health         │  │
+│  ├─────────────┤                           │    Current: 100   │  │
+│  │  Project    │                           │    Max: 100       │  │
+│  │             │                           │                   │  │
+│  │  📁 Scenes  ├───────────────────────────┤  [Add Component]  │  │
+│  │  📁 Prefabs │        Console            │                   │  │
+│  │  📁 Assets  │  [Info] [Warn] [Error]    │                   │  │
+│  │  📁 Scripts │  > Scene loaded: Main     │                   │  │
+│  └─────────────┴───────────────────────────┴───────────────────┘  │
+├─────────────────────────────────────────────────────────────────────┤
+│  Status: Ready | Entities: 142 | FPS: 60 | Memory: 128 MB          │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 2.2 Multi-World Architecture
+
+The editor uses separate worlds for isolation:
+
+```csharp
+public sealed class EditorWorldManager
+{
+    // Editor UI world - panels, menus, dialogs
+    public World EditorWorld { get; }
+
+    // Currently open scene world - game entities
+    public World? SceneWorld { get; private set; }
+
+    // Preview world for prefab editing
+    public World? PreviewWorld { get; private set; }
+
+    // Play mode snapshot (for restoring after exit)
+    private WorldSnapshot? playModeSnapshot;
+
+    public void OpenScene(string scenePath)
+    {
+        SceneWorld?.Dispose();
+        SceneWorld = new World(name: Path.GetFileName(scenePath));
+        LoadSceneFile(scenePath, SceneWorld);
+    }
+
+    public void EnterPlayMode()
+    {
+        playModeSnapshot = SceneWorld?.CreateSnapshot();
+        // Systems start updating
+    }
+
+    public void ExitPlayMode()
+    {
+        if (playModeSnapshot != null && SceneWorld != null)
+        {
+            playModeSnapshot.RestoreTo(SceneWorld);
+            playModeSnapshot = null;
+        }
+    }
+}
+```
+
+### 2.3 Layout Persistence
+
+Editor layout saved to user settings:
+
+```json
+{
+  "layout": {
+    "docks": [
+      { "panel": "Hierarchy", "position": "left", "width": 250 },
+      { "panel": "Inspector", "position": "right", "width": 300 },
+      { "panel": "Console", "position": "bottom", "height": 200 },
+      { "panel": "Project", "position": "left", "tabWith": "Hierarchy" }
+    ],
+    "viewport": { "camera": "perspective", "showGrid": true }
+  },
+  "recentProjects": [
+    "C:/Projects/MyGame/MyGame.csproj",
+    "C:/Projects/Demo/Demo.slnx"
+  ]
+}
+```
+
+### 2.4 Existing UI Components
+
+KeenEyes.UI provides all necessary widgets:
+
+| Widget | Editor Use |
+|--------|------------|
+| `DockContainer` | Main layout with draggable panels |
+| `TreeView` | Hierarchy and Project panels |
+| `PropertyGrid` | Inspector component display |
+| `MenuBar` | Top menu with submenus |
+| `Toolbar` | Play controls, tool selection |
+| `StatusBar` | Bottom status display |
+| `TabView` | Multiple open scenes |
+| `Window` | Floating dialogs |
+| `Modal` | Confirmation dialogs |
+| `ContextMenu` | Right-click menus |
+| `TextField`, `Slider`, `Checkbox` | Property editors |
+| `ScrollView` | Scrollable panels |
+
+---
+
+## 3. Scene Hierarchy Panel
+
+### 3.1 Features
+
+| Feature | Implementation |
+|---------|----------------|
+| Entity tree display | `TreeView` + `World.GetChildren()` |
+| Expand/collapse | Built into `TreeView` |
+| Drag reparenting | Drag events + `World.SetParent()` |
+| Multi-select | Shift/Ctrl + selection manager |
+| Context menu | Right-click: Create, Delete, Duplicate |
+| Search filter | Filter by name, tag, component |
+| Visibility toggle | `EditorMetadata.IsHidden` component |
+| Lock toggle | `EditorMetadata.IsLocked` component |
+
+### 3.2 Entity Display
+
+```csharp
+public sealed class HierarchyPanel
+{
+    private readonly World sceneWorld;
+    private readonly SelectionManager selection;
+
+    public void BuildTree(TreeView tree)
+    {
+        tree.Clear();
+
+        // Get root entities (no parent)
+        var roots = sceneWorld.GetAllEntities()
+            .Where(e => sceneWorld.GetParent(e) == Entity.Null)
+            .OrderBy(e => sceneWorld.GetName(e) ?? $"Entity_{e.Id}");
+
+        foreach (var entity in roots)
+        {
+            AddEntityNode(tree.Root, entity);
+        }
+    }
+
+    private void AddEntityNode(TreeNode parent, Entity entity)
+    {
+        var name = sceneWorld.GetName(entity) ?? $"Entity_{entity.Id}";
+        var icon = GetEntityIcon(entity);
+
+        var node = parent.AddChild(name, icon, entity);
+        node.IsSelected = selection.IsSelected(entity);
+
+        foreach (var child in sceneWorld.GetChildren(entity))
+        {
+            AddEntityNode(node, child);
+        }
+    }
+
+    private string GetEntityIcon(Entity entity)
+    {
+        // Return icon based on primary component
+        if (sceneWorld.Has<Camera>(entity)) return "🎥";
+        if (sceneWorld.Has<Light>(entity)) return "💡";
+        if (sceneWorld.Has<RigidBody>(entity)) return "🔷";
+        if (sceneWorld.Has<AudioSource>(entity)) return "🔊";
+        return "📦";
+    }
+}
+```
+
+### 3.3 Context Menu Actions
+
+```csharp
+public enum HierarchyAction
+{
+    CreateEmpty,
+    CreateFromPrefab,
+    Duplicate,
+    Delete,
+    Rename,
+    CopyEntity,
+    PasteEntity,
+    SelectChildren,
+    FocusInViewport,
+    SaveAsPrefab
+}
+```
+
+---
+
+## 4. Inspector Panel
+
+### 4.1 Component Display
+
+```
+┌─────────────────────────────────────┐
+│  Player                        [⋮]  │
+├─────────────────────────────────────┤
+│  ▼ Transform                   [x]  │
+│    Position                         │
+│      X: [  10.5  ] Y: [  0.0  ]    │
+│      Z: [   0.0  ]                  │
+│    Rotation                         │
+│      X: [   0.0  ] Y: [ 45.0  ]    │
+│      Z: [   0.0  ]                  │
+│    Scale                            │
+│      X: [   1.0  ] Y: [  1.0  ]    │
+│      Z: [   1.0  ]                  │
+├─────────────────────────────────────┤
+│  ▼ Health                      [x]  │
+│    Current    [████████░░] 80/100   │
+│    Max        [ 100 ]               │
+│    Regen Rate [ 5.0 ] per second    │
+├─────────────────────────────────────┤
+│  ▼ PlayerController            [x]  │
+│    Move Speed [ 10.0 ] ─────○───    │
+│    Jump Force [ 15.0 ]              │
+│    ☑ Can Double Jump               │
+├─────────────────────────────────────┤
+│  [+] Add Component                  │
+└─────────────────────────────────────┘
+```
+
+### 4.2 Property Metadata Attributes
+
+```csharp
+namespace KeenEyes.Editor;
+
+/// <summary>Restricts numeric field to a range with slider.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class RangeAttribute(float min, float max) : Attribute
+{
+    public float Min => min;
+    public float Max => max;
+}
+
+/// <summary>Displays tooltip on hover.</summary>
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.Struct)]
+public sealed class TooltipAttribute(string text) : Attribute
+{
+    public string Text => text;
+}
+
+/// <summary>Adds header above field group.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class HeaderAttribute(string text) : Attribute
+{
+    public string Text => text;
+}
+
+/// <summary>Adds vertical spacing.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class SpaceAttribute(float height = 8) : Attribute
+{
+    public float Height => height;
+}
+
+/// <summary>Hides field from inspector.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class HideInInspectorAttribute : Attribute;
+
+/// <summary>Shows color picker for uint/Color fields.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class ColorPickerAttribute : Attribute;
+
+/// <summary>Makes field read-only in inspector.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class ReadOnlyAttribute : Attribute;
+
+/// <summary>Shows as multiline text area.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class TextAreaAttribute(int minLines = 3, int maxLines = 10) : Attribute
+{
+    public int MinLines => minLines;
+    public int MaxLines => maxLines;
+}
+
+/// <summary>Shows entity reference picker.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class EntityRefAttribute : Attribute;
+
+/// <summary>Shows asset picker for specific type.</summary>
+[AttributeUsage(AttributeTargets.Field)]
+public sealed class AssetRefAttribute(Type assetType) : Attribute
+{
+    public Type AssetType => assetType;
+}
+```
+
+**Usage Example:**
+```csharp
+[Component]
+public partial struct PlayerController
+{
+    [Header("Movement")]
+    [Range(1f, 20f)]
+    [Tooltip("Movement speed in units per second")]
+    public float MoveSpeed;
+
+    [Range(5f, 30f)]
+    public float JumpForce;
+
+    [Space]
+    [Header("Abilities")]
+    public bool CanDoubleJump;
+
+    [HideInInspector]
+    public int InternalState;
+
+    [EntityRef]
+    public Entity Target;
+}
+```
+
+### 4.3 Component Inspector Implementation
+
+```csharp
+public sealed class ComponentInspector
+{
+    private readonly World world;
+
+    public IEnumerable<FieldInfo> GetEditableFields(Type componentType)
+    {
+        return componentType
+            .GetFields(BindingFlags.Public | BindingFlags.Instance)
+            .Where(f => !f.IsInitOnly)
+            .Where(f => f.GetCustomAttribute<HideInInspectorAttribute>() == null);
+    }
+
+    public PropertyDrawer GetDrawer(FieldInfo field)
+    {
+        var fieldType = field.FieldType;
+
+        // Check for explicit drawer attributes first
+        if (field.GetCustomAttribute<RangeAttribute>() is { } range)
+            return new SliderDrawer(range.Min, range.Max);
+        if (field.GetCustomAttribute<ColorPickerAttribute>() != null)
+            return new ColorPickerDrawer();
+        if (field.GetCustomAttribute<TextAreaAttribute>() is { } textArea)
+            return new TextAreaDrawer(textArea.MinLines, textArea.MaxLines);
+        if (field.GetCustomAttribute<EntityRefAttribute>() != null)
+            return new EntityRefDrawer(world);
+        if (field.GetCustomAttribute<AssetRefAttribute>() is { } assetRef)
+            return new AssetRefDrawer(assetRef.AssetType);
+
+        // Default drawers by type
+        return fieldType switch
+        {
+            _ when fieldType == typeof(float) => new FloatDrawer(),
+            _ when fieldType == typeof(int) => new IntDrawer(),
+            _ when fieldType == typeof(bool) => new BoolDrawer(),
+            _ when fieldType == typeof(string) => new StringDrawer(),
+            _ when fieldType == typeof(Vector2) => new Vector2Drawer(),
+            _ when fieldType == typeof(Vector3) => new Vector3Drawer(),
+            _ when fieldType == typeof(Vector4) => new Vector4Drawer(),
+            _ when fieldType == typeof(Color) => new ColorPickerDrawer(),
+            _ when fieldType == typeof(Entity) => new EntityRefDrawer(world),
+            _ when fieldType.IsEnum => new EnumDrawer(fieldType),
+            _ => new DefaultDrawer()
+        };
+    }
+}
+```
+
+---
+
+## 5. Scene Viewport
+
+### 5.1 Viewport Features
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| 3D/2D scene rendering | Requires integration | Use KeenEyes.Graphics |
+| Editor camera | Missing | Orbit, pan, zoom, fly modes |
+| Grid overlay | Partial | Basic grid exists |
+| Transform gizmos | Missing | Move, rotate, scale handles |
+| Selection outline | Missing | Highlight selected entities |
+| Click selection | Partial | Need raycast integration |
+| Box selection | Missing | Rectangle select |
+| Entity icons | Missing | Camera, light, audio icons |
+
+### 5.2 Editor Camera Controller
+
+```csharp
+public sealed class EditorCameraController
+{
+    public Vector3 Position { get; set; }
+    public Vector3 Target { get; set; }
+    public float Distance { get; set; } = 10f;
+
+    public float Yaw { get; set; }
+    public float Pitch { get; set; }
+
+    public CameraMode Mode { get; set; } = CameraMode.Orbit;
+
+    public void ProcessInput(InputState input, float deltaTime)
+    {
+        switch (Mode)
+        {
+            case CameraMode.Orbit:
+                if (input.IsMiddleMouseDown)
+                {
+                    if (input.IsAltDown)
+                    {
+                        // Orbit around target
+                        Yaw += input.MouseDelta.X * 0.5f;
+                        Pitch += input.MouseDelta.Y * 0.5f;
+                    }
+                    else
+                    {
+                        // Pan
+                        var right = GetRightVector();
+                        var up = GetUpVector();
+                        Target -= right * input.MouseDelta.X * 0.01f * Distance;
+                        Target += up * input.MouseDelta.Y * 0.01f * Distance;
+                    }
+                }
+                // Zoom with scroll
+                Distance *= 1f - input.ScrollDelta * 0.1f;
+                break;
+
+            case CameraMode.Fly:
+                // WASD movement
+                var forward = GetForwardVector();
+                var right2 = GetRightVector();
+                if (input.IsKeyDown(Key.W)) Position += forward * deltaTime * 10f;
+                if (input.IsKeyDown(Key.S)) Position -= forward * deltaTime * 10f;
+                if (input.IsKeyDown(Key.A)) Position -= right2 * deltaTime * 10f;
+                if (input.IsKeyDown(Key.D)) Position += right2 * deltaTime * 10f;
+                break;
+        }
+    }
+
+    public void FocusOnEntity(Entity entity, World world)
+    {
+        if (world.Has<Transform>(entity))
+        {
+            ref readonly var transform = ref world.Get<Transform>(entity);
+            Target = transform.Position;
+            Distance = 5f; // Default focus distance
+        }
+    }
+}
+
+public enum CameraMode { Orbit, Fly, TopDown, SideView, FrontView }
+```
+
+### 5.3 Transform Gizmos
+
+```csharp
+public sealed class TransformGizmo
+{
+    public GizmoMode Mode { get; set; } = GizmoMode.Translate;
+    public GizmoSpace Space { get; set; } = GizmoSpace.World;
+    public GizmoPivot Pivot { get; set; } = GizmoPivot.Center;
+
+    public float SnapTranslate { get; set; } = 0f; // 0 = no snap
+    public float SnapRotate { get; set; } = 0f;    // degrees
+    public float SnapScale { get; set; } = 0f;
+
+    private GizmoAxis? hoveredAxis;
+    private GizmoAxis? activeAxis;
+    private Vector3 dragStart;
+
+    public void Render(I3DRenderer renderer, IReadOnlyList<Entity> selection, World world)
+    {
+        if (selection.Count == 0) return;
+
+        var pivot = CalculatePivot(selection, world);
+        var rotation = Space == GizmoSpace.Local && selection.Count == 1
+            ? world.Get<Transform>(selection[0]).Rotation
+            : Quaternion.Identity;
+
+        switch (Mode)
+        {
+            case GizmoMode.Translate:
+                RenderTranslateGizmo(renderer, pivot, rotation);
+                break;
+            case GizmoMode.Rotate:
+                RenderRotateGizmo(renderer, pivot, rotation);
+                break;
+            case GizmoMode.Scale:
+                RenderScaleGizmo(renderer, pivot, rotation);
+                break;
+        }
+    }
+
+    private void RenderTranslateGizmo(I3DRenderer renderer, Vector3 position, Quaternion rotation)
+    {
+        // X axis - red arrow
+        var xColor = hoveredAxis == GizmoAxis.X ? Color.Yellow : Color.Red;
+        renderer.DrawArrow(position, position + rotation * Vector3.UnitX, xColor);
+
+        // Y axis - green arrow
+        var yColor = hoveredAxis == GizmoAxis.Y ? Color.Yellow : Color.Green;
+        renderer.DrawArrow(position, position + rotation * Vector3.UnitY, yColor);
+
+        // Z axis - blue arrow
+        var zColor = hoveredAxis == GizmoAxis.Z ? Color.Yellow : Color.Blue;
+        renderer.DrawArrow(position, position + rotation * Vector3.UnitZ, zColor);
+
+        // XY plane
+        // XZ plane
+        // YZ plane
+    }
+}
+
+public enum GizmoMode { Translate, Rotate, Scale }
+public enum GizmoSpace { World, Local }
+public enum GizmoPivot { Center, Pivot }
+public enum GizmoAxis { X, Y, Z, XY, XZ, YZ, XYZ }
+```
+
+### 5.4 Selection System
+
+```csharp
+public sealed class SelectionManager
+{
+    private readonly List<Entity> selected = [];
+    private Entity primary;
+
+    public event Action<IReadOnlyList<Entity>>? SelectionChanged;
+
+    public IReadOnlyList<Entity> Selected => selected;
+    public Entity Primary => primary;
+
+    public bool IsSelected(Entity entity) => selected.Contains(entity);
+
+    public void Select(Entity entity, bool additive = false)
+    {
+        if (!additive)
+            selected.Clear();
+
+        if (!selected.Contains(entity))
+            selected.Add(entity);
+
+        primary = entity;
+        SelectionChanged?.Invoke(selected);
+    }
+
+    public void SelectMultiple(IEnumerable<Entity> entities, bool additive = false)
+    {
+        if (!additive)
+            selected.Clear();
+
+        foreach (var entity in entities)
+        {
+            if (!selected.Contains(entity))
+                selected.Add(entity);
+        }
+
+        if (selected.Count > 0 && !selected.Contains(primary))
+            primary = selected[0];
+
+        SelectionChanged?.Invoke(selected);
+    }
+
+    public void Deselect(Entity entity)
+    {
+        selected.Remove(entity);
+        if (primary == entity && selected.Count > 0)
+            primary = selected[0];
+        SelectionChanged?.Invoke(selected);
+    }
+
+    public void Clear()
+    {
+        selected.Clear();
+        primary = Entity.Null;
+        SelectionChanged?.Invoke(selected);
+    }
+
+    public void SelectAll(World world)
+    {
+        selected.Clear();
+        selected.AddRange(world.GetAllEntities());
+        if (selected.Count > 0)
+            primary = selected[0];
+        SelectionChanged?.Invoke(selected);
+    }
+}
+```
+
+---
+
+## 6. Asset Management
+
+### 6.1 Asset Database
+
+```csharp
+public sealed class AssetDatabase
+{
+    private readonly string projectRoot;
+    private readonly Dictionary<string, AssetEntry> assets = [];
+    private readonly FileSystemWatcher watcher;
+
+    public event Action<string>? AssetCreated;
+    public event Action<string>? AssetModified;
+    public event Action<string>? AssetDeleted;
+
+    public void Refresh()
+    {
+        // Scan project for all assets matching ItemGroups
+        ScanDirectory(Path.Combine(projectRoot, "Assets"));
+        ScanDirectory(Path.Combine(projectRoot, "Scenes"));
+        ScanDirectory(Path.Combine(projectRoot, "Prefabs"));
+    }
+
+    public AssetEntry? GetAsset(string relativePath)
+        => assets.GetValueOrDefault(relativePath);
+
+    public IEnumerable<AssetEntry> GetAssetsOfType(AssetType type)
+        => assets.Values.Where(a => a.Type == type);
+
+    public IEnumerable<AssetEntry> Search(string query)
+        => assets.Values.Where(a =>
+            a.Path.Contains(query, StringComparison.OrdinalIgnoreCase) ||
+            a.Name.Contains(query, StringComparison.OrdinalIgnoreCase));
+}
+
+public record AssetEntry(
+    string Path,
+    string Name,
+    AssetType Type,
+    long Size,
+    DateTime Modified,
+    byte[]? Thumbnail
+);
+
+public enum AssetType
+{
+    Scene,      // .kescene
+    Prefab,     // .keprefab
+    World,      // .keworld
+    Texture,    // .png, .jpg, .dds
+    Audio,      // .wav, .ogg, .mp3
+    Model,      // .gltf, .glb, .fbx
+    Shader,     // .kesl
+    Script,     // .cs
+    Data,       // .json
+    Other
+}
+```
+
+### 6.2 Scene File Format (.kescene)
+
+```json
+{
+  "version": "1.0",
+  "name": "Main",
+  "settings": {
+    "ambientColor": [0.1, 0.1, 0.15, 1.0],
+    "gravity": [0, -9.81, 0]
+  },
+  "entities": [
+    {
+      "id": 1,
+      "name": "Player",
+      "parent": null,
+      "tags": ["player", "controllable"],
+      "components": [
+        {
+          "type": "Transform",
+          "data": {
+            "position": [0, 1, 0],
+            "rotation": [0, 0, 0, 1],
+            "scale": [1, 1, 1]
+          }
+        },
+        {
+          "type": "MyGame.Components.Health",
+          "data": {
+            "current": 100,
+            "max": 100
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "MainCamera",
+      "parent": 1,
+      "prefab": null,
+      "components": [
+        {
+          "type": "Transform",
+          "data": { "position": [0, 5, -10] }
+        },
+        {
+          "type": "Camera",
+          "data": { "fov": 60, "near": 0.1, "far": 1000 }
+        }
+      ]
+    }
+  ],
+  "prefabInstances": [
+    {
+      "id": 100,
+      "prefab": "Prefabs/Enemy.keprefab",
+      "overrides": {
+        "Transform.position": [10, 0, 5]
+      }
+    }
+  ]
+}
+```
+
+### 6.3 Prefab File Format (.keprefab)
+
+```json
+{
+  "version": "1.0",
+  "name": "Enemy",
+  "basePrefab": null,
+  "root": {
+    "name": "Enemy",
+    "components": [
+      { "type": "Transform", "data": {} },
+      { "type": "Health", "data": { "current": 50, "max": 50 } },
+      { "type": "AI", "data": { "behavior": "Patrol" } }
+    ],
+    "children": [
+      {
+        "name": "Model",
+        "components": [
+          { "type": "MeshRenderer", "data": { "mesh": "Assets/Models/goblin.glb" } }
+        ]
+      },
+      {
+        "name": "HitBox",
+        "components": [
+          { "type": "BoxCollider", "data": { "size": [1, 2, 1] } }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 7. Undo/Redo System
+
+### 7.1 Command Pattern
+
+```csharp
+public interface IEditorCommand
+{
+    string Description { get; }
+    void Execute();
+    void Undo();
+    bool CanMergeWith(IEditorCommand other);
+    void MergeWith(IEditorCommand other);
+}
+
+public sealed class UndoRedoManager
+{
+    private readonly Stack<IEditorCommand> undoStack = [];
+    private readonly Stack<IEditorCommand> redoStack = [];
+
+    public event Action? HistoryChanged;
+
+    public bool CanUndo => undoStack.Count > 0;
+    public bool CanRedo => redoStack.Count > 0;
+
+    public string? UndoDescription => undoStack.TryPeek(out var cmd) ? cmd.Description : null;
+    public string? RedoDescription => redoStack.TryPeek(out var cmd) ? cmd.Description : null;
+
+    public void Execute(IEditorCommand command)
+    {
+        // Try to merge with previous command (for continuous dragging, etc.)
+        if (undoStack.TryPeek(out var previous) && previous.CanMergeWith(command))
+        {
+            previous.MergeWith(command);
+        }
+        else
+        {
+            command.Execute();
+            undoStack.Push(command);
+        }
+
+        redoStack.Clear();
+        HistoryChanged?.Invoke();
+    }
+
+    public void Undo()
+    {
+        if (undoStack.TryPop(out var command))
+        {
+            command.Undo();
+            redoStack.Push(command);
+            HistoryChanged?.Invoke();
+        }
+    }
+
+    public void Redo()
+    {
+        if (redoStack.TryPop(out var command))
+        {
+            command.Execute();
+            undoStack.Push(command);
+            HistoryChanged?.Invoke();
+        }
+    }
+
+    public void Clear()
+    {
+        undoStack.Clear();
+        redoStack.Clear();
+        HistoryChanged?.Invoke();
+    }
+}
+```
+
+### 7.2 Command Implementations
+
+```csharp
+public sealed class SetComponentCommand<T> : IEditorCommand where T : struct
+{
+    private readonly World world;
+    private readonly Entity entity;
+    private readonly T oldValue;
+    private T newValue;
+
+    public string Description => $"Modify {typeof(T).Name}";
+
+    public SetComponentCommand(World world, Entity entity, T oldValue, T newValue)
+    {
+        this.world = world;
+        this.entity = entity;
+        this.oldValue = oldValue;
+        this.newValue = newValue;
+    }
+
+    public void Execute() => world.Set(entity, newValue);
+    public void Undo() => world.Set(entity, oldValue);
+
+    public bool CanMergeWith(IEditorCommand other)
+        => other is SetComponentCommand<T> cmd && cmd.entity == entity;
+
+    public void MergeWith(IEditorCommand other)
+    {
+        if (other is SetComponentCommand<T> cmd)
+            newValue = cmd.newValue;
+    }
+}
+
+public sealed class CreateEntityCommand : IEditorCommand
+{
+    private readonly World world;
+    private readonly string? name;
+    private Entity createdEntity;
+
+    public string Description => $"Create Entity '{name ?? "Entity"}'";
+
+    public void Execute()
+    {
+        createdEntity = world.Spawn(name).Build();
+    }
+
+    public void Undo()
+    {
+        world.Despawn(createdEntity);
+    }
+
+    public bool CanMergeWith(IEditorCommand other) => false;
+    public void MergeWith(IEditorCommand other) { }
+}
+
+public sealed class DeleteEntitiesCommand : IEditorCommand
+{
+    private readonly World world;
+    private readonly Entity[] entities;
+    private readonly EntitySnapshot[] snapshots;
+
+    public string Description => entities.Length == 1
+        ? "Delete Entity"
+        : $"Delete {entities.Length} Entities";
+
+    public void Execute()
+    {
+        foreach (var entity in entities)
+            world.Despawn(entity);
+    }
+
+    public void Undo()
+    {
+        foreach (var snapshot in snapshots)
+            snapshot.RestoreTo(world);
+    }
+
+    public bool CanMergeWith(IEditorCommand other) => false;
+    public void MergeWith(IEditorCommand other) { }
+}
+
+public sealed class ReparentEntityCommand : IEditorCommand
+{
+    private readonly World world;
+    private readonly Entity entity;
+    private readonly Entity oldParent;
+    private readonly Entity newParent;
+
+    public string Description => "Reparent Entity";
+
+    public void Execute() => world.SetParent(entity, newParent);
+    public void Undo() => world.SetParent(entity, oldParent);
+
+    public bool CanMergeWith(IEditorCommand other) => false;
+    public void MergeWith(IEditorCommand other) { }
+}
+
+public sealed class CompositeCommand : IEditorCommand
+{
+    private readonly IEditorCommand[] commands;
+
+    public string Description { get; }
+
+    public CompositeCommand(string description, params IEditorCommand[] commands)
+    {
+        Description = description;
+        this.commands = commands;
+    }
+
+    public void Execute()
+    {
+        foreach (var cmd in commands)
+            cmd.Execute();
+    }
+
+    public void Undo()
+    {
+        for (int i = commands.Length - 1; i >= 0; i--)
+            commands[i].Undo();
+    }
+
+    public bool CanMergeWith(IEditorCommand other) => false;
+    public void MergeWith(IEditorCommand other) { }
+}
+```
+
+---
+
+## 8. Play Mode
+
+### 8.1 State Machine
+
+```csharp
+public enum EditorPlayState
+{
+    Editing,    // Normal edit mode
+    Playing,    // Game running
+    Paused      // Game paused, can inspect
+}
+
+public sealed class PlayModeManager
+{
+    private readonly EditorWorldManager worldManager;
+    private readonly UndoRedoManager undoRedo;
+
+    public EditorPlayState State { get; private set; } = EditorPlayState.Editing;
+
+    public event Action<EditorPlayState>? StateChanged;
+
+    public float TimeScale { get; set; } = 1f;
+
+    public void Play()
+    {
+        if (State == EditorPlayState.Editing)
+        {
+            // Save state for restoration
+            worldManager.EnterPlayMode();
+
+            // Disable undo during play
+            undoRedo.Clear();
+
+            State = EditorPlayState.Playing;
+            StateChanged?.Invoke(State);
+        }
+        else if (State == EditorPlayState.Paused)
+        {
+            State = EditorPlayState.Playing;
+            StateChanged?.Invoke(State);
+        }
+    }
+
+    public void Pause()
+    {
+        if (State == EditorPlayState.Playing)
+        {
+            State = EditorPlayState.Paused;
+            StateChanged?.Invoke(State);
+        }
+    }
+
+    public void Stop()
+    {
+        if (State != EditorPlayState.Editing)
+        {
+            // Restore pre-play state
+            worldManager.ExitPlayMode();
+
+            State = EditorPlayState.Editing;
+            StateChanged?.Invoke(State);
+        }
+    }
+
+    public void Step()
+    {
+        if (State == EditorPlayState.Paused)
+        {
+            // Run single frame
+            worldManager.SceneWorld?.Update(1f / 60f);
+        }
+    }
+
+    public void Update(float deltaTime)
+    {
+        if (State == EditorPlayState.Playing)
+        {
+            worldManager.SceneWorld?.Update(deltaTime * TimeScale);
+        }
+    }
+}
+```
+
+---
+
+## 9. Hot Reload
+
+### 9.1 AssemblyLoadContext Approach
+
+```csharp
+public sealed class HotReloadManager : IDisposable
+{
+    private readonly EditorProject project;
+    private readonly World sceneWorld;
+    private AssemblyLoadContext? gameContext;
+    private readonly List<ISystem> registeredSystems = [];
+
+    private FileSystemWatcher? sourceWatcher;
+
+    public event Action? ReloadStarted;
+    public event Action? ReloadCompleted;
+    public event Action<string[]>? CompilationFailed;
+
+    public void StartWatching()
+    {
+        sourceWatcher = new FileSystemWatcher(project.RootDirectory, "*.cs")
+        {
+            IncludeSubdirectories = true,
+            NotifyFilter = NotifyFilters.LastWrite
+        };
+
+        sourceWatcher.Changed += OnSourceChanged;
+        sourceWatcher.EnableRaisingEvents = true;
+    }
+
+    private async void OnSourceChanged(object sender, FileSystemEventArgs e)
+    {
+        // Debounce multiple changes
+        await Task.Delay(500);
+        await ReloadAsync();
+    }
+
+    public async Task ReloadAsync()
+    {
+        ReloadStarted?.Invoke();
+
+        try
+        {
+            // 1. Capture current state
+            var snapshot = sceneWorld.CreateSnapshot();
+
+            // 2. Unregister all game systems
+            foreach (var system in registeredSystems)
+            {
+                sceneWorld.RemoveSystem(system);
+            }
+            registeredSystems.Clear();
+
+            // 3. Unload previous assembly
+            if (gameContext != null)
+            {
+                gameContext.Unload();
+                gameContext = null;
+
+                // Force GC
+                for (int i = 0; i < 5; i++)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                }
+            }
+
+            // 4. Rebuild project
+            var result = await BuildProjectAsync();
+            if (!result.Success)
+            {
+                CompilationFailed?.Invoke(result.Errors);
+                return;
+            }
+
+            // 5. Load new assembly
+            gameContext = new AssemblyLoadContext("GameCode", isCollectible: true);
+            var assembly = gameContext.LoadFromAssemblyPath(result.OutputPath);
+
+            // 6. Re-register systems
+            RegisterSystemsFromAssembly(assembly);
+
+            // 7. Component data survives (stored as bytes in archetypes)
+            // Systems now operate on existing entities
+
+            ReloadCompleted?.Invoke();
+        }
+        catch (Exception ex)
+        {
+            CompilationFailed?.Invoke([ex.Message]);
+        }
+    }
+
+    private async Task<BuildResult> BuildProjectAsync()
+    {
+        var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"build \"{project.ProjectPath}\" -c Debug --no-restore",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false
+            }
+        };
+
+        process.Start();
+        var output = await process.StandardOutput.ReadToEndAsync();
+        var error = await process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode == 0)
+        {
+            var outputPath = Path.Combine(project.OutputDirectory,
+                Path.GetFileNameWithoutExtension(project.ProjectPath) + ".dll");
+            return new BuildResult(true, outputPath, []);
+        }
+
+        return new BuildResult(false, "", ParseErrors(error));
+    }
+
+    private void RegisterSystemsFromAssembly(Assembly assembly)
+    {
+        var systemTypes = assembly.GetTypes()
+            .Where(t => typeof(ISystem).IsAssignableFrom(t) && !t.IsAbstract);
+
+        foreach (var systemType in systemTypes)
+        {
+            var system = (ISystem)Activator.CreateInstance(systemType)!;
+            sceneWorld.AddSystem(system);
+            registeredSystems.Add(system);
+        }
+    }
+
+    public void Dispose()
+    {
+        sourceWatcher?.Dispose();
+        gameContext?.Unload();
+    }
+}
+
+public record BuildResult(bool Success, string OutputPath, string[] Errors);
+```
+
+---
+
+## 10. Debugging & Profiling
+
+### 10.1 Existing Infrastructure
+
+KeenEyes already provides comprehensive debugging:
+
+| Class | Location | Purpose |
+|-------|----------|---------|
+| `EntityInspector` | KeenEyes.Debugging | Runtime entity introspection |
+| `Profiler` | KeenEyes.Debugging | System timing with history |
+| `MemoryTracker` | KeenEyes.Debugging | Memory usage tracking |
+| `GCTracker` | KeenEyes.Debugging | Per-system GC allocations |
+| `ParallelProfiler` | KeenEyes.Parallelism | DOT graphs, bottlenecks |
+
+### 10.2 Console Panel
+
+```csharp
+public sealed class ConsolePanel
+{
+    private readonly List<LogEntry> entries = [];
+    private readonly RingBuffer<LogEntry> buffer = new(1000);
+
+    private bool showInfo = true;
+    private bool showWarning = true;
+    private bool showError = true;
+
+    private string filterText = "";
+
+    public void AddEntry(LogLevel level, string message, string? source, string? stackTrace)
+    {
+        var entry = new LogEntry(DateTime.Now, level, message, source, stackTrace);
+        buffer.Add(entry);
+
+        // Collapse duplicates
+        if (entries.Count > 0 && entries[^1].Message == message)
+        {
+            entries[^1] = entries[^1] with { Count = entries[^1].Count + 1 };
+        }
+        else
+        {
+            entries.Add(entry);
+        }
+    }
+
+    public IEnumerable<LogEntry> GetVisibleEntries()
+    {
+        return entries
+            .Where(e => (e.Level == LogLevel.Info && showInfo) ||
+                       (e.Level == LogLevel.Warning && showWarning) ||
+                       (e.Level == LogLevel.Error && showError))
+            .Where(e => string.IsNullOrEmpty(filterText) ||
+                       e.Message.Contains(filterText, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void Clear() => entries.Clear();
+}
+
+public record LogEntry(
+    DateTime Time,
+    LogLevel Level,
+    string Message,
+    string? Source,
+    string? StackTrace,
+    int Count = 1
+);
+```
+
+### 10.3 Profiler Panel
+
+```
+┌─ System Profiler ────────────────────────────────────┐
+│  Frame: 16.67ms (60 FPS)  |  GC: 0.0 KB             │
+├──────────────────────────────────────────────────────┤
+│  System              Avg     Max     Alloc    %      │
+│  ───────────────────────────────────────────────────│
+│  PhysicsSystem      4.2ms   6.1ms    0 KB   25.2%   │
+│  RenderSystem       3.8ms   5.2ms   12 KB   22.8%   │
+│  AISystem           2.1ms   3.4ms    0 KB   12.6%   │
+│  InputSystem        0.1ms   0.2ms    0 KB    0.6%   │
+│  ───────────────────────────────────────────────────│
+│  ████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░   │
+│  [Physics][Render][AI][Other]                        │
+└──────────────────────────────────────────────────────┘
+```
+
+---
+
+## 11. Graph Node Editor
+
+See [ADR-010](../adr/010-graph-node-editor.md) for complete architecture.
+
+### 11.1 Package Structure
+
+```
+KeenEyes.Graph.Abstractions/
+├── Components/
+│   ├── GraphCanvas.cs
+│   ├── GraphNode.cs
+│   └── GraphConnection.cs
+├── Ports/
+│   ├── PortDefinition.cs
+│   ├── PortTypeId.cs
+│   └── PortDirection.cs
+└── Interfaces/
+    ├── INodeTypeDefinition.cs
+    └── IGraphRenderer.cs
+
+KeenEyes.Graph/
+├── Systems/
+│   ├── GraphInputSystem.cs
+│   ├── GraphLayoutSystem.cs
+│   └── GraphRenderSystem.cs
+├── GraphContext.cs
+└── Registries/
+    ├── PortRegistry.cs
+    └── NodeTypeRegistry.cs
+
+KeenEyes.Graph.Kesl/
+├── Nodes/
+│   ├── MathNodes.cs
+│   ├── VectorNodes.cs
+│   └── ComponentNodes.cs
+├── KeslGraphCompiler.cs
+└── KeslGraphValidator.cs
+```
+
+### 11.2 KESL Integration Flow
+
+```
+Visual Graph (editor)
+    ↓ KeslGraphCompiler.ToAst()
+KESL AST
+    ↓ existing pipeline
+┌──────────────────────────────────────┐
+│  GlslGenerator  │  CSharpGenerator   │
+│  (GPU shader)   │  (CPU binding)     │
+└──────────────────────────────────────┘
+```
+
+---
+
+## 12. Build Pipeline
+
+### 12.1 Build Window
+
+```csharp
+public sealed class BuildManager
+{
+    private readonly EditorProject project;
+
+    public BuildConfiguration Configuration { get; set; } = BuildConfiguration.Debug;
+    public BuildTarget Target { get; set; } = BuildTarget.Windows;
+
+    public async Task<BuildResult> BuildAsync(IProgress<string>? progress = null)
+    {
+        progress?.Report("Cleaning output directory...");
+        CleanOutput();
+
+        progress?.Report("Compiling scripts...");
+        var compileResult = await CompileAsync();
+        if (!compileResult.Success) return compileResult;
+
+        progress?.Report("Processing assets...");
+        await ProcessAssetsAsync();
+
+        progress?.Report("Packaging...");
+        await PackageAsync();
+
+        progress?.Report("Build complete!");
+        return new BuildResult(true, OutputPath, []);
+    }
+
+    private async Task ProcessAssetsAsync()
+    {
+        // Copy/process all KeenEyesAsset items
+        foreach (var asset in project.Assets)
+        {
+            var destPath = Path.Combine(OutputPath, "Assets", asset);
+            Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+
+            // Apply asset-specific processing
+            await ProcessAssetAsync(asset, destPath);
+        }
+    }
+}
+
+public enum BuildConfiguration { Debug, Release }
+public enum BuildTarget { Windows, Linux, MacOS, WebAssembly }
+```
+
+---
+
+## 13. Editor Plugin System
+
+### 13.1 Editor Plugin Interface
+
+```csharp
+public interface IEditorPlugin
+{
+    string Name { get; }
+    string Version { get; }
+
+    /// <summary>Called when editor starts.</summary>
+    void Initialize(IEditorContext context);
+
+    /// <summary>Called when editor shuts down.</summary>
+    void Shutdown();
+}
+
+public interface IEditorContext
+{
+    EditorProject Project { get; }
+    EditorWorldManager Worlds { get; }
+    SelectionManager Selection { get; }
+    UndoRedoManager UndoRedo { get; }
+    AssetDatabase Assets { get; }
+
+    // Extension points
+    void RegisterPanel(string name, Func<Panel> factory);
+    void RegisterTool(string name, ITool tool);
+    void RegisterInspector(Type componentType, IComponentInspector inspector);
+    void RegisterMenuItem(string path, Action action, string? shortcut = null);
+    void RegisterContextMenuItem(string path, Func<Entity, bool> filter, Action<Entity> action);
+}
+```
+
+### 13.2 Built-in Editor Plugins
+
+| Plugin | Purpose |
+|--------|---------|
+| `EditorCorePlugin` | Selection, commands, core UI |
+| `InspectorPlugin` | Property editing, component display |
+| `HierarchyPlugin` | Scene tree, drag-and-drop |
+| `ViewportPlugin` | 3D/2D scene rendering, gizmos |
+| `ProjectPlugin` | Asset browser, file management |
+| `ConsolePlugin` | Log display, filtering |
+| `ProfilerPlugin` | System timing, memory stats |
+| `BuildPlugin` | Build pipeline, packaging |
+
+---
+
+## 14. Implementation Phases
+
+### Phase 1: Foundation (MVP)
+
+**Goal:** Basic scene editing workflow
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| Project loading (.csproj detection) | Low | P0 |
+| Scene file format (.kescene) | Low | P0 |
+| Selection manager | Low | P0 |
+| Hierarchy panel (TreeView) | Low | P0 |
+| Basic inspector (PropertyGrid) | Medium | P0 |
+| Undo/redo commands | Medium | P0 |
+| Property metadata attributes | Low | P1 |
+
+**Deliverable:** Can open project, view/edit entities, save scenes
+
+### Phase 2: Visual Editing
+
+**Goal:** Scene viewport with manipulation
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| Editor camera controller | Medium | P0 |
+| Scene rendering integration | High | P0 |
+| Transform gizmos | High | P0 |
+| Click/box selection | Medium | P0 |
+| Grid overlay | Low | P1 |
+| Entity icons | Low | P2 |
+
+**Deliverable:** Can visually select and transform entities
+
+### Phase 3: Play Mode
+
+**Goal:** Test game in editor
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| Play mode state machine | Medium | P0 |
+| Snapshot/restore on play/stop | Low | P0 |
+| Pause and step | Low | P0 |
+| Time scale control | Low | P1 |
+| Live editing during play | Medium | P1 |
+
+**Deliverable:** Can play, pause, stop game; changes revert on stop
+
+### Phase 4: Asset Pipeline
+
+**Goal:** Manage project assets
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| Asset database | Medium | P0 |
+| Project browser panel | Medium | P0 |
+| Prefab file format (.keprefab) | Low | P0 |
+| Asset hot-reload | Medium | P1 |
+| Thumbnail generation | Medium | P2 |
+| Import settings | High | P2 |
+
+**Deliverable:** Browse, create, manage assets; prefab instantiation
+
+### Phase 5: Developer Experience
+
+**Goal:** Debugging and profiling
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| Console panel | Low | P0 |
+| Profiler panel | Medium | P0 |
+| Debug draw integration | Medium | P1 |
+| Hot reload (code) | High | P1 |
+| Build pipeline UI | Medium | P1 |
+
+**Deliverable:** Console output, profiling, hot reload
+
+### Phase 6: Graph Editor
+
+**Goal:** Visual shader creation
+
+| Task | Effort | Priority |
+|------|--------|----------|
+| KeenEyes.Graph.Abstractions | Medium | P0 |
+| KeenEyes.Graph core systems | High | P0 |
+| Bezier connection rendering | Medium | P0 |
+| KESL node library | Medium | P1 |
+| Graph compiler | High | P1 |
+| Shader preview | Medium | P2 |
+
+**Deliverable:** Create KESL shaders visually
+
+---
+
+## Appendix A: File Extension Summary
+
+| Extension | ItemGroup | Purpose |
+|-----------|-----------|---------|
+| `.kescene` | `<KeenEyesScene>` | Scene definition (entities, hierarchy) |
+| `.keprefab` | `<KeenEyesPrefab>` | Prefab template (reusable entity) |
+| `.keworld` | `<KeenEyesWorld>` | World configuration (settings) |
+| `.kesl` | `<KeenEyesShader>` | Shader source (KESL language) |
+
+---
+
+## Appendix B: Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+S` | Save scene |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` | Redo |
+| `Ctrl+D` | Duplicate selection |
+| `Delete` | Delete selection |
+| `F` | Focus viewport on selection |
+| `W` | Translate tool |
+| `E` | Rotate tool |
+| `R` | Scale tool |
+| `Ctrl+P` | Play/Stop |
+| `Ctrl+Shift+P` | Pause |
+
+---
+
+## Appendix C: Comparison with Unity/Godot
+
+| Feature | Unity | Godot | KeenEyes (Planned) |
+|---------|-------|-------|-------------------|
+| Project format | `.unity` folder | `project.godot` | `.csproj` / `.slnx` |
+| Scene format | `.unity` YAML | `.tscn` text | `.kescene` JSON |
+| Prefab format | `.prefab` YAML | `.tres` / `.scn` | `.keprefab` JSON |
+| Scripting | C# (Mono/CoreCLR) | GDScript/C# | C# (.NET 10) |
+| Visual scripting | Bolt (deprecated) | VisualScript | Graph Node Editor |
+| Shader graphs | Shader Graph | Visual Shaders | KESL Graphs |
+| Hot reload | Limited | Full | AssemblyLoadContext |
+| Native AOT | No | No | Yes |
+| ECS native | No (DOTS separate) | No | Yes (core design) |
+
+---
+
+## References
+
+- [ADR-006: Custom MSBuild SDK](../adr/006-custom-msbuild-sdk.md)
+- [ADR-008: Asset Management Architecture](../adr/008-asset-management-architecture.md)
+- [ADR-010: Graph Node Editor Architecture](../adr/010-graph-node-editor.md)
+- [Framework Editor Feasibility](./framework-editor.md)
+- [UI System Documentation](../ui.md)
+- [ROADMAP.md](../../ROADMAP.md) - Long-Term Vision: Browser-Based Editor
