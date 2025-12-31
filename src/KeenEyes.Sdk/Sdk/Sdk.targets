@@ -19,6 +19,7 @@
   <PropertyGroup>
     <IncludeKeenEyesCore Condition="'$(IncludeKeenEyesCore)' == ''">true</IncludeKeenEyesCore>
     <IncludeKeenEyesGenerators Condition="'$(IncludeKeenEyesGenerators)' == ''">true</IncludeKeenEyesGenerators>
+    <IncludeKeenEyesShaders Condition="'$(IncludeKeenEyesShaders)' == ''">true</IncludeKeenEyesShaders>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IncludeKeenEyesCore)' == 'true'">
@@ -30,6 +31,20 @@
                       Version="$(KeenEyesCoreVersion)"
                       OutputItemType="Analyzer"
                       ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- KESL Shader Generator - compiles .kesl files to GLSL + C# bindings -->
+  <ItemGroup Condition="'$(IncludeKeenEyesShaders)' == 'true'">
+    <PackageReference Include="KeenEyes.Shaders.Generator"
+                      Version="$(KeenEyesCoreVersion)"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Auto-detect .kesl files and add them as AdditionalFiles for the source generator -->
+  <ItemGroup Condition="'$(IncludeKeenEyesShaders)' == 'true'">
+    <AdditionalFiles Include="**/*.kesl" Exclude="$(DefaultItemExcludes)" />
+    <KeenEyesShader Include="**/*.kesl" Exclude="$(DefaultItemExcludes)" />
   </ItemGroup>
 
   <!--
@@ -79,6 +94,17 @@
     <Message Condition="'@(_KeenEyesPrefabFiles)' != ''"
              Text="KeenEyes: Found %(RecursiveDir)%(Filename)%(Extension) prefab(s)"
              Importance="low" />
+  </Target>
+
+  <!-- Collect all KeenEyes shaders (.kesl) for processing -->
+  <Target Name="CollectKeenEyesShaders" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <_KeenEyesShaderFiles Include="@(KeenEyesShader)" />
+    </ItemGroup>
+
+    <Message Condition="'@(_KeenEyesShaderFiles)' != ''"
+             Text="KeenEyes: Compiling %(RecursiveDir)%(Filename)%(Extension) shader(s)"
+             Importance="normal" />
   </Target>
 
   <!-- Copy KeenEyes assets to output directory -->

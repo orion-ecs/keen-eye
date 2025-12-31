@@ -1,0 +1,20 @@
+// Simple physics update shader
+// Updates position based on velocity
+
+compute UpdatePhysics {
+    query {
+        write Position
+        read Velocity
+        without Frozen
+    }
+
+    params {
+        deltaTime: float
+    }
+
+    execute() {
+        Position.x += Velocity.x * deltaTime;
+        Position.y += Velocity.y * deltaTime;
+        Position.z += Velocity.z * deltaTime;
+    }
+}

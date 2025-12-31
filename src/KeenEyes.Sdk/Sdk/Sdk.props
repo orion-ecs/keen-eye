@@ -101,4 +101,12 @@
     </KeenEyesWorld>
   </ItemDefinitionGroup>
 
+  <!-- Shader files (.kesl) - compiled by source generator to GLSL + C# bindings -->
+  <ItemDefinitionGroup>
+    <KeenEyesShader>
+      <Visible>true</Visible>
+      <Generator>KeenEyesShaderGenerator</Generator>
+    </KeenEyesShader>
+  </ItemDefinitionGroup>
+
 </Project>
