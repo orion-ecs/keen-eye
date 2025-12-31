@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+
+    <!-- Source generator requirements -->
+    <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsRoslynComponent>true</IsRoslynComponent>
+
+    <!-- Suppress RS2008 - analyzer release tracking not needed -->
+    <NoWarn>$(NoWarn);RS2008</NoWarn>
+
+    <!-- Package metadata -->
+    <PackageId>KeenEyes.Shaders.Generator</PackageId>
+    <Description>Source generator that compiles KESL (.kesl) files to C# bindings during build</Description>
+    <PackageTags>ecs;shaders;compiler;source-generator;roslyn;glsl;gpu</PackageTags>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <IsPackable>true</IsPackable>
+
+    <!-- Include the generator as an analyzer -->
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+
+    <!-- Source generators cannot be AOT-compiled -->
+    <IsAotCompatible>false</IsAotCompatible>
+    <PublishAot>false</PublishAot>
+    <IsPublishable>false</IsPublishable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <!-- Reference the compiler library (netstandard2.0 build) -->
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Shaders.Compiler\KeenEyes.Shaders.Compiler.csproj"
+                      PrivateAssets="all"
+                      GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <!-- Pack the generator and its dependencies correctly -->
+  <ItemGroup>
+    <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    <None Include="$(OutputPath)\KeenEyes.Shaders.Compiler.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+  </ItemGroup>
+
+</Project>

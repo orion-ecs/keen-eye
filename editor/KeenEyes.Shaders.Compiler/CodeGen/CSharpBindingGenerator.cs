@@ -361,7 +361,9 @@ public sealed class CSharpBindingGenerator
             return name;
         }
 
-        return char.ToLowerInvariant(name[0]) + name[1..];
+#pragma warning disable IDE0057 // Substring can be simplified - not available in netstandard2.0
+        return char.ToLowerInvariant(name[0]) + name.Substring(1);
+#pragma warning restore IDE0057
     }
 
     private void AppendLine(string? text = null)

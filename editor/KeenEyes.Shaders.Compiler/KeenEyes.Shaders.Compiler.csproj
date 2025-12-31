@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <!-- Multi-target for source generator (netstandard2.0) and runtime (net10.0) -->
+    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>KeenEyes.Shaders.Compiler</PackageId>

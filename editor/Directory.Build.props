@@ -3,6 +3,8 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
   <PropertyGroup>
+    <!-- Clear parent TargetFramework to allow per-project TargetFrameworks -->
+    <TargetFramework></TargetFramework>
     <!-- Editor/tool code has relaxed documentation requirements -->
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Suppress documentation and style warnings for prototype code -->
