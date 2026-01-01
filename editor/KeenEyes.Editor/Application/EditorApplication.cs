@@ -796,6 +796,7 @@ internal static class EditorColors
     public static Vector4 DarkPanel => new(0.12f, 0.12f, 0.16f, 0.98f);
     public static Vector4 MediumPanel => new(0.16f, 0.16f, 0.20f, 0.95f);
     public static Vector4 LightPanel => new(0.20f, 0.20f, 0.25f, 0.90f);
+    public static Vector4 ViewportBackground => new(0.15f, 0.15f, 0.18f, 1f);
 
     public static Vector4 TextWhite => new(1f, 1f, 1f, 1f);
     public static Vector4 TextLight => new(0.85f, 0.85f, 0.90f, 1f);
