@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KeenEyes.Editor</RootNamespace>
+    <AssemblyName>KeenEyes.Editor</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Runtime\KeenEyes.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.UI\KeenEyes.UI.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics.Silk\KeenEyes.Graphics.Silk.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Input.Silk\KeenEyes.Input.Silk.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Platform.Silk\KeenEyes.Platform.Silk.csproj" />
+  </ItemGroup>
+
+</Project>
