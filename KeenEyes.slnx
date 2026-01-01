@@ -81,6 +81,7 @@
     <Project Path="tests/KeenEyes.Common.Tests/KeenEyes.Common.Tests.csproj" />
     <Project Path="tests/KeenEyes.Core.Tests/KeenEyes.Core.Tests.csproj" />
     <Project Path="tests/KeenEyes.Debugging.Tests/KeenEyes.Debugging.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Editor.Integration.Tests/KeenEyes.Editor.Integration.Tests.csproj" />
     <Project Path="tests/KeenEyes.Editor.Tests/KeenEyes.Editor.Tests.csproj" />
     <Project Path="tests/KeenEyes.Generators.Tests/KeenEyes.Generators.Tests.csproj" />
     <Project Path="tests/KeenEyes.Graphics.Tests/KeenEyes.Graphics.Tests.csproj" />
