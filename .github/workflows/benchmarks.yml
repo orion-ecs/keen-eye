@@ -113,7 +113,10 @@ jobs:
         timeout-minutes: ${{ fromJson(steps.config.outputs.timeout) }}
 
       - name: Checkout baseline
-        run: git checkout ${{ steps.config.outputs.baseline }}
+        run: |
+          # Restore may modify packages.lock.json files, clean them before checkout
+          git checkout -- '**/packages.lock.json' || true
+          git checkout ${{ steps.config.outputs.baseline }}
 
       - name: Build baseline version
         run: dotnet build benchmarks/KeenEyes.Benchmarks -c Release
@@ -132,7 +135,10 @@ jobs:
         timeout-minutes: ${{ fromJson(steps.config.outputs.timeout) }}
 
       - name: Checkout back for comparison tool
-        run: git checkout ${{ github.sha }}
+        run: |
+          # Clean packages.lock.json changes before checkout
+          git checkout -- '**/packages.lock.json' || true
+          git checkout ${{ github.sha }}
 
       - name: Compare benchmark results
         id: compare
