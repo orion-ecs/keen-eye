@@ -154,7 +154,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        Func<BinaryReader, object> BinaryDeserializer,");
         sb.AppendLine("        Action<object, BinaryWriter> BinarySerializer,");
         sb.AppendLine("        Func<ISerializationCapability, bool, ComponentInfo> Registrar,");
-        sb.AppendLine("        Action<ISerializationCapability, object> SingletonSetter);");
+        sb.AppendLine("        Action<ISerializationCapability, object> SingletonSetter,");
+        sb.AppendLine("        Func<object> Factory);");
         sb.AppendLine();
         sb.AppendLine("    private static readonly Dictionary<string, ComponentSerializationInfo> ComponentsByName;");
         sb.AppendLine("    private static readonly Dictionary<Type, ComponentSerializationInfo> ComponentsByType;");
@@ -176,7 +177,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             sb.AppendLine($"            DeserializeBinary_{component.Name},");
             sb.AppendLine($"            (value, writer) => SerializeBinary_{component.Name}(({component.FullName})value, writer),");
             sb.AppendLine($"            (serialization, isTag) => serialization.Components.Register<{component.FullName}>(isTag),");
-            sb.AppendLine($"            (serialization, value) => serialization.SetSingleton(({component.FullName})value));");
+            sb.AppendLine($"            (serialization, value) => serialization.SetSingleton(({component.FullName})value),");
+            sb.AppendLine($"            static () => new {component.FullName}());");
             sb.AppendLine();
             sb.AppendLine($"        ComponentsByName[typeof({component.FullName}).AssemblyQualifiedName!] = info_{component.Name};");
             sb.AppendLine($"        ComponentsByName[\"{component.FullName}\"] = info_{component.Name};");
@@ -238,7 +240,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    /// <inheritdoc />");
         sb.AppendLine("    public object? CreateDefault(string typeName)");
         sb.AppendLine("    {");
-        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info) ? Activator.CreateInstance(info.Type) : null;");
+        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info) ? info.Factory() : null;");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");

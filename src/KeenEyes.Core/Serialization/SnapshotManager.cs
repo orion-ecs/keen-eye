@@ -311,6 +311,15 @@ public static class SnapshotManager
     private const ushort BinaryFormatVersion = 1;
 
     /// <summary>
+    /// Maximum allowed size for component/singleton data to prevent DoS via memory exhaustion.
+    /// </summary>
+    /// <remarks>
+    /// This limit (100MB) is generous for most use cases while preventing malicious files
+    /// from causing OutOfMemoryException crashes. Adjust if legitimate use cases require larger data.
+    /// </remarks>
+    private const int MaxDataLength = 100_000_000;
+
+    /// <summary>
     /// Binary format flags.
     /// </summary>
     [Flags]
@@ -708,6 +717,11 @@ public static class SnapshotManager
                 if (hasStringTable)
                 {
                     var typeIndex = reader.ReadUInt16();
+                    if (typeIndex >= stringTable.Length)
+                    {
+                        throw new InvalidDataException(
+                            $"String table index {typeIndex} out of bounds (table size: {stringTable.Length}).");
+                    }
                     typeName = stringTable[typeIndex];
                 }
                 else
@@ -723,6 +737,14 @@ public static class SnapshotManager
                     var dataLength = reader.ReadInt32();
                     if (dataLength != 0)
                     {
+                        // Validate data length to prevent DoS via memory exhaustion
+                        var absoluteLength = Math.Abs(dataLength);
+                        if (absoluteLength > MaxDataLength)
+                        {
+                            throw new InvalidDataException(
+                                $"Component data length {absoluteLength} exceeds maximum allowed size ({MaxDataLength} bytes).");
+                        }
+
                         // Negative length indicates JSON fallback
                         if (dataLength < 0)
                         {
@@ -777,6 +799,11 @@ public static class SnapshotManager
             if (hasStringTable)
             {
                 var typeIndex = reader.ReadUInt16();
+                if (typeIndex >= stringTable.Length)
+                {
+                    throw new InvalidDataException(
+                        $"String table index {typeIndex} out of bounds (table size: {stringTable.Length}).");
+                }
                 typeName = stringTable[typeIndex];
             }
             else
@@ -786,6 +813,14 @@ public static class SnapshotManager
 
             var dataLength = reader.ReadInt32();
             JsonElement data;
+
+            // Validate data length to prevent DoS via memory exhaustion
+            var absoluteLength = Math.Abs(dataLength);
+            if (absoluteLength > MaxDataLength)
+            {
+                throw new InvalidDataException(
+                    $"Singleton data length {absoluteLength} exceeds maximum allowed size ({MaxDataLength} bytes).");
+            }
 
             // Negative length indicates JSON fallback
             if (dataLength < 0)

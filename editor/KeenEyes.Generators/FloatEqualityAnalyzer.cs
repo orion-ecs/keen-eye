@@ -83,6 +83,14 @@ public sealed class FloatEqualityAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // Skip literal-to-literal comparisons - these are always safe as they're compile-time constants
+        // e.g., "0.0f == 0.0f" is a valid constant expression
+        if (IsLiteralExpression(binaryOperation.LeftOperand) &&
+            IsLiteralExpression(binaryOperation.RightOperand))
+        {
+            return;
+        }
+
         // Skip if in FloatExtensions class (it legitimately compares floats)
         var containingType = GetContainingType(context.Operation);
         if (IsFloatExtensionsClass(containingType))
@@ -111,6 +119,22 @@ public sealed class FloatEqualityAnalyzer : DiagnosticAnalyzer
 
         // Check for float (System.Single)
         return type.SpecialType == SpecialType.System_Single;
+    }
+
+    /// <summary>
+    /// Checks if an operation is a literal expression (possibly wrapped in a conversion).
+    /// </summary>
+    /// <param name="operation">The operation to check.</param>
+    /// <returns>True if the operation is a literal expression.</returns>
+    private static bool IsLiteralExpression(IOperation operation)
+    {
+        // Unwrap implicit conversions (e.g., int -> float)
+        if (operation is IConversionOperation conversion)
+        {
+            operation = conversion.Operand;
+        }
+
+        return operation is ILiteralOperation;
     }
 
     private static bool IsZeroLiteral(IOperation operation)
