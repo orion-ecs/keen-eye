@@ -280,5 +280,57 @@ public sealed partial class World
     public bool DisableSystem<T>() where T : class, ISystem
         => systemManager.DisableSystem<T>();
 
+    /// <summary>
+    /// Removes a system instance from this world.
+    /// </summary>
+    /// <param name="system">The system instance to remove.</param>
+    /// <returns>True if the system was found and removed; false otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// The system will no longer receive update calls after removal.
+    /// Any resources held by the system should be disposed by the caller if needed.
+    /// </para>
+    /// <para>
+    /// This method is primarily intended for hot reload scenarios where systems
+    /// need to be unregistered before loading new versions.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var physics = world.GetSystem&lt;PhysicsSystem&gt;();
+    /// if (physics is not null)
+    /// {
+    ///     world.RemoveSystem(physics);
+    /// }
+    /// </code>
+    /// </example>
+    public bool RemoveSystem(ISystem system)
+        => systemManager.RemoveSystem(system);
+
+    /// <summary>
+    /// Removes a system of the specified type from this world.
+    /// </summary>
+    /// <typeparam name="T">The type of system to remove.</typeparam>
+    /// <returns>True if the system was found and removed; false otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// If multiple systems of the same type exist, only the first match is removed.
+    /// </para>
+    /// <para>
+    /// The system will no longer receive update calls after removal.
+    /// Any resources held by the system should be disposed by the caller if needed.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// world.RemoveSystem&lt;PhysicsSystem&gt;();
+    /// </code>
+    /// </example>
+    public bool RemoveSystem<T>() where T : class, ISystem
+    {
+        var system = GetSystem<T>();
+        return system != null && RemoveSystem(system);
+    }
+
     #endregion
 }

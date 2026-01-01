@@ -209,7 +209,8 @@ internal sealed class SystemManager
     /// Removes a system from this manager.
     /// </summary>
     /// <param name="system">The system to remove.</param>
-    internal void RemoveSystem(ISystem system)
+    /// <returns>True if the system was found and removed; false otherwise.</returns>
+    internal bool RemoveSystem(ISystem system)
     {
         for (int i = systems.Count - 1; i >= 0; i--)
         {
@@ -217,9 +218,10 @@ internal sealed class SystemManager
             {
                 systems.RemoveAt(i);
                 systemsSorted = false;
-                return;
+                return true;
             }
         }
+        return false;
     }
 
     /// <summary>
