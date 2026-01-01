@@ -36,7 +36,7 @@ public sealed class CreateEntityCommand : IEditorCommand
     {
         _createdEntity = _world.Spawn(_name).Build();
 
-        if (_parent.IsValid)
+        if (_parent.IsValid && _world.IsAlive(_parent))
         {
             _world.SetParent(_createdEntity, _parent);
         }
