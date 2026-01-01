@@ -1,5 +1,6 @@
 using System.Numerics;
 using KeenEyes.Editor.Commands;
+using KeenEyes.Editor.Layout;
 using KeenEyes.Editor.Panels;
 using KeenEyes.Editor.PlayMode;
 using KeenEyes.Editor.Selection;
@@ -29,6 +30,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private readonly ShortcutManager _shortcuts;
     private readonly UndoRedoManager _undoRedo;
     private readonly SelectionManager _selection;
+    private readonly LayoutManager _layoutManager;
 #pragma warning disable CS0649, IDE0044 // Field is never assigned - initialized lazily when scene world is created
     private PlayModeManager? _playMode;
 #pragma warning restore CS0649, IDE0044
@@ -66,6 +68,11 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     public PlayModeManager? PlayMode => _playMode;
 
     /// <summary>
+    /// Gets the layout manager for window arrangement.
+    /// </summary>
+    public LayoutManager LayoutManager => _layoutManager;
+
+    /// <summary>
     /// Creates a new editor application instance.
     /// </summary>
     public EditorApplication()
@@ -75,9 +82,13 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _shortcuts = new ShortcutManager();
         _undoRedo = new UndoRedoManager(EditorSettings.UndoHistoryLimit);
         _selection = new SelectionManager();
+        _layoutManager = LayoutManager.Instance;
 
         // Load editor settings
         EditorSettings.Load();
+
+        // Load layout
+        _layoutManager.Load();
 
         // Update undo limit when settings change
         EditorSettings.SettingChanged += (_, e) =>
@@ -103,12 +114,13 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// </summary>
     public void Run()
     {
-        // Configure window
+        // Configure window from saved layout
+        var windowState = _layoutManager.CurrentLayout.Window;
         var windowConfig = new WindowConfig
         {
             Title = "KeenEyes Editor",
-            Width = 1600,
-            Height = 900,
+            Width = windowState.Width,
+            Height = windowState.Height,
             VSync = true
         };
 
@@ -249,6 +261,14 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                 new MenuItemDef("Project", "show_project"),
                 new MenuItemDef("Console", "show_console"),
                 new MenuItemDef("---", "sep6", IsSeparator: true),
+                new MenuItemDef("Layout: Default", "layout_default"),
+                new MenuItemDef("Layout: Tall", "layout_tall"),
+                new MenuItemDef("Layout: Wide", "layout_wide"),
+                new MenuItemDef("Layout: 2-Column", "layout_2column"),
+                new MenuItemDef("Layout: 3-Column", "layout_3column"),
+                new MenuItemDef("Layout: 4-Column", "layout_4column"),
+                new MenuItemDef("---", "sep7", IsSeparator: true),
+                new MenuItemDef("Save Layout...", "save_layout"),
                 new MenuItemDef("Reset Layout", "reset_layout")
             ]),
             ("Help", [
@@ -333,7 +353,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             switch (e.ItemId)
             {
                 case "exit":
-                    Environment.Exit(0);
+                    SaveLayoutAndExit();
                     break;
                 case "new_scene":
                     _worldManager.NewScene();
@@ -342,9 +362,49 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                 case "create_empty":
                     CreateEmptyEntity();
                     break;
-                    // Add more menu action handlers
+
+                // Layout presets
+                case "layout_default":
+                    _layoutManager.ApplyPreset(LayoutPreset.Default);
+                    Console.WriteLine("Applied default layout");
+                    break;
+                case "layout_tall":
+                    _layoutManager.ApplyPreset(LayoutPreset.Tall);
+                    Console.WriteLine("Applied tall layout");
+                    break;
+                case "layout_wide":
+                    _layoutManager.ApplyPreset(LayoutPreset.Wide);
+                    Console.WriteLine("Applied wide layout");
+                    break;
+                case "layout_2column":
+                    _layoutManager.ApplyPreset(LayoutPreset.TwoColumn);
+                    Console.WriteLine("Applied 2-column layout");
+                    break;
+                case "layout_3column":
+                    _layoutManager.ApplyPreset(LayoutPreset.ThreeColumn);
+                    Console.WriteLine("Applied 3-column layout");
+                    break;
+                case "layout_4column":
+                    _layoutManager.ApplyPreset(LayoutPreset.FourColumn);
+                    Console.WriteLine("Applied 4-column layout");
+                    break;
+                case "save_layout":
+                    // TODO: Show dialog to save custom layout
+                    Console.WriteLine("Save Layout (dialog not yet implemented)");
+                    break;
+                case "reset_layout":
+                    _layoutManager.ResetToDefault();
+                    Console.WriteLine("Layout reset to default");
+                    break;
             }
         });
+    }
+
+    private void SaveLayoutAndExit()
+    {
+        // Save layout before exiting
+        _layoutManager.Save();
+        Environment.Exit(0);
     }
 
     private void SetupInputHandling()
@@ -443,7 +503,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.Exit()
     {
-        Environment.Exit(0);
+        SaveLayoutAndExit();
     }
 
     /// <inheritdoc/>
@@ -695,7 +755,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.ResetLayout()
     {
-        Console.WriteLine("Reset Layout");
+        _layoutManager.ResetToDefault();
+        Console.WriteLine("Layout reset to default");
     }
 
     /// <inheritdoc/>
@@ -718,6 +779,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     {
         if (_isDisposed) return;
         _isDisposed = true;
+
+        // Save layout before disposing
+        _layoutManager.Save();
 
         _worldManager.Dispose();
         _editorWorld.Dispose();
