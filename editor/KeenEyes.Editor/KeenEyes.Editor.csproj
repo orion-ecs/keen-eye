@@ -13,6 +13,7 @@
     <ProjectReference Include="..\KeenEyes.Editor.Abstractions\KeenEyes.Editor.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Editor.Common\KeenEyes.Editor.Common.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Logging\KeenEyes.Logging.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Runtime\KeenEyes.Runtime.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.UI\KeenEyes.UI.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Graphics.Silk\KeenEyes.Graphics.Silk.csproj" />
