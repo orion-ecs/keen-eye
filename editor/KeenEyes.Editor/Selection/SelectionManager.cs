@@ -1,9 +1,11 @@
+using KeenEyes.Editor.Abstractions;
+
 namespace KeenEyes.Editor.Selection;
 
 /// <summary>
 /// Manages entity selection in the editor with support for multi-select.
 /// </summary>
-public sealed class SelectionManager
+public sealed class SelectionManager : ISelectionManager
 {
     private readonly HashSet<Entity> _selectedEntities = [];
     private Entity _primarySelection = Entity.Null;

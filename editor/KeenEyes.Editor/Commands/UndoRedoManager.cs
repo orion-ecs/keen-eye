@@ -1,9 +1,11 @@
+using KeenEyes.Editor.Abstractions;
+
 namespace KeenEyes.Editor.Commands;
 
 /// <summary>
 /// Manages the undo/redo stack for editor commands.
 /// </summary>
-public sealed class UndoRedoManager
+public sealed class UndoRedoManager : IUndoRedoManager
 {
     private readonly Stack<IEditorCommand> _undoStack = new();
     private readonly Stack<IEditorCommand> _redoStack = new();

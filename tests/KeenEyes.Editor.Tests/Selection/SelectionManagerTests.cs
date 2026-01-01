@@ -1,3 +1,4 @@
+using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Selection;
 
 namespace KeenEyes.Editor.Tests.Selection;
