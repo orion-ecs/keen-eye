@@ -37,44 +37,44 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             .ForAttributeWithMetadataName(
                 PluginExtensionAttribute,
                 predicate: static (node, _) => node is ClassDeclarationSyntax,
-                transform: static (ctx, _) => GetExtensionResult(ctx));
+                transform: static (ctx, _) => GetExtensionInfo(ctx));
 
-        // Filter valid extensions for code generation
-        var validExtensions = extensionProvider
-            .Where(static result => result.Info is not null)
-            .Select(static (result, _) => result.Info!);
+        // Collect all extensions
+        var allExtensions = extensionProvider.Collect();
 
-        // Collect all extensions and generate a single file
-        var allExtensions = validExtensions.Collect();
-
+        // Single output registration handles both diagnostics and code generation
         context.RegisterSourceOutput(allExtensions, static (ctx, extensions) =>
         {
-            if (extensions.Length == 0)
+            // Report all diagnostics first
+            foreach (var ext in extensions)
+            {
+                foreach (var diag in ext.Diagnostics)
+                {
+                    ctx.ReportDiagnostic(Diagnostic.Create(
+                        diag.Descriptor,
+                        diag.Location,
+                        diag.Args));
+                }
+            }
+
+            // Generate code only for valid extensions
+            var validExtensions = extensions.Where(static e => e.IsValid).ToImmutableArray();
+            if (validExtensions.Length == 0)
             {
                 return;
             }
 
-            var source = GenerateWorldExtensions(extensions);
+            var source = GenerateWorldExtensions(validExtensions);
             ctx.AddSource("World.PluginExtensions.g.cs", SourceText.From(source, Encoding.UTF8));
-        });
-
-        // Report diagnostics for invalid usages
-        var diagnostics = extensionProvider
-            .Where(static result => result.Diagnostic is not null)
-            .Select(static (result, _) => result.Diagnostic!);
-
-        context.RegisterSourceOutput(diagnostics, static (ctx, diagnostic) =>
-        {
-            ctx.ReportDiagnostic(diagnostic);
         });
     }
 
-    private static ExtensionResult GetExtensionResult(GeneratorAttributeSyntaxContext context)
+    private static ExtensionInfo GetExtensionInfo(GeneratorAttributeSyntaxContext context)
     {
         // Predicate guarantees ClassDeclarationSyntax, which always has INamedTypeSymbol
         if (context.TargetSymbol is not INamedTypeSymbol typeSymbol)
         {
-            return new ExtensionResult(null, null);
+            return CreateInvalidExtensionInfo();
         }
 
         // ForAttributeWithMetadataName guarantees the attribute exists, but use FirstOrDefault for safety
@@ -83,7 +83,7 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
 
         if (attributeData is null)
         {
-            return new ExtensionResult(null, null);
+            return CreateInvalidExtensionInfo();
         }
 
         // Get property name from constructor argument
@@ -91,11 +91,19 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             attributeData.ConstructorArguments[0].Value is not string propertyName)
         {
             // Report error for null property name
-            var diagnostic = Diagnostic.Create(
+            var diagnostics = ImmutableArray.Create(new DiagnosticInfo(
                 NullPropertyName,
                 context.TargetNode.GetLocation(),
-                typeSymbol.Name);
-            return new ExtensionResult(null, diagnostic);
+                [typeSymbol.Name]));
+
+            return new ExtensionInfo(
+                typeSymbol.Name,
+                typeSymbol.ContainingNamespace.ToDisplayString(),
+                typeSymbol.ToDisplayString(),
+                string.Empty,
+                false,
+                diagnostics,
+                IsValid: false);
         }
 
         // Get Nullable property from named arguments
@@ -108,14 +116,26 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             }
         }
 
-        var info = new ExtensionInfo(
+        return new ExtensionInfo(
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
             propertyName,
-            isNullable);
+            isNullable,
+            ImmutableArray<DiagnosticInfo>.Empty,
+            IsValid: true);
+    }
 
-        return new ExtensionResult(info, null);
+    private static ExtensionInfo CreateInvalidExtensionInfo()
+    {
+        return new ExtensionInfo(
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            string.Empty,
+            false,
+            ImmutableArray<DiagnosticInfo>.Empty,
+            IsValid: false);
     }
 
     private static string GenerateWorldExtensions(ImmutableArray<ExtensionInfo> extensions)
@@ -171,12 +191,23 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private sealed record ExtensionResult(ExtensionInfo? Info, Diagnostic? Diagnostic);
+    /// <summary>
+    /// Information about a diagnostic to report, captured for incremental pipeline.
+    /// </summary>
+    private sealed record DiagnosticInfo(
+        DiagnosticDescriptor Descriptor,
+        Location Location,
+        object[] Args);
 
+    /// <summary>
+    /// Information about a plugin extension class.
+    /// </summary>
     private sealed record ExtensionInfo(
         string Name,
         string Namespace,
         string FullName,
         string PropertyName,
-        bool IsNullable);
+        bool IsNullable,
+        ImmutableArray<DiagnosticInfo> Diagnostics,
+        bool IsValid);
 }
