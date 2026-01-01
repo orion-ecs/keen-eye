@@ -512,6 +512,377 @@ public class ThreadSafetyTests
 
     #endregion
 
+    #region Event System Thread Safety Tests
+
+    [Fact]
+    public void EventBus_ConcurrentSubscribeAndPublish_IsThreadSafe()
+    {
+        using var world = new World();
+        var receivedCount = 0;
+        var exceptions = new ConcurrentBag<Exception>();
+
+        // Subscribe from multiple threads while publishing
+        Parallel.For(0, 50, i =>
+        {
+            try
+            {
+                if (i % 2 == 0)
+                {
+                    // Subscribe
+                    var sub = world.Events.Subscribe<TestEvent>(evt =>
+                    {
+                        Interlocked.Increment(ref receivedCount);
+                    });
+
+                    // Small delay to allow some publishing to occur
+                    Thread.Sleep(TestConstants.ThreadSleepShortMs);
+
+                    sub.Dispose();
+                }
+                else
+                {
+                    // Publish events
+                    for (int j = 0; j < 10; j++)
+                    {
+                        world.Events.Publish(new TestEvent { Value = j });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+    }
+
+    [Fact]
+    public void EventBus_ConcurrentSubscriptions_NoHandlerLoss()
+    {
+        using var world = new World();
+        var subscriptions = new ConcurrentBag<EventSubscription>();
+        var exceptions = new ConcurrentBag<Exception>();
+
+        // Subscribe from many threads concurrently
+        Parallel.For(0, TestConstants.StandardBatchSize, _ =>
+        {
+            try
+            {
+                var sub = world.Events.Subscribe<TestEvent>(_ => { });
+                subscriptions.Add(sub);
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+        Assert.Equal(TestConstants.StandardBatchSize, world.Events.GetHandlerCount<TestEvent>());
+
+        // Dispose all subscriptions
+        foreach (var sub in subscriptions)
+        {
+            sub.Dispose();
+        }
+
+        Assert.Equal(0, world.Events.GetHandlerCount<TestEvent>());
+    }
+
+    [Fact]
+    public void EventBus_ConcurrentDispose_IsIdempotent()
+    {
+        using var world = new World();
+        var invokeCount = 0;
+
+        var subscription = world.Events.Subscribe<TestEvent>(_ =>
+        {
+            Interlocked.Increment(ref invokeCount);
+        });
+
+        var exceptions = new ConcurrentBag<Exception>();
+
+        // Dispose from multiple threads simultaneously
+        Parallel.For(0, 20, _ =>
+        {
+            try
+            {
+                subscription.Dispose();
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+
+        // Verify handler was removed (only once)
+        Assert.Equal(0, world.Events.GetHandlerCount<TestEvent>());
+    }
+
+    [Fact]
+    public async Task ComponentEvents_ConcurrentSubscribeAndFire_IsThreadSafe()
+    {
+        using var world = new World();
+        var addedCount = 0;
+        var exceptions = new ConcurrentBag<Exception>();
+        var subscriptions = new ConcurrentBag<EventSubscription>();
+
+        // Create entities first (single-threaded to avoid archetype race conditions)
+        var entities = new List<Entity>();
+        for (int i = 0; i < TestConstants.SmallBatchSize; i++)
+        {
+            entities.Add(world.Spawn().Build());
+        }
+
+        // Subscribe to component events from multiple threads while adding components sequentially
+        var ct = TestContext.Current.CancellationToken;
+        var subscriberTask = Task.Run(async () =>
+        {
+            for (int i = 0; i < 50; i++)
+            {
+                try
+                {
+                    var sub = world.OnComponentAdded<Position>((entity, pos) =>
+                    {
+                        Interlocked.Increment(ref addedCount);
+                    });
+                    subscriptions.Add(sub);
+                    await Task.Delay(TestConstants.ThreadSleepShortMs, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                }
+            }
+        }, ct);
+
+        // Add components sequentially (to avoid archetype race conditions)
+        foreach (var entity in entities)
+        {
+            world.Add(entity, new Position { X = 1, Y = 1 });
+        }
+
+        await subscriberTask;
+
+        Assert.Empty(exceptions);
+        // Verify that some subscriptions were added (exact count depends on timing)
+        Assert.True(subscriptions.Count > 0);
+    }
+
+    [Fact]
+    public void EntityEvents_ConcurrentSubscriptionManagement_IsThreadSafe()
+    {
+        using var world = new World();
+        var subscriptions = new ConcurrentBag<EventSubscription>();
+        var exceptions = new ConcurrentBag<Exception>();
+
+        // Concurrently subscribe and unsubscribe to entity events
+        Parallel.For(0, TestConstants.StandardBatchSize, i =>
+        {
+            try
+            {
+                if (i % 2 == 0)
+                {
+                    // Subscribe to created
+                    var sub = world.OnEntityCreated((entity, name) => { });
+                    subscriptions.Add(sub);
+                }
+                else
+                {
+                    // Subscribe to destroyed
+                    var sub = world.OnEntityDestroyed(entity => { });
+                    subscriptions.Add(sub);
+                }
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+        Assert.Equal(TestConstants.StandardBatchSize, subscriptions.Count);
+
+        // Concurrently dispose all subscriptions
+        Parallel.ForEach(subscriptions, sub =>
+        {
+            try
+            {
+                sub.Dispose();
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+    }
+
+    [Fact]
+    public void EventBus_HighConcurrencyStress_HandlesGracefully()
+    {
+        using var world = new World();
+        var publishCount = 0;
+        var exceptions = new ConcurrentBag<Exception>();
+        var subscriptions = new ConcurrentBag<EventSubscription>();
+
+        // High concurrency stress test
+        Parallel.For(0, TestConstants.ConcurrentIterationsPerThread, i =>
+        {
+            try
+            {
+                switch (i % 4)
+                {
+                    case 0:
+                        // Subscribe
+                        var sub = world.Events.Subscribe<TestEvent>(_ =>
+                        {
+                            Interlocked.Increment(ref publishCount);
+                        });
+                        subscriptions.Add(sub);
+                        break;
+                    case 1:
+                        // Publish
+                        world.Events.Publish(new TestEvent { Value = i });
+                        break;
+                    case 2:
+                        // Unsubscribe
+                        if (subscriptions.TryTake(out var toDispose))
+                        {
+                            toDispose.Dispose();
+                        }
+                        break;
+                    case 3:
+                        // Check handler count
+                        var _ = world.Events.HasHandlers<TestEvent>();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+    }
+
+    [Fact]
+    public void ComponentEvents_ConcurrentSubscriptionManagement_IsThreadSafe()
+    {
+        using var world = new World();
+        var exceptions = new ConcurrentBag<Exception>();
+        var subscriptions = new ConcurrentBag<EventSubscription>();
+
+        // Concurrently subscribe to all component event types from many threads
+        Parallel.For(0, TestConstants.StandardBatchSize, i =>
+        {
+            try
+            {
+                switch (i % 3)
+                {
+                    case 0:
+                        subscriptions.Add(world.OnComponentAdded<Health>((e, h) => { }));
+                        break;
+                    case 1:
+                        subscriptions.Add(world.OnComponentRemoved<Health>(e => { }));
+                        break;
+                    case 2:
+                        subscriptions.Add(world.OnComponentChanged<Health>((e, o, n) => { }));
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+        Assert.Equal(TestConstants.StandardBatchSize, subscriptions.Count);
+
+        // Concurrently dispose all subscriptions
+        Parallel.ForEach(subscriptions, sub =>
+        {
+            try
+            {
+                sub.Dispose();
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+    }
+
+    [Fact]
+    public async Task EntityEvents_ConcurrentSubscriptionDuringDespawn_IsThreadSafe()
+    {
+        using var world = new World();
+        var destroyedCount = 0;
+        var exceptions = new ConcurrentBag<Exception>();
+        var subscriptions = new ConcurrentBag<EventSubscription>();
+
+        // Create entities first (single-threaded to avoid archetype race conditions)
+        var entities = new List<Entity>();
+        for (int i = 0; i < TestConstants.SmallBatchSize; i++)
+        {
+            entities.Add(world.Spawn().Build());
+        }
+
+        // Subscribe to entity destroyed from multiple threads
+        // while despawning happens on the main thread
+        var ct = TestContext.Current.CancellationToken;
+        var subscriberTask = Task.Run(async () =>
+        {
+            for (int i = 0; i < 50; i++)
+            {
+                try
+                {
+                    var sub = world.OnEntityDestroyed(entity =>
+                    {
+                        Interlocked.Increment(ref destroyedCount);
+                    });
+                    subscriptions.Add(sub);
+                    await Task.Delay(TestConstants.ThreadSleepShortMs, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    exceptions.Add(ex);
+                }
+            }
+        }, ct);
+
+        // Despawn sequentially (to avoid archetype race conditions)
+        foreach (var entity in entities)
+        {
+            world.Despawn(entity);
+        }
+
+        await subscriberTask;
+
+        Assert.Empty(exceptions);
+        // Events may or may not have been received depending on timing,
+        // but no crashes should occur
+        Assert.True(subscriptions.Count > 0);
+    }
+
+    #endregion
+
     #region Test Helpers
 
     /// <summary>
@@ -531,6 +902,14 @@ public class ThreadSafetyTests
         public void Uninstall(IPluginContext context)
         {
         }
+    }
+
+    /// <summary>
+    /// Simple test event for event bus thread safety testing.
+    /// </summary>
+    private readonly record struct TestEvent
+    {
+        public int Value { get; init; }
     }
 
     #endregion

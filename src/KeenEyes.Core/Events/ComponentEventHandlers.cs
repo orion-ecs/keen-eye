@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace KeenEyes.Events;
 
 /// <summary>
@@ -14,17 +16,21 @@ namespace KeenEyes.Events;
 /// Performance note: When no handlers are registered for a component type,
 /// event firing has minimal overhead (a dictionary lookup that returns false).
 /// </para>
+/// <para>
+/// This class is thread-safe: subscriptions, unsubscriptions, and event firing
+/// can occur concurrently from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class ComponentEventHandlers
 {
     // Component added: (Entity, T) -> void
-    private readonly Dictionary<Type, object> addedHandlers = [];
+    private readonly ConcurrentDictionary<Type, object> addedHandlers = new();
 
     // Component removed: (Entity) -> void (component value is gone)
-    private readonly Dictionary<Type, object> removedHandlers = [];
+    private readonly ConcurrentDictionary<Type, object> removedHandlers = new();
 
     // Component changed: (Entity, T oldValue, T newValue) -> void
-    private readonly Dictionary<Type, object> changedHandlers = [];
+    private readonly ConcurrentDictionary<Type, object> changedHandlers = new();
 
     #region Added Handlers
 
@@ -56,11 +62,8 @@ internal sealed class ComponentEventHandlers
             return;
         }
 
-        var handlerList = (List<Action<Entity, T>>)handlersObj;
-        for (int i = handlerList.Count - 1; i >= 0; i--)
-        {
-            handlerList[i](entity, component);
-        }
+        var handlerList = (ThreadSafeHandlerList<Action<Entity, T>>)handlersObj;
+        handlerList.InvokeAdded(entity, component);
     }
 
     #endregion
@@ -101,11 +104,8 @@ internal sealed class ComponentEventHandlers
             return;
         }
 
-        var handlerList = (List<Action<Entity>>)handlersObj;
-        for (int i = handlerList.Count - 1; i >= 0; i--)
-        {
-            handlerList[i](entity);
-        }
+        var handlerList = (ThreadSafeHandlerList<Action<Entity>>)handlersObj;
+        handlerList.InvokeRemoved(entity);
     }
 
     #endregion
@@ -150,11 +150,8 @@ internal sealed class ComponentEventHandlers
             return;
         }
 
-        var handlerList = (List<Action<Entity, T, T>>)handlersObj;
-        for (int i = handlerList.Count - 1; i >= 0; i--)
-        {
-            handlerList[i](entity, oldValue, newValue);
-        }
+        var handlerList = (ThreadSafeHandlerList<Action<Entity, T, T>>)handlersObj;
+        handlerList.InvokeChanged(entity, oldValue, newValue);
     }
 
     #endregion
@@ -185,15 +182,97 @@ internal sealed class ComponentEventHandlers
         changedHandlers.Clear();
     }
 
-    private static List<THandler> GetOrCreateHandlerList<THandler>(Dictionary<Type, object> handlers, Type componentType)
+    private static ThreadSafeHandlerList<THandler> GetOrCreateHandlerList<THandler>(
+        ConcurrentDictionary<Type, object> handlers,
+        Type componentType) where THandler : Delegate
     {
-        if (!handlers.TryGetValue(componentType, out var handlersObj))
+        return (ThreadSafeHandlerList<THandler>)handlers.GetOrAdd(
+            componentType,
+            static _ => new ThreadSafeHandlerList<THandler>());
+    }
+
+    /// <summary>
+    /// A thread-safe wrapper for a list of handlers.
+    /// </summary>
+    private sealed class ThreadSafeHandlerList<THandler> where THandler : Delegate
+    {
+        private readonly Lock syncRoot = new();
+        private readonly List<THandler> list = [];
+
+        public void Add(THandler handler)
         {
-            var handlerList = new List<THandler>();
-            handlers[componentType] = handlerList;
-            return handlerList;
+            lock (syncRoot)
+            {
+                list.Add(handler);
+            }
         }
 
-        return (List<THandler>)handlersObj;
+        public void Remove(THandler handler)
+        {
+            lock (syncRoot)
+            {
+                list.Remove(handler);
+            }
+        }
+
+        public void InvokeAdded<T>(Entity entity, in T component) where T : struct, IComponent
+        {
+            // Take a snapshot under lock, then invoke outside lock
+            // This prevents deadlocks if handlers try to subscribe/unsubscribe
+            THandler[] snapshot;
+            lock (syncRoot)
+            {
+                if (list.Count == 0)
+                {
+                    return;
+                }
+
+                snapshot = [.. list];
+            }
+
+            // Invoke in reverse order to match original behavior
+            for (int i = snapshot.Length - 1; i >= 0; i--)
+            {
+                ((Action<Entity, T>)(object)snapshot[i])(entity, component);
+            }
+        }
+
+        public void InvokeRemoved(Entity entity)
+        {
+            THandler[] snapshot;
+            lock (syncRoot)
+            {
+                if (list.Count == 0)
+                {
+                    return;
+                }
+
+                snapshot = [.. list];
+            }
+
+            for (int i = snapshot.Length - 1; i >= 0; i--)
+            {
+                ((Action<Entity>)(object)snapshot[i])(entity);
+            }
+        }
+
+        public void InvokeChanged<T>(Entity entity, in T oldValue, in T newValue) where T : struct, IComponent
+        {
+            THandler[] snapshot;
+            lock (syncRoot)
+            {
+                if (list.Count == 0)
+                {
+                    return;
+                }
+
+                snapshot = [.. list];
+            }
+
+            for (int i = snapshot.Length - 1; i >= 0; i--)
+            {
+                ((Action<Entity, T, T>)(object)snapshot[i])(entity, oldValue, newValue);
+            }
+        }
     }
 }
