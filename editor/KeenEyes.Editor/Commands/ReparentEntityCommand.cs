@@ -1,3 +1,5 @@
+using KeenEyes.Editor.Abstractions;
+
 namespace KeenEyes.Editor.Commands;
 
 /// <summary>
