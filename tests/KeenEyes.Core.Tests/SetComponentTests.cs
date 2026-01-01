@@ -146,7 +146,7 @@ public class SetComponentTests
     {
         using var world = new World();
         world.Components.Register<TestPosition>();
-        var deadEntity = new Entity(999, 1);
+        var deadEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             world.Set(deadEntity, new TestPosition { X = 0f, Y = 0f }));

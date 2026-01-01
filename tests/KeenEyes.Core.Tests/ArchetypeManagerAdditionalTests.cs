@@ -206,7 +206,7 @@ public class ArchetypeManagerAdditionalTests
 
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.Throws<InvalidOperationException>(() =>
             manager.AddComponentBoxed(entity, typeof(Position), new Position()));
@@ -242,7 +242,7 @@ public class ArchetypeManagerAdditionalTests
 
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.Throws<InvalidOperationException>(() =>
             manager.SetBoxed(entity, typeof(Position), new Position()));
@@ -284,7 +284,7 @@ public class ArchetypeManagerAdditionalTests
 
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var removed = manager.RemoveComponent(entity, typeof(Position));
 
@@ -349,7 +349,7 @@ public class ArchetypeManagerAdditionalTests
 
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.False(manager.Has(entity, typeof(Position)));
     }
@@ -382,7 +382,7 @@ public class ArchetypeManagerAdditionalTests
         var registry = new ComponentRegistry();
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var found = manager.TryGetEntityLocation(entity, out var archetype, out var index);
 
@@ -418,7 +418,7 @@ public class ArchetypeManagerAdditionalTests
         var registry = new ComponentRegistry();
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.Throws<InvalidOperationException>(() =>
             manager.GetEntityLocation(entity));
@@ -453,7 +453,7 @@ public class ArchetypeManagerAdditionalTests
         var registry = new ComponentRegistry();
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var removed = manager.RemoveEntity(entity);
 
@@ -535,7 +535,7 @@ public class ArchetypeManagerAdditionalTests
 
         using var manager = new ArchetypeManager(registry);
 
-        var entity = new Entity(999, 1);
+        var entity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.Throws<InvalidOperationException>(() =>
             manager.AddComponent(entity, new Position()));

@@ -541,7 +541,7 @@ public class ArchetypeTests
         registry.Register<Position>();
         var manager = new ArchetypeManager(registry);
 
-        var result = manager.TryGetEntityLocation(new Entity(999, 1), out var archetype, out var index);
+        var result = manager.TryGetEntityLocation(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion), out var archetype, out var index);
 
         Assert.False(result);
         Assert.Null(archetype);
@@ -554,7 +554,7 @@ public class ArchetypeTests
         var registry = new ComponentRegistry();
         var manager = new ArchetypeManager(registry);
 
-        var types = manager.GetComponentTypes(new Entity(999, 1));
+        var types = manager.GetComponentTypes(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion));
 
         Assert.Empty(types);
     }
@@ -565,7 +565,7 @@ public class ArchetypeTests
         var registry = new ComponentRegistry();
         var manager = new ArchetypeManager(registry);
 
-        var components = manager.GetComponents(new Entity(999, 1)).ToList();
+        var components = manager.GetComponents(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion)).ToList();
 
         Assert.Empty(components);
     }
@@ -576,7 +576,7 @@ public class ArchetypeTests
         var registry = new ComponentRegistry();
         var manager = new ArchetypeManager(registry);
 
-        Assert.False(manager.IsTracked(new Entity(999, 1)));
+        Assert.False(manager.IsTracked(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion)));
     }
 
     [Fact]
@@ -607,7 +607,7 @@ public class ArchetypeTests
         registry.Register<Position>();
         var manager = new ArchetypeManager(registry);
 
-        Assert.False(manager.Has<Position>(new Entity(999, 1)));
+        Assert.False(manager.Has<Position>(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion)));
     }
 
     #endregion
@@ -753,7 +753,7 @@ public class ArchetypeTests
         var manager = new ArchetypeManager(registry);
         var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
 
-        var result = archetype.RemoveEntity(new Entity(999, 1));
+        var result = archetype.RemoveEntity(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion));
 
         Assert.Null(result);
     }
@@ -766,7 +766,7 @@ public class ArchetypeTests
         var manager = new ArchetypeManager(registry);
         var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
 
-        var index = archetype.GetEntityIndex(new Entity(999, 1));
+        var index = archetype.GetEntityIndex(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion));
 
         Assert.Equal(-1, index);
     }
@@ -1074,7 +1074,7 @@ public class ArchetypeTests
         var manager = new ArchetypeManager(registry);
         var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
 
-        var (chunkIndex, indexInChunk) = archetype.GetEntityLocation(new Entity(999, 1));
+        var (chunkIndex, indexInChunk) = archetype.GetEntityLocation(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion));
 
         Assert.Equal(-1, chunkIndex);
         Assert.Equal(-1, indexInChunk);
@@ -1511,7 +1511,7 @@ public class ArchetypeTests
     {
         var registry = new ComponentRegistry();
 
-        var result = registry.GetById(new ComponentId(999));
+        var result = registry.GetById(new ComponentId(TestConstants.InvalidComponentId));
 
         Assert.Null(result);
     }

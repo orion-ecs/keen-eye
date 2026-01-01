@@ -110,7 +110,7 @@ public class InternalApiTests
         using var world = new World();
 
         // Create a fake entity that doesn't exist
-        var unknownEntity = new Entity(999, 1);
+        var unknownEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.Throws<InvalidOperationException>(() =>
             world.ArchetypeManager.AddComponent(unknownEntity, new Position()));
@@ -135,7 +135,7 @@ public class InternalApiTests
     {
         using var world = new World();
 
-        var unknownEntity = new Entity(999, 1);
+        var unknownEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.Throws<InvalidOperationException>(() =>
             world.ArchetypeManager.GetEntityLocation(unknownEntity));
@@ -618,7 +618,7 @@ public class InternalApiTests
         pool.Acquire();
 
         // Try to release an entity with an ID beyond what was allocated
-        var outOfRangeEntity = new Entity(999, 1);
+        var outOfRangeEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
         var result = pool.Release(outOfRangeEntity);
 
         Assert.False(result);

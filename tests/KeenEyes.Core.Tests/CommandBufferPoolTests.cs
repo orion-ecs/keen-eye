@@ -519,7 +519,7 @@ public class CommandBufferPoolTests
             {
                 for (var i = 0; i < iterations; i++)
                 {
-                    pool.Rent(i + 1000); // Use high IDs to avoid conflicts
+                    pool.Rent(i + TestConstants.ConcurrentTestHighIdOffset); // Use high IDs to avoid conflicts
                     Thread.SpinWait(10);
                 }
             }

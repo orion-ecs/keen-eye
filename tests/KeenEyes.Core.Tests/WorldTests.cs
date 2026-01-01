@@ -43,7 +43,7 @@ public class WorldTests
     public void World_IsAlive_ReturnsFalse_ForInvalidEntity()
     {
         using var world = new World();
-        var invalidEntity = new Entity(999, 1);
+        var invalidEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var isAlive = world.IsAlive(invalidEntity);
 

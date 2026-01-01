@@ -385,7 +385,7 @@ public class WorldHasTests
     public void Has_InvalidEntity_ReturnsFalse()
     {
         using var world = new World();
-        var invalidEntity = new Entity(999, 1);
+        var invalidEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         Assert.False(world.Has<BuilderTestPosition>(invalidEntity));
     }
@@ -450,7 +450,7 @@ public class WorldDespawnTests
     public void Despawn_InvalidEntity_ReturnsFalse()
     {
         using var world = new World();
-        var invalidEntity = new Entity(999, 1);
+        var invalidEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var result = world.Despawn(invalidEntity);
 

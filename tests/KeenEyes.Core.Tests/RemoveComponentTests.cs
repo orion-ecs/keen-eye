@@ -148,7 +148,7 @@ public class RemoveComponentTests
     public void Remove_ReturnsFalse_WhenEntityNotAlive()
     {
         using var world = new World();
-        var deadEntity = new Entity(999, 1);
+        var deadEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         bool removed = world.Remove<TestPosition>(deadEntity);
 

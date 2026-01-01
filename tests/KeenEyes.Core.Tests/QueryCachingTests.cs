@@ -648,7 +648,7 @@ public class QueryCachingTests
         description.AddWrite<Position>();
 
         const int threadCount = 10;
-        const int iterationsPerThread = 1000;
+        const int iterationsPerThread = TestConstants.ConcurrentIterationsPerThread;
         var exceptions = new List<Exception>();
         var exceptionLock = new object();
 
@@ -750,9 +750,9 @@ public class QueryCachingTests
         {
             try
             {
-                Thread.Sleep(10); // Let readers start first
+                Thread.Sleep(TestConstants.ThreadSleepMediumMs); // Let readers start first
                 manager.GetOrCreateArchetype([typeof(Position), typeof(Velocity)]);
-                Thread.Sleep(10);
+                Thread.Sleep(TestConstants.ThreadSleepMediumMs);
                 manager.GetOrCreateArchetype([typeof(Position), typeof(Health)]);
             }
             catch (Exception ex)

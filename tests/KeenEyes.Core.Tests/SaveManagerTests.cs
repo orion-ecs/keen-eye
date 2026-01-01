@@ -107,7 +107,7 @@ public class SaveManagerTests : IDisposable
         var createdAt = info1.CreatedAt;
 
         // Wait a bit and save again
-        Thread.Sleep(50);
+        Thread.Sleep(TestConstants.ThreadSleepLongMs);
         var info2 = world.SaveToSlot("slot1", serializer);
 
         Assert.Equal(createdAt.ToUnixTimeMilliseconds(), info2.CreatedAt.ToUnixTimeMilliseconds());

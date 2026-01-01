@@ -188,7 +188,7 @@ public class EntityNamingTests
     public void GetName_InvalidEntity_ReturnsNull()
     {
         using var world = new World();
-        var invalidEntity = new Entity(999, 1);
+        var invalidEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var name = world.GetName(invalidEntity);
 
