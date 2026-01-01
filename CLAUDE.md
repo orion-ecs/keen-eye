@@ -2,6 +2,8 @@
 
 This file contains guidance for Claude Code when working on this repository.
 
+For contribution guidelines, design philosophy, and PR requirements, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Project Overview
 
 KeenEyes is a high-performance Entity Component System (ECS) framework for .NET 10, reimplementing [OrionECS](https://github.com/tyevco/OrionECS) in C#.
@@ -366,7 +368,60 @@ Agents must track their work to maintain visibility and enable collaboration:
 - Write clear, descriptive commit messages explaining the "why"
 - Reference related features or issues when applicable
 - Group related changes into logical commits
-- Use conventional format: `Add/Update/Fix/Remove <what> - <why>`
+- Use Conventional Commits format: `<type>: <description>`
+
+### Pull Request Titles
+
+PR titles **must** follow [Conventional Commits](https://www.conventionalcommits.org/) format. This is enforced by CI.
+
+**Format:** `<type>: <description>`
+
+**Valid types:**
+
+| Type | Use For |
+|------|---------|
+| `feat` | New feature or functionality |
+| `fix` | Bug fix |
+| `docs` | Documentation only changes |
+| `chore` | Maintenance tasks, dependencies |
+| `refactor` | Code restructuring without behavior change |
+| `test` | Adding or updating tests |
+| `ci` | CI/CD configuration changes |
+| `perf` | Performance improvements |
+| `style` | Code formatting, no logic change |
+| `build` | Build system or dependency changes |
+
+**Examples:**
+```
+feat: Add ComponentIntrospector for reflection-based inspection
+fix: Resolve entity despawn race condition in HierarchyManager
+docs: Update getting started guide with new API
+refactor: Extract SystemManager from World class
+test: Add integration tests for prefab spawning
+```
+
+**With optional scope:**
+```
+feat(editor): Add PropertyDrawer system
+fix(physics): Correct collision detection for rotated boxes
+```
+
+### Pull Request Description
+
+Use this template for PR descriptions:
+
+```markdown
+## Summary
+<1-3 bullet points explaining what changed and why>
+
+## Test plan
+- [ ] Unit tests added/updated
+- [ ] Manual testing performed
+- [ ] Build passes with zero warnings
+
+## Related Issues
+Closes #XXX
+```
 
 ### Progress Documentation
 - Update ROADMAP.md when completing roadmap items (check the box)
