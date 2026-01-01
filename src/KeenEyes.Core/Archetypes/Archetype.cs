@@ -446,16 +446,22 @@ public sealed class Archetype : IDisposable
 
     private void UpdateLocationsAfterChunkRemoval(int removedChunkIndex)
     {
-        // Update all entity locations that were in chunks after the removed one
-        // We iterate through the dictionary's entries and only update when necessary
-        // to avoid allocating a list copy
+        // Collect entity IDs that need their chunk index decremented.
+        // We must not modify dictionary values during enumeration as it's undefined behavior.
+        var entityIdsToUpdate = new List<int>();
         foreach (var kvp in entityLocations)
         {
-            var (chunkIdx, indexInChunk) = kvp.Value;
-            if (chunkIdx > removedChunkIndex)
+            if (kvp.Value.ChunkIndex > removedChunkIndex)
             {
-                entityLocations[kvp.Key] = (chunkIdx - 1, indexInChunk);
+                entityIdsToUpdate.Add(kvp.Key);
             }
+        }
+
+        // Now update the locations for collected entities
+        foreach (var entityId in entityIdsToUpdate)
+        {
+            var (chunkIndex, indexInChunk) = entityLocations[entityId];
+            entityLocations[entityId] = (chunkIndex - 1, indexInChunk);
         }
     }
 }

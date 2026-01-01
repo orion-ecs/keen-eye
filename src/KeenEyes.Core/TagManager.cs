@@ -39,10 +39,12 @@ internal sealed class TagManager
     /// <returns>
     /// <c>true</c> if the tag was added; <c>false</c> if the entity already had the tag.
     /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityId"/> is negative.</exception>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     internal bool AddTag(int entityId, string tag)
     {
+        ValidateEntityId(entityId);
         ValidateTag(tag);
 
         // Get or create the entity's tag set
@@ -77,10 +79,12 @@ internal sealed class TagManager
     /// <returns>
     /// <c>true</c> if the tag was removed; <c>false</c> if the entity didn't have the tag.
     /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityId"/> is negative.</exception>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     internal bool RemoveTag(int entityId, string tag)
     {
+        ValidateEntityId(entityId);
         ValidateTag(tag);
 
         // Remove from entity's tags
@@ -116,10 +120,12 @@ internal sealed class TagManager
     /// <param name="entityId">The entity ID to check.</param>
     /// <param name="tag">The tag to check for.</param>
     /// <returns><c>true</c> if the entity has the tag; <c>false</c> otherwise.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityId"/> is negative.</exception>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     internal bool HasTag(int entityId, string tag)
     {
+        ValidateEntityId(entityId);
         ValidateTag(tag);
         return entityTags.TryGetValue(entityId, out var tags) && tags.Contains(tag);
     }
@@ -132,8 +138,11 @@ internal sealed class TagManager
     /// A read-only collection of tags on the entity. Returns an empty collection
     /// if the entity has no tags.
     /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="entityId"/> is negative.</exception>
     internal IReadOnlyCollection<string> GetTags(int entityId)
     {
+        ValidateEntityId(entityId);
+
         if (entityTags.TryGetValue(entityId, out var tags))
         {
             return tags;
@@ -217,5 +226,13 @@ internal sealed class TagManager
         {
             throw new ArgumentException("Tag cannot be empty or whitespace.", nameof(tag));
         }
+    }
+
+    /// <summary>
+    /// Validates that an entity ID is non-negative.
+    /// </summary>
+    private static void ValidateEntityId(int entityId)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(entityId);
     }
 }
