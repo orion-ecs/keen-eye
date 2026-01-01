@@ -65,6 +65,21 @@ public static class SaveFileFormat
     private const int ChecksumSize = 32;
 
     /// <summary>
+    /// Maximum allowed metadata size (10MB) to prevent DoS via memory exhaustion.
+    /// </summary>
+    private const int MaxMetadataLength = 10_000_000;
+
+    /// <summary>
+    /// Maximum allowed compressed data size (500MB) to prevent DoS via memory exhaustion.
+    /// </summary>
+    private const int MaxCompressedDataLength = 500_000_000;
+
+    /// <summary>
+    /// Maximum allowed decompressed data size (500MB) to prevent decompression bomb attacks.
+    /// </summary>
+    private const long MaxDecompressedSize = 500_000_000;
+
+    /// <summary>
     /// File format flags.
     /// </summary>
     [Flags]
@@ -391,6 +406,19 @@ public static class SaveFileFormat
             throw new InvalidDataException("Invalid save file: invalid metadata or data length.");
         }
 
+        // Validate lengths to prevent DoS via memory exhaustion
+        if (metadataLength > MaxMetadataLength)
+        {
+            throw new InvalidDataException(
+                $"Metadata length {metadataLength} exceeds maximum allowed size ({MaxMetadataLength} bytes).");
+        }
+
+        if (dataLength > MaxCompressedDataLength)
+        {
+            throw new InvalidDataException(
+                $"Data length {dataLength} exceeds maximum allowed size ({MaxCompressedDataLength} bytes).");
+        }
+
         return (flags, metadataLength, dataLength);
     }
 
@@ -433,6 +461,9 @@ public static class SaveFileFormat
     /// <summary>
     /// Decompresses data using the specified compression mode.
     /// </summary>
+    /// <exception cref="InvalidDataException">
+    /// Thrown when the decompressed data exceeds the maximum allowed size (decompression bomb protection).
+    /// </exception>
     private static byte[] DecompressData(byte[] compressedData, CompressionMode compression)
     {
         if (compression == CompressionMode.None)
@@ -443,24 +474,53 @@ public static class SaveFileFormat
         using var input = new MemoryStream(compressedData);
         using var output = new MemoryStream();
 
+        // Use bounded copy to prevent decompression bomb attacks
         switch (compression)
         {
             case CompressionMode.GZip:
                 using (var gzip = new GZipStream(input, System.IO.Compression.CompressionMode.Decompress))
                 {
-                    gzip.CopyTo(output);
+                    CopyWithLimit(gzip, output, MaxDecompressedSize);
                 }
                 return output.ToArray();
 
             case CompressionMode.Brotli:
                 using (var brotli = new BrotliStream(input, System.IO.Compression.CompressionMode.Decompress))
                 {
-                    brotli.CopyTo(output);
+                    CopyWithLimit(brotli, output, MaxDecompressedSize);
                 }
                 return output.ToArray();
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(compression), compression, "Unknown compression mode.");
+        }
+    }
+
+    /// <summary>
+    /// Copies from source to destination with a maximum size limit to prevent decompression bomb attacks.
+    /// </summary>
+    /// <param name="source">The source stream to read from.</param>
+    /// <param name="destination">The destination stream to write to.</param>
+    /// <param name="maxSize">The maximum number of bytes to copy.</param>
+    /// <exception cref="InvalidDataException">
+    /// Thrown when the source data exceeds the maximum allowed size.
+    /// </exception>
+    private static void CopyWithLimit(Stream source, Stream destination, long maxSize)
+    {
+        var buffer = new byte[81920];
+        long totalRead = 0;
+        int bytesRead;
+
+        while ((bytesRead = source.Read(buffer, 0, buffer.Length)) > 0)
+        {
+            totalRead += bytesRead;
+            if (totalRead > maxSize)
+            {
+                throw new InvalidDataException(
+                    $"Decompressed data exceeds maximum allowed size ({maxSize} bytes). " +
+                    "This may indicate a decompression bomb attack.");
+            }
+            destination.Write(buffer, 0, bytesRead);
         }
     }
 

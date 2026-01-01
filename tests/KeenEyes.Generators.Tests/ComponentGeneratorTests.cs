@@ -391,7 +391,7 @@ public class ComponentGeneratorTests
         Assert.Contains(generatedTrees, t => t.Contains("int x"));
         Assert.Contains(generatedTrees, t => t.Contains("int y"));
         Assert.Contains(generatedTrees, t => t.Contains("int longFieldName"));
-        Assert.Contains(generatedTrees, t => t.Contains("int iD"));
+        Assert.Contains(generatedTrees, t => t.Contains("int id"));
     }
 
     [Fact]
