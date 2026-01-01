@@ -7,6 +7,8 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
+#pragma warning disable RS1035 // Roslyn analyzers warn about non-shipping analyzer target frameworks
+
 namespace KeenEyes.Generators;
 
 /// <summary>
@@ -37,6 +39,21 @@ public sealed class QueryGenerator : IIncrementalGenerator
                 return;
             }
 
+            // Report any diagnostics (e.g., conflicting attributes)
+            foreach (var diag in info.Diagnostics)
+            {
+                ctx.ReportDiagnostic(Diagnostic.Create(
+                    diag.Descriptor,
+                    diag.Location,
+                    diag.MessageArgs));
+            }
+
+            // Only generate code if no errors
+            if (!info.IsValid)
+            {
+                return;
+            }
+
             var source = GenerateQueryImplementation(info);
             ctx.AddSource($"{info.FullName}.Query.g.cs", SourceText.From(source, Encoding.UTF8));
         });
@@ -50,6 +67,8 @@ public sealed class QueryGenerator : IIncrementalGenerator
         }
 
         var fields = new List<QueryFieldInfo>();
+        var diagnostics = new List<QueryDiagnosticInfo>();
+        var hasErrors = false;
 
         foreach (var member in typeSymbol.GetMembers())
         {
@@ -85,6 +104,46 @@ public sealed class QueryGenerator : IIncrementalGenerator
             var hasOptionalAttr = field.GetAttributes()
                 .Any(a => a.AttributeClass?.ToDisplayString() == OptionalAttribute);
 
+            // Detect conflicting attributes
+            if (hasWithAttr && hasWithoutAttr)
+            {
+                var location = field.Locations.FirstOrDefault();
+                if (location is not null)
+                {
+                    diagnostics.Add(new QueryDiagnosticInfo(
+                        QueryDiagnostics.ConflictingQueryAttributes,
+                        location,
+                        [field.Name, typeSymbol.Name, "[With]", "[Without]"]));
+                    hasErrors = true;
+                }
+            }
+
+            if (hasWithAttr && hasOptionalAttr)
+            {
+                var location = field.Locations.FirstOrDefault();
+                if (location is not null)
+                {
+                    diagnostics.Add(new QueryDiagnosticInfo(
+                        QueryDiagnostics.ConflictingQueryAttributes,
+                        location,
+                        [field.Name, typeSymbol.Name, "[With]", "[Optional]"]));
+                    hasErrors = true;
+                }
+            }
+
+            if (hasWithoutAttr && hasOptionalAttr)
+            {
+                var location = field.Locations.FirstOrDefault();
+                if (location is not null)
+                {
+                    diagnostics.Add(new QueryDiagnosticInfo(
+                        QueryDiagnostics.ConflictingQueryAttributes,
+                        location,
+                        [field.Name, typeSymbol.Name, "[Without]", "[Optional]"]));
+                    hasErrors = true;
+                }
+            }
+
             var accessType = hasWithAttr ? QueryAccessType.With
                 : hasWithoutAttr ? QueryAccessType.Without
                 : hasOptionalAttr ? QueryAccessType.Optional
@@ -102,7 +161,9 @@ public sealed class QueryGenerator : IIncrementalGenerator
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
-            fields.ToImmutableArray());
+            fields.ToImmutableArray(),
+            diagnostics.ToImmutableArray(),
+            IsValid: !hasErrors);
     }
 
     private static string GenerateQueryImplementation(QueryInfo info)
@@ -182,11 +243,37 @@ public sealed class QueryGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<QueryFieldInfo> Fields);
+        ImmutableArray<QueryFieldInfo> Fields,
+        ImmutableArray<QueryDiagnosticInfo> Diagnostics,
+        bool IsValid);
 
     private sealed record QueryFieldInfo(
         string Name,
         string ComponentType,
         QueryAccessType AccessType,
         bool IsRef);
+
+    private sealed record QueryDiagnosticInfo(
+        DiagnosticDescriptor Descriptor,
+        Location Location,
+        object[] MessageArgs);
+}
+
+/// <summary>
+/// Diagnostic descriptors for query generation errors.
+/// </summary>
+internal static partial class QueryDiagnostics
+{
+    /// <summary>
+    /// KEEN051: Conflicting query attributes on field.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ConflictingQueryAttributes = new(
+        id: "KEEN051",
+        title: "Conflicting query attributes",
+        messageFormat: "Field '{0}' in query '{1}' has conflicting attributes {2} and {3}; only one filter attribute is allowed per field",
+        category: "KeenEyes.Query",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "A query field can only have one filter attribute ([With], [Without], or [Optional]). " +
+                     "Having multiple filter attributes on the same field is contradictory and not allowed.");
 }

@@ -6,6 +6,12 @@ namespace KeenEyes;
 /// </summary>
 /// <remarks>
 /// <para>
+/// <strong>Thread Safety:</strong> MessageManager is NOT thread-safe. All operations
+/// (Subscribe, Send, Queue, ProcessQueuedMessages) must be called from a single thread.
+/// Subscribing or unsubscribing handlers from a different thread while messages are being
+/// processed will result in undefined behavior.
+/// </para>
+/// <para>
 /// This is an internal manager class that consolidates all message-related operations.
 /// The public API is exposed through <see cref="World"/>.
 /// </para>

@@ -21,6 +21,9 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
     // Track bytes sent this tick for bandwidth limiting
     private int bytesSentThisTick;
 
+    // Pre-allocated list to avoid per-tick allocations
+    private readonly List<(Entity entity, float priority, bool needsFullSync)> entitiesToUpdate = [];
+
     /// <inheritdoc/>
     public override void Update(float deltaTime)
     {
@@ -50,7 +53,7 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         bytesSentThisTick = 0;
 
         // Collect entities that need updates and sort by priority
-        var entitiesToUpdate = new List<(Entity entity, float priority, bool needsFullSync)>();
+        entitiesToUpdate.Clear();
 
         foreach (var entity in World.Query<NetworkId, NetworkState>())
         {

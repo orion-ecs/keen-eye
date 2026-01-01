@@ -9,6 +9,12 @@ namespace KeenEyes;
 /// </summary>
 /// <remarks>
 /// <para>
+/// <strong>Thread Safety:</strong> World is NOT thread-safe. All operations must be called
+/// from a single thread. For multi-threaded scenarios, use separate World instances per thread.
+/// Concurrent access to any World method from multiple threads results in undefined behavior,
+/// including potential crashes, state corruption, and iterator invalidation.
+/// </para>
+/// <para>
 /// World uses an archetype-based storage system for high-performance entity iteration.
 /// Entities with the same component types are stored contiguously in memory,
 /// enabling cache-friendly access patterns.

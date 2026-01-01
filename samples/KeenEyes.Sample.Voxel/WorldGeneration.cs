@@ -86,7 +86,7 @@ public sealed class WorldGenerator(int seed)
                 {
                     int worldY = worldBaseY + ly;
                     byte blockId = GetBlockForPosition(worldX, worldY, worldZ, terrainHeight, localBiome, localBiomeProps);
-                    voxels.SetBlock(lx, ly, lz, blockId);
+                    VoxelDataHelper.SetBlock(ref voxels, lx, ly, lz, blockId);
                 }
             }
         }
@@ -214,7 +214,7 @@ public sealed class WorldGenerator(int seed)
         {
             for (int lx = 1; lx < VoxelData.Size - 1; lx++)
             {
-                int terrainHeight = heightMap.GetHeight(lx, lz);
+                int terrainHeight = VoxelDataHelper.GetHeight(in heightMap, lx, lz);
                 int localY = terrainHeight - worldBaseY;
 
                 // Skip if surface is not in this chunk
@@ -257,7 +257,7 @@ public sealed class WorldGenerator(int seed)
             height = Math.Clamp(height, 2, 4);
             for (int i = 0; i < height && y + i < VoxelData.Size; i++)
             {
-                voxels.SetBlock(x, y + i, z, BlockId.Cactus);
+                VoxelDataHelper.SetBlock(ref voxels, x, y + i, z, BlockId.Cactus);
             }
         }
         else
@@ -269,7 +269,7 @@ public sealed class WorldGenerator(int seed)
             // Trunk
             for (int i = 0; i < trunkHeight && y + i < VoxelData.Size; i++)
             {
-                voxels.SetBlock(x, y + i, z, BlockId.Wood);
+                VoxelDataHelper.SetBlock(ref voxels, x, y + i, z, BlockId.Wood);
             }
 
             // Leaves (simple sphere-ish shape)
@@ -293,9 +293,9 @@ public sealed class WorldGenerator(int seed)
                         if (px >= 0 && px < VoxelData.Size &&
                             py >= 0 && py < VoxelData.Size &&
                             pz >= 0 && pz < VoxelData.Size &&
-                            voxels.GetBlock(px, py, pz) == BlockId.Air)
+                            VoxelDataHelper.GetBlock(in voxels, px, py, pz) == BlockId.Air)
                         {
-                            voxels.SetBlock(px, py, pz, BlockId.Leaves);
+                            VoxelDataHelper.SetBlock(ref voxels, px, py, pz, BlockId.Leaves);
                         }
                     }
                 }
@@ -318,7 +318,7 @@ public sealed class WorldGenerator(int seed)
 
         if (plantBlock != BlockId.Air)
         {
-            voxels.SetBlock(x, y, z, plantBlock);
+            VoxelDataHelper.SetBlock(ref voxels, x, y, z, plantBlock);
         }
     }
 }
