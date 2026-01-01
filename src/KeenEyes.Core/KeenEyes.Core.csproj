@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="KeenEyes.Core.Tests" />
+    <InternalsVisibleTo Include="KeenEyes.Editor" />
   </ItemGroup>
 
   <ItemGroup>
