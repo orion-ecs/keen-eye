@@ -522,11 +522,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
 
-        if (!string.IsNullOrEmpty(info.Namespace) && info.Namespace != "<global namespace>")
-        {
-            sb.AppendLine($"namespace {info.Namespace};");
-            sb.AppendLine();
-        }
+        StringHelpers.AppendNamespaceDeclaration(sb, info.Namespace);
 
         // Generate partial struct with IBundle implementation and constructor
         sb.AppendLine($"partial struct {info.Name} : global::KeenEyes.IBundle");
@@ -734,11 +730,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
 
-        if (!string.IsNullOrEmpty(info.Namespace) && info.Namespace != "<global namespace>")
-        {
-            sb.AppendLine($"namespace {info.Namespace};");
-            sb.AppendLine();
-        }
+        StringHelpers.AppendNamespaceDeclaration(sb, info.Namespace);
 
         // Generate ref struct with refs to all components
         sb.AppendLine("/// <summary>");

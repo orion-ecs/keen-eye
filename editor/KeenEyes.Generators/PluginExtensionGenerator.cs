@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -137,9 +138,9 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
 
         foreach (var ext in extensions)
         {
-            var fullTypeName = ext.Namespace == "<global namespace>"
-                ? ext.Name
-                : $"global::{ext.FullName}";
+            var fullTypeName = StringHelpers.IsValidNamespace(ext.Namespace)
+                ? $"global::{ext.FullName}"
+                : ext.Name;
 
             sb.AppendLine($"        /// <summary>");
             sb.AppendLine($"        /// Gets the <see cref=\"{ext.FullName}\"/> extension from this world.");

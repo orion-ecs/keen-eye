@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -323,11 +324,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
 
-        if (!string.IsNullOrEmpty(info.Namespace) && info.Namespace != "<global namespace>")
-        {
-            sb.AppendLine($"namespace {info.Namespace};");
-            sb.AppendLine();
-        }
+        StringHelpers.AppendNamespaceDeclaration(sb, info.Namespace);
 
         sb.AppendLine($"// Mixin fields from: {string.Join(", ", info.MixinTypes.Select(m => m.Name))}");
         sb.AppendLine($"partial struct {info.Name}");

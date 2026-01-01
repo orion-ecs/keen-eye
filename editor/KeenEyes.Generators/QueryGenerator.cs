@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -112,11 +113,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
 
-        if (!string.IsNullOrEmpty(info.Namespace) && info.Namespace != "<global namespace>")
-        {
-            sb.AppendLine($"namespace {info.Namespace};");
-            sb.AppendLine();
-        }
+        StringHelpers.AppendNamespaceDeclaration(sb, info.Namespace);
 
         // Generate the query struct partial
         sb.AppendLine($"partial struct {info.Name}");

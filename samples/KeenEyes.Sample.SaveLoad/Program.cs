@@ -149,10 +149,20 @@ Console.WriteLine("\n[5] Restoring from Snapshot\n");
 Console.WriteLine("Loading saved state...");
 
 // Parse the JSON back to a snapshot
-var loadedSnapshot = SnapshotManager.FromJson(json);
-if (loadedSnapshot == null)
+WorldSnapshot? loadedSnapshot;
+try
 {
-    Console.WriteLine("Failed to load snapshot!");
+    loadedSnapshot = SnapshotManager.FromJson(json);
+    if (loadedSnapshot == null)
+    {
+        Console.WriteLine("Failed to load snapshot: SnapshotManager.FromJson returned null");
+        return;
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Failed to load snapshot: {ex.Message}");
+    Console.WriteLine($"Stack trace: {ex.StackTrace}");
     return;
 }
 

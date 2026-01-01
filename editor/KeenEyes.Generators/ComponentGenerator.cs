@@ -220,11 +220,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         sb.AppendLine("#nullable enable");
         sb.AppendLine();
 
-        if (!string.IsNullOrEmpty(info.Namespace) && info.Namespace != "<global namespace>")
-        {
-            sb.AppendLine($"namespace {info.Namespace};");
-            sb.AppendLine();
-        }
+        StringHelpers.AppendNamespaceDeclaration(sb, info.Namespace);
 
         var interfaceType = info.IsTag ? "ITagComponent" : "IComponent";
 
@@ -394,7 +390,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
     private static string GenerateNamespaceSuffix(string namespaceName)
     {
         // Handle empty or global namespace
-        if (string.IsNullOrEmpty(namespaceName) || namespaceName == "<global namespace>")
+        if (!StringHelpers.IsValidNamespace(namespaceName))
         {
             return "Global";
         }
