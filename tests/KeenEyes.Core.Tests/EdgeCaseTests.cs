@@ -1,3 +1,9 @@
+using EnemyTag = KeenEyes.Tests.TestEnemyTag;
+using Health = KeenEyes.Tests.TestHealth;
+using Position = KeenEyes.Tests.TestPosition;
+using Rotation = KeenEyes.Tests.TestRotation;
+using Velocity = KeenEyes.Tests.TestVelocity;
+
 namespace KeenEyes.Tests;
 
 /// <summary>
@@ -6,44 +12,9 @@ namespace KeenEyes.Tests;
 /// </summary>
 public class EdgeCaseTests
 {
-    #region Test Components
-
-    private struct Position : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    private struct Velocity : IComponent
-    {
-        public float X = 0;
-        public float Y = 0;
-
-        public Velocity() { }
-    }
-
-    private struct Health : IComponent
-    {
-        public int Current = 0;
-        public int Max = 0;
-
-        public Health() { }
-    }
-
-    private struct Rotation : IComponent
-    {
-        public float Angle = 0;
-
-        public Rotation() { }
-    }
-
-    private struct EnemyTag : ITagComponent;
-
     // AOT-compatible ComponentInfo instances for testing chunk operations
     private static readonly ComponentInfo positionInfo = TestComponentInfo.Create<Position>();
     private static readonly ComponentInfo velocityInfo = TestComponentInfo.Create<Velocity>();
-
-    #endregion
 
     #region World - Dead Entity and Invalid Operation Tests
 

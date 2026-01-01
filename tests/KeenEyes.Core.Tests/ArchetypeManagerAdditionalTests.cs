@@ -1,3 +1,7 @@
+using Health = KeenEyes.Tests.TestHealth;
+using Position = KeenEyes.Tests.TestPosition;
+using Velocity = KeenEyes.Tests.TestVelocity;
+
 namespace KeenEyes.Tests;
 
 /// <summary>
@@ -5,30 +9,6 @@ namespace KeenEyes.Tests;
 /// </summary>
 public class ArchetypeManagerAdditionalTests
 {
-    #region Test Components
-
-#pragma warning disable CS0649 // Field is never assigned to (test components for type metadata only)
-    private struct Position : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    private struct Velocity : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    private struct Health : IComponent
-    {
-        public int Current;
-        public int Max;
-    }
-#pragma warning restore CS0649
-
-    #endregion
-
     #region Clear Method Tests
 
     [Fact]

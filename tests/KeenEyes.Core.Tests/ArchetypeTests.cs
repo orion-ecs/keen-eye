@@ -1,3 +1,8 @@
+using EnemyTag = KeenEyes.Tests.TestEnemyTag;
+using Health = KeenEyes.Tests.TestHealth;
+using Position = KeenEyes.Tests.TestPosition;
+using Velocity = KeenEyes.Tests.TestVelocity;
+
 namespace KeenEyes.Tests;
 
 /// <summary>
@@ -5,32 +10,6 @@ namespace KeenEyes.Tests;
 /// </summary>
 public class ArchetypeTests
 {
-    #region Test Components
-
-    private struct Position : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    private struct Velocity : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    private struct Health : IComponent
-    {
-        public int Current = 0;
-        public int Max = 0;
-
-        public Health() { }
-    }
-
-    private struct EnemyTag : ITagComponent;
-
-    #endregion
-
     #region ArchetypeId Tests
 
     [Fact]
