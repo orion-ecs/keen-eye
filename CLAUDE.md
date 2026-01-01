@@ -225,6 +225,79 @@ See [ADR-006](docs/adr/006-custom-msbuild-sdk.md) and [SDK Documentation](docs/s
 - Nullable reference types enabled everywhere
 - Treat warnings as errors
 
+### Naming Conventions
+
+The project enforces strict naming conventions via `.editorconfig`:
+
+| Symbol Type | Convention | Example |
+|-------------|------------|---------|
+| Interfaces | `I` prefix + PascalCase | `IWorld`, `IComponent` |
+| Classes, Structs, Enums | PascalCase | `World`, `Entity`, `LogLevel` |
+| Methods, Properties, Events | PascalCase | `Spawn()`, `EntityCount`, `OnChanged` |
+| Private fields | camelCase (no underscore) | `entityCount`, `components` |
+| Constants | PascalCase | `MaxEntities`, `DefaultCapacity` |
+| Local variables | camelCase | `entity`, `componentData` |
+| Parameters | camelCase | `world`, `deltaTime` |
+
+**Important:** Private fields do NOT use underscore prefix. This is enforced by the formatter.
+
+```csharp
+// ❌ BAD: Underscore prefix
+private readonly Dictionary<int, Entity> _entities;
+
+// ✅ GOOD: camelCase without underscore
+private readonly Dictionary<int, Entity> entities;
+```
+
+### Code Style
+
+The following style rules are enforced:
+
+```csharp
+// File-scoped namespaces (required)
+namespace KeenEyes.Core;
+
+// Braces required for all control flow
+if (condition)
+{
+    DoSomething();
+}
+
+// Allman brace style (new line before opening brace)
+public void Method()
+{
+    // ...
+}
+
+// var preferred when type is apparent
+var entity = world.Spawn().Build();
+var components = new Dictionary<int, IComponent>();
+
+// Expression-bodied members for simple cases
+public int Count => entities.Count;
+public Entity Get(int id) => entities[id];
+
+// Pattern matching preferred
+if (obj is Entity entity)
+{
+    // use entity
+}
+
+// System usings first, then others alphabetically
+using System;
+using System.Collections.Generic;
+using KeenEyes.Core;
+```
+
+### Formatting Commands
+
+Before committing, ensure code is properly formatted:
+
+```bash
+dotnet format                        # Auto-fix formatting issues
+dotnet format --verify-no-changes    # Check without modifying (CI mode)
+```
+
 ### Floating-Point Comparisons
 
 **Never use `==` to compare floats.** Due to floating-point precision limitations, direct equality checks are unreliable.

@@ -121,6 +121,77 @@ dotnet format --verify-no-changes   # Code is formatted
 - Nullable reference types enabled everywhere
 - XML documentation on all public APIs
 
+### Naming Conventions
+
+The codebase enforces strict naming conventions via `.editorconfig`. **These are errors, not suggestions.**
+
+| Symbol Type | Convention | Example |
+|-------------|------------|---------|
+| Interfaces | `I` prefix + PascalCase | `IWorld`, `IComponent` |
+| Type parameters | `T` prefix + PascalCase | `TComponent`, `TSystem` |
+| Private fields | camelCase (NO underscore) | `entityCount`, `components` |
+| Private static fields | camelCase (NO underscore) | `defaultRegistry` |
+| Local variables | camelCase | `position`, `entity` |
+| Parameters | camelCase | `deltaTime`, `entity` |
+| Public members | PascalCase | `EntityCount`, `GetComponent` |
+| Constants | PascalCase | `MaxEntities`, `DefaultCapacity` |
+| Methods | PascalCase | `Spawn()`, `GetComponent()` |
+| Properties | PascalCase | `Count`, `IsAlive` |
+
+**Common mistakes to avoid:**
+
+```csharp
+// BAD: Underscore prefix on private fields
+private int _entityCount;
+private readonly Dictionary<int, Entity> _entities;
+
+// GOOD: camelCase without underscore
+private int entityCount;
+private readonly Dictionary<int, Entity> entities;
+```
+
+### Code Style Rules
+
+The following rules are enforced by analyzers:
+
+```csharp
+// Use 'var' when type is apparent
+var entity = world.Spawn().Build();  // Type is obvious
+World world = new World();           // Also fine, type on right
+
+// Prefer expression body for single-line members
+public int Count => entities.Count;
+public void Clear() => entities.Clear();
+
+// Use object initializers
+var config = new Config { Width = 800, Height = 600 };
+
+// Use collection expressions
+int[] numbers = [1, 2, 3, 4, 5];
+List<string> names = ["Alice", "Bob"];
+
+// Braces required for all control statements
+if (condition)
+{
+    DoSomething();  // Even single lines need braces
+}
+```
+
+### Formatting
+
+Run formatting before committing:
+
+```bash
+# Check formatting without making changes
+dotnet format --verify-no-changes
+
+# Auto-fix formatting issues
+dotnet format
+
+# Format specific project
+dotnet format src/KeenEyes.Core/
+```
+
 ### Floating-Point Comparisons
 
 Never use `==` to compare floats. Use extension methods from `KeenEyes.Common.FloatExtensions`:
