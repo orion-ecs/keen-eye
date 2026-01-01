@@ -18,16 +18,17 @@ namespace KeenEyes.Generators;
 /// <para>
 /// This analyzer detects:
 /// <list type="bullet">
-/// <item><description><c>float == float</c> - Direct equality comparison</description></item>
-/// <item><description><c>float != float</c> - Direct inequality comparison</description></item>
-/// <item><description><c>float == 0</c> or <c>0 == float</c> - Zero comparison</description></item>
+/// <item><description><c>float == float</c> or <c>double == double</c> - Direct equality comparison</description></item>
+/// <item><description><c>float != float</c> or <c>double != double</c> - Direct inequality comparison</description></item>
+/// <item><description><c>float == 0</c> or <c>double == 0</c> - Zero comparison</description></item>
 /// </list>
 /// </para>
 /// <para>
-/// Instead of direct comparisons, use the extension methods from <c>KeenEyes.Common.FloatExtensions</c>:
+/// Instead of direct comparisons, use the extension methods from <c>KeenEyes.Common.FloatExtensions</c>
+/// or <c>KeenEyes.Common.DoubleExtensions</c>:
 /// <list type="bullet">
 /// <item><description><c>value.IsApproximatelyZero()</c> - Check if value is close to zero</description></item>
-/// <item><description><c>value.ApproximatelyEquals(other)</c> - Compare two floats for near-equality</description></item>
+/// <item><description><c>value.ApproximatelyEquals(other)</c> - Compare two values for near-equality</description></item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -45,9 +46,9 @@ public sealed class FloatEqualityAnalyzer : DiagnosticAnalyzer
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "Direct equality comparisons (== and !=) with floating-point numbers are unreliable " +
-                     "due to precision limitations. Use the extension methods from KeenEyes.Common.FloatExtensions: " +
-                     "IsApproximatelyZero() to check if a value is close to zero, or " +
-                     "ApproximatelyEquals() to compare two floats for near-equality.");
+                     "due to precision limitations. Use the extension methods from KeenEyes.Common.FloatExtensions " +
+                     "or KeenEyes.Common.DoubleExtensions: IsApproximatelyZero() to check if a value is close to zero, or " +
+                     "ApproximatelyEquals() to compare two values for near-equality.");
 
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
@@ -117,8 +118,9 @@ public sealed class FloatEqualityAnalyzer : DiagnosticAnalyzer
             return false;
         }
 
-        // Check for float (System.Single)
-        return type.SpecialType == SpecialType.System_Single;
+        // Check for float (System.Single) or double (System.Double)
+        return type.SpecialType == SpecialType.System_Single ||
+               type.SpecialType == SpecialType.System_Double;
     }
 
     /// <summary>
@@ -204,7 +206,9 @@ public sealed class FloatEqualityAnalyzer : DiagnosticAnalyzer
             return false;
         }
 
-        // Check if this is the KeenEyes.Common.FloatExtensions class
-        return typeSymbol.ToDisplayString() == "KeenEyes.Common.FloatExtensions";
+        // Check if this is the KeenEyes.Common.FloatExtensions or DoubleExtensions class
+        var displayString = typeSymbol.ToDisplayString();
+        return displayString == "KeenEyes.Common.FloatExtensions" ||
+               displayString == "KeenEyes.Common.DoubleExtensions";
     }
 }
