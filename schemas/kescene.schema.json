@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://keeneyes.dev/schemas/kescene.schema.json",
+  "title": "KeenEyes Scene",
+  "description": "Schema for KeenEyes scene files (.kescene)",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to the JSON schema for IDE validation"
+    },
+    "name": {
+      "type": "string",
+      "description": "Scene name used for generated method naming (e.g., LoadMain)",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Format version number",
+      "default": 1,
+      "minimum": 1
+    },
+    "entities": {
+      "type": "array",
+      "description": "List of entities in the scene",
+      "items": {
+        "$ref": "#/$defs/entity"
+      }
+    }
+  },
+  "$defs": {
+    "entity": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for this entity within the scene",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Display name for the entity"
+        },
+        "parent": {
+          "type": "string",
+          "description": "ID of the parent entity for hierarchy"
+        },
+        "components": {
+          "type": "object",
+          "description": "Components attached to this entity. Key is component type name.",
+          "additionalProperties": {
+            "type": "object",
+            "description": "Component data. Property names match component fields."
+          }
+        }
+      }
+    },
+    "vector2": {
+      "type": "object",
+      "description": "2D vector",
+      "properties": {
+        "X": { "type": "number" },
+        "Y": { "type": "number" }
+      },
+      "required": ["X", "Y"]
+    },
+    "vector3": {
+      "type": "object",
+      "description": "3D vector",
+      "properties": {
+        "X": { "type": "number" },
+        "Y": { "type": "number" },
+        "Z": { "type": "number" }
+      },
+      "required": ["X", "Y", "Z"]
+    },
+    "vector4": {
+      "type": "object",
+      "description": "4D vector or quaternion",
+      "properties": {
+        "X": { "type": "number" },
+        "Y": { "type": "number" },
+        "Z": { "type": "number" },
+        "W": { "type": "number" }
+      },
+      "required": ["X", "Y", "Z", "W"]
+    }
+  }
+}

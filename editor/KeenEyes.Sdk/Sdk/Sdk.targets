@@ -47,6 +47,24 @@
     <KeenEyesShader Include="**/*.kesl" Exclude="$(DefaultItemExcludes)" />
   </ItemGroup>
 
+  <!-- Auto-detect .kescene files and add them as AdditionalFiles for the source generator -->
+  <ItemGroup Condition="'$(IncludeKeenEyesGenerators)' == 'true'">
+    <AdditionalFiles Include="**/*.kescene" Exclude="$(DefaultItemExcludes)" />
+    <KeenEyesScene Include="**/*.kescene" Exclude="$(DefaultItemExcludes)" />
+  </ItemGroup>
+
+  <!-- Auto-detect .keprefab files and add them as AdditionalFiles for the source generator -->
+  <ItemGroup Condition="'$(IncludeKeenEyesGenerators)' == 'true'">
+    <AdditionalFiles Include="**/*.keprefab" Exclude="$(DefaultItemExcludes)" />
+    <KeenEyesPrefab Include="**/*.keprefab" Exclude="$(DefaultItemExcludes)" />
+  </ItemGroup>
+
+  <!-- Auto-detect .keworld files and add them as AdditionalFiles for the source generator -->
+  <ItemGroup Condition="'$(IncludeKeenEyesGenerators)' == 'true'">
+    <AdditionalFiles Include="**/*.keworld" Exclude="$(DefaultItemExcludes)" />
+    <KeenEyesWorld Include="**/*.keworld" Exclude="$(DefaultItemExcludes)" />
+  </ItemGroup>
+
   <!--
     Version Compatibility Check Target
 
@@ -105,6 +123,17 @@
     <Message Condition="'@(_KeenEyesShaderFiles)' != ''"
              Text="KeenEyes: Compiling %(RecursiveDir)%(Filename)%(Extension) shader(s)"
              Importance="normal" />
+  </Target>
+
+  <!-- Collect all KeenEyes world configs for processing -->
+  <Target Name="CollectKeenEyesWorldConfigs" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <_KeenEyesWorldFiles Include="@(KeenEyesWorld)" />
+    </ItemGroup>
+
+    <Message Condition="'@(_KeenEyesWorldFiles)' != ''"
+             Text="KeenEyes: Found %(RecursiveDir)%(Filename)%(Extension) world config(s)"
+             Importance="low" />
   </Target>
 
   <!-- Copy KeenEyes assets to output directory -->
