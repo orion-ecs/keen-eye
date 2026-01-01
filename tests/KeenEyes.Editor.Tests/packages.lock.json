@@ -301,6 +301,7 @@
           "KeenEyes.Editor.Common": "[1.0.0, )",
           "KeenEyes.Graphics.Silk": "[1.0.0, )",
           "KeenEyes.Input.Silk": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )",
           "KeenEyes.Platform.Silk": "[1.0.0, )",
           "KeenEyes.Runtime": "[1.0.0, )",
           "KeenEyes.UI": "[1.0.0, )"
@@ -359,6 +360,9 @@
           "KeenEyes.Platform.Silk.Abstractions": "[1.0.0, )",
           "Silk.NET.Input": "[2.22.0, )"
         }
+      },
+      "keeneyes.logging": {
+        "type": "Project"
       },
       "keeneyes.platform.silk": {
         "type": "Project",

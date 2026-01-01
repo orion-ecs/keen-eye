@@ -163,6 +163,9 @@
           "Silk.NET.Input": "[2.22.0, )"
         }
       },
+      "keeneyes.logging": {
+        "type": "Project"
+      },
       "keeneyes.platform.silk": {
         "type": "Project",
         "dependencies": {
