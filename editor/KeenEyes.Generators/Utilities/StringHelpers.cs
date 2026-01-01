@@ -1,5 +1,7 @@
 // Copyright (c) KeenEyes Contributors. Licensed under the MIT License. See LICENSE in the project root for license information.
 
+using System.Text;
+
 namespace KeenEyes.Generators.Utilities;
 
 /// <summary>
@@ -7,6 +9,52 @@ namespace KeenEyes.Generators.Utilities;
 /// </summary>
 internal static class StringHelpers
 {
+    /// <summary>
+    /// The string used by Roslyn to represent the global namespace.
+    /// </summary>
+    public const string GlobalNamespace = "<global namespace>";
+
+    /// <summary>
+    /// Determines if a namespace string represents a valid namespace that should be emitted.
+    /// </summary>
+    /// <param name="ns">The namespace string to check.</param>
+    /// <returns><c>true</c> if the namespace should be emitted; <c>false</c> if it's empty or global.</returns>
+    public static bool IsValidNamespace(string? ns)
+    {
+        return !string.IsNullOrEmpty(ns) && ns != GlobalNamespace;
+    }
+
+    /// <summary>
+    /// Appends a file-scoped namespace declaration if the namespace is valid.
+    /// </summary>
+    /// <param name="sb">The StringBuilder to append to.</param>
+    /// <param name="ns">The namespace string.</param>
+    /// <remarks>
+    /// Does nothing if the namespace is null, empty, or the global namespace.
+    /// Appends a file-scoped namespace declaration (e.g., "namespace Foo;") followed by a newline.
+    /// </remarks>
+    public static void AppendNamespaceDeclaration(StringBuilder sb, string? ns)
+    {
+        if (IsValidNamespace(ns))
+        {
+            sb.AppendLine($"namespace {ns};");
+            sb.AppendLine();
+        }
+    }
+
+    /// <summary>
+    /// Gets the fully qualified type name with global:: prefix.
+    /// </summary>
+    /// <param name="ns">The namespace (may be null, empty, or global namespace).</param>
+    /// <param name="typeName">The type name.</param>
+    /// <returns>The fully qualified name like "global::Namespace.Type" or "global::Type" for global namespace.</returns>
+    public static string GetFullTypeName(string? ns, string typeName)
+    {
+        return IsValidNamespace(ns)
+            ? $"global::{ns}.{typeName}"
+            : $"global::{typeName}";
+    }
+
     /// <summary>
     /// Converts a PascalCase string to camelCase.
     /// </summary>
