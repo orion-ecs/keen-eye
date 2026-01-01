@@ -140,7 +140,7 @@ public partial class ChunkLoaderSystem : SystemBase
         int ly = ((worldY % VoxelData.Size) + VoxelData.Size) % VoxelData.Size;
         int lz = ((worldZ % VoxelData.Size) + VoxelData.Size) % VoxelData.Size;
 
-        return voxels.GetBlock(lx, ly, lz);
+        return VoxelDataHelper.GetBlock(in voxels, lx, ly, lz);
     }
 
     /// <summary>

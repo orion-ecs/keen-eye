@@ -17,13 +17,16 @@ public class BallPhysicsSystem : SystemBase
     private const float ArenaHalfSize = 9f; // Arena is 18x18 units
     private const float CeilingY = 20f;
 
+    // Pre-allocated list to avoid per-frame allocations
+    private readonly List<(Entity entity, Vector3 position, float radius)> balls = [];
+
     /// <summary>
     /// Updates all ball positions and handles collisions.
     /// </summary>
     public override void Update(float deltaTime)
     {
-        // Collect all balls for ball-to-ball collision
-        var balls = new List<(Entity entity, Vector3 position, float radius)>();
+        // Clear and reuse pre-allocated list for ball-to-ball collision
+        balls.Clear();
 
         foreach (var entity in World.Query<Transform3D, BallPhysics, BallTag>())
         {

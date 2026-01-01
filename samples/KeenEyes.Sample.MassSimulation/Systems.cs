@@ -97,10 +97,13 @@ public class CleanupSystem : SystemBase
     /// <summary>Number of entities cleaned up in the last update.</summary>
     public int LastCleanupCount { get; private set; }
 
+    // Pre-allocated list to avoid per-frame allocations
+    private readonly List<Entity> toRemove = [];
+
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        var toRemove = new List<Entity>();
+        toRemove.Clear();
 
         foreach (var entity in World.Query<Position>().With<Dead>())
         {
