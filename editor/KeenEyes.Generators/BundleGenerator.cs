@@ -192,7 +192,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             var isNullable = fieldType is INamedTypeSymbol { IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T };
 
             ITypeSymbol underlyingType = fieldType;
-            if (isNullable && fieldType is INamedTypeSymbol namedType)
+            if (isNullable && fieldType is INamedTypeSymbol { TypeArguments.Length: > 0 } namedType)
             {
                 underlyingType = namedType.TypeArguments[0];
             }
@@ -435,7 +435,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
     private static ITypeSymbol GetUnderlyingType(ITypeSymbol fieldType, bool isNullable)
     {
-        if (isNullable && fieldType is INamedTypeSymbol namedType)
+        if (isNullable && fieldType is INamedTypeSymbol { TypeArguments.Length: > 0 } namedType)
         {
             return namedType.TypeArguments[0];
         }

@@ -150,9 +150,19 @@ public sealed class SystemOrderingAnalyzer : DiagnosticAnalyzer
         AttributeData attribute,
         string attributeName)
     {
-        // The attribute constructor requires a Type argument, so this is guaranteed by Roslyn
-        var targetType = (INamedTypeSymbol)attribute.ConstructorArguments[0].Value!;
-        var location = attribute.ApplicationSyntaxReference!.GetSyntax().GetLocation();
+        // Validate that we have a valid type argument
+        if (attribute.ConstructorArguments.Length == 0 ||
+            attribute.ConstructorArguments[0].Value is not INamedTypeSymbol targetType)
+        {
+            return; // Skip invalid attribute - Roslyn will report separate error
+        }
+
+        if (attribute.ApplicationSyntaxReference is null)
+        {
+            return;
+        }
+
+        var location = attribute.ApplicationSyntaxReference.GetSyntax().GetLocation();
 
         var attrShortName = attributeName.EndsWith("RunBeforeAttribute")
             ? "RunBefore"

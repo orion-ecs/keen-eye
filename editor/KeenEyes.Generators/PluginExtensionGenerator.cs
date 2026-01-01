@@ -77,9 +77,14 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             return new ExtensionResult(null, null);
         }
 
-        // ForAttributeWithMetadataName guarantees the attribute exists
-        var attributeData = context.Attributes.First(
+        // ForAttributeWithMetadataName guarantees the attribute exists, but use FirstOrDefault for safety
+        var attributeData = context.Attributes.FirstOrDefault(
             a => a.AttributeClass?.ToDisplayString() == PluginExtensionAttribute);
+
+        if (attributeData is null)
+        {
+            return new ExtensionResult(null, null);
+        }
 
         // Get property name from constructor argument
         if (attributeData.ConstructorArguments.Length == 0 ||
