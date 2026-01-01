@@ -7,7 +7,7 @@ public sealed class UndoRedoManager
 {
     private readonly Stack<IEditorCommand> _undoStack = new();
     private readonly Stack<IEditorCommand> _redoStack = new();
-    private readonly int _maxHistorySize;
+    private int _maxHistorySize;
     private bool _isBatchActive;
     private CommandBatch? _currentBatch;
 
@@ -39,6 +39,15 @@ public sealed class UndoRedoManager
     /// Gets the description of the next command to redo, or null if none.
     /// </summary>
     public string? NextRedoDescription => _redoStack.TryPeek(out var cmd) ? cmd.Description : null;
+
+    /// <summary>
+    /// Gets or sets the maximum history size. Changing this does not trim existing history.
+    /// </summary>
+    public int MaxHistorySize
+    {
+        get => _maxHistorySize;
+        set => _maxHistorySize = Math.Max(1, value);
+    }
 
     /// <summary>
     /// Occurs when the undo/redo state changes.

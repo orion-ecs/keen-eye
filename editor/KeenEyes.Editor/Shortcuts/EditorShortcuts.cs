@@ -42,6 +42,8 @@ public static class EditorShortcuts
     public const string Duplicate = "edit.duplicate";
     /// <summary>Rename selected entity.</summary>
     public const string Rename = "edit.rename";
+    /// <summary>Open settings/preferences.</summary>
+    public const string Settings = "edit.settings";
 
     // Entity operations
     /// <summary>Create an empty entity.</summary>
@@ -143,6 +145,7 @@ public static class EditorShortcuts
         manager.Register(SelectAll, "Select All", CategoryEdit, "Ctrl+A", actions.SelectAll);
         manager.Register(Duplicate, "Duplicate", CategoryEdit, "Ctrl+D", actions.Duplicate);
         manager.Register(Rename, "Rename", CategoryEdit, "F2", actions.Rename);
+        manager.Register(Settings, "Settings", CategoryEdit, "Ctrl+,", actions.Settings);
 
         // Entity operations
         manager.Register(CreateEmpty, "Create Empty Entity", CategoryEntity, "Ctrl+Shift+N", actions.CreateEmpty);
@@ -213,6 +216,8 @@ public interface IEditorShortcutActions
     void Duplicate();
     /// <summary>Called when Rename shortcut is triggered.</summary>
     void Rename();
+    /// <summary>Called when Settings shortcut is triggered.</summary>
+    void Settings();
 
     // Entity operations
     /// <summary>Called when Create Empty shortcut is triggered.</summary>

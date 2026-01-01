@@ -3,6 +3,7 @@ using KeenEyes.Editor.Commands;
 using KeenEyes.Editor.Panels;
 using KeenEyes.Editor.PlayMode;
 using KeenEyes.Editor.Selection;
+using KeenEyes.Editor.Settings;
 using KeenEyes.Editor.Shortcuts;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk;
@@ -72,11 +73,29 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _editorWorld = new World();
         _worldManager = new EditorWorldManager();
         _shortcuts = new ShortcutManager();
-        _undoRedo = new UndoRedoManager();
+        _undoRedo = new UndoRedoManager(EditorSettings.UndoHistoryLimit);
         _selection = new SelectionManager();
+
+        // Load editor settings
+        EditorSettings.Load();
+
+        // Update undo limit when settings change
+        EditorSettings.SettingChanged += (_, e) =>
+        {
+            if (e.SettingName == nameof(EditorSettings.UndoHistoryLimit))
+            {
+                _undoRedo.MaxHistorySize = EditorSettings.UndoHistoryLimit;
+            }
+        };
 
         // Register default shortcuts
         EditorShortcuts.RegisterDefaults(_shortcuts, this);
+
+        // Load custom shortcuts if configured
+        if (!string.IsNullOrEmpty(EditorSettings.ShortcutsFilePath) && File.Exists(EditorSettings.ShortcutsFilePath))
+        {
+            _shortcuts.Load(EditorSettings.ShortcutsFilePath);
+        }
     }
 
     /// <summary>
@@ -209,7 +228,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                 new MenuItemDef("Paste", "paste", Shortcut: "Ctrl+V"),
                 new MenuItemDef("Delete", "delete", Shortcut: "Del"),
                 new MenuItemDef("---", "sep4", IsSeparator: true),
-                new MenuItemDef("Select All", "select_all", Shortcut: "Ctrl+A")
+                new MenuItemDef("Select All", "select_all", Shortcut: "Ctrl+A"),
+                new MenuItemDef("---", "sep_settings", IsSeparator: true),
+                new MenuItemDef("Settings", "settings", Shortcut: "Ctrl+,")
             ]),
             ("Entity", [
                 new MenuItemDef("Create Empty", "create_empty", Shortcut: "Ctrl+Shift+N"),
@@ -524,6 +545,19 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     {
         // TODO: Implement rename (show rename dialog)
         Console.WriteLine("Rename (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Settings()
+    {
+        // TODO: Open settings window
+        Console.WriteLine("Settings (Ctrl+,)");
+        Console.WriteLine($"  - Auto-save enabled: {EditorSettings.AutoSaveEnabled}");
+        Console.WriteLine($"  - Auto-save interval: {EditorSettings.AutoSaveIntervalSeconds}s");
+        Console.WriteLine($"  - Undo history limit: {EditorSettings.UndoHistoryLimit}");
+        Console.WriteLine($"  - Theme: {EditorSettings.Theme}");
+        Console.WriteLine($"  - Font size: {EditorSettings.FontSize}");
+        Console.WriteLine($"  - Grid visible: {EditorSettings.GridVisible}");
     }
 
     /// <inheritdoc/>

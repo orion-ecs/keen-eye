@@ -158,6 +158,19 @@ public readonly record struct KeyCombination(Key Key, KeyModifiers Modifiers = K
             "NUMPAD8" or "KP8" => Key.Keypad8,
             "NUMPAD9" or "KP9" => Key.Keypad9,
 
+            // Punctuation
+            "," or "COMMA" => Key.Comma,
+            "." or "PERIOD" => Key.Period,
+            "/" or "SLASH" => Key.Slash,
+            ";" or "SEMICOLON" => Key.Semicolon,
+            "'" or "APOSTROPHE" => Key.Apostrophe,
+            "[" or "LEFTBRACKET" => Key.LeftBracket,
+            "]" or "RIGHTBRACKET" => Key.RightBracket,
+            "\\" or "BACKSLASH" => Key.Backslash,
+            "`" or "GRAVE" or "BACKTICK" => Key.GraveAccent,
+            "-" or "MINUS" => Key.Minus,
+            "=" or "EQUAL" or "EQUALS" => Key.Equal,
+
             _ => Key.Unknown
         };
     }
@@ -248,6 +261,17 @@ public readonly record struct KeyCombination(Key Key, KeyModifiers Modifiers = K
             Key.Keypad7 => "Numpad7",
             Key.Keypad8 => "Numpad8",
             Key.Keypad9 => "Numpad9",
+            Key.Comma => ",",
+            Key.Period => ".",
+            Key.Slash => "/",
+            Key.Semicolon => ";",
+            Key.Apostrophe => "'",
+            Key.LeftBracket => "[",
+            Key.RightBracket => "]",
+            Key.Backslash => "\\",
+            Key.GraveAccent => "`",
+            Key.Minus => "-",
+            Key.Equal => "=",
             _ => key.ToString()
         };
     }
