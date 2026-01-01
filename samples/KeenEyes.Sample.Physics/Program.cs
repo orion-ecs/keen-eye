@@ -126,7 +126,7 @@ void RunFallingObjectsDemo()
         simTime += dt;
 
         // Print positions every 0.5 seconds
-        if (Math.Abs(simTime % 0.5f) < dt)
+        if (Math.Abs(simTime % 0.5f).IsApproximatelyZero(dt))
         {
             Console.WriteLine($"  t={simTime:F1}s:");
             PrintEntityPosition(world, rubberBall, "    Rubber Ball");
