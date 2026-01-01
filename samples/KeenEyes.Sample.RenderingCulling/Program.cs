@@ -208,6 +208,7 @@ public class CameraOrbitSystem(Entity cameraEntity) : SystemBase
 public class FrustumCullingRenderSystem(Entity cameraEntity, RenderingStats stats) : SystemBase
 {
     private SpatialQueryApi? spatial;
+    private readonly List<Entity> visibleEntities = [];  // Reused to avoid per-frame allocation
 
     protected override void OnInitialize()
     {
@@ -236,7 +237,7 @@ public class FrustumCullingRenderSystem(Entity cameraEntity, RenderingStats stat
         var frustum = Frustum.FromMatrix(viewProj);
 
         // Broadphase: query entities in frustum
-        var visibleEntities = new List<Entity>();
+        visibleEntities.Clear();  // Clear and reuse to avoid allocation
         foreach (var entity in spatial!.QueryFrustum<Renderable>(frustum))
         {
             stats.BroadphaseCandidates++;
