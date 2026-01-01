@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace KeenEyes.Events;
 
 /// <summary>
@@ -16,6 +18,10 @@ namespace KeenEyes.Events;
 /// <para>
 /// Performance note: When no handlers are registered for an event type, publishing
 /// that event has minimal overhead (a dictionary lookup that returns false).
+/// </para>
+/// <para>
+/// This class is thread-safe: subscriptions, unsubscriptions, and event publishing
+/// can occur concurrently from multiple threads.
 /// </para>
 /// </remarks>
 /// <example>
@@ -38,7 +44,7 @@ namespace KeenEyes.Events;
 /// </example>
 public sealed class EventBus
 {
-    private readonly Dictionary<Type, object> handlers = [];
+    private readonly ConcurrentDictionary<Type, object> handlers = new();
 
     /// <summary>
     /// Subscribes a handler to events of the specified type.
@@ -57,6 +63,10 @@ public sealed class EventBus
     /// <para>
     /// The same handler instance can be registered multiple times, in which case it will
     /// be invoked multiple times per event. Each registration returns a separate subscription.
+    /// </para>
+    /// <para>
+    /// This method is thread-safe and can be called concurrently with other subscribe,
+    /// unsubscribe, or publish operations.
     /// </para>
     /// </remarks>
     /// <example>
@@ -95,6 +105,10 @@ public sealed class EventBus
     /// handlers will not be invoked. Consider wrapping handlers in try-catch if you need
     /// fault tolerance.
     /// </para>
+    /// <para>
+    /// This method is thread-safe and can be called concurrently with other subscribe,
+    /// unsubscribe, or publish operations.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -108,12 +122,8 @@ public sealed class EventBus
             return;
         }
 
-        var handlerList = (List<Action<T>>)handlersObj;
-        // Iterate in reverse to allow handlers to unsubscribe during iteration
-        for (int i = handlerList.Count - 1; i >= 0; i--)
-        {
-            handlerList[i](evt);
-        }
+        var handlerList = (ThreadSafeHandlerList<Action<T>>)handlersObj;
+        handlerList.Invoke(evt);
     }
 
     /// <summary>
@@ -131,7 +141,7 @@ public sealed class EventBus
             return 0;
         }
 
-        return ((List<Action<T>>)handlersObj).Count;
+        return ((ThreadSafeHandlerList<Action<T>>)handlersObj).Count;
     }
 
     /// <summary>
@@ -157,7 +167,7 @@ public sealed class EventBus
     public bool HasHandlers<T>()
     {
         return handlers.TryGetValue(typeof(T), out var handlersObj)
-            && ((List<Action<T>>)handlersObj).Count > 0;
+            && ((ThreadSafeHandlerList<Action<T>>)handlersObj).Count > 0;
     }
 
     /// <summary>
@@ -180,15 +190,69 @@ public sealed class EventBus
         handlers.Clear();
     }
 
-    private List<Action<T>> GetOrCreateHandlerList<T>()
+    private ThreadSafeHandlerList<Action<T>> GetOrCreateHandlerList<T>()
     {
-        if (!handlers.TryGetValue(typeof(T), out var handlersObj))
+        return (ThreadSafeHandlerList<Action<T>>)handlers.GetOrAdd(
+            typeof(T),
+            static _ => new ThreadSafeHandlerList<Action<T>>());
+    }
+
+    /// <summary>
+    /// A thread-safe wrapper for a list of handlers.
+    /// </summary>
+    private sealed class ThreadSafeHandlerList<THandler> where THandler : Delegate
+    {
+        private readonly Lock syncRoot = new();
+        private readonly List<THandler> list = [];
+
+        public int Count
         {
-            var handlerList = new List<Action<T>>();
-            handlers[typeof(T)] = handlerList;
-            return handlerList;
+            get
+            {
+                lock (syncRoot)
+                {
+                    return list.Count;
+                }
+            }
         }
 
-        return (List<Action<T>>)handlersObj;
+        public void Add(THandler handler)
+        {
+            lock (syncRoot)
+            {
+                list.Add(handler);
+            }
+        }
+
+        public void Remove(THandler handler)
+        {
+            lock (syncRoot)
+            {
+                list.Remove(handler);
+            }
+        }
+
+        public void Invoke<T>(in T evt)
+        {
+            // Take a snapshot under lock, then invoke outside lock
+            // This prevents deadlocks if handlers try to subscribe/unsubscribe
+            THandler[] snapshot;
+            lock (syncRoot)
+            {
+                if (list.Count == 0)
+                {
+                    return;
+                }
+
+                snapshot = [.. list];
+            }
+
+            // Invoke in reverse order to match original behavior
+            // (allows handlers to unsubscribe during iteration)
+            for (int i = snapshot.Length - 1; i >= 0; i--)
+            {
+                ((Action<T>)(object)snapshot[i])(evt);
+            }
+        }
     }
 }

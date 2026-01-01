@@ -13,6 +13,10 @@ namespace KeenEyes;
 /// Subscriptions are idempotent: disposing the same subscription multiple times
 /// has no additional effect after the first disposal.
 /// </para>
+/// <para>
+/// This class is thread-safe: concurrent calls to <see cref="Dispose"/> from multiple
+/// threads are handled correctly, with only the first call executing the unsubscribe action.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -30,23 +34,22 @@ namespace KeenEyes;
 public sealed class EventSubscription(Action unsubscribe) : IDisposable
 {
     private readonly Action unsubscribeAction = unsubscribe;
-    private bool disposed;
+    private int disposed;
 
     /// <summary>
     /// Unsubscribes from the event by removing the handler.
     /// </summary>
     /// <remarks>
     /// This method is idempotent: calling it multiple times has no additional effect
-    /// after the first call.
+    /// after the first call. This method is thread-safe.
     /// </remarks>
     public void Dispose()
     {
-        if (disposed)
+        if (Interlocked.Exchange(ref disposed, 1) == 1)
         {
             return;
         }
 
-        disposed = true;
         unsubscribeAction();
     }
 }

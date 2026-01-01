@@ -13,9 +13,16 @@ namespace KeenEyes.Events;
 /// Performance note: When no handlers are registered, event firing has
 /// minimal overhead (checking an empty list).
 /// </para>
+/// <para>
+/// This class is thread-safe: subscriptions, unsubscriptions, and event firing
+/// can occur concurrently from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class EntityEventHandlers
 {
+    private readonly Lock createdLock = new();
+    private readonly Lock destroyedLock = new();
+
     // Entity created: (Entity, string? name) -> void
     private readonly List<Action<Entity, string?>> createdHandlers = [];
 
@@ -34,11 +41,17 @@ internal sealed class EntityEventHandlers
     /// <returns>A subscription that can be disposed to unsubscribe.</returns>
     public EventSubscription OnCreated(Action<Entity, string?> handler)
     {
-        createdHandlers.Add(handler);
+        lock (createdLock)
+        {
+            createdHandlers.Add(handler);
+        }
 
         return new EventSubscription(() =>
         {
-            createdHandlers.Remove(handler);
+            lock (createdLock)
+            {
+                createdHandlers.Remove(handler);
+            }
         });
     }
 
@@ -47,14 +60,23 @@ internal sealed class EntityEventHandlers
     /// </summary>
     internal void FireCreated(Entity entity, string? name)
     {
-        if (createdHandlers.Count == 0)
+        // Take a snapshot under lock, then invoke outside lock
+        // This prevents deadlocks if handlers try to subscribe/unsubscribe
+        Action<Entity, string?>[] snapshot;
+        lock (createdLock)
         {
-            return;
+            if (createdHandlers.Count == 0)
+            {
+                return;
+            }
+
+            snapshot = [.. createdHandlers];
         }
 
-        for (int i = createdHandlers.Count - 1; i >= 0; i--)
+        // Invoke in reverse order to match original behavior
+        for (int i = snapshot.Length - 1; i >= 0; i--)
         {
-            createdHandlers[i](entity, name);
+            snapshot[i](entity, name);
         }
     }
 
@@ -75,11 +97,17 @@ internal sealed class EntityEventHandlers
     /// </remarks>
     public EventSubscription OnDestroyed(Action<Entity> handler)
     {
-        destroyedHandlers.Add(handler);
+        lock (destroyedLock)
+        {
+            destroyedHandlers.Add(handler);
+        }
 
         return new EventSubscription(() =>
         {
-            destroyedHandlers.Remove(handler);
+            lock (destroyedLock)
+            {
+                destroyedHandlers.Remove(handler);
+            }
         });
     }
 
@@ -88,14 +116,20 @@ internal sealed class EntityEventHandlers
     /// </summary>
     internal void FireDestroyed(Entity entity)
     {
-        if (destroyedHandlers.Count == 0)
+        Action<Entity>[] snapshot;
+        lock (destroyedLock)
         {
-            return;
+            if (destroyedHandlers.Count == 0)
+            {
+                return;
+            }
+
+            snapshot = [.. destroyedHandlers];
         }
 
-        for (int i = destroyedHandlers.Count - 1; i >= 0; i--)
+        for (int i = snapshot.Length - 1; i >= 0; i--)
         {
-            destroyedHandlers[i](entity);
+            snapshot[i](entity);
         }
     }
 
@@ -121,7 +155,14 @@ internal sealed class EntityEventHandlers
     /// </remarks>
     internal void Clear()
     {
-        createdHandlers.Clear();
-        destroyedHandlers.Clear();
+        lock (createdLock)
+        {
+            createdHandlers.Clear();
+        }
+
+        lock (destroyedLock)
+        {
+            destroyedHandlers.Clear();
+        }
     }
 }
