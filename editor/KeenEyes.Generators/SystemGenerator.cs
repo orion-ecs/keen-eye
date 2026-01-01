@@ -69,11 +69,11 @@ public sealed class SystemGenerator : IIncrementalGenerator
         {
             switch (namedArg.Key)
             {
-                case "Phase":
-                    phase = (SystemPhase)(int)namedArg.Value.Value!;
+                case "Phase" when namedArg.Value.Value is int phaseValue:
+                    phase = (SystemPhase)phaseValue;
                     break;
-                case "Order":
-                    order = (int)namedArg.Value.Value!;
+                case "Order" when namedArg.Value.Value is int orderValue:
+                    order = orderValue;
                     break;
                 case "Group":
                     group = namedArg.Value.Value as string;
