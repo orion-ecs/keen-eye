@@ -3,20 +3,12 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for ComponentValidationManager class focusing on uncovered paths.
 /// </summary>
-public class ComponentValidationManagerTests : IDisposable
+/// <remarks>
+/// Each test creates its own World and ComponentValidationManager, ensuring
+/// complete test isolation following the per-world isolation principle.
+/// </remarks>
+public class ComponentValidationManagerTests
 {
-    public ComponentValidationManagerTests()
-    {
-        // Clear any constraint provider from previous tests
-        ComponentValidationManager.ClearConstraintProvider();
-    }
-
-    public void Dispose()
-    {
-        // Clean up constraint provider after each test
-        ComponentValidationManager.ClearConstraintProvider();
-    }
-
     #region Test Components
 
     public struct TestPosition : IComponent
@@ -390,13 +382,19 @@ public class ComponentValidationManagerTests : IDisposable
     [Fact]
     public void RegisterConstraintProvider_WithNullProvider_ThrowsArgumentNullException()
     {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
         Assert.Throws<ArgumentNullException>(() =>
-            ComponentValidationManager.RegisterConstraintProvider(null!));
+            manager.RegisterConstraintProvider(null!));
     }
 
     [Fact]
     public void RegisterConstraintProvider_WithValidProvider_Succeeds()
     {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
         // Create a simple provider that always returns false (no constraints)
         ComponentValidationManager.TryGetConstraintsDelegate provider =
             (Type componentType, out Type[] required, out Type[] conflicts) =>
@@ -407,12 +405,15 @@ public class ComponentValidationManagerTests : IDisposable
             };
 
         // Should not throw
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
     }
 
     [Fact]
     public void RegisterConstraintProvider_WithConstraintProvider_ProvidesConstraints()
     {
+        using var world = new World();
+        var manager = new ComponentValidationManager(world);
+
         // Register a provider that returns constraints for TestHealth requiring TestPosition
         ComponentValidationManager.TryGetConstraintsDelegate provider =
             (Type componentType, out Type[] required, out Type[] conflicts) =>
@@ -429,7 +430,7 @@ public class ComponentValidationManagerTests : IDisposable
                 return false;
             };
 
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
 
         // The provider is now registered for subsequent validation operations
     }
@@ -459,7 +460,7 @@ public class ComponentValidationManagerTests : IDisposable
                 conflicts = [];
                 return false;
             };
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
 
         var entity = world.Spawn().Build();
 
@@ -492,7 +493,7 @@ public class ComponentValidationManagerTests : IDisposable
                 conflicts = [];
                 return false;
             };
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
 
         var entity = world.Spawn()
             .With(new TestDamage { Amount = 10 })
@@ -527,7 +528,7 @@ public class ComponentValidationManagerTests : IDisposable
                 conflicts = [];
                 return false;
             };
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
 
         var entity = world.Spawn()
             .With(new TestPosition { X = 0, Y = 0 })
@@ -562,7 +563,7 @@ public class ComponentValidationManagerTests : IDisposable
                 conflicts = [];
                 return false;
             };
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
 
         var components = new List<(ComponentInfo Info, object Data)>();
         var info = world.Components.GetOrRegister<TestVelocity>();
@@ -597,7 +598,7 @@ public class ComponentValidationManagerTests : IDisposable
                 conflicts = [];
                 return false;
             };
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
 
         var components = new List<(ComponentInfo Info, object Data)>();
         var healthInfo = world.Components.GetOrRegister<TestHealth>();
@@ -634,7 +635,7 @@ public class ComponentValidationManagerTests : IDisposable
                 conflicts = [];
                 return false;
             };
-        ComponentValidationManager.RegisterConstraintProvider(provider);
+        manager.RegisterConstraintProvider(provider);
 
         var components = new List<(ComponentInfo Info, object Data)>();
         var posInfo = world.Components.GetOrRegister<TestPosition>();

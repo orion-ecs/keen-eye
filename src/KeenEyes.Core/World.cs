@@ -98,6 +98,17 @@ public sealed partial class World : IWorld,
     public ArchetypeManager ArchetypeManager => archetypeManager;
 
     /// <summary>
+    /// Gets the component validation manager for this world.
+    /// </summary>
+    /// <remarks>
+    /// Use this to register constraint providers for AOT-compatible validation:
+    /// <code>
+    /// world.ValidationManager.RegisterConstraintProvider(ComponentValidationMetadata.TryGetConstraints);
+    /// </code>
+    /// </remarks>
+    public ComponentValidationManager ValidationManager => validationManager;
+
+    /// <summary>
     /// Gets the query manager for this world.
     /// </summary>
     internal QueryManager Queries => queryManager;
