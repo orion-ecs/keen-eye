@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KeenEyes.Editor.Common</RootNamespace>
+    <AssemblyName>KeenEyes.Editor.Common</AssemblyName>
+    <PackageId>KeenEyes.Editor.Common</PackageId>
+    <Description>Common utilities for KeenEyes Editor plugins (ComponentIntrospector, reflection helpers)</Description>
+    <PackageTags>ecs;editor;plugin;common;inspector;reflection</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Editor.Abstractions\KeenEyes.Editor.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

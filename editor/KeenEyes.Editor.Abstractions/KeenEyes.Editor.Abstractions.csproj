@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>KeenEyes.Editor.Abstractions</RootNamespace>
+    <AssemblyName>KeenEyes.Editor.Abstractions</AssemblyName>
+    <PackageId>KeenEyes.Editor.Abstractions</PackageId>
+    <Description>Abstractions and base classes for KeenEyes Editor plugin development</Description>
+    <PackageTags>ecs;editor;plugin;abstractions;inspector;propertydrawer</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>

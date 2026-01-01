@@ -81,6 +81,7 @@
     <Project Path="tests/KeenEyes.Common.Tests/KeenEyes.Common.Tests.csproj" />
     <Project Path="tests/KeenEyes.Core.Tests/KeenEyes.Core.Tests.csproj" />
     <Project Path="tests/KeenEyes.Debugging.Tests/KeenEyes.Debugging.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Editor.Tests/KeenEyes.Editor.Tests.csproj" />
     <Project Path="tests/KeenEyes.Generators.Tests/KeenEyes.Generators.Tests.csproj" />
     <Project Path="tests/KeenEyes.Graphics.Tests/KeenEyes.Graphics.Tests.csproj" />
     <Project Path="tests/KeenEyes.Input.Abstractions.Tests/KeenEyes.Input.Abstractions.Tests.csproj" />
@@ -107,6 +108,9 @@
     <Project Path="tools/BenchmarkCompare/BenchmarkCompare.csproj" />
   </Folder>
   <Folder Name="/editor/">
+    <Project Path="editor/KeenEyes.Editor.Abstractions/KeenEyes.Editor.Abstractions.csproj" />
+    <Project Path="editor/KeenEyes.Editor.Common/KeenEyes.Editor.Common.csproj" />
+    <Project Path="editor/KeenEyes.Editor/KeenEyes.Editor.csproj" />
     <Project Path="editor/KeenEyes.Generators/KeenEyes.Generators.csproj" />
     <Project Path="editor/KeenEyes.Sdk/KeenEyes.Sdk.csproj" />
     <Project Path="editor/KeenEyes.Sdk.Library/KeenEyes.Sdk.Library.csproj" />
