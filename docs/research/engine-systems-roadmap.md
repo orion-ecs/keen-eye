@@ -111,6 +111,8 @@ public class ChaseAction : IAIAction
 
 Start with **NavMesh approach** as it's the industry standard and works for most 3D games. Consider wrapping [Recast Navigation](https://github.com/recastnavigation/recastnavigation) for the heavy lifting, with KeenEyes-native components and systems on top.
 
+**See:** [Pathfinding & Navigation Research](pathfinding-navigation.md) for detailed architecture and implementation plan.
+
 ---
 
 ## Scene Management
