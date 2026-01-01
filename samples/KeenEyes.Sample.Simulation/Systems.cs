@@ -518,6 +518,9 @@ public partial class ShootingSystem : SystemBase
                     float dy = targetPos.Y - pos.Y;
                     float dist = MathF.Sqrt(dx * dx + dy * dy);
 
+                    // Note: Direct comparison is acceptable for threshold checks (> or <).
+                    // Unlike equality checks (==), small floating-point errors don't affect
+                    // the outcome - values near the boundary behave consistently.
                     if (dist > MinimumShootingDistance)
                     {
                         float vx = (dx / dist) * PlayerProjectileSpeed;

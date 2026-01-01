@@ -325,7 +325,11 @@ static void PrintWorldState(World world, string label)
     Console.WriteLine($"Entities: {playerCount} players, {enemyCount} enemies, {npcCount} NPCs");
 
     var player = world.GetEntityByName("Player");
-    if (player.IsValid)
+    if (player.IsValid &&
+        world.Has<Position>(player) &&
+        world.Has<Health>(player) &&
+        world.Has<Experience>(player) &&
+        world.Has<Gold>(player))
     {
         ref readonly var pos = ref world.Get<Position>(player);
         ref readonly var health = ref world.Get<Health>(player);
