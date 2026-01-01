@@ -23,7 +23,8 @@ Research reports document:
 | [Asset Management](asset-management.md) | Research Complete | Reference-counted asset loading |
 | [Animation System](animation-system.md) | Research Complete | Sprite, skeletal, and property animation |
 | [AI System](ai-system.md) | Research Complete | FSM, behavior trees, utility AI |
-| [Engine Systems Roadmap](engine-systems-roadmap.md) | Research Complete | Pathfinding, Scene Management, Localization, Networking |
+| [Pathfinding & Navigation](pathfinding-navigation.md) | Research Complete | NavMesh, A*, abstraction layer for BYOP |
+| [Engine Systems Roadmap](engine-systems-roadmap.md) | Research Complete | Scene Management, Localization, Networking |
 
 ### Editor & Tooling
 
