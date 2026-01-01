@@ -1018,3 +1018,21 @@ download_pkg "TransitivePackage" "Version"
 ```
 
 Keep the script organized with comments grouping related packages.
+
+### GitHub CLI Usage
+
+In web sessions, the git remote uses a local proxy URL that the GitHub CLI doesn't recognize as a GitHub host. Always use the `--repo` flag to specify the repository explicitly:
+
+```bash
+# ❌ BAD: Will fail with "none of the git remotes configured for this repository point to a known GitHub host"
+gh issue list
+gh pr create
+
+# ✅ GOOD: Explicitly specify the repository
+gh issue list --repo orion-ecs/keen-eye
+gh pr create --repo orion-ecs/keen-eye --title "..." --body "..."
+gh issue close 123 --repo orion-ecs/keen-eye --comment "Fixed in PR #456"
+gh api repos/orion-ecs/keen-eye/issues/123
+```
+
+This applies to all `gh` commands that interact with the repository.
