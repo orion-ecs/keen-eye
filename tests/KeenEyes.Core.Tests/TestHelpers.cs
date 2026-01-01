@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using KeenEyes.Capabilities;
 using KeenEyes.Serialization;
+using KeenEyes.Tests.Serialization;
 
 namespace KeenEyes.Tests;
 
@@ -62,72 +62,26 @@ internal static class TestSerializerFactory
 }
 
 /// <summary>
-/// A mock IComponentSerializer for testing that supports common test component types.
+/// A combined component serializer for testing that supports both JSON and binary formats.
+/// Uses composition to delegate to specialized serializers.
 /// </summary>
+/// <remarks>
+/// This class implements both IComponentSerializer and IBinaryComponentSerializer by
+/// delegating to <see cref="TestJsonSerializer"/> and <see cref="TestBinarySerializer"/>
+/// respectively. This maintains backward compatibility while separating concerns.
+/// </remarks>
 internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryComponentSerializer
 {
-    // JSON options matching SnapshotManager's options
-    private static readonly JsonSerializerOptions jsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        IncludeFields = true,
-        PropertyNameCaseInsensitive = true  // Handle both camelCase and PascalCase
-    };
-
-    private readonly Dictionary<string, Type> typeMap = [];
-    private readonly Dictionary<Type, Func<JsonElement, object>> deserializers = [];
-    private readonly Dictionary<Type, Func<object, JsonElement>> serializers = [];
-    private readonly Dictionary<Type, Func<ISerializationCapability, bool, ComponentInfo>> registrars = [];
-    private readonly Dictionary<Type, Action<ISerializationCapability, object>> singletonSetters = [];
-    private readonly Dictionary<string, Func<BinaryReader, object>> binaryDeserializers = [];
-    private readonly Dictionary<Type, Action<object, BinaryWriter>> binarySerializers = [];
+    private readonly TestJsonSerializer jsonSerializer = new();
+    private readonly TestBinarySerializer binarySerializer = new();
 
     /// <summary>
     /// Registers a component type for serialization.
     /// </summary>
     public TestComponentSerializer WithComponent<T>(string? typeName = null) where T : struct, IComponent
     {
-        var type = typeof(T);
-        var name = typeName ?? type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
-        typeMap[name] = type;
-
-        // Also add short name and full name variants
-        if (type.FullName is not null && type.FullName != name)
-        {
-            typeMap[type.FullName] = type;
-        }
-        if (type.Name != name)
-        {
-            typeMap[type.Name] = type;
-        }
-
-        deserializers[type] = json => JsonSerializer.Deserialize<T>(json.GetRawText(), jsonOptions)!;
-        serializers[type] = obj =>
-        {
-            var jsonStr = JsonSerializer.Serialize((T)obj, jsonOptions);
-            using var doc = JsonDocument.Parse(jsonStr);
-            return doc.RootElement.Clone();
-        };
-        registrars[type] = (serialization, isTag) => serialization.Components.Register<T>(isTag);
-        singletonSetters[type] = (serialization, value) => serialization.SetSingleton((T)value);
-
-        // Binary serializers - serialize as JSON for simplicity in tests
-        binaryDeserializers[name] = reader =>
-        {
-            var json = reader.ReadString();
-            return JsonSerializer.Deserialize<T>(json, jsonOptions)!;
-        };
-        if (type.FullName is not null)
-        {
-            binaryDeserializers[type.FullName] = binaryDeserializers[name];
-        }
-        binarySerializers[type] = (obj, writer) =>
-        {
-            var json = JsonSerializer.Serialize((T)obj, jsonOptions);
-            writer.Write(json);
-        };
-
+        jsonSerializer.WithComponent<T>(typeName);
+        binarySerializer.WithComponent<T>(typeName);
         return this;
     }
 
@@ -136,125 +90,40 @@ internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryCom
     /// </summary>
     public TestComponentSerializer WithStruct<T>(string? typeName = null) where T : struct
     {
-        var type = typeof(T);
-        var name = typeName ?? type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
-        typeMap[name] = type;
-
-        // Also add short name and full name variants
-        if (type.FullName is not null && type.FullName != name)
-        {
-            typeMap[type.FullName] = type;
-        }
-        if (type.Name != name)
-        {
-            typeMap[type.Name] = type;
-        }
-
-        deserializers[type] = json => JsonSerializer.Deserialize<T>(json.GetRawText(), jsonOptions)!;
-        serializers[type] = obj =>
-        {
-            var jsonStr = JsonSerializer.Serialize((T)obj, jsonOptions);
-            using var doc = JsonDocument.Parse(jsonStr);
-            return doc.RootElement.Clone();
-        };
-        singletonSetters[type] = (serialization, value) => serialization.SetSingleton((T)value);
-        // Note: No registrar for non-component types
-
-        // Binary serializers - serialize as JSON for simplicity in tests
-        binaryDeserializers[name] = reader =>
-        {
-            var json = reader.ReadString();
-            return JsonSerializer.Deserialize<T>(json, jsonOptions)!;
-        };
-        if (type.FullName is not null)
-        {
-            binaryDeserializers[type.FullName] = binaryDeserializers[name];
-        }
-        binarySerializers[type] = (obj, writer) =>
-        {
-            var json = JsonSerializer.Serialize((T)obj, jsonOptions);
-            writer.Write(json);
-        };
-
+        jsonSerializer.WithStruct<T>(typeName);
+        binarySerializer.WithStruct<T>(typeName);
         return this;
     }
 
-    public bool IsSerializable(Type type) => deserializers.ContainsKey(type);
+    /// <inheritdoc />
+    public bool IsSerializable(Type type) => jsonSerializer.IsSerializable(type);
 
-    public bool IsSerializable(string typeName) => typeMap.ContainsKey(typeName);
+    /// <inheritdoc />
+    public bool IsSerializable(string typeName) => jsonSerializer.IsSerializable(typeName);
 
-    public object? Deserialize(string typeName, JsonElement json)
-    {
-        if (typeMap.TryGetValue(typeName, out var type) &&
-            deserializers.TryGetValue(type, out var deserializer))
-        {
-            return deserializer(json);
-        }
-        return null;
-    }
+    /// <inheritdoc />
+    public object? Deserialize(string typeName, JsonElement json) => jsonSerializer.Deserialize(typeName, json);
 
-    public JsonElement? Serialize(Type type, object value)
-    {
-        if (serializers.TryGetValue(type, out var serializer))
-        {
-            return serializer(value);
-        }
-        return null;
-    }
+    /// <inheritdoc />
+    public JsonElement? Serialize(Type type, object value) => jsonSerializer.Serialize(type, value);
 
-    public Type? GetType(string typeName)
-    {
-        return typeMap.TryGetValue(typeName, out var type) ? type : null;
-    }
+    /// <inheritdoc />
+    public Type? GetType(string typeName) => jsonSerializer.GetType(typeName);
 
+    /// <inheritdoc />
     public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag)
-    {
-        if (typeMap.TryGetValue(typeName, out var type) &&
-            registrars.TryGetValue(type, out var registrar))
-        {
-            return registrar(serialization, isTag);
-        }
-        return null;
-    }
+        => jsonSerializer.RegisterComponent(serialization, typeName, isTag);
 
+    /// <inheritdoc />
     public bool SetSingleton(ISerializationCapability serialization, string typeName, object value)
-    {
-        if (typeMap.TryGetValue(typeName, out var type) &&
-            singletonSetters.TryGetValue(type, out var setter))
-        {
-            setter(serialization, value);
-            return true;
-        }
-        return false;
-    }
+        => jsonSerializer.SetSingleton(serialization, typeName, value);
 
-    public object? CreateDefault(string typeName)
-    {
-        if (typeMap.TryGetValue(typeName, out var type))
-        {
-            // Create default using reflection (OK for tests)
-            return Activator.CreateInstance(type);
-        }
-        return null;
-    }
+    /// <inheritdoc />
+    public object? CreateDefault(string typeName) => jsonSerializer.CreateDefault(typeName);
 
-    // IBinaryComponentSerializer implementation
-    public bool WriteTo(Type type, object value, BinaryWriter writer)
-    {
-        if (binarySerializers.TryGetValue(type, out var serializer))
-        {
-            serializer(value, writer);
-            return true;
-        }
-        return false;
-    }
+    /// <inheritdoc />
+    public bool WriteTo(Type type, object value, BinaryWriter writer) => binarySerializer.WriteTo(type, value, writer);
 
-    public object? ReadFrom(string typeName, BinaryReader reader)
-    {
-        if (binaryDeserializers.TryGetValue(typeName, out var deserializer))
-        {
-            return deserializer(reader);
-        }
-        return null;
-    }
+    /// <inheritdoc />
+    public object? ReadFrom(string typeName, BinaryReader reader) => binarySerializer.ReadFrom(typeName, reader);
 }
