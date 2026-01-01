@@ -256,13 +256,54 @@ public sealed class BundleGenerator : IIncrementalGenerator
             return CreateInvalidBundleInfo(typeSymbol, diagnostics);
         }
 
+        // Compute flattened component types for nested bundles
+        var flattenedComponentTypes = GetFlattenedComponentTypes(
+            typeSymbol,
+            context.SemanticModel.Compilation,
+            diagnostics);
+
+        // Emit info diagnostic if bundle exceeds Query<T>() component limit
+        if (flattenedComponentTypes.Count > 4)
+        {
+            var location = typeSymbol.Locations.FirstOrDefault();
+            if (location is not null)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    Diagnostics.BundleExceedsQueryLimit,
+                    location,
+                    [typeSymbol.Name, flattenedComponentTypes.Count]));
+            }
+        }
+
         return new BundleInfo(
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
             fields.ToImmutableArray(),
+            flattenedComponentTypes.ToImmutableArray(),
             diagnostics.ToImmutableArray(),
             IsValid: true);
+    }
+
+    private static List<string> GetFlattenedComponentTypes(
+        INamedTypeSymbol typeSymbol,
+        Compilation compilation,
+        List<DiagnosticInfo> diagnostics)
+    {
+        var visited = new HashSet<string>();
+        var flattenedFields = FlattenBundle(
+            typeSymbol,
+            compilation,
+            diagnostics,
+            visited,
+            depth: 0,
+            typeSymbol.Locations.FirstOrDefault()!);
+
+        // Return distinct component type names (handle duplicates from nested bundles)
+        return flattenedFields
+            .Select(f => f.IsNullable && f.UnderlyingType is not null ? f.UnderlyingType : f.Type)
+            .Distinct()
+            .ToList();
     }
 
     private static bool ValidateBundleStruct(INamedTypeSymbol typeSymbol, List<DiagnosticInfo> diagnostics)
@@ -478,6 +519,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
             ImmutableArray<ComponentFieldInfo>.Empty,
+            ImmutableArray<string>.Empty,
             diagnostics.ToImmutableArray(),
             IsValid: false);
     }
@@ -529,11 +571,12 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine("{");
 
         // Generate ComponentTypes static property for IBundle interface implementation
+        // Uses flattened component types to handle nested bundles correctly
         sb.AppendLine("    private static readonly global::System.Type[] s_componentTypes = new global::System.Type[]");
         sb.AppendLine("    {");
-        foreach (var field in info.Fields)
+        foreach (var componentType in info.FlattenedComponentTypes)
         {
-            sb.AppendLine($"        typeof({field.Type}),");
+            sb.AppendLine($"        typeof({componentType}),");
         }
         sb.AppendLine("    };");
         sb.AppendLine();
@@ -732,6 +775,15 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
         StringHelpers.AppendNamespaceDeclaration(sb, info.Namespace);
 
+        // Skip generating ref struct for bundles with nested bundles
+        // because world.Get<NestedBundle>() doesn't exist
+        if (info.HasNestedBundles)
+        {
+            sb.AppendLine($"// {info.Name}Ref not generated: bundle contains nested bundles.");
+            sb.AppendLine($"// Use individual component access instead: world.Get<ComponentType>(entity)");
+            return sb.ToString();
+        }
+
         // Generate ref struct with refs to all components
         sb.AppendLine("/// <summary>");
         sb.AppendLine($"/// Ref struct providing zero-copy access to all components in <see cref=\"{info.Name}\"/>.");
@@ -793,6 +845,12 @@ public sealed class BundleGenerator : IIncrementalGenerator
         foreach (var info in bundles)
         {
             if (info is null)
+            {
+                continue;
+            }
+
+            // Skip bundles with nested bundles - no BundleRef is generated for them
+            if (info.HasNestedBundles)
             {
                 continue;
             }
@@ -872,11 +930,12 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"    /// </code>");
             sb.AppendLine($"    /// </example>");
 
-            var componentTypeParams = string.Join(", ", info.Fields.Select(f => f.Type));
+            // Use flattened component types to handle nested bundles correctly
+            var componentTypeParams = string.Join(", ", info.FlattenedComponentTypes);
 
             // QueryBuilder is now non-generic; bundles with more than 4 components are still limited
             // by the World.Query<T1..T4>() overloads
-            if (info.Fields.Length > 4)
+            if (info.FlattenedComponentTypes.Length > 4)
             {
                 // Skip bundles with more than 4 components (not supported by current World.Query<>)
                 continue;
@@ -907,6 +966,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             }
 
             // Generate With{BundleName}<TBundle>() extension for non-generic QueryBuilder
+            // Uses flattened component types to handle nested bundles correctly
             sb.AppendLine($"    /// <summary>");
             sb.AppendLine($"    /// Requires the entity to have all components in the {info.Name} bundle.");
             sb.AppendLine($"    /// </summary>");
@@ -915,9 +975,9 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"        where TBundle : struct, global::KeenEyes.IBundle");
             sb.AppendLine($"    {{");
 
-            foreach (var field in info.Fields)
+            foreach (var componentType in info.FlattenedComponentTypes)
             {
-                sb.AppendLine($"        builder = builder.With<{field.Type}>();");
+                sb.AppendLine($"        builder = builder.With<{componentType}>();");
             }
 
             sb.AppendLine($"        return builder;");
@@ -925,6 +985,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine();
 
             // Generate Without{BundleName}<TBundle>() extension for non-generic QueryBuilder
+            // Uses flattened component types to handle nested bundles correctly
             sb.AppendLine($"    /// <summary>");
             sb.AppendLine($"    /// Excludes entities that have all components in the {info.Name} bundle.");
             sb.AppendLine($"    /// </summary>");
@@ -933,9 +994,9 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"        where TBundle : struct, global::KeenEyes.IBundle");
             sb.AppendLine($"    {{");
 
-            foreach (var field in info.Fields)
+            foreach (var componentType in info.FlattenedComponentTypes)
             {
-                sb.AppendLine($"        builder = builder.Without<{field.Type}>();");
+                sb.AppendLine($"        builder = builder.Without<{componentType}>();");
             }
 
             sb.AppendLine($"        return builder;");
@@ -1142,8 +1203,16 @@ public sealed class BundleGenerator : IIncrementalGenerator
         string Namespace,
         string FullName,
         ImmutableArray<ComponentFieldInfo> Fields,
+        ImmutableArray<string> FlattenedComponentTypes,
         ImmutableArray<DiagnosticInfo> Diagnostics,
-        bool IsValid);
+        bool IsValid)
+    {
+        /// <summary>
+        /// Returns true if this bundle contains nested bundle fields.
+        /// GetBundle and BundleRef cannot be generated for bundles with nesting.
+        /// </summary>
+        public bool HasNestedBundles => Fields.Any(f => f.IsBundle);
+    }
 
     private sealed record ComponentFieldInfo(
         string Name,
@@ -1235,4 +1304,16 @@ internal static partial class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Fields marked with [Optional] must be nullable value types (e.g., ComponentType?) to allow null values.");
+
+    /// <summary>
+    /// KEEN032: Bundle exceeds Query component limit.
+    /// </summary>
+    public static readonly DiagnosticDescriptor BundleExceedsQueryLimit = new(
+        id: "KEEN032",
+        title: "Bundle exceeds Query component limit",
+        messageFormat: "Bundle '{0}' has {1} components and cannot be used with Query<T>(). Maximum is 4 components. Use QueryBuilder directly with With<>() for each component type.",
+        category: "KeenEyes.Bundle",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "World.Query<TBundle>() only supports bundles with 4 or fewer components due to generic overload limitations. For larger bundles, use the QueryBuilder API with individual With<>() calls.");
 }

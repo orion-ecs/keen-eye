@@ -173,7 +173,15 @@ public sealed class MixinGenerator : IIncrementalGenerator
         }
 
         // Check for field name conflicts across all mixins and the component itself
-        var allMixinFields = mixinTypes.SelectMany(m => m.Fields).ToArray();
+        // First, deduplicate fields from diamond dependencies - fields with the same
+        // (Name, Type, SourceMixin) tuple are the same field from a shared dependency
+        var allMixinFields = mixinTypes
+            .SelectMany(m => m.Fields)
+            .GroupBy(f => (f.Name, f.Type, f.SourceMixin))
+            .Select(g => g.First())
+            .ToArray();
+
+        // Now check for actual conflicts: different sources providing the same field name
         var fieldGroups = allMixinFields.GroupBy(f => f.Name).Where(g => g.Count() > 1).ToArray();
 
         if (fieldGroups.Length > 0)

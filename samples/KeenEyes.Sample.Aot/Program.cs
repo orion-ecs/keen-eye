@@ -118,6 +118,24 @@ Console.WriteLine("Native AOT sample completed successfully!");
 // ============================================================================
 // Component Definitions (AOT-compatible)
 // ============================================================================
+// Note: There are TWO ways to define components in KeenEyes:
+//
+// 1. [Component] attribute (RECOMMENDED):
+//    [Component]
+//    public partial struct Position { public float X, Y; }
+//
+//    The source generator will implement IComponent automatically and
+//    generate fluent builder methods like WithPosition().
+//
+// 2. Explicit IComponent (shown below):
+//    public struct Position : IComponent { public float X, Y; }
+//
+//    This is also AOT-compatible and demonstrates that no reflection is
+//    used. Useful when you want full control or minimal generated code.
+//
+// Both approaches are equally AOT-compatible. The [Component] attribute is
+// recommended for most use cases as it generates helpful extension methods.
+// ============================================================================
 
 /// <summary>Position component for 2D coordinates.</summary>
 public struct Position : IComponent
