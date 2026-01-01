@@ -1,11 +1,16 @@
 using System.Numerics;
+using KeenEyes.Editor.Commands;
 using KeenEyes.Editor.Panels;
+using KeenEyes.Editor.PlayMode;
+using KeenEyes.Editor.Selection;
+using KeenEyes.Editor.Shortcuts;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.Input.Silk;
 using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
+using KeenEyes.Serialization;
 using KeenEyes.UI;
 using KeenEyes.UI.Abstractions;
 using KeenEyes.UI.Widgets;
@@ -16,10 +21,16 @@ namespace KeenEyes.Editor.Application;
 /// Main entry point for the KeenEyes Editor application.
 /// Sets up the window, graphics, input, and UI systems, then creates the editor layout.
 /// </summary>
-public sealed class EditorApplication : IDisposable
+public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 {
     private readonly World _editorWorld;
     private readonly EditorWorldManager _worldManager;
+    private readonly ShortcutManager _shortcuts;
+    private readonly UndoRedoManager _undoRedo;
+    private readonly SelectionManager _selection;
+#pragma warning disable CS0649, IDE0044 // Field is never assigned - initialized lazily when scene world is created
+    private PlayModeManager? _playMode;
+#pragma warning restore CS0649, IDE0044
     private FontHandle _defaultFont;
     private bool _isDisposed;
 
@@ -34,12 +45,38 @@ public sealed class EditorApplication : IDisposable
     public EditorWorldManager WorldManager => _worldManager;
 
     /// <summary>
+    /// Gets the shortcut manager for keyboard shortcuts.
+    /// </summary>
+    public ShortcutManager Shortcuts => _shortcuts;
+
+    /// <summary>
+    /// Gets the undo/redo manager for command history.
+    /// </summary>
+    public UndoRedoManager UndoRedo => _undoRedo;
+
+    /// <summary>
+    /// Gets the selection manager for entity selection.
+    /// </summary>
+    public SelectionManager Selection => _selection;
+
+    /// <summary>
+    /// Gets the play mode manager, if initialized.
+    /// </summary>
+    public PlayModeManager? PlayMode => _playMode;
+
+    /// <summary>
     /// Creates a new editor application instance.
     /// </summary>
     public EditorApplication()
     {
         _editorWorld = new World();
         _worldManager = new EditorWorldManager();
+        _shortcuts = new ShortcutManager();
+        _undoRedo = new UndoRedoManager();
+        _selection = new SelectionManager();
+
+        // Register default shortcuts
+        EditorShortcuts.RegisterDefaults(_shortcuts, this);
     }
 
     /// <summary>
@@ -292,13 +329,26 @@ public sealed class EditorApplication : IDisposable
     private void SetupInputHandling()
     {
         var input = _editorWorld.GetExtension<IInputContext>();
+
         input.Keyboard.OnKeyDown += args =>
         {
+            // Let the shortcut manager handle keyboard events first
+            if (_shortcuts.ProcessKeyDown(args.Key, args.Modifiers))
+            {
+                return; // Shortcut was handled
+            }
+
+            // Fallback for Escape key
             if (args.Key == Key.Escape)
             {
                 Console.WriteLine("Escape pressed - closing editor...");
                 Environment.Exit(0);
             }
+        };
+
+        input.Keyboard.OnKeyUp += args =>
+        {
+            _shortcuts.ProcessKeyUp(args.Key, args.Modifiers);
         };
     }
 
@@ -338,6 +388,296 @@ public sealed class EditorApplication : IDisposable
 
         return null;
     }
+
+    #region IEditorShortcutActions Implementation
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.NewScene()
+    {
+        _worldManager.NewScene();
+        Console.WriteLine("New scene created");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.OpenScene()
+    {
+        // TODO: Implement file dialog
+        Console.WriteLine("Open Scene (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.SaveScene()
+    {
+        // TODO: Implement save
+        Console.WriteLine("Save Scene (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.SaveSceneAs()
+    {
+        // TODO: Implement save as
+        Console.WriteLine("Save Scene As (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Exit()
+    {
+        Environment.Exit(0);
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Undo()
+    {
+        if (_undoRedo.CanUndo)
+        {
+            _undoRedo.Undo();
+            Console.WriteLine("Undo");
+        }
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Redo()
+    {
+        if (_undoRedo.CanRedo)
+        {
+            _undoRedo.Redo();
+            Console.WriteLine("Redo");
+        }
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Cut()
+    {
+        // TODO: Implement cut
+        Console.WriteLine("Cut (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Copy()
+    {
+        // TODO: Implement copy
+        Console.WriteLine("Copy (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Paste()
+    {
+        // TODO: Implement paste
+        Console.WriteLine("Paste (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Delete()
+    {
+        var selected = _selection.SelectedEntities.ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            return;
+        }
+
+        foreach (var entity in selected)
+        {
+            if (sceneWorld.IsAlive(entity))
+            {
+                var command = new DeleteEntityCommand(sceneWorld, entity);
+                _undoRedo.Execute(command);
+            }
+        }
+
+        _selection.ClearSelection();
+        Console.WriteLine($"Deleted {selected.Count} entity(ies)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.SelectAll()
+    {
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            return;
+        }
+
+        _selection.ClearSelection();
+        foreach (var entity in sceneWorld.GetAllEntities())
+        {
+            _selection.AddToSelection(entity);
+        }
+
+        Console.WriteLine($"Selected all entities ({_selection.SelectedEntities.Count()})");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Duplicate()
+    {
+        // TODO: Implement duplicate
+        Console.WriteLine("Duplicate (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Rename()
+    {
+        // TODO: Implement rename (show rename dialog)
+        Console.WriteLine("Rename (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.CreateEmpty()
+    {
+        CreateEmptyEntity();
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.CreateChild()
+    {
+        var parent = _selection.PrimarySelection;
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            _worldManager.NewScene();
+            sceneWorld = _worldManager.CurrentSceneWorld!;
+        }
+
+        var command = new CreateEntityCommand(sceneWorld, "New Entity", parent);
+        _undoRedo.Execute(command);
+        _selection.Select(command.CreatedEntity);
+        Console.WriteLine($"Created child entity: {sceneWorld.GetName(command.CreatedEntity)}");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.FocusSelection()
+    {
+        // TODO: Implement focus selection in viewport
+        Console.WriteLine("Focus Selection (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ToggleGrid()
+    {
+        // TODO: Implement toggle grid
+        Console.WriteLine("Toggle Grid (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ToggleWireframe()
+    {
+        // TODO: Implement toggle wireframe
+        Console.WriteLine("Toggle Wireframe (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.TranslateMode()
+    {
+        Console.WriteLine("Translate Mode");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.RotateMode()
+    {
+        Console.WriteLine("Rotate Mode");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ScaleMode()
+    {
+        Console.WriteLine("Scale Mode");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ToggleSpace()
+    {
+        Console.WriteLine("Toggle Local/World Space");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.PlayStop()
+    {
+        if (_playMode is null)
+        {
+            Console.WriteLine("Play mode not initialized");
+            return;
+        }
+
+        if (_playMode.IsInPlayMode)
+        {
+            _playMode.Stop();
+            Console.WriteLine("Stopped play mode");
+        }
+        else
+        {
+            _playMode.Play();
+            Console.WriteLine("Started play mode");
+        }
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Pause()
+    {
+        if (_playMode is null)
+        {
+            return;
+        }
+
+        _playMode.TogglePlayPause();
+        Console.WriteLine(_playMode.IsPaused ? "Paused" : "Resumed");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.StepFrame()
+    {
+        // TODO: Implement step frame
+        Console.WriteLine("Step Frame (not yet implemented)");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ShowHierarchy()
+    {
+        Console.WriteLine("Show Hierarchy");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ShowInspector()
+    {
+        Console.WriteLine("Show Inspector");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ShowProject()
+    {
+        Console.WriteLine("Show Project");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ShowConsole()
+    {
+        Console.WriteLine("Show Console");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ResetLayout()
+    {
+        Console.WriteLine("Reset Layout");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.Documentation()
+    {
+        Console.WriteLine("Opening documentation...");
+        // TODO: Open browser to docs
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.About()
+    {
+        Console.WriteLine("KeenEyes Editor - A modern ECS-based game editor");
+    }
+
+    #endregion
 
     /// <inheritdoc/>
     public void Dispose()
