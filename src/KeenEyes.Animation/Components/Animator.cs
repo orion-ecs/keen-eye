@@ -20,9 +20,9 @@ namespace KeenEyes.Animation.Components;
 ///     .With(new Animator { ControllerId = humanoidControllerId })
 ///     .Build();
 ///
-/// // Trigger a state change
+/// // Trigger a state change by setting TriggerStateHash directly
 /// ref var animator = ref world.Get&lt;Animator&gt;(entity);
-/// animator.TriggerState("Jump");
+/// animator.TriggerStateHash = Animator.GetStateHash("Jump");
 /// </code>
 /// </example>
 [Component]
@@ -113,28 +113,21 @@ public partial struct Animator
     };
 
     /// <summary>
-    /// Triggers a transition to the specified state.
-    /// </summary>
-    /// <param name="stateName">The name of the state to transition to.</param>
-    public void TriggerState(string stateName)
-    {
-        TriggerStateHash = GetStateHash(stateName);
-    }
-
-    /// <summary>
-    /// Triggers a transition to the specified state by hash.
-    /// </summary>
-    /// <param name="stateHash">The hash of the state to transition to.</param>
-    public void TriggerState(int stateHash)
-    {
-        TriggerStateHash = stateHash;
-    }
-
-    /// <summary>
     /// Gets a hash code for a state name.
     /// </summary>
+    /// <remarks>
+    /// Use this method to convert state names to hashes, then set <see cref="TriggerStateHash"/>
+    /// directly to trigger state transitions. This follows ECS principles where components
+    /// are pure data and systems handle all logic.
+    /// </remarks>
     /// <param name="stateName">The state name.</param>
     /// <returns>A hash code for the state name.</returns>
+    /// <example>
+    /// <code>
+    /// ref var animator = ref world.Get&lt;Animator&gt;(entity);
+    /// animator.TriggerStateHash = Animator.GetStateHash("Jump");
+    /// </code>
+    /// </example>
     public static int GetStateHash(string stateName)
     {
         return stateName.GetHashCode(StringComparison.Ordinal);
