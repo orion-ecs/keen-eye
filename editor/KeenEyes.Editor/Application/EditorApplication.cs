@@ -1,9 +1,12 @@
 using System.Numerics;
+using KeenEyes.Editor.Assets;
 using KeenEyes.Editor.Commands;
 using KeenEyes.Editor.Layout;
+using KeenEyes.Editor.Logging;
 using KeenEyes.Editor.Panels;
 using KeenEyes.Editor.PlayMode;
 using KeenEyes.Editor.Selection;
+using KeenEyes.Editor.Serialization;
 using KeenEyes.Editor.Settings;
 using KeenEyes.Editor.Shortcuts;
 using KeenEyes.Graphics.Abstractions;
@@ -31,9 +34,11 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private readonly UndoRedoManager _undoRedo;
     private readonly SelectionManager _selection;
     private readonly LayoutManager _layoutManager;
-#pragma warning disable CS0649, IDE0044 // Field is never assigned - initialized lazily when scene world is created
+    private readonly EditorLogProvider _logProvider;
+    private readonly AssetDatabase _assetDatabase;
+    private readonly EditorComponentSerializer _serializer;
     private PlayModeManager? _playMode;
-#pragma warning restore CS0649, IDE0044
+    private Entity _viewportPanel;
     private FontHandle _defaultFont;
     private bool _isDisposed;
 
@@ -83,6 +88,16 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _undoRedo = new UndoRedoManager(EditorSettings.UndoHistoryLimit);
         _selection = new SelectionManager();
         _layoutManager = LayoutManager.Instance;
+        _logProvider = new EditorLogProvider();
+        _assetDatabase = new AssetDatabase(Environment.CurrentDirectory);
+        _serializer = new EditorComponentSerializer();
+
+        // Scan for known asset types
+        _assetDatabase.Scan(".kescene", ".keprefab", ".keworld");
+
+        // Subscribe to scene events for play mode manager
+        _worldManager.SceneOpened += OnSceneOpened;
+        _worldManager.SceneClosed += OnSceneClosed;
 
         // Load editor settings
         EditorSettings.Load();
@@ -150,6 +165,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _editorWorld.CreateRunner()
             .OnReady(OnEditorReady)
             .OnResize(OnResize)
+            .OnUpdate(OnEditorUpdate)
             .Run();
     }
 
@@ -171,6 +187,27 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     {
         var layoutSystem = _editorWorld.GetSystem<UILayoutSystem>();
         layoutSystem?.SetScreenSize(width, height);
+    }
+
+    private void OnEditorUpdate(float deltaTime)
+    {
+        // Update viewport for camera controls and gizmo interaction
+        if (_viewportPanel.IsValid)
+        {
+            ViewportPanel.Update(_editorWorld, _viewportPanel, deltaTime);
+        }
+    }
+
+    private void OnSceneOpened(World sceneWorld)
+    {
+        _playMode = new PlayModeManager(sceneWorld, _serializer);
+        Console.WriteLine("Play mode manager initialized for scene");
+    }
+
+    private void OnSceneClosed()
+    {
+        _playMode = null;
+        Console.WriteLine("Play mode manager disposed");
     }
 
     private FontHandle LoadDefaultFont()
@@ -309,41 +346,14 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         // Left panel: Hierarchy
         _ = HierarchyPanel.Create(_editorWorld, mainContainer, _defaultFont, _worldManager);
 
-        // Center: Viewport (placeholder for now)
-        _ = CreateViewportPlaceholder(mainContainer);
+        // Center: Viewport with 3D rendering
+        var graphicsContext = _editorWorld.GetExtension<IGraphicsContext>();
+        var inputContext = _editorWorld.GetExtension<IInputContext>();
+        _viewportPanel = ViewportPanel.Create(_editorWorld, mainContainer, _defaultFont, _worldManager,
+            graphicsContext!, inputContext!);
 
         // Right panel: Inspector
         _ = InspectorPanel.Create(_editorWorld, mainContainer, _defaultFont, _worldManager);
-    }
-
-    private Entity CreateViewportPlaceholder(Entity parent)
-    {
-        var viewport = WidgetFactory.CreatePanel(_editorWorld, parent, "Viewport", new PanelConfig(
-            Direction: LayoutDirection.Vertical,
-            MainAxisAlign: LayoutAlign.Center,
-            CrossAxisAlign: LayoutAlign.Center,
-            BackgroundColor: new Vector4(0.08f, 0.08f, 0.10f, 1f)
-        ));
-
-        // Make viewport fill remaining space
-        ref var viewportRect = ref _editorWorld.Get<UIRect>(viewport);
-        viewportRect.WidthMode = UISizeMode.Fill;
-        viewportRect.HeightMode = UISizeMode.Fill;
-
-        // Add placeholder text
-        WidgetFactory.CreateLabel(_editorWorld, viewport, "ViewportLabel", "3D Viewport", _defaultFont, new LabelConfig(
-            FontSize: 24,
-            TextColor: EditorColors.TextMuted,
-            HorizontalAlign: TextAlignH.Center
-        ));
-
-        WidgetFactory.CreateLabel(_editorWorld, viewport, "ViewportSubLabel", "(Scene rendering coming soon)", _defaultFont, new LabelConfig(
-            FontSize: 14,
-            TextColor: new Vector4(0.4f, 0.4f, 0.45f, 1f),
-            HorizontalAlign: TextAlignH.Center
-        ));
-
-        return viewport;
     }
 
     private void SubscribeToMenuActions()
@@ -783,6 +793,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         // Save layout before disposing
         _layoutManager.Save();
 
+        _logProvider.Dispose();
+        _assetDatabase.Dispose();
         _worldManager.Dispose();
         _editorWorld.Dispose();
     }
