@@ -1,4 +1,9 @@
 using KeenEyes;
+using Health = KeenEyes.Tests.TestHealth;
+using Position = KeenEyes.Tests.TestPosition;
+using Rotation = KeenEyes.Tests.TestRotation;
+using Scale = KeenEyes.Tests.TestScale;
+using Velocity = KeenEyes.Tests.TestVelocity;
 
 namespace KeenEyes.Tests;
 
@@ -7,39 +12,6 @@ namespace KeenEyes.Tests;
 /// </summary>
 public class ArchetypePreallocationTests
 {
-    #region Test Components
-
-    private struct Position : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    private struct Velocity : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    private struct Rotation : IComponent
-    {
-        public float Angle;
-    }
-
-    private struct Scale : IComponent
-    {
-        public float X { get; set; }
-        public float Y { get; set; }
-    }
-
-    private struct Health : IComponent
-    {
-        public int Current;
-        public int Max;
-    }
-
-    #endregion
-
     #region Helper Methods
 
     /// <summary>

@@ -1,3 +1,5 @@
+using Position = KeenEyes.Tests.TestPosition;
+
 namespace KeenEyes.Tests;
 
 /// <summary>
@@ -5,16 +7,6 @@ namespace KeenEyes.Tests;
 /// </summary>
 public class FixedComponentArrayTests
 {
-    #region Test Components
-
-    private struct Position : IComponent
-    {
-        public float X;
-        public float Y;
-    }
-
-    #endregion
-
     #region Add Tests
 
     [Fact]
