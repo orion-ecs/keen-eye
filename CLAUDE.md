@@ -111,8 +111,9 @@ var types = TBundle.ComponentTypes;  // Direct access, no reflection
 // ❌ BAD: Runtime attribute reading
 var attrs = componentType.GetCustomAttributes<RequiresComponentAttribute>();
 
-// ✅ GOOD: Generated metadata lookup
-ComponentValidationManager.RegisterConstraintProvider(
+// ✅ GOOD: Generated metadata lookup (per-world)
+var world = new World();
+world.ValidationManager.RegisterConstraintProvider(
     ComponentValidationMetadata.TryGetConstraints);
 ```
 

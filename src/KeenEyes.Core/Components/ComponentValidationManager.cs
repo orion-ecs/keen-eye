@@ -21,7 +21,7 @@ namespace KeenEyes;
 /// </para>
 /// </remarks>
 /// <param name="world">The world this manager belongs to.</param>
-internal sealed class ComponentValidationManager(World world)
+public sealed class ComponentValidationManager(World world)
 {
     private readonly Dictionary<Type, ComponentValidationInfo> validationCache = [];
     private readonly Dictionary<Type, Delegate> customValidators = [];
@@ -175,10 +175,10 @@ internal sealed class ComponentValidationManager(World world)
     /// </summary>
     /// <remarks>
     /// Returns empty constraints if no constraint provider has been registered.
-    /// To enable validation, call <see cref="RegisterConstraintProvider"/> early
-    /// in application startup with the generated <c>ComponentValidationMetadata.TryGetConstraints</c>.
+    /// To enable validation, call <see cref="RegisterConstraintProvider"/> on this manager
+    /// with the generated <c>ComponentValidationMetadata.TryGetConstraints</c>.
     /// </remarks>
-    private static ComponentValidationInfo CreateValidationInfo(Type componentType)
+    private ComponentValidationInfo CreateValidationInfo(Type componentType)
     {
         if (TryGetGeneratedConstraints(componentType, out var required, out var conflicts))
         {
@@ -317,9 +317,9 @@ internal sealed class ComponentValidationManager(World world)
     public delegate bool TryGetConstraintsDelegate(Type componentType, out Type[] required, out Type[] conflicts);
 
     /// <summary>
-    /// Registered constraint provider delegate (AOT-compatible).
+    /// Per-world constraint provider delegate (AOT-compatible).
     /// </summary>
-    private static TryGetConstraintsDelegate? registeredConstraintProvider;
+    private TryGetConstraintsDelegate? constraintProvider;
 
     /// <summary>
     /// Registers a constraint provider for AOT-compatible validation metadata lookup.
@@ -332,25 +332,29 @@ internal sealed class ComponentValidationManager(World world)
     /// <c>TryGetConstraints</c> method that should be registered here.
     /// </para>
     /// <para>
-    /// Call this method early in application startup (e.g., in <c>Main</c> or module initializer):
+    /// Register the constraint provider when creating the world:
     /// </para>
     /// <code>
-    /// ComponentValidationManager.RegisterConstraintProvider(ComponentValidationMetadata.TryGetConstraints);
+    /// var world = new World();
+    /// world.ValidationManager.RegisterConstraintProvider(ComponentValidationMetadata.TryGetConstraints);
     /// </code>
+    /// <para>
+    /// Each world has its own constraint provider, following the per-world isolation principle.
+    /// </para>
     /// </remarks>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="provider"/> is null.</exception>
-    public static void RegisterConstraintProvider(TryGetConstraintsDelegate provider)
+    public void RegisterConstraintProvider(TryGetConstraintsDelegate provider)
     {
         ArgumentNullException.ThrowIfNull(provider);
-        registeredConstraintProvider = provider;
+        constraintProvider = provider;
     }
 
     /// <summary>
-    /// Clears the registered constraint provider. For testing only.
+    /// Clears the registered constraint provider.
     /// </summary>
-    internal static void ClearConstraintProvider()
+    internal void ClearConstraintProvider()
     {
-        registeredConstraintProvider = null;
+        constraintProvider = null;
     }
 
     /// <summary>
@@ -362,17 +366,17 @@ internal sealed class ComponentValidationManager(World world)
     /// <returns><c>true</c> if constraints were found; <c>false</c> otherwise.</returns>
     /// <remarks>
     /// Returns <c>false</c> if no constraint provider has been registered via
-    /// <see cref="RegisterConstraintProvider"/>. Call that method early in application
-    /// startup to enable validation constraint lookup.
+    /// <see cref="RegisterConstraintProvider"/>. Call that method after creating
+    /// the world to enable validation constraint lookup.
     /// </remarks>
-    private static bool TryGetGeneratedConstraints(Type componentType, out Type[] required, out Type[] conflicts)
+    private bool TryGetGeneratedConstraints(Type componentType, out Type[] required, out Type[] conflicts)
     {
         required = [];
         conflicts = [];
 
-        if (registeredConstraintProvider is not null)
+        if (constraintProvider is not null)
         {
-            return registeredConstraintProvider(componentType, out required, out conflicts);
+            return constraintProvider(componentType, out required, out conflicts);
         }
 
         return false;
