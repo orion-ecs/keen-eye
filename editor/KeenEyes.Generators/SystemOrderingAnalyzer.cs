@@ -65,13 +65,26 @@ public sealed class SystemOrderingAnalyzer : DiagnosticAnalyzer
         isEnabledByDefault: true,
         description: "Types referenced in RunBefore and RunAfter should implement ISystem or derive from SystemBase to be valid system ordering targets.");
 
+    /// <summary>
+    /// KEEN006: Circular dependency detected.
+    /// </summary>
+    public static readonly DiagnosticDescriptor CircularDependency = new(
+        id: "KEEN006",
+        title: "Circular ordering dependency detected",
+        messageFormat: "Circular dependency: '{0}' and '{1}' reference each other via {2} attributes",
+        category: "KeenEyes.SystemOrdering",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Systems have circular ordering dependencies. If A runs before B and B runs before A, the execution order cannot be determined. Remove one of the constraints to break the cycle.");
+
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
             SelfReferentialConstraint,
             TargetNotAClass,
             MissingSystemAttribute,
-            TargetNotASystem);
+            TargetNotASystem,
+            CircularDependency);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -183,6 +196,67 @@ public sealed class SystemOrderingAnalyzer : DiagnosticAnalyzer
                 location,
                 targetType.Name,
                 attrShortName));
+        }
+
+        // KEEN006: Check for circular dependencies
+        // If A has [RunBefore(B)], check if B has [RunBefore(A)] or [RunAfter(A)]
+        // If A has [RunAfter(B)], check if B has [RunAfter(A)] or [RunBefore(A)]
+        if (targetType.TypeKind == TypeKind.Class)
+        {
+            CheckCircularDependency(context, declaringType, targetType, location, attrShortName);
+        }
+    }
+
+    private static void CheckCircularDependency(
+        SymbolAnalysisContext context,
+        INamedTypeSymbol declaringType,
+        INamedTypeSymbol targetType,
+        Location location,
+        string attrShortName)
+    {
+        // Look for reciprocal ordering constraints on the target type
+        foreach (var targetAttr in targetType.GetAttributes())
+        {
+            var targetAttrName = targetAttr.AttributeClass?.ToDisplayString();
+            if (targetAttrName != RunBeforeAttribute && targetAttrName != RunAfterAttribute)
+            {
+                continue;
+            }
+
+            if (targetAttr.ConstructorArguments.Length == 0 ||
+                targetAttr.ConstructorArguments[0].Value is not INamedTypeSymbol referencedType)
+            {
+                continue;
+            }
+
+            // Check if target references back to declaring type
+            if (!SymbolEqualityComparer.Default.Equals(referencedType, declaringType))
+            {
+                continue;
+            }
+
+            // Found a reference back - determine if it creates a cycle
+            var targetAttrShortName = targetAttrName.EndsWith("RunBeforeAttribute")
+                ? "RunBefore"
+                : "RunAfter";
+
+            // A [RunBefore(B)] + B [RunBefore(A)] = cycle (A before B, B before A)
+            // A [RunBefore(B)] + B [RunAfter(A)] = no cycle (A before B, A before B - same direction)
+            // A [RunAfter(B)] + B [RunAfter(A)] = cycle (B before A, A before B)
+            // A [RunAfter(B)] + B [RunBefore(A)] = no cycle (B before A, B before A - same direction)
+
+            var isCycle = (attrShortName == "RunBefore" && targetAttrShortName == "RunBefore") ||
+                          (attrShortName == "RunAfter" && targetAttrShortName == "RunAfter");
+
+            if (isCycle)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    CircularDependency,
+                    location,
+                    declaringType.Name,
+                    targetType.Name,
+                    attrShortName));
+            }
         }
     }
 

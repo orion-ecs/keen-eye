@@ -163,13 +163,53 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             TypedConstantKind.Primitive when constant.Value is string s => $"\"{s}\"",
             TypedConstantKind.Primitive when constant.Value is char c => $"'{c}'",
             TypedConstantKind.Primitive when constant.Value is bool b => b ? "true" : "false",
-            TypedConstantKind.Primitive when constant.Value is float f => $"{f}f",
-            TypedConstantKind.Primitive when constant.Value is double d => $"{d}d",
+            TypedConstantKind.Primitive when constant.Value is float f => FormatFloat(f),
+            TypedConstantKind.Primitive when constant.Value is double d => FormatDouble(d),
             TypedConstantKind.Primitive when constant.Value is decimal m => $"{m}m",
             TypedConstantKind.Primitive => constant.Value?.ToString() ?? "default",
             TypedConstantKind.Enum => $"({constant.Type!.ToDisplayString()}){constant.Value}",
             _ => "default"
         };
+    }
+
+    private static string FormatFloat(float f)
+    {
+        if (float.IsNaN(f))
+        {
+            return "float.NaN";
+        }
+
+        if (float.IsPositiveInfinity(f))
+        {
+            return "float.PositiveInfinity";
+        }
+
+        if (float.IsNegativeInfinity(f))
+        {
+            return "float.NegativeInfinity";
+        }
+
+        return $"{f}f";
+    }
+
+    private static string FormatDouble(double d)
+    {
+        if (double.IsNaN(d))
+        {
+            return "double.NaN";
+        }
+
+        if (double.IsPositiveInfinity(d))
+        {
+            return "double.PositiveInfinity";
+        }
+
+        if (double.IsNegativeInfinity(d))
+        {
+            return "double.NegativeInfinity";
+        }
+
+        return $"{d}d";
     }
 
     private static string GenerateComponentPartial(ComponentInfo info)

@@ -14,8 +14,13 @@ namespace KeenEyes;
 /// </para>
 /// <para>
 /// Multiple <see cref="RequiresComponentAttribute"/> can be applied to the same component
-/// to express multiple dependencies. Dependencies are checked transitively - if A requires B
-/// and B requires C, then adding A will verify both B and C are present.
+/// to express multiple dependencies. Each dependency is validated independently when the
+/// component is added - required components must already be present on the entity.
+/// </para>
+/// <para>
+/// <b>Note:</b> Dependencies are checked directly, not transitively. If A requires B and
+/// B requires C, adding A only validates that B is present. To ensure C is also present,
+/// either add C explicitly or add a <c>[RequiresComponent(typeof(C))]</c> to A.
 /// </para>
 /// </remarks>
 /// <example>
