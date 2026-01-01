@@ -328,7 +328,7 @@ public class StringTagTests
     public void GetTags_InvalidEntity_ReturnsEmptyCollection()
     {
         using var world = new World();
-        var invalidEntity = new Entity(999, 1);
+        var invalidEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var tags = world.GetTags(invalidEntity);
 

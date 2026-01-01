@@ -396,7 +396,7 @@ public class PoolingTests
                 // Wait for release
                 while (Interlocked.CompareExchange(ref releaseComplete, 0, 0) == 0)
                 {
-                    Thread.Sleep(1);
+                    Thread.Sleep(TestConstants.ThreadSleepShortMs);
                 }
 
                 // Check after release
@@ -1464,7 +1464,7 @@ public class PoolingTests
         chunk.AddComponent(new TestPosition());
 
         Assert.True(chunk.Contains(entity));
-        Assert.False(chunk.Contains(new Entity(999, 1)));
+        Assert.False(chunk.Contains(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion)));
     }
 
     [Fact]
@@ -1477,7 +1477,7 @@ public class PoolingTests
         chunk.AddComponent(new TestPosition());
 
         Assert.Equal(0, chunk.GetEntityIndex(entity));
-        Assert.Equal(-1, chunk.GetEntityIndex(new Entity(999, 1)));
+        Assert.Equal(-1, chunk.GetEntityIndex(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion)));
     }
 
     [Fact]
@@ -1598,7 +1598,7 @@ public class PoolingTests
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
         var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
 
-        var result = chunk.RemoveEntity(new Entity(999, 1));
+        var result = chunk.RemoveEntity(new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion));
 
         Assert.Null(result);
     }

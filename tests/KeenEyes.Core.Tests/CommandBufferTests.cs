@@ -184,7 +184,7 @@ public class CommandBufferTests
         using var world = new World();
         var buffer = new CommandBuffer();
 
-        var nonExistentEntity = new Entity(999, 1);
+        var nonExistentEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
         buffer.Despawn(nonExistentEntity);
 
         // Should not throw
@@ -261,7 +261,7 @@ public class CommandBufferTests
         using var world = new World();
         var buffer = new CommandBuffer();
 
-        var nonExistentEntity = new Entity(999, 1);
+        var nonExistentEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
         buffer.AddComponent(nonExistentEntity, new TestVelocity { X = 1f, Y = 1f });
 
         // Should not throw
@@ -352,7 +352,7 @@ public class CommandBufferTests
         using var world = new World();
         var buffer = new CommandBuffer();
 
-        var nonExistentEntity = new Entity(999, 1);
+        var nonExistentEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
         buffer.RemoveComponent<TestVelocity>(nonExistentEntity);
 
         // Should not throw
@@ -1018,7 +1018,7 @@ public class CommandBufferTests
         using var world = new World();
         var buffer = new CommandBuffer();
 
-        var nonExistentEntity = new Entity(999, 1);
+        var nonExistentEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
         buffer.SetComponent(nonExistentEntity, new TestPosition { X = 100f, Y = 100f });
 
         // Should not throw

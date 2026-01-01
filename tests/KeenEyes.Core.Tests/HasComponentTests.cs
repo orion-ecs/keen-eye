@@ -113,7 +113,7 @@ public class HasComponentTests
         using var world = new World();
         world.Components.Register<TestPosition>();
 
-        var nonExistentEntity = new Entity(999, 1);
+        var nonExistentEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var hasPosition = world.Has<TestPosition>(nonExistentEntity);
 

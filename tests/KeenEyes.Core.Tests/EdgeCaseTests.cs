@@ -703,7 +703,7 @@ public class EdgeCaseTests
     {
         var pool = new EntityPool();
 
-        var invalidEntity = new Entity(999, 1);
+        var invalidEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
         var result = pool.Release(invalidEntity);
 
         Assert.False(result);
@@ -725,7 +725,7 @@ public class EdgeCaseTests
     {
         var pool = new EntityPool();
 
-        var invalidEntity = new Entity(999, 1);
+        var invalidEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
         var result = pool.IsValid(invalidEntity);
 
         Assert.False(result);

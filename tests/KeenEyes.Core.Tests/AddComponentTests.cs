@@ -136,7 +136,7 @@ public class AddComponentTests
     public void Add_ThrowsInvalidOperationException_WhenEntityNotAlive()
     {
         using var world = new World();
-        var deadEntity = new Entity(999, 1);
+        var deadEntity = new Entity(TestConstants.InvalidEntityId, TestConstants.DefaultEntityVersion);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             world.Add(deadEntity, new TestPosition { X = 0f, Y = 0f }));
