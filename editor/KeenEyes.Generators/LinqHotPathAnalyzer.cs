@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
 
@@ -33,6 +35,7 @@ namespace KeenEyes.Generators;
 /// <item><description>Element access: First, FirstOrDefault, Single, Last, ElementAt</description></item>
 /// <item><description>Quantifiers: Any, All, Contains</description></item>
 /// <item><description>Materialization: ToList, ToArray, ToDictionary, ToHashSet</description></item>
+/// <item><description>Query comprehension syntax: <c>from x in collection where ... select ...</c></description></item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -150,8 +153,11 @@ public sealed class LinqHotPathAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        // Detect method invocations
+        // Detect method invocations (e.g., .Select(), .Where(), .ToList())
         context.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
+
+        // Detect query comprehension syntax (e.g., from x in collection where x.Condition select x)
+        context.RegisterSyntaxNodeAction(AnalyzeQueryExpression, SyntaxKind.QueryExpression);
     }
 
     private static void AnalyzeInvocation(OperationAnalysisContext context)
@@ -177,6 +183,49 @@ public sealed class LinqHotPathAnalyzer : DiagnosticAnalyzer
             invocation.Syntax.GetLocation(),
             method.Name,
             hotPathReason));
+    }
+
+    private static void AnalyzeQueryExpression(SyntaxNodeAnalysisContext context)
+    {
+        var queryExpression = (QueryExpressionSyntax)context.Node;
+
+        // Check if we're in a hot path
+        var hotPathReason = GetHotPathReasonFromSyntax(queryExpression, context.SemanticModel);
+        if (hotPathReason == null)
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(
+            LinqInHotPath,
+            queryExpression.GetLocation(),
+            "query comprehension",
+            hotPathReason));
+    }
+
+    private static string? GetHotPathReasonFromSyntax(SyntaxNode node, SemanticModel? semanticModel)
+    {
+        if (semanticModel == null)
+        {
+            return null;
+        }
+
+        var symbol = semanticModel.GetEnclosingSymbol(node.SpanStart);
+        while (symbol != null)
+        {
+            if (symbol is IMethodSymbol methodSymbol)
+            {
+                var reason = GetHotPathReason(methodSymbol);
+                if (reason != null)
+                {
+                    return reason;
+                }
+            }
+
+            symbol = symbol.ContainingSymbol;
+        }
+
+        return null;
     }
 
     private static string? GetHotPathReasonFromEnclosingScopes(IOperation operation)
