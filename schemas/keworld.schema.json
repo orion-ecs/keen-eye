@@ -1,0 +1,109 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://keeneyes.dev/schemas/keworld.schema.json",
+  "title": "KeenEyes World Configuration",
+  "description": "Schema for KeenEyes world configuration files (.keworld)",
+  "type": "object",
+  "required": ["name"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to the JSON schema for IDE validation"
+    },
+    "name": {
+      "type": "string",
+      "description": "Configuration name used for generated method naming (e.g., ConfigureDefault)",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Format version number",
+      "default": 1,
+      "minimum": 1
+    },
+    "settings": {
+      "type": "object",
+      "description": "World settings configuration",
+      "properties": {
+        "fixedTimeStep": {
+          "type": "number",
+          "description": "Fixed time step for physics updates in seconds",
+          "default": 0.02,
+          "minimum": 0.001,
+          "maximum": 0.1
+        },
+        "maxDeltaTime": {
+          "type": "number",
+          "description": "Maximum delta time to prevent spiral of death in seconds",
+          "default": 0.1,
+          "minimum": 0.01,
+          "maximum": 1.0
+        }
+      }
+    },
+    "singletons": {
+      "type": "object",
+      "description": "Singleton components to register. Key is component type name.",
+      "additionalProperties": {
+        "type": "object",
+        "description": "Singleton component data. Property names match component fields."
+      }
+    },
+    "plugins": {
+      "type": "array",
+      "description": "Plugin type names to install (fully qualified or simple names)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "systems": {
+      "type": "array",
+      "description": "Systems to register with the world",
+      "items": {
+        "$ref": "#/$defs/systemRegistration"
+      }
+    }
+  },
+  "$defs": {
+    "systemRegistration": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Fully qualified or simple type name of the system"
+        },
+        "phase": {
+          "type": "string",
+          "description": "Execution phase for the system",
+          "enum": ["Update", "FixedUpdate", "LateUpdate", "PreUpdate", "PostUpdate", "Render"],
+          "default": "Update"
+        },
+        "order": {
+          "type": "integer",
+          "description": "Execution order within the phase (lower runs first)",
+          "default": 0
+        }
+      }
+    },
+    "vector2": {
+      "type": "object",
+      "description": "2D vector",
+      "properties": {
+        "X": { "type": "number" },
+        "Y": { "type": "number" }
+      },
+      "required": ["X", "Y"]
+    },
+    "vector3": {
+      "type": "object",
+      "description": "3D vector",
+      "properties": {
+        "X": { "type": "number" },
+        "Y": { "type": "number" },
+        "Z": { "type": "number" }
+      },
+      "required": ["X", "Y", "Z"]
+    }
+  }
+}
