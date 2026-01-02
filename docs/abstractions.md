@@ -109,35 +109,79 @@ The `IWorld` interface defines essential world operations that systems and plugi
 ```csharp
 public interface IWorld : IDisposable
 {
-    // Entity spawning
-    IEntityBuilder Spawn();
-    IEntityBuilder Spawn(string? name);
+    // World identification
+    Guid Id { get; }
+    string? Name { get; set; }
 
     // Entity operations
+    int EntityCount { get; }
     bool IsAlive(Entity entity);
     bool Despawn(Entity entity);
+    IEntityBuilder Spawn();
+    IEntityBuilder Spawn(string? name);
+    void Add<T>(Entity entity, in T component) where T : struct, IComponent;
+    void Set<T>(Entity entity, in T component) where T : struct, IComponent;
 
     // Component operations
     ref T Get<T>(Entity entity) where T : struct, IComponent;
     bool Has<T>(Entity entity) where T : struct, IComponent;
     bool Remove<T>(Entity entity) where T : struct, IComponent;
-    void Add<T>(Entity entity, T component) where T : struct, IComponent;
-    void Set<T>(Entity entity, T component) where T : struct, IComponent;
 
-    // Query operations
-    IEnumerable<Entity> Query<T1>() where T1 : struct, IComponent;
-    IEnumerable<Entity> Query<T1, T2>() /* ... */;
-    IEnumerable<Entity> Query<T1, T2, T3>() /* ... */;
-    IEnumerable<Entity> Query<T1, T2, T3, T4>() /* ... */;
+    // Query operations - returns IQueryBuilder for fluent filtering
+    IQueryBuilder Query<T1>() where T1 : struct, IComponent;
+    IQueryBuilder Query<T1, T2>() /* ... */;
+    IQueryBuilder Query<T1, T2, T3>() /* ... */;
+    IQueryBuilder Query<T1, T2, T3, T4>() /* ... */;
+
+    // Change tracking
+    void EnableAutoTracking<T>() where T : struct, IComponent;
+    void DisableAutoTracking<T>() where T : struct, IComponent;
+    IEnumerable<Entity> GetDirtyEntities<T>() where T : struct, IComponent;
+    void ClearDirtyFlags<T>() where T : struct, IComponent;
+
+    // Component events
+    EventSubscription OnComponentAdded<T>(Action<Entity, T> handler) where T : struct, IComponent;
+    EventSubscription OnComponentRemoved<T>(Action<Entity> handler) where T : struct, IComponent;
+    EventSubscription OnComponentChanged<T>(Action<Entity, T, T> handler) where T : struct, IComponent;
+
+    // Entity lifecycle events
+    EventSubscription OnEntityCreated(Action<Entity, string?> handler);
+    EventSubscription OnEntityDestroyed(Action<Entity> handler);
+
+    // Hierarchy operations
+    void SetParent(Entity child, Entity parent);
+    Entity GetParent(Entity entity);
+    IEnumerable<Entity> GetChildren(Entity entity);
 
     // Extension operations
     T GetExtension<T>() where T : class;
     bool TryGetExtension<T>(out T? extension) where T : class;
     bool HasExtension<T>() where T : class;
+
+    // Messaging operations
+    void Send<T>(T message);
+    EventSubscription Subscribe<T>(Action<T> handler);
+    bool HasMessageSubscribers<T>();
+
+    // Additional entity operations
+    IEnumerable<Entity> GetAllEntities();
+    IEnumerable<(Type Type, object Value)> GetComponents(Entity entity);
+    void SetComponent(Entity entity, Type componentType, object value);
+
+    // System execution
+    void Update(float deltaTime);
+
+    // Random number generation (deterministic if world seeded)
+    int NextInt(int maxValue);
+    int NextInt(int minValue, int maxValue);
+    float NextFloat();
+    double NextDouble();
+    bool NextBool();
+    bool NextBool(float probability);
 }
 ```
 
-The interface provides complete functionality for most plugin needs, including entity spawning and component operations.
+The interface provides complete functionality for most plugin needs, including entity spawning, component operations, messaging, change tracking, and event subscriptions.
 
 ### IWorldPlugin
 
@@ -154,7 +198,7 @@ public interface IWorldPlugin
 
 ### IPluginContext
 
-The plugin context provides access to system registration and extension APIs:
+The plugin context provides access to system registration, extension APIs, and capabilities:
 
 ```csharp
 public interface IPluginContext
@@ -162,13 +206,26 @@ public interface IPluginContext
     IWorld World { get; }
     IWorldPlugin Plugin { get; }
 
-    // System registration
-    T AddSystem<T>(SystemPhase phase = SystemPhase.Update, int order = 0)
-        where T : ISystem, new();
+    // System registration (tracked for automatic cleanup)
+    T AddSystem<T>(SystemPhase phase = SystemPhase.Update, int order = 0) where T : ISystem, new();
+    T AddSystem<T>(SystemPhase phase, int order, Type[] runsBefore, Type[] runsAfter) where T : ISystem, new();
+    ISystem AddSystem(ISystem system, SystemPhase phase = SystemPhase.Update, int order = 0);
+    ISystem AddSystem(ISystem system, SystemPhase phase, int order, Type[] runsBefore, Type[] runsAfter);
+    SystemGroup AddSystemGroup(SystemGroup group, SystemPhase phase = SystemPhase.Update, int order = 0);
 
     // Extension management
+    T GetExtension<T>() where T : class;
+    bool TryGetExtension<T>(out T? extension) where T : class;
     void SetExtension<T>(T extension) where T : class;
     bool RemoveExtension<T>() where T : class;
+
+    // Component registration
+    void RegisterComponent<T>(bool isTag = false) where T : struct, IComponent;
+
+    // Capability access (for advanced features without casting)
+    T GetCapability<T>() where T : class;
+    bool TryGetCapability<T>(out T? capability) where T : class;
+    bool HasCapability<T>() where T : class;
 }
 ```
 
@@ -246,15 +303,17 @@ public interface IEntityBuilder
 {
     IEntityBuilder With<T>(T component) where T : struct, IComponent;
     IEntityBuilder WithTag<T>() where T : struct, ITagComponent;
+    IEntityBuilder WithParent(Entity parent);
     Entity Build();
 }
 
 // Generic version for type-safe fluent chaining
-public interface IEntityBuilder<out TSelf> : IEntityBuilder
+public interface IEntityBuilder<TSelf> : IEntityBuilder
     where TSelf : IEntityBuilder<TSelf>
 {
     new TSelf With<T>(T component) where T : struct, IComponent;
     new TSelf WithTag<T>() where T : struct, ITagComponent;
+    new TSelf WithParent(Entity parent);
 }
 ```
 
@@ -673,9 +732,11 @@ This pattern enables the KeenEyes ecosystem where users can mix and match subsys
 
 The `KeenEyes.Abstractions` package includes:
 
-- **Interfaces**: `IWorld`, `IWorldPlugin`, `IPluginContext`, `ISystem`, `ISystemLifecycle`, `IComponent`, `ITagComponent`, `ICommandBuffer`, `IEntityBuilder`, `IEntityBuilder<TSelf>`
-- **Types**: `Entity`, `EntityCommands`, `SystemGroup`
-- **Enums**: `SystemPhase` (via `KeenEyes.Generators.Attributes` dependency)
+- **Interfaces**: `IWorld`, `IWorldPlugin`, `IPluginContext`, `ISystem`, `ISystemLifecycle`, `IComponent`, `ITagComponent`, `IBundle`, `ICommandBuffer`, `IEntityBuilder`, `IEntityBuilder<TSelf>`, `IQueryBuilder`
+- **Capability Interfaces**: `ISystemHookCapability`, `IPersistenceCapability`, `IHierarchyCapability`, `IValidationCapability`, `ITagCapability`, `IStatisticsCapability`, `IPrefabCapability`, `ISnapshotCapability`, `IInspectionCapability`
+- **Types**: `Entity`, `EntityCommands`, `SystemGroup`, `SystemBase`, `EventSubscription`, `MemoryStats`, `EntityPrefab`
+- **Enums**: `SystemPhase`, `ValidationMode`
+- **Attributes**: `[Component]`, `[TagComponent]`, `[System]`, `[Bundle]`, `[Query]`, `[RunBefore]`, `[RunAfter]`, `[PluginExtension]`, and more
 - **Internal**: `ICommand` (command execution interface)
 
 The package has minimal dependencies, making it ideal for library authors who want to keep their dependency footprint small.

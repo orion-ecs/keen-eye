@@ -188,9 +188,27 @@ int count = world.EntityCount;
 
 // Memory statistics
 var stats = world.GetMemoryStats();
-Console.WriteLine($"Total entities: {stats.TotalEntities}");
+Console.WriteLine($"Active entities: {stats.EntitiesActive}");
+Console.WriteLine($"Total allocated: {stats.EntitiesAllocated}");
 Console.WriteLine($"Archetypes: {stats.ArchetypeCount}");
+Console.WriteLine($"Query cache hit rate: {stats.QueryCacheHitRate:F1}%");
+Console.WriteLine($"Estimated storage: {stats.EstimatedComponentBytes / 1024.0:F1} KB");
 ```
+
+The `MemoryStats` struct includes:
+
+| Property | Description |
+|----------|-------------|
+| `EntitiesActive` | Number of currently alive entities |
+| `EntitiesAllocated` | Total entities ever allocated |
+| `EntitiesRecycled` | Entity IDs available for reuse |
+| `EntityRecycleCount` | Total recycling operations |
+| `ArchetypeCount` | Number of active archetypes |
+| `ComponentTypeCount` | Registered component types |
+| `SystemCount` | Registered systems |
+| `CachedQueryCount` | Cached query count |
+| `QueryCacheHits` / `QueryCacheMisses` | Cache statistics |
+| `EstimatedComponentBytes` | Estimated storage size |
 
 ## Null Entity
 
