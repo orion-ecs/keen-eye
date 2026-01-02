@@ -1,7 +1,5 @@
+using KeenEyes.Capabilities;
 using KeenEyes.Serialization;
-
-// TODO: Remove this suppression after refactoring to use IWorld interface
-#pragma warning disable KEEN050 // IWorld to World cast - legacy code pending refactoring
 
 namespace KeenEyes.Systems;
 
@@ -17,6 +15,10 @@ namespace KeenEyes.Systems;
 /// Delta saves are significantly smaller than full saves when few entities change
 /// between saves. The system automatically creates a new baseline after a configurable
 /// number of deltas to prevent long restoration chains.
+/// </para>
+/// <para>
+/// This system requires the world to implement <see cref="ISaveLoadCapability"/>.
+/// The standard <see cref="World"/> class provides this capability.
 /// </para>
 /// </remarks>
 /// <example>
@@ -100,19 +102,19 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
         isInitialized = true;
 
         // Try to load existing baseline if it exists
-        if (World is World world && world.SaveSlotExists(config.BaselineSlotName))
+        if (World is ISaveLoadCapability saveLoad && saveLoad.SaveSlotExists(config.BaselineSlotName))
         {
             try
             {
-                var info = world.GetSaveSlotInfo(config.BaselineSlotName);
+                var info = saveLoad.GetSaveSlotInfo(config.BaselineSlotName);
                 if (info is not null)
                 {
                     // Load the baseline snapshot for delta comparison
-                    world.LoadFromSlot(config.BaselineSlotName, serializer);
-                    baselineSnapshot = SnapshotManager.CreateSnapshot(world, serializer);
+                    saveLoad.LoadFromSlot(config.BaselineSlotName, serializer);
+                    baselineSnapshot = saveLoad.CreateSnapshot(serializer);
 
                     // Find the highest existing delta sequence
-                    currentDeltaSequence = FindHighestDeltaSequence(world);
+                    currentDeltaSequence = FindHighestDeltaSequence(saveLoad);
                 }
             }
             catch
@@ -127,7 +129,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        if (!config.Enabled || !isInitialized || World is not World world)
+        if (!config.Enabled || !isInitialized || World is not ISaveLoadCapability saveLoad)
         {
             return;
         }
@@ -145,7 +147,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
 
         if (shouldSave)
         {
-            PerformAutoSave(world);
+            PerformAutoSave(saveLoad);
         }
     }
 
@@ -155,12 +157,12 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     /// <returns>The save slot info, or null if save failed.</returns>
     public SaveSlotInfo? SaveNow()
     {
-        if (!isInitialized || World is not World world)
+        if (!isInitialized || World is not ISaveLoadCapability saveLoad)
         {
             return null;
         }
 
-        return PerformAutoSave(world);
+        return PerformAutoSave(saveLoad);
     }
 
     /// <summary>
@@ -169,12 +171,12 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     /// <returns>The save slot info for the new baseline.</returns>
     public SaveSlotInfo? CreateNewBaseline()
     {
-        if (!isInitialized || World is not World world)
+        if (!isInitialized || World is not ISaveLoadCapability saveLoad)
         {
             return null;
         }
 
-        return SaveBaseline(world);
+        return SaveBaseline(saveLoad);
     }
 
     /// <summary>
@@ -187,7 +189,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
         baselineSnapshot = null;
     }
 
-    private SaveSlotInfo? PerformAutoSave(World world)
+    private SaveSlotInfo? PerformAutoSave(ISaveLoadCapability saveLoad)
     {
         try
         {
@@ -198,17 +200,17 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
                 // Check if we should create a new baseline
                 if (currentDeltaSequence >= config.MaxDeltasBeforeBaseline)
                 {
-                    info = SaveBaseline(world);
+                    info = SaveBaseline(saveLoad);
                 }
                 else
                 {
-                    info = SaveDelta(world);
+                    info = SaveDelta(saveLoad);
                 }
             }
             else
             {
                 // Create baseline (either first save or full saves mode)
-                info = SaveBaseline(world);
+                info = SaveBaseline(saveLoad);
             }
 
             // Reset timer
@@ -217,7 +219,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
             // Clear dirty flags if configured
             if (config.ClearDirtyFlagsAfterSave)
             {
-                world.ClearAllDirtyFlags();
+                saveLoad.ClearAllDirtyFlags();
             }
 
             // Raise event
@@ -232,32 +234,31 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
         }
     }
 
-    private SaveSlotInfo SaveBaseline(World world)
+    private SaveSlotInfo SaveBaseline(ISaveLoadCapability saveLoad)
     {
         // Create snapshot
-        var snapshot = SnapshotManager.CreateSnapshot(world, serializer);
+        var snapshot = saveLoad.CreateSnapshot(serializer);
 
         // Save as baseline
-        var info = world.SaveToSlot(config.BaselineSlotName, serializer, config.SaveOptions);
+        var info = saveLoad.SaveToSlot(config.BaselineSlotName, serializer, config.SaveOptions);
 
         // Update state
         baselineSnapshot = snapshot;
         currentDeltaSequence = 0;
 
         // Clean up old deltas
-        CleanupOldDeltas(world);
+        CleanupOldDeltas(saveLoad);
 
         return info;
     }
 
-    private SaveSlotInfo SaveDelta(World world)
+    private SaveSlotInfo SaveDelta(ISaveLoadCapability saveLoad)
     {
         // Increment sequence
         currentDeltaSequence++;
 
         // Create true delta by comparing current state to baseline
-        var delta = DeltaDiffer.CreateDelta(
-            world,
+        var delta = saveLoad.CreateDelta(
             baselineSnapshot!,
             serializer,
             config.BaselineSlotName,
@@ -268,13 +269,13 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
         {
             currentDeltaSequence--;
             // Return a placeholder info for the baseline
-            return world.GetSaveSlotInfo(config.BaselineSlotName)
+            return saveLoad.GetSaveSlotInfo(config.BaselineSlotName)
                 ?? throw new InvalidOperationException("Baseline slot not found");
         }
 
         // Save delta to slot
         var slotName = config.GetDeltaSlotName(currentDeltaSequence);
-        var info = world.SaveDeltaToSlot(slotName, delta, serializer, config.SaveOptions with
+        var info = saveLoad.SaveDeltaToSlot(slotName, delta, serializer, config.SaveOptions with
         {
             DisplayName = $"Auto-save (Delta #{currentDeltaSequence})"
         });
@@ -282,25 +283,25 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
         return info;
     }
 
-    private void CleanupOldDeltas(World world)
+    private void CleanupOldDeltas(ISaveLoadCapability saveLoad)
     {
         // Remove old delta files when a new baseline is created
         for (int i = 1; i <= config.MaxDeltasBeforeBaseline + 5; i++)
         {
             var slotName = config.GetDeltaSlotName(i);
-            if (world.SaveSlotExists(slotName))
+            if (saveLoad.SaveSlotExists(slotName))
             {
-                world.DeleteSaveSlot(slotName);
+                saveLoad.DeleteSaveSlot(slotName);
             }
         }
     }
 
-    private int FindHighestDeltaSequence(World world)
+    private int FindHighestDeltaSequence(ISaveLoadCapability saveLoad)
     {
         int highest = 0;
         for (int i = 1; i <= config.MaxDeltasBeforeBaseline + 5; i++)
         {
-            if (world.SaveSlotExists(config.GetDeltaSlotName(i)))
+            if (saveLoad.SaveSlotExists(config.GetDeltaSlotName(i)))
             {
                 highest = i;
             }
