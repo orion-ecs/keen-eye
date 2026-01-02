@@ -1459,7 +1459,7 @@ public class ArchetypeTests
     }
 
     [Fact]
-    public void ArchetypeManager_AddEntity_WithLazyIEnumerable_EnumeratesTwice()
+    public void ArchetypeManager_AddEntity_WithLazyIEnumerable_MaterializesOnce()
     {
         var registry = new ComponentRegistry();
         var posInfo = registry.Register<Position>();
@@ -1475,13 +1475,13 @@ public class ArchetypeTests
             yield return (posInfo, new Position { X = 42, Y = 99 });
         }
 
-        // AddEntity should enumerate twice (once for types, once for data)
+        // AddEntity materializes the IEnumerable once for thread safety
         manager.AddEntity(entity, LazyComponents());
 
-        // Verify it was enumerated twice
-        Assert.Equal(2, enumerationCount);
+        // Verify it was enumerated once (materialized upfront for thread safety)
+        Assert.Equal(1, enumerationCount);
 
-        // Verify entity was added correctly despite double enumeration
+        // Verify entity was added correctly
         Assert.True(manager.IsTracked(entity));
         Assert.True(manager.Has<Position>(entity));
 

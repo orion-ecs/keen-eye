@@ -8,8 +8,16 @@ public sealed partial class World
     /// Begins building a new entity.
     /// </summary>
     /// <returns>A fluent builder for adding components.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method uses a thread-local <see cref="EntityBuilder"/> instance for both
+    /// thread safety and allocation efficiency. Each thread gets its own builder that
+    /// is reused across multiple <c>Spawn()</c> calls, avoiding per-call allocations.
+    /// </para>
+    /// </remarks>
     IEntityBuilder IWorld.Spawn()
     {
+        var builder = threadLocalBuilder.Value!;
         builder.Reset();
         return builder;
     }
@@ -19,8 +27,16 @@ public sealed partial class World
     /// </summary>
     /// <param name="name">The optional name for the entity.</param>
     /// <returns>A fluent builder for adding components.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method uses a thread-local <see cref="EntityBuilder"/> instance for both
+    /// thread safety and allocation efficiency. Each thread gets its own builder that
+    /// is reused across multiple <c>Spawn()</c> calls, avoiding per-call allocations.
+    /// </para>
+    /// </remarks>
     IEntityBuilder IWorld.Spawn(string? name)
     {
+        var builder = threadLocalBuilder.Value!;
         builder.Reset(name);
         return builder;
     }
@@ -29,8 +45,16 @@ public sealed partial class World
     /// Begins building a new entity.
     /// </summary>
     /// <returns>A fluent builder for adding components.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method uses a thread-local <see cref="EntityBuilder"/> instance for both
+    /// thread safety and allocation efficiency. Each thread gets its own builder that
+    /// is reused across multiple <c>Spawn()</c> calls, avoiding per-call allocations.
+    /// </para>
+    /// </remarks>
     public EntityBuilder Spawn()
     {
+        var builder = threadLocalBuilder.Value!;
         builder.Reset();
         return builder;
     }
@@ -56,6 +80,11 @@ public sealed partial class World
     /// Names must be unique within a world. Attempting to create an entity with a name
     /// that is already in use will throw an <see cref="ArgumentException"/>.
     /// </para>
+    /// <para>
+    /// This method uses a thread-local <see cref="EntityBuilder"/> instance for both
+    /// thread safety and allocation efficiency. Each thread gets its own builder that
+    /// is reused across multiple <c>Spawn()</c> calls, avoiding per-call allocations.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -72,6 +101,7 @@ public sealed partial class World
     /// <seealso cref="GetEntityByName(string)"/>
     public EntityBuilder Spawn(string? name)
     {
+        var builder = threadLocalBuilder.Value!;
         builder.Reset(name);
         return builder;
     }
