@@ -851,7 +851,7 @@ public class StringTagTests
     }
 
     [Fact]
-    public void GetTags_ReturnsLiveCollection()
+    public void GetTags_ReturnsSnapshot()
     {
         using var world = new World();
         var entity = world.Spawn().Build();
@@ -864,9 +864,13 @@ public class StringTagTests
 
         world.AddTag(entity, "Tag3");
 
-        // The returned collection reflects internal state changes
-        // (it's a live view of the HashSet)
-        Assert.Equal(3, tags.Count);
+        // The returned collection is a snapshot for thread safety
+        // (modifications after the call don't affect the returned collection)
+        Assert.Equal(2, tags.Count);
+
+        // A new call returns the updated snapshot
+        var updatedTags = world.GetTags(entity);
+        Assert.Equal(3, updatedTags.Count);
     }
 
     [Fact]

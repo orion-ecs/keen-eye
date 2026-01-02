@@ -12,9 +12,15 @@ namespace KeenEyes;
 /// Parent lookup is O(1). Setting a parent is O(D) where D is the depth of the hierarchy
 /// due to cycle detection. Child enumeration is O(C) where C is the number of children.
 /// </para>
+/// <para>
+/// This class is thread-safe: all hierarchy operations can be called concurrently
+/// from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class HierarchyManager
 {
+    private readonly Lock syncRoot = new();
+
     // childId -> parentId for O(1) parent lookup
     private readonly Dictionary<int, int> entityParents = [];
 
@@ -53,7 +59,10 @@ internal sealed class HierarchyManager
         // Handle removing parent (making entity a root)
         if (!parent.IsValid)
         {
-            RemoveParentInternal(child);
+            lock (syncRoot)
+            {
+                RemoveParentInternalNoLock(child);
+            }
             return;
         }
 
@@ -68,27 +77,30 @@ internal sealed class HierarchyManager
             throw new InvalidOperationException("An entity cannot be its own parent.");
         }
 
-        // Check for cycles: ensure parent is not a descendant of child
-        if (IsDescendantOf(parent, child))
+        lock (syncRoot)
         {
-            throw new InvalidOperationException(
-                $"Cannot set entity {parent} as parent of {child} because it would create a circular hierarchy. " +
-                $"Entity {parent} is a descendant of entity {child}.");
+            // Check for cycles: ensure parent is not a descendant of child
+            if (IsDescendantOfNoLock(parent, child))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot set entity {parent} as parent of {child} because it would create a circular hierarchy. " +
+                    $"Entity {parent} is a descendant of entity {child}.");
+            }
+
+            // Remove from current parent if any
+            RemoveParentInternalNoLock(child);
+
+            // Set new parent
+            entityParents[child.Id] = parent.Id;
+
+            // Add to parent's children set
+            if (!entityChildren.TryGetValue(parent.Id, out var children))
+            {
+                children = [];
+                entityChildren[parent.Id] = children;
+            }
+            children.Add(child.Id);
         }
-
-        // Remove from current parent if any
-        RemoveParentInternal(child);
-
-        // Set new parent
-        entityParents[child.Id] = parent.Id;
-
-        // Add to parent's children set
-        if (!entityChildren.TryGetValue(parent.Id, out var children))
-        {
-            children = [];
-            entityChildren[parent.Id] = children;
-        }
-        children.Add(child.Id);
     }
 
     /// <summary>
@@ -106,9 +118,13 @@ internal sealed class HierarchyManager
             return Entity.Null;
         }
 
-        if (!entityParents.TryGetValue(entity.Id, out var parentId))
+        int parentId;
+        lock (syncRoot)
         {
-            return Entity.Null;
+            if (!entityParents.TryGetValue(entity.Id, out parentId))
+            {
+                return Entity.Null;
+            }
         }
 
         // Get the current version from the pool
@@ -138,14 +154,24 @@ internal sealed class HierarchyManager
     {
         if (!world.IsAlive(entity))
         {
-            yield break;
+            return [];
         }
 
-        if (!entityChildren.TryGetValue(entity.Id, out var childIds))
+        int[] childIdsCopy;
+        lock (syncRoot)
         {
-            yield break;
+            if (!entityChildren.TryGetValue(entity.Id, out var childIds))
+            {
+                return [];
+            }
+            childIdsCopy = [.. childIds];
         }
 
+        return GetChildrenCore(childIdsCopy);
+    }
+
+    private IEnumerable<Entity> GetChildrenCore(int[] childIds)
+    {
         foreach (var childId in childIds)
         {
             var version = world.EntityPool.GetVersion(childId);
@@ -194,15 +220,18 @@ internal sealed class HierarchyManager
             return false;
         }
 
-        // Check if child is actually a child of parent
-        if (!entityParents.TryGetValue(child.Id, out var currentParentId) || currentParentId != parent.Id)
+        lock (syncRoot)
         {
-            return false;
-        }
+            // Check if child is actually a child of parent
+            if (!entityParents.TryGetValue(child.Id, out var currentParentId) || currentParentId != parent.Id)
+            {
+                return false;
+            }
 
-        // Remove the relationship
-        RemoveParentInternal(child);
-        return true;
+            // Remove the relationship
+            RemoveParentInternalNoLock(child);
+            return true;
+        }
     }
 
     /// <summary>
@@ -214,14 +243,26 @@ internal sealed class HierarchyManager
     {
         if (!world.IsAlive(entity))
         {
-            yield break;
+            return [];
         }
 
-        // Breadth-first traversal using a queue
+        // Snapshot the hierarchy under lock, then enumerate without holding lock
+        List<int> allDescendantIds;
+        lock (syncRoot)
+        {
+            allDescendantIds = CollectDescendantIdsNoLock(entity.Id);
+        }
+
+        return GetDescendantsCore(allDescendantIds);
+    }
+
+    private List<int> CollectDescendantIdsNoLock(int entityId)
+    {
+        var result = new List<int>();
         var queue = new Queue<int>();
 
         // Start with immediate children
-        if (entityChildren.TryGetValue(entity.Id, out var childIds))
+        if (entityChildren.TryGetValue(entityId, out var childIds))
         {
             foreach (var childId in childIds)
             {
@@ -232,19 +273,7 @@ internal sealed class HierarchyManager
         while (queue.Count > 0)
         {
             var currentId = queue.Dequeue();
-            var version = world.EntityPool.GetVersion(currentId);
-            if (version < 0)
-            {
-                continue;
-            }
-
-            var current = new Entity(currentId, version);
-            if (!world.IsAlive(current))
-            {
-                continue;
-            }
-
-            yield return current;
+            result.Add(currentId);
 
             // Add this entity's children to the queue
             if (entityChildren.TryGetValue(currentId, out var grandchildIds))
@@ -253,6 +282,26 @@ internal sealed class HierarchyManager
                 {
                     queue.Enqueue(grandchildId);
                 }
+            }
+        }
+
+        return result;
+    }
+
+    private IEnumerable<Entity> GetDescendantsCore(List<int> descendantIds)
+    {
+        foreach (var id in descendantIds)
+        {
+            var version = world.EntityPool.GetVersion(id);
+            if (version < 0)
+            {
+                continue;
+            }
+
+            var entity = new Entity(id, version);
+            if (world.IsAlive(entity))
+            {
+                yield return entity;
             }
         }
     }
@@ -266,11 +315,28 @@ internal sealed class HierarchyManager
     {
         if (!world.IsAlive(entity))
         {
-            yield break;
+            return [];
         }
 
-        var currentId = entity.Id;
-        while (entityParents.TryGetValue(currentId, out var parentId))
+        // Snapshot ancestor IDs under lock
+        List<int> ancestorIds;
+        lock (syncRoot)
+        {
+            ancestorIds = [];
+            var currentId = entity.Id;
+            while (entityParents.TryGetValue(currentId, out var parentId))
+            {
+                ancestorIds.Add(parentId);
+                currentId = parentId;
+            }
+        }
+
+        return GetAncestorsCore(ancestorIds);
+    }
+
+    private IEnumerable<Entity> GetAncestorsCore(List<int> ancestorIds)
+    {
+        foreach (var parentId in ancestorIds)
         {
             var version = world.EntityPool.GetVersion(parentId);
             if (version < 0)
@@ -285,7 +351,6 @@ internal sealed class HierarchyManager
             }
 
             yield return parent;
-            currentId = parentId;
         }
     }
 
@@ -304,25 +369,35 @@ internal sealed class HierarchyManager
             return Entity.Null;
         }
 
-        var current = entity;
-        while (entityParents.TryGetValue(current.Id, out var parentId))
+        int rootId;
+        lock (syncRoot)
         {
-            var version = world.EntityPool.GetVersion(parentId);
-            if (version < 0)
+            rootId = entity.Id;
+            while (entityParents.TryGetValue(rootId, out var parentId))
             {
-                break;
+                rootId = parentId;
             }
-
-            var parent = new Entity(parentId, version);
-            if (!world.IsAlive(parent))
-            {
-                break;
-            }
-
-            current = parent;
         }
 
-        return current;
+        // If we found a different root, verify it's alive
+        if (rootId != entity.Id)
+        {
+            var version = world.EntityPool.GetVersion(rootId);
+            if (version < 0)
+            {
+                return entity; // Parent chain broken, return original
+            }
+
+            var root = new Entity(rootId, version);
+            if (!world.IsAlive(root))
+            {
+                return entity; // Parent chain broken, return original
+            }
+
+            return root;
+        }
+
+        return entity;
     }
 
     /// <summary>
@@ -337,12 +412,16 @@ internal sealed class HierarchyManager
             return 0;
         }
 
-        // Collect all entities to despawn (depth-first, children before parents)
-        var toDespawn = new List<Entity>();
-        CollectDescendantsDepthFirst(entity, toDespawn);
-        toDespawn.Add(entity);
+        // Collect all entities to despawn under lock (depth-first, children before parents)
+        List<Entity> toDespawn;
+        lock (syncRoot)
+        {
+            toDespawn = [];
+            CollectDescendantsDepthFirstNoLock(entity, toDespawn);
+            toDespawn.Add(entity);
+        }
 
-        // Despawn all collected entities
+        // Despawn all collected entities (outside lock - Despawn acquires its own locks)
         int count = 0;
         foreach (var e in toDespawn)
         {
@@ -362,28 +441,31 @@ internal sealed class HierarchyManager
     /// <param name="entity">The entity being despawned.</param>
     internal void CleanupEntity(Entity entity)
     {
-        // Remove from parent's children set if this entity has a parent
-        if (entityParents.TryGetValue(entity.Id, out var parentId))
+        lock (syncRoot)
         {
-            entityParents.Remove(entity.Id);
-            if (entityChildren.TryGetValue(parentId, out var siblings))
+            // Remove from parent's children set if this entity has a parent
+            if (entityParents.TryGetValue(entity.Id, out var parentId))
             {
-                siblings.Remove(entity.Id);
-                if (siblings.Count == 0)
+                entityParents.Remove(entity.Id);
+                if (entityChildren.TryGetValue(parentId, out var siblings))
                 {
-                    entityChildren.Remove(parentId);
+                    siblings.Remove(entity.Id);
+                    if (siblings.Count == 0)
+                    {
+                        entityChildren.Remove(parentId);
+                    }
                 }
             }
-        }
 
-        // Orphan all children (remove their parent reference)
-        if (entityChildren.TryGetValue(entity.Id, out var children))
-        {
-            foreach (var childId in children)
+            // Orphan all children (remove their parent reference)
+            if (entityChildren.TryGetValue(entity.Id, out var children))
             {
-                entityParents.Remove(childId);
+                foreach (var childId in children)
+                {
+                    entityParents.Remove(childId);
+                }
+                entityChildren.Remove(entity.Id);
             }
-            entityChildren.Remove(entity.Id);
         }
     }
 
@@ -392,14 +474,18 @@ internal sealed class HierarchyManager
     /// </summary>
     internal void Clear()
     {
-        entityParents.Clear();
-        entityChildren.Clear();
+        lock (syncRoot)
+        {
+            entityParents.Clear();
+            entityChildren.Clear();
+        }
     }
 
     /// <summary>
     /// Removes the parent relationship for an entity without validation.
+    /// Must be called while holding syncRoot.
     /// </summary>
-    private void RemoveParentInternal(Entity child)
+    private void RemoveParentInternalNoLock(Entity child)
     {
         if (entityParents.TryGetValue(child.Id, out var oldParentId))
         {
@@ -417,9 +503,9 @@ internal sealed class HierarchyManager
 
     /// <summary>
     /// Checks if a potential descendant is in the descendant tree of an ancestor.
-    /// Used for cycle detection.
+    /// Used for cycle detection. Must be called while holding syncRoot.
     /// </summary>
-    private bool IsDescendantOf(Entity potentialDescendant, Entity potentialAncestor)
+    private bool IsDescendantOfNoLock(Entity potentialDescendant, Entity potentialAncestor)
     {
         // Walk up the hierarchy from potentialDescendant
         var currentId = potentialDescendant.Id;
@@ -436,8 +522,9 @@ internal sealed class HierarchyManager
 
     /// <summary>
     /// Collects all descendants in depth-first order (children before parents).
+    /// Must be called while holding syncRoot.
     /// </summary>
-    private void CollectDescendantsDepthFirst(Entity entity, List<Entity> result)
+    private void CollectDescendantsDepthFirstNoLock(Entity entity, List<Entity> result)
     {
         if (!entityChildren.TryGetValue(entity.Id, out var childIds))
         {
@@ -462,7 +549,7 @@ internal sealed class HierarchyManager
             }
 
             // Recurse first (depth-first)
-            CollectDescendantsDepthFirst(child, result);
+            CollectDescendantsDepthFirstNoLock(child, result);
             result.Add(child);
         }
     }

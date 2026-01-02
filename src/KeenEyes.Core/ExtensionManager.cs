@@ -15,9 +15,14 @@ namespace KeenEyes;
 /// For example, a physics plugin might expose a <c>PhysicsWorld</c> extension
 /// that provides raycast and collision query methods.
 /// </para>
+/// <para>
+/// This class is thread-safe: all extension operations can be called concurrently
+/// from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class ExtensionManager
 {
+    private readonly Lock syncRoot = new();
     private readonly Dictionary<Type, object> extensions = [];
 
     /// <summary>
@@ -28,7 +33,10 @@ internal sealed class ExtensionManager
     internal void SetExtension<T>(T extension) where T : class
     {
         ArgumentNullException.ThrowIfNull(extension);
-        extensions[typeof(T)] = extension;
+        lock (syncRoot)
+        {
+            extensions[typeof(T)] = extension;
+        }
     }
 
     /// <summary>
@@ -41,12 +49,15 @@ internal sealed class ExtensionManager
     /// </exception>
     internal T GetExtension<T>() where T : class
     {
-        if (!extensions.TryGetValue(typeof(T), out var extension))
+        lock (syncRoot)
         {
-            throw new InvalidOperationException(
-                $"No extension of type '{typeof(T).Name}' exists in this world.");
+            if (!extensions.TryGetValue(typeof(T), out var extension))
+            {
+                throw new InvalidOperationException(
+                    $"No extension of type '{typeof(T).Name}' exists in this world.");
+            }
+            return (T)extension;
         }
-        return (T)extension;
     }
 
     /// <summary>
@@ -57,13 +68,16 @@ internal sealed class ExtensionManager
     /// <returns>True if the extension was found; false otherwise.</returns>
     internal bool TryGetExtension<T>([MaybeNullWhen(false)] out T extension) where T : class
     {
-        if (extensions.TryGetValue(typeof(T), out var value))
+        lock (syncRoot)
         {
-            extension = (T)value;
-            return true;
+            if (extensions.TryGetValue(typeof(T), out var value))
+            {
+                extension = (T)value;
+                return true;
+            }
+            extension = null;
+            return false;
         }
-        extension = null;
-        return false;
     }
 
     /// <summary>
@@ -73,7 +87,10 @@ internal sealed class ExtensionManager
     /// <returns>True if the extension exists; false otherwise.</returns>
     internal bool HasExtension<T>() where T : class
     {
-        return extensions.ContainsKey(typeof(T));
+        lock (syncRoot)
+        {
+            return extensions.ContainsKey(typeof(T));
+        }
     }
 
     /// <summary>
@@ -83,7 +100,10 @@ internal sealed class ExtensionManager
     /// <returns>True if the extension was found and removed; false otherwise.</returns>
     internal bool RemoveExtension<T>() where T : class
     {
-        return extensions.Remove(typeof(T));
+        lock (syncRoot)
+        {
+            return extensions.Remove(typeof(T));
+        }
     }
 
     /// <summary>
@@ -91,6 +111,9 @@ internal sealed class ExtensionManager
     /// </summary>
     internal void Clear()
     {
-        extensions.Clear();
+        lock (syncRoot)
+        {
+            extensions.Clear();
+        }
     }
 }

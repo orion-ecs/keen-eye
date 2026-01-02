@@ -15,9 +15,15 @@ namespace KeenEyes;
 /// storing global state like time, input, configuration, or other resources that
 /// systems need to access.
 /// </para>
+/// <para>
+/// This class is thread-safe for singleton registration and lookup operations.
+/// Note that <see cref="GetSingleton{T}"/> returns a reference - concurrent access
+/// to the same singleton value must be synchronized by the caller.
+/// </para>
 /// </remarks>
 internal sealed class SingletonManager
 {
+    private readonly Lock syncRoot = new();
     private readonly Dictionary<Type, object> singletons = [];
 
     /// <summary>
@@ -27,7 +33,10 @@ internal sealed class SingletonManager
     /// <param name="value">The singleton value to store.</param>
     internal void SetSingleton<T>(in T value) where T : struct
     {
-        singletons[typeof(T)] = value;
+        lock (syncRoot)
+        {
+            singletons[typeof(T)] = value;
+        }
     }
 
     /// <summary>
@@ -40,13 +49,19 @@ internal sealed class SingletonManager
     /// </exception>
     internal ref T GetSingleton<T>() where T : struct
     {
-        if (!singletons.TryGetValue(typeof(T), out var boxed))
+        object boxed;
+        lock (syncRoot)
         {
-            throw new InvalidOperationException(
-                $"Singleton of type {typeof(T).Name} does not exist in this world. " +
-                $"Use SetSingleton<{typeof(T).Name}>() to add it first.");
+            if (!singletons.TryGetValue(typeof(T), out boxed!))
+            {
+                throw new InvalidOperationException(
+                    $"Singleton of type {typeof(T).Name} does not exist in this world. " +
+                    $"Use SetSingleton<{typeof(T).Name}>() to add it first.");
+            }
         }
 
+        // Note: The returned reference is not thread-safe for concurrent access.
+        // The caller must synchronize access to the same singleton from multiple threads.
         return ref Unsafe.Unbox<T>(boxed);
     }
 
@@ -58,14 +73,17 @@ internal sealed class SingletonManager
     /// <returns>True if the singleton exists; false otherwise.</returns>
     internal bool TryGetSingleton<T>(out T value) where T : struct
     {
-        if (singletons.TryGetValue(typeof(T), out var boxed))
+        lock (syncRoot)
         {
-            value = (T)boxed;
-            return true;
-        }
+            if (singletons.TryGetValue(typeof(T), out var boxed))
+            {
+                value = (T)boxed;
+                return true;
+            }
 
-        value = default;
-        return false;
+            value = default;
+            return false;
+        }
     }
 
     /// <summary>
@@ -75,7 +93,10 @@ internal sealed class SingletonManager
     /// <returns>True if the singleton exists; false otherwise.</returns>
     internal bool HasSingleton<T>() where T : struct
     {
-        return singletons.ContainsKey(typeof(T));
+        lock (syncRoot)
+        {
+            return singletons.ContainsKey(typeof(T));
+        }
     }
 
     /// <summary>
@@ -85,7 +106,10 @@ internal sealed class SingletonManager
     /// <returns>True if the singleton was removed; false if it didn't exist.</returns>
     internal bool RemoveSingleton<T>() where T : struct
     {
-        return singletons.Remove(typeof(T));
+        lock (syncRoot)
+        {
+            return singletons.Remove(typeof(T));
+        }
     }
 
     /// <summary>
@@ -95,7 +119,10 @@ internal sealed class SingletonManager
     /// <returns>True if the singleton was removed; false if it didn't exist.</returns>
     internal bool RemoveSingleton(Type type)
     {
-        return singletons.Remove(type);
+        lock (syncRoot)
+        {
+            return singletons.Remove(type);
+        }
     }
 
     /// <summary>
@@ -103,7 +130,10 @@ internal sealed class SingletonManager
     /// </summary>
     internal void Clear()
     {
-        singletons.Clear();
+        lock (syncRoot)
+        {
+            singletons.Clear();
+        }
     }
 
     /// <summary>
@@ -118,7 +148,13 @@ internal sealed class SingletonManager
     /// </remarks>
     internal IEnumerable<(Type Type, object Value)> GetAllSingletons()
     {
-        foreach (var kvp in singletons)
+        KeyValuePair<Type, object>[] snapshot;
+        lock (syncRoot)
+        {
+            snapshot = [.. singletons];
+        }
+
+        foreach (var kvp in snapshot)
         {
             yield return (kvp.Key, kvp.Value);
         }
