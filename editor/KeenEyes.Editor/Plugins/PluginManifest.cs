@@ -81,6 +81,18 @@ public sealed class PluginManifest
     public PluginSettings? Settings { get; set; }
 
     /// <summary>
+    /// Gets or sets the plugin security information.
+    /// </summary>
+    [JsonPropertyName("security")]
+    public PluginSecurity? Security { get; set; }
+
+    /// <summary>
+    /// Gets or sets the plugin permission declarations.
+    /// </summary>
+    [JsonPropertyName("permissions")]
+    public PluginPermissions? Permissions { get; set; }
+
+    /// <summary>
     /// Parses a plugin manifest from JSON.
     /// </summary>
     /// <param name="json">The JSON content.</param>
@@ -212,4 +224,40 @@ public sealed class PluginSettings
     /// </summary>
     [JsonPropertyName("configFile")]
     public string? ConfigFile { get; set; }
+}
+
+/// <summary>
+/// Specifies plugin security information for signature verification.
+/// </summary>
+public sealed class PluginSecurity
+{
+    /// <summary>
+    /// Gets or sets the expected public key token of the signing certificate.
+    /// </summary>
+    [JsonPropertyName("publicKeyToken")]
+    public string? PublicKeyToken { get; set; }
+
+    /// <summary>
+    /// Gets or sets the SHA256 hash of the assembly for integrity verification.
+    /// </summary>
+    [JsonPropertyName("assemblyHash")]
+    public string? AssemblyHash { get; set; }
+}
+
+/// <summary>
+/// Specifies plugin permission declarations.
+/// </summary>
+public sealed class PluginPermissions
+{
+    /// <summary>
+    /// Gets or sets the permissions required for the plugin to function.
+    /// </summary>
+    [JsonPropertyName("required")]
+    public List<string> Required { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets optional permissions that enhance functionality.
+    /// </summary>
+    [JsonPropertyName("optional")]
+    public List<string> Optional { get; set; } = [];
 }

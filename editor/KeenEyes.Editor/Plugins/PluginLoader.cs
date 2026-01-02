@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Loader;
 using KeenEyes.Editor.Abstractions;
+using KeenEyes.Editor.Plugins.Security;
 
 namespace KeenEyes.Editor.Plugins;
 
@@ -26,6 +27,7 @@ internal sealed class PluginLoader
 {
     private readonly IEditorPluginLogger? logger;
     private readonly TypeCacheManager? typeCacheManager;
+    private readonly PluginSecurityManager? securityManager;
 
     /// <summary>
     /// Event raised when unload diagnostics are available.
@@ -37,10 +39,15 @@ internal sealed class PluginLoader
     /// </summary>
     /// <param name="logger">Optional logger for diagnostic output.</param>
     /// <param name="typeCacheManager">Optional type cache manager for clearing caches on unload.</param>
-    public PluginLoader(IEditorPluginLogger? logger = null, TypeCacheManager? typeCacheManager = null)
+    /// <param name="securityManager">Optional security manager for pre-load security checks.</param>
+    public PluginLoader(
+        IEditorPluginLogger? logger = null,
+        TypeCacheManager? typeCacheManager = null,
+        PluginSecurityManager? securityManager = null)
     {
         this.logger = logger;
         this.typeCacheManager = typeCacheManager;
+        this.securityManager = securityManager;
     }
 
     /// <summary>
@@ -63,6 +70,26 @@ internal sealed class PluginLoader
             plugin.ErrorMessage = $"Assembly not found: {assemblyPath}";
             logger?.LogError($"Failed to load plugin '{plugin.Manifest.Id}': {plugin.ErrorMessage}");
             return false;
+        }
+
+        // Perform security checks before loading
+        if (securityManager != null)
+        {
+            var securityResult = securityManager.CheckPlugin(plugin);
+            plugin.SecurityResult = securityResult;
+
+            if (!securityResult.CanLoad)
+            {
+                plugin.State = PluginState.Failed;
+                plugin.ErrorMessage = $"Security check failed: {string.Join("; ", securityResult.BlockingReasons)}";
+                logger?.LogError($"Plugin '{plugin.Manifest.Id}' blocked by security: {plugin.ErrorMessage}");
+                return false;
+            }
+
+            foreach (var warning in securityResult.Warnings)
+            {
+                logger?.LogWarning($"Plugin '{plugin.Manifest.Id}': {warning}");
+            }
         }
 
         try
