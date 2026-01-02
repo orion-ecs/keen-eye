@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace KeenEyes;
 
 /// <summary>
@@ -16,9 +18,14 @@ namespace KeenEyes;
 /// Performance optimization: When no hooks are registered, invocation methods return immediately
 /// with minimal overhead (empty check only).
 /// </para>
+/// <para>
+/// This class is thread-safe: hook registration, unregistration, and invocation can be called
+/// concurrently from multiple threads. Invocation uses a snapshot pattern for iteration.
+/// </para>
 /// </remarks>
 internal sealed class SystemHookManager
 {
+    private readonly Lock syncRoot = new();
     private readonly List<HookEntry> hooks = [];
 
     /// <summary>
@@ -41,9 +48,18 @@ internal sealed class SystemHookManager
         }
 
         var entry = new HookEntry(beforeHook, afterHook, phase);
-        hooks.Add(entry);
+        lock (syncRoot)
+        {
+            hooks.Add(entry);
+        }
 
-        return new EventSubscription(() => hooks.Remove(entry));
+        return new EventSubscription(() =>
+        {
+            lock (syncRoot)
+            {
+                hooks.Remove(entry);
+            }
+        });
     }
 
     /// <summary>
@@ -57,20 +73,37 @@ internal sealed class SystemHookManager
     /// </remarks>
     internal void InvokeBeforeHooks(ISystem system, float deltaTime, SystemPhase phase)
     {
-        if (hooks.Count == 0)
+        // Get a snapshot of hooks under lock using pooled array
+        int count;
+        HookEntry[] rentedArray;
+        lock (syncRoot)
         {
-            return;
+            count = hooks.Count;
+            if (count == 0)
+            {
+                return;
+            }
+            rentedArray = ArrayPool<HookEntry>.Shared.Rent(count);
+            hooks.CopyTo(rentedArray);
         }
 
-        foreach (var entry in hooks)
+        try
         {
-            // Skip if phase filter doesn't match
-            if (entry.Phase.HasValue && entry.Phase.Value != phase)
+            for (int i = 0; i < count; i++)
             {
-                continue;
-            }
+                var entry = rentedArray[i];
+                // Skip if phase filter doesn't match
+                if (entry.Phase.HasValue && entry.Phase.Value != phase)
+                {
+                    continue;
+                }
 
-            entry.BeforeHook?.Invoke(system, deltaTime);
+                entry.BeforeHook?.Invoke(system, deltaTime);
+            }
+        }
+        finally
+        {
+            ArrayPool<HookEntry>.Shared.Return(rentedArray);
         }
     }
 
@@ -85,20 +118,37 @@ internal sealed class SystemHookManager
     /// </remarks>
     internal void InvokeAfterHooks(ISystem system, float deltaTime, SystemPhase phase)
     {
-        if (hooks.Count == 0)
+        // Get a snapshot of hooks under lock using pooled array
+        int count;
+        HookEntry[] rentedArray;
+        lock (syncRoot)
         {
-            return;
+            count = hooks.Count;
+            if (count == 0)
+            {
+                return;
+            }
+            rentedArray = ArrayPool<HookEntry>.Shared.Rent(count);
+            hooks.CopyTo(rentedArray);
         }
 
-        foreach (var entry in hooks)
+        try
         {
-            // Skip if phase filter doesn't match
-            if (entry.Phase.HasValue && entry.Phase.Value != phase)
+            for (int i = 0; i < count; i++)
             {
-                continue;
-            }
+                var entry = rentedArray[i];
+                // Skip if phase filter doesn't match
+                if (entry.Phase.HasValue && entry.Phase.Value != phase)
+                {
+                    continue;
+                }
 
-            entry.AfterHook?.Invoke(system, deltaTime);
+                entry.AfterHook?.Invoke(system, deltaTime);
+            }
+        }
+        finally
+        {
+            ArrayPool<HookEntry>.Shared.Return(rentedArray);
         }
     }
 
@@ -111,7 +161,10 @@ internal sealed class SystemHookManager
     /// </remarks>
     internal void Clear()
     {
-        hooks.Clear();
+        lock (syncRoot)
+        {
+            hooks.Clear();
+        }
     }
 
     /// <summary>
