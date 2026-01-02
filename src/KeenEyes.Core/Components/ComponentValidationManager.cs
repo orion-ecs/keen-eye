@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 
 namespace KeenEyes;
@@ -19,12 +20,16 @@ namespace KeenEyes;
 /// <item><description><see cref="ValidationMode.DebugOnly"/> - Only validate when DEBUG is defined</description></item>
 /// </list>
 /// </para>
+/// <para>
+/// This class is thread-safe: validation and registration operations can be called
+/// concurrently from multiple threads.
+/// </para>
 /// </remarks>
 /// <param name="world">The world this manager belongs to.</param>
 public sealed class ComponentValidationManager(World world)
 {
-    private readonly Dictionary<Type, ComponentValidationInfo> validationCache = [];
-    private readonly Dictionary<Type, Delegate> customValidators = [];
+    private readonly ConcurrentDictionary<Type, ComponentValidationInfo> validationCache = new();
+    private readonly ConcurrentDictionary<Type, Delegate> customValidators = new();
 
     /// <summary>
     /// Gets or sets the validation mode for this manager.
@@ -50,7 +55,7 @@ public sealed class ComponentValidationManager(World world)
     /// <returns><c>true</c> if a validator was removed; <c>false</c> if no validator was registered.</returns>
     public bool UnregisterValidator<T>() where T : struct, IComponent
     {
-        return customValidators.Remove(typeof(T));
+        return customValidators.TryRemove(typeof(T), out _);
     }
 
     /// <summary>
@@ -160,14 +165,7 @@ public sealed class ComponentValidationManager(World world)
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private ComponentValidationInfo GetOrCreateValidationInfo(Type componentType)
     {
-        if (validationCache.TryGetValue(componentType, out var info))
-        {
-            return info;
-        }
-
-        info = CreateValidationInfo(componentType);
-        validationCache[componentType] = info;
-        return info;
+        return validationCache.GetOrAdd(componentType, CreateValidationInfo);
     }
 
     /// <summary>

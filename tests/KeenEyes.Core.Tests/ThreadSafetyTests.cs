@@ -417,6 +417,269 @@ public class ThreadSafetyTests
         Assert.Empty(exceptions);
     }
 
+    [Fact]
+    public void World_ConcurrentEntitySpawn_IsThreadSafe()
+    {
+        using var world = new World();
+        var spawnedEntities = new ConcurrentBag<Entity>();
+        var exceptions = new ConcurrentBag<Exception>();
+
+        // Spawn entities from multiple threads concurrently
+        Parallel.For(0, TestConstants.StandardBatchSize, _ =>
+        {
+            try
+            {
+                var entity = world.Spawn()
+                    .With(new Position { X = 1, Y = 2 })
+                    .With(new Velocity { X = 3, Y = 4 })
+                    .Build();
+                spawnedEntities.Add(entity);
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+        Assert.Equal(TestConstants.StandardBatchSize, spawnedEntities.Count);
+        Assert.Equal(TestConstants.StandardBatchSize, world.EntityCount);
+
+        // Verify all entities have correct components
+        foreach (var entity in spawnedEntities)
+        {
+            Assert.True(world.IsAlive(entity));
+            Assert.True(world.Has<Position>(entity));
+            Assert.True(world.Has<Velocity>(entity));
+        }
+    }
+
+    [Fact]
+    public void World_ConcurrentEntityDespawn_IsThreadSafe()
+    {
+        using var world = new World();
+        var entities = new List<Entity>();
+
+        // Create entities first (single-threaded)
+        for (int i = 0; i < TestConstants.StandardBatchSize; i++)
+        {
+            var entity = world.Spawn()
+                .With(new Position { X = i, Y = i })
+                .Build();
+            entities.Add(entity);
+        }
+
+        var exceptions = new ConcurrentBag<Exception>();
+        var despawnedCount = 0;
+
+        // Despawn entities from multiple threads concurrently
+        Parallel.ForEach(entities, entity =>
+        {
+            try
+            {
+                world.Despawn(entity);
+                Interlocked.Increment(ref despawnedCount);
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+        Assert.Equal(TestConstants.StandardBatchSize, despawnedCount);
+        Assert.Equal(0, world.EntityCount);
+
+        // Verify all entities are dead
+        foreach (var entity in entities)
+        {
+            Assert.False(world.IsAlive(entity));
+        }
+    }
+
+    [Fact]
+    public void World_ConcurrentComponentAddRemove_IsThreadSafe()
+    {
+        using var world = new World();
+        var entities = new List<Entity>();
+
+        // Create entities with Position only (single-threaded)
+        for (int i = 0; i < TestConstants.StandardBatchSize; i++)
+        {
+            var entity = world.Spawn()
+                .With(new Position { X = i, Y = i })
+                .Build();
+            entities.Add(entity);
+        }
+
+        var exceptions = new ConcurrentBag<Exception>();
+
+        // Add Velocity component from multiple threads concurrently
+        Parallel.ForEach(entities, entity =>
+        {
+            try
+            {
+                world.Add(entity, new Velocity { X = 1, Y = 1 });
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+
+        // Verify all entities have Velocity
+        foreach (var entity in entities)
+        {
+            Assert.True(world.Has<Velocity>(entity));
+        }
+
+        // Remove Velocity component from multiple threads concurrently
+        Parallel.ForEach(entities, entity =>
+        {
+            try
+            {
+                world.Remove<Velocity>(entity);
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+
+        // Verify all entities no longer have Velocity
+        foreach (var entity in entities)
+        {
+            Assert.False(world.Has<Velocity>(entity));
+            Assert.True(world.Has<Position>(entity));
+        }
+    }
+
+    [Fact]
+    public void World_ConcurrentMixedOperations_IsThreadSafe()
+    {
+        using var world = new World();
+        var exceptions = new ConcurrentBag<Exception>();
+        var createdEntities = new ConcurrentBag<Entity>();
+
+        // Run mixed operations concurrently
+        Parallel.For(0, TestConstants.ConcurrentIterationsPerThread, i =>
+        {
+            try
+            {
+                switch (i % 4)
+                {
+                    case 0:
+                        // Spawn new entity
+                        var entity = world.Spawn()
+                            .With(new Position { X = i, Y = i })
+                            .Build();
+                        createdEntities.Add(entity);
+                        break;
+                    case 1:
+                        // Query entities (entities may be despawned by other threads during iteration)
+                        foreach (var e in world.Query<Position>())
+                        {
+                            // Entity may have been despawned by another thread - this is expected
+                            if (world.IsAlive(e) && world.Has<Position>(e))
+                            {
+                                try
+                                {
+                                    ref readonly var pos = ref world.Get<Position>(e);
+                                    var _ = pos.X + pos.Y;
+                                }
+                                catch (InvalidOperationException)
+                                {
+                                    // Entity was despawned between check and access - expected in concurrent test
+                                }
+                            }
+                        }
+                        break;
+                    case 2:
+                        // Add component to random entity
+                        if (createdEntities.TryPeek(out var toModify) && world.IsAlive(toModify))
+                        {
+                            if (!world.Has<Velocity>(toModify))
+                            {
+                                try
+                                {
+                                    world.Add(toModify, new Velocity { X = 1, Y = 1 });
+                                }
+                                catch (InvalidOperationException)
+                                {
+                                    // Entity might already have component or be dead
+                                }
+                            }
+                        }
+                        break;
+                    case 3:
+                        // Despawn random entity
+                        if (createdEntities.TryTake(out var toDespawn))
+                        {
+                            world.Despawn(toDespawn);
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+    }
+
+    [Fact]
+    public void World_ConcurrentSpawnAndDespawn_IsThreadSafe()
+    {
+        using var world = new World();
+        var exceptions = new ConcurrentBag<Exception>();
+        var activeEntities = new ConcurrentBag<Entity>();
+
+        // Run spawn and despawn operations concurrently
+        Parallel.For(0, TestConstants.StandardBatchSize, i =>
+        {
+            try
+            {
+                // Spawn
+                var entity = world.Spawn()
+                    .With(new Position { X = i, Y = i })
+                    .With(new Health { Current = 100, Max = 100 })
+                    .Build();
+                activeEntities.Add(entity);
+
+                // Immediately despawn half of them
+                if (i % 2 == 0 && activeEntities.TryTake(out var toDespawn))
+                {
+                    world.Despawn(toDespawn);
+                }
+            }
+            catch (Exception ex)
+            {
+                exceptions.Add(ex);
+            }
+        });
+
+        Assert.Empty(exceptions);
+
+        // Verify world state is consistent
+        var aliveCount = 0;
+        foreach (var entity in activeEntities)
+        {
+            if (world.IsAlive(entity))
+            {
+                aliveCount++;
+            }
+        }
+
+        // The number of alive entities should match EntityCount
+        Assert.Equal(aliveCount, world.EntityCount);
+    }
+
     #endregion
 
     #region Stress Tests
