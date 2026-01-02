@@ -28,6 +28,7 @@ namespace KeenEyes;
 public sealed partial class World : IWorld,
     ISystemHookCapability,
     IPersistenceCapability,
+    ISaveLoadCapability,
     IHierarchyCapability,
     IValidationCapability,
     ITagCapability,

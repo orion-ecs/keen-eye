@@ -315,6 +315,9 @@ public static class SaveFileFormat
         }
         catch (Exception ex) when (ex is InvalidDataException or EndOfStreamException)
         {
+            // Log validation failure for debugging save file corruption issues.
+            // This is intentionally swallowed as Validate() returns null for invalid files.
+            System.Diagnostics.Debug.WriteLine($"Save file validation failed: {ex.GetType().Name}: {ex.Message}");
             return null;
         }
     }

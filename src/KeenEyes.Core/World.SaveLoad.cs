@@ -270,7 +270,8 @@ public sealed partial class World
     /// each delta in sequence using <see cref="LoadDeltaFromSlot"/>.
     /// </para>
     /// </remarks>
-    internal SaveSlotInfo SaveDeltaToSlot<TSerializer>(
+    /// <inheritdoc />
+    public SaveSlotInfo SaveDeltaToSlot<TSerializer>(
         string slotName,
         DeltaSnapshot delta,
         TSerializer serializer,
@@ -297,6 +298,45 @@ public sealed partial class World
     internal DeltaSnapshot LoadDeltaFromSlot(string slotName, bool validateChecksum = true)
     {
         return GetSaveManager().LoadDelta(slotName, validateChecksum);
+    }
+
+    #endregion
+
+    #region Snapshot Operations
+
+    /// <summary>
+    /// Creates a snapshot of the current world state.
+    /// </summary>
+    /// <typeparam name="TSerializer">
+    /// The serializer type that implements <see cref="IComponentSerializer"/>.
+    /// </typeparam>
+    /// <param name="serializer">The component serializer for AOT-compatible serialization.</param>
+    /// <returns>A snapshot containing all entities, components, hierarchy, and singletons.</returns>
+    public WorldSnapshot CreateSnapshot<TSerializer>(TSerializer serializer)
+        where TSerializer : IComponentSerializer
+    {
+        return SnapshotManager.CreateSnapshot(this, serializer);
+    }
+
+    /// <summary>
+    /// Creates a delta snapshot by comparing the current world state to a baseline.
+    /// </summary>
+    /// <typeparam name="TSerializer">
+    /// The serializer type that implements <see cref="IComponentSerializer"/>.
+    /// </typeparam>
+    /// <param name="baseline">The baseline snapshot to compare against.</param>
+    /// <param name="serializer">The component serializer.</param>
+    /// <param name="baselineSlotName">The slot name of the baseline snapshot.</param>
+    /// <param name="sequenceNumber">The sequence number for this delta.</param>
+    /// <returns>A delta snapshot containing only the changes since the baseline.</returns>
+    public DeltaSnapshot CreateDelta<TSerializer>(
+        WorldSnapshot baseline,
+        TSerializer serializer,
+        string baselineSlotName,
+        int sequenceNumber)
+        where TSerializer : IComponentSerializer
+    {
+        return DeltaDiffer.CreateDelta(this, baseline, serializer, baselineSlotName, sequenceNumber);
     }
 
     #endregion
