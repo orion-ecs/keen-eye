@@ -19,7 +19,7 @@ namespace KeenEyes.Editor.Plugins;
 /// until the editor is closed.
 /// </para>
 /// </remarks>
-internal sealed class EditorPluginManager : IDisposable
+internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
 {
     private readonly Dictionary<string, EditorPluginEntry> plugins = [];
     private readonly Dictionary<Type, IEditorCapability> capabilities = [];
@@ -30,6 +30,10 @@ internal sealed class EditorPluginManager : IDisposable
     private readonly List<Action> sceneClosedHandlers = [];
     private readonly List<Action<IReadOnlyList<Entity>>> selectionChangedHandlers = [];
     private readonly List<Action<EditorPlayState>> playModeChangedHandlers = [];
+
+    // Dynamic loading infrastructure
+    private readonly PluginRepository repository;
+    private readonly PluginLoader loader;
 
     private bool disposed;
 
@@ -78,7 +82,16 @@ internal sealed class EditorPluginManager : IDisposable
         UndoRedo = undoRedo;
         Assets = assets;
         EditorWorld = editorWorld;
+
+        // Initialize dynamic loading infrastructure
+        repository = new PluginRepository(this);
+        loader = new PluginLoader(this);
     }
+
+    /// <summary>
+    /// Gets the plugin repository for discovering available plugins.
+    /// </summary>
+    public PluginRepository Repository => repository;
 
     #region Plugin Lifecycle
 
@@ -211,6 +224,293 @@ internal sealed class EditorPluginManager : IDisposable
         {
             UninstallPlugin(name);
         }
+    }
+
+    #endregion
+
+    #region Dynamic Plugin Loading
+
+    /// <summary>
+    /// Scans for available plugins in all configured search paths.
+    /// </summary>
+    /// <returns>The number of plugins discovered.</returns>
+    public int DiscoverPlugins()
+    {
+        return repository.Scan();
+    }
+
+    /// <summary>
+    /// Loads and enables a dynamically discovered plugin.
+    /// </summary>
+    /// <param name="pluginId">The plugin ID from the manifest.</param>
+    /// <returns>True if the plugin was loaded and enabled; false otherwise.</returns>
+    public bool LoadDynamicPlugin(string pluginId)
+    {
+        var loadedPlugin = repository.GetPlugin(pluginId);
+        if (loadedPlugin == null)
+        {
+            LogWarning($"Plugin '{pluginId}' not found in repository");
+            return false;
+        }
+
+        return LoadDynamicPlugin(loadedPlugin);
+    }
+
+    /// <summary>
+    /// Loads and enables a dynamically discovered plugin.
+    /// </summary>
+    /// <param name="loadedPlugin">The plugin entry to load.</param>
+    /// <returns>True if the plugin was loaded and enabled; false otherwise.</returns>
+    public bool LoadDynamicPlugin(LoadedPlugin loadedPlugin)
+    {
+        // Load the assembly if not already loaded
+        if (loadedPlugin.State == PluginState.Discovered ||
+            loadedPlugin.State == PluginState.Failed)
+        {
+            if (!loader.Load(loadedPlugin))
+            {
+                return false;
+            }
+        }
+
+        // Enable the plugin
+        return EnableDynamicPlugin(loadedPlugin);
+    }
+
+    /// <summary>
+    /// Enables a loaded dynamic plugin.
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <returns>True if the plugin was enabled; false otherwise.</returns>
+    public bool EnableDynamicPlugin(string pluginId)
+    {
+        var loadedPlugin = repository.GetPlugin(pluginId);
+        if (loadedPlugin == null)
+        {
+            LogWarning($"Plugin '{pluginId}' not found in repository");
+            return false;
+        }
+
+        return EnableDynamicPlugin(loadedPlugin);
+    }
+
+    /// <summary>
+    /// Enables a loaded dynamic plugin.
+    /// </summary>
+    /// <param name="loadedPlugin">The plugin to enable.</param>
+    /// <returns>True if the plugin was enabled; false otherwise.</returns>
+    public bool EnableDynamicPlugin(LoadedPlugin loadedPlugin)
+    {
+        if (loadedPlugin.State == PluginState.Enabled)
+        {
+            return true; // Already enabled
+        }
+
+        if (loadedPlugin.State != PluginState.Loaded &&
+            loadedPlugin.State != PluginState.Disabled)
+        {
+            LogWarning($"Plugin '{loadedPlugin.Manifest.Id}' cannot be enabled (state: {loadedPlugin.State})");
+            return false;
+        }
+
+        if (loadedPlugin.Instance == null)
+        {
+            LogError($"Plugin '{loadedPlugin.Manifest.Id}' has no instance");
+            return false;
+        }
+
+        try
+        {
+            var context = new EditorPluginContext(this, loadedPlugin.Instance);
+            loadedPlugin.Instance.Initialize(context);
+            loadedPlugin.Context = context;
+            loadedPlugin.State = PluginState.Enabled;
+
+            // Register in main plugins dictionary for compatibility with existing API
+            plugins[loadedPlugin.Instance.Name] = new EditorPluginEntry(loadedPlugin.Instance, context);
+
+            LogInfo($"Enabled plugin '{loadedPlugin.Manifest.Id}'");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            loadedPlugin.State = PluginState.Failed;
+            loadedPlugin.ErrorMessage = $"Enable failed: {ex.Message}";
+            LogError($"Failed to enable plugin '{loadedPlugin.Manifest.Id}': {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Disables a dynamic plugin without unloading its assembly.
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <returns>True if the plugin was disabled; false otherwise.</returns>
+    public bool DisableDynamicPlugin(string pluginId)
+    {
+        var loadedPlugin = repository.GetPlugin(pluginId);
+        if (loadedPlugin == null)
+        {
+            LogWarning($"Plugin '{pluginId}' not found in repository");
+            return false;
+        }
+
+        return DisableDynamicPlugin(loadedPlugin);
+    }
+
+    /// <summary>
+    /// Disables a dynamic plugin without unloading its assembly.
+    /// </summary>
+    /// <param name="loadedPlugin">The plugin to disable.</param>
+    /// <returns>True if the plugin was disabled; false otherwise.</returns>
+    public bool DisableDynamicPlugin(LoadedPlugin loadedPlugin)
+    {
+        if (loadedPlugin.State == PluginState.Disabled)
+        {
+            return true; // Already disabled
+        }
+
+        if (loadedPlugin.State != PluginState.Enabled)
+        {
+            LogWarning($"Plugin '{loadedPlugin.Manifest.Id}' cannot be disabled (state: {loadedPlugin.State})");
+            return false;
+        }
+
+        if (!loadedPlugin.SupportsDisable)
+        {
+            LogWarning($"Plugin '{loadedPlugin.Manifest.Id}' does not support runtime disable");
+            return false;
+        }
+
+        try
+        {
+            // Remove from main plugins dictionary
+            if (loadedPlugin.Instance != null)
+            {
+                plugins.Remove(loadedPlugin.Instance.Name);
+            }
+
+            // Dispose context (cleans up subscriptions)
+            loadedPlugin.Context?.DisposeSubscriptions();
+
+            // Shutdown the plugin
+            loadedPlugin.Instance?.Shutdown();
+            loadedPlugin.Context = null;
+            loadedPlugin.State = PluginState.Disabled;
+
+            LogInfo($"Disabled plugin '{loadedPlugin.Manifest.Id}'");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            loadedPlugin.State = PluginState.Failed;
+            loadedPlugin.ErrorMessage = $"Disable failed: {ex.Message}";
+            LogError($"Failed to disable plugin '{loadedPlugin.Manifest.Id}': {ex.Message}");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// Unloads a dynamic plugin and its assembly (if hot-reload is supported).
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <returns>True if the plugin was unloaded; false if restart is required.</returns>
+    public bool UnloadDynamicPlugin(string pluginId)
+    {
+        var loadedPlugin = repository.GetPlugin(pluginId);
+        if (loadedPlugin == null)
+        {
+            LogWarning($"Plugin '{pluginId}' not found in repository");
+            return false;
+        }
+
+        return UnloadDynamicPlugin(loadedPlugin);
+    }
+
+    /// <summary>
+    /// Unloads a dynamic plugin and its assembly (if hot-reload is supported).
+    /// </summary>
+    /// <param name="loadedPlugin">The plugin to unload.</param>
+    /// <returns>True if the plugin was unloaded; false if restart is required.</returns>
+    public bool UnloadDynamicPlugin(LoadedPlugin loadedPlugin)
+    {
+        // First disable if enabled
+        if (loadedPlugin.State == PluginState.Enabled)
+        {
+            DisableDynamicPlugin(loadedPlugin);
+        }
+
+        // Attempt to unload the assembly
+        return loader.Unload(loadedPlugin);
+    }
+
+    /// <summary>
+    /// Reloads a dynamic plugin (unload + load).
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <returns>True if the plugin was reloaded; false otherwise.</returns>
+    public bool ReloadDynamicPlugin(string pluginId)
+    {
+        var loadedPlugin = repository.GetPlugin(pluginId);
+        if (loadedPlugin == null)
+        {
+            LogWarning($"Plugin '{pluginId}' not found in repository");
+            return false;
+        }
+
+        return ReloadDynamicPlugin(loadedPlugin);
+    }
+
+    /// <summary>
+    /// Reloads a dynamic plugin (unload + load).
+    /// </summary>
+    /// <param name="loadedPlugin">The plugin to reload.</param>
+    /// <returns>True if the plugin was reloaded; false otherwise.</returns>
+    public bool ReloadDynamicPlugin(LoadedPlugin loadedPlugin)
+    {
+        if (!loadedPlugin.SupportsHotReload)
+        {
+            LogWarning($"Plugin '{loadedPlugin.Manifest.Id}' does not support hot reload");
+            return false;
+        }
+
+        var wasEnabled = loadedPlugin.State == PluginState.Enabled;
+
+        if (!UnloadDynamicPlugin(loadedPlugin))
+        {
+            return false;
+        }
+
+        if (!loader.Load(loadedPlugin))
+        {
+            return false;
+        }
+
+        if (wasEnabled)
+        {
+            return EnableDynamicPlugin(loadedPlugin);
+        }
+
+        return true;
+    }
+
+    /// <summary>
+    /// Gets all dynamically discovered plugins.
+    /// </summary>
+    /// <returns>An enumerable of all discovered plugins.</returns>
+    public IEnumerable<LoadedPlugin> GetDynamicPlugins()
+    {
+        return repository.Plugins.Values;
+    }
+
+    /// <summary>
+    /// Gets a dynamically loaded plugin by ID.
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <returns>The plugin, or null if not found.</returns>
+    public LoadedPlugin? GetDynamicPlugin(string pluginId)
+    {
+        return repository.GetPlugin(pluginId);
     }
 
     #endregion
@@ -391,4 +691,44 @@ internal sealed class EditorPluginManager : IDisposable
     /// Entry for a registered plugin.
     /// </summary>
     private sealed record EditorPluginEntry(IEditorPlugin Plugin, EditorPluginContext Context);
+
+    #region IEditorPluginLogger Implementation
+
+    /// <inheritdoc />
+    void IEditorPluginLogger.LogInfo(string message)
+    {
+        LogInfo(message);
+    }
+
+    /// <inheritdoc />
+    void IEditorPluginLogger.LogWarning(string message)
+    {
+        LogWarning(message);
+    }
+
+    /// <inheritdoc />
+    void IEditorPluginLogger.LogError(string message)
+    {
+        LogError(message);
+    }
+
+    private void LogInfo(string message)
+    {
+        // TODO: Integrate with editor logging system
+        Console.WriteLine($"[Plugin] INFO: {message}");
+    }
+
+    private void LogWarning(string message)
+    {
+        // TODO: Integrate with editor logging system
+        Console.WriteLine($"[Plugin] WARN: {message}");
+    }
+
+    private void LogError(string message)
+    {
+        // TODO: Integrate with editor logging system
+        Console.WriteLine($"[Plugin] ERROR: {message}");
+    }
+
+    #endregion
 }
