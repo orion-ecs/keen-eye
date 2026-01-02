@@ -78,6 +78,7 @@
     <Project Path="tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj" />
     <Project Path="tests/KeenEyes.Assets.Tests/KeenEyes.Assets.Tests.csproj" />
     <Project Path="tests/KeenEyes.Audio.Abstractions.Tests/KeenEyes.Audio.Abstractions.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Cli.Tests/KeenEyes.Cli.Tests.csproj" />
     <Project Path="tests/KeenEyes.Common.Tests/KeenEyes.Common.Tests.csproj" />
     <Project Path="tests/KeenEyes.Core.Tests/KeenEyes.Core.Tests.csproj" />
     <Project Path="tests/KeenEyes.Debugging.Tests/KeenEyes.Debugging.Tests.csproj" />
@@ -109,6 +110,7 @@
     <Project Path="tools/BenchmarkCompare/BenchmarkCompare.csproj" />
   </Folder>
   <Folder Name="/editor/">
+    <Project Path="editor/KeenEyes.Cli/KeenEyes.Cli.csproj" />
     <Project Path="editor/KeenEyes.Editor.Abstractions/KeenEyes.Editor.Abstractions.csproj" />
     <Project Path="editor/KeenEyes.Editor.Common/KeenEyes.Editor.Common.csproj" />
     <Project Path="editor/KeenEyes.Editor/KeenEyes.Editor.csproj" />
