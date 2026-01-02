@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using KeenEyes.Editor.Abstractions;
+using KeenEyes.Editor.Plugins.Security;
 
 namespace KeenEyes.Editor.Plugins;
 
@@ -34,6 +35,10 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
     // Dynamic loading infrastructure
     private readonly PluginRepository repository;
     private readonly PluginLoader loader;
+
+    // Security infrastructure
+    private SecurityConfiguration securityConfig = SecurityConfiguration.Default;
+    private PermissionManager? permissionManager;
 
     private bool disposed;
 
@@ -92,6 +97,104 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
     /// Gets the plugin repository for discovering available plugins.
     /// </summary>
     public PluginRepository Repository => repository;
+
+    /// <summary>
+    /// Gets the permission manager for checking and granting plugin permissions.
+    /// </summary>
+    /// <remarks>
+    /// Returns null if permissions are not enabled in the security configuration.
+    /// </remarks>
+    public PermissionManager? Permissions => permissionManager;
+
+    /// <summary>
+    /// Gets the current security configuration.
+    /// </summary>
+    public SecurityConfiguration SecurityConfiguration => securityConfig;
+
+    #region Security Configuration
+
+    /// <summary>
+    /// Configures security settings for the plugin manager.
+    /// </summary>
+    /// <param name="config">The security configuration.</param>
+    /// <remarks>
+    /// This method should be called before loading any plugins.
+    /// If permissions are enabled, the permission manager will be initialized.
+    /// </remarks>
+    public void ConfigureSecurity(SecurityConfiguration config)
+    {
+        ArgumentNullException.ThrowIfNull(config);
+        securityConfig = config;
+
+        if (config.EnablePermissions)
+        {
+            permissionManager = new PermissionManager(null, this);
+            permissionManager.Load();
+            LogInfo("Permission system enabled");
+        }
+        else
+        {
+            permissionManager = null;
+        }
+    }
+
+    /// <summary>
+    /// Gets the permissions granted to a plugin.
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <returns>The granted permissions, or FullTrust if permissions are disabled.</returns>
+    public PluginPermission GetPluginPermissions(string pluginId)
+    {
+        if (permissionManager == null)
+        {
+            // Permissions disabled - full trust mode
+            return PluginPermission.FullTrust;
+        }
+
+        return permissionManager.GetGrantedPermissions(pluginId);
+    }
+
+    /// <summary>
+    /// Grants permissions to a plugin.
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <param name="permissions">The permissions to grant.</param>
+    public void GrantPluginPermissions(string pluginId, PluginPermission permissions)
+    {
+        if (permissionManager == null)
+        {
+            LogWarning("Cannot grant permissions - permission system is disabled");
+            return;
+        }
+
+        permissionManager.GrantPermissions(pluginId, permissions);
+    }
+
+    /// <summary>
+    /// Revokes permissions from a plugin.
+    /// </summary>
+    /// <param name="pluginId">The plugin ID.</param>
+    /// <param name="permissions">The permissions to revoke.</param>
+    public void RevokePluginPermissions(string pluginId, PluginPermission permissions)
+    {
+        if (permissionManager == null)
+        {
+            LogWarning("Cannot revoke permissions - permission system is disabled");
+            return;
+        }
+
+        permissionManager.RevokePermissions(pluginId, permissions);
+    }
+
+    /// <summary>
+    /// Saves permission grants to persistent storage.
+    /// </summary>
+    public void SavePermissions()
+    {
+        permissionManager?.Save();
+    }
+
+    #endregion
 
     #region Plugin Lifecycle
 
@@ -319,10 +422,46 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
             return false;
         }
 
+        var pluginId = loadedPlugin.Manifest.Id;
+
+        // Register plugin with permission manager and validate permissions
+        if (permissionManager != null)
+        {
+            permissionManager.RegisterPlugin(pluginId, loadedPlugin.Manifest);
+
+            // Grant default permissions if no grants exist
+            var granted = permissionManager.GetGrantedPermissions(pluginId);
+            if (granted == PluginPermission.None)
+            {
+                var defaultPerms = ParseDefaultPermissions();
+                if (defaultPerms != PluginPermission.None)
+                {
+                    permissionManager.GrantPermissions(pluginId, defaultPerms);
+                    LogInfo($"Granted default permissions to '{pluginId}': {defaultPerms}");
+                }
+            }
+
+            // Validate required permissions
+            var validation = permissionManager.ValidatePlugin(pluginId);
+            if (!validation.IsValid)
+            {
+                loadedPlugin.State = PluginState.Failed;
+                loadedPlugin.ErrorMessage = $"Missing required permissions: {validation.MissingPermissions}";
+                LogError($"Plugin '{pluginId}' is missing required permissions: {validation.MissingPermissions}");
+                return false;
+            }
+        }
+
         try
         {
             var context = new EditorPluginContext(this, loadedPlugin.Instance);
-            loadedPlugin.Instance.Initialize(context);
+
+            // Wrap in SecurePluginContext if permissions are enabled
+            IEditorContext pluginContext = permissionManager != null
+                ? new SecurePluginContext(context, permissionManager, pluginId)
+                : context;
+
+            loadedPlugin.Instance.Initialize(pluginContext);
             loadedPlugin.Context = context;
             loadedPlugin.State = PluginState.Enabled;
 
@@ -332,6 +471,13 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
             LogInfo($"Enabled plugin '{loadedPlugin.Manifest.Id}'");
             return true;
         }
+        catch (PermissionDeniedException ex)
+        {
+            loadedPlugin.State = PluginState.Failed;
+            loadedPlugin.ErrorMessage = $"Permission denied: {ex.RequiredPermission.GetDisplayName()}";
+            LogError($"Plugin '{pluginId}' was denied permission: {ex.Message}");
+            return false;
+        }
         catch (Exception ex)
         {
             loadedPlugin.State = PluginState.Failed;
@@ -339,6 +485,20 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
             LogError($"Failed to enable plugin '{loadedPlugin.Manifest.Id}': {ex.Message}");
             return false;
         }
+    }
+
+    private PluginPermission ParseDefaultPermissions()
+    {
+        var result = PluginPermission.None;
+        foreach (var name in securityConfig.DefaultPermissions)
+        {
+            if (PluginPermissionExtensions.TryParse(name, out var perm))
+            {
+                result |= perm;
+            }
+        }
+
+        return result;
     }
 
     /// <summary>
@@ -392,6 +552,9 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
 
             // Dispose context (cleans up subscriptions)
             loadedPlugin.Context?.DisposeSubscriptions();
+
+            // Unregister from permission manager
+            permissionManager?.UnregisterPlugin(loadedPlugin.Manifest.Id);
 
             // Shutdown the plugin
             loadedPlugin.Instance?.Shutdown();
@@ -685,6 +848,12 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
 
         disposed = true;
         ShutdownAll();
+
+        // Save permission grants if configured
+        if (securityConfig.RememberPermissionDecisions)
+        {
+            permissionManager?.Save();
+        }
     }
 
     /// <summary>

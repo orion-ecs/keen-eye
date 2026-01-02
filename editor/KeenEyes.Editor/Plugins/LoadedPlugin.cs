@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using KeenEyes.Editor.Abstractions;
+using KeenEyes.Editor.Plugins.Security;
 
 namespace KeenEyes.Editor.Plugins;
 
@@ -62,6 +63,16 @@ public sealed class LoadedPlugin
     /// Gets a value indicating whether the plugin supports hot reloading.
     /// </summary>
     public bool SupportsHotReload => Manifest.Capabilities.SupportsHotReload;
+
+    /// <summary>
+    /// Gets the security check result for this plugin.
+    /// </summary>
+    public SecurityCheckResult? SecurityResult { get; internal set; }
+
+    /// <summary>
+    /// Gets a value indicating whether the plugin passed security checks.
+    /// </summary>
+    public bool IsSecurityVerified => SecurityResult?.CanLoad == true;
 
     /// <summary>
     /// Gets a value indicating whether the plugin can be disabled at runtime.
