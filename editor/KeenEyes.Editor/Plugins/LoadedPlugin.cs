@@ -50,6 +50,15 @@ public sealed class LoadedPlugin
     public string? ErrorMessage { get; internal set; }
 
     /// <summary>
+    /// Gets or sets the saved state from the last hot reload.
+    /// </summary>
+    /// <remarks>
+    /// This is populated when a plugin implementing <see cref="IStatefulPlugin"/>
+    /// is reloaded. The state is captured before unload and restored after reload.
+    /// </remarks>
+    internal object? SavedState { get; set; }
+
+    /// <summary>
     /// Gets a value indicating whether the plugin supports hot reloading.
     /// </summary>
     public bool SupportsHotReload => Manifest.Capabilities.SupportsHotReload;

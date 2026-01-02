@@ -24,6 +24,13 @@ internal sealed class EditorPluginContext : IEditorContext
     private readonly List<EventSubscription> subscriptions = [];
     private readonly Dictionary<Type, object> extensions = [];
 
+    // Resource tracking for unload diagnostics
+    private readonly List<WeakReference<object>> registeredPanels = [];
+    private readonly List<WeakReference<object>> registeredDrawers = [];
+    private readonly List<WeakReference<object>> registeredTools = [];
+    private readonly List<WeakReference<object>> registeredGizmos = [];
+    private readonly List<WeakReference<object>> registeredShortcuts = [];
+
     /// <summary>
     /// Gets the plugin this context belongs to.
     /// </summary>
@@ -182,4 +189,123 @@ internal sealed class EditorPluginContext : IEditorContext
         }
         subscriptions.Clear();
     }
+
+    #region Resource Tracking
+
+    /// <summary>
+    /// Tracks a panel registered by this plugin.
+    /// </summary>
+    internal void TrackPanel(object panel)
+    {
+        registeredPanels.Add(new WeakReference<object>(panel));
+    }
+
+    /// <summary>
+    /// Tracks a property drawer registered by this plugin.
+    /// </summary>
+    internal void TrackPropertyDrawer(object drawer)
+    {
+        registeredDrawers.Add(new WeakReference<object>(drawer));
+    }
+
+    /// <summary>
+    /// Tracks a tool registered by this plugin.
+    /// </summary>
+    internal void TrackTool(object tool)
+    {
+        registeredTools.Add(new WeakReference<object>(tool));
+    }
+
+    /// <summary>
+    /// Tracks a gizmo registered by this plugin.
+    /// </summary>
+    internal void TrackGizmo(object gizmo)
+    {
+        registeredGizmos.Add(new WeakReference<object>(gizmo));
+    }
+
+    /// <summary>
+    /// Tracks a shortcut registered by this plugin.
+    /// </summary>
+    internal void TrackShortcut(object shortcut)
+    {
+        registeredShortcuts.Add(new WeakReference<object>(shortcut));
+    }
+
+    /// <summary>
+    /// Gets counts of tracked resources by category.
+    /// </summary>
+    /// <returns>Dictionary of resource category names to counts of live references.</returns>
+    internal IReadOnlyDictionary<string, int> GetTrackedResourceCounts()
+    {
+        return new Dictionary<string, int>
+        {
+            ["Subscriptions"] = subscriptions.Count,
+            ["Extensions"] = extensions.Count,
+            ["Panels"] = CountLiveReferences(registeredPanels),
+            ["PropertyDrawers"] = CountLiveReferences(registeredDrawers),
+            ["Tools"] = CountLiveReferences(registeredTools),
+            ["Gizmos"] = CountLiveReferences(registeredGizmos),
+            ["Shortcuts"] = CountLiveReferences(registeredShortcuts)
+        };
+    }
+
+    /// <summary>
+    /// Gets descriptions of resources that are still alive.
+    /// </summary>
+    /// <returns>List of resource descriptions for diagnostics.</returns>
+    internal IReadOnlyList<string> GetLiveResourceDescriptions()
+    {
+        var descriptions = new List<string>();
+
+        if (subscriptions.Count > 0)
+        {
+            descriptions.Add($"{subscriptions.Count} event subscription(s)");
+        }
+
+        if (extensions.Count > 0)
+        {
+            foreach (var ext in extensions)
+            {
+                descriptions.Add($"Extension: {ext.Key.Name}");
+            }
+        }
+
+        AddLiveRefDescriptions(descriptions, registeredPanels, "Panel");
+        AddLiveRefDescriptions(descriptions, registeredDrawers, "PropertyDrawer");
+        AddLiveRefDescriptions(descriptions, registeredTools, "Tool");
+        AddLiveRefDescriptions(descriptions, registeredGizmos, "Gizmo");
+        AddLiveRefDescriptions(descriptions, registeredShortcuts, "Shortcut");
+
+        return descriptions;
+    }
+
+    private static int CountLiveReferences(List<WeakReference<object>> refs)
+    {
+        int count = 0;
+        foreach (var weakRef in refs)
+        {
+            if (weakRef.TryGetTarget(out _))
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private static void AddLiveRefDescriptions(
+        List<string> descriptions,
+        List<WeakReference<object>> refs,
+        string category)
+    {
+        foreach (var weakRef in refs)
+        {
+            if (weakRef.TryGetTarget(out var target))
+            {
+                descriptions.Add($"{category}: {target.GetType().Name}");
+            }
+        }
+    }
+
+    #endregion
 }
