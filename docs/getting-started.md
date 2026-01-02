@@ -13,7 +13,12 @@ Add the KeenEyes packages to your project:
 
 ```bash
 dotnet add package KeenEyes.Core
-dotnet add package KeenEyes.Generators.Attributes
+```
+
+The `KeenEyes.Core` package includes all necessary types. For plugin development or minimal dependencies, you may use:
+
+```bash
+dotnet add package KeenEyes.Abstractions
 ```
 
 ## Step 1: Define Components
@@ -166,7 +171,7 @@ Console.WriteLine("All particles expired!");
 KeenEyes provides source generators to reduce boilerplate. Add the `[Component]` attribute:
 
 ```csharp
-using KeenEyes.Generators.Attributes;
+using KeenEyes;
 
 [Component]
 public partial struct Position
@@ -195,7 +200,7 @@ world.Spawn()
 For entities with many components, use bundles to group related components:
 
 ```csharp
-using KeenEyes.Generators.Attributes;
+using KeenEyes;
 
 [Component]
 public partial struct Position { public float X, Y; }

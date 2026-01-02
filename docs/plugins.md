@@ -414,15 +414,17 @@ public void Install(IPluginContext context)
 
 ### Available Capabilities
 
-| Capability | Purpose | Methods |
-|------------|---------|---------|
-| `ISystemHookCapability` | Before/after system hooks | `AddSystemHook()` |
-| `IPersistenceCapability` | World save/load | `CreateSnapshot()`, `RestoreSnapshot()` |
-| `IHierarchyCapability` | Entity parent-child relationships | `SetParent()`, `GetChildren()`, `GetDescendants()` |
-| `IValidationCapability` | Component validation | `RegisterValidator<T>()`, `ValidationMode` |
-| `ITagCapability` | String-based entity tagging | `AddTag()`, `RemoveTag()`, `QueryByTag()` |
-| `IStatisticsCapability` | Memory profiling | `GetMemoryStats()` |
-| `IPrefabCapability` | Entity templates | `RegisterPrefab()`, `SpawnFromPrefab()` |
+| Capability | Purpose | Key Methods |
+|------------|---------|-------------|
+| `ISystemHookCapability` | Before/after system execution hooks | `AddSystemHook()` |
+| `IPersistenceCapability` | Configure save directory | `SaveDirectory` property |
+| `IHierarchyCapability` | Entity parent-child relationships | `SetParent()`, `GetChildren()`, `GetDescendants()`, `GetAncestors()`, `DespawnRecursive()` |
+| `IValidationCapability` | Component constraint validation | `RegisterValidator<T>()`, `ValidationMode` |
+| `ITagCapability` | String-based entity tagging | `AddTag()`, `RemoveTag()`, `HasTag()`, `QueryByTag()` |
+| `IStatisticsCapability` | Memory and performance statistics | `GetMemoryStats()` |
+| `IPrefabCapability` | Entity prefab templates | `RegisterPrefab()`, `SpawnFromPrefab()`, `HasPrefab()` |
+| `ISnapshotCapability` | World state serialization | `GetComponents()`, `GetAllSingletons()`, `SetSingleton()`, `Clear()` |
+| `IInspectionCapability` | Entity debugging and inspection | `GetName()`, `HasComponent()`, `GetRegisteredComponents()` |
 
 ### Requesting Capabilities
 

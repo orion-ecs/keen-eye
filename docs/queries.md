@@ -94,6 +94,39 @@ foreach (var entity in world.Query<Position, Velocity>()
 }
 ```
 
+### String Tag Filters
+
+In addition to component-based tags, you can filter by runtime string tags:
+
+```csharp
+// Entities with a specific string tag
+foreach (var entity in world.Query<Position>().WithTag("player"))
+{
+    // Player tagged entities
+}
+
+// Exclude entities with a string tag
+foreach (var entity in world.Query<Position>().WithoutTag("npc"))
+{
+    // Entities that are NOT tagged as "npc"
+}
+
+// Combine string tag filters
+foreach (var entity in world.Query<Position>()
+    .WithTag("enemy")
+    .WithoutTag("boss"))
+{
+    // Regular enemies (not bosses)
+}
+```
+
+String tags are useful for:
+- Runtime categorization that can change dynamically
+- Editor-driven tagging systems
+- Scenarios where you can't define component types ahead of time
+
+**Note:** String tag filtering is per-entity (O(entities)) rather than per-archetype, so prefer component-based tags when performance is critical.
+
 ## Query Results
 
 Queries return an enumerable of `Entity`:

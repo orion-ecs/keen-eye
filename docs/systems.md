@@ -542,7 +542,7 @@ public class AISystem : SystemBase
 
 Systems can communicate through several mechanisms:
 
-1. **Messaging** - Decoupled publish-subscribe communication:
+1. **Messaging** - Decoupled publish-subscribe communication via `IWorld`:
 
 ```csharp
 // Define a message type
@@ -553,21 +553,33 @@ private EventSubscription? damageSub;
 
 protected override void OnInitialize()
 {
+    // Subscribe directly on the World
     damageSub = World.Subscribe<DamageMessage>(HandleDamage);
 }
 
 private void HandleDamage(DamageMessage msg)
 {
-    ref var health = ref World.Get<Health>(msg.Target);
-    health.Current -= msg.Amount;
+    if (World.IsAlive(msg.Target))
+    {
+        ref var health = ref World.Get<Health>(msg.Target);
+        health.Current -= msg.Amount;
+    }
 }
 
-// Send messages from another system
+public override void Dispose()
+{
+    damageSub?.Dispose();
+    base.Dispose();
+}
+
+// Send messages from another system (immediate delivery)
 World.Send(new DamageMessage(target, 25, attacker));
 
-// Or queue for deferred processing
-World.QueueMessage(new DamageMessage(target, 25, attacker));
-World.ProcessQueuedMessages();  // Process all queued messages
+// Check for subscribers before creating expensive messages
+if (World.HasMessageSubscribers<DamageMessage>())
+{
+    World.Send(new DamageMessage(target, 25, attacker));
+}
 ```
 
 See the [Messaging Guide](messaging.md) for comprehensive coverage.
