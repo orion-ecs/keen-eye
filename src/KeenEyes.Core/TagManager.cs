@@ -22,9 +22,15 @@ namespace KeenEyes;
 /// The manager uses dual indexing for O(1) tag checks and efficient queries:
 /// Entity → Tags mapping and Tag → Entities reverse index.
 /// </para>
+/// <para>
+/// This class is thread-safe: all tag operations can be called concurrently
+/// from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class TagManager
 {
+    private readonly Lock syncRoot = new();
+
     // Entity ID -> Set of tags on that entity (for O(1) HasTag and GetTags)
     private readonly Dictionary<int, HashSet<string>> entityTags = [];
 
@@ -47,28 +53,31 @@ internal sealed class TagManager
         ValidateEntityId(entityId);
         ValidateTag(tag);
 
-        // Get or create the entity's tag set
-        if (!entityTags.TryGetValue(entityId, out var tags))
+        lock (syncRoot)
         {
-            tags = [];
-            entityTags[entityId] = tags;
-        }
+            // Get or create the entity's tag set
+            if (!entityTags.TryGetValue(entityId, out var tags))
+            {
+                tags = [];
+                entityTags[entityId] = tags;
+            }
 
-        // Add to entity's tags
-        if (!tags.Add(tag))
-        {
-            return false; // Already had this tag
-        }
+            // Add to entity's tags
+            if (!tags.Add(tag))
+            {
+                return false; // Already had this tag
+            }
 
-        // Add to reverse index
-        if (!tagToEntities.TryGetValue(tag, out var entities))
-        {
-            entities = [];
-            tagToEntities[tag] = entities;
-        }
+            // Add to reverse index
+            if (!tagToEntities.TryGetValue(tag, out var entities))
+            {
+                entities = [];
+                tagToEntities[tag] = entities;
+            }
 
-        entities.Add(entityId);
-        return true;
+            entities.Add(entityId);
+            return true;
+        }
     }
 
     /// <summary>
@@ -87,31 +96,34 @@ internal sealed class TagManager
         ValidateEntityId(entityId);
         ValidateTag(tag);
 
-        // Remove from entity's tags
-        if (!entityTags.TryGetValue(entityId, out var tags) || !tags.Remove(tag))
+        lock (syncRoot)
         {
-            return false; // Entity didn't have this tag
-        }
-
-        // Clean up empty tag set
-        if (tags.Count == 0)
-        {
-            entityTags.Remove(entityId);
-        }
-
-        // Remove from reverse index
-        if (tagToEntities.TryGetValue(tag, out var entities))
-        {
-            entities.Remove(entityId);
-
-            // Clean up empty entity set
-            if (entities.Count == 0)
+            // Remove from entity's tags
+            if (!entityTags.TryGetValue(entityId, out var tags) || !tags.Remove(tag))
             {
-                tagToEntities.Remove(tag);
+                return false; // Entity didn't have this tag
             }
-        }
 
-        return true;
+            // Clean up empty tag set
+            if (tags.Count == 0)
+            {
+                entityTags.Remove(entityId);
+            }
+
+            // Remove from reverse index
+            if (tagToEntities.TryGetValue(tag, out var entities))
+            {
+                entities.Remove(entityId);
+
+                // Clean up empty entity set
+                if (entities.Count == 0)
+                {
+                    tagToEntities.Remove(tag);
+                }
+            }
+
+            return true;
+        }
     }
 
     /// <summary>
@@ -127,7 +139,10 @@ internal sealed class TagManager
     {
         ValidateEntityId(entityId);
         ValidateTag(tag);
-        return entityTags.TryGetValue(entityId, out var tags) && tags.Contains(tag);
+        lock (syncRoot)
+        {
+            return entityTags.TryGetValue(entityId, out var tags) && tags.Contains(tag);
+        }
     }
 
     /// <summary>
@@ -143,12 +158,16 @@ internal sealed class TagManager
     {
         ValidateEntityId(entityId);
 
-        if (entityTags.TryGetValue(entityId, out var tags))
+        lock (syncRoot)
         {
-            return tags;
-        }
+            if (entityTags.TryGetValue(entityId, out var tags))
+            {
+                // Return a snapshot to avoid collection modification during enumeration
+                return [.. tags];
+            }
 
-        return [];
+            return [];
+        }
     }
 
     /// <summary>
@@ -165,12 +184,16 @@ internal sealed class TagManager
     {
         ValidateTag(tag);
 
-        if (tagToEntities.TryGetValue(tag, out var entities))
+        lock (syncRoot)
         {
-            return entities;
-        }
+            if (tagToEntities.TryGetValue(tag, out var entities))
+            {
+                // Return a snapshot to avoid collection modification during enumeration
+                return [.. entities];
+            }
 
-        return [];
+            return [];
+        }
     }
 
     /// <summary>
@@ -182,28 +205,31 @@ internal sealed class TagManager
     /// </remarks>
     internal void RemoveAllTags(int entityId)
     {
-        if (!entityTags.TryGetValue(entityId, out var tags))
+        lock (syncRoot)
         {
-            return;
-        }
-
-        // Remove entity from all tag reverse indexes (only process tags that exist in reverse index)
-        foreach (var tag in tags)
-        {
-            if (tagToEntities.TryGetValue(tag, out var entities))
+            if (!entityTags.TryGetValue(entityId, out var tags))
             {
-                entities.Remove(entityId);
+                return;
+            }
 
-                // Clean up empty entity set
-                if (entities.Count == 0)
+            // Remove entity from all tag reverse indexes (only process tags that exist in reverse index)
+            foreach (var tag in tags)
+            {
+                if (tagToEntities.TryGetValue(tag, out var entities))
                 {
-                    tagToEntities.Remove(tag);
+                    entities.Remove(entityId);
+
+                    // Clean up empty entity set
+                    if (entities.Count == 0)
+                    {
+                        tagToEntities.Remove(tag);
+                    }
                 }
             }
-        }
 
-        // Remove entity's tag set
-        entityTags.Remove(entityId);
+            // Remove entity's tag set
+            entityTags.Remove(entityId);
+        }
     }
 
     /// <summary>
@@ -211,8 +237,11 @@ internal sealed class TagManager
     /// </summary>
     internal void Clear()
     {
-        entityTags.Clear();
-        tagToEntities.Clear();
+        lock (syncRoot)
+        {
+            entityTags.Clear();
+            tagToEntities.Clear();
+        }
     }
 
     /// <summary>

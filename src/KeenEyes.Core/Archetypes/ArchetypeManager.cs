@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace KeenEyes;
 
 /// <summary>
@@ -164,25 +166,71 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     /// <param name="components">The components and their values.</param>
     internal void AddEntity(Entity entity, IEnumerable<(ComponentInfo Info, object Data)> components)
     {
-        // Materialize components list outside lock to avoid holding lock during enumeration
-        var componentList = components.ToList();
+        // Materialize components outside lock to avoid holding lock during enumeration
+        // Use ArrayPool to minimize allocations
+        (ComponentInfo Info, object Data)[] componentArray;
+        int componentCount;
 
-        lock (syncRoot)
+        if (components is IReadOnlyList<(ComponentInfo Info, object Data)> list)
         {
-            var types = componentList.Select(c => c.Info.Type);
-            var archetype = GetOrCreateArchetypeNoLock(types);
-
-            // Add entity to archetype
-            var index = archetype.AddEntity(entity);
-
-            // Add all component values
-            foreach (var (info, data) in componentList)
+            // Fast path: known count, rent exact size
+            componentCount = list.Count;
+            componentArray = ArrayPool<(ComponentInfo, object)>.Shared.Rent(componentCount);
+            for (int i = 0; i < componentCount; i++)
             {
-                archetype.AddComponentBoxed(info.Type, data);
+                componentArray[i] = list[i];
             }
+        }
+        else
+        {
+            // Slow path: unknown count, use growing buffer
+            componentArray = ArrayPool<(ComponentInfo, object)>.Shared.Rent(16);
+            componentCount = 0;
+            foreach (var component in components)
+            {
+                if (componentCount >= componentArray.Length)
+                {
+                    // Grow the array
+                    var newArray = ArrayPool<(ComponentInfo, object)>.Shared.Rent(componentArray.Length * 2);
+                    Array.Copy(componentArray, newArray, componentCount);
+                    ArrayPool<(ComponentInfo, object)>.Shared.Return(componentArray);
+                    componentArray = newArray;
+                }
+                componentArray[componentCount++] = component;
+            }
+        }
 
-            // Track entity location
-            entityLocations[entity.Id] = (archetype, index);
+        try
+        {
+            lock (syncRoot)
+            {
+                var archetype = GetOrCreateArchetypeNoLock(GetTypesSpan(componentArray, componentCount));
+
+                // Add entity to archetype
+                var index = archetype.AddEntity(entity);
+
+                // Add all component values
+                for (int i = 0; i < componentCount; i++)
+                {
+                    var (info, data) = componentArray[i];
+                    archetype.AddComponentBoxed(info.Type, data);
+                }
+
+                // Track entity location
+                entityLocations[entity.Id] = (archetype, index);
+            }
+        }
+        finally
+        {
+            ArrayPool<(ComponentInfo, object)>.Shared.Return(componentArray);
+        }
+    }
+
+    private static IEnumerable<Type> GetTypesSpan((ComponentInfo Info, object Data)[] components, int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            yield return components[i].Info.Type;
         }
     }
 

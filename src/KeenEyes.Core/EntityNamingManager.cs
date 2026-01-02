@@ -13,9 +13,15 @@ namespace KeenEyes;
 /// by name for debugging, editor integration, and scenarios where entities
 /// need human-readable identifiers.
 /// </para>
+/// <para>
+/// This class is thread-safe: all naming operations can be called concurrently
+/// from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class EntityNamingManager
 {
+    private readonly Lock syncRoot = new();
+
     // Entity ID -> Name
     private readonly Dictionary<int, string> entityNames = [];
 
@@ -31,10 +37,18 @@ internal sealed class EntityNamingManager
     /// </exception>
     internal void ValidateName(string? name)
     {
-        if (name is not null && namesToEntityIds.ContainsKey(name))
+        if (name is null)
         {
-            throw new ArgumentException(
-                $"An entity with the name '{name}' already exists in this world.", nameof(name));
+            return;
+        }
+
+        lock (syncRoot)
+        {
+            if (namesToEntityIds.ContainsKey(name))
+            {
+                throw new ArgumentException(
+                    $"An entity with the name '{name}' already exists in this world.", nameof(name));
+            }
         }
     }
 
@@ -55,8 +69,11 @@ internal sealed class EntityNamingManager
             return;
         }
 
-        entityNames[entityId] = name;
-        namesToEntityIds[name] = entityId;
+        lock (syncRoot)
+        {
+            entityNames[entityId] = name;
+            namesToEntityIds[name] = entityId;
+        }
     }
 
     /// <summary>
@@ -65,10 +82,13 @@ internal sealed class EntityNamingManager
     /// <param name="entityId">The entity ID to unregister the name for.</param>
     internal void UnregisterName(int entityId)
     {
-        if (entityNames.TryGetValue(entityId, out var name))
+        lock (syncRoot)
         {
-            entityNames.Remove(entityId);
-            namesToEntityIds.Remove(name);
+            if (entityNames.TryGetValue(entityId, out var name))
+            {
+                entityNames.Remove(entityId);
+                namesToEntityIds.Remove(name);
+            }
         }
     }
 
@@ -81,7 +101,10 @@ internal sealed class EntityNamingManager
     /// </returns>
     internal string? GetName(int entityId)
     {
-        return entityNames.TryGetValue(entityId, out var name) ? name : null;
+        lock (syncRoot)
+        {
+            return entityNames.TryGetValue(entityId, out var name) ? name : null;
+        }
     }
 
     /// <summary>
@@ -97,7 +120,10 @@ internal sealed class EntityNamingManager
     /// </returns>
     internal bool TryGetEntityIdByName(string name, out int entityId)
     {
-        return namesToEntityIds.TryGetValue(name, out entityId);
+        lock (syncRoot)
+        {
+            return namesToEntityIds.TryGetValue(name, out entityId);
+        }
     }
 
     /// <summary>
@@ -105,8 +131,11 @@ internal sealed class EntityNamingManager
     /// </summary>
     internal void Clear()
     {
-        entityNames.Clear();
-        namesToEntityIds.Clear();
+        lock (syncRoot)
+        {
+            entityNames.Clear();
+            namesToEntityIds.Clear();
+        }
     }
 
     /// <summary>
@@ -117,16 +146,39 @@ internal sealed class EntityNamingManager
     /// <exception cref="ArgumentException">Thrown when the new name is already in use.</exception>
     internal void SetName(int entityId, string? newName)
     {
-        // Validate new name if not null
-        if (newName is not null && namesToEntityIds.TryGetValue(newName, out var existingId) && existingId != entityId)
+        lock (syncRoot)
         {
-            throw new ArgumentException($"An entity with the name '{newName}' already exists in this world.");
+            // Validate new name if not null
+            if (newName is not null && namesToEntityIds.TryGetValue(newName, out var existingId) && existingId != entityId)
+            {
+                throw new ArgumentException($"An entity with the name '{newName}' already exists in this world.");
+            }
+
+            // Remove old name
+            UnregisterNameNoLock(entityId);
+
+            // Register new name
+            RegisterNameNoLock(entityId, newName);
+        }
+    }
+
+    private void UnregisterNameNoLock(int entityId)
+    {
+        if (entityNames.TryGetValue(entityId, out var name))
+        {
+            entityNames.Remove(entityId);
+            namesToEntityIds.Remove(name);
+        }
+    }
+
+    private void RegisterNameNoLock(int entityId, string? name)
+    {
+        if (name is null)
+        {
+            return;
         }
 
-        // Remove old name
-        UnregisterName(entityId);
-
-        // Register new name
-        RegisterName(entityId, newName);
+        entityNames[entityId] = name;
+        namesToEntityIds[name] = entityId;
     }
 }

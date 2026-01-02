@@ -18,9 +18,14 @@ namespace KeenEyes.Events;
 /// type while remaining clean for others. Use <see cref="MarkDirty{T}(Entity, Func{Entity, bool})"/> to manually
 /// flag an entity, and <see cref="ClearDirtyFlags{T}()"/> to reset after processing.
 /// </para>
+/// <para>
+/// This class is thread-safe: all tracking operations can be called concurrently
+/// from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class ChangeTracker
 {
+    private readonly Lock syncRoot = new();
     private readonly EntityPool entityPool;
 
     // Component type -> set of dirty entity IDs
@@ -73,13 +78,16 @@ internal sealed class ChangeTracker
     /// </summary>
     internal void MarkDirtyInternal<T>(Entity entity) where T : struct, IComponent
     {
-        if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+        lock (syncRoot)
         {
-            entitySet = [];
-            dirtyEntities[typeof(T)] = entitySet;
-        }
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            {
+                entitySet = [];
+                dirtyEntities[typeof(T)] = entitySet;
+            }
 
-        entitySet.Add(entity.Id);
+            entitySet.Add(entity.Id);
+        }
     }
 
     /// <summary>
@@ -99,12 +107,22 @@ internal sealed class ChangeTracker
     /// </remarks>
     public IEnumerable<Entity> GetDirtyEntities<T>(Func<Entity, bool> isAlive) where T : struct, IComponent
     {
-        if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+        int[] entityIdsCopy;
+        lock (syncRoot)
         {
-            yield break;
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            {
+                return [];
+            }
+            entityIdsCopy = [.. entitySet];
         }
 
-        foreach (var entityId in entitySet)
+        return GetDirtyEntitiesCore(entityIdsCopy, isAlive);
+    }
+
+    private IEnumerable<Entity> GetDirtyEntitiesCore(int[] entityIds, Func<Entity, bool> isAlive)
+    {
+        foreach (var entityId in entityIds)
         {
             var version = entityPool.GetVersion(entityId);
             if (version < 0)
@@ -132,9 +150,12 @@ internal sealed class ChangeTracker
     /// </remarks>
     public void ClearDirtyFlags<T>() where T : struct, IComponent
     {
-        if (dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+        lock (syncRoot)
         {
-            entitySet.Clear();
+            if (dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            {
+                entitySet.Clear();
+            }
         }
     }
 
@@ -155,12 +176,15 @@ internal sealed class ChangeTracker
             return false;
         }
 
-        if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+        lock (syncRoot)
         {
-            return false;
-        }
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            {
+                return false;
+            }
 
-        return entitySet.Contains(entity.Id);
+            return entitySet.Contains(entity.Id);
+        }
     }
 
     #endregion
@@ -183,7 +207,10 @@ internal sealed class ChangeTracker
     /// </remarks>
     public void EnableAutoTracking<T>() where T : struct, IComponent
     {
-        autoTrackedTypes.Add(typeof(T));
+        lock (syncRoot)
+        {
+            autoTrackedTypes.Add(typeof(T));
+        }
     }
 
     /// <summary>
@@ -192,7 +219,10 @@ internal sealed class ChangeTracker
     /// <typeparam name="T">The component type to disable auto-tracking for.</typeparam>
     public void DisableAutoTracking<T>() where T : struct, IComponent
     {
-        autoTrackedTypes.Remove(typeof(T));
+        lock (syncRoot)
+        {
+            autoTrackedTypes.Remove(typeof(T));
+        }
     }
 
     /// <summary>
@@ -204,7 +234,10 @@ internal sealed class ChangeTracker
     /// </returns>
     public bool IsAutoTrackingEnabled<T>() where T : struct, IComponent
     {
-        return autoTrackedTypes.Contains(typeof(T));
+        lock (syncRoot)
+        {
+            return autoTrackedTypes.Contains(typeof(T));
+        }
     }
 
     #endregion
@@ -218,12 +251,15 @@ internal sealed class ChangeTracker
     /// <returns>The number of entities marked dirty for this component type.</returns>
     public int GetDirtyCount<T>() where T : struct, IComponent
     {
-        if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+        lock (syncRoot)
         {
-            return 0;
-        }
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            {
+                return 0;
+            }
 
-        return entitySet.Count;
+            return entitySet.Count;
+        }
     }
 
     #endregion
@@ -235,9 +271,12 @@ internal sealed class ChangeTracker
     /// </summary>
     public void ClearAll()
     {
-        foreach (var entitySet in dirtyEntities.Values)
+        lock (syncRoot)
         {
-            entitySet.Clear();
+            foreach (var entitySet in dirtyEntities.Values)
+            {
+                entitySet.Clear();
+            }
         }
     }
 
@@ -246,9 +285,12 @@ internal sealed class ChangeTracker
     /// </summary>
     internal void RemoveEntity(int entityId)
     {
-        foreach (var entitySet in dirtyEntities.Values)
+        lock (syncRoot)
         {
-            entitySet.Remove(entityId);
+            foreach (var entitySet in dirtyEntities.Values)
+            {
+                entitySet.Remove(entityId);
+            }
         }
     }
 
@@ -257,8 +299,11 @@ internal sealed class ChangeTracker
     /// </summary>
     internal void Clear()
     {
-        dirtyEntities.Clear();
-        autoTrackedTypes.Clear();
+        lock (syncRoot)
+        {
+            dirtyEntities.Clear();
+            autoTrackedTypes.Clear();
+        }
     }
 
     #endregion
