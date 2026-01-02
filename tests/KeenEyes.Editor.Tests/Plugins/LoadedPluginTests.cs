@@ -51,14 +51,15 @@ public sealed class LoadedPluginTests
     {
         // Arrange
         var manifest = CreateTestManifest();
-        var basePath = "/plugins/myplugin";
+        var basePath = Path.Combine("plugins", "myplugin");
         var loadedPlugin = new LoadedPlugin(manifest, basePath);
 
         // Act
         var assemblyPath = loadedPlugin.GetAssemblyPath();
 
-        // Assert
-        Assert.Equal("/plugins/myplugin/TestPlugin.dll", assemblyPath);
+        // Assert - use Path.Combine for platform-independent path construction
+        var expected = Path.Combine("plugins", "myplugin", "TestPlugin.dll");
+        Assert.Equal(expected, assemblyPath);
     }
 
     [Fact]

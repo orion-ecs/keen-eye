@@ -1,6 +1,7 @@
 // Copyright (c) Keen Eye, LLC. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.Loader;
 using KeenEyes.Editor.Abstractions;
@@ -24,14 +25,22 @@ namespace KeenEyes.Editor.Plugins;
 internal sealed class PluginLoader
 {
     private readonly IEditorPluginLogger? logger;
+    private readonly TypeCacheManager? typeCacheManager;
+
+    /// <summary>
+    /// Event raised when unload diagnostics are available.
+    /// </summary>
+    public event Action<UnloadDiagnostics>? OnUnloadDiagnostics;
 
     /// <summary>
     /// Creates a new plugin loader.
     /// </summary>
     /// <param name="logger">Optional logger for diagnostic output.</param>
-    public PluginLoader(IEditorPluginLogger? logger = null)
+    /// <param name="typeCacheManager">Optional type cache manager for clearing caches on unload.</param>
+    public PluginLoader(IEditorPluginLogger? logger = null, TypeCacheManager? typeCacheManager = null)
     {
         this.logger = logger;
+        this.typeCacheManager = typeCacheManager;
     }
 
     /// <summary>
@@ -129,10 +138,28 @@ internal sealed class PluginLoader
     /// </remarks>
     public bool Unload(LoadedPlugin plugin)
     {
+        var diagnostics = UnloadWithDiagnostics(plugin);
+        return diagnostics?.FullyUnloaded ?? false;
+    }
+
+    /// <summary>
+    /// Unloads a plugin assembly and returns detailed diagnostics.
+    /// </summary>
+    /// <param name="plugin">The plugin to unload.</param>
+    /// <returns>Diagnostics about the unload operation, or null if unload wasn't attempted.</returns>
+    public UnloadDiagnostics? UnloadWithDiagnostics(LoadedPlugin plugin)
+    {
         if (plugin.State == PluginState.Discovered)
         {
-            // Nothing to unload
-            return true;
+            // Nothing to unload - return success
+            return new UnloadDiagnostics
+            {
+                PluginId = plugin.Manifest.Id,
+                UnloadDuration = TimeSpan.Zero,
+                FullyUnloaded = true,
+                GcAttempts = 0,
+                PotentialHolders = []
+            };
         }
 
         if (!plugin.SupportsHotReload)
@@ -140,19 +167,33 @@ internal sealed class PluginLoader
             logger?.LogWarning(
                 $"Plugin '{plugin.Manifest.Id}' does not support hot reload. " +
                 "Restart the editor to fully unload.");
-            return false;
+            return null;
         }
 
         if (plugin.LoadContext == null)
         {
             logger?.LogWarning($"Plugin '{plugin.Manifest.Id}' has no load context to unload");
-            return false;
+            return null;
         }
 
+        var stopwatch = Stopwatch.StartNew();
         plugin.State = PluginState.Unloading;
+
+        // Capture resource info before clearing references
+        IReadOnlyDictionary<string, int>? resourceCounts = null;
+        IReadOnlyList<string> potentialHolders = [];
+
+        if (plugin.Context != null)
+        {
+            resourceCounts = plugin.Context.GetTrackedResourceCounts();
+            potentialHolders = plugin.Context.GetLiveResourceDescriptions();
+        }
 
         try
         {
+            // Notify type caches before clearing references
+            typeCacheManager?.NotifyPluginUnloading(plugin.Manifest.Id);
+
             // Clear references to the plugin instance
             plugin.Instance = null;
             plugin.Context = null;
@@ -161,22 +202,51 @@ internal sealed class PluginLoader
             var weakRef = TryUnloadContext(plugin.LoadContext);
             plugin.LoadContext = null;
 
-            // Wait for GC to collect the assembly (with timeout)
+            // Wait for GC to collect the assembly
+            int gcAttempts = 0;
+            bool fullyUnloaded = true;
+
             if (weakRef != null)
             {
-                WaitForUnload(weakRef, plugin.Manifest.Id);
+                (gcAttempts, fullyUnloaded) = WaitForUnloadWithDiagnostics(weakRef, plugin.Manifest.Id);
             }
+
+            stopwatch.Stop();
 
             plugin.State = PluginState.Discovered;
             logger?.LogInfo($"Unloaded plugin '{plugin.Manifest.Id}'");
-            return true;
+
+            var diagnostics = new UnloadDiagnostics
+            {
+                PluginId = plugin.Manifest.Id,
+                UnloadDuration = stopwatch.Elapsed,
+                FullyUnloaded = fullyUnloaded,
+                GcAttempts = gcAttempts,
+                PotentialHolders = potentialHolders,
+                ResourceCounts = resourceCounts
+            };
+
+            // Raise event for UI
+            OnUnloadDiagnostics?.Invoke(diagnostics);
+
+            return diagnostics;
         }
         catch (Exception ex)
         {
+            stopwatch.Stop();
             plugin.State = PluginState.Failed;
             plugin.ErrorMessage = $"Unload failed: {ex.Message}";
             logger?.LogError($"Failed to unload plugin '{plugin.Manifest.Id}': {ex.Message}");
-            return false;
+
+            return new UnloadDiagnostics
+            {
+                PluginId = plugin.Manifest.Id,
+                UnloadDuration = stopwatch.Elapsed,
+                FullyUnloaded = false,
+                GcAttempts = 0,
+                PotentialHolders = [$"Exception: {ex.Message}"],
+                ResourceCounts = resourceCounts
+            };
         }
     }
 
@@ -219,20 +289,28 @@ internal sealed class PluginLoader
         return weakRef;
     }
 
-    private void WaitForUnload(WeakReference weakRef, string pluginId, int maxAttempts = 10)
+    private (int attempts, bool fullyUnloaded) WaitForUnloadWithDiagnostics(
+        WeakReference weakRef,
+        string pluginId,
+        int maxAttempts = 10)
     {
-        for (int i = 0; i < maxAttempts && weakRef.IsAlive; i++)
+        int attempts = 0;
+        for (; attempts < maxAttempts && weakRef.IsAlive; attempts++)
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
 
-        if (weakRef.IsAlive)
+        bool fullyUnloaded = !weakRef.IsAlive;
+
+        if (!fullyUnloaded)
         {
             logger?.LogWarning(
                 $"Plugin '{pluginId}' assembly may not have fully unloaded. " +
                 "There may be lingering references.");
         }
+
+        return (attempts, fullyUnloaded);
     }
 }
 
