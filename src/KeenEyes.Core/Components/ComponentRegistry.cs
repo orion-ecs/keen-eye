@@ -7,8 +7,15 @@ namespace KeenEyes;
 /// Registry that tracks component types for a specific World.
 /// Each World has its own registry, allowing isolated ECS instances.
 /// </summary>
+/// <remarks>
+/// <para>
+/// This class is thread-safe: component registration and lookup can be called
+/// concurrently from multiple threads.
+/// </para>
+/// </remarks>
 public sealed class ComponentRegistry : IComponentRegistry
 {
+    private readonly Lock syncRoot = new();
     private readonly Dictionary<Type, ComponentInfo> byType = [];
     private readonly List<ComponentInfo> all = [];
     private int nextId;
@@ -16,12 +23,33 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// <summary>
     /// All registered component types.
     /// </summary>
-    public IReadOnlyList<ComponentInfo> All => all;
+    /// <remarks>
+    /// Returns a snapshot to allow safe iteration while other threads may register components.
+    /// </remarks>
+    public IReadOnlyList<ComponentInfo> All
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return [.. all];
+            }
+        }
+    }
 
     /// <summary>
     /// Number of registered component types.
     /// </summary>
-    public int Count => all.Count;
+    public int Count
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return all.Count;
+            }
+        }
+    }
 
     /// <summary>
     /// Registers a component type and returns its info.
@@ -35,54 +63,57 @@ public sealed class ComponentRegistry : IComponentRegistry
     {
         var type = typeof(T);
 
-        if (byType.TryGetValue(type, out var existing))
+        lock (syncRoot)
         {
-            return existing;
-        }
-
-        // Auto-detect if type implements ITagComponent (AOT-compatible type check)
-        var actuallyTag = isTag || typeof(ITagComponent).IsAssignableFrom(type);
-
-        var id = new ComponentId(nextId++);
-        var size = actuallyTag ? 0 : ComponentMeta<T>.Size;
-
-        // Pre-create default value for tags at registration time (AOT-compatible)
-        object? defaultValue = actuallyTag ? (object)default(T)! : null;
-
-        ComponentInfo? infoRef = null;
-        var info = new ComponentInfo(id, type, size, actuallyTag)
-        {
-            // Store setup function that knows how to create the dispatcher for this component type
-            // This avoids reflection during entity creation (cold path setup, hot path usage)
-            SetupDispatcher = (self, handlers) =>
+            if (byType.TryGetValue(type, out var existing))
             {
-                self.FireAddedBoxed = (h, e, obj) => h.FireAdded(e, (T)obj);
-            },
-            // Factory for creating typed component arrays without reflection (AOT-compatible)
-            CreateComponentArray = capacity => new FixedComponentArray<T>(capacity),
-            // Applicator for adding this component to an EntityBuilder without reflection
-            ApplyToBuilder = (builder, boxedValue) => builder.With((T)boxedValue),
-            // Validator invoker for calling typed validators without reflection
-            InvokeValidator = (world, entity, data, validator) =>
-            {
-                var typedValidator = (ComponentValidator<T>)validator;
-                var component = (T)data;
-                return typedValidator(world, entity, component);
+                return existing;
             }
-        };
 
-        // Set up tag applicator after info is created (needs to capture info reference)
-        // Uses WithBoxed with pre-created default value to avoid reflection
-        infoRef = info;
-        if (actuallyTag)
-        {
-            info.ApplyTagToBuilder = builder => builder.WithBoxed(infoRef, defaultValue!);
+            // Auto-detect if type implements ITagComponent (AOT-compatible type check)
+            var actuallyTag = isTag || typeof(ITagComponent).IsAssignableFrom(type);
+
+            var id = new ComponentId(nextId++);
+            var size = actuallyTag ? 0 : ComponentMeta<T>.Size;
+
+            // Pre-create default value for tags at registration time (AOT-compatible)
+            object? defaultValue = actuallyTag ? (object)default(T)! : null;
+
+            ComponentInfo? infoRef = null;
+            var info = new ComponentInfo(id, type, size, actuallyTag)
+            {
+                // Store setup function that knows how to create the dispatcher for this component type
+                // This avoids reflection during entity creation (cold path setup, hot path usage)
+                SetupDispatcher = (self, handlers) =>
+                {
+                    self.FireAddedBoxed = (h, e, obj) => h.FireAdded(e, (T)obj);
+                },
+                // Factory for creating typed component arrays without reflection (AOT-compatible)
+                CreateComponentArray = capacity => new FixedComponentArray<T>(capacity),
+                // Applicator for adding this component to an EntityBuilder without reflection
+                ApplyToBuilder = (builder, boxedValue) => builder.With((T)boxedValue),
+                // Validator invoker for calling typed validators without reflection
+                InvokeValidator = (world, entity, data, validator) =>
+                {
+                    var typedValidator = (ComponentValidator<T>)validator;
+                    var component = (T)data;
+                    return typedValidator(world, entity, component);
+                }
+            };
+
+            // Set up tag applicator after info is created (needs to capture info reference)
+            // Uses WithBoxed with pre-created default value to avoid reflection
+            infoRef = info;
+            if (actuallyTag)
+            {
+                info.ApplyTagToBuilder = builder => builder.WithBoxed(infoRef, defaultValue!);
+            }
+
+            byType[type] = info;
+            all.Add(info);
+
+            return info;
         }
-
-        byType[type] = info;
-        all.Add(info);
-
-        return info;
     }
 
     /// <summary>
@@ -91,7 +122,10 @@ public sealed class ComponentRegistry : IComponentRegistry
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ComponentInfo? Get<T>() where T : struct
     {
-        return byType.TryGetValue(typeof(T), out var info) ? info : null;
+        lock (syncRoot)
+        {
+            return byType.TryGetValue(typeof(T), out var info) ? info : null;
+        }
     }
 
     /// <summary>
@@ -99,7 +133,10 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// </summary>
     public ComponentInfo? Get(Type type)
     {
-        return byType.TryGetValue(type, out var info) ? info : null;
+        lock (syncRoot)
+        {
+            return byType.TryGetValue(type, out var info) ? info : null;
+        }
     }
 
     /// <summary>
@@ -108,7 +145,8 @@ public sealed class ComponentRegistry : IComponentRegistry
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ComponentInfo GetOrRegister<T>(bool isTag = false) where T : struct, IComponent
     {
-        return Get<T>() ?? Register<T>(isTag);
+        // Register already handles locking and check-then-add atomically
+        return Register<T>(isTag);
     }
 
     /// <summary>
@@ -117,7 +155,10 @@ public sealed class ComponentRegistry : IComponentRegistry
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsRegistered<T>() where T : struct
     {
-        return byType.ContainsKey(typeof(T));
+        lock (syncRoot)
+        {
+            return byType.ContainsKey(typeof(T));
+        }
     }
 
     /// <summary>
@@ -128,11 +169,14 @@ public sealed class ComponentRegistry : IComponentRegistry
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ComponentInfo? GetById(ComponentId id)
     {
-        var index = id.Value;
-        if (index < 0 || index >= all.Count)
+        lock (syncRoot)
         {
-            return null;
+            var index = id.Value;
+            if (index < 0 || index >= all.Count)
+            {
+                return null;
+            }
+            return all[index];
         }
-        return all[index];
     }
 }

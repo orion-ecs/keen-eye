@@ -12,9 +12,14 @@ namespace KeenEyes;
 /// Prefab registration is O(1). Spawning from a prefab is O(C * D) where C is the total number
 /// of components (including inherited) and D is the inheritance depth.
 /// </para>
+/// <para>
+/// This class is thread-safe: prefab registration, lookup, and spawning can be called
+/// concurrently from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class PrefabManager
 {
+    private readonly Lock syncRoot = new();
     private readonly Dictionary<string, EntityPrefab> prefabs = [];
     private readonly World world;
 
@@ -43,12 +48,15 @@ internal sealed class PrefabManager
         ArgumentNullException.ThrowIfNull(name);
         ArgumentNullException.ThrowIfNull(prefab);
 
-        if (prefabs.ContainsKey(name))
+        lock (syncRoot)
         {
-            throw new ArgumentException($"A prefab with the name '{name}' is already registered.", nameof(name));
-        }
+            if (prefabs.ContainsKey(name))
+            {
+                throw new ArgumentException($"A prefab with the name '{name}' is already registered.", nameof(name));
+            }
 
-        prefabs[name] = prefab;
+            prefabs[name] = prefab;
+        }
     }
 
     /// <summary>
@@ -59,7 +67,10 @@ internal sealed class PrefabManager
     internal bool HasPrefab(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return prefabs.ContainsKey(name);
+        lock (syncRoot)
+        {
+            return prefabs.ContainsKey(name);
+        }
     }
 
     /// <summary>
@@ -70,7 +81,10 @@ internal sealed class PrefabManager
     internal bool Unregister(string name)
     {
         ArgumentNullException.ThrowIfNull(name);
-        return prefabs.Remove(name);
+        lock (syncRoot)
+        {
+            return prefabs.Remove(name);
+        }
     }
 
     /// <summary>
@@ -101,18 +115,22 @@ internal sealed class PrefabManager
     {
         ArgumentNullException.ThrowIfNull(name);
 
-        if (!prefabs.TryGetValue(name, out var prefab))
+        // Resolve inheritance chain and get merged components under lock
+        List<ComponentDefinition> resolvedComponents;
+        lock (syncRoot)
         {
-            throw new InvalidOperationException($"No prefab registered with name '{name}'.");
+            if (!prefabs.TryGetValue(name, out var prefab))
+            {
+                throw new InvalidOperationException($"No prefab registered with name '{name}'.");
+            }
+
+            resolvedComponents = ResolveInheritanceNoLock(prefab, name);
         }
 
-        // Resolve inheritance chain and get merged components
-        var resolvedComponents = ResolveInheritance(prefab, name);
-
-        // Get a fresh builder from the world
+        // Get a fresh builder from the world (outside lock)
         var builder = world.Spawn(entityName);
 
-        // Apply all resolved components to the builder
+        // Apply all resolved components to the builder (outside lock)
         foreach (var component in resolvedComponents)
         {
             ApplyComponentToBuilder(builder, component);
@@ -123,11 +141,12 @@ internal sealed class PrefabManager
 
     /// <summary>
     /// Resolves the inheritance chain for a prefab and returns merged component definitions.
+    /// Must be called while holding syncRoot.
     /// </summary>
     /// <param name="prefab">The prefab to resolve.</param>
     /// <param name="originalName">The name of the original prefab (for error messages).</param>
     /// <returns>A list of merged component definitions.</returns>
-    private List<ComponentDefinition> ResolveInheritance(EntityPrefab prefab, string originalName)
+    private List<ComponentDefinition> ResolveInheritanceNoLock(EntityPrefab prefab, string originalName)
     {
         // Track visited prefabs to detect circular inheritance
         var visited = new HashSet<string>();
@@ -227,8 +246,14 @@ internal sealed class PrefabManager
     /// Gets all registered prefab names.
     /// </summary>
     /// <returns>An enumerable of all registered prefab names.</returns>
+    /// <remarks>
+    /// Returns a snapshot to allow safe iteration while other threads may register prefabs.
+    /// </remarks>
     internal IEnumerable<string> GetAllPrefabNames()
     {
-        return prefabs.Keys;
+        lock (syncRoot)
+        {
+            return [.. prefabs.Keys];
+        }
     }
 }

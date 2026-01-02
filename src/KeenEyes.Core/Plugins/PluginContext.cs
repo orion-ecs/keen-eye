@@ -14,6 +14,10 @@ namespace KeenEyes;
 /// up when the plugin is uninstalled. Extensions set through the context are
 /// stored in the world and can be retrieved by other code.
 /// </para>
+/// <para>
+/// This class is thread-safe: system registration can be called concurrently
+/// from multiple threads.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
@@ -32,6 +36,7 @@ namespace KeenEyes;
 /// </example>
 public sealed class PluginContext : IPluginContext
 {
+    private readonly Lock syncRoot = new();
     private readonly List<ISystem> registeredSystems = [];
 
     /// <summary>
@@ -54,7 +59,19 @@ public sealed class PluginContext : IPluginContext
     /// <summary>
     /// Gets the systems registered by the plugin through this context.
     /// </summary>
-    internal IReadOnlyList<ISystem> RegisteredSystems => registeredSystems;
+    /// <remarks>
+    /// Returns a snapshot to allow safe iteration while other threads may register systems.
+    /// </remarks>
+    internal IReadOnlyList<ISystem> RegisteredSystems
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return [.. registeredSystems];
+            }
+        }
+    }
 
     /// <summary>
     /// Creates a new plugin context for the specified world and plugin.
@@ -190,6 +207,9 @@ public sealed class PluginContext : IPluginContext
         Type[] runsAfter)
     {
         World.AddSystem(system, phase, order, runsBefore, runsAfter);
-        registeredSystems.Add(system);
+        lock (syncRoot)
+        {
+            registeredSystems.Add(system);
+        }
     }
 }

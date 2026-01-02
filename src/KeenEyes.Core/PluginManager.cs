@@ -12,9 +12,14 @@ namespace KeenEyes;
 /// Plugins are tracked by name and can register systems that are automatically
 /// cleaned up when the plugin is uninstalled.
 /// </para>
+/// <para>
+/// This class is thread-safe: all plugin operations can be called concurrently
+/// from multiple threads.
+/// </para>
 /// </remarks>
 internal sealed class PluginManager
 {
+    private readonly Lock syncRoot = new();
     private readonly Dictionary<string, PluginEntry> plugins = [];
     private readonly World world;
     private readonly SystemManager systemManager;
@@ -51,15 +56,33 @@ internal sealed class PluginManager
     {
         ArgumentNullException.ThrowIfNull(plugin);
 
-        if (plugins.ContainsKey(plugin.Name))
+        PluginContext context;
+        lock (syncRoot)
         {
-            throw new InvalidOperationException(
-                $"A plugin with name '{plugin.Name}' is already installed in this world.");
+            if (plugins.ContainsKey(plugin.Name))
+            {
+                throw new InvalidOperationException(
+                    $"A plugin with name '{plugin.Name}' is already installed in this world.");
+            }
+
+            context = new PluginContext(world, plugin);
+            plugins[plugin.Name] = new PluginEntry(plugin, context);
         }
 
-        var context = new PluginContext(world, plugin);
-        plugin.Install(context);
-        plugins[plugin.Name] = new PluginEntry(plugin, context);
+        // Call Install outside lock to allow plugins to use world APIs
+        try
+        {
+            plugin.Install(context);
+        }
+        catch
+        {
+            // If Install throws, remove the plugin from the registry
+            lock (syncRoot)
+            {
+                plugins.Remove(plugin.Name);
+            }
+            throw;
+        }
     }
 
     /// <summary>
@@ -69,12 +92,17 @@ internal sealed class PluginManager
     /// <returns>True if the plugin was found and uninstalled; false otherwise.</returns>
     internal bool UninstallPlugin<T>() where T : IWorldPlugin
     {
-        var entry = plugins.Values.FirstOrDefault(e => e.Plugin is T);
-        if (entry is null)
+        string? pluginName;
+        lock (syncRoot)
         {
-            return false;
+            var entry = plugins.Values.FirstOrDefault(e => e.Plugin is T);
+            if (entry is null)
+            {
+                return false;
+            }
+            pluginName = entry.Plugin.Name;
         }
-        return UninstallPluginInternal(entry.Plugin.Name);
+        return UninstallPluginInternal(pluginName);
     }
 
     /// <summary>
@@ -94,14 +122,17 @@ internal sealed class PluginManager
     /// <returns>The plugin instance, or null if not found.</returns>
     internal T? GetPlugin<T>() where T : class, IWorldPlugin
     {
-        foreach (var entry in plugins.Values)
+        lock (syncRoot)
         {
-            if (entry.Plugin is T typedPlugin)
+            foreach (var entry in plugins.Values)
             {
-                return typedPlugin;
+                if (entry.Plugin is T typedPlugin)
+                {
+                    return typedPlugin;
+                }
             }
+            return null;
         }
-        return null;
     }
 
     /// <summary>
@@ -111,7 +142,10 @@ internal sealed class PluginManager
     /// <returns>The plugin instance, or null if not found.</returns>
     internal IWorldPlugin? GetPlugin(string name)
     {
-        return plugins.TryGetValue(name, out var entry) ? entry.Plugin : null;
+        lock (syncRoot)
+        {
+            return plugins.TryGetValue(name, out var entry) ? entry.Plugin : null;
+        }
     }
 
     /// <summary>
@@ -121,7 +155,10 @@ internal sealed class PluginManager
     /// <returns>True if the plugin is installed; false otherwise.</returns>
     internal bool HasPlugin<T>() where T : IWorldPlugin
     {
-        return plugins.Values.Any(e => e.Plugin is T);
+        lock (syncRoot)
+        {
+            return plugins.Values.Any(e => e.Plugin is T);
+        }
     }
 
     /// <summary>
@@ -131,7 +168,10 @@ internal sealed class PluginManager
     /// <returns>True if the plugin is installed; false otherwise.</returns>
     internal bool HasPlugin(string name)
     {
-        return plugins.ContainsKey(name);
+        lock (syncRoot)
+        {
+            return plugins.ContainsKey(name);
+        }
     }
 
     /// <summary>
@@ -140,7 +180,11 @@ internal sealed class PluginManager
     /// <returns>An enumerable of all installed plugins.</returns>
     internal IEnumerable<IWorldPlugin> GetPlugins()
     {
-        return plugins.Values.Select(e => e.Plugin);
+        lock (syncRoot)
+        {
+            // Return snapshot to avoid collection modification during enumeration
+            return plugins.Values.Select(e => e.Plugin).ToArray();
+        }
     }
 
     /// <summary>
@@ -148,11 +192,16 @@ internal sealed class PluginManager
     /// </summary>
     internal void UninstallAll()
     {
-        foreach (var name in plugins.Keys.ToList())
+        string[] names;
+        lock (syncRoot)
+        {
+            names = [.. plugins.Keys];
+        }
+
+        foreach (var name in names)
         {
             UninstallPluginInternal(name);
         }
-        plugins.Clear();
     }
 
     /// <summary>
@@ -161,7 +210,10 @@ internal sealed class PluginManager
     /// </summary>
     internal void Clear()
     {
-        plugins.Clear();
+        lock (syncRoot)
+        {
+            plugins.Clear();
+        }
     }
 
     /// <summary>
@@ -169,12 +221,17 @@ internal sealed class PluginManager
     /// </summary>
     private bool UninstallPluginInternal(string name)
     {
-        if (!plugins.TryGetValue(name, out var entry))
+        PluginEntry? entry;
+        lock (syncRoot)
         {
-            return false;
+            if (!plugins.TryGetValue(name, out entry))
+            {
+                return false;
+            }
+            plugins.Remove(name);
         }
 
-        // Call the plugin's uninstall hook
+        // Call the plugin's uninstall hook (outside lock to allow plugins to use world APIs)
         entry.Plugin.Uninstall(entry.Context);
 
         // Remove and dispose all systems registered by the plugin
@@ -184,7 +241,6 @@ internal sealed class PluginManager
             system.Dispose();
         }
 
-        plugins.Remove(name);
         return true;
     }
 

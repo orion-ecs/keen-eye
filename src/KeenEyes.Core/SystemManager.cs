@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace KeenEyes;
 
 /// <summary>
@@ -12,9 +14,15 @@ namespace KeenEyes;
 /// Systems are sorted by phase then by order, using topological sorting
 /// when RunBefore/RunAfter constraints exist.
 /// </para>
+/// <para>
+/// This class is thread-safe: system registration and queries can be called
+/// concurrently from multiple threads. Update/FixedUpdate use a snapshot pattern
+/// for iteration.
+/// </para>
 /// </remarks>
 internal sealed class SystemManager
 {
+    private readonly Lock syncRoot = new();
     private readonly List<SystemEntry> systems = [];
     private readonly World world;
     private readonly SystemHookManager hookManager;
@@ -47,8 +55,11 @@ internal sealed class SystemManager
     {
         var system = new T();
         system.Initialize(world);
-        systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
-        systemsSorted = false;
+        lock (syncRoot)
+        {
+            systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
+            systemsSorted = false;
+        }
     }
 
     /// <summary>
@@ -67,8 +78,11 @@ internal sealed class SystemManager
         Type[] runsAfter)
     {
         system.Initialize(world);
-        systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
-        systemsSorted = false;
+        lock (syncRoot)
+        {
+            systems.Add(new SystemEntry(system, phase, order, runsBefore, runsAfter));
+            systemsSorted = false;
+        }
     }
 
     /// <summary>
@@ -77,33 +91,54 @@ internal sealed class SystemManager
     /// <param name="deltaTime">The time elapsed since the last update.</param>
     internal void Update(float deltaTime)
     {
-        EnsureSystemsSorted();
-
-        foreach (var entry in systems)
+        // Get a snapshot of systems under lock using pooled array
+        int count;
+        SystemEntry[] rentedArray;
+        lock (syncRoot)
         {
-            var system = entry.System;
-
-            if (!system.Enabled)
+            EnsureSystemsSortedNoLock();
+            count = systems.Count;
+            if (count == 0)
             {
-                continue;
+                return;
             }
+            rentedArray = ArrayPool<SystemEntry>.Shared.Rent(count);
+            systems.CopyTo(rentedArray);
+        }
 
-            // Invoke before hooks
-            hookManager.InvokeBeforeHooks(system, deltaTime, entry.Phase);
-
-            if (system is SystemBase systemBase)
+        try
+        {
+            for (int i = 0; i < count; i++)
             {
-                systemBase.InvokeBeforeUpdate(deltaTime);
-                systemBase.Update(deltaTime);
-                systemBase.InvokeAfterUpdate(deltaTime);
-            }
-            else
-            {
-                system.Update(deltaTime);
-            }
+                var entry = rentedArray[i];
+                var system = entry.System;
 
-            // Invoke after hooks
-            hookManager.InvokeAfterHooks(system, deltaTime, entry.Phase);
+                if (!system.Enabled)
+                {
+                    continue;
+                }
+
+                // Invoke before hooks
+                hookManager.InvokeBeforeHooks(system, deltaTime, entry.Phase);
+
+                if (system is SystemBase systemBase)
+                {
+                    systemBase.InvokeBeforeUpdate(deltaTime);
+                    systemBase.Update(deltaTime);
+                    systemBase.InvokeAfterUpdate(deltaTime);
+                }
+                else
+                {
+                    system.Update(deltaTime);
+                }
+
+                // Invoke after hooks
+                hookManager.InvokeAfterHooks(system, deltaTime, entry.Phase);
+            }
+        }
+        finally
+        {
+            ArrayPool<SystemEntry>.Shared.Return(rentedArray);
         }
     }
 
@@ -113,38 +148,59 @@ internal sealed class SystemManager
     /// <param name="fixedDeltaTime">The fixed timestep interval.</param>
     internal void FixedUpdate(float fixedDeltaTime)
     {
-        EnsureSystemsSorted();
-
-        foreach (var entry in systems)
+        // Get a snapshot of systems under lock using pooled array
+        int count;
+        SystemEntry[] rentedArray;
+        lock (syncRoot)
         {
-            if (entry.Phase != SystemPhase.FixedUpdate)
+            EnsureSystemsSortedNoLock();
+            count = systems.Count;
+            if (count == 0)
             {
-                continue;
+                return;
             }
+            rentedArray = ArrayPool<SystemEntry>.Shared.Rent(count);
+            systems.CopyTo(rentedArray);
+        }
 
-            var system = entry.System;
-
-            if (!system.Enabled)
+        try
+        {
+            for (int i = 0; i < count; i++)
             {
-                continue;
-            }
+                var entry = rentedArray[i];
+                if (entry.Phase != SystemPhase.FixedUpdate)
+                {
+                    continue;
+                }
 
-            // Invoke before hooks
-            hookManager.InvokeBeforeHooks(system, fixedDeltaTime, entry.Phase);
+                var system = entry.System;
 
-            if (system is SystemBase systemBase)
-            {
-                systemBase.InvokeBeforeUpdate(fixedDeltaTime);
-                systemBase.Update(fixedDeltaTime);
-                systemBase.InvokeAfterUpdate(fixedDeltaTime);
-            }
-            else
-            {
-                system.Update(fixedDeltaTime);
-            }
+                if (!system.Enabled)
+                {
+                    continue;
+                }
 
-            // Invoke after hooks
-            hookManager.InvokeAfterHooks(system, fixedDeltaTime, entry.Phase);
+                // Invoke before hooks
+                hookManager.InvokeBeforeHooks(system, fixedDeltaTime, entry.Phase);
+
+                if (system is SystemBase systemBase)
+                {
+                    systemBase.InvokeBeforeUpdate(fixedDeltaTime);
+                    systemBase.Update(fixedDeltaTime);
+                    systemBase.InvokeAfterUpdate(fixedDeltaTime);
+                }
+                else
+                {
+                    system.Update(fixedDeltaTime);
+                }
+
+                // Invoke after hooks
+                hookManager.InvokeAfterHooks(system, fixedDeltaTime, entry.Phase);
+            }
+        }
+        finally
+        {
+            ArrayPool<SystemEntry>.Shared.Return(rentedArray);
         }
     }
 
@@ -155,22 +211,25 @@ internal sealed class SystemManager
     /// <returns>The system instance, or null if not found.</returns>
     internal T? GetSystem<T>() where T : class, ISystem
     {
-        foreach (var entry in systems)
+        lock (syncRoot)
         {
-            if (entry.System is T typedSystem)
+            foreach (var entry in systems)
             {
-                return typedSystem;
-            }
-            if (entry.System is SystemGroup group)
-            {
-                var found = group.GetSystem<T>();
-                if (found is not null)
+                if (entry.System is T typedSystem)
                 {
-                    return found;
+                    return typedSystem;
+                }
+                if (entry.System is SystemGroup group)
+                {
+                    var found = group.GetSystem<T>();
+                    if (found is not null)
+                    {
+                        return found;
+                    }
                 }
             }
+            return null;
         }
-        return null;
     }
 
     /// <summary>
@@ -212,34 +271,52 @@ internal sealed class SystemManager
     /// <returns>True if the system was found and removed; false otherwise.</returns>
     internal bool RemoveSystem(ISystem system)
     {
-        for (int i = systems.Count - 1; i >= 0; i--)
+        lock (syncRoot)
         {
-            if (ReferenceEquals(systems[i].System, system))
+            for (int i = systems.Count - 1; i >= 0; i--)
             {
-                systems.RemoveAt(i);
-                systemsSorted = false;
-                return true;
+                if (ReferenceEquals(systems[i].System, system))
+                {
+                    systems.RemoveAt(i);
+                    systemsSorted = false;
+                    return true;
+                }
             }
+            return false;
         }
-        return false;
     }
 
     /// <summary>
     /// Gets the number of systems in this manager.
     /// </summary>
-    internal int Count => systems.Count;
+    internal int Count
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return systems.Count;
+            }
+        }
+    }
 
     /// <summary>
     /// Disposes all systems and clears the list.
     /// </summary>
     internal void DisposeAll()
     {
-        foreach (var entry in systems)
+        SystemEntry[] snapshot;
+        lock (syncRoot)
+        {
+            snapshot = [.. systems];
+            systems.Clear();
+            systemsSorted = true;
+        }
+
+        foreach (var entry in snapshot)
         {
             entry.System.Dispose();
         }
-        systems.Clear();
-        systemsSorted = true;
     }
 
     /// <summary>
@@ -248,18 +325,22 @@ internal sealed class SystemManager
     /// </summary>
     internal void Clear()
     {
-        systems.Clear();
-        systemsSorted = true;
+        lock (syncRoot)
+        {
+            systems.Clear();
+            systemsSorted = true;
+        }
     }
 
     /// <summary>
     /// Ensures systems are sorted by phase and order before iteration.
     /// Uses topological sorting when RunBefore/RunAfter constraints exist.
+    /// Must be called while holding syncRoot.
     /// </summary>
     /// <exception cref="InvalidOperationException">
     /// Thrown when a cycle is detected in system dependencies.
     /// </exception>
-    private void EnsureSystemsSorted()
+    private void EnsureSystemsSortedNoLock()
     {
         if (systemsSorted)
         {
