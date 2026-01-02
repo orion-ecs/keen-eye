@@ -11,6 +11,13 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="KeenEyes.Editor.Tests" />
+    <InternalsVisibleTo Include="KeenEyes.Cli.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="NuGet.Configuration" />
+    <PackageReference Include="NuGet.Protocol" />
+    <PackageReference Include="NuGet.Versioning" />
   </ItemGroup>
 
   <ItemGroup>
