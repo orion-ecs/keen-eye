@@ -170,6 +170,8 @@
       href: adr/013-dynamic-plugin-loading.md
     - name: ADR-014 Replay Playback Runtime/Editor Integration
       href: adr/014-replay-playback-runtime-editor-integration.md
+    - name: ADR-015 Component Schema Migrations
+      href: adr/015-component-schema-migrations.md
 - name: Performance
   items:
     - name: AOT vs JIT Benchmarks
