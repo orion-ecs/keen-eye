@@ -5,6 +5,10 @@ using System.Numerics;
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Abstractions.Capabilities;
 using KeenEyes.Editor.Application;
+using KeenEyes.Editor.Plugins.Installation;
+using KeenEyes.Editor.Plugins.NuGet;
+using KeenEyes.Editor.Plugins.Registry;
+using KeenEyes.Editor.Plugins.Settings;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.UI.Abstractions;
@@ -17,9 +21,12 @@ namespace KeenEyes.Editor.Plugins.BuiltIn;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The plugin manager panel displays all discovered plugins with their status,
-/// allows enabling/disabling plugins that support it, and hot reloading plugins
-/// that support hot reload.
+/// The plugin manager panel has three tabs:
+/// <list type="bullet">
+/// <item><b>Installed</b> - View and manage installed plugins</item>
+/// <item><b>Browse</b> - Search and install new plugins from NuGet sources</item>
+/// <item><b>Settings</b> - Configure plugin paths, sources, and options</item>
+/// </list>
 /// </para>
 /// </remarks>
 internal sealed class PluginManagerPlugin : EditorPluginBase
@@ -49,10 +56,10 @@ internal sealed class PluginManagerPlugin : EditorPluginBase
                 Icon = "plugins",
                 DefaultLocation = PanelDockLocation.Right,
                 OpenByDefault = false,
-                MinWidth = 400,
-                MinHeight = 300,
-                DefaultWidth = 500,
-                DefaultHeight = 400,
+                MinWidth = 500,
+                MinHeight = 400,
+                DefaultWidth = 600,
+                DefaultHeight = 500,
                 Category = "Tools",
                 ToggleShortcut = "Ctrl+Shift+P"
             },
@@ -85,11 +92,12 @@ internal sealed class PluginManagerPlugin : EditorPluginBase
 }
 
 /// <summary>
-/// Implementation of the plugin manager panel.
+/// Implementation of the plugin manager panel with tabs.
 /// </summary>
 internal sealed class PluginManagerPanelImpl : IEditorPanel
 {
     private const float RefreshInterval = 1.0f;
+    private const float SearchDebounceTime = 0.3f;
 
     private Entity rootEntity;
     private IWorld? editorWorld;
@@ -97,6 +105,13 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
     private EditorPluginManager? pluginManager;
     private FontHandle font;
     private float refreshTimer;
+
+    // Services
+    private INuGetClient? nugetClient;
+    private PluginRegistry? registry;
+    private PluginInstaller? installer;
+    private PluginUninstaller? uninstaller;
+    private GlobalPluginSettings? settings;
 
     /// <inheritdoc />
     public Entity RootEntity => rootEntity;
@@ -109,18 +124,39 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         rootEntity = panelContext.Parent;
 
         // Get the plugin manager from the editor context
-        // The plugin manager is stored as a global extension
         if (editorContext.TryGetExtension<EditorPluginManager>(out var manager))
         {
             pluginManager = manager;
         }
+
+        // Get services
+        if (editorContext.TryGetExtension<INuGetClient>(out var nuget))
+        {
+            nugetClient = nuget;
+        }
+
+        if (editorContext.TryGetExtension<PluginRegistry>(out var reg))
+        {
+            registry = reg;
+        }
+
+        // Create installer and uninstaller if we have the required services
+        if (nugetClient is not null && registry is not null)
+        {
+            installer = new PluginInstaller(nugetClient, registry);
+            uninstaller = new PluginUninstaller(registry);
+        }
+
+        // Load settings
+        settings = new GlobalPluginSettings();
+        settings.Load();
 
         // TODO: Get font from panel context or resource manager
         font = default;
 
         CreatePanelUI();
         SubscribeToEvents();
-        RefreshPluginList();
+        RefreshInstalledPluginList();
     }
 
     private void SubscribeToEvents()
@@ -132,6 +168,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
 
         // Subscribe to click events
         editorWorld.Subscribe<UIClickEvent>(OnClick);
+        editorWorld.Subscribe<UITextChangedEvent>(OnTextChanged);
     }
 
     private void OnClick(UIClickEvent e)
@@ -143,7 +180,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
 
         var clickedEntity = e.Element;
 
-        // Check if a plugin list item was clicked
+        // Check if a plugin list item was clicked (Installed tab)
         if (editorWorld.Has<PluginListItemData>(clickedEntity))
         {
             ref readonly var itemData = ref editorWorld.Get<PluginListItemData>(clickedEntity);
@@ -157,6 +194,51 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             ref readonly var buttonData = ref editorWorld.Get<PluginControlButtonData>(clickedEntity);
             ExecuteButtonAction(buttonData.PluginId, buttonData.Action);
             return;
+        }
+
+        // Check if a browse result item was clicked
+        if (editorWorld.Has<BrowseResultItemData>(clickedEntity))
+        {
+            ref readonly var browseData = ref editorWorld.Get<BrowseResultItemData>(clickedEntity);
+            SelectBrowseResult(browseData.PackageId);
+            return;
+        }
+
+        // Check if an install button was clicked
+        if (editorWorld.Has<InstallButtonData>(clickedEntity))
+        {
+            ref readonly var installData = ref editorWorld.Get<InstallButtonData>(clickedEntity);
+            StartInstallPackage(installData.PackageId, installData.Version);
+            return;
+        }
+
+        // Check if a settings control was clicked
+        if (editorWorld.Has<SettingsControlData>(clickedEntity))
+        {
+            ref readonly var settingsData = ref editorWorld.Get<SettingsControlData>(clickedEntity);
+            ExecuteSettingsAction(settingsData);
+            return;
+        }
+    }
+
+    private void OnTextChanged(UITextChangedEvent e)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        // Check if the search box changed
+        if (editorWorld.Has<SearchBoxData>(e.Element))
+        {
+            if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+            {
+                return;
+            }
+
+            ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+            state.SearchQuery = e.NewText;
+            state.SearchDebounceTimer = SearchDebounceTime;
         }
     }
 
@@ -178,10 +260,13 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             case PluginButtonAction.Reload:
                 pluginManager.ReloadDynamicPlugin(pluginId);
                 break;
+            case PluginButtonAction.Uninstall:
+                StartUninstallPlugin(pluginId);
+                break;
         }
 
         // Refresh the UI after action
-        RefreshPluginList();
+        RefreshInstalledPluginList();
 
         // Re-select the current plugin to update the details view
         if (editorWorld is not null && editorWorld.Has<PluginManagerPanelState>(rootEntity))
@@ -192,21 +277,160 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
                 var plugin = pluginManager.GetDynamicPlugin(state.SelectedPluginId);
                 if (plugin is not null)
                 {
-                    ShowPluginDetails(plugin);
+                    ShowInstalledPluginDetails(plugin);
                 }
             }
+        }
+    }
+
+    private void ExecuteSettingsAction(SettingsControlData data)
+    {
+        if (settings is null)
+        {
+            return;
+        }
+
+        switch (data.Action)
+        {
+            case SettingsAction.ToggleHotReload:
+                settings.SetHotReloadEnabled(!settings.HotReload.Enabled);
+                settings.Save();
+                RefreshSettingsTab();
+                break;
+            case SettingsAction.ToggleDeveloperMode:
+                settings.SetDeveloperModeEnabled(!settings.Developer.Enabled);
+                settings.Save();
+                RefreshSettingsTab();
+                break;
+            case SettingsAction.ToggleVerboseLogging:
+                settings.SetVerboseLoggingEnabled(!settings.Developer.VerboseLogging);
+                settings.Save();
+                RefreshSettingsTab();
+                break;
+            case SettingsAction.ToggleCodeSigning:
+                settings.SetCodeSigningRequired(!settings.Security.RequireCodeSigning);
+                settings.Save();
+                RefreshSettingsTab();
+                break;
+            case SettingsAction.TogglePermissionSystem:
+                settings.SetPermissionSystemEnabled(!settings.Security.EnablePermissionSystem);
+                settings.Save();
+                RefreshSettingsTab();
+                break;
+            case SettingsAction.AddSource:
+                // TODO: Show add source dialog
+                break;
+            case SettingsAction.RemoveSource:
+                if (!string.IsNullOrEmpty(data.TargetId))
+                {
+                    settings.RemoveSource(data.TargetId);
+                    settings.Save();
+                    RefreshSettingsTab();
+                }
+                break;
+            case SettingsAction.AddSearchPath:
+                // TODO: Show add path dialog
+                break;
+            case SettingsAction.RemoveSearchPath:
+                if (!string.IsNullOrEmpty(data.TargetId))
+                {
+                    settings.RemoveSearchPath(data.TargetId);
+                    settings.Save();
+                    RefreshSettingsTab();
+                }
+                break;
         }
     }
 
     /// <inheritdoc />
     public void Update(float deltaTime)
     {
-        refreshTimer += deltaTime;
+        if (editorWorld is null)
+        {
+            return;
+        }
 
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+
+        // Handle periodic refresh for installed tab
+        refreshTimer += deltaTime;
         if (refreshTimer >= RefreshInterval)
         {
             refreshTimer = 0f;
-            RefreshPluginList();
+            RefreshInstalledPluginList();
+        }
+
+        // Handle search debounce
+        if (state.SearchDebounceTimer > 0)
+        {
+            state.SearchDebounceTimer -= deltaTime;
+            if (state.SearchDebounceTimer <= 0)
+            {
+                StartSearch(state.SearchQuery ?? string.Empty);
+            }
+        }
+
+        // Handle async operation updates
+        UpdateAsyncOperation(ref state);
+    }
+
+    private void UpdateAsyncOperation(ref PluginManagerPanelState state)
+    {
+        if (state.AsyncTask is null || !state.AsyncTask.IsCompleted)
+        {
+            return;
+        }
+
+        if (state.AsyncTask.IsFaulted)
+        {
+            state.AsyncStatus = AsyncOperationStatus.Failed;
+            state.AsyncErrorMessage = state.AsyncTask.Exception?.InnerException?.Message ?? "Unknown error";
+        }
+        else if (state.AsyncTask.IsCanceled)
+        {
+            state.AsyncStatus = AsyncOperationStatus.Idle;
+        }
+        else
+        {
+            state.AsyncStatus = AsyncOperationStatus.Completed;
+            HandleAsyncCompletion(state.AsyncType, state.AsyncTask);
+        }
+
+        state.AsyncTask = null;
+        state.AsyncType = AsyncOperationType.None;
+
+        // Update UI to reflect completion
+        RefreshBrowseTab();
+    }
+
+    private void HandleAsyncCompletion(AsyncOperationType type, Task task)
+    {
+        switch (type)
+        {
+            case AsyncOperationType.Search:
+                if (task is Task<IReadOnlyList<PackageSearchResult>> searchTask)
+                {
+                    UpdateSearchResults(searchTask.Result);
+                }
+                break;
+            case AsyncOperationType.Install:
+                if (task is Task<InstallationResult> installTask && installTask.Result.Success)
+                {
+                    registry?.Load();
+                    RefreshInstalledPluginList();
+                }
+                break;
+            case AsyncOperationType.Uninstall:
+                if (task is Task<UninstallResult> uninstallTask && uninstallTask.Result.Success)
+                {
+                    RefreshInstalledPluginList();
+                }
+                break;
         }
     }
 
@@ -223,11 +447,63 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             return;
         }
 
+        // Create tab view with three tabs
+        var tabs = new[]
+        {
+            new TabConfig("Installed", MinWidth: 80),
+            new TabConfig("Browse", MinWidth: 70),
+            new TabConfig("Settings", MinWidth: 70)
+        };
+
+        var tabViewConfig = new TabViewConfig
+        {
+            TabBarHeight = 32,
+            TabSpacing = 4
+        };
+
+        var (tabView, contentPanels) = WidgetFactory.CreateTabView(
+            editorWorld,
+            rootEntity,
+            "PluginManagerTabs",
+            tabs,
+            font,
+            tabViewConfig);
+
+        ref var tabRect = ref editorWorld.Get<UIRect>(tabView);
+        tabRect.WidthMode = UISizeMode.Fill;
+        tabRect.HeightMode = UISizeMode.Fill;
+
+        // Store panel state
+        editorWorld.Add(rootEntity, new PluginManagerPanelState
+        {
+            TabView = tabView,
+            InstalledTabContent = contentPanels[0],
+            BrowseTabContent = contentPanels[1],
+            SettingsTabContent = contentPanels[2],
+            SelectedPluginId = null,
+            SearchResults = []
+        });
+
+        // Build each tab's content
+        BuildInstalledTabContent(contentPanels[0]);
+        BuildBrowseTabContent(contentPanels[1]);
+        BuildSettingsTabContent(contentPanels[2]);
+    }
+
+    #region Installed Tab
+
+    private void BuildInstalledTabContent(Entity parent)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
         // Create the main split container (horizontal)
         var splitContainer = WidgetFactory.CreatePanel(
             editorWorld,
-            rootEntity,
-            "PluginSplitContainer",
+            parent,
+            "InstalledSplitContainer",
             new PanelConfig(
                 Direction: LayoutDirection.Horizontal,
                 BackgroundColor: EditorColors.DarkPanel
@@ -238,28 +514,28 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         splitRect.HeightMode = UISizeMode.Fill;
 
         // Create left panel (plugin list)
-        var leftPanel = CreatePluginListPanel(splitContainer);
+        var leftPanel = CreateInstalledPluginListPanel(splitContainer);
 
         // Create divider
-        WidgetFactory.CreateDivider(editorWorld, splitContainer, "PluginDivider", new DividerConfig(
+        WidgetFactory.CreateDivider(editorWorld, splitContainer, "InstalledDivider", new DividerConfig(
             Orientation: LayoutDirection.Vertical,
             Thickness: 1,
             Color: new Vector4(0.3f, 0.3f, 0.35f, 1f)
         ));
 
         // Create right panel (details)
-        var rightPanel = CreateDetailsPanel(splitContainer);
+        var rightPanel = CreateInstalledDetailsPanel(splitContainer);
 
-        // Store panel state
-        editorWorld.Add(rootEntity, new PluginManagerPanelState
+        // Update state with containers
+        if (editorWorld.Has<PluginManagerPanelState>(rootEntity))
         {
-            PluginListContainer = leftPanel,
-            DetailsContainer = rightPanel,
-            SelectedPluginId = null
-        });
+            ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+            state.InstalledListContainer = leftPanel;
+            state.InstalledDetailsContainer = rightPanel;
+        }
     }
 
-    private Entity CreatePluginListPanel(Entity parent)
+    private Entity CreateInstalledPluginListPanel(Entity parent)
     {
         if (editorWorld is null)
         {
@@ -270,7 +546,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         var listPanel = WidgetFactory.CreatePanel(
             editorWorld,
             parent,
-            "PluginListPanel",
+            "InstalledListPanel",
             new PanelConfig(
                 Width: 180,
                 Direction: LayoutDirection.Vertical,
@@ -284,7 +560,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         var header = WidgetFactory.CreatePanel(
             editorWorld,
             listPanel,
-            "PluginListHeader",
+            "InstalledListHeader",
             new PanelConfig(
                 Height: 28,
                 Direction: LayoutDirection.Horizontal,
@@ -300,7 +576,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         WidgetFactory.CreateLabel(
             editorWorld,
             header,
-            "PluginListTitle",
+            "InstalledListTitle",
             "PLUGINS",
             font,
             new LabelConfig(
@@ -313,7 +589,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         var listContainer = WidgetFactory.CreatePanel(
             editorWorld,
             listPanel,
-            "PluginListItems",
+            "InstalledListItems",
             new PanelConfig(
                 Direction: LayoutDirection.Vertical,
                 BackgroundColor: EditorColors.MediumPanel,
@@ -327,7 +603,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         return listContainer;
     }
 
-    private Entity CreateDetailsPanel(Entity parent)
+    private Entity CreateInstalledDetailsPanel(Entity parent)
     {
         if (editorWorld is null)
         {
@@ -338,7 +614,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         var detailsPanel = WidgetFactory.CreatePanel(
             editorWorld,
             parent,
-            "PluginDetailsPanel",
+            "InstalledDetailsPanel",
             new PanelConfig(
                 Direction: LayoutDirection.Vertical,
                 BackgroundColor: EditorColors.DarkPanel,
@@ -353,7 +629,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         WidgetFactory.CreateLabel(
             editorWorld,
             detailsPanel,
-            "PluginDetailsPlaceholder",
+            "InstalledDetailsPlaceholder",
             "Select a plugin to view details",
             font,
             new LabelConfig(
@@ -366,7 +642,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         return detailsPanel;
     }
 
-    private void RefreshPluginList()
+    private void RefreshInstalledPluginList()
     {
         if (editorWorld is null || pluginManager is null)
         {
@@ -379,7 +655,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         }
 
         ref readonly var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
-        var listContainer = state.PluginListContainer;
+        var listContainer = state.InstalledListContainer;
 
         if (!listContainer.IsValid)
         {
@@ -392,18 +668,18 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         // Add plugin items
         foreach (var plugin in pluginManager.GetDynamicPlugins())
         {
-            CreatePluginListItem(listContainer, plugin);
+            CreateInstalledPluginListItem(listContainer, plugin);
         }
     }
 
-    private void CreatePluginListItem(Entity parent, LoadedPlugin plugin)
+    private void CreateInstalledPluginListItem(Entity parent, LoadedPlugin plugin)
     {
         if (editorWorld is null)
         {
             return;
         }
 
-        var itemId = $"PluginItem_{plugin.Manifest.Id}";
+        var itemId = $"InstalledItem_{plugin.Manifest.Id}";
 
         // Create item container
         var item = WidgetFactory.CreatePanel(
@@ -479,36 +755,6 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             ));
     }
 
-    private void ClearChildren(Entity parent)
-    {
-        if (editorWorld is null || !parent.IsValid)
-        {
-            return;
-        }
-
-        var children = editorWorld.GetChildren(parent).ToList();
-        foreach (var child in children)
-        {
-            DespawnRecursive(child);
-        }
-    }
-
-    private void DespawnRecursive(Entity entity)
-    {
-        if (editorWorld is null)
-        {
-            return;
-        }
-
-        var children = editorWorld.GetChildren(entity).ToList();
-        foreach (var child in children)
-        {
-            DespawnRecursive(child);
-        }
-
-        editorWorld.Despawn(entity);
-    }
-
     /// <summary>
     /// Gets the color for a plugin state.
     /// </summary>
@@ -550,10 +796,10 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             return;
         }
 
-        ShowPluginDetails(plugin);
+        ShowInstalledPluginDetails(plugin);
     }
 
-    private void ShowPluginDetails(LoadedPlugin plugin)
+    private void ShowInstalledPluginDetails(LoadedPlugin plugin)
     {
         if (editorWorld is null)
         {
@@ -566,7 +812,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         }
 
         ref readonly var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
-        var detailsContainer = state.DetailsContainer;
+        var detailsContainer = state.InstalledDetailsContainer;
 
         if (!detailsContainer.IsValid)
         {
@@ -580,7 +826,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         var header = WidgetFactory.CreatePanel(
             editorWorld,
             detailsContainer,
-            "PluginDetailsHeader",
+            "InstalledDetailsHeader",
             new PanelConfig(
                 Height: 60,
                 Direction: LayoutDirection.Vertical,
@@ -595,7 +841,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         WidgetFactory.CreateLabel(
             editorWorld,
             header,
-            "PluginName",
+            "InstalledPluginName",
             plugin.Manifest.Name,
             font,
             new LabelConfig(
@@ -614,7 +860,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         WidgetFactory.CreateLabel(
             editorWorld,
             header,
-            "PluginSubtitle",
+            "InstalledPluginSubtitle",
             subtitle,
             font,
             new LabelConfig(
@@ -629,7 +875,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             WidgetFactory.CreateLabel(
                 editorWorld,
                 detailsContainer,
-                "PluginDescription",
+                "InstalledPluginDescription",
                 plugin.Manifest.Description,
                 font,
                 new LabelConfig(
@@ -640,7 +886,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         }
 
         // Divider
-        WidgetFactory.CreateDivider(editorWorld, detailsContainer, "DetailsDivider", new DividerConfig(
+        WidgetFactory.CreateDivider(editorWorld, detailsContainer, "InstalledDetailsDivider", new DividerConfig(
             Orientation: LayoutDirection.Horizontal,
             Thickness: 1,
             Margin: 8,
@@ -678,7 +924,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         WidgetFactory.CreateLabel(
             editorWorld,
             parent,
-            "PluginDependencies",
+            "InstalledPluginDependencies",
             $"Dependencies: {depsText}",
             font,
             new LabelConfig(
@@ -708,7 +954,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         WidgetFactory.CreateLabel(
             editorWorld,
             parent,
-            "PluginPermissions",
+            "InstalledPluginPermissions",
             $"Permissions: {permsText}",
             font,
             new LabelConfig(
@@ -729,7 +975,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         var buttonContainer = WidgetFactory.CreatePanel(
             editorWorld,
             parent,
-            "PluginControlButtons",
+            "InstalledControlButtons",
             new PanelConfig(
                 Height: 40,
                 Direction: LayoutDirection.Horizontal,
@@ -751,7 +997,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             var enableButton = WidgetFactory.CreateButton(
                 editorWorld,
                 buttonContainer,
-                "PluginEnableButton",
+                "InstalledEnableButton",
                 buttonText,
                 font,
                 new ButtonConfig(
@@ -772,7 +1018,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             WidgetFactory.CreateLabel(
                 editorWorld,
                 buttonContainer,
-                "PluginRestartRequired",
+                "InstalledRestartRequired",
                 "Restart Required",
                 font,
                 new LabelConfig(
@@ -788,7 +1034,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             var reloadButton = WidgetFactory.CreateButton(
                 editorWorld,
                 buttonContainer,
-                "PluginReloadButton",
+                "InstalledReloadButton",
                 "Reload",
                 font,
                 new ButtonConfig(
@@ -803,6 +1049,25 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
                 Action = PluginButtonAction.Reload
             });
         }
+
+        // Uninstall button
+        var uninstallButton = WidgetFactory.CreateButton(
+            editorWorld,
+            buttonContainer,
+            "InstalledUninstallButton",
+            "Uninstall",
+            font,
+            new ButtonConfig(
+                Width: 80,
+                Height: 28,
+                BackgroundColor: new Vector4(0.6f, 0.2f, 0.2f, 1f)
+            ));
+
+        editorWorld.Add(uninstallButton, new PluginControlButtonData
+        {
+            PluginId = plugin.Manifest.Id,
+            Action = PluginButtonAction.Uninstall
+        });
     }
 
     private void CreateErrorSection(Entity parent, LoadedPlugin plugin)
@@ -829,7 +1094,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         WidgetFactory.CreateLabel(
             editorWorld,
             content,
-            "PluginErrorMessage",
+            "InstalledErrorMessage",
             plugin.ErrorMessage,
             font,
             new LabelConfig(
@@ -838,27 +1103,1166 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
                 HorizontalAlign: TextAlignH.Left
             ));
     }
+
+    private void StartUninstallPlugin(string pluginId)
+    {
+        if (uninstaller is null || editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        // For now, do synchronous uninstall (it's fast, just registry operations)
+        var result = uninstaller.Uninstall(pluginId, force: false);
+
+        if (!result.Success)
+        {
+            // TODO: Show error toast or dialog
+            return;
+        }
+
+        RefreshInstalledPluginList();
+    }
+
+    #endregion
+
+    #region Browse Tab
+
+    private void BuildBrowseTabContent(Entity parent)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        // Add layout to parent
+        editorWorld.Add(parent, new UILayout
+        {
+            Direction = LayoutDirection.Vertical,
+            MainAxisAlign = LayoutAlign.Start,
+            CrossAxisAlign = LayoutAlign.Start,
+            Spacing = 0
+        });
+
+        // Create search bar
+        _ = CreateSearchBar(parent);
+
+        // Create main content split (results list | details)
+        var splitContainer = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            "BrowseSplitContainer",
+            new PanelConfig(
+                Direction: LayoutDirection.Horizontal,
+                BackgroundColor: EditorColors.DarkPanel
+            ));
+
+        ref var splitRect = ref editorWorld.Get<UIRect>(splitContainer);
+        splitRect.WidthMode = UISizeMode.Fill;
+        splitRect.HeightMode = UISizeMode.Fill;
+
+        // Create results list panel
+        var resultsPanel = CreateBrowseResultsPanel(splitContainer);
+
+        // Create divider
+        WidgetFactory.CreateDivider(editorWorld, splitContainer, "BrowseDivider", new DividerConfig(
+            Orientation: LayoutDirection.Vertical,
+            Thickness: 1,
+            Color: new Vector4(0.3f, 0.3f, 0.35f, 1f)
+        ));
+
+        // Create details panel
+        var detailsPanel = CreateBrowseDetailsPanel(splitContainer);
+
+        // Update state
+        if (editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+            state.BrowseResultsContainer = resultsPanel;
+            state.BrowseDetailsContainer = detailsPanel;
+        }
+    }
+
+    private Entity CreateSearchBar(Entity parent)
+    {
+        if (editorWorld is null)
+        {
+            return Entity.Null;
+        }
+
+        var searchContainer = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            "BrowseSearchBar",
+            new PanelConfig(
+                Height: 40,
+                Direction: LayoutDirection.Horizontal,
+                MainAxisAlign: LayoutAlign.Start,
+                CrossAxisAlign: LayoutAlign.Center,
+                BackgroundColor: EditorColors.MediumPanel,
+                Padding: UIEdges.All(8),
+                Spacing: 8
+            ));
+
+        ref var containerRect = ref editorWorld.Get<UIRect>(searchContainer);
+        containerRect.WidthMode = UISizeMode.Fill;
+
+        // Search label
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            searchContainer,
+            "BrowseSearchLabel",
+            "Search:",
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: EditorColors.TextLight,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Search input
+        var searchInput = WidgetFactory.CreateTextField(
+            editorWorld,
+            searchContainer,
+            "BrowseSearchInput",
+            font,
+            new TextFieldConfig(
+                Width: 300,
+                Height: 24,
+                PlaceholderText: "Search plugins..."
+            ));
+
+        editorWorld.Add(searchInput, new SearchBoxData());
+
+        // Refresh button
+        _ = WidgetFactory.CreateButton(
+            editorWorld,
+            searchContainer,
+            "BrowseRefreshButton",
+            "Refresh",
+            font,
+            new ButtonConfig(
+                Width: 70,
+                Height: 24,
+                BackgroundColor: EditorColors.MediumPanel
+            ));
+
+        return searchContainer;
+    }
+
+    private Entity CreateBrowseResultsPanel(Entity parent)
+    {
+        if (editorWorld is null)
+        {
+            return Entity.Null;
+        }
+
+        var resultsPanel = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            "BrowseResultsPanel",
+            new PanelConfig(
+                Width: 200,
+                Direction: LayoutDirection.Vertical,
+                BackgroundColor: EditorColors.MediumPanel
+            ));
+
+        ref var resultsRect = ref editorWorld.Get<UIRect>(resultsPanel);
+        resultsRect.HeightMode = UISizeMode.Fill;
+
+        // Header
+        var header = WidgetFactory.CreatePanel(
+            editorWorld,
+            resultsPanel,
+            "BrowseResultsHeader",
+            new PanelConfig(
+                Height: 28,
+                Direction: LayoutDirection.Horizontal,
+                MainAxisAlign: LayoutAlign.Start,
+                CrossAxisAlign: LayoutAlign.Center,
+                BackgroundColor: EditorColors.DarkPanel,
+                Padding: UIEdges.All(8)
+            ));
+
+        ref var headerRect = ref editorWorld.Get<UIRect>(header);
+        headerRect.WidthMode = UISizeMode.Fill;
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            header,
+            "BrowseResultsTitle",
+            "AVAILABLE",
+            font,
+            new LabelConfig(
+                FontSize: 11,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Results list container
+        var listContainer = WidgetFactory.CreatePanel(
+            editorWorld,
+            resultsPanel,
+            "BrowseResultsItems",
+            new PanelConfig(
+                Direction: LayoutDirection.Vertical,
+                BackgroundColor: EditorColors.MediumPanel,
+                Padding: UIEdges.All(4)
+            ));
+
+        ref var listRect = ref editorWorld.Get<UIRect>(listContainer);
+        listRect.WidthMode = UISizeMode.Fill;
+        listRect.HeightMode = UISizeMode.Fill;
+
+        return listContainer;
+    }
+
+    private Entity CreateBrowseDetailsPanel(Entity parent)
+    {
+        if (editorWorld is null)
+        {
+            return Entity.Null;
+        }
+
+        var detailsPanel = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            "BrowseDetailsPanel",
+            new PanelConfig(
+                Direction: LayoutDirection.Vertical,
+                BackgroundColor: EditorColors.DarkPanel,
+                Padding: UIEdges.All(12)
+            ));
+
+        ref var detailsRect = ref editorWorld.Get<UIRect>(detailsPanel);
+        detailsRect.WidthMode = UISizeMode.Fill;
+        detailsRect.HeightMode = UISizeMode.Fill;
+
+        // Placeholder
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            detailsPanel,
+            "BrowseDetailsPlaceholder",
+            "Search for plugins to browse available packages",
+            font,
+            new LabelConfig(
+                FontSize: 13,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Center,
+                VerticalAlign: TextAlignV.Middle
+            ));
+
+        return detailsPanel;
+    }
+
+    private void StartSearch(string query)
+    {
+        if (nugetClient is null || editorWorld is null || string.IsNullOrWhiteSpace(query))
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+
+        // Start async search
+        state.AsyncType = AsyncOperationType.Search;
+        state.AsyncStatus = AsyncOperationStatus.Running;
+        state.AsyncTask = nugetClient.SearchAsync(query, settings?.GetDefaultSourceUrl(), take: 50);
+    }
+
+    private void UpdateSearchResults(IReadOnlyList<PackageSearchResult> results)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+        state.SearchResults = results.ToList();
+
+        RefreshBrowseTab();
+    }
+
+    private void RefreshBrowseTab()
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref readonly var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+        var resultsContainer = state.BrowseResultsContainer;
+
+        if (!resultsContainer.IsValid)
+        {
+            return;
+        }
+
+        // Clear existing results
+        ClearChildren(resultsContainer);
+
+        // Add result items
+        foreach (var result in state.SearchResults)
+        {
+            CreateBrowseResultItem(resultsContainer, result);
+        }
+    }
+
+    private void CreateBrowseResultItem(Entity parent, PackageSearchResult result)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var itemId = $"BrowseItem_{result.PackageId}";
+
+        var item = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            itemId,
+            new PanelConfig(
+                Height: 40,
+                Direction: LayoutDirection.Vertical,
+                MainAxisAlign: LayoutAlign.Center,
+                BackgroundColor: Vector4.Zero,
+                Padding: UIEdges.Symmetric(8, 4)
+            ));
+
+        ref var itemRect = ref editorWorld.Get<UIRect>(item);
+        itemRect.WidthMode = UISizeMode.Fill;
+
+        editorWorld.Add(item, new UIInteractable
+        {
+            CanClick = true,
+            CanFocus = true
+        });
+
+        editorWorld.Add(item, new BrowseResultItemData
+        {
+            PackageId = result.PackageId
+        });
+
+        // Package name
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            item,
+            $"{itemId}_Name",
+            result.PackageId,
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: EditorColors.TextLight,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Version and downloads
+        var downloads = result.DownloadCount.HasValue
+            ? FormatDownloadCount(result.DownloadCount.Value)
+            : "";
+        var info = $"v{result.LatestVersion}";
+        if (!string.IsNullOrEmpty(downloads))
+        {
+            info += $" | {downloads}";
+        }
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            item,
+            $"{itemId}_Info",
+            info,
+            font,
+            new LabelConfig(
+                FontSize: 10,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+    }
+
+    private static string FormatDownloadCount(long count)
+    {
+        return count switch
+        {
+            >= 1_000_000_000 => $"{count / 1_000_000_000.0:F1}B",
+            >= 1_000_000 => $"{count / 1_000_000.0:F1}M",
+            >= 1_000 => $"{count / 1_000.0:F1}K",
+            _ => count.ToString()
+        };
+    }
+
+    private void SelectBrowseResult(string packageId)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+        state.SelectedBrowsePackageId = packageId;
+
+        var result = state.SearchResults.FirstOrDefault(r => r.PackageId == packageId);
+        if (result is not null)
+        {
+            ShowBrowseDetails(result);
+        }
+    }
+
+    private void ShowBrowseDetails(PackageSearchResult result)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref readonly var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+        var detailsContainer = state.BrowseDetailsContainer;
+
+        if (!detailsContainer.IsValid)
+        {
+            return;
+        }
+
+        ClearChildren(detailsContainer);
+
+        // Header
+        var header = WidgetFactory.CreatePanel(
+            editorWorld,
+            detailsContainer,
+            "BrowseDetailsHeader",
+            new PanelConfig(
+                Height: 60,
+                Direction: LayoutDirection.Vertical,
+                MainAxisAlign: LayoutAlign.Start,
+                BackgroundColor: Vector4.Zero
+            ));
+
+        ref var headerRect = ref editorWorld.Get<UIRect>(header);
+        headerRect.WidthMode = UISizeMode.Fill;
+
+        // Package name
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            header,
+            "BrowsePackageName",
+            result.PackageId,
+            font,
+            new LabelConfig(
+                FontSize: 18,
+                TextColor: EditorColors.TextWhite,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Version and author
+        var subtitle = $"v{result.LatestVersion}";
+        if (!string.IsNullOrEmpty(result.Authors))
+        {
+            subtitle += $" by {result.Authors}";
+        }
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            header,
+            "BrowsePackageSubtitle",
+            subtitle,
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Description
+        if (!string.IsNullOrEmpty(result.Description))
+        {
+            WidgetFactory.CreateLabel(
+                editorWorld,
+                detailsContainer,
+                "BrowsePackageDescription",
+                result.Description,
+                font,
+                new LabelConfig(
+                    FontSize: 13,
+                    TextColor: EditorColors.TextLight,
+                    HorizontalAlign: TextAlignH.Left
+                ));
+        }
+
+        // Install button
+        var buttonContainer = WidgetFactory.CreatePanel(
+            editorWorld,
+            detailsContainer,
+            "BrowseInstallButtonContainer",
+            new PanelConfig(
+                Height: 40,
+                Direction: LayoutDirection.Horizontal,
+                MainAxisAlign: LayoutAlign.Start,
+                CrossAxisAlign: LayoutAlign.Center,
+                BackgroundColor: Vector4.Zero,
+                Spacing: 8
+            ));
+
+        ref var buttonRect = ref editorWorld.Get<UIRect>(buttonContainer);
+        buttonRect.WidthMode = UISizeMode.Fill;
+
+        // Check if already installed
+        var isInstalled = registry?.IsInstalled(result.PackageId) ?? false;
+
+        var installButton = WidgetFactory.CreateButton(
+            editorWorld,
+            buttonContainer,
+            "BrowseInstallButton",
+            isInstalled ? "Installed" : "Install",
+            font,
+            new ButtonConfig(
+                Width: 80,
+                Height: 28,
+                BackgroundColor: isInstalled ? EditorColors.MediumPanel : EditorColors.Primary
+            ));
+
+        if (!isInstalled)
+        {
+            editorWorld.Add(installButton, new InstallButtonData
+            {
+                PackageId = result.PackageId,
+                Version = result.LatestVersion
+            });
+        }
+    }
+
+    private void StartInstallPackage(string packageId, string version)
+    {
+        if (installer is null || editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+
+        // Start async install
+        var source = settings?.GetDefaultSourceUrl();
+        var installTask = Task.Run(async () =>
+        {
+            var plan = await installer.CreatePlanAsync(packageId, version, source);
+            if (!plan.IsValid)
+            {
+                return InstallationResult.Failed(plan.ErrorMessage ?? "Failed to create installation plan");
+            }
+
+            return await installer.ExecuteAsync(plan, null);
+        });
+
+        state.AsyncType = AsyncOperationType.Install;
+        state.AsyncStatus = AsyncOperationStatus.Running;
+        state.AsyncTask = installTask;
+    }
+
+    #endregion
+
+    #region Settings Tab
+
+    private void BuildSettingsTabContent(Entity parent)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        // Add layout to parent and make it scrollable
+        editorWorld.Add(parent, new UILayout
+        {
+            Direction = LayoutDirection.Vertical,
+            MainAxisAlign = LayoutAlign.Start,
+            CrossAxisAlign = LayoutAlign.Start,
+            Spacing = 12
+        });
+
+        editorWorld.Add(parent, new UIStyle
+        {
+            Padding = UIEdges.All(12)
+        });
+
+        // Create settings sections
+        CreateSourcesSection(parent);
+        CreateSearchPathsSection(parent);
+        CreateHotReloadSection(parent);
+        CreateDeveloperSection(parent);
+        CreateSecuritySection(parent);
+
+        // Store reference
+        if (editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+            state.SettingsContent = parent;
+        }
+    }
+
+    private void CreateSourcesSection(Entity parent)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        // Section header
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            parent,
+            "SettingsSourcesHeader",
+            "PACKAGE SOURCES",
+            font,
+            new LabelConfig(
+                FontSize: 11,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Sources list
+        foreach (var source in settings.GetSources())
+        {
+            CreateSourceRow(parent, source);
+        }
+
+        // Add source button
+        var addButton = WidgetFactory.CreateButton(
+            editorWorld,
+            parent,
+            "SettingsAddSourceButton",
+            "+ Add Source",
+            font,
+            new ButtonConfig(
+                Width: 100,
+                Height: 24,
+                BackgroundColor: EditorColors.MediumPanel
+            ));
+
+        editorWorld.Add(addButton, new SettingsControlData
+        {
+            Action = SettingsAction.AddSource
+        });
+    }
+
+    private void CreateSourceRow(Entity parent, PluginSourceSettings source)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var row = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            $"SettingsSource_{source.Name}",
+            new PanelConfig(
+                Height: 24,
+                Direction: LayoutDirection.Horizontal,
+                MainAxisAlign: LayoutAlign.Start,
+                CrossAxisAlign: LayoutAlign.Center,
+                BackgroundColor: Vector4.Zero,
+                Spacing: 8
+            ));
+
+        ref var rowRect = ref editorWorld.Get<UIRect>(row);
+        rowRect.WidthMode = UISizeMode.Fill;
+
+        // Checkbox
+        var checkColor = source.IsEnabled
+            ? new Vector4(0.3f, 0.7f, 0.3f, 1f)
+            : new Vector4(0.5f, 0.5f, 0.5f, 1f);
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            row,
+            $"SettingsSource_{source.Name}_Check",
+            source.IsEnabled ? "[x]" : "[ ]",
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: checkColor,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Name
+        var nameText = source.Name;
+        if (source.IsDefault)
+        {
+            nameText += " (default)";
+        }
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            row,
+            $"SettingsSource_{source.Name}_Name",
+            nameText,
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: EditorColors.TextLight,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Remove button (if not default)
+        if (!source.IsDefault)
+        {
+            var removeButton = WidgetFactory.CreateButton(
+                editorWorld,
+                row,
+                $"SettingsSource_{source.Name}_Remove",
+                "Remove",
+                font,
+                new ButtonConfig(
+                    Width: 60,
+                    Height: 20,
+                    BackgroundColor: new Vector4(0.5f, 0.2f, 0.2f, 1f)
+                ));
+
+            editorWorld.Add(removeButton, new SettingsControlData
+            {
+                Action = SettingsAction.RemoveSource,
+                TargetId = source.Name
+            });
+        }
+    }
+
+    private void CreateSearchPathsSection(Entity parent)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        // Section header
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            parent,
+            "SettingsPathsHeader",
+            "SEARCH PATHS",
+            font,
+            new LabelConfig(
+                FontSize: 11,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Paths list
+        var paths = settings.GetSearchPaths();
+        if (paths.Count == 0)
+        {
+            WidgetFactory.CreateLabel(
+                editorWorld,
+                parent,
+                "SettingsPathsEmpty",
+                "No custom search paths configured",
+                font,
+                new LabelConfig(
+                    FontSize: 12,
+                    TextColor: EditorColors.TextMuted,
+                    HorizontalAlign: TextAlignH.Left
+                ));
+        }
+        else
+        {
+            foreach (var path in paths)
+            {
+                CreateSearchPathRow(parent, path);
+            }
+        }
+
+        // Add path button
+        var addButton = WidgetFactory.CreateButton(
+            editorWorld,
+            parent,
+            "SettingsAddPathButton",
+            "+ Add Path",
+            font,
+            new ButtonConfig(
+                Width: 100,
+                Height: 24,
+                BackgroundColor: EditorColors.MediumPanel
+            ));
+
+        editorWorld.Add(addButton, new SettingsControlData
+        {
+            Action = SettingsAction.AddSearchPath
+        });
+    }
+
+    private void CreateSearchPathRow(Entity parent, PluginSearchPath path)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var row = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            $"SettingsPath_{path.Path.GetHashCode()}",
+            new PanelConfig(
+                Height: 24,
+                Direction: LayoutDirection.Horizontal,
+                MainAxisAlign: LayoutAlign.Start,
+                CrossAxisAlign: LayoutAlign.Center,
+                BackgroundColor: Vector4.Zero,
+                Spacing: 8
+            ));
+
+        ref var rowRect = ref editorWorld.Get<UIRect>(row);
+        rowRect.WidthMode = UISizeMode.Fill;
+
+        // Path label
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            row,
+            $"SettingsPath_{path.Path.GetHashCode()}_Label",
+            path.Path,
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: EditorColors.TextLight,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Remove button
+        var removeButton = WidgetFactory.CreateButton(
+            editorWorld,
+            row,
+            $"SettingsPath_{path.Path.GetHashCode()}_Remove",
+            "X",
+            font,
+            new ButtonConfig(
+                Width: 24,
+                Height: 20,
+                BackgroundColor: new Vector4(0.5f, 0.2f, 0.2f, 1f)
+            ));
+
+        editorWorld.Add(removeButton, new SettingsControlData
+        {
+            Action = SettingsAction.RemoveSearchPath,
+            TargetId = path.Path
+        });
+    }
+
+    private void CreateHotReloadSection(Entity parent)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            parent,
+            "SettingsHotReloadHeader",
+            "HOT RELOAD",
+            font,
+            new LabelConfig(
+                FontSize: 11,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        CreateToggleRow(
+            parent,
+            "HotReload",
+            "Enable hot reload for plugins",
+            settings.HotReload.Enabled,
+            SettingsAction.ToggleHotReload);
+    }
+
+    private void CreateDeveloperSection(Entity parent)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            parent,
+            "SettingsDeveloperHeader",
+            "DEVELOPER OPTIONS",
+            font,
+            new LabelConfig(
+                FontSize: 11,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        CreateToggleRow(
+            parent,
+            "DeveloperMode",
+            "Developer mode",
+            settings.Developer.Enabled,
+            SettingsAction.ToggleDeveloperMode);
+
+        CreateToggleRow(
+            parent,
+            "VerboseLogging",
+            "Verbose logging",
+            settings.Developer.VerboseLogging,
+            SettingsAction.ToggleVerboseLogging);
+    }
+
+    private void CreateSecuritySection(Entity parent)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            parent,
+            "SettingsSecurityHeader",
+            "SECURITY",
+            font,
+            new LabelConfig(
+                FontSize: 11,
+                TextColor: EditorColors.TextMuted,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        CreateToggleRow(
+            parent,
+            "CodeSigning",
+            "Require code signing",
+            settings.Security.RequireCodeSigning,
+            SettingsAction.ToggleCodeSigning);
+
+        CreateToggleRow(
+            parent,
+            "PermissionSystem",
+            "Enable permission system",
+            settings.Security.EnablePermissionSystem,
+            SettingsAction.TogglePermissionSystem);
+    }
+
+    private void CreateToggleRow(Entity parent, string id, string label, bool isEnabled, SettingsAction action)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var row = WidgetFactory.CreatePanel(
+            editorWorld,
+            parent,
+            $"SettingsToggle_{id}",
+            new PanelConfig(
+                Height: 24,
+                Direction: LayoutDirection.Horizontal,
+                MainAxisAlign: LayoutAlign.Start,
+                CrossAxisAlign: LayoutAlign.Center,
+                BackgroundColor: Vector4.Zero,
+                Spacing: 8
+            ));
+
+        ref var rowRect = ref editorWorld.Get<UIRect>(row);
+        rowRect.WidthMode = UISizeMode.Fill;
+
+        // Make row clickable
+        editorWorld.Add(row, new UIInteractable
+        {
+            CanClick = true,
+            CanFocus = true
+        });
+
+        editorWorld.Add(row, new SettingsControlData
+        {
+            Action = action
+        });
+
+        // Checkbox
+        var checkColor = isEnabled
+            ? new Vector4(0.3f, 0.7f, 0.3f, 1f)
+            : new Vector4(0.5f, 0.5f, 0.5f, 1f);
+
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            row,
+            $"SettingsToggle_{id}_Check",
+            isEnabled ? "[x]" : "[ ]",
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: checkColor,
+                HorizontalAlign: TextAlignH.Left
+            ));
+
+        // Label
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            row,
+            $"SettingsToggle_{id}_Label",
+            label,
+            font,
+            new LabelConfig(
+                FontSize: 12,
+                TextColor: EditorColors.TextLight,
+                HorizontalAlign: TextAlignH.Left
+            ));
+    }
+
+    private void RefreshSettingsTab()
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref readonly var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+        var settingsContent = state.SettingsContent;
+
+        if (!settingsContent.IsValid)
+        {
+            return;
+        }
+
+        // Rebuild settings content
+        ClearChildren(settingsContent);
+        CreateSourcesSection(settingsContent);
+        CreateSearchPathsSection(settingsContent);
+        CreateHotReloadSection(settingsContent);
+        CreateDeveloperSection(settingsContent);
+        CreateSecuritySection(settingsContent);
+    }
+
+    #endregion
+
+    #region Helpers
+
+    private void ClearChildren(Entity parent)
+    {
+        if (editorWorld is null || !parent.IsValid)
+        {
+            return;
+        }
+
+        var children = editorWorld.GetChildren(parent).ToList();
+        foreach (var child in children)
+        {
+            DespawnRecursive(child);
+        }
+    }
+
+    private void DespawnRecursive(Entity entity)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var children = editorWorld.GetChildren(entity).ToList();
+        foreach (var child in children)
+        {
+            DespawnRecursive(child);
+        }
+
+        editorWorld.Despawn(entity);
+    }
+
+    #endregion
 }
+
+#region Components and Enums
 
 /// <summary>
 /// Component storing the state of the plugin manager panel.
 /// </summary>
 internal struct PluginManagerPanelState : IComponent
 {
-    /// <summary>
-    /// The container entity for the plugin list.
-    /// </summary>
-    public Entity PluginListContainer;
+    /// <summary>The tab view container entity.</summary>
+    public Entity TabView;
 
-    /// <summary>
-    /// The container entity for the plugin details.
-    /// </summary>
-    public Entity DetailsContainer;
+    /// <summary>The Installed tab content container.</summary>
+    public Entity InstalledTabContent;
 
-    /// <summary>
-    /// The ID of the currently selected plugin, if any.
-    /// </summary>
+    /// <summary>The Browse tab content container.</summary>
+    public Entity BrowseTabContent;
+
+    /// <summary>The Settings tab content container.</summary>
+    public Entity SettingsTabContent;
+
+    /// <summary>The installed plugins list container.</summary>
+    public Entity InstalledListContainer;
+
+    /// <summary>The installed plugin details container.</summary>
+    public Entity InstalledDetailsContainer;
+
+    /// <summary>The browse results list container.</summary>
+    public Entity BrowseResultsContainer;
+
+    /// <summary>The browse details container.</summary>
+    public Entity BrowseDetailsContainer;
+
+    /// <summary>The settings content container.</summary>
+    public Entity SettingsContent;
+
+    /// <summary>The ID of the currently selected installed plugin.</summary>
     public string? SelectedPluginId;
+
+    /// <summary>The ID of the currently selected browse package.</summary>
+    public string? SelectedBrowsePackageId;
+
+    /// <summary>The current search query.</summary>
+    public string? SearchQuery;
+
+    /// <summary>The search debounce timer.</summary>
+    public float SearchDebounceTimer;
+
+    /// <summary>The current search results.</summary>
+    public List<PackageSearchResult> SearchResults;
+
+    /// <summary>The current async operation type.</summary>
+    public AsyncOperationType AsyncType;
+
+    /// <summary>The current async operation status.</summary>
+    public AsyncOperationStatus AsyncStatus;
+
+    /// <summary>The current async task.</summary>
+    public Task? AsyncTask;
+
+    /// <summary>Error message from async operation.</summary>
+    public string? AsyncErrorMessage;
 }
 
 /// <summary>
@@ -866,9 +2270,7 @@ internal struct PluginManagerPanelState : IComponent
 /// </summary>
 internal struct PluginListItemData : IComponent
 {
-    /// <summary>
-    /// The plugin ID this item represents.
-    /// </summary>
+    /// <summary>The plugin ID this item represents.</summary>
     public string PluginId;
 }
 
@@ -877,15 +2279,49 @@ internal struct PluginListItemData : IComponent
 /// </summary>
 internal struct PluginControlButtonData : IComponent
 {
-    /// <summary>
-    /// The plugin ID this button controls.
-    /// </summary>
+    /// <summary>The plugin ID this button controls.</summary>
     public string PluginId;
 
-    /// <summary>
-    /// The action this button performs.
-    /// </summary>
+    /// <summary>The action this button performs.</summary>
     public PluginButtonAction Action;
+}
+
+/// <summary>
+/// Component storing data for a browse result item.
+/// </summary>
+internal struct BrowseResultItemData : IComponent
+{
+    /// <summary>The package ID this item represents.</summary>
+    public string PackageId;
+}
+
+/// <summary>
+/// Component storing data for an install button.
+/// </summary>
+internal struct InstallButtonData : IComponent
+{
+    /// <summary>The package ID to install.</summary>
+    public string PackageId;
+
+    /// <summary>The version to install.</summary>
+    public string Version;
+}
+
+/// <summary>
+/// Component storing data for a search box.
+/// </summary>
+internal struct SearchBoxData : IComponent;
+
+/// <summary>
+/// Component storing data for a settings control.
+/// </summary>
+internal struct SettingsControlData : IComponent
+{
+    /// <summary>The settings action to perform.</summary>
+    public SettingsAction Action;
+
+    /// <summary>Optional target ID (e.g., source name, path).</summary>
+    public string? TargetId;
 }
 
 /// <summary>
@@ -900,5 +2336,79 @@ internal enum PluginButtonAction
     Disable,
 
     /// <summary>Reload the plugin (hot reload).</summary>
-    Reload
+    Reload,
+
+    /// <summary>Uninstall the plugin.</summary>
+    Uninstall
 }
+
+/// <summary>
+/// Types of async operations.
+/// </summary>
+internal enum AsyncOperationType
+{
+    /// <summary>No operation.</summary>
+    None,
+
+    /// <summary>Search operation.</summary>
+    Search,
+
+    /// <summary>Install operation.</summary>
+    Install,
+
+    /// <summary>Uninstall operation.</summary>
+    Uninstall
+}
+
+/// <summary>
+/// Status of async operations.
+/// </summary>
+internal enum AsyncOperationStatus
+{
+    /// <summary>Idle, no operation in progress.</summary>
+    Idle,
+
+    /// <summary>Operation is running.</summary>
+    Running,
+
+    /// <summary>Operation completed successfully.</summary>
+    Completed,
+
+    /// <summary>Operation failed.</summary>
+    Failed
+}
+
+/// <summary>
+/// Settings panel actions.
+/// </summary>
+internal enum SettingsAction
+{
+    /// <summary>Toggle hot reload.</summary>
+    ToggleHotReload,
+
+    /// <summary>Toggle developer mode.</summary>
+    ToggleDeveloperMode,
+
+    /// <summary>Toggle verbose logging.</summary>
+    ToggleVerboseLogging,
+
+    /// <summary>Toggle code signing requirement.</summary>
+    ToggleCodeSigning,
+
+    /// <summary>Toggle permission system.</summary>
+    TogglePermissionSystem,
+
+    /// <summary>Add a package source.</summary>
+    AddSource,
+
+    /// <summary>Remove a package source.</summary>
+    RemoveSource,
+
+    /// <summary>Add a search path.</summary>
+    AddSearchPath,
+
+    /// <summary>Remove a search path.</summary>
+    RemoveSearchPath
+}
+
+#endregion
