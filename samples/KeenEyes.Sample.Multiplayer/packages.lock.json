@@ -5,6 +5,12 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
+      "keeneyes.common": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.core": {
         "type": "Project",
         "dependencies": {
