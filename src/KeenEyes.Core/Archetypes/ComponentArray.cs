@@ -16,6 +16,7 @@ public sealed class ComponentArray<T> : IComponentArray, IDisposable where T : s
     private T[] data;
     private int count;
     private bool isPooled;
+    private bool isDisposed;
 
     /// <inheritdoc />
     public Type ComponentType => typeof(T);
@@ -220,14 +221,18 @@ public sealed class ComponentArray<T> : IComponentArray, IDisposable where T : s
     /// <inheritdoc />
     public void Dispose()
     {
-        if (isPooled && data != null)
+        if (isDisposed)
+        {
+            return;
+        }
+
+        if (isPooled)
         {
             ArrayPool<T>.Shared.Return(data, clearArray: true);
             isPooled = false;
         }
-#pragma warning disable CS8625 // Cannot convert null literal - intentional for dispose pattern
-        data = null!;
-#pragma warning restore CS8625
+
+        isDisposed = true;
         count = 0;
     }
 }
