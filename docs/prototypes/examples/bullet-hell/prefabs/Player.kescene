@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../schemas/kescene.schema.json",
+  "name": "Player",
+  "version": 1,
+  "entities": [
+    {
+      "id": "root",
+      "name": "Player",
+      "components": {
+        "Position": { "X": 400, "Y": 500 },
+        "Velocity": { "X": 0, "Y": 0 },
+        "CircleCollider": { "Radius": 4 },
+        "Player": {
+          "Lives": 3,
+          "InvincibilityTimer": 0,
+          "Score": 0,
+          "FireCooldown": 0
+        },
+        "Sprite": { "TextureId": "player", "Layer": 10 },
+        "Tint": { "R": 0.3, "G": 0.8, "B": 1.0, "A": 1.0 }
+      }
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../schemas/kescene.schema.json",
+  "name": "Turret",
+  "version": 1,
+  "entities": [
+    {
+      "id": "root",
+      "name": "Turret",
+      "components": {
+        "Position": { "X": 0, "Y": 0 },
+        "Enemy": { "Health": 50, "MaxHealth": 50, "PointValue": 100 },
+        "BulletEmitter": {
+          "Pattern": "Aimed",
+          "FireRate": 2.0,
+          "Cooldown": 0,
+          "Phase": 0
+        },
+        "CircleCollider": { "Radius": 20 },
+        "Sprite": { "TextureId": "turret", "Layer": 5 },
+        "Tint": { "R": 1.0, "G": 0.3, "B": 0.3, "A": 1.0 }
+      }
+    }
+  ]
+}

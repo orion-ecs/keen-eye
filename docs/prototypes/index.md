@@ -18,6 +18,13 @@ These prototypes serve as:
 | [Tower Defense](tower-defense.md) | Composition, queries, system ordering | 100-500 | Medium |
 | [Roguelike](roguelike.md) | Deep composition, runtime modification | 50-200 | Medium-High |
 
+## Editor Integration
+
+See [Editor Integration](editor-integration.md) for how to implement these prototypes using:
+- The `.kescene` file format
+- Source-generated spawn methods
+- Editor workflows and tools
+
 ## ECS Strengths by Prototype
 
 ### Bullet Hell
@@ -55,9 +62,31 @@ All prototypes are designed with:
 - Turn-based or real-time as appropriate
 - Testable systems
 
+## Example Scene Files
+
+The `examples/` directory contains sample `.kescene` files:
+
+```
+examples/
+├── bullet-hell/
+│   └── prefabs/
+│       ├── Player.kescene
+│       └── Turret.kescene
+├── tower-defense/
+│   └── prefabs/
+│       └── ArrowTower.kescene
+└── roguelike/
+    └── prefabs/
+        └── FlamingSword.kescene
+```
+
+These demonstrate component composition in the scene format.
+
 ## Related Documentation
 
 - [ECS Concepts](../concepts.md)
 - [Components](../components.md)
 - [Queries](../queries.md)
 - [Systems](../systems.md)
+- [Unified Scene Model (ADR-011)](../adr/011-unified-scene-model.md)
+- [Scene Editor Architecture](../research/scene-editor-architecture.md)

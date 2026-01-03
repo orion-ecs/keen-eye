@@ -1,0 +1,32 @@
+{
+  "$schema": "../../../../schemas/kescene.schema.json",
+  "name": "FlamingSword",
+  "version": 1,
+  "entities": [
+    {
+      "id": "root",
+      "name": "Flaming Sword",
+      "components": {
+        "GridPosition": { "X": 0, "Y": 0 },
+        "Named": { "Name": "Flaming Sword" },
+        "Renderable": {
+          "Glyph": "/",
+          "ForegroundColor": { "R": 1.0, "G": 0.5, "B": 0.1, "A": 1.0 },
+          "Layer": 2
+        },
+        "Equipable": { "Slot": "MainHand" },
+        "MeleeDamage": { "MinDamage": 4, "MaxDamage": 10 },
+        "ElementalDamage": { "Type": "Fire", "MinDamage": 2, "MaxDamage": 5 },
+        "OnHitEffect": {
+          "Effect": "Burning",
+          "Chance": 30,
+          "Duration": 3,
+          "Potency": 2
+        },
+        "Durability": { "Current": 40, "Max": 40 },
+        "Value": { "Gold": 200 },
+        "Rarity": { "Tier": "Rare" }
+      }
+    }
+  ]
+}

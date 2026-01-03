@@ -1,0 +1,31 @@
+{
+  "$schema": "../../../../schemas/kescene.schema.json",
+  "name": "ArrowTower",
+  "version": 1,
+  "entities": [
+    {
+      "id": "root",
+      "name": "ArrowTower",
+      "components": {
+        "Position": { "X": 0, "Y": 0 },
+        "Targeting": { "Range": 150, "Mode": "First" },
+        "DamageDealer": { "Damage": 10, "AttackSpeed": 2.0, "Cooldown": 0 },
+        "ProjectileFirer": { "ProjectilePrefab": "Arrow", "ProjectileSpeed": 400 },
+        "Upgradeable": { "Level": 1, "UpgradeCost": 75 },
+        "Sprite": { "TextureId": "tower_arrow", "Layer": 5 }
+      }
+    },
+    {
+      "id": "range_indicator",
+      "name": "RangeIndicator",
+      "parent": "root",
+      "components": {
+        "CircleRenderer": {
+          "Radius": 150,
+          "Color": { "R": 0.5, "G": 0.5, "B": 1.0, "A": 0.2 }
+        },
+        "EditorOnly": {}
+      }
+    }
+  ]
+}
