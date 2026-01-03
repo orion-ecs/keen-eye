@@ -1,4 +1,5 @@
 using KeenEyes;
+using KeenEyes.Common;
 using KeenEyes.Network.Prediction;
 using KeenEyes.Network.Serialization;
 
@@ -32,13 +33,15 @@ public partial struct Position : INetworkSerializable, INetworkDeltaSerializable
 
     public readonly uint GetDirtyMask(in Position baseline)
     {
+        // Use larger epsilon for network delta (0.001f) to reduce unnecessary updates
+        const float NetworkDeltaEpsilon = 0.001f;
         uint mask = 0;
-        if (MathF.Abs(X - baseline.X) > 0.001f)
+        if (!X.ApproximatelyEquals(baseline.X, NetworkDeltaEpsilon))
         {
             mask |= 1;
         }
 
-        if (MathF.Abs(Y - baseline.Y) > 0.001f)
+        if (!Y.ApproximatelyEquals(baseline.Y, NetworkDeltaEpsilon))
         {
             mask |= 2;
         }

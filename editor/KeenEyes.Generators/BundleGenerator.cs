@@ -297,7 +297,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             diagnostics,
             visited,
             depth: 0,
-            typeSymbol.Locations.FirstOrDefault()!);
+            typeSymbol.Locations.FirstOrDefault() ?? Location.None);
 
         // Return distinct component type names (handle duplicates from nested bundles)
         return flattenedFields
@@ -462,7 +462,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             tempDiagnostics,
             visited,
             depth: 1, // Start at 1 since we're already in a bundle
-            field.Locations.FirstOrDefault() ?? bundleType.Locations.FirstOrDefault()!);
+            field.Locations.FirstOrDefault() ?? bundleType.Locations.FirstOrDefault() ?? Location.None);
 
         // Add any diagnostics from the flattening process (but don't fail the bundle)
         // The diagnostics will be reported, but we still generate code for the bundle
@@ -1185,7 +1185,8 @@ public sealed class BundleGenerator : IIncrementalGenerator
             if (field.IsBundle)
             {
                 // For nested bundles, call the RemoveBundleName method
-                var bundleName = typeToRemove.Substring(typeToRemove.LastIndexOf('.') + 1);
+                var lastDot = typeToRemove.LastIndexOf('.');
+                var bundleName = lastDot >= 0 ? typeToRemove.Substring(lastDot + 1) : typeToRemove;
                 sb.AppendLine($"        world.Remove{bundleName}(entity);");
             }
             else

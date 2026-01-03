@@ -19,6 +19,18 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
 {
     private const string ReplicatedAttribute = "KeenEyes.Network.ReplicatedAttribute";
     private const string QuantizedAttribute = "KeenEyes.Network.QuantizedAttribute";
+    private const int MaxDeltaTrackableFields = 32;
+
+    /// <summary>
+    /// Diagnostic reported when a replicated component has more than 32 fields.
+    /// </summary>
+    private static readonly DiagnosticDescriptor TooManyFieldsForReplication = new(
+        id: "KEEN100",
+        title: "Too many fields for delta replication",
+        messageFormat: "Component '{0}' has {1} fields but delta mask only supports 32. Fields after index 31 will not be tracked for delta updates.",
+        category: "KeenEyes.Network",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -49,6 +61,16 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
             // Generate partial class for each component with INetworkSerializable implementation
             foreach (var component in validComponents)
             {
+                // Warn if component has too many fields for delta replication
+                if (component.Fields.Length > MaxDeltaTrackableFields && component.Location is not null)
+                {
+                    ctx.ReportDiagnostic(Diagnostic.Create(
+                        TooManyFieldsForReplication,
+                        component.Location,
+                        component.Name,
+                        component.Fields.Length));
+                }
+
                 var partialSource = GenerateNetworkSerializable(component);
                 ctx.AddSource($"{component.FullName}.Network.g.cs", SourceText.From(partialSource, Encoding.UTF8));
             }
@@ -70,7 +92,11 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
     private static ReplicatedComponentInfo? GetReplicatedComponentInfo(GeneratorAttributeSyntaxContext context)
     {
         var typeSymbol = (INamedTypeSymbol)context.TargetSymbol;
-        var attr = context.Attributes.First();
+        var attr = context.Attributes.FirstOrDefault();
+        if (attr is null)
+        {
+            return null;
+        }
 
         // Parse attribute properties
         var strategy = 0; // Default: Authoritative
@@ -123,13 +149,14 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
             if (quantizedAttr is not null)
             {
                 var args = quantizedAttr.ConstructorArguments;
-                if (args.Length >= 3)
+                if (args.Length >= 3 &&
+                    args[0].Value is float min &&
+                    args[1].Value is float max &&
+                    args[2].Value is float resolution)
                 {
-                    var min = (float)(args[0].Value ?? 0f);
-                    var max = (float)(args[1].Value ?? 0f);
-                    var resolution = (float)(args[2].Value ?? 0.01f);
                     quantized = new QuantizedInfo(min, max, resolution);
                 }
+                // If types don't match, quantized remains null (skip quantization)
             }
 
             fields.Add(new ReplicatedFieldInfo(
@@ -149,7 +176,8 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
             generatePrediction,
             priority,
             frequency,
-            fields.ToImmutableArray());
+            fields.ToImmutableArray(),
+            typeSymbol.Locations.FirstOrDefault());
     }
 
     private static FieldSerializationType GetFieldSerializationType(ITypeSymbol type)
@@ -664,7 +692,8 @@ internal sealed record ReplicatedComponentInfo(
     bool GeneratePrediction,
     byte Priority,
     int Frequency,
-    ImmutableArray<ReplicatedFieldInfo> Fields);
+    ImmutableArray<ReplicatedFieldInfo> Fields,
+    Location? Location);
 
 internal sealed record ReplicatedFieldInfo(
     string Name,

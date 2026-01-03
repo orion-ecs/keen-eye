@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Common\KeenEyes.Common.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Network\KeenEyes.Network.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Network.Transport.Tcp\KeenEyes.Network.Transport.Tcp.csproj" />

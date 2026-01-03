@@ -347,15 +347,25 @@ internal sealed class SystemManager
             return;
         }
 
-        // Group systems by phase
-        var phaseGroups = systems
-            .GroupBy(s => s.Phase)
-            .OrderBy(g => g.Key)
-            .ToDictionary(g => g.Key, g => g.ToList());
+        // Group systems by phase (allocation-free grouping)
+        var phaseGroups = new Dictionary<SystemPhase, List<SystemEntry>>();
+        foreach (var entry in systems)
+        {
+            if (!phaseGroups.TryGetValue(entry.Phase, out var list))
+            {
+                list = [];
+                phaseGroups[entry.Phase] = list;
+            }
+            list.Add(entry);
+        }
+
+        // Sort phases for deterministic ordering
+        var sortedPhases = phaseGroups.Keys.ToList();
+        sortedPhases.Sort();
 
         var sortedSystems = new List<SystemEntry>(systems.Count);
 
-        foreach (var phase in phaseGroups.Keys.OrderBy(p => p))
+        foreach (var phase in sortedPhases)
         {
             var phaseSystems = phaseGroups[phase];
             var sorted = TopologicalSortWithCycleDetection(phaseSystems, phase);
