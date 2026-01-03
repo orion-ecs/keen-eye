@@ -169,6 +169,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         // Subscribe to click events
         editorWorld.Subscribe<UIClickEvent>(OnClick);
         editorWorld.Subscribe<UITextChangedEvent>(OnTextChanged);
+        editorWorld.Subscribe<UIModalResultEvent>(OnModalResult);
     }
 
     private void OnClick(UIClickEvent e)
@@ -239,6 +240,35 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
             ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
             state.SearchQuery = e.NewText;
             state.SearchDebounceTimer = SearchDebounceTime;
+        }
+    }
+
+    private void OnModalResult(UIModalResultEvent e)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref readonly var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+
+        // Check if this is the Add Source dialog
+        if (e.Modal == state.AddSourceDialog)
+        {
+            HandleAddSourceDialogResult(e.Modal, e.Result);
+            return;
+        }
+
+        // Check if this is the Add Path dialog
+        if (e.Modal == state.AddPathDialog)
+        {
+            HandleAddPathDialogResult(e.Modal, e.Result);
+            return;
         }
     }
 
@@ -318,7 +348,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
                 RefreshSettingsTab();
                 break;
             case SettingsAction.AddSource:
-                // TODO: Show add source dialog
+                ShowAddSourceDialog();
                 break;
             case SettingsAction.RemoveSource:
                 if (!string.IsNullOrEmpty(data.TargetId))
@@ -329,7 +359,7 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
                 }
                 break;
             case SettingsAction.AddSearchPath:
-                // TODO: Show add path dialog
+                ShowAddPathDialog();
                 break;
             case SettingsAction.RemoveSearchPath:
                 if (!string.IsNullOrEmpty(data.TargetId))
@@ -437,6 +467,10 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
     /// <inheritdoc />
     public void Shutdown()
     {
+        // Clean up any open dialogs
+        CleanupAddSourceDialog();
+        CleanupAddPathDialog();
+
         // Panel cleanup is handled by the dock system
     }
 
@@ -2168,6 +2202,428 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
 
     #endregion
 
+    #region Dialogs
+
+    private void ShowAddSourceDialog()
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var modalConfig = new ModalConfig(
+            Width: 450,
+            Title: "Add Package Source",
+            CloseOnBackdropClick: false,
+            CloseOnEscape: true,
+            ShowCloseButton: true);
+
+        var buttons = new[]
+        {
+            new ModalButtonDef("Cancel", ModalResult.Cancel, IsPrimary: false, Width: 80),
+            new ModalButtonDef("Add", ModalResult.OK, IsPrimary: true, Width: 80)
+        };
+
+        var (modal, backdrop, contentPanel) = WidgetFactory.CreateModal(
+            editorWorld,
+            rootEntity,
+            "AddSourceDialog",
+            font,
+            modalConfig,
+            buttons);
+
+        // Create form fields
+        // Name label
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            contentPanel,
+            "Name:",
+            font,
+            new LabelConfig(Height: 20, FontSize: 14));
+
+        // Name input
+        var nameInput = WidgetFactory.CreateTextField(
+            editorWorld,
+            contentPanel,
+            "AddSourceDialog_Name",
+            font,
+            new TextFieldConfig(Width: 400, Height: 32, PlaceholderText: "Source name (e.g., My Private Feed)"));
+
+        // URL label
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            contentPanel,
+            "URL:",
+            font,
+            new LabelConfig(Height: 20, FontSize: 14));
+
+        // URL input
+        var urlInput = WidgetFactory.CreateTextField(
+            editorWorld,
+            contentPanel,
+            "AddSourceDialog_Url",
+            font,
+            new TextFieldConfig(Width: 400, Height: 32, PlaceholderText: "https://api.nuget.org/v3/index.json"));
+
+        // Make Default checkbox
+        var makeDefaultCheckbox = WidgetFactory.CreateCheckbox(
+            editorWorld,
+            contentPanel,
+            "AddSourceDialog_MakeDefault",
+            "Make this the default source",
+            font,
+            new CheckboxConfig(IsChecked: false, Size: 18, FontSize: 14));
+
+        // Add dialog data component to modal
+        editorWorld.Add(modal, new AddSourceDialogData
+        {
+            NameInput = nameInput,
+            UrlInput = urlInput,
+            MakeDefaultCheckbox = makeDefaultCheckbox
+        });
+
+        // Store reference in panel state
+        if (editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+            state.AddSourceDialog = modal;
+        }
+
+        // Open the modal
+        OpenModalDialog(modal, backdrop);
+    }
+
+    private void ShowAddPathDialog()
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var modalConfig = new ModalConfig(
+            Width: 450,
+            Title: "Add Search Path",
+            CloseOnBackdropClick: false,
+            CloseOnEscape: true,
+            ShowCloseButton: true);
+
+        var buttons = new[]
+        {
+            new ModalButtonDef("Cancel", ModalResult.Cancel, IsPrimary: false, Width: 80),
+            new ModalButtonDef("Add", ModalResult.OK, IsPrimary: true, Width: 80)
+        };
+
+        var (modal, backdrop, contentPanel) = WidgetFactory.CreateModal(
+            editorWorld,
+            rootEntity,
+            "AddPathDialog",
+            font,
+            modalConfig,
+            buttons);
+
+        // Path label
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            contentPanel,
+            "Path:",
+            font,
+            new LabelConfig(Height: 20, FontSize: 14));
+
+        // Path input
+        var pathInput = WidgetFactory.CreateTextField(
+            editorWorld,
+            contentPanel,
+            "AddPathDialog_Path",
+            font,
+            new TextFieldConfig(Width: 400, Height: 32, PlaceholderText: "C:\\Plugins or /home/user/plugins"));
+
+        // Description label
+        WidgetFactory.CreateLabel(
+            editorWorld,
+            contentPanel,
+            "Description (optional):",
+            font,
+            new LabelConfig(Height: 20, FontSize: 14));
+
+        // Description input
+        var descriptionInput = WidgetFactory.CreateTextField(
+            editorWorld,
+            contentPanel,
+            "AddPathDialog_Description",
+            font,
+            new TextFieldConfig(Width: 400, Height: 32, PlaceholderText: "Brief description"));
+
+        // Recursive checkbox
+        var recursiveCheckbox = WidgetFactory.CreateCheckbox(
+            editorWorld,
+            contentPanel,
+            "AddPathDialog_Recursive",
+            "Search subdirectories recursively",
+            font,
+            new CheckboxConfig(IsChecked: true, Size: 18, FontSize: 14));
+
+        // Add dialog data component to modal
+        editorWorld.Add(modal, new AddPathDialogData
+        {
+            PathInput = pathInput,
+            DescriptionInput = descriptionInput,
+            RecursiveCheckbox = recursiveCheckbox
+        });
+
+        // Store reference in panel state
+        if (editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+            state.AddPathDialog = modal;
+        }
+
+        // Open the modal
+        OpenModalDialog(modal, backdrop);
+    }
+
+    private void HandleAddSourceDialogResult(Entity modal, ModalResult result)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        if (result == ModalResult.OK && editorWorld.Has<AddSourceDialogData>(modal))
+        {
+            ref readonly var dialogData = ref editorWorld.Get<AddSourceDialogData>(modal);
+
+            // Read the text values
+            string name = string.Empty;
+            string url = string.Empty;
+            bool makeDefault = false;
+
+            if (editorWorld.IsAlive(dialogData.NameInput) && editorWorld.Has<UIText>(dialogData.NameInput))
+            {
+                var text = editorWorld.Get<UIText>(dialogData.NameInput).Content;
+                // Check if showing placeholder
+                if (editorWorld.Has<UITextInput>(dialogData.NameInput))
+                {
+                    var textInput = editorWorld.Get<UITextInput>(dialogData.NameInput);
+                    if (!textInput.ShowingPlaceholder)
+                    {
+                        name = text;
+                    }
+                }
+            }
+
+            if (editorWorld.IsAlive(dialogData.UrlInput) && editorWorld.Has<UIText>(dialogData.UrlInput))
+            {
+                var text = editorWorld.Get<UIText>(dialogData.UrlInput).Content;
+                if (editorWorld.Has<UITextInput>(dialogData.UrlInput))
+                {
+                    var textInput = editorWorld.Get<UITextInput>(dialogData.UrlInput);
+                    if (!textInput.ShowingPlaceholder)
+                    {
+                        url = text;
+                    }
+                }
+            }
+
+            if (editorWorld.IsAlive(dialogData.MakeDefaultCheckbox) && editorWorld.Has<UICheckbox>(dialogData.MakeDefaultCheckbox))
+            {
+                makeDefault = editorWorld.Get<UICheckbox>(dialogData.MakeDefaultCheckbox).IsChecked;
+            }
+
+            // Validate and save
+            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(url))
+            {
+                settings.AddSource(name.Trim(), url.Trim(), makeDefault);
+                settings.Save();
+                RefreshSettingsTab();
+            }
+        }
+
+        // Clean up dialog
+        CleanupAddSourceDialog();
+    }
+
+    private void HandleAddPathDialogResult(Entity modal, ModalResult result)
+    {
+        if (editorWorld is null || settings is null)
+        {
+            return;
+        }
+
+        if (result == ModalResult.OK && editorWorld.Has<AddPathDialogData>(modal))
+        {
+            ref readonly var dialogData = ref editorWorld.Get<AddPathDialogData>(modal);
+
+            // Read the values
+            string path = string.Empty;
+            string? description = null;
+            bool recursive = true;
+
+            if (editorWorld.IsAlive(dialogData.PathInput) && editorWorld.Has<UIText>(dialogData.PathInput))
+            {
+                var text = editorWorld.Get<UIText>(dialogData.PathInput).Content;
+                if (editorWorld.Has<UITextInput>(dialogData.PathInput))
+                {
+                    var textInput = editorWorld.Get<UITextInput>(dialogData.PathInput);
+                    if (!textInput.ShowingPlaceholder)
+                    {
+                        path = text;
+                    }
+                }
+            }
+
+            if (editorWorld.IsAlive(dialogData.DescriptionInput) && editorWorld.Has<UIText>(dialogData.DescriptionInput))
+            {
+                var text = editorWorld.Get<UIText>(dialogData.DescriptionInput).Content;
+                if (editorWorld.Has<UITextInput>(dialogData.DescriptionInput))
+                {
+                    var textInput = editorWorld.Get<UITextInput>(dialogData.DescriptionInput);
+                    if (!textInput.ShowingPlaceholder)
+                    {
+                        description = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+                    }
+                }
+            }
+
+            if (editorWorld.IsAlive(dialogData.RecursiveCheckbox) && editorWorld.Has<UICheckbox>(dialogData.RecursiveCheckbox))
+            {
+                recursive = editorWorld.Get<UICheckbox>(dialogData.RecursiveCheckbox).IsChecked;
+            }
+
+            // Validate and save
+            if (!string.IsNullOrWhiteSpace(path))
+            {
+                settings.AddSearchPath(path.Trim(), description, recursive);
+                settings.Save();
+                RefreshSettingsTab();
+            }
+        }
+
+        // Clean up dialog
+        CleanupAddPathDialog();
+    }
+
+    private void OpenModalDialog(Entity modal, Entity backdrop)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        // Show the modal by setting visibility
+        if (editorWorld.Has<UIElement>(modal))
+        {
+            ref var element = ref editorWorld.Get<UIElement>(modal);
+            element.Visible = true;
+        }
+
+        if (editorWorld.Has<UIHiddenTag>(modal))
+        {
+            editorWorld.Remove<UIHiddenTag>(modal);
+        }
+
+        // Show the backdrop
+        if (backdrop.IsValid && editorWorld.IsAlive(backdrop))
+        {
+            if (editorWorld.Has<UIElement>(backdrop))
+            {
+                ref var backdropElement = ref editorWorld.Get<UIElement>(backdrop);
+                backdropElement.Visible = true;
+            }
+
+            if (editorWorld.Has<UIHiddenTag>(backdrop))
+            {
+                editorWorld.Remove<UIHiddenTag>(backdrop);
+            }
+        }
+
+        // Update modal state
+        if (editorWorld.Has<UIModal>(modal))
+        {
+            ref var modalComponent = ref editorWorld.Get<UIModal>(modal);
+            modalComponent.IsOpen = true;
+        }
+
+        // Mark layout dirty
+        if (!editorWorld.Has<UILayoutDirtyTag>(modal))
+        {
+            editorWorld.Add(modal, new UILayoutDirtyTag());
+        }
+    }
+
+    private void CleanupAddSourceDialog()
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+
+        if (state.AddSourceDialog.IsValid && editorWorld.IsAlive(state.AddSourceDialog))
+        {
+            // Get backdrop before despawning modal
+            Entity backdrop = Entity.Null;
+            if (editorWorld.Has<UIModal>(state.AddSourceDialog))
+            {
+                backdrop = editorWorld.Get<UIModal>(state.AddSourceDialog).Backdrop;
+            }
+
+            // Despawn modal (children are despawned automatically via hierarchy)
+            DespawnRecursive(state.AddSourceDialog);
+
+            // Despawn backdrop
+            if (backdrop.IsValid && editorWorld.IsAlive(backdrop))
+            {
+                editorWorld.Despawn(backdrop);
+            }
+        }
+
+        state.AddSourceDialog = Entity.Null;
+    }
+
+    private void CleanupAddPathDialog()
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        if (!editorWorld.Has<PluginManagerPanelState>(rootEntity))
+        {
+            return;
+        }
+
+        ref var state = ref editorWorld.Get<PluginManagerPanelState>(rootEntity);
+
+        if (state.AddPathDialog.IsValid && editorWorld.IsAlive(state.AddPathDialog))
+        {
+            // Get backdrop before despawning modal
+            Entity backdrop = Entity.Null;
+            if (editorWorld.Has<UIModal>(state.AddPathDialog))
+            {
+                backdrop = editorWorld.Get<UIModal>(state.AddPathDialog).Backdrop;
+            }
+
+            // Despawn modal (children are despawned automatically via hierarchy)
+            DespawnRecursive(state.AddPathDialog);
+
+            // Despawn backdrop
+            if (backdrop.IsValid && editorWorld.IsAlive(backdrop))
+            {
+                editorWorld.Despawn(backdrop);
+            }
+        }
+
+        state.AddPathDialog = Entity.Null;
+    }
+
+    #endregion
+
     #region Helpers
 
     private void ClearChildren(Entity parent)
@@ -2263,6 +2719,12 @@ internal struct PluginManagerPanelState : IComponent
 
     /// <summary>Error message from async operation.</summary>
     public string? AsyncErrorMessage;
+
+    /// <summary>The currently active Add Source dialog modal entity (if any).</summary>
+    public Entity AddSourceDialog;
+
+    /// <summary>The currently active Add Path dialog modal entity (if any).</summary>
+    public Entity AddPathDialog;
 }
 
 /// <summary>
@@ -2311,6 +2773,36 @@ internal struct InstallButtonData : IComponent
 /// Component storing data for a search box.
 /// </summary>
 internal struct SearchBoxData : IComponent;
+
+/// <summary>
+/// Component identifying an active Add Source dialog.
+/// </summary>
+internal struct AddSourceDialogData : IComponent
+{
+    /// <summary>The text input entity for the source name.</summary>
+    public Entity NameInput;
+
+    /// <summary>The text input entity for the source URL.</summary>
+    public Entity UrlInput;
+
+    /// <summary>The checkbox entity for "Make Default".</summary>
+    public Entity MakeDefaultCheckbox;
+}
+
+/// <summary>
+/// Component identifying an active Add Path dialog.
+/// </summary>
+internal struct AddPathDialogData : IComponent
+{
+    /// <summary>The text input entity for the path.</summary>
+    public Entity PathInput;
+
+    /// <summary>The text input entity for the description.</summary>
+    public Entity DescriptionInput;
+
+    /// <summary>The checkbox entity for "Recursive".</summary>
+    public Entity RecursiveCheckbox;
+}
 
 /// <summary>
 /// Component storing data for a settings control.
