@@ -19,7 +19,8 @@ Replay playback serves fundamentally different purposes in runtime vs. editor co
 
 | Context | Primary Use Cases | Characteristics |
 |---------|------------------|-----------------|
-| **Runtime** | Demo playback, killcams, tutorials, attract mode | Game owns update loop, real-time playback, minimal UI |
+| **Runtime (Full)** | Demo playback, killcams, tutorials, attract mode | Game owns update loop, real-time playback, minimal UI |
+| **Runtime (Ghost)** | Racing ghosts, time trials, leaderboard replays | Parallel to live gameplay, single entity, visual-only |
 | **Editor** | Debugging, QA reproduction, frame inspection | Editor owns update loop, stepping, timeline scrubbing, inspection |
 
 These contexts have different requirements:
@@ -173,6 +174,110 @@ while (!gameQuit)
     renderer.Render(world);
 }
 ```
+
+### Runtime Integration: Ghost Mode
+
+For racing/time-trial games that show a "ghost" of a previous run alongside live gameplay.
+
+**Key differences from full replay:**
+- Runs **in parallel** with live game, not instead of it
+- Only tracks a **single entity** (player character/vehicle)
+- **Visual-only** - no collision or physics interaction
+- Supports **multiple simultaneous ghosts** (personal best, world record, friend)
+- **Lightweight format** - KBs instead of MBs
+
+```csharp
+namespace KeenEyes.Replay.Ghost;
+
+/// <summary>
+/// Lightweight ghost data extracted from a replay or recorded directly.
+/// </summary>
+public sealed class GhostData
+{
+    public string Name { get; }
+    public int TotalFrames { get; }
+    public TimeSpan Duration { get; }
+    public IReadOnlyList<GhostFrame> Frames { get; }
+}
+
+/// <summary>
+/// Extracts ghost data from full replay files.
+/// </summary>
+public sealed class GhostExtractor
+{
+    public GhostData ExtractGhost(ReplayData replay, string entityName);
+    public GhostData ExtractGhost(ReplayData replay, Predicate<Entity> selector);
+}
+
+/// <summary>
+/// Records ghost data directly (without full replay overhead).
+/// </summary>
+public sealed class GhostRecorder
+{
+    public GhostRecorder(IWorld world, string entityName);
+
+    public void StartRecording(string name);
+    public void Update(float deltaTime);
+    public GhostData StopRecording();
+}
+
+/// <summary>
+/// Plays back a ghost alongside live gameplay.
+/// </summary>
+public sealed class GhostPlayer
+{
+    public GhostPlayer(GhostData ghost);
+
+    public void Play();
+    public void Pause();
+    public void Reset();
+    public void Update(float deltaTime);
+
+    public Vector3 Position { get; }
+    public Quaternion Rotation { get; }
+    public bool IsComplete { get; }
+}
+
+/// <summary>
+/// Manages multiple ghosts for racing scenarios.
+/// </summary>
+public sealed class GhostManager
+{
+    public void AddGhost(string id, GhostData data, GhostVisualConfig config);
+    public void RemoveGhost(string id);
+    public void Update(float deltaTime);
+    public IEnumerable<(string Id, GhostPlayer Player)> ActiveGhosts { get; }
+}
+```
+
+**Ghost mode usage:**
+```csharp
+// Extract ghost from existing replay
+var replay = ReplayFileFormat.Load("best_lap.kreplay");
+var ghost = GhostExtractor.ExtractGhost(replay, "Player");
+
+// Or record ghost directly (lightweight)
+var recorder = new GhostRecorder(world, "Player");
+recorder.StartRecording("Time Trial");
+// ... race happens ...
+var ghost = recorder.StopRecording();
+
+// Play ghost alongside live game
+var ghostManager = new GhostManager();
+ghostManager.AddGhost("pb", ghost, new GhostVisualConfig { Opacity = 0.5f });
+
+// In game loop - both run in parallel
+while (racing)
+{
+    world.Update(deltaTime);           // Live gameplay
+    ghostManager.Update(deltaTime);    // Ghost playback
+
+    renderer.RenderWorld(world);
+    renderer.RenderGhosts(ghostManager);
+}
+```
+
+**Note:** Ghost recording is separate from `ReplayPlugin` to avoid overhead. Games that only need ghost mode don't need full replay infrastructure.
 
 ### Editor Integration: ReplayPlaybackMode
 
@@ -554,6 +659,7 @@ Playback directly modifies the scene being edited.
 
 ## Related
 
+### Core Playback Issues
 - [#83](https://github.com/orion-ecs/keen-eye/issues/83) - Replay recording (complete)
 - [#84](https://github.com/orion-ecs/keen-eye/issues/84) - Replay playback (parent issue)
 - [#405](https://github.com/orion-ecs/keen-eye/issues/405) - Core engine API
@@ -562,5 +668,16 @@ Playback directly modifies the scene being edited.
 - [#408](https://github.com/orion-ecs/keen-eye/issues/408) - Event system
 - [#409](https://github.com/orion-ecs/keen-eye/issues/409) - Determinism validation
 - [#410](https://github.com/orion-ecs/keen-eye/issues/410) - Input integration
+
+### Runtime Integration
+- [#691](https://github.com/orion-ecs/keen-eye/issues/691) - ReplayPlaybackPlugin
+- [#695](https://github.com/orion-ecs/keen-eye/issues/695) - Ghost mode system
+
+### Editor Integration
+- [#692](https://github.com/orion-ecs/keen-eye/issues/692) - ReplayPlaybackMode
+- [#693](https://github.com/orion-ecs/keen-eye/issues/693) - TimelinePanel
+- [#694](https://github.com/orion-ecs/keen-eye/issues/694) - Frame inspector
+
+### Related ADRs
 - ADR-001: World Manager Architecture
 - ADR-007: Capability-Based Plugin Architecture
