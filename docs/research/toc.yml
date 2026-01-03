@@ -36,5 +36,15 @@
       href: opengl-csharp-bindings.md
     - name: Shader Management
       href: shader-management.md
+    - name: Shader Language
+      href: shader-language.md
     - name: Windowing & Input
       href: windowing-input.md
+- name: Architecture Research
+  items:
+    - name: Scene Editor Architecture
+      href: scene-editor-architecture.md
+- name: UI Design Research
+  items:
+    - name: 9-Slice Theming
+      href: 9slice-theming.md

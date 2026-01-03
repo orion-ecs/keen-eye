@@ -51,6 +51,8 @@
           href: plugins.md
         - name: Logging
           href: logging.md
+        - name: Networking
+          href: networking.md
 - name: Cookbook
   href: cookbook/index.md
   items:
@@ -116,8 +118,26 @@
       href: graphics.md
     - name: Input
       href: input.md
+    - name: UI
+      href: ui.md
     - name: Runtime
       href: runtime.md
+- name: SDK
+  href: sdk.md
+- name: Editor Integration
+  items:
+    - name: Plugin Dependencies
+      href: editor-plugin-dependencies.md
+    - name: Plugin Hot Reload
+      href: editor-plugin-hot-reload.md
+- name: Guides
+  items:
+    - name: AOT Deployment
+      href: aot-deployment.md
+    - name: Testing
+      href: testing.md
+    - name: Migration Guide (Phase 0)
+      href: migration-guide-phase-0.md
 - name: Troubleshooting
   href: troubleshooting.md
 - name: Architecture Decisions
@@ -132,6 +152,28 @@
       href: adr/004-reflection-elimination.md
     - name: ADR-005 Graphics/Input Abstraction Layers
       href: adr/005-graphics-input-abstraction-layers.md
+    - name: ADR-006 Custom MSBuild SDK
+      href: adr/006-custom-msbuild-sdk.md
+    - name: ADR-007 Capability-Based Plugin Architecture
+      href: adr/007-capability-based-plugin-architecture.md
+    - name: ADR-008 Asset Management Architecture
+      href: adr/008-asset-management-architecture.md
+    - name: ADR-009 KESL Shader Language
+      href: adr/009-kesl-shader-language.md
+    - name: ADR-010 Graph Node Editor
+      href: adr/010-graph-node-editor.md
+    - name: ADR-011 Unified Scene Model
+      href: adr/011-unified-scene-model.md
+    - name: ADR-012 Editor Plugin Extension Architecture
+      href: adr/012-editor-plugin-extension-architecture.md
+    - name: ADR-013 Dynamic Plugin Loading
+      href: adr/013-dynamic-plugin-loading.md
+    - name: ADR-014 Replay Playback Runtime/Editor Integration
+      href: adr/014-replay-playback-runtime-editor-integration.md
+- name: Performance
+  items:
+    - name: AOT vs JIT Benchmarks
+      href: performance/aot-vs-jit-benchmarks.md
 - name: Research
   href: research/index.md
   items:
@@ -171,5 +213,15 @@
           href: research/opengl-csharp-bindings.md
         - name: Shader Management
           href: research/shader-management.md
+        - name: Shader Language
+          href: research/shader-language.md
         - name: Windowing & Input
           href: research/windowing-input.md
+    - name: Architecture Research
+      items:
+        - name: Scene Editor Architecture
+          href: research/scene-editor-architecture.md
+    - name: UI Design Research
+      items:
+        - name: 9-Slice Theming
+          href: research/9slice-theming.md
