@@ -49,9 +49,10 @@ public class ComponentBenchmarks
     /// Measures the cost of getting a component by reference.
     /// </summary>
     [Benchmark]
-    public ref Position GetComponent()
+    public float GetComponent()
     {
-        return ref world.Get<Position>(entity);
+        ref var pos = ref world.Get<Position>(entity);
+        return pos.X; // Force actual memory access to prevent JIT optimization
     }
 
     /// <summary>
@@ -252,27 +253,30 @@ public class ComponentSizeBenchmarks
     /// Measures Get performance for small components (4 bytes).
     /// </summary>
     [Benchmark(Baseline = true)]
-    public ref SmallComponent GetSmallComponent()
+    public int GetSmallComponent()
     {
-        return ref world.Get<SmallComponent>(smallEntity);
+        ref var component = ref world.Get<SmallComponent>(smallEntity);
+        return component.Value; // Force actual memory access to prevent JIT optimization
     }
 
     /// <summary>
     /// Measures Get performance for medium components (64 bytes).
     /// </summary>
     [Benchmark]
-    public ref MediumComponent GetMediumComponent()
+    public long GetMediumComponent()
     {
-        return ref world.Get<MediumComponent>(mediumEntity);
+        ref var component = ref world.Get<MediumComponent>(mediumEntity);
+        return component.A; // Force actual memory access to prevent JIT optimization
     }
 
     /// <summary>
     /// Measures Get performance for large components (256 bytes).
     /// </summary>
     [Benchmark]
-    public ref LargeComponent GetLargeComponent()
+    public long GetLargeComponent()
     {
-        return ref world.Get<LargeComponent>(largeEntity);
+        ref var component = ref world.Get<LargeComponent>(largeEntity);
+        return component.A0; // Force actual memory access to prevent JIT optimization
     }
 }
 

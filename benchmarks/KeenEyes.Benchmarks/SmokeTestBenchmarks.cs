@@ -73,9 +73,10 @@ public class SmokeTestBenchmarks
     /// Get component by ref - critical hot path.
     /// </summary>
     [Benchmark]
-    public ref Position Component_GetByRef()
+    public float Component_GetByRef()
     {
-        return ref world.Get<Position>(singleEntity);
+        ref var pos = ref world.Get<Position>(singleEntity);
+        return pos.X; // Force actual memory access to prevent JIT optimization
     }
 
     /// <summary>
@@ -147,9 +148,10 @@ public class SmokeTestBenchmarks
     /// Get singleton - global game state access pattern.
     /// </summary>
     [Benchmark]
-    public ref GameTime Singleton_Get()
+    public float Singleton_Get()
     {
-        return ref world.GetSingleton<GameTime>();
+        ref var gameTime = ref world.GetSingleton<GameTime>();
+        return gameTime.DeltaTime; // Force actual memory access to prevent JIT optimization
     }
 
     [IterationSetup(Target = nameof(Singleton_Get))]
