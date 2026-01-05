@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "timestamp": "2025-01-01T12:00:00Z",
+  "entities": [
+    {
+      "id": 1,
+      "name": "Hero",
+      "components": [
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.PlayerStats",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "health": 80,
+            "maxHealth": 100
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Equipment",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "weaponType": "Sword",
+            "damage": 25
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Currency",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "gold": 1000
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Position",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "x": 50.0,
+            "y": 75.0
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Player",
+          "version": 1,
+          "isTag": true,
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Archer",
+      "components": [
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.PlayerStats",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "health": 60,
+            "maxHealth": 60
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Equipment",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "weaponType": "Bow",
+            "damage": 30
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Currency",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "gold": 750
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Position",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "x": 120.0,
+            "y": 90.0
+          }
+        }
+      ]
+    }
+  ],
+  "singletons": [],
+  "metadata": {
+    "SaveName": "Original v1 Save - Two Characters",
+    "GameVersion": "1.0.0",
+    "PlayTime": "02:30:00",
+    "Location": "Starting Village"
+  }
+}

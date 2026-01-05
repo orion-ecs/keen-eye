@@ -1,0 +1,109 @@
+{
+  "version": 1,
+  "timestamp": "2025-06-01T12:00:00Z",
+  "entities": [
+    {
+      "id": 1,
+      "name": "Mage",
+      "components": [
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.PlayerStats",
+          "version": 2,
+          "isTag": false,
+          "data": {
+            "health": 60,
+            "maxHealth": 80,
+            "shield": 40
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Equipment",
+          "version": 2,
+          "isTag": false,
+          "data": {
+            "weaponType": "Staff",
+            "damage": 15,
+            "durability": 85,
+            "isMagical": true
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Currency",
+          "version": 2,
+          "isTag": false,
+          "data": {
+            "gold": 2500,
+            "silver": 500
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Position",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "x": 150.0,
+            "y": 200.0
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Player",
+          "version": 1,
+          "isTag": true,
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Knight",
+      "components": [
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.PlayerStats",
+          "version": 2,
+          "isTag": false,
+          "data": {
+            "health": 120,
+            "maxHealth": 150,
+            "shield": 75
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Equipment",
+          "version": 2,
+          "isTag": false,
+          "data": {
+            "weaponType": "Sword",
+            "damage": 35,
+            "durability": 92,
+            "isMagical": false
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Currency",
+          "version": 2,
+          "isTag": false,
+          "data": {
+            "gold": 4000,
+            "silver": 1200
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Position",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "x": 300.0,
+            "y": 150.0
+          }
+        }
+      ]
+    }
+  ],
+  "singletons": [],
+  "metadata": {
+    "SaveName": "v2 Save - Shield Update",
+    "GameVersion": "2.0.0",
+    "PlayTime": "08:45:00",
+    "Location": "Dark Forest"
+  }
+}

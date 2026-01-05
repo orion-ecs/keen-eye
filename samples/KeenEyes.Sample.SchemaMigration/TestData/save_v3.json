@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "timestamp": "2026-01-05T12:00:00Z",
+  "entities": [
+    {
+      "id": 1,
+      "name": "Paladin",
+      "components": [
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.PlayerStats",
+          "version": 3,
+          "isTag": false,
+          "data": {
+            "health": 200,
+            "maxHealth": 200,
+            "shield": 100,
+            "armor": 50,
+            "magicResist": 30
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Equipment",
+          "version": 3,
+          "isTag": false,
+          "data": {
+            "weaponType": "Mace",
+            "damage": 40,
+            "durability": 100,
+            "isMagical": true,
+            "bonusDamage": 20,
+            "enchantmentLevel": 4
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Currency",
+          "version": 3,
+          "isTag": false,
+          "data": {
+            "gold": 10000,
+            "silver": 5000,
+            "gems": 25
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Position",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "x": 500.0,
+            "y": 300.0
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Player",
+          "version": 1,
+          "isTag": true,
+          "data": {}
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Assassin",
+      "components": [
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.PlayerStats",
+          "version": 3,
+          "isTag": false,
+          "data": {
+            "health": 80,
+            "maxHealth": 80,
+            "shield": 0,
+            "armor": 10,
+            "magicResist": 5
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Equipment",
+          "version": 3,
+          "isTag": false,
+          "data": {
+            "weaponType": "Dagger",
+            "damage": 25,
+            "durability": 78,
+            "isMagical": true,
+            "bonusDamage": 50,
+            "enchantmentLevel": 5
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Currency",
+          "version": 3,
+          "isTag": false,
+          "data": {
+            "gold": 15000,
+            "silver": 8000,
+            "gems": 50
+          }
+        },
+        {
+          "typeName": "KeenEyes.Sample.SchemaMigration.Position",
+          "version": 1,
+          "isTag": false,
+          "data": {
+            "x": 450.0,
+            "y": 275.0
+          }
+        }
+      ]
+    }
+  ],
+  "singletons": [],
+  "metadata": {
+    "SaveName": "v3 Save - Current Version",
+    "GameVersion": "3.0.0",
+    "PlayTime": "24:15:00",
+    "Location": "Dragon's Lair"
+  }
+}
