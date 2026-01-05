@@ -83,13 +83,11 @@ public sealed class QueryGenerator : IIncrementalGenerator
             }
 
             var fieldType = field.Type;
-            var isRef = false;
             var isReadOnly = false;
 
             // Check for ref/ref readonly field types
             if (fieldType is IPointerTypeSymbol || field.RefKind != RefKind.None)
             {
-                isRef = true;
                 isReadOnly = field.RefKind == RefKind.RefReadOnly;
             }
 
@@ -153,8 +151,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
             fields.Add(new QueryFieldInfo(
                 field.Name,
                 componentType,
-                accessType,
-                isRef));
+                accessType));
         }
 
         return new QueryInfo(
@@ -250,8 +247,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
     private sealed record QueryFieldInfo(
         string Name,
         string ComponentType,
-        QueryAccessType AccessType,
-        bool IsRef);
+        QueryAccessType AccessType);
 
     private sealed record QueryDiagnosticInfo(
         DiagnosticDescriptor Descriptor,
