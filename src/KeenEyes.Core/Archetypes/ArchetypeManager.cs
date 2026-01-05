@@ -385,6 +385,27 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     }
 
     /// <summary>
+    /// Gets a readonly reference to a component for an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="entity">The entity.</param>
+    /// <returns>A readonly reference to the component.</returns>
+    /// <remarks>
+    /// Use this method when you only need to read component data without modification.
+    /// The readonly reference prevents accidental mutation and enables compiler optimizations.
+    /// Note: The returned reference is only valid while the lock is held internally.
+    /// Avoid storing the reference for later use in concurrent scenarios.
+    /// </remarks>
+    internal ref readonly T GetReadonly<T>(Entity entity) where T : struct, IComponent
+    {
+        lock (syncRoot)
+        {
+            var (archetype, index) = GetEntityLocationNoLock(entity);
+            return ref archetype.GetReadonly<T>(index);
+        }
+    }
+
+    /// <summary>
     /// Checks if an entity has a component.
     /// </summary>
     /// <typeparam name="T">The component type.</typeparam>

@@ -257,6 +257,54 @@ public sealed partial class World
     }
 
     /// <summary>
+    /// Gets a readonly reference to a component from an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type to retrieve.</typeparam>
+    /// <param name="entity">The entity to get the component from.</param>
+    /// <returns>A readonly reference to the component data.</returns>
+    /// <remarks>
+    /// <para>
+    /// Use this method when you only need to read component data without modification.
+    /// The readonly reference prevents accidental mutation and enables compiler optimizations.
+    /// </para>
+    /// <para>
+    /// For modifying components, use <see cref="Get{T}(Entity)"/> instead.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the entity is not alive, the component type is not registered,
+    /// or the entity does not have the specified component.
+    /// </exception>
+    /// <example>
+    /// <code>
+    /// ref readonly var position = ref world.GetReadonly&lt;Position&gt;(entity);
+    /// float x = position.X; // Read-only access
+    /// </code>
+    /// </example>
+    public ref readonly T GetReadonly<T>(Entity entity) where T : struct, IComponent
+    {
+        if (!IsAlive(entity))
+        {
+            throw new InvalidOperationException($"Entity {entity} is not alive.");
+        }
+
+        var info = Components.Get<T>();
+        if (info is null)
+        {
+            throw new InvalidOperationException(
+                $"Component type {typeof(T).Name} is not registered in this world.");
+        }
+
+        if (!archetypeManager.Has<T>(entity))
+        {
+            throw new InvalidOperationException(
+                $"Entity {entity} does not have component {typeof(T).Name}.");
+        }
+
+        return ref archetypeManager.GetReadonly<T>(entity);
+    }
+
+    /// <summary>
     /// Checks if an entity has a specific component type.
     /// </summary>
     /// <typeparam name="T">The component type to check for.</typeparam>
