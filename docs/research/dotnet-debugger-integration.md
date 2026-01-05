@@ -167,28 +167,202 @@ public class DebugAdapterClient : IDisposable
 }
 ```
 
-### Approach 2: In-Process (Advanced)
+### Approach 2: In-Process / Embedded (Recommended for KeenEyes)
 
-Embed SharpDbg.Infrastructure directly for tighter integration.
+Embed SharpDbg.Infrastructure directly for custom ECS debugging views.
 
 **Advantages:**
-- Lower latency
-- Direct access to debugger internals
-- Custom debugging features beyond DAP
+- Direct access to `ICorDebugValue` for custom type visualization
+- ECS-specific views: entity inspector, component values, world state
+- Lower latency for high-frequency inspection
+- Full control over debugging UX
 
 **Disadvantages:**
-- Tighter coupling
-- Debugger issues could crash editor
+- Tighter coupling to SharpDbg internals
+- Debugger issues could affect editor stability
 - More complex implementation
 
-**When to Use:**
-- Custom debugging visualizations
-- Game-specific debugging (entity inspection, component views)
-- Performance-critical scenarios
+**Why Embedded for KeenEyes:**
+- Custom visualization of `World`, `Entity`, component structs
+- Real-time entity/component inspection during pause
+- Integration with editor's entity hierarchy view
+- Query result visualization during debugging
 
-### Approach 3: Hybrid
+#### SharpDbg.Infrastructure Components
 
-Use DAP for standard debugging, but add custom channels for editor-specific features.
+The Infrastructure layer provides everything needed for embedding:
+
+```
+SharpDbg.Infrastructure/
+├── Debugger/
+│   ├── ManagedDebugger.cs              # Core debugger engine
+│   ├── ManagedDebugger_VariableInfo.cs # Variable metadata
+│   ├── ManagedDebugger_VariableValues.cs # Value retrieval
+│   ├── BreakpointManager.cs            # Breakpoint handling
+│   ├── VariableManager.cs              # Variable tracking
+│   ├── SymbolReader.cs                 # PDB symbol loading
+│   ├── ModuleInfo.cs                   # Assembly metadata
+│   └── ExpressionEvaluator/            # Expression evaluation
+├── ClrDebugExtensions.cs               # Helper extensions
+└── DbgShimResolver.cs                  # Runtime shim resolution
+```
+
+#### Embedded Integration Pattern
+
+```csharp
+using ClrDebug;
+using SharpDbg.Infrastructure.Debugger;
+
+public class EmbeddedDebugger : IDisposable
+{
+    private ManagedDebugger debugger;
+    private BreakpointManager breakpoints;
+    private VariableManager variables;
+
+    public async Task AttachAsync(int processId)
+    {
+        // Initialize ClrDebug wrapper
+        var corDebug = new CorDebug();
+        var callback = new DebuggerCallback(this);
+        corDebug.SetManagedHandler(callback);
+
+        // Attach to running process
+        var process = corDebug.DebugActiveProcess(processId, win32Attach: false);
+
+        // Initialize SharpDbg managers
+        debugger = new ManagedDebugger(process);
+        breakpoints = new BreakpointManager(debugger);
+        variables = new VariableManager(debugger);
+    }
+
+    // Custom ECS inspection - direct access to ICorDebugValue
+    public WorldSnapshot InspectWorld(CorDebugValue worldValue)
+    {
+        // Read World fields directly via ICorDebugObjectValue
+        var objectValue = worldValue.As<CorDebugObjectValue>();
+
+        // Get entity count
+        var entityCountField = objectValue.GetFieldValue("entityCount");
+        int entityCount = entityCountField.As<CorDebugGenericValue>().GetValue<int>();
+
+        // Enumerate entities via archetype storage
+        var archetypeManager = objectValue.GetFieldValue("archetypeManager");
+        // ... custom traversal of ECS data structures
+
+        return new WorldSnapshot { EntityCount = entityCount, /* ... */ };
+    }
+}
+```
+
+#### ICorDebugValue Hierarchy for Type Inspection
+
+Understanding the value hierarchy is key for custom visualizers:
+
+```
+ICorDebugValue (base)
+├── ICorDebugGenericValue     # Primitives (int, float, bool)
+├── ICorDebugReferenceValue   # Object references
+├── ICorDebugObjectValue      # Object instances (fields, properties)
+├── ICorDebugBoxValue         # Boxed value types
+├── ICorDebugStringValue      # String values
+├── ICorDebugArrayValue       # Arrays
+└── ICorDebugHeapValue        # Heap-allocated objects
+```
+
+ClrDebug wraps these as `CorDebugValue`, `CorDebugObjectValue`, etc. with proper inheritance.
+
+#### ECS-Specific Visualizers
+
+```csharp
+public class EntityVisualizer
+{
+    public EntityView Visualize(CorDebugObjectValue entityValue, CorDebugObjectValue worldValue)
+    {
+        // Read Entity struct fields
+        var id = entityValue.GetFieldValue("Id").As<CorDebugGenericValue>().GetValue<int>();
+        var version = entityValue.GetFieldValue("Version").As<CorDebugGenericValue>().GetValue<int>();
+
+        // Look up components from World's archetype storage
+        var components = GetEntityComponents(worldValue, id);
+
+        return new EntityView
+        {
+            Id = id,
+            Version = version,
+            Components = components,
+            Children = GetEntityChildren(worldValue, id),
+            Parent = GetEntityParent(worldValue, id)
+        };
+    }
+
+    private List<ComponentView> GetEntityComponents(CorDebugObjectValue world, int entityId)
+    {
+        // Navigate: World -> ArchetypeManager -> find archetype for entity -> read components
+        var archetypeManager = world.GetFieldValue("archetypeManager").As<CorDebugObjectValue>();
+        // ... traverse archetype storage to find and read component data
+    }
+}
+
+public class ComponentVisualizer
+{
+    public ComponentView Visualize(CorDebugObjectValue componentValue, Type componentType)
+    {
+        var view = new ComponentView { TypeName = componentType.Name };
+
+        // Read all fields of the component struct
+        foreach (var field in componentType.GetFields())
+        {
+            var fieldValue = componentValue.GetFieldValue(field.Name);
+            view.Fields.Add(new FieldView
+            {
+                Name = field.Name,
+                Value = FormatValue(fieldValue),
+                CanEdit = IsPrimitiveOrSimple(field.FieldType)
+            });
+        }
+
+        return view;
+    }
+}
+```
+
+### Approach 3: Hybrid (Recommended Architecture)
+
+Use SharpDbg.Infrastructure for core debugging + custom ECS layer on top.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     KeenEyes Editor                             │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
+│  │ Debug Toolbar   │  │ Entity Inspector│  │ World Snapshot  │ │
+│  │ (Step/Continue) │  │ (Live View)     │  │ (Pause View)    │ │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘ │
+│           │                    │                    │          │
+│  ┌────────▼────────────────────▼────────────────────▼────────┐ │
+│  │              ECS Debug Integration Layer                  │ │
+│  │  - EntityVisualizer, ComponentVisualizer, QueryVisualizer │ │
+│  │  - WorldSnapshot, ArchetypeInspector                      │ │
+│  └────────────────────────────┬──────────────────────────────┘ │
+│                               │                                 │
+│  ┌────────────────────────────▼──────────────────────────────┐ │
+│  │              SharpDbg.Infrastructure                      │ │
+│  │  - ManagedDebugger, BreakpointManager, VariableManager    │ │
+│  │  - ExpressionEvaluator, SymbolReader                      │ │
+│  └────────────────────────────┬──────────────────────────────┘ │
+│                               │                                 │
+│  ┌────────────────────────────▼──────────────────────────────┐ │
+│  │                     ClrDebug                              │ │
+│  │  - ICorDebug wrappers, IMetaData, Symbol APIs             │ │
+│  └───────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+                    ┌─────────────────────┐
+                    │   Debuggee Game     │
+                    │   (KeenEyes App)    │
+                    └─────────────────────┘
+```
 
 ## NuGet Packages for DAP
 
@@ -308,37 +482,81 @@ public class DebuggingService
 
 ## KeenEyes Editor Integration Plan
 
-### Phase 1: Basic DAP Client
+### Phase 1: Core Debugger Integration
 
-1. Add `Microsoft.VisualStudio.Shared.VSCodeDebugProtocol` package
-2. Create `DebugAdapterManager` in editor infrastructure
-3. Implement launch/attach workflow
-4. Handle stopped events and update UI
-5. Support basic breakpoints (line-based)
+1. Add SharpDbg.Infrastructure as a project reference or submodule
+2. Add ClrDebug NuGet package
+3. Create `EcsDebugger` service wrapping ManagedDebugger
+4. Implement attach/detach workflow for game processes
+5. Handle debugger callbacks (breakpoint hit, step complete, exception)
+6. Basic breakpoint support (line-based)
 
-### Phase 2: UI Components
+### Phase 2: Standard Debug UI
 
-1. Debug toolbar (continue, step over, step in, step out, pause)
-2. Breakpoint gutter markers
-3. Call stack panel
-4. Variables panel (locals, watch)
-5. Debug console for output
+1. Debug toolbar (continue, step over, step in, step out, pause, stop)
+2. Breakpoint gutter markers in code editor
+3. Call stack panel with frame navigation
+4. Locals/Watch panel using VariableManager
+5. Debug console for application output
+6. Threads panel for multi-threaded debugging
 
-### Phase 3: ECS-Specific Features
+### Phase 3: ECS-Specific Visualizers
 
-1. Entity inspector during debugging
-2. Component value visualization
-3. System execution profiling
-4. World state snapshots
-5. Query result inspection
+Custom views leveraging direct ICorDebugValue access:
 
-### Phase 4: Advanced Features
+| Visualizer | Description |
+|------------|-------------|
+| **World Inspector** | Shows all worlds, entity counts, registered systems |
+| **Entity Browser** | Hierarchical entity tree with parent/child relationships |
+| **Component Inspector** | Struct field editor with live values during pause |
+| **Archetype Viewer** | Visualize archetype composition and entity distribution |
+| **Query Debugger** | Show which entities match a query, with component data |
+| **System Profiler** | Execution time per system, integrated with debug stepping |
 
-1. Conditional breakpoints
-2. Logpoints
-3. Exception breakpoints
-4. Hot reload integration
-5. Edit and continue (if supported)
+```csharp
+// Example: Entity browser integration
+public class EntityBrowserPanel : EditorPanel
+{
+    private EcsDebugger debugger;
+
+    public void OnDebuggerPaused(PausedEventArgs args)
+    {
+        // Find World instance in current scope
+        var worldValue = debugger.FindLocalVariable("world");
+        if (worldValue == null)
+            worldValue = debugger.FindStaticField("Game.Instance.World");
+
+        if (worldValue != null)
+        {
+            var snapshot = debugger.InspectWorld(worldValue);
+            RefreshEntityTree(snapshot);
+        }
+    }
+
+    private void OnEntitySelected(int entityId)
+    {
+        var components = debugger.GetEntityComponents(entityId);
+        componentInspector.Show(components);
+    }
+}
+```
+
+### Phase 4: Live Debugging Features
+
+1. **Component Edit**: Modify component values during pause, apply on continue
+2. **Entity Spawn/Despawn**: Create/destroy entities from debug UI
+3. **Query Filtering**: Filter entity browser by component query
+4. **Breakpoint on Entity**: Break when specific entity is accessed
+5. **System Step**: Step through systems one at a time in update loop
+
+### Phase 5: Advanced Integration
+
+1. **Conditional breakpoints** with ECS expressions (`entity.Has<Position>()`)
+2. **Data breakpoints** on component field changes
+3. **Exception breakpoints** with component context
+4. **Hot reload** integration (recompile systems, keep world state)
+5. **Replay integration**: Debug from replay checkpoint
+6. **Remote debugging**: Debug game running on another machine
 
 ## Building SharpDbg
 
