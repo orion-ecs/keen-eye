@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<PackageId>KeenEyes.Localization</PackageId>
+		<Description>ECS-native localization system for KeenEyes framework with key-value JSON support</Description>
+		<PackageTags>ecs;localization;i18n;internationalization;json;game;framework</PackageTags>
+		<IsAotCompatible>true</IsAotCompatible>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="KeenEyes.Localization.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+		<ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+		<ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+		<ProjectReference Include="..\KeenEyes.UI.Abstractions\KeenEyes.UI.Abstractions.csproj" />
+		<ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+</Project>
