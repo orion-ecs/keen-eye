@@ -14,25 +14,28 @@ using Microsoft.CodeAnalysis.Text;
 namespace KeenEyes.Generators;
 
 /// <summary>
-/// Generates static scene loading methods from .kescene files.
+/// Generates static scene/prefab spawn methods from .kescene and .keprefab files.
 /// </summary>
 [Generator]
 public sealed class SceneGenerator : IIncrementalGenerator
 {
     private const string SceneExtension = ".kescene";
+    private const string PrefabExtension = ".keprefab";
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // Find all .kescene files marked as AdditionalFiles
-        var sceneFiles = context.AdditionalTextsProvider
-            .Where(static file => file.Path.EndsWith(SceneExtension, StringComparison.OrdinalIgnoreCase));
+        // Find all .kescene and .keprefab files marked as AdditionalFiles
+        var assetFiles = context.AdditionalTextsProvider
+            .Where(static file =>
+                file.Path.EndsWith(SceneExtension, StringComparison.OrdinalIgnoreCase) ||
+                file.Path.EndsWith(PrefabExtension, StringComparison.OrdinalIgnoreCase));
 
         // Combine with compilation to validate component types
         var compilationAndFiles = context.CompilationProvider
-            .Combine(sceneFiles.Collect());
+            .Combine(assetFiles.Collect());
 
-        // Generate C# for each .kescene file
+        // Generate C# for each asset file
         context.RegisterSourceOutput(compilationAndFiles, static (ctx, source) =>
         {
             var (compilation, files) = source;
@@ -41,7 +44,7 @@ public sealed class SceneGenerator : IIncrementalGenerator
 
             foreach (var file in files)
             {
-                var sceneInfo = ProcessSceneFile(ctx, file, compilation, rootNamespace);
+                var sceneInfo = ProcessAssetFile(ctx, file, compilation, rootNamespace);
                 if (sceneInfo != null)
                 {
                     sceneInfos.Add(sceneInfo);
@@ -62,7 +65,7 @@ public sealed class SceneGenerator : IIncrementalGenerator
         return compilation.AssemblyName ?? "Generated";
     }
 
-    private static SceneInfo? ProcessSceneFile(
+    private static SceneInfo? ProcessAssetFile(
         SourceProductionContext context,
         AdditionalText file,
         Compilation compilation,
@@ -77,9 +80,10 @@ public sealed class SceneGenerator : IIncrementalGenerator
         var json = sourceText.ToString();
         var filePath = file.Path;
         var fileName = Path.GetFileNameWithoutExtension(filePath);
+        var isPrefab = filePath.EndsWith(PrefabExtension, StringComparison.OrdinalIgnoreCase);
 
-        // Parse the JSON
-        var scene = JsonParser.ParseScene(json);
+        // Parse the JSON using unified parser
+        var scene = JsonParser.ParseAsset(json, isPrefab);
         if (scene is null)
         {
             context.ReportDiagnostic(Diagnostic.Create(
@@ -91,6 +95,15 @@ public sealed class SceneGenerator : IIncrementalGenerator
 
         // Use file name if scene name is empty
         var sceneName = string.IsNullOrWhiteSpace(scene.Name) ? fileName : scene.Name;
+
+        // Report info diagnostic if base is specified (not yet supported)
+        if (!string.IsNullOrEmpty(scene.Base))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Diagnostics.ScenePrefabInheritanceNotSupported,
+                Location.Create(filePath, TextSpan.FromBounds(0, 0), default),
+                scene.Base));
+        }
 
         // Validate entity IDs are unique
         var entityIds = new HashSet<string>();
@@ -144,7 +157,44 @@ public sealed class SceneGenerator : IIncrementalGenerator
             }
         }
 
+        // Validate overridable fields
+        foreach (var fieldPath in scene.OverridableFields)
+        {
+            ValidateOverrideField(context, scene, fieldPath, filePath);
+        }
+
         return new SceneInfo(sceneName, scene, filePath);
+    }
+
+    private static void ValidateOverrideField(
+        SourceProductionContext context,
+        SceneModel scene,
+        string fieldPath,
+        string filePath)
+    {
+        // Field path format: "ComponentType.FieldName" e.g., "Transform.Position"
+        var parts = fieldPath.Split('.');
+        if (parts.Length != 2)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Diagnostics.SceneInvalidOverrideField,
+                Location.Create(filePath, TextSpan.FromBounds(0, 0), default),
+                fieldPath));
+            return;
+        }
+
+        var componentName = parts[0];
+
+        // Check if the component exists in any entity
+        var found = scene.Entities.Any(e => e.Components.ContainsKey(componentName));
+
+        if (!found)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                Diagnostics.SceneOverrideFieldNotFound,
+                Location.Create(filePath, TextSpan.FromBounds(0, 0), default),
+                fieldPath, componentName));
+        }
     }
 
     private static INamedTypeSymbol? FindComponentType(Compilation compilation, string typeName)
@@ -223,24 +273,24 @@ public sealed class SceneGenerator : IIncrementalGenerator
         sb.AppendLine($"namespace {rootNamespace};");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
-        sb.AppendLine("/// Provides methods to load scenes defined in .kescene files.");
+        sb.AppendLine("/// Provides methods to spawn scenes and prefabs defined in .kescene and .keprefab files.");
         sb.AppendLine("/// </summary>");
         sb.AppendLine("public static partial class Scenes");
         sb.AppendLine("{");
 
         // Generate All property
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// All scene names available in this project.");
+        sb.AppendLine("    /// All scene/prefab names available in this project.");
         sb.AppendLine("    /// </summary>");
         sb.Append("    public static IReadOnlyList<string> All { get; } = new string[] { ");
         sb.Append(string.Join(", ", scenes.Select(s => $"\"{s.Name}\"")));
         sb.AppendLine(" };");
         sb.AppendLine();
 
-        // Generate load method for each scene
+        // Generate spawn method for each scene
         foreach (var scene in scenes)
         {
-            GenerateLoadMethod(sb, scene);
+            GenerateSpawnMethod(sb, scene);
         }
 
         sb.AppendLine("}");
@@ -248,16 +298,35 @@ public sealed class SceneGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static void GenerateLoadMethod(StringBuilder sb, SceneInfo sceneInfo)
+    private static void GenerateSpawnMethod(StringBuilder sb, SceneInfo sceneInfo)
     {
         var scene = sceneInfo.Model;
         var methodName = SanitizeIdentifier(sceneInfo.Name);
 
+        // Parse overridable fields into typed parameters
+        var overrideParams = ParseOverrideParameters(scene);
+
         sb.AppendLine($"    /// <summary>");
-        sb.AppendLine($"    /// Loads the {sceneInfo.Name} scene into the world.");
+        sb.AppendLine($"    /// Spawns the {sceneInfo.Name} scene/prefab into the world.");
         sb.AppendLine($"    /// </summary>");
-        sb.AppendLine($"    /// <param name=\"world\">The world to load entities into.</param>");
-        sb.AppendLine($"    public static void Load{methodName}(global::KeenEyes.World world)");
+        sb.AppendLine($"    /// <param name=\"world\">The world to spawn entities into.</param>");
+        foreach (var param in overrideParams)
+        {
+            sb.AppendLine($"    /// <param name=\"{param.ParameterName}\">Optional override for {param.ComponentName}.{param.FieldName}.</param>");
+        }
+        sb.AppendLine($"    /// <returns>The root entity of the spawned scene/prefab.</returns>");
+
+        // Generate method signature with optional parameters
+        sb.Append($"    public static global::KeenEyes.Entity Spawn{methodName}(");
+        sb.AppendLine();
+        sb.Append("        global::KeenEyes.World world");
+
+        foreach (var param in overrideParams)
+        {
+            sb.AppendLine(",");
+            sb.Append($"        {param.TypeName}? {param.ParameterName} = null");
+        }
+        sb.AppendLine(")");
         sb.AppendLine("    {");
 
         // Build topological order (entities without parents first, then children)
@@ -265,11 +334,18 @@ public sealed class SceneGenerator : IIncrementalGenerator
 
         // Track which entities have variables for parenting
         var variableNames = new Dictionary<string, string>();
+        string? rootVarName = null;
 
         foreach (var entity in orderedEntities)
         {
             var varName = GenerateVariableName(entity, variableNames);
             variableNames[entity.Id] = varName;
+
+            // First entity is considered the root
+            if (rootVarName == null)
+            {
+                rootVarName = varName;
+            }
 
             // Generate entity spawn code
             sb.AppendLine($"        var {varName} = world.Spawn(\"{EscapeString(entity.Name)}\")");
@@ -279,12 +355,17 @@ public sealed class SceneGenerator : IIncrementalGenerator
                 var componentName = kvp.Key;
                 var componentData = kvp.Value;
 
+                // Check if any fields in this component have overrides
+                var componentOverrides = overrideParams
+                    .Where(p => p.ComponentName == componentName)
+                    .ToList();
+
                 sb.Append($"            .With(new global::{componentName}");
-                if (componentData.Count > 0)
+                if (componentData.Count > 0 || componentOverrides.Count > 0)
                 {
                     sb.AppendLine();
                     sb.AppendLine("            {");
-                    GenerateComponentInitializer(sb, componentData, "                ");
+                    GenerateComponentInitializerWithOverrides(sb, componentName, componentData, componentOverrides, "                ");
                     sb.Append("            }");
                 }
                 else
@@ -309,7 +390,139 @@ public sealed class SceneGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+        // Return root entity
+        sb.AppendLine($"        return {rootVarName ?? "default"};");
         sb.AppendLine("    }");
+        sb.AppendLine();
+    }
+
+    private static List<OverrideParameter> ParseOverrideParameters(SceneModel scene)
+    {
+        var result = new List<OverrideParameter>();
+
+        foreach (var fieldPath in scene.OverridableFields)
+        {
+            var parts = fieldPath.Split('.');
+            if (parts.Length != 2)
+            {
+                continue;
+            }
+
+            var componentName = parts[0];
+            var fieldName = parts[1];
+
+            // Try to find the default value from the scene data
+            object? defaultValue = null;
+            var typeName = "object";
+
+            // Search all entities for this component.field
+            foreach (var entity in scene.Entities)
+            {
+                Dictionary<string, object?>? componentData;
+                if (entity.Components.TryGetValue(componentName, out componentData))
+                {
+                    object? val;
+                    if (componentData.TryGetValue(fieldName, out val))
+                    {
+                        defaultValue = val;
+                        typeName = InferTypeName(val);
+                        break;
+                    }
+                }
+            }
+
+            // Generate parameter name (camelCase: Transform.Position -> transformPosition)
+            var paramName = char.ToLowerInvariant(componentName[0]) +
+                           componentName.Substring(1) +
+                           fieldName;
+
+            result.Add(new OverrideParameter(componentName, fieldName, typeName, paramName, defaultValue));
+        }
+
+        return result;
+    }
+
+    private static string InferTypeName(object? value)
+    {
+        return value switch
+        {
+            null => "object",
+            bool => "bool",
+            int => "int",
+            long => "long",
+            double => "float",
+            string => "string",
+            Dictionary<string, object?> nested when IsVector3(nested) => "global::System.Numerics.Vector3",
+            Dictionary<string, object?> nested when IsVector2(nested) => "global::System.Numerics.Vector2",
+            Dictionary<string, object?> nested when IsVector4(nested) => "global::System.Numerics.Vector4",
+            _ => "object"
+        };
+    }
+
+    private static bool IsVector2(Dictionary<string, object?> nested)
+    {
+        return nested.ContainsKey("X") && nested.ContainsKey("Y") && !nested.ContainsKey("Z");
+    }
+
+    private static bool IsVector3(Dictionary<string, object?> nested)
+    {
+        return nested.ContainsKey("X") && nested.ContainsKey("Y") && nested.ContainsKey("Z") && !nested.ContainsKey("W");
+    }
+
+    private static bool IsVector4(Dictionary<string, object?> nested)
+    {
+        return nested.ContainsKey("X") && nested.ContainsKey("Y") && nested.ContainsKey("Z") && nested.ContainsKey("W");
+    }
+
+    private static void GenerateComponentInitializerWithOverrides(
+        StringBuilder sb,
+        string componentName,
+        Dictionary<string, object?> data,
+        List<OverrideParameter> overrides,
+        string indent)
+    {
+        var isFirst = true;
+
+        foreach (var kvp in data)
+        {
+            var key = kvp.Key;
+            var value = kvp.Value;
+
+            if (!isFirst)
+            {
+                sb.AppendLine(",");
+            }
+            isFirst = false;
+
+            // Check if this field has an override
+            var overrideParam = overrides.FirstOrDefault(o => o.FieldName == key);
+            if (overrideParam != null)
+            {
+                sb.Append($"{indent}{key} = {overrideParam.ParameterName} ?? ");
+                GenerateValue(sb, value, indent);
+            }
+            else
+            {
+                sb.Append($"{indent}{key} = ");
+                GenerateValue(sb, value, indent);
+            }
+        }
+
+        // Add any override fields that weren't in the original data
+        foreach (var overrideParam in overrides)
+        {
+            if (!data.ContainsKey(overrideParam.FieldName))
+            {
+                if (!isFirst)
+                {
+                    sb.AppendLine(",");
+                }
+                isFirst = false;
+
+                sb.Append($"{indent}{overrideParam.FieldName} = {overrideParam.ParameterName} ?? default");
+            }
+        }
+
         sb.AppendLine();
     }
 
@@ -377,29 +590,6 @@ public sealed class SceneGenerator : IIncrementalGenerator
         }
 
         return name;
-    }
-
-    private static void GenerateComponentInitializer(
-        StringBuilder sb,
-        Dictionary<string, object?> data,
-        string indent)
-    {
-        var isFirst = true;
-        foreach (var kvp in data)
-        {
-            var key = kvp.Key;
-            var value = kvp.Value;
-
-            if (!isFirst)
-            {
-                sb.AppendLine(",");
-            }
-            isFirst = false;
-
-            sb.Append($"{indent}{key} = ");
-            GenerateValue(sb, value, indent);
-        }
-        sb.AppendLine();
     }
 
     private static void GenerateValue(StringBuilder sb, object? value, string indent)
@@ -477,6 +667,29 @@ public sealed class SceneGenerator : IIncrementalGenerator
         }
     }
 
+    private static void GenerateComponentInitializer(
+        StringBuilder sb,
+        Dictionary<string, object?> data,
+        string indent)
+    {
+        var isFirst = true;
+        foreach (var kvp in data)
+        {
+            var key = kvp.Key;
+            var value = kvp.Value;
+
+            if (!isFirst)
+            {
+                sb.AppendLine(",");
+            }
+            isFirst = false;
+
+            sb.Append($"{indent}{key} = ");
+            GenerateValue(sb, value, indent);
+        }
+        sb.AppendLine();
+    }
+
     private static string FormatFloat(object? value)
     {
         return value switch
@@ -537,6 +750,24 @@ public sealed class SceneGenerator : IIncrementalGenerator
             Name = name;
             Model = model;
             FilePath = filePath;
+        }
+    }
+
+    private sealed class OverrideParameter
+    {
+        public string ComponentName { get; }
+        public string FieldName { get; }
+        public string TypeName { get; }
+        public string ParameterName { get; }
+        public object? DefaultValue { get; }
+
+        public OverrideParameter(string componentName, string fieldName, string typeName, string parameterName, object? defaultValue)
+        {
+            ComponentName = componentName;
+            FieldName = fieldName;
+            TypeName = typeName;
+            ParameterName = parameterName;
+            DefaultValue = defaultValue;
         }
     }
 }
@@ -603,4 +834,40 @@ internal static partial class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Each entity in a scene must have a unique ID.");
+
+    /// <summary>
+    /// KEEN064: Prefab inheritance not yet supported.
+    /// </summary>
+    public static readonly DiagnosticDescriptor ScenePrefabInheritanceNotSupported = new(
+        id: "KEEN064",
+        title: "Prefab inheritance not supported",
+        messageFormat: "Prefab inheritance (base: '{0}') is not yet supported; the base field is ignored",
+        category: "KeenEyes.Scene",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true,
+        description: "The 'base' field for prefab inheritance is parsed but not yet implemented.");
+
+    /// <summary>
+    /// KEEN065: Invalid override field path.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SceneInvalidOverrideField = new(
+        id: "KEEN065",
+        title: "Invalid override field",
+        messageFormat: "Invalid override field path '{0}' - expected format 'ComponentType.FieldName'",
+        category: "KeenEyes.Scene",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Override field paths must be in the format 'ComponentType.FieldName'.");
+
+    /// <summary>
+    /// KEEN066: Override field not found.
+    /// </summary>
+    public static readonly DiagnosticDescriptor SceneOverrideFieldNotFound = new(
+        id: "KEEN066",
+        title: "Override field not found",
+        messageFormat: "Override field '{0}' references component '{1}' which is not present in any entity",
+        category: "KeenEyes.Scene",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "The override field references a component that does not exist in any entity.");
 }
