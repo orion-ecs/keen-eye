@@ -11,14 +11,26 @@ namespace KeenEyes.Generators;
 /// Analyzer that validates component migration methods marked with [MigrateFrom].
 /// </summary>
 /// <remarks>
+/// <para>
 /// Validates that migration methods:
 /// <list type="bullet">
-/// <item><description>Are static</description></item>
-/// <item><description>Return the containing component type</description></item>
-/// <item><description>Take a single JsonElement parameter</description></item>
-/// <item><description>Have a FromVersion less than the component's current Version</description></item>
-/// <item><description>Don't have gaps in the migration chain</description></item>
+/// <item><description>Are static (KEEN110)</description></item>
+/// <item><description>Return the containing component type (KEEN111)</description></item>
+/// <item><description>Take a single JsonElement parameter (KEEN112)</description></item>
+/// <item><description>Have a FromVersion less than the component's current Version (KEEN113)</description></item>
+/// <item><description>Don't have gaps in the migration chain (KEEN114 - warning)</description></item>
+/// <item><description>Don't have duplicate migration versions (KEEN115)</description></item>
+/// <item><description>Are defined in a [Component] type (KEEN116)</description></item>
+/// <item><description>Component is serializable (KEEN117)</description></item>
 /// </list>
+/// </para>
+/// <para>
+/// <strong>Cycle Detection:</strong> Migration cycles are structurally impossible due to the
+/// version constraint (KEEN113). Since each [MigrateFrom(v)] migrates from version v to v+1,
+/// and v must be less than the component's current version, all migration edges point forward
+/// in version space. Combined with the no-duplicates rule (KEEN115), this guarantees a
+/// directed acyclic graph (DAG) structure.
+/// </para>
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer

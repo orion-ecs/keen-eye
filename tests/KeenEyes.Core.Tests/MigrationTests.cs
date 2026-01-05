@@ -164,6 +164,143 @@ public class MigrationTests
         Assert.Null(result);
     }
 
+    [Fact]
+    public void Migrate_SingleStep_TransformsData()
+    {
+        // Migration that adds a Z coordinate
+        var migrator = new TestMigrator(new Dictionary<Type, Dictionary<int, Func<JsonElement, object>>>
+        {
+            [typeof(SerializablePosition)] = new()
+            {
+                [1] = json =>
+                {
+                    var x = json.GetProperty("x").GetSingle();
+                    var y = json.GetProperty("y").GetSingle();
+                    return new { x, y, z = 0.0f }; // Add z = 0
+                }
+            }
+        });
+
+        var data = JsonSerializer.SerializeToElement(new { x = 5.0f, y = 10.0f });
+
+        var result = migrator.Migrate(typeof(SerializablePosition), data, 1, 2);
+
+        Assert.NotNull(result);
+        Assert.Equal(5.0f, result.Value.GetProperty("x").GetSingle());
+        Assert.Equal(10.0f, result.Value.GetProperty("y").GetSingle());
+        Assert.Equal(0.0f, result.Value.GetProperty("z").GetSingle());
+    }
+
+    [Fact]
+    public void Migrate_MultipleSteps_ChainsTransformations()
+    {
+        // Multi-step migration: v1 (x,y) -> v2 (x,y,z) -> v3 (x,y,z,w)
+        var migrator = new TestMigrator(new Dictionary<Type, Dictionary<int, Func<JsonElement, object>>>
+        {
+            [typeof(SerializablePosition)] = new()
+            {
+                [1] = json =>
+                {
+                    var x = json.GetProperty("x").GetSingle();
+                    var y = json.GetProperty("y").GetSingle();
+                    return new { x, y, z = 0.0f };
+                },
+                [2] = json =>
+                {
+                    var x = json.GetProperty("x").GetSingle();
+                    var y = json.GetProperty("y").GetSingle();
+                    var z = json.GetProperty("z").GetSingle();
+                    return new { x, y, z, w = 1.0f };
+                }
+            }
+        });
+
+        var data = JsonSerializer.SerializeToElement(new { x = 5.0f, y = 10.0f });
+
+        var result = migrator.Migrate(typeof(SerializablePosition), data, 1, 3);
+
+        Assert.NotNull(result);
+        Assert.Equal(5.0f, result.Value.GetProperty("x").GetSingle());
+        Assert.Equal(10.0f, result.Value.GetProperty("y").GetSingle());
+        Assert.Equal(0.0f, result.Value.GetProperty("z").GetSingle());
+        Assert.Equal(1.0f, result.Value.GetProperty("w").GetSingle());
+    }
+
+    [Fact]
+    public void Migrate_PartialChain_MigratesFromMiddle()
+    {
+        // Start migration from v2 instead of v1
+        var migrator = new TestMigrator(new Dictionary<Type, Dictionary<int, Func<JsonElement, object>>>
+        {
+            [typeof(SerializablePosition)] = new()
+            {
+                [1] = json => new { x = 0, y = 0, z = 0 },
+                [2] = json =>
+                {
+                    var x = json.GetProperty("x").GetSingle();
+                    var y = json.GetProperty("y").GetSingle();
+                    var z = json.GetProperty("z").GetSingle();
+                    return new { x, y, z, w = 1.0f };
+                }
+            }
+        });
+
+        var data = JsonSerializer.SerializeToElement(new { x = 5.0f, y = 10.0f, z = 15.0f });
+
+        var result = migrator.Migrate(typeof(SerializablePosition), data, 2, 3);
+
+        Assert.NotNull(result);
+        Assert.Equal(5.0f, result.Value.GetProperty("x").GetSingle());
+        Assert.Equal(10.0f, result.Value.GetProperty("y").GetSingle());
+        Assert.Equal(15.0f, result.Value.GetProperty("z").GetSingle());
+        Assert.Equal(1.0f, result.Value.GetProperty("w").GetSingle());
+    }
+
+    [Fact]
+    public void Migrate_WithGap_ThrowsComponentVersionException()
+    {
+        var migrator = new TestMigrator(new Dictionary<Type, Dictionary<int, Func<JsonElement, object>>>
+        {
+            [typeof(SerializablePosition)] = new()
+            {
+                [1] = json => new { x = 0, y = 0, z = 0 },
+                // Missing v2 migration
+                [3] = json => new { x = 0, y = 0, z = 0, w = 0 }
+            }
+        });
+
+        var data = JsonSerializer.SerializeToElement(new { x = 5.0f, y = 10.0f });
+
+        Assert.Throws<ComponentVersionException>(() =>
+            migrator.Migrate(typeof(SerializablePosition), data, 1, 4));
+    }
+
+    [Fact]
+    public void Migrate_LongChain_ChainsAllSteps()
+    {
+        // 5-step migration chain: v1 -> v2 -> v3 -> v4 -> v5 -> v6
+        var migrationCount = 0;
+        var migrator = new TestMigrator(new Dictionary<Type, Dictionary<int, Func<JsonElement, object>>>
+        {
+            [typeof(SerializablePosition)] = new()
+            {
+                [1] = json => { migrationCount++; return new { step = 2 }; },
+                [2] = json => { migrationCount++; return new { step = 3 }; },
+                [3] = json => { migrationCount++; return new { step = 4 }; },
+                [4] = json => { migrationCount++; return new { step = 5 }; },
+                [5] = json => { migrationCount++; return new { step = 6 }; }
+            }
+        });
+
+        var data = JsonSerializer.SerializeToElement(new { step = 1 });
+
+        var result = migrator.Migrate(typeof(SerializablePosition), data, 1, 6);
+
+        Assert.NotNull(result);
+        Assert.Equal(5, migrationCount);
+        Assert.Equal(6, result.Value.GetProperty("step").GetInt32());
+    }
+
     #endregion
 
     #region MigrateFromAttribute Tests

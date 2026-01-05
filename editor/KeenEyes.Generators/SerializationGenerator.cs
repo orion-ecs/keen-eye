@@ -207,7 +207,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("/// JsonSerializer.Serialize(value, Options);");
         sb.AppendLine("/// </code>");
         sb.AppendLine("/// </remarks>");
-        sb.AppendLine("public sealed class ComponentSerializer : IComponentSerializer, IBinaryComponentSerializer, IComponentMigrator");
+        sb.AppendLine("public sealed class ComponentSerializer : IComponentSerializer, IBinaryComponentSerializer, IComponentMigrator, IMigrationDiagnostics");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// Shared instance for convenience.");
@@ -232,6 +232,10 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    private static readonly Dictionary<Type, Dictionary<int, Func<JsonElement, object>>> MigrationsByType;");
         sb.AppendLine("    private static readonly Dictionary<string, Dictionary<int, Func<JsonElement, object>>> MigrationsByName;");
         sb.AppendLine();
+        sb.AppendLine("    // Cached migration graphs for diagnostics");
+        sb.AppendLine("    private static readonly Dictionary<string, MigrationGraph> MigrationGraphsByName;");
+        sb.AppendLine("    private static readonly Dictionary<Type, MigrationGraph> MigrationGraphsByType;");
+        sb.AppendLine();
 
         // Static constructor to initialize dictionaries
         sb.AppendLine("    static ComponentSerializer()");
@@ -240,6 +244,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        ComponentsByType = new Dictionary<Type, ComponentSerializationInfo>();");
         sb.AppendLine("        MigrationsByType = new Dictionary<Type, Dictionary<int, Func<JsonElement, object>>>();");
         sb.AppendLine("        MigrationsByName = new Dictionary<string, Dictionary<int, Func<JsonElement, object>>>();");
+        sb.AppendLine("        MigrationGraphsByName = new Dictionary<string, MigrationGraph>();");
+        sb.AppendLine("        MigrationGraphsByType = new Dictionary<Type, MigrationGraph>();");
         sb.AppendLine();
 
         foreach (var component in components)
@@ -273,6 +279,17 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 sb.AppendLine($"        MigrationsByType[typeof({component.FullName})] = migrations_{component.Name};");
                 sb.AppendLine($"        MigrationsByName[typeof({component.FullName}).AssemblyQualifiedName!] = migrations_{component.Name};");
                 sb.AppendLine($"        MigrationsByName[\"{component.FullName}\"] = migrations_{component.Name};");
+                sb.AppendLine();
+
+                // Create migration graph for diagnostics
+                sb.AppendLine($"        var graph_{component.Name} = new MigrationGraph(\"{component.FullName}\", {component.Version});");
+                foreach (var migration in component.Migrations.OrderBy(m => m.FromVersion))
+                {
+                    sb.AppendLine($"        graph_{component.Name}.AddEdge({migration.FromVersion}, {migration.FromVersion + 1});");
+                }
+                sb.AppendLine($"        MigrationGraphsByType[typeof({component.FullName})] = graph_{component.Name};");
+                sb.AppendLine($"        MigrationGraphsByName[typeof({component.FullName}).AssemblyQualifiedName!] = graph_{component.Name};");
+                sb.AppendLine($"        MigrationGraphsByName[\"{component.FullName}\"] = graph_{component.Name};");
                 sb.AppendLine();
             }
         }
@@ -382,6 +399,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         // IComponentMigrator implementation
         GenerateMigratorMethods(sb);
+
+        // IMigrationDiagnostics implementation
+        GenerateDiagnosticMethods(sb);
 
         // Generate individual serialization/deserialization methods
         foreach (var component in components)
@@ -650,6 +670,201 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("            : Enumerable.Empty<int>();");
         sb.AppendLine("    }");
         sb.AppendLine();
+        sb.AppendLine("    #endregion");
+        sb.AppendLine();
+    }
+
+    private static void GenerateDiagnosticMethods(StringBuilder sb)
+    {
+        sb.AppendLine("    #region IMigrationDiagnostics Implementation");
+        sb.AppendLine();
+
+        // MigrateWithDiagnostics(string, ...)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public MigrationResult MigrateWithDiagnostics(");
+        sb.AppendLine("        string typeName,");
+        sb.AppendLine("        JsonElement data,");
+        sb.AppendLine("        int fromVersion,");
+        sb.AppendLine("        int toVersion)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();");
+        sb.AppendLine();
+        sb.AppendLine("        if (fromVersion >= toVersion)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            totalStopwatch.Stop();");
+        sb.AppendLine("            return MigrationResult.NoMigrationNeeded(data, typeName, fromVersion);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (!MigrationsByName.TryGetValue(typeName, out var migrations))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            totalStopwatch.Stop();");
+        sb.AppendLine("            return MigrationResult.Failed(");
+        sb.AppendLine("                typeName, fromVersion, toVersion, totalStopwatch.Elapsed,");
+        sb.AppendLine("                $\"No migrations registered for type '{typeName}'\");");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (!ComponentsByName.TryGetValue(typeName, out var info))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            totalStopwatch.Stop();");
+        sb.AppendLine("            return MigrationResult.Failed(");
+        sb.AppendLine("                typeName, fromVersion, toVersion, totalStopwatch.Elapsed,");
+        sb.AppendLine("                $\"Component type '{typeName}' not found\");");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        var stepTimings = new List<MigrationStepTiming>();");
+        sb.AppendLine("        var currentData = data;");
+        sb.AppendLine("        object? currentValue = null;");
+        sb.AppendLine();
+        sb.AppendLine("        // Chain migrations from fromVersion to toVersion");
+        sb.AppendLine("        for (var v = fromVersion; v < toVersion; v++)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (!migrations.TryGetValue(v, out var migrate))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                totalStopwatch.Stop();");
+        sb.AppendLine("                return MigrationResult.Failed(");
+        sb.AppendLine("                    typeName, fromVersion, toVersion, totalStopwatch.Elapsed,");
+        sb.AppendLine("                    $\"No migration defined from version {v} to {v + 1}\",");
+        sb.AppendLine("                    failedAtVersion: v,");
+        sb.AppendLine("                    stepTimings: stepTimings);");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            var stepStopwatch = System.Diagnostics.Stopwatch.StartNew();");
+        sb.AppendLine("            try");
+        sb.AppendLine("            {");
+        sb.AppendLine("                // Apply migration");
+        sb.AppendLine("                currentValue = migrate(currentData);");
+        sb.AppendLine();
+        sb.AppendLine("                // If not at final version, serialize back to JSON for next migration");
+        sb.AppendLine("                if (v < toVersion - 1)");
+        sb.AppendLine("                {");
+        sb.AppendLine("                    currentData = info.JsonSerializer(currentValue);");
+        sb.AppendLine("                }");
+        sb.AppendLine();
+        sb.AppendLine("                stepStopwatch.Stop();");
+        sb.AppendLine("                stepTimings.Add(new MigrationStepTiming(new MigrationStep(v, v + 1), stepStopwatch.Elapsed));");
+        sb.AppendLine("            }");
+        sb.AppendLine("            catch (Exception ex)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                stepStopwatch.Stop();");
+        sb.AppendLine("                stepTimings.Add(new MigrationStepTiming(new MigrationStep(v, v + 1), stepStopwatch.Elapsed));");
+        sb.AppendLine("                totalStopwatch.Stop();");
+        sb.AppendLine("                return MigrationResult.Failed(");
+        sb.AppendLine("                    typeName, fromVersion, toVersion, totalStopwatch.Elapsed,");
+        sb.AppendLine("                    $\"Migration from v{v} to v{v + 1} failed: {ex.Message}\",");
+        sb.AppendLine("                    failedAtVersion: v,");
+        sb.AppendLine("                    stepTimings: stepTimings);");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        // Serialize final result to JsonElement");
+        sb.AppendLine("        if (currentValue is not null)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var finalData = info.JsonSerializer(currentValue);");
+        sb.AppendLine("            totalStopwatch.Stop();");
+        sb.AppendLine("            return MigrationResult.Succeeded(");
+        sb.AppendLine("                finalData, typeName, fromVersion, toVersion,");
+        sb.AppendLine("                totalStopwatch.Elapsed, stepTimings);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        totalStopwatch.Stop();");
+        sb.AppendLine("        return MigrationResult.Failed(");
+        sb.AppendLine("            typeName, fromVersion, toVersion, totalStopwatch.Elapsed,");
+        sb.AppendLine("            \"Migration produced null result\",");
+        sb.AppendLine("            stepTimings: stepTimings);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // MigrateWithDiagnostics(Type, ...)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public MigrationResult MigrateWithDiagnostics(");
+        sb.AppendLine("        Type type,");
+        sb.AppendLine("        JsonElement data,");
+        sb.AppendLine("        int fromVersion,");
+        sb.AppendLine("        int toVersion)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var typeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;");
+        sb.AppendLine("        return MigrateWithDiagnostics(typeName, data, fromVersion, toVersion);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetMigrationGraph(string)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public MigrationGraph? GetMigrationGraph(string typeName)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return MigrationGraphsByName.TryGetValue(typeName, out var graph) ? graph : null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetMigrationGraph(Type)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public MigrationGraph? GetMigrationGraph(Type type)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return MigrationGraphsByType.TryGetValue(type, out var graph) ? graph : null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetComponentsWithMigrations
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public IEnumerable<string> GetComponentsWithMigrations()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return MigrationGraphsByName.Keys;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // FindAllMigrationGaps
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public IReadOnlyDictionary<string, IReadOnlyList<int>> FindAllMigrationGaps()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var gaps = new Dictionary<string, IReadOnlyList<int>>();");
+        sb.AppendLine("        foreach (var (typeName, graph) in MigrationGraphsByName)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var componentGaps = graph.FindGaps();");
+        sb.AppendLine("            if (componentGaps.Count > 0)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                gaps[typeName] = componentGaps;");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine("        return gaps;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GenerateDiagnosticReport
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public string GenerateDiagnosticReport()");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var sb = new System.Text.StringBuilder();");
+        sb.AppendLine("        sb.AppendLine(\"=== Migration Diagnostic Report ===\");");
+        sb.AppendLine("        sb.AppendLine();");
+        sb.AppendLine();
+        sb.AppendLine("        if (MigrationGraphsByName.Count == 0)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            sb.AppendLine(\"No components with migrations registered.\");");
+        sb.AppendLine("            return sb.ToString();");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        sb.AppendLine($\"Components with migrations: {MigrationGraphsByName.Count}\");");
+        sb.AppendLine("        sb.AppendLine();");
+        sb.AppendLine();
+        sb.AppendLine("        foreach (var (typeName, graph) in MigrationGraphsByName.OrderBy(kvp => kvp.Key))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            sb.AppendLine(graph.ToDiagnosticString());");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        var allGaps = FindAllMigrationGaps();");
+        sb.AppendLine("        if (allGaps.Count > 0)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            sb.AppendLine(\"=== WARNINGS ===\");");
+        sb.AppendLine("            sb.AppendLine($\"Found {allGaps.Count} component(s) with migration gaps:\");");
+        sb.AppendLine("            foreach (var (typeName, gaps) in allGaps)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                sb.AppendLine($\"  - {typeName}: missing migrations from versions {string.Join(\", \", gaps)}\");");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return sb.ToString();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
         sb.AppendLine("    #endregion");
         sb.AppendLine();
     }
