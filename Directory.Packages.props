@@ -25,6 +25,11 @@
     <PackageVersion Include="BepuPhysics" Version="2.4.0" />
     <PackageVersion Include="BepuUtilities" Version="2.4.0" />
   </ItemGroup>
+  <ItemGroup Label="Navigation">
+    <PackageVersion Include="DotRecast.Core" Version="2024.4.1" />
+    <PackageVersion Include="DotRecast.Detour" Version="2024.4.1" />
+    <PackageVersion Include="DotRecast.Recast" Version="2024.4.1" />
+  </ItemGroup>
   <ItemGroup Label="Audio">
     <PackageVersion Include="Silk.NET.OpenAL" Version="2.22.0" />
   </ItemGroup>

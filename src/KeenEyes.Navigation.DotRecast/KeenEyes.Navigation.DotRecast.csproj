@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Navigation.DotRecast</PackageId>
+    <Description>DotRecast navmesh pathfinding provider for 3D games in KeenEyes ECS</Description>
+    <PackageTags>ecs;navigation;pathfinding;navmesh;recast;detour;3d</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Navigation.DotRecast.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DotRecast.Detour" />
+    <PackageReference Include="DotRecast.Recast" />
+  </ItemGroup>
+
+</Project>
