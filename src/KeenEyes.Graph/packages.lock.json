@@ -26,7 +26,8 @@
       "keeneyes.graph.abstractions": {
         "type": "Project",
         "dependencies": {
-          "KeenEyes.Abstractions": "[1.0.0, )"
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
         }
       },
       "keeneyes.graphics.abstractions": {
