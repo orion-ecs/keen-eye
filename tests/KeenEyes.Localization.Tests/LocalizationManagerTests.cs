@@ -455,4 +455,118 @@ public class LocalizationManagerTests : IDisposable
     }
 
     #endregion
+
+    #region FormatIcu
+
+    [Fact]
+    public void FormatIcu_PluralPattern_ReturnsCorrectForm()
+    {
+        using var manager = CreateManager();
+        manager.AddSource(new DictionaryStringSource(Locale.EnglishUS, new Dictionary<string, string>
+        {
+            ["items.count"] = "{count, plural, =0 {No items} =1 {One item} other {# items}}"
+        }));
+
+        var result = manager.FormatIcu("items.count", new { count = 5 });
+
+        result.ShouldBe("5 items");
+    }
+
+    [Fact]
+    public void FormatIcu_PluralZero_ReturnsZeroForm()
+    {
+        using var manager = CreateManager();
+        manager.AddSource(new DictionaryStringSource(Locale.EnglishUS, new Dictionary<string, string>
+        {
+            ["items.count"] = "{count, plural, =0 {No items} =1 {One item} other {# items}}"
+        }));
+
+        var result = manager.FormatIcu("items.count", new { count = 0 });
+
+        result.ShouldBe("No items");
+    }
+
+    [Fact]
+    public void FormatIcu_PluralOne_ReturnsSingularForm()
+    {
+        using var manager = CreateManager();
+        manager.AddSource(new DictionaryStringSource(Locale.EnglishUS, new Dictionary<string, string>
+        {
+            ["items.count"] = "{count, plural, =0 {No items} =1 {One item} other {# items}}"
+        }));
+
+        var result = manager.FormatIcu("items.count", new { count = 1 });
+
+        result.ShouldBe("One item");
+    }
+
+    [Fact]
+    public void FormatIcu_GenderSelect_ReturnsCorrectForm()
+    {
+        using var manager = CreateManager();
+        manager.AddSource(new DictionaryStringSource(Locale.EnglishUS, new Dictionary<string, string>
+        {
+            ["player.greeting"] = "{gender, select, male {He} female {She} other {They}} found treasure!"
+        }));
+
+        var result = manager.FormatIcu("player.greeting", new { gender = "male" });
+
+        result.ShouldBe("He found treasure!");
+    }
+
+    [Fact]
+    public void FormatIcu_WithDictionary_SubstitutesValues()
+    {
+        using var manager = CreateManager();
+        manager.AddSource(new DictionaryStringSource(Locale.EnglishUS, new Dictionary<string, string>
+        {
+            ["items.count"] = "{count, plural, =0 {No items} =1 {One item} other {# items}}"
+        }));
+
+        var args = new Dictionary<string, object?> { ["count"] = 3 };
+        var result = manager.FormatIcu("items.count", args);
+
+        result.ShouldBe("3 items");
+    }
+
+    [Fact]
+    public void FormatIcu_TimeRemaining_ReturnsCorrectForm()
+    {
+        using var manager = CreateManager();
+        manager.AddSource(new DictionaryStringSource(Locale.EnglishUS, new Dictionary<string, string>
+        {
+            ["time.remaining"] = "{minutes, plural, =0 {Less than a minute} =1 {1 minute} other {# minutes}} remaining"
+        }));
+
+        var result = manager.FormatIcu("time.remaining", new { minutes = 5 });
+
+        result.ShouldBe("5 minutes remaining");
+    }
+
+    [Fact]
+    public void FormatIcu_NullArgs_FormatsWithoutSubstitution()
+    {
+        using var manager = CreateManager();
+        manager.AddSource(new DictionaryStringSource(Locale.EnglishUS, new Dictionary<string, string>
+        {
+            ["greeting"] = "Hello, World!"
+        }));
+
+        var result = manager.FormatIcu("greeting", null);
+
+        result.ShouldBe("Hello, World!");
+    }
+
+    [Fact]
+    public void FormatIcu_MissingKey_ReturnsMissingKeyBehavior()
+    {
+        var config = new LocalizationConfig { MissingKeyBehavior = MissingKeyBehavior.ReturnPlaceholder };
+        using var manager = CreateManager(config);
+
+        var result = manager.FormatIcu("missing.key", new { count = 5 });
+
+        result.ShouldBe("[MISSING: missing.key]");
+    }
+
+    #endregion
 }

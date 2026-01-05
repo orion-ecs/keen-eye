@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace KeenEyes.Localization;
 
 /// <summary>
@@ -16,6 +18,7 @@ public sealed class LocalizationManager : ILocalization, IDisposable
     private readonly IWorld world;
     private readonly List<IStringSource> sources = [];
     private readonly Lock sourcesLock = new();
+    private readonly IMessageFormatter icuFormatter;
     private Locale currentLocale;
     private bool disposed;
 
@@ -25,9 +28,21 @@ public sealed class LocalizationManager : ILocalization, IDisposable
     /// <param name="config">The localization configuration.</param>
     /// <param name="world">The world for publishing locale change events.</param>
     internal LocalizationManager(LocalizationConfig config, IWorld world)
+        : this(config, world, IcuFormatter.Instance)
+    {
+    }
+
+    /// <summary>
+    /// Creates a new localization manager with the specified configuration and formatter.
+    /// </summary>
+    /// <param name="config">The localization configuration.</param>
+    /// <param name="world">The world for publishing locale change events.</param>
+    /// <param name="icuFormatter">The formatter to use for ICU MessageFormat strings.</param>
+    internal LocalizationManager(LocalizationConfig config, IWorld world, IMessageFormatter icuFormatter)
     {
         this.config = config;
         this.world = world;
+        this.icuFormatter = icuFormatter;
         currentLocale = config.DefaultLocale;
     }
 
@@ -87,6 +102,16 @@ public sealed class LocalizationManager : ILocalization, IDisposable
             // If formatting fails, return the template with the key info
             return template;
         }
+    }
+
+    /// <inheritdoc />
+    [RequiresUnreferencedCode("Uses reflection to access properties on anonymous objects. For AOT, use Dictionary<string, object> instead.")]
+    public string FormatIcu(string key, object? args)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+
+        var template = Get(key);
+        return icuFormatter.Format(template, args, currentLocale);
     }
 
     /// <inheritdoc />

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace KeenEyes.Localization;
 
 /// <summary>
@@ -84,6 +86,45 @@ public interface ILocalization
     /// </code>
     /// </example>
     string Format(string key, params object?[] args);
+
+    /// <summary>
+    /// Gets a localized string and formats it using ICU MessageFormat syntax.
+    /// </summary>
+    /// <param name="key">The translation key.</param>
+    /// <param name="args">
+    /// An object containing named arguments for substitution.
+    /// Can be an anonymous object, a dictionary, or any object with readable properties.
+    /// </param>
+    /// <returns>The formatted localized string.</returns>
+    /// <remarks>
+    /// <para>
+    /// ICU MessageFormat supports complex localization patterns including:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description><b>Pluralization</b> - <c>{count, plural, =0 {No items} =1 {One item} other {# items}}</c></description></item>
+    /// <item><description><b>Gender</b> - <c>{gender, select, male {He} female {She} other {They}}</c></description></item>
+    /// <item><description><b>Select</b> - <c>{type, select, admin {Administrator} user {User} other {Guest}}</c></description></item>
+    /// </list>
+    /// <para>
+    /// The <c>#</c> symbol in plural patterns is replaced with the actual numeric value.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // JSON translation file:
+    /// // {
+    /// //   "items.count": "{count, plural, =0 {No items} =1 {One item} other {# items}}",
+    /// //   "player.greeting": "{gender, select, male {He} female {She} other {They}} found treasure!"
+    /// // }
+    ///
+    /// localization.FormatIcu("items.count", new { count = 5 });    // "5 items"
+    /// localization.FormatIcu("items.count", new { count = 1 });    // "One item"
+    /// localization.FormatIcu("items.count", new { count = 0 });    // "No items"
+    /// localization.FormatIcu("player.greeting", new { gender = "male" });  // "He found treasure!"
+    /// </code>
+    /// </example>
+    [RequiresUnreferencedCode("Uses reflection to access properties on anonymous objects. For AOT, use Dictionary<string, object> instead.")]
+    string FormatIcu(string key, object? args);
 
     /// <summary>
     /// Sets the active locale for subsequent string lookups.
