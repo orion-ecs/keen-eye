@@ -1,20 +1,48 @@
+using KeenEyes.Editor.Assets;
+using KeenEyes.Scenes;
+
 namespace KeenEyes.Editor.Application;
 
 /// <summary>
 /// Manages the separation between the editor UI world and scene editing worlds.
-/// The editor runs in its own ECS world, while scenes being edited exist in separate worlds.
+/// Uses SceneManager API for scene lifecycle management with a single persistent World.
 /// </summary>
 public sealed class EditorWorldManager : IDisposable
 {
-    private World? _currentSceneWorld;
+    private readonly World _world;
+    private readonly SceneSerializer _sceneSerializer = new();
+    private Entity _currentSceneRoot;
     private string? _currentScenePath;
     private bool _isDisposed;
     private int _sceneModificationCount;
 
     /// <summary>
+    /// Creates a new EditorWorldManager with an empty scene.
+    /// </summary>
+    public EditorWorldManager()
+    {
+        _world = new World();
+        // Create initial untitled scene
+        _currentSceneRoot = _world.Scenes.Spawn("Untitled");
+    }
+
+    /// <summary>
+    /// Gets the world containing all scenes being edited.
+    /// </summary>
+    public World World => _world;
+
+    /// <summary>
     /// Gets the current scene world being edited, or null if no scene is open.
     /// </summary>
-    public World? CurrentSceneWorld => _currentSceneWorld;
+    /// <remarks>
+    /// For backward compatibility. Returns the shared world if a scene is open.
+    /// </remarks>
+    public World? CurrentSceneWorld => _currentSceneRoot.IsValid ? _world : null;
+
+    /// <summary>
+    /// Gets the root entity of the currently open scene.
+    /// </summary>
+    public Entity CurrentSceneRoot => _currentSceneRoot;
 
     /// <summary>
     /// Gets the file path of the currently open scene, or null if unsaved/no scene.
@@ -61,15 +89,20 @@ public sealed class EditorWorldManager : IDisposable
     /// </summary>
     public void NewScene()
     {
-        CloseScene();
+        // Unload current scene if any
+        if (_currentSceneRoot.IsValid && _world.IsAlive(_currentSceneRoot))
+        {
+            _world.Scenes.Unload(_currentSceneRoot);
+        }
 
-        _currentSceneWorld = new World();
+        ClearSelection();
+
+        // Create a new scene
+        _currentSceneRoot = _world.Scenes.Spawn("Untitled");
         _currentScenePath = null;
         _sceneModificationCount = 0;
 
-        // Optionally add default entities here (e.g., a root entity)
-
-        SceneOpened?.Invoke(_currentSceneWorld);
+        SceneOpened?.Invoke(_world);
     }
 
     /// <summary>
@@ -78,17 +111,24 @@ public sealed class EditorWorldManager : IDisposable
     /// <param name="path">The path to the .kescene file.</param>
     public void LoadScene(string path)
     {
-        CloseScene();
+        // Unload current scene if any
+        if (_currentSceneRoot.IsValid && _world.IsAlive(_currentSceneRoot))
+        {
+            _world.Scenes.Unload(_currentSceneRoot);
+        }
 
-        _currentSceneWorld = new World();
+        ClearSelection();
+
+        // Create a new scene root
+        var sceneName = Path.GetFileNameWithoutExtension(path);
+        _currentSceneRoot = _world.Scenes.Spawn(sceneName);
         _currentScenePath = path;
         _sceneModificationCount = 0;
 
-        // TODO: Load scene data from file using SceneSerializer
-        // For now, just create an empty world
-        Console.WriteLine($"Loading scene: {path}");
+        // Load scene data and restore entities, associating with the scene root
+        _ = _sceneSerializer.Load(_world, path, _currentSceneRoot);
 
-        SceneOpened?.Invoke(_currentSceneWorld);
+        SceneOpened?.Invoke(_world);
     }
 
     /// <summary>
@@ -97,7 +137,7 @@ public sealed class EditorWorldManager : IDisposable
     /// <returns>True if saved successfully, false if no scene or no path.</returns>
     public bool SaveScene()
     {
-        if (_currentSceneWorld is null || _currentScenePath is null)
+        if (!_currentSceneRoot.IsValid || _currentScenePath is null)
         {
             return false;
         }
@@ -112,13 +152,25 @@ public sealed class EditorWorldManager : IDisposable
     /// <returns>True if saved successfully.</returns>
     public bool SaveSceneAs(string path)
     {
-        if (_currentSceneWorld is null)
+        if (!_currentSceneRoot.IsValid || !_world.IsAlive(_currentSceneRoot))
         {
             return false;
         }
 
-        // TODO: Serialize scene to file using SceneSerializer
-        Console.WriteLine($"Saving scene to: {path}");
+        // Capture only entities belonging to the current scene
+        var sceneData = _sceneSerializer.CaptureScene(_world, _currentSceneRoot);
+
+        // Override the name with the filename
+        sceneData.Name = Path.GetFileNameWithoutExtension(path);
+
+        // Write to file
+        var json = System.Text.Json.JsonSerializer.Serialize(sceneData, new System.Text.Json.JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
+        });
+        File.WriteAllText(path, json);
 
         _currentScenePath = path;
         _sceneModificationCount = 0;
@@ -131,11 +183,11 @@ public sealed class EditorWorldManager : IDisposable
     /// </summary>
     public void CloseScene()
     {
-        if (_currentSceneWorld is not null)
+        if (_currentSceneRoot.IsValid && _world.IsAlive(_currentSceneRoot))
         {
             ClearSelection();
-            _currentSceneWorld.Dispose();
-            _currentSceneWorld = null;
+            _world.Scenes.Unload(_currentSceneRoot);
+            _currentSceneRoot = Entity.Null;
             _currentScenePath = null;
             _sceneModificationCount = 0;
 
@@ -158,7 +210,7 @@ public sealed class EditorWorldManager : IDisposable
     /// <param name="entity">The entity to select.</param>
     public void Select(Entity entity)
     {
-        if (_currentSceneWorld is null)
+        if (!_currentSceneRoot.IsValid)
         {
             return;
         }
@@ -177,19 +229,32 @@ public sealed class EditorWorldManager : IDisposable
     }
 
     /// <summary>
-    /// Gets all root entities in the current scene (entities without parents).
+    /// Gets all root entities in the current scene (entities without parents, excluding scene root).
     /// </summary>
     /// <returns>Enumerable of root entities, or empty if no scene is open.</returns>
     public IEnumerable<Entity> GetRootEntities()
     {
-        if (_currentSceneWorld is null)
+        if (!_currentSceneRoot.IsValid)
         {
             yield break;
         }
 
-        foreach (var entity in _currentSceneWorld.GetAllEntities())
+        // Return entities that have no parent and are not the scene root itself
+        foreach (var entity in _world.GetAllEntities())
         {
-            var parent = _currentSceneWorld.GetParent(entity);
+            // Skip the scene root
+            if (entity.Id == _currentSceneRoot.Id)
+            {
+                continue;
+            }
+
+            // Skip scene-related entities (with SceneRootTag)
+            if (_world.Has<SceneRootTag>(entity))
+            {
+                continue;
+            }
+
+            var parent = _world.GetParent(entity);
             if (!parent.IsValid)
             {
                 yield return entity;
@@ -204,12 +269,12 @@ public sealed class EditorWorldManager : IDisposable
     /// <returns>Enumerable of child entities.</returns>
     public IEnumerable<Entity> GetChildren(Entity parent)
     {
-        if (_currentSceneWorld is null)
+        if (!_currentSceneRoot.IsValid)
         {
             return [];
         }
 
-        return _currentSceneWorld.GetChildren(parent);
+        return _world.GetChildren(parent);
     }
 
     /// <summary>
@@ -219,13 +284,34 @@ public sealed class EditorWorldManager : IDisposable
     /// <returns>The entity name, or a default name if unnamed.</returns>
     public string GetEntityName(Entity entity)
     {
-        if (_currentSceneWorld is null)
+        if (!_currentSceneRoot.IsValid)
         {
             return "Entity";
         }
 
-        var name = _currentSceneWorld.GetName(entity);
+        var name = _world.GetName(entity);
         return string.IsNullOrEmpty(name) ? $"Entity {entity.Id}" : name;
+    }
+
+    /// <summary>
+    /// Creates a new entity in the current scene.
+    /// </summary>
+    /// <param name="name">Optional name for the entity.</param>
+    /// <returns>The created entity, or Entity.Null if no scene is open.</returns>
+    public Entity CreateEntity(string? name = null)
+    {
+        if (!_currentSceneRoot.IsValid)
+        {
+            return Entity.Null;
+        }
+
+        var entity = _world.Spawn(name).Build();
+
+        // Add the entity to the current scene
+        _world.Scenes.AddToScene(entity, _currentSceneRoot);
+
+        MarkModified();
+        return entity;
     }
 
     /// <inheritdoc/>
@@ -237,6 +323,6 @@ public sealed class EditorWorldManager : IDisposable
         }
 
         _isDisposed = true;
-        CloseScene();
+        _world.Dispose();
     }
 }
