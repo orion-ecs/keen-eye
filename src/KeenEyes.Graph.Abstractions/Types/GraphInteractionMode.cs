@@ -18,5 +18,11 @@ public enum GraphInteractionMode
     DraggingNode,
 
     /// <summary>User is creating a connection by dragging from a port.</summary>
-    ConnectingPort
+    ConnectingPort,
+
+    /// <summary>Context menu is open.</summary>
+    ContextMenu,
+
+    /// <summary>User is duplicating nodes (Ctrl+D ghost preview).</summary>
+    Duplicating
 }

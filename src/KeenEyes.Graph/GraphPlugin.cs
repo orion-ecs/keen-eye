@@ -1,3 +1,4 @@
+using KeenEyes.Editor.Abstractions;
 using KeenEyes.Graph.Abstractions;
 
 namespace KeenEyes.Graph;
@@ -65,6 +66,12 @@ public sealed class GraphPlugin : IWorldPlugin
         graphContext = new GraphContext(context.World, portRegistry);
         portCache = new PortPositionCache();
 
+        // Wire undo manager if available
+        if (context.World.TryGetExtension<IUndoRedoManager>(out var undoManager) && undoManager is not null)
+        {
+            graphContext.SetUndoManager(undoManager);
+        }
+
         // Expose extensions
         context.SetExtension(graphContext);
         context.SetExtension(portRegistry);
@@ -72,6 +79,8 @@ public sealed class GraphPlugin : IWorldPlugin
 
         // Register systems
         context.AddSystem<GraphInputSystem>(SystemPhase.EarlyUpdate, order: 0);
+        context.AddSystem<GraphContextMenuSystem>(SystemPhase.EarlyUpdate, order: 5);
+        context.AddSystem<GraphViewAnimationSystem>(SystemPhase.Update, order: 0);
         context.AddSystem<GraphLayoutSystem>(SystemPhase.LateUpdate, order: -5);
         context.AddSystem<GraphRenderSystem>(SystemPhase.Render, order: 90);
     }
@@ -101,11 +110,15 @@ public sealed class GraphPlugin : IWorldPlugin
         // Interaction state components (added to canvas entity)
         context.RegisterComponent<PendingConnection>();
         context.RegisterComponent<HoveredPort>();
+        context.RegisterComponent<GraphContextMenu>();
+        context.RegisterComponent<GraphViewAnimation>();
 
         // Tag components
         context.RegisterComponent<GraphCanvasTag>(isTag: true);
         context.RegisterComponent<GraphNodeSelectedTag>(isTag: true);
         context.RegisterComponent<GraphConnectionSelectedTag>(isTag: true);
         context.RegisterComponent<GraphNodeDraggingTag>(isTag: true);
+        context.RegisterComponent<GraphNodeGhostTag>(isTag: true);
+        context.RegisterComponent<GraphSpacePanningTag>(isTag: true);
     }
 }
