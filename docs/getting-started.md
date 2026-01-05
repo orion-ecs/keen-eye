@@ -29,21 +29,24 @@ Components are plain data structs. Let's define some for a 2D particle simulatio
 using KeenEyes;
 
 // Position in 2D space
-public struct Position : IComponent
+[Component]
+public partial struct Position
 {
     public float X;
     public float Y;
 }
 
 // Movement velocity
-public struct Velocity : IComponent
+[Component]
+public partial struct Velocity
 {
     public float X;
     public float Y;
 }
 
 // Visual appearance
-public struct Color : IComponent
+[Component]
+public partial struct Color
 {
     public float R;
     public float G;
@@ -51,7 +54,8 @@ public struct Color : IComponent
 }
 
 // Particle lifetime
-public struct Lifetime : IComponent
+[Component]
+public partial struct Lifetime
 {
     public float Remaining;
 }
@@ -242,9 +246,14 @@ Here's the full program:
 using KeenEyes;
 
 // Components
-public struct Position : IComponent { public float X, Y; }
-public struct Velocity : IComponent { public float X, Y; }
-public struct Lifetime : IComponent { public float Remaining; }
+[Component]
+public partial struct Position { public float X, Y; }
+
+[Component]
+public partial struct Velocity { public float X, Y; }
+
+[Component]
+public partial struct Lifetime { public float Remaining; }
 
 // Systems
 public class MovementSystem : SystemBase

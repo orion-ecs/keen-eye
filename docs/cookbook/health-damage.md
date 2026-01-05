@@ -10,30 +10,30 @@ You want entities to have health, take damage, heal, and die when health reaches
 
 ```csharp
 [Component]
-public partial struct Health : IComponent
+public partial struct Health
 {
     public int Current;
     public int Max;
 }
 
 [Component]
-public partial struct DamageReceived : IComponent
+public partial struct DamageReceived
 {
     public int Amount;
     public Entity Source;  // Who dealt the damage
 }
 
 [Component]
-public partial struct HealReceived : IComponent
+public partial struct HealReceived
 {
     public int Amount;
 }
 
 [TagComponent]
-public partial struct Dead : ITagComponent { }
+public partial struct Dead { }
 
 [TagComponent]
-public partial struct Invulnerable : ITagComponent { }
+public partial struct Invulnerable { }
 ```
 
 ### Damage Processing System
@@ -46,7 +46,7 @@ public class DamageSystem : SystemBase
 
     public override void Update(float deltaTime)
     {
-        var buffer = World.GetCommandBuffer();
+        var buffer = new CommandBuffer();
 
         // Process damage
         foreach (var entity in World.Query<Health, DamageReceived>().Without<Invulnerable>())
@@ -61,12 +61,12 @@ public class DamageSystem : SystemBase
                 health.Current = 0;
 
             // Remove the damage component (it's been processed)
-            buffer.Remove<DamageReceived>(entity);
+            buffer.RemoveComponent<DamageReceived>(entity);
 
             // Check for death
             if (health.Current == 0)
             {
-                buffer.Add<Dead>(entity);
+                buffer.AddComponent(entity, default(Dead));
             }
         }
 
@@ -82,10 +82,10 @@ public class DamageSystem : SystemBase
             if (health.Current > health.Max)
                 health.Current = health.Max;
 
-            buffer.Remove<HealReceived>(entity);
+            buffer.RemoveComponent<HealReceived>(entity);
         }
 
-        buffer.Execute();
+        buffer.Flush(World);
     }
 }
 ```
@@ -99,7 +99,7 @@ public class DeathSystem : SystemBase
 
     public override void Update(float deltaTime)
     {
-        var buffer = World.GetCommandBuffer();
+        var buffer = new CommandBuffer();
 
         foreach (var entity in World.Query<Dead>())
         {
@@ -107,10 +107,10 @@ public class DeathSystem : SystemBase
             buffer.Despawn(entity);
 
             // Option 2: Keep for death animation (see variations)
-            // buffer.Add(entity, new DeathAnimation { Timer = 2f });
+            // buffer.AddComponent(entity, new DeathAnimation { Timer = 2f });
         }
 
-        buffer.Execute();
+        buffer.Flush(World);
     }
 }
 ```
@@ -188,7 +188,7 @@ public enum DamageType
 }
 
 [Component]
-public partial struct DamageReceived : IComponent
+public partial struct DamageReceived
 {
     public int Amount;
     public DamageType Type;
@@ -196,7 +196,7 @@ public partial struct DamageReceived : IComponent
 }
 
 [Component]
-public partial struct DamageResistance : IComponent
+public partial struct DamageResistance
 {
     public float Physical;  // 0 = no resistance, 1 = immune
     public float Fire;
@@ -218,7 +218,7 @@ int finalDamage = (int)(damage.Amount * (1f - resistance));
 
 ```csharp
 [Component]
-public partial struct PoisonEffect : IComponent
+public partial struct PoisonEffect
 {
     public int DamagePerSecond;
     public float RemainingDuration;
@@ -266,7 +266,7 @@ public class PoisonSystem : SystemBase
 
 ```csharp
 [Component]
-public partial struct DeathAnimation : IComponent
+public partial struct DeathAnimation
 {
     public float Timer;
 }
@@ -275,7 +275,7 @@ public class DeathAnimationSystem : SystemBase
 {
     public override void Update(float deltaTime)
     {
-        var buffer = World.GetCommandBuffer();
+        var buffer = new CommandBuffer();
 
         foreach (var entity in World.Query<Dead, DeathAnimation>())
         {
@@ -288,7 +288,7 @@ public class DeathAnimationSystem : SystemBase
             }
         }
 
-        buffer.Execute();
+        buffer.Flush(World);
     }
 }
 ```
@@ -297,7 +297,7 @@ public class DeathAnimationSystem : SystemBase
 
 ```csharp
 [Component]
-public partial struct Shield : IComponent
+public partial struct Shield
 {
     public int Current;
     public int Max;
