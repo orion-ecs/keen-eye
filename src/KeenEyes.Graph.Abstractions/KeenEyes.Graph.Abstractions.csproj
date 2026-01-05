@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>KeenEyes.Graph.Abstractions</PackageId>
+    <Description>Graph node editor abstractions for KeenEyes</Description>
+    <PackageTags>ecs;graph;nodes;editor;abstractions</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+  </ItemGroup>
+</Project>
