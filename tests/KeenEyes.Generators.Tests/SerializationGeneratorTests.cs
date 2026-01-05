@@ -427,16 +427,18 @@ public class SerializationGeneratorTests
             [Component(Serializable = true)]
             public partial struct WithConst
             {
-                public const int Version = 1;
-                public int Value;
+                public const int ConstantValue = 1;
+                public int InstanceValue;
             }
             """;
 
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        Assert.Contains(generatedTrees, t => t.Contains("value"));
-        Assert.DoesNotContain(generatedTrees, t => t.Contains("version"));
+        // Instance field should be serialized
+        Assert.Contains(generatedTrees, t => t.Contains("instanceValue"));
+        // Const field should NOT be serialized (no JSON property name for it)
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("constantValue"));
     }
 
     [Fact]

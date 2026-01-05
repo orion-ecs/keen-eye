@@ -65,6 +65,10 @@ namespace KeenEyes.Generators;
 /// <term>KEEN100-KEEN109</term>
 /// <description>Replication/networking (ReplicatedGenerator)</description>
 /// </item>
+/// <item>
+/// <term>KEEN110-KEEN119</term>
+/// <description>Component migration validation (ComponentMigrationAnalyzer)</description>
+/// </item>
 /// </list>
 /// <para>
 /// When adding new diagnostics:

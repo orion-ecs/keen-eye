@@ -221,16 +221,47 @@ public static class SnapshotManager
                         currentVersion);
                 }
 
-                // Note: If component.Version < currentVersion, migration would be needed.
-                // Migration support will be added in Phase 2 (issue #698).
-                // For now, we proceed with best-effort deserialization.
+                // Handle migration if needed
+                var componentData = component.Data;
+                if (component.Version < currentVersion && componentData.HasValue)
+                {
+                    // Try to migrate using IComponentMigrator if available
+                    if (serializer is IComponentMigrator migrator)
+                    {
+                        if (migrator.CanMigrate(type, component.Version, currentVersion))
+                        {
+                            var migratedData = migrator.Migrate(type, componentData.Value, component.Version, currentVersion);
+                            if (migratedData.HasValue)
+                            {
+                                componentData = migratedData;
+                            }
+                            else
+                            {
+                                // Migration returned null - throw exception
+                                throw new ComponentVersionException(
+                                    type.Name,
+                                    component.Version,
+                                    currentVersion);
+                            }
+                        }
+                        else
+                        {
+                            // No migration path available
+                            throw new ComponentVersionException(
+                                type.Name,
+                                component.Version,
+                                currentVersion);
+                        }
+                    }
+                    // If serializer doesn't implement IComponentMigrator, proceed with best-effort deserialization
+                }
 
                 // Ensure type is registered
                 var info = world.Components.Get(type)
                     ?? RegisterComponent(world, type, component.TypeName, component.IsTag, serializer);
 
                 // Convert the data to the correct type if needed
-                var value = ConvertComponentData(component.Data, type, serializer);
+                var value = ConvertComponentData(componentData, type, serializer);
                 if (value is not null)
                 {
                     builder.WithBoxed(info, value);
