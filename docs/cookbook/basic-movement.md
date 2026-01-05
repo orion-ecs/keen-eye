@@ -10,28 +10,28 @@ You want entities to move based on velocity, with support for acceleration and d
 
 ```csharp
 [Component]
-public partial struct Position : IComponent
+public partial struct Position
 {
     public float X;
     public float Y;
 }
 
 [Component]
-public partial struct Velocity : IComponent
+public partial struct Velocity
 {
     public float X;
     public float Y;
 }
 
 [Component]
-public partial struct Acceleration : IComponent
+public partial struct Acceleration
 {
     public float X;
     public float Y;
 }
 
 [Component]
-public partial struct MaxSpeed : IComponent
+public partial struct MaxSpeed
 {
     public float Value;
 }
@@ -146,7 +146,7 @@ For 3D, add a Z component to each struct:
 
 ```csharp
 [Component]
-public partial struct Position3D : IComponent
+public partial struct Position3D
 {
     public float X;
     public float Y;
@@ -158,7 +158,7 @@ Or use `System.Numerics.Vector3` directly:
 
 ```csharp
 [Component]
-public partial struct Transform : IComponent
+public partial struct Transform
 {
     public Vector3 Position;
     public Quaternion Rotation;
@@ -172,7 +172,7 @@ Add a drag component to slow entities over time:
 
 ```csharp
 [Component]
-public partial struct Drag : IComponent
+public partial struct Drag
 {
     public float Factor;  // 0 = no drag, 1 = instant stop
 }
