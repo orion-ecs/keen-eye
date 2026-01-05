@@ -103,6 +103,35 @@ Keep monolithic design through v0.x, refactor for v1.0.
 
 **Rejected because:** The class has already crossed the maintainability threshold at 3,000+ lines. Waiting will make refactoring harder as more code accumulates.
 
+## Explicit Static State Exceptions
+
+While KeenEyes follows a "no static state" principle for world isolation, there are specific cases where static state is acceptable. These are documented here for transparency.
+
+### ComponentArrayPoolManager Delegate Cache
+
+**Location:** `src/KeenEyes.Core/Pooling/ComponentArrayPoolManager.cs`
+
+**Static fields:**
+- `rentDelegates`: Dictionary<Type, RentDelegate>
+- `returnDelegates`: Dictionary<Type, ReturnDelegate>
+- `lockObj`: Lock for thread-safe registration
+
+**Justification:**
+
+1. **Wraps existing global singleton** - `ArrayPool<T>.Shared` is already a process-wide singleton in .NET. The delegate cache merely provides typed access to this existing global resource.
+
+2. **Delegates are pure functions** - They contain no mutable state. Each delegate simply forwards to `ArrayPool<T>.Shared.Rent()` or `Return()`.
+
+3. **Per-world isolation maintained** - The mutable state that matters (`totalRented`, `totalReturned`) are instance fields per-world. Only the immutable type→delegate mappings are shared.
+
+4. **Efficiency** - Caching delegates globally is more efficient than per-world caches with identical behavior. There's no benefit to having each world maintain its own identical copies.
+
+5. **AOT compatibility** - The delegate cache enables Native AOT compilation by avoiding runtime reflection for ArrayPool access.
+
+6. **Idempotent registration** - Multiple calls to `Register<T>()` are safe and simply return if the type is already registered.
+
+This exception does not violate per-world isolation principles because worlds cannot observe or affect each other through this shared cache. See [issue #332](https://github.com/orion-ecs/keen-eye/issues/332) for the original analysis.
+
 ## Consequences
 
 ### Positive
