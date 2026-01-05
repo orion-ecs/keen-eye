@@ -127,15 +127,9 @@ public sealed class SystemGenerator : IIncrementalGenerator
 
         var groupStr = info.Group is not null ? $"\"{info.Group}\"" : "null";
 
-        // Generate RunsBefore array
-        var runsBeforeStr = info.RunsBefore.Count > 0
-            ? $"[{string.Join(", ", info.RunsBefore.Select(t => $"typeof(global::{t})"))}]"
-            : "[]";
-
-        // Generate RunsAfter array
-        var runsAfterStr = info.RunsAfter.Count > 0
-            ? $"[{string.Join(", ", info.RunsAfter.Select(t => $"typeof(global::{t})"))}]"
-            : "[]";
+        // Generate RunsBefore and RunsAfter arrays using collection expression syntax
+        var runsBeforeStr = GenerateTypeArray(info.RunsBefore, useCollectionExpression: true);
+        var runsAfterStr = GenerateTypeArray(info.RunsAfter, useCollectionExpression: true);
 
         // Generate partial with metadata properties
         sb.AppendLine($"partial class {info.Name}");
@@ -172,15 +166,9 @@ public sealed class SystemGenerator : IIncrementalGenerator
 
         var fullTypeName = StringHelpers.GetFullTypeName(info.Namespace, info.Name);
 
-        // Generate RunsBefore array
-        var runsBeforeStr = info.RunsBefore.Count > 0
-            ? $"new global::System.Type[] {{ {string.Join(", ", info.RunsBefore.Select(t => $"typeof(global::{t})"))} }}"
-            : "global::System.Array.Empty<global::System.Type>()";
-
-        // Generate RunsAfter array
-        var runsAfterStr = info.RunsAfter.Count > 0
-            ? $"new global::System.Type[] {{ {string.Join(", ", info.RunsAfter.Select(t => $"typeof(global::{t})"))} }}"
-            : "global::System.Array.Empty<global::System.Type>()";
+        // Generate RunsBefore and RunsAfter arrays using explicit array syntax
+        var runsBeforeStr = GenerateTypeArray(info.RunsBefore, useCollectionExpression: false);
+        var runsAfterStr = GenerateTypeArray(info.RunsAfter, useCollectionExpression: false);
 
         sb.AppendLine($"/// <summary>");
         sb.AppendLine($"/// Extension methods for adding <see cref=\"{info.Name}\"/> to worlds and groups.");
@@ -229,6 +217,25 @@ public sealed class SystemGenerator : IIncrementalGenerator
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Generates a type array literal from a list of type names.
+    /// </summary>
+    /// <param name="types">The list of fully qualified type names.</param>
+    /// <param name="useCollectionExpression">If true, uses [] syntax; otherwise uses new Type[] { } syntax.</param>
+    /// <returns>The generated type array literal.</returns>
+    private static string GenerateTypeArray(List<string> types, bool useCollectionExpression)
+    {
+        if (types.Count == 0)
+        {
+            return useCollectionExpression ? "[]" : "global::System.Array.Empty<global::System.Type>()";
+        }
+
+        var typeofs = string.Join(", ", types.Select(t => $"typeof(global::{t})"));
+        return useCollectionExpression
+            ? $"[{typeofs}]"
+            : $"new global::System.Type[] {{ {typeofs} }}";
     }
 
     private enum SystemPhase

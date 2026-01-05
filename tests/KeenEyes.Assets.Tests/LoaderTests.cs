@@ -150,7 +150,7 @@ public class LoaderTests : IDisposable
     }
 
     [Fact]
-    public void RegisterLoader_MultipleTypes_WorksCorrectly()
+    public void RegisterLoader_WithMultipleLoaderTypes_LoadsBothCorrectly()
     {
         manager.RegisterLoader(new TestAssetLoader());
         manager.RegisterLoader(new SecondTestAssetLoader());
@@ -166,7 +166,7 @@ public class LoaderTests : IDisposable
     }
 
     [Fact]
-    public void RegisterLoader_OverridesExisting()
+    public void RegisterLoader_WithDuplicateLoader_ReplacesExistingLoader()
     {
         manager.RegisterLoader(new TestAssetLoader());
         manager.RegisterLoader(new TestAssetLoader()); // Register again
@@ -182,7 +182,7 @@ public class LoaderTests : IDisposable
     #region Loader Error Handling Tests
 
     [Fact]
-    public void Loader_ThrowsOnLoad_PropagatesException()
+    public void Load_WithFailingLoader_ThrowsAssetLoadException()
     {
         manager.RegisterLoader(new FailingLoader());
         testDir.CreateFile("fail.fail", "content");
@@ -194,7 +194,7 @@ public class LoaderTests : IDisposable
     }
 
     [Fact]
-    public async Task Loader_ThrowsOnLoadAsync_PropagatesException()
+    public async Task LoadAsync_WithFailingLoader_ThrowsAssetLoadException()
     {
         manager.RegisterLoader(new FailingLoader());
         testDir.CreateFile("fail.fail", "content");

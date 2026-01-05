@@ -272,7 +272,7 @@ public sealed class Archetype : IDisposable
     /// For full iteration, use chunk-based methods.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [Obsolete("Use GetChunkSpan for chunked archetypes. This method only returns the first chunk.")]
+    [Obsolete("Use GetChunkSpan for chunked archetypes. This method only returns the first chunk. Will be removed in v1.0.")]
     public Span<T> GetSpan<T>() where T : struct, IComponent
     {
         if (chunks.Count == 0)
@@ -287,7 +287,7 @@ public sealed class Archetype : IDisposable
     /// Note: With chunked storage, this only returns the first chunk's span.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    [Obsolete("Use GetChunkReadOnlySpan for chunked archetypes. This method only returns the first chunk.")]
+    [Obsolete("Use GetChunkReadOnlySpan for chunked archetypes. This method only returns the first chunk. Will be removed in v1.0.")]
     public ReadOnlySpan<T> GetReadOnlySpan<T>() where T : struct, IComponent
     {
         if (chunks.Count == 0)

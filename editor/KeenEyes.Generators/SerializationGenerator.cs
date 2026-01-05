@@ -140,6 +140,21 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("/// Generated registry for AOT-compatible component serialization.");
         sb.AppendLine("/// Contains serialization methods for components marked with [Component(Serializable = true)].");
         sb.AppendLine("/// </summary>");
+        sb.AppendLine("/// <remarks>");
+        sb.AppendLine("/// <para>");
+        sb.AppendLine("/// <strong>Performance Note:</strong> When using custom <see cref=\"JsonSerializerOptions\"/>,");
+        sb.AppendLine("/// cache the options instance rather than creating new ones per call. Creating options is");
+        sb.AppendLine("/// expensive as it involves reflection and internal caching on first use.");
+        sb.AppendLine("/// </para>");
+        sb.AppendLine("/// <code>");
+        sb.AppendLine("/// // ❌ BAD: Creating options per call");
+        sb.AppendLine("/// JsonSerializer.Serialize(value, new JsonSerializerOptions { ... });");
+        sb.AppendLine("///");
+        sb.AppendLine("/// // ✅ GOOD: Cached options");
+        sb.AppendLine("/// private static readonly JsonSerializerOptions Options = new() { ... };");
+        sb.AppendLine("/// JsonSerializer.Serialize(value, Options);");
+        sb.AppendLine("/// </code>");
+        sb.AppendLine("/// </remarks>");
         sb.AppendLine("public sealed class ComponentSerializer : IComponentSerializer, IBinaryComponentSerializer");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");
@@ -319,7 +334,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 }
                 else
                 {
-                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString() ?? throw new JsonException(\"Non-nullable field '{field.Name}' was null in JSON\");");
+                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString() ?? string.Empty;");
                 }
             }
             else
