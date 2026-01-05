@@ -68,6 +68,22 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             return null;
         }
 
+        // Extract Version property (defaults to 1)
+        var version = 1;
+        var versionArg = attr.NamedArguments
+            .FirstOrDefault(a => a.Key == "Version");
+
+        if (versionArg.Value.Value is int v)
+        {
+            version = v;
+        }
+
+        // Skip components with invalid versions
+        if (version < 1)
+        {
+            return null;
+        }
+
         // Collect fields for serialization
         var fields = new List<SerializableFieldInfo>();
         foreach (var member in typeSymbol.GetMembers())
@@ -94,7 +110,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
-            fields.ToImmutableArray());
+            fields.ToImmutableArray(),
+            version);
     }
 
     private static string GetJsonTypeName(ITypeSymbol type)
@@ -155,7 +172,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        Action<object, BinaryWriter> BinarySerializer,");
         sb.AppendLine("        Func<ISerializationCapability, bool, ComponentInfo> Registrar,");
         sb.AppendLine("        Action<ISerializationCapability, object> SingletonSetter,");
-        sb.AppendLine("        Func<object> Factory);");
+        sb.AppendLine("        Func<object> Factory,");
+        sb.AppendLine("        int Version);");
         sb.AppendLine();
         sb.AppendLine("    private static readonly Dictionary<string, ComponentSerializationInfo> ComponentsByName;");
         sb.AppendLine("    private static readonly Dictionary<Type, ComponentSerializationInfo> ComponentsByType;");
@@ -178,7 +196,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             sb.AppendLine($"            (value, writer) => SerializeBinary_{component.Name}(({component.FullName})value, writer),");
             sb.AppendLine($"            (serialization, isTag) => serialization.Components.Register<{component.FullName}>(isTag),");
             sb.AppendLine($"            (serialization, value) => serialization.SetSingleton(({component.FullName})value),");
-            sb.AppendLine($"            static () => new {component.FullName}());");
+            sb.AppendLine($"            static () => new {component.FullName}(),");
+            sb.AppendLine($"            {component.Version});");
             sb.AppendLine();
             sb.AppendLine($"        ComponentsByName[typeof({component.FullName}).AssemblyQualifiedName!] = info_{component.Name};");
             sb.AppendLine($"        ComponentsByName[\"{component.FullName}\"] = info_{component.Name};");
@@ -272,6 +291,20 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info)");
         sb.AppendLine("            ? info.BinaryDeserializer(reader)");
         sb.AppendLine("            : null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetVersion methods for schema versioning
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public int GetVersion(string typeName)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return ComponentsByName.TryGetValue(typeName, out var info) ? info.Version : 1;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public int GetVersion(Type type)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return ComponentsByType.TryGetValue(type, out var info) ? info.Version : 1;");
         sb.AppendLine("    }");
         sb.AppendLine();
 
@@ -440,7 +473,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<SerializableFieldInfo> Fields);
+        ImmutableArray<SerializableFieldInfo> Fields,
+        int Version);
 
     private sealed record SerializableFieldInfo(
         string Name,

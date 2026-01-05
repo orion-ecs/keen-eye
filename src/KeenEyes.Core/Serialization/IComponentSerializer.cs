@@ -102,4 +102,38 @@ public interface IComponentSerializer
     /// This is primarily used for tag components during delta restoration.
     /// </remarks>
     object? CreateDefault(string typeName);
+
+    /// <summary>
+    /// Gets the schema version of a component type by name.
+    /// </summary>
+    /// <param name="typeName">The fully-qualified type name of the component.</param>
+    /// <returns>The schema version, or 1 if the type is not registered or has no version.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method enables version tracking for component migration support.
+    /// Components declare their version via <c>[Component(Version = n)]</c> attribute.
+    /// </para>
+    /// <para>
+    /// Returns 1 (the default version) for components that don't specify a version
+    /// or are not registered in this serializer.
+    /// </para>
+    /// </remarks>
+    int GetVersion(string typeName);
+
+    /// <summary>
+    /// Gets the schema version of a component type.
+    /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <returns>The schema version, or 1 if the type is not registered or has no version.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method enables version tracking for component migration support.
+    /// Components declare their version via <c>[Component(Version = n)]</c> attribute.
+    /// </para>
+    /// <para>
+    /// Returns 1 (the default version) for components that don't specify a version
+    /// or are not registered in this serializer.
+    /// </para>
+    /// </remarks>
+    int GetVersion(Type type);
 }

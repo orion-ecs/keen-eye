@@ -1258,4 +1258,6 @@ internal sealed class MockComponentSerializer : IComponentSerializer
     public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag) => null;
     public bool SetSingleton(ISerializationCapability serialization, string typeName, object value) => false;
     public object? CreateDefault(string typeName) => null;
+    public int GetVersion(string typeName) => 1;
+    public int GetVersion(Type type) => 1;
 }

@@ -126,4 +126,10 @@ internal sealed class TestComponentSerializer : IComponentSerializer, IBinaryCom
 
     /// <inheritdoc />
     public object? ReadFrom(string typeName, BinaryReader reader) => binarySerializer.ReadFrom(typeName, reader);
+
+    /// <inheritdoc />
+    public int GetVersion(string typeName) => 1;
+
+    /// <inheritdoc />
+    public int GetVersion(Type type) => 1;
 }

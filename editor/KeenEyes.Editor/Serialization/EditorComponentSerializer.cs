@@ -102,4 +102,10 @@ public sealed class EditorComponentSerializer : IComponentSerializer
             return null;
         }
     }
+
+    /// <inheritdoc/>
+    public int GetVersion(string typeName) => 1;
+
+    /// <inheritdoc/>
+    public int GetVersion(Type type) => 1;
 }
