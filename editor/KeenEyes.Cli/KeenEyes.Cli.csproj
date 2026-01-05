@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Editor\KeenEyes.Editor.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
   </ItemGroup>
 
 </Project>
