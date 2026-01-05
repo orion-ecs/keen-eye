@@ -40,6 +40,10 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private PlayModeManager? _playMode;
     private Entity _viewportPanel;
     private FontHandle _defaultFont;
+    private Entity _unsavedChangesDialog;
+    private Entity _saveAsDialog;
+    private Action? _pendingActionAfterDialog;
+    private string? _pendingOpenScenePath;
     private bool _isDisposed;
 
     /// <summary>
@@ -363,11 +367,19 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             switch (e.ItemId)
             {
                 case "exit":
-                    SaveLayoutAndExit();
+                    HandleExitWithUnsavedChangesCheck();
                     break;
                 case "new_scene":
-                    _worldManager.NewScene();
-                    Console.WriteLine("New scene created");
+                    HandleNewSceneWithUnsavedChangesCheck();
+                    break;
+                case "open_scene":
+                    HandleOpenSceneWithUnsavedChangesCheck();
+                    break;
+                case "save_scene":
+                    HandleSaveScene();
+                    break;
+                case "save_scene_as":
+                    HandleSaveSceneAs();
                     break;
                 case "create_empty":
                     CreateEmptyEntity();
@@ -408,7 +420,348 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                     break;
             }
         });
+
+        // Subscribe to asset open events from Project panel
+        _editorWorld.Subscribe<ProjectAssetOpenRequestedEvent>(e =>
+        {
+            if (e.AssetType == AssetType.Scene)
+            {
+                var fullPath = Path.Combine(_assetDatabase.ProjectRoot, e.RelativePath);
+                HandleOpenSceneWithUnsavedChangesCheck(fullPath);
+            }
+        });
+
+        // Subscribe to modal result events for dialog handling
+        _editorWorld.Subscribe<UIModalResultEvent>(OnModalResult);
     }
+
+    #region Scene File Operations
+
+    private void HandleNewSceneWithUnsavedChangesCheck()
+    {
+        if (_worldManager.HasUnsavedChanges)
+        {
+            ShowUnsavedChangesDialog(() =>
+            {
+                _worldManager.NewScene();
+                Console.WriteLine("New scene created");
+            });
+        }
+        else
+        {
+            _worldManager.NewScene();
+            Console.WriteLine("New scene created");
+        }
+    }
+
+    private void HandleOpenSceneWithUnsavedChangesCheck(string? specificPath = null)
+    {
+        _pendingOpenScenePath = specificPath;
+
+        if (_worldManager.HasUnsavedChanges)
+        {
+            ShowUnsavedChangesDialog(() => PerformOpenScene());
+        }
+        else
+        {
+            PerformOpenScene();
+        }
+    }
+
+    private void PerformOpenScene()
+    {
+        if (_pendingOpenScenePath is not null)
+        {
+            // Open the specific scene file
+            if (File.Exists(_pendingOpenScenePath))
+            {
+                _worldManager.OpenScene(_pendingOpenScenePath);
+                Console.WriteLine($"Scene opened: {_pendingOpenScenePath}");
+            }
+            else
+            {
+                Console.WriteLine($"Scene file not found: {_pendingOpenScenePath}");
+            }
+            _pendingOpenScenePath = null;
+        }
+        else
+        {
+            // No specific path - look for scenes in asset database
+            var sceneAssets = _assetDatabase.AllAssets
+                .Where(a => a.Type == AssetType.Scene)
+                .ToList();
+
+            if (sceneAssets.Count == 0)
+            {
+                Console.WriteLine("No scene files found in project. Create a new scene first.");
+            }
+            else if (sceneAssets.Count == 1)
+            {
+                // Only one scene, open it directly
+                var fullPath = Path.Combine(_assetDatabase.ProjectRoot, sceneAssets[0].RelativePath);
+                _worldManager.OpenScene(fullPath);
+                Console.WriteLine($"Scene opened: {fullPath}");
+            }
+            else
+            {
+                // Multiple scenes - show the most recent one or first
+                Console.WriteLine($"Found {sceneAssets.Count} scene files. Double-click a .kescene file in the Project panel to open it.");
+                Console.WriteLine("Available scenes:");
+                foreach (var scene in sceneAssets.Take(5))
+                {
+                    Console.WriteLine($"  - {scene.RelativePath}");
+                }
+            }
+        }
+    }
+
+    private void HandleSaveScene()
+    {
+        if (_worldManager.CurrentScenePath is not null)
+        {
+            if (_worldManager.SaveScene())
+            {
+                Console.WriteLine($"Scene saved: {_worldManager.CurrentScenePath}");
+            }
+            else
+            {
+                Console.WriteLine("Failed to save scene");
+            }
+        }
+        else
+        {
+            // No path set, need to Save As
+            HandleSaveSceneAs();
+        }
+    }
+
+    private void HandleSaveSceneAs()
+    {
+        ShowSaveAsDialog();
+    }
+
+    private void HandleExitWithUnsavedChangesCheck()
+    {
+        if (_worldManager.HasUnsavedChanges)
+        {
+            ShowUnsavedChangesDialog(() => SaveLayoutAndExit());
+        }
+        else
+        {
+            SaveLayoutAndExit();
+        }
+    }
+
+    #endregion
+
+    #region Dialog Management
+
+    private void ShowUnsavedChangesDialog(Action onConfirm)
+    {
+        _pendingActionAfterDialog = onConfirm;
+
+        // Find the canvas for dialog parenting
+        var canvas = FindCanvas();
+        if (!canvas.IsValid)
+        {
+            // No canvas available, just proceed
+            onConfirm();
+            return;
+        }
+
+        // Create the confirm dialog if it doesn't exist
+        if (!_unsavedChangesDialog.IsValid)
+        {
+            var config = new ConfirmConfig(
+                Title: "Unsaved Changes",
+                Width: 400,
+                OkButtonText: "Discard",
+                CancelButtonText: "Cancel",
+                CloseOnBackdropClick: false
+            );
+
+            var result = WidgetFactory.CreateConfirm(
+                _editorWorld,
+                canvas,
+                "You have unsaved changes. Do you want to discard them?",
+                _defaultFont,
+                config);
+
+            _unsavedChangesDialog = result.Modal;
+        }
+
+        // Show the dialog
+        var modalSystem = _editorWorld.GetSystem<UIModalSystem>();
+        modalSystem?.OpenModal(_unsavedChangesDialog);
+    }
+
+    private void ShowSaveAsDialog()
+    {
+        // Find the canvas for dialog parenting
+        var canvas = FindCanvas();
+        if (!canvas.IsValid)
+        {
+            Console.WriteLine("Save As: Cannot show dialog (no canvas)");
+            return;
+        }
+
+        // Create the prompt dialog if it doesn't exist
+        if (!_saveAsDialog.IsValid)
+        {
+            var defaultName = _worldManager.CurrentScenePath is not null
+                ? Path.GetFileName(_worldManager.CurrentScenePath)
+                : "scene.kescene";
+
+            var config = new PromptConfig(
+                Title: "Save Scene As",
+                Width: 450,
+                Placeholder: "Enter scene filename...",
+                InitialValue: defaultName,
+                OkButtonText: "Save",
+                CancelButtonText: "Cancel"
+            );
+
+            var result = WidgetFactory.CreatePrompt(
+                _editorWorld,
+                canvas,
+                "Enter a filename for the scene:",
+                _defaultFont,
+                config);
+
+            _saveAsDialog = result.Modal;
+        }
+        else
+        {
+            // Update the initial value with current scene name
+            var defaultName = _worldManager.CurrentScenePath is not null
+                ? Path.GetFileName(_worldManager.CurrentScenePath)
+                : "scene.kescene";
+
+            // Find the text input and update its content
+            UpdateSaveAsDialogText(defaultName);
+        }
+
+        // Show the dialog
+        var modalSystem = _editorWorld.GetSystem<UIModalSystem>();
+        modalSystem?.OpenModal(_saveAsDialog);
+    }
+
+    private void UpdateSaveAsDialogText(string text)
+    {
+        if (!_saveAsDialog.IsValid)
+        {
+            return;
+        }
+
+        // Find the content container
+        if (_editorWorld.Has<UIModal>(_saveAsDialog))
+        {
+            ref readonly var modal = ref _editorWorld.Get<UIModal>(_saveAsDialog);
+            if (modal.ContentContainer.IsValid)
+            {
+                // Find the text input in children
+                foreach (var child in _editorWorld.GetChildren(modal.ContentContainer))
+                {
+                    if (_editorWorld.Has<UITextInput>(child) && _editorWorld.Has<UIText>(child))
+                    {
+                        ref var textComponent = ref _editorWorld.Get<UIText>(child);
+                        ref var inputComponent = ref _editorWorld.Get<UITextInput>(child);
+                        textComponent.Content = text;
+                        inputComponent.CursorPosition = text.Length;
+                        inputComponent.ShowingPlaceholder = string.IsNullOrEmpty(text);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private void OnModalResult(UIModalResultEvent e)
+    {
+        if (e.Modal == _unsavedChangesDialog)
+        {
+            if (e.Result == ModalResult.OK)
+            {
+                // User confirmed discarding changes
+                _pendingActionAfterDialog?.Invoke();
+            }
+            _pendingActionAfterDialog = null;
+        }
+        else if (e.Modal == _saveAsDialog)
+        {
+            if (e.Result == ModalResult.OK)
+            {
+                // Get the text from the input
+                var filename = GetSaveAsDialogText();
+                if (!string.IsNullOrWhiteSpace(filename))
+                {
+                    // Ensure .kescene extension
+                    if (!filename.EndsWith(".kescene", StringComparison.OrdinalIgnoreCase))
+                    {
+                        filename += ".kescene";
+                    }
+
+                    // Determine save path
+                    var savePath = Path.IsPathRooted(filename)
+                        ? filename
+                        : Path.Combine(_assetDatabase.ProjectRoot, filename);
+
+                    if (_worldManager.SaveSceneAs(savePath))
+                    {
+                        Console.WriteLine($"Scene saved as: {savePath}");
+                        // Refresh asset database to show new file
+                        _assetDatabase.Scan(".kescene", ".keprefab", ".keworld");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Failed to save scene to: {savePath}");
+                    }
+                }
+            }
+        }
+    }
+
+    private string GetSaveAsDialogText()
+    {
+        if (!_saveAsDialog.IsValid || !_editorWorld.Has<UIModal>(_saveAsDialog))
+        {
+            return string.Empty;
+        }
+
+        ref readonly var modal = ref _editorWorld.Get<UIModal>(_saveAsDialog);
+        if (!modal.ContentContainer.IsValid)
+        {
+            return string.Empty;
+        }
+
+        // Find the text input in children
+        foreach (var child in _editorWorld.GetChildren(modal.ContentContainer))
+        {
+            if (_editorWorld.Has<UITextInput>(child) && _editorWorld.Has<UIText>(child))
+            {
+                ref readonly var textComponent = ref _editorWorld.Get<UIText>(child);
+                ref readonly var inputComponent = ref _editorWorld.Get<UITextInput>(child);
+                return inputComponent.ShowingPlaceholder ? string.Empty : textComponent.Content;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private Entity FindCanvas()
+    {
+        // Find the UI canvas by looking for entities with UIRootTag component
+        foreach (var entity in _editorWorld.GetAllEntities())
+        {
+            if (_editorWorld.Has<UIRootTag>(entity))
+            {
+                return entity;
+            }
+        }
+        return Entity.Null;
+    }
+
+    #endregion
 
     private void SaveLayoutAndExit()
     {
@@ -485,35 +838,31 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.NewScene()
     {
-        _worldManager.NewScene();
-        Console.WriteLine("New scene created");
+        HandleNewSceneWithUnsavedChangesCheck();
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.OpenScene()
     {
-        // TODO: Implement file dialog
-        Console.WriteLine("Open Scene (not yet implemented)");
+        HandleOpenSceneWithUnsavedChangesCheck();
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.SaveScene()
     {
-        // TODO: Implement save
-        Console.WriteLine("Save Scene (not yet implemented)");
+        HandleSaveScene();
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.SaveSceneAs()
     {
-        // TODO: Implement save as
-        Console.WriteLine("Save Scene As (not yet implemented)");
+        HandleSaveSceneAs();
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.Exit()
     {
-        SaveLayoutAndExit();
+        HandleExitWithUnsavedChangesCheck();
     }
 
     /// <inheritdoc/>
