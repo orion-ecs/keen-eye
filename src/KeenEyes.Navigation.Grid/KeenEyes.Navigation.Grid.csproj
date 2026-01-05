@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Navigation.Grid</PackageId>
+    <Description>Grid-based A* pathfinding for 2D games in KeenEyes ECS</Description>
+    <PackageTags>ecs;navigation;pathfinding;astar;grid;2d</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Navigation.Grid.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+  </ItemGroup>
+
+</Project>
