@@ -1,0 +1,14 @@
+{
+  "name": "Player",
+  "version": 1,
+  "root": {
+    "id": "player",
+    "components": {
+      "KeenEyes.Sample.Prefabs.Position": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Velocity": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Health": { "Current": 100, "Max": 100 },
+      "KeenEyes.Sample.Prefabs.Sprite": { "TextureId": "player.png", "Layer": 10 },
+      "KeenEyes.Sample.Prefabs.Player": {}
+    }
+  }
+}

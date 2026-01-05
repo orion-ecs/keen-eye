@@ -1,0 +1,16 @@
+{
+  "name": "BossEnemy",
+  "version": 1,
+  "root": {
+    "id": "boss-enemy",
+    "components": {
+      "KeenEyes.Sample.Prefabs.Position": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Velocity": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Health": { "Current": 500, "Max": 500 },
+      "KeenEyes.Sample.Prefabs.Sprite": { "TextureId": "boss.png", "Layer": 5 },
+      "KeenEyes.Sample.Prefabs.Damage": { "Amount": 25, "Range": 3 },
+      "KeenEyes.Sample.Prefabs.Enemy": {},
+      "KeenEyes.Sample.Prefabs.Boss": {}
+    }
+  }
+}

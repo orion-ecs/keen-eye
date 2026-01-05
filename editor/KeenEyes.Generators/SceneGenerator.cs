@@ -347,8 +347,15 @@ public sealed class SceneGenerator : IIncrementalGenerator
                 rootVarName = varName;
             }
 
-            // Generate entity spawn code
-            sb.AppendLine($"        var {varName} = world.Spawn(\"{EscapeString(entity.Name)}\")");
+            // Generate entity spawn code (only pass name if specified)
+            if (string.IsNullOrEmpty(entity.Name))
+            {
+                sb.AppendLine($"        var {varName} = world.Spawn()");
+            }
+            else
+            {
+                sb.AppendLine($"        var {varName} = world.Spawn(\"{EscapeString(entity.Name)}\")");
+            }
 
             foreach (var kvp in entity.Components)
             {

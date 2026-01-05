@@ -24,6 +24,7 @@ namespace KeenEyes;
 /// </code>
 /// </example>
 /// </remarks>
+[Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
 public sealed class EntityPrefab
 {
     private readonly List<ComponentDefinition> components = [];
@@ -134,4 +135,5 @@ public sealed class EntityPrefab
 /// <param name="Type">The CLR type of the component.</param>
 /// <param name="Data">The component data (boxed struct).</param>
 /// <param name="IsTag">Whether this is a tag component.</param>
+[Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
 public readonly record struct ComponentDefinition(Type Type, object Data, bool IsTag);

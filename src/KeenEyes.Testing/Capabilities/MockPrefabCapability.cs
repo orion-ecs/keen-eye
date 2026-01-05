@@ -1,3 +1,5 @@
+#pragma warning disable CS0618 // Type or member is obsolete - mock for deprecated prefab API
+
 using KeenEyes.Capabilities;
 
 namespace KeenEyes.Testing.Capabilities;

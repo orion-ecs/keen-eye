@@ -1,0 +1,12 @@
+{
+  "name": "Coin",
+  "version": 1,
+  "root": {
+    "id": "coin",
+    "components": {
+      "KeenEyes.Sample.Prefabs.Position": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Sprite": { "TextureId": "coin.png", "Layer": 0 },
+      "KeenEyes.Sample.Prefabs.Collectible": {}
+    }
+  }
+}

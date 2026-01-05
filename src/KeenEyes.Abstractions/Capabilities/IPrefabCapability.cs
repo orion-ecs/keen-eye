@@ -34,6 +34,7 @@ namespace KeenEyes.Capabilities;
 /// }
 /// </code>
 /// </example>
+[Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
 public interface IPrefabCapability
 {
     /// <summary>

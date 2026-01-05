@@ -1,0 +1,16 @@
+{
+  "name": "FlyingEnemy",
+  "version": 1,
+  "root": {
+    "id": "flying-enemy",
+    "components": {
+      "KeenEyes.Sample.Prefabs.Position": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Velocity": { "X": 0, "Y": -2 },
+      "KeenEyes.Sample.Prefabs.Health": { "Current": 50, "Max": 50 },
+      "KeenEyes.Sample.Prefabs.Sprite": { "TextureId": "enemy_basic.png", "Layer": 1 },
+      "KeenEyes.Sample.Prefabs.AIBehavior": { "DetectionRange": 150, "AttackCooldown": 0 },
+      "KeenEyes.Sample.Prefabs.Enemy": {},
+      "KeenEyes.Sample.Prefabs.Flying": {}
+    }
+  }
+}

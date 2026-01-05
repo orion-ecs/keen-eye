@@ -17,6 +17,7 @@ namespace KeenEyes;
 /// concurrently from multiple threads.
 /// </para>
 /// </remarks>
+[Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
 internal sealed class PrefabManager
 {
     private readonly Lock syncRoot = new();
