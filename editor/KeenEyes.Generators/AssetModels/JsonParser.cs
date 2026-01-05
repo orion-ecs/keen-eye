@@ -13,6 +13,72 @@ namespace KeenEyes.Generators.AssetModels;
 /// </summary>
 internal static class JsonParser
 {
+    /// <summary>
+    /// Parses an asset file (scene or prefab) into a unified SceneModel.
+    /// </summary>
+    /// <param name="json">The JSON content.</param>
+    /// <param name="isPrefab">True if the file is a prefab (.keprefab), false for scene (.kescene).</param>
+    /// <returns>The parsed scene model, or null if parsing failed.</returns>
+    public static SceneModel? ParseAsset(string json, bool isPrefab)
+    {
+        if (isPrefab)
+        {
+            var prefab = ParsePrefab(json);
+            return prefab != null ? ConvertPrefabToScene(prefab) : null;
+        }
+        return ParseScene(json);
+    }
+
+    /// <summary>
+    /// Converts a PrefabModel to a SceneModel by flattening the hierarchy.
+    /// </summary>
+    /// <param name="prefab">The prefab model to convert.</param>
+    /// <returns>The converted scene model.</returns>
+    public static SceneModel ConvertPrefabToScene(PrefabModel prefab)
+    {
+        var scene = new SceneModel
+        {
+            Schema = prefab.Schema,
+            Name = prefab.Name,
+            Version = prefab.Version,
+            Base = prefab.Base,
+            OverridableFields = [.. prefab.OverridableFields]
+        };
+
+        // Flatten hierarchical Root + Children to flat list with parent refs
+        if (prefab.Root != null)
+        {
+            FlattenEntity(prefab.Root, null, scene.Entities);
+        }
+
+        foreach (var child in prefab.Children)
+        {
+            FlattenEntity(child, prefab.Root?.Id, scene.Entities);
+        }
+
+        return scene;
+    }
+
+    /// <summary>
+    /// Recursively flattens a hierarchical prefab entity into a flat entity list.
+    /// </summary>
+    private static void FlattenEntity(PrefabEntityModel entity, string? parentId, List<EntityModel> entities)
+    {
+        var flatEntity = new EntityModel
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            Parent = entity.Parent ?? parentId,
+            Components = new Dictionary<string, Dictionary<string, object?>>(entity.Components)
+        };
+        entities.Add(flatEntity);
+
+        // Recursively process nested children
+        foreach (var child in entity.Children)
+        {
+            FlattenEntity(child, entity.Id, entities);
+        }
+    }
 
     /// <summary>
     /// Parses a scene from JSON content.
@@ -34,8 +100,26 @@ internal static class JsonParser
             {
                 Schema = GetStringProperty(root, "$schema"),
                 Name = GetStringProperty(root, "name") ?? string.Empty,
-                Version = GetIntProperty(root, "version", 1)
+                Version = GetIntProperty(root, "version", 1),
+                Base = GetStringProperty(root, "base")
             };
+
+            // Parse overridable fields if present
+            if (root.TryGetProperty("overridableFields", out var overridesElement) &&
+                overridesElement.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var overrideElement in overridesElement.EnumerateArray())
+                {
+                    if (overrideElement.ValueKind == JsonValueKind.String)
+                    {
+                        var value = overrideElement.GetString();
+                        if (value != null)
+                        {
+                            scene.OverridableFields.Add(value);
+                        }
+                    }
+                }
+            }
 
             if (root.TryGetProperty("entities", out var entitiesElement) &&
                 entitiesElement.ValueKind == JsonValueKind.Array)
@@ -210,6 +294,16 @@ internal static class JsonParser
             foreach (var property in componentsElement.EnumerateObject())
             {
                 entity.Components[property.Name] = ParseComponentData(property.Value);
+            }
+        }
+
+        // Parse nested children if present (for hierarchical format support)
+        if (element.TryGetProperty("children", out var childrenElement) &&
+            childrenElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var childElement in childrenElement.EnumerateArray())
+            {
+                entity.Children.Add(ParseEntity(childElement));
             }
         }
 

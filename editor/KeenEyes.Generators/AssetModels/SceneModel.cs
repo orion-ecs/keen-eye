@@ -7,7 +7,7 @@ using System.Collections.Generic;
 namespace KeenEyes.Generators.AssetModels;
 
 /// <summary>
-/// Represents a scene definition loaded from a .kescene file.
+/// Represents a scene definition loaded from a .kescene or .keprefab file.
 /// </summary>
 internal sealed class SceneModel
 {
@@ -25,6 +25,21 @@ internal sealed class SceneModel
     /// Gets or sets the format version.
     /// </summary>
     public int Version { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets the base prefab name for inheritance (null if no base).
+    /// </summary>
+    /// <remarks>
+    /// If set, a KEEN064 info diagnostic is emitted since prefab inheritance
+    /// is not yet implemented. The field is parsed for future support.
+    /// </remarks>
+    public string? Base { get; set; }
+
+    /// <summary>
+    /// Gets or sets the list of overridable field paths (e.g., "Transform.Position").
+    /// These become optional parameters in the generated spawn method.
+    /// </summary>
+    public List<string> OverridableFields { get; set; } = [];
 
     /// <summary>
     /// Gets or sets the entities in the scene.
@@ -57,4 +72,10 @@ internal sealed class EntityModel
     /// Key is the component type name, value is the component data as JSON.
     /// </summary>
     public Dictionary<string, Dictionary<string, object?>> Components { get; set; } = [];
+
+    /// <summary>
+    /// Gets or sets nested children of this entity.
+    /// Used when parsing hierarchical prefab format; flattened during processing.
+    /// </summary>
+    public List<EntityModel> Children { get; set; } = [];
 }
