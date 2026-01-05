@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.Navigation</PackageId>
+    <Description>Navigation plugin with ECS systems for pathfinding in KeenEyes</Description>
+    <PackageTags>ecs;navigation;pathfinding;navmesh;agents</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Navigation.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+  </ItemGroup>
+
+</Project>

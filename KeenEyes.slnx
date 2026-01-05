@@ -68,6 +68,8 @@
     <Project Path="src/KeenEyes.Spatial/KeenEyes.Spatial.csproj" />
     <Project Path="src/KeenEyes.Testing/KeenEyes.Testing.csproj" />
     <Project Path="src/KeenEyes.Navigation.Abstractions/KeenEyes.Navigation.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Navigation.Grid/KeenEyes.Navigation.Grid.csproj" />
+    <Project Path="src/KeenEyes.Navigation/KeenEyes.Navigation.csproj" />
     <Project Path="src/KeenEyes.UI.Abstractions/KeenEyes.UI.Abstractions.csproj" />
     <Project Path="src/KeenEyes.UI/KeenEyes.UI.csproj" />
   </Folder>
@@ -90,6 +92,7 @@
     <Project Path="tests/KeenEyes.Input.Abstractions.Tests/KeenEyes.Input.Abstractions.Tests.csproj" />
     <Project Path="tests/KeenEyes.Logging.Tests/KeenEyes.Logging.Tests.csproj" />
     <Project Path="tests/KeenEyes.Navigation.Abstractions.Tests/KeenEyes.Navigation.Abstractions.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Navigation.Tests/KeenEyes.Navigation.Tests.csproj" />
     <Project Path="tests/KeenEyes.Network.Abstractions.Tests/KeenEyes.Network.Abstractions.Tests.csproj" />
     <Project Path="tests/KeenEyes.Network.Tests/KeenEyes.Network.Tests.csproj" />
     <Project Path="tests/KeenEyes.Parallelism.Tests/KeenEyes.Parallelism.Tests.csproj" />

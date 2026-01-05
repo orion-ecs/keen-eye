@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Common\KeenEyes.Common.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Navigation\KeenEyes.Navigation.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Navigation.Grid\KeenEyes.Navigation.Grid.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
+  </ItemGroup>
+
+</Project>
