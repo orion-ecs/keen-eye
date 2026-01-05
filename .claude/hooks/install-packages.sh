@@ -151,6 +151,12 @@ download_pkg "DotRecast.Core" "2024.4.1"
 download_pkg "DotRecast.Detour" "2024.4.1"
 download_pkg "DotRecast.Recast" "2024.4.1"
 
+# Localization packages (ICU MessageFormat support)
+download_pkg "MessageFormat" "7.1.3"
+# MessageFormat transitive dependencies
+download_pkg "Microsoft.Extensions.ObjectPool" "8.0.10"
+download_pkg "Microsoft.Extensions.ObjectPool" "10.0.1"
+
 # Clean up temp files
 rm -f "$PACKAGES_FILE"
 

@@ -2,13 +2,17 @@
 
 	<PropertyGroup>
 		<PackageId>KeenEyes.Localization</PackageId>
-		<Description>ECS-native localization system for KeenEyes framework with key-value JSON support</Description>
-		<PackageTags>ecs;localization;i18n;internationalization;json;game;framework</PackageTags>
+		<Description>ECS-native localization system for KeenEyes framework with key-value JSON support and ICU MessageFormat</Description>
+		<PackageTags>ecs;localization;i18n;internationalization;json;icu;messageformat;game;framework</PackageTags>
 		<IsAotCompatible>true</IsAotCompatible>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="KeenEyes.Localization.Tests" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="MessageFormat" />
 	</ItemGroup>
 
 	<ItemGroup>
