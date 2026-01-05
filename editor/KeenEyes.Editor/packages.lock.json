@@ -230,6 +230,21 @@
       "keeneyes.logging": {
         "type": "Project"
       },
+      "keeneyes.navigation.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.navigation.dotrecast": {
+        "type": "Project",
+        "dependencies": {
+          "DotRecast.Detour": "[2024.4.1, )",
+          "DotRecast.Recast": "[2024.4.1, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.platform.silk": {
         "type": "Project",
         "dependencies": {
@@ -269,6 +284,30 @@
           "KeenEyes.Abstractions": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
+      },
+      "DotRecast.Core": {
+        "type": "CentralTransitive",
+        "requested": "[2024.4.1, )",
+        "resolved": "2024.4.1",
+        "contentHash": "R66gUYaYclSec++cbJBCh9GdS40AV5l2Lvo16t9KFK/T9YNpJUCEm1ys4YMNswV2OZBVkr6+/T5oCmXgcbIKug=="
+      },
+      "DotRecast.Detour": {
+        "type": "CentralTransitive",
+        "requested": "[2024.4.1, )",
+        "resolved": "2024.4.1",
+        "contentHash": "Oygo4nZ+qHLW7yL59XMiHtEZ+hqURDK2kXWxBar4Ru+3vQgrtPb3U5tUxVmGAniAasXQesZ3gawX68hPyy+vKg==",
+        "dependencies": {
+          "DotRecast.Core": "2024.4.1"
+        }
+      },
+      "DotRecast.Recast": {
+        "type": "CentralTransitive",
+        "requested": "[2024.4.1, )",
+        "resolved": "2024.4.1",
+        "contentHash": "aLQkJ/2DYWiVdJYeDupYpmzhdlx0gc9i/Vnsvcjd8tWdnUcP76qYNd15QgIyWBw7OtzPeI7xazhjYZabxa20Pg==",
+        "dependencies": {
+          "DotRecast.Core": "2024.4.1"
         }
       },
       "FontStashSharp.PlatformAgnostic": {

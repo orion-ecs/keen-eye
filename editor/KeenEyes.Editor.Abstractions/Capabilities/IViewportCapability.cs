@@ -168,6 +168,98 @@ public sealed class GizmoRenderContext
     /// Gets the delta time since last frame.
     /// </summary>
     public float DeltaTime { get; init; }
+
+    /// <summary>
+    /// Gets the gizmo drawing interface for rendering primitives.
+    /// </summary>
+    public required IGizmoDrawer Drawer { get; init; }
+
+    /// <summary>
+    /// Draws a triangle with the specified vertices and color.
+    /// </summary>
+    /// <param name="v0">First vertex.</param>
+    /// <param name="v1">Second vertex.</param>
+    /// <param name="v2">Third vertex.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    public void DrawTriangle(Vector3 v0, Vector3 v1, Vector3 v2, Vector4 color)
+        => Drawer.DrawTriangle(v0, v1, v2, color);
+
+    /// <summary>
+    /// Draws a line between two points.
+    /// </summary>
+    /// <param name="start">The start point.</param>
+    /// <param name="end">The end point.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    /// <param name="width">The line width in pixels.</param>
+    public void DrawLine(Vector3 start, Vector3 end, Vector4 color, float width = 1.0f)
+        => Drawer.DrawLine(start, end, color, width);
+
+    /// <summary>
+    /// Draws a point at the specified position.
+    /// </summary>
+    /// <param name="position">The point position.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    /// <param name="size">The point size in pixels.</param>
+    public void DrawPoint(Vector3 position, Vector4 color, float size = 4.0f)
+        => Drawer.DrawPoint(position, color, size);
+}
+
+/// <summary>
+/// Interface for drawing gizmo primitives in the viewport.
+/// </summary>
+public interface IGizmoDrawer
+{
+    /// <summary>
+    /// Draws a triangle with the specified vertices and color.
+    /// </summary>
+    /// <param name="v0">First vertex.</param>
+    /// <param name="v1">Second vertex.</param>
+    /// <param name="v2">Third vertex.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    void DrawTriangle(Vector3 v0, Vector3 v1, Vector3 v2, Vector4 color);
+
+    /// <summary>
+    /// Draws a line between two points.
+    /// </summary>
+    /// <param name="start">The start point.</param>
+    /// <param name="end">The end point.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    /// <param name="width">The line width in pixels.</param>
+    void DrawLine(Vector3 start, Vector3 end, Vector4 color, float width = 1.0f);
+
+    /// <summary>
+    /// Draws a point at the specified position.
+    /// </summary>
+    /// <param name="position">The point position.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    /// <param name="size">The point size in pixels.</param>
+    void DrawPoint(Vector3 position, Vector4 color, float size = 4.0f);
+
+    /// <summary>
+    /// Draws a wireframe box.
+    /// </summary>
+    /// <param name="min">The minimum corner.</param>
+    /// <param name="max">The maximum corner.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    /// <param name="lineWidth">The line width in pixels.</param>
+    void DrawWireBox(Vector3 min, Vector3 max, Vector4 color, float lineWidth = 1.0f);
+
+    /// <summary>
+    /// Draws a wireframe sphere.
+    /// </summary>
+    /// <param name="center">The center position.</param>
+    /// <param name="radius">The sphere radius.</param>
+    /// <param name="color">The color (RGBA, 0-1).</param>
+    /// <param name="segments">The number of segments for the circle approximation.</param>
+    void DrawWireSphere(Vector3 center, float radius, Vector4 color, int segments = 16);
+
+    /// <summary>
+    /// Draws a text label at the specified world position.
+    /// </summary>
+    /// <param name="position">The world position.</param>
+    /// <param name="text">The text to display.</param>
+    /// <param name="color">The text color (RGBA, 0-1).</param>
+    void DrawText(Vector3 position, string text, Vector4 color);
 }
 
 /// <summary>
