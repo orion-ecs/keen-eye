@@ -363,11 +363,19 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             switch (e.ItemId)
             {
                 case "exit":
-                    SaveLayoutAndExit();
+                    ((IEditorShortcutActions)this).Exit();
                     break;
                 case "new_scene":
-                    _worldManager.NewScene();
-                    Console.WriteLine("New scene created");
+                    ((IEditorShortcutActions)this).NewScene();
+                    break;
+                case "open_scene":
+                    ((IEditorShortcutActions)this).OpenScene();
+                    break;
+                case "save_scene":
+                    ((IEditorShortcutActions)this).SaveScene();
+                    break;
+                case "save_scene_as":
+                    ((IEditorShortcutActions)this).SaveSceneAs();
                     break;
                 case "create_empty":
                     CreateEmptyEntity();
@@ -415,6 +423,54 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         // Save layout before exiting
         _layoutManager.Save();
         Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// Checks for unsaved changes and confirms with the user before discarding.
+    /// </summary>
+    /// <returns>True if it's safe to proceed (no changes or user confirmed discard), false to cancel.</returns>
+    private bool ConfirmDiscardUnsavedChanges()
+    {
+        if (!_worldManager.HasUnsavedChanges)
+        {
+            return true;
+        }
+
+        // In a full implementation, this would show a modal dialog.
+        // For now, we auto-save or warn via console.
+        Console.WriteLine("Warning: Scene has unsaved changes.");
+        Console.WriteLine("  - Press Ctrl+S to save first, or");
+        Console.WriteLine("  - Changes will be discarded.");
+
+        // For CLI-based workflow, we'll allow proceeding but warn the user.
+        // A real GUI implementation would show a Yes/No/Cancel dialog.
+        return true;
+    }
+
+    /// <summary>
+    /// Prompts to save unsaved changes before exiting.
+    /// </summary>
+    /// <returns>True if it's safe to exit, false to cancel.</returns>
+    private bool ConfirmExitWithUnsavedChanges()
+    {
+        if (!_worldManager.HasUnsavedChanges)
+        {
+            return true;
+        }
+
+        Console.WriteLine("Warning: Scene has unsaved changes that will be lost.");
+
+        // Auto-save to a backup location
+        var backupDir = Path.Combine(_assetDatabase.ProjectRoot, "Temp", "Backups");
+        Directory.CreateDirectory(backupDir);
+        var backupPath = Path.Combine(backupDir, $"autosave_{DateTime.Now:yyyyMMdd_HHmmss}.kescene");
+
+        if (_worldManager.SaveSceneAs(backupPath))
+        {
+            Console.WriteLine($"Auto-saved backup to: {backupPath}");
+        }
+
+        return true;
     }
 
     private void SetupInputHandling()
@@ -485,6 +541,12 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.NewScene()
     {
+        // Check for unsaved changes before creating a new scene
+        if (!ConfirmDiscardUnsavedChanges())
+        {
+            return;
+        }
+
         _worldManager.NewScene();
         Console.WriteLine("New scene created");
     }
@@ -492,27 +554,126 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.OpenScene()
     {
-        // TODO: Implement file dialog
-        Console.WriteLine("Open Scene (not yet implemented)");
+        // Check for unsaved changes before opening a new scene
+        if (!ConfirmDiscardUnsavedChanges())
+        {
+            return;
+        }
+
+        // Get available scene files from asset database
+        var sceneAssets = _assetDatabase.GetAssetsByType(AssetType.Scene).ToList();
+
+        if (sceneAssets.Count == 0)
+        {
+            Console.WriteLine("No scene files found in project. Create a scene first with File > New Scene, then save it.");
+            return;
+        }
+
+        // For now, list available scenes and use the first one or most recent
+        // In a full implementation, this would open a file browser dialog
+        Console.WriteLine("Available scenes:");
+        for (var i = 0; i < sceneAssets.Count; i++)
+        {
+            Console.WriteLine($"  [{i + 1}] {sceneAssets[i].RelativePath}");
+        }
+
+        // Load the most recently modified scene
+        var mostRecent = sceneAssets.OrderByDescending(a => a.LastModified).First();
+        Console.WriteLine($"Opening most recent scene: {mostRecent.RelativePath}");
+
+        try
+        {
+            _worldManager.LoadScene(mostRecent.FullPath);
+            Console.WriteLine($"Scene loaded: {mostRecent.Name}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load scene: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Opens a specific scene file by path.
+    /// </summary>
+    /// <param name="path">The full path to the scene file.</param>
+    public void OpenSceneByPath(string path)
+    {
+        if (!ConfirmDiscardUnsavedChanges())
+        {
+            return;
+        }
+
+        try
+        {
+            _worldManager.LoadScene(path);
+            Console.WriteLine($"Scene loaded: {Path.GetFileNameWithoutExtension(path)}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to load scene: {ex.Message}");
+        }
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.SaveScene()
     {
-        // TODO: Implement save
-        Console.WriteLine("Save Scene (not yet implemented)");
+        if (_worldManager.CurrentScenePath is null)
+        {
+            // No path yet, redirect to Save As
+            ((IEditorShortcutActions)this).SaveSceneAs();
+            return;
+        }
+
+        if (_worldManager.SaveScene())
+        {
+            Console.WriteLine($"Scene saved: {_worldManager.CurrentScenePath}");
+        }
+        else
+        {
+            Console.WriteLine("Failed to save scene - no scene is open");
+        }
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.SaveSceneAs()
     {
-        // TODO: Implement save as
-        Console.WriteLine("Save Scene As (not yet implemented)");
+        if (_worldManager.CurrentSceneWorld is null)
+        {
+            Console.WriteLine("No scene to save - create or open a scene first");
+            return;
+        }
+
+        // Generate a default path based on scene root name or timestamp
+        var scenesDir = Path.Combine(_assetDatabase.ProjectRoot, "Assets", "Scenes");
+        Directory.CreateDirectory(scenesDir);
+
+        var sceneName = "Scene_" + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        var defaultPath = Path.Combine(scenesDir, sceneName + ".kescene");
+
+        // In a full implementation, this would open a file save dialog
+        Console.WriteLine($"Saving scene to: {defaultPath}");
+
+        if (_worldManager.SaveSceneAs(defaultPath))
+        {
+            Console.WriteLine($"Scene saved as: {defaultPath}");
+            // Refresh asset database to pick up the new file
+            _assetDatabase.Refresh(Path.GetRelativePath(_assetDatabase.ProjectRoot, defaultPath));
+        }
+        else
+        {
+            Console.WriteLine("Failed to save scene");
+        }
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.Exit()
     {
+        // Check for unsaved changes before exiting
+        if (!ConfirmExitWithUnsavedChanges())
+        {
+            return;
+        }
+
         SaveLayoutAndExit();
     }
 
