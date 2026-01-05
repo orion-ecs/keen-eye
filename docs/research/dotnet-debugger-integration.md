@@ -612,6 +612,229 @@ public class EcsConditionalBreakpoint
 }
 ```
 
+#### Breakpoints Without a Code Editor
+
+Since KeenEyes Editor focuses on scene/entity editing rather than code editing, we need alternative ways to set breakpoints:
+
+**1. ECS-Level Breakpoints (No Source Code Needed)**
+
+Break on ECS operations rather than source lines:
+
+```csharp
+public class EcsBreakpointPanel : EditorPanel
+{
+    private EcsDebugger debugger;
+
+    // UI: Dropdown of registered systems → "Break on Entry/Exit"
+    public void BreakOnSystem(Type systemType, BreakTiming timing)
+    {
+        var methodName = timing == BreakTiming.Entry ? "Update" : "Update";
+        debugger.SetMethodBreakpoint(systemType.FullName, methodName, timing);
+    }
+
+    // UI: Entity selected in hierarchy → "Break when accessed"
+    public void BreakOnEntityAccess(int entityId)
+    {
+        // Break when World.Get<T>(entity) is called for this entity
+        debugger.SetConditionalBreakpoint(
+            "KeenEyes.Core.World", "Get",
+            frame => GetEntityIdFromArg(frame, 1) == entityId
+        );
+    }
+
+    // UI: Component type selected → "Break on Add/Remove/Modify"
+    public void BreakOnComponentChange(Type componentType, ChangeType change)
+    {
+        var method = change switch
+        {
+            ChangeType.Add => "Add",
+            ChangeType.Remove => "Remove",
+            _ => throw new NotSupportedException()
+        };
+        debugger.SetMethodBreakpoint("KeenEyes.Core.World", method, componentType);
+    }
+
+    // UI: "Break on spawn" / "Break on despawn"
+    public void BreakOnEntityLifecycle(LifecycleEvent evt)
+    {
+        var method = evt == LifecycleEvent.Spawn ? "Spawn" : "Despawn";
+        debugger.SetMethodBreakpoint("KeenEyes.Core.World", method);
+    }
+}
+```
+
+**UI Panel Concept:**
+
+```
+┌─────────────────────────────────────────────────────┐
+│ ECS Breakpoints                              [+ Add]│
+├─────────────────────────────────────────────────────┤
+│ ○ System: MovementSystem                    [Entry] │
+│ ○ System: PhysicsSystem                     [Exit]  │
+│ ○ Entity #42 accessed                       [Any]   │
+│ ○ Component: Health modified                [Write] │
+│ ○ Entity spawned                            [All]   │
+│ ○ Query: <Position, Velocity>               [Match] │
+└─────────────────────────────────────────────────────┘
+```
+
+**2. Method Breakpoints (Type + Method Name)**
+
+Allow users to specify breakpoints by class/method name without viewing source:
+
+```csharp
+public class MethodBreakpointDialog
+{
+    // UI: Searchable list of types from loaded assemblies
+    public void ShowTypeSearch()
+    {
+        var types = debugger.GetLoadedTypes()
+            .Where(t => t.Namespace?.StartsWith("MyGame") == true)
+            .OrderBy(t => t.Name);
+
+        typeListView.ItemsSource = types;
+    }
+
+    // UI: After type selected, show methods
+    public void OnTypeSelected(Type type)
+    {
+        var methods = debugger.GetMethods(type)
+            .Where(m => !m.IsSpecialName) // Skip property getters/setters
+            .OrderBy(m => m.Name);
+
+        methodListView.ItemsSource = methods;
+    }
+
+    // UI: Set breakpoint on selected method
+    public void OnMethodSelected(MethodInfo method)
+    {
+        debugger.SetMethodBreakpoint(method.DeclaringType.FullName, method.Name);
+    }
+}
+```
+
+**3. External IDE Sync (Recommended for Source-Level Debugging)**
+
+Integrate with VS Code/Rider for code-level breakpoints while editor shows ECS state:
+
+```csharp
+public class ExternalIdeSync
+{
+    // Read breakpoints from .vscode/launch.json or .idea Run Configurations
+    public List<SourceBreakpoint> LoadExternalBreakpoints()
+    {
+        var vscodeConfig = Path.Combine(projectRoot, ".vscode", "launch.json");
+        if (File.Exists(vscodeConfig))
+        {
+            // Parse VS Code breakpoints from workspace state
+            return ParseVsCodeBreakpoints(vscodeConfig);
+        }
+
+        // Or sync via DAP - connect to running VS Code debug session
+        return SyncFromDapSession();
+    }
+
+    // Alternative: Watch for .kebreakpoints file that external tools can write
+    public void WatchBreakpointFile()
+    {
+        var bpFile = Path.Combine(projectRoot, ".kebreakpoints");
+        fileWatcher.Watch(bpFile, () =>
+        {
+            var breakpoints = JsonSerializer.Deserialize<BreakpointList>(File.ReadAllText(bpFile));
+            foreach (var bp in breakpoints.Items)
+            {
+                debugger.SetBreakpoint(bp.File, bp.Line, bp.Condition);
+            }
+        });
+    }
+}
+```
+
+**.kebreakpoints file format:**
+```json
+{
+  "breakpoints": [
+    { "file": "src/Systems/MovementSystem.cs", "line": 42 },
+    { "file": "src/Systems/PhysicsSystem.cs", "line": 18, "condition": "entity.Id == 5" }
+  ]
+}
+```
+
+**4. Minimal Source Browser (Lightweight)**
+
+If we want some source visibility without a full editor:
+
+```csharp
+public class SourceBreakpointPanel : EditorPanel
+{
+    // File tree showing .cs files in project
+    private TreeView fileTree;
+    // Read-only source view with line numbers
+    private SourceViewer sourceViewer;
+    // Breakpoint gutter (click to toggle)
+    private BreakpointGutter gutter;
+
+    public void OnFileSelected(string filePath)
+    {
+        var source = File.ReadAllText(filePath);
+        sourceViewer.SetText(source, readOnly: true);
+
+        var existingBps = debugger.GetBreakpoints(filePath);
+        gutter.ShowBreakpoints(existingBps);
+    }
+
+    public void OnGutterClicked(int lineNumber)
+    {
+        var filePath = fileTree.SelectedFile;
+        if (debugger.HasBreakpoint(filePath, lineNumber))
+        {
+            debugger.RemoveBreakpoint(filePath, lineNumber);
+        }
+        else
+        {
+            debugger.SetBreakpoint(filePath, lineNumber);
+        }
+        gutter.Refresh();
+    }
+}
+```
+
+**5. Exception Breakpoints**
+
+Always available without source:
+
+```csharp
+public class ExceptionBreakpointPanel : EditorPanel
+{
+    public void BreakOnAllExceptions()
+    {
+        debugger.SetExceptionBreakpoint(ExceptionBreakMode.Always);
+    }
+
+    public void BreakOnUnhandledOnly()
+    {
+        debugger.SetExceptionBreakpoint(ExceptionBreakMode.Unhandled);
+    }
+
+    public void BreakOnSpecificException(Type exceptionType)
+    {
+        debugger.SetExceptionBreakpoint(exceptionType);
+    }
+}
+```
+
+**Recommended Approach for KeenEyes:**
+
+| Use Case | Solution |
+|----------|----------|
+| Debug ECS logic | ECS-level breakpoints (system/entity/component) |
+| Debug specific code | Method breakpoints by type/method name |
+| Full source debugging | External IDE (VS Code/Rider) + sync |
+| Quick source check | Minimal read-only source browser |
+| Crash investigation | Exception breakpoints |
+
+The editor's strength is **ECS-aware debugging** - seeing entity state, component values, query results. Leave source-level debugging to IDEs that do it well, and focus on what the editor uniquely provides.
+
 ### Approach 3: Hybrid (Recommended Architecture)
 
 Use SharpDbg.Infrastructure for core debugging + custom ECS layer on top.
