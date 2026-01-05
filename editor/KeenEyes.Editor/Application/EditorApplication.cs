@@ -39,12 +39,20 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private readonly EditorComponentSerializer _serializer;
     private PlayModeManager? _playMode;
     private Entity _viewportPanel;
+    private Entity _hierarchyPanel;
+    private Entity _inspectorPanel;
+    private Entity _consolePanel;
+    private Entity _projectPanel;
+    private Entity _bottomTabView;
+    private Entity[] _bottomTabContentPanels = [];
+    private Entity _bottomDockSplitter;
     private FontHandle _defaultFont;
     private Entity _unsavedChangesDialog;
     private Entity _saveAsDialog;
     private Action? _pendingActionAfterDialog;
     private string? _pendingOpenScenePath;
     private bool _isDisposed;
+    private bool _isBottomDockCollapsed;
 
     /// <summary>
     /// Gets the editor's ECS world (used for UI and editor state).
@@ -335,9 +343,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
     private void CreateEditorLayout(Entity canvas)
     {
-        // Create main container below menu bar
+        // Create main container below menu bar with vertical splitter for bottom dock
         var mainContainer = WidgetFactory.CreatePanel(_editorWorld, canvas, "MainContainer", new PanelConfig(
-            Direction: LayoutDirection.Horizontal,
+            Direction: LayoutDirection.Vertical,
             BackgroundColor: EditorColors.DarkPanel
         ));
 
@@ -347,17 +355,97 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         mainRect.AnchorMax = new Vector2(1, 1);
         mainRect.Offset = new UIEdges(0, 26, 0, 0); // Top offset for menu bar
 
+        // Create vertical splitter for main content (top) and bottom dock (bottom)
+        var bottomDockRatio = _layoutManager.GetPanelState("console")?.Collapsed == true ? 0.95f : 0.75f;
+        _isBottomDockCollapsed = bottomDockRatio > 0.9f;
+
+        var (splitterContainer, topPane, bottomPane) = WidgetFactory.CreateSplitter(
+            _editorWorld, mainContainer, "MainSplitter", new SplitterConfig(
+                Orientation: LayoutDirection.Vertical,
+                InitialRatio: bottomDockRatio,
+                HandleSize: 4,
+                MinFirstPane: 200,
+                MinSecondPane: 80,
+                HandleColor: new Vector4(0.2f, 0.2f, 0.25f, 1f),
+                HandleHoverColor: new Vector4(0.3f, 0.3f, 0.4f, 1f)
+            ));
+
+        _bottomDockSplitter = splitterContainer;
+
+        // Set up the top pane with horizontal layout for main panels
+        ref var topLayout = ref _editorWorld.Get<UILayout>(topPane);
+        topLayout.Direction = LayoutDirection.Horizontal;
+
         // Left panel: Hierarchy
-        _ = HierarchyPanel.Create(_editorWorld, mainContainer, _defaultFont, _worldManager);
+        _hierarchyPanel = HierarchyPanel.Create(_editorWorld, topPane, _defaultFont, _worldManager);
 
         // Center: Viewport with 3D rendering
         var graphicsContext = _editorWorld.GetExtension<IGraphicsContext>();
         var inputContext = _editorWorld.GetExtension<IInputContext>();
-        _viewportPanel = ViewportPanel.Create(_editorWorld, mainContainer, _defaultFont, _worldManager,
+        _viewportPanel = ViewportPanel.Create(_editorWorld, topPane, _defaultFont, _worldManager,
             graphicsContext!, inputContext!);
 
         // Right panel: Inspector
-        _ = InspectorPanel.Create(_editorWorld, mainContainer, _defaultFont, _worldManager);
+        _inspectorPanel = InspectorPanel.Create(_editorWorld, topPane, _defaultFont, _worldManager);
+
+        // Create bottom dock area with tabbed Console and Project panels
+        CreateBottomDock(bottomPane);
+    }
+
+    private void CreateBottomDock(Entity parent)
+    {
+        // Determine which tab should be selected based on layout state
+        var selectedTabState = _layoutManager.GetPanelState("project");
+
+        // Default to console tab (index 0), unless project was last visible
+        var selectedTabIndex = selectedTabState?.Visible == true ? 1 : 0;
+
+        // Tab configurations
+        var tabs = new TabConfig[]
+        {
+            new("Console", MinWidth: 80, Padding: 12),
+            new("Project", MinWidth: 80, Padding: 12)
+        };
+
+        // Create tab view with editor styling
+        var (tabView, contentPanels) = WidgetFactory.CreateTabView(
+            _editorWorld, parent, "BottomDockTabs", tabs, _defaultFont,
+            new TabViewConfig(
+                TabBarHeight: 28,
+                TabSpacing: 2,
+                SelectedIndex: selectedTabIndex,
+                TabBarColor: EditorColors.MediumPanel,
+                ContentColor: EditorColors.DarkPanel,
+                TabColor: new Vector4(0.18f, 0.18f, 0.22f, 1f),
+                ActiveTabColor: new Vector4(0.12f, 0.12f, 0.16f, 1f),
+                TabTextColor: EditorColors.TextMuted,
+                ActiveTabTextColor: EditorColors.TextLight,
+                FontSize: 12
+            ));
+
+        _bottomTabView = tabView;
+        _bottomTabContentPanels = contentPanels;
+
+        // Make tab view fill the bottom pane
+        ref var tabViewRect = ref _editorWorld.Get<UIRect>(tabView);
+        tabViewRect.WidthMode = UISizeMode.Fill;
+        tabViewRect.HeightMode = UISizeMode.Fill;
+
+        // Create Console panel inside first tab content area
+        _consolePanel = ConsolePanel.Create(_editorWorld, contentPanels[0], _defaultFont, _logProvider);
+
+        // Make console panel fill its container
+        ref var consoleRect = ref _editorWorld.Get<UIRect>(_consolePanel);
+        consoleRect.WidthMode = UISizeMode.Fill;
+        consoleRect.HeightMode = UISizeMode.Fill;
+
+        // Create Project panel inside second tab content area
+        _projectPanel = ProjectPanel.Create(_editorWorld, contentPanels[1], _defaultFont, _assetDatabase);
+
+        // Make project panel fill its container
+        ref var projectRect = ref _editorWorld.Get<UIRect>(_projectPanel);
+        projectRect.WidthMode = UISizeMode.Fill;
+        projectRect.HeightMode = UISizeMode.Fill;
     }
 
     private void SubscribeToMenuActions()
@@ -383,6 +471,20 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                     break;
                 case "create_empty":
                     CreateEmptyEntity();
+                    break;
+
+                // Panel visibility toggles
+                case "show_hierarchy":
+                    TogglePanelVisibility("hierarchy", _hierarchyPanel);
+                    break;
+                case "show_inspector":
+                    TogglePanelVisibility("inspector", _inspectorPanel);
+                    break;
+                case "show_project":
+                    ShowBottomDockTab(1); // Project is tab index 1
+                    break;
+                case "show_console":
+                    ShowBottomDockTab(0); // Console is tab index 0
                     break;
 
                 // Layout presets
@@ -763,6 +865,150 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
     #endregion
 
+    #region Panel Management
+
+    private void TogglePanelVisibility(string panelId, Entity panel)
+    {
+        if (!panel.IsValid)
+        {
+            return;
+        }
+
+        ref var element = ref _editorWorld.Get<UIElement>(panel);
+        element.Visible = !element.Visible;
+
+        _layoutManager.UpdatePanelState(panelId, element.Visible);
+        Console.WriteLine($"{panelId} panel {(element.Visible ? "shown" : "hidden")}");
+    }
+
+    private void ShowBottomDockTab(int tabIndex)
+    {
+        // Expand the bottom dock if it's collapsed
+        if (_isBottomDockCollapsed)
+        {
+            ExpandBottomDock();
+        }
+
+        // Switch to the requested tab
+        if (_bottomTabView.IsValid && _editorWorld.Has<UITabViewState>(_bottomTabView))
+        {
+            ref var tabState = ref _editorWorld.Get<UITabViewState>(_bottomTabView);
+
+            // Hide current tab content, show new tab content
+            if (tabState.SelectedIndex != tabIndex)
+            {
+                // Hide old content panel
+                if (tabState.SelectedIndex >= 0 && tabState.SelectedIndex < _bottomTabContentPanels.Length)
+                {
+                    ref var oldElement = ref _editorWorld.Get<UIElement>(_bottomTabContentPanels[tabState.SelectedIndex]);
+                    oldElement.Visible = false;
+
+                    // Add hidden tag for layout system
+                    if (!_editorWorld.Has<UIHiddenTag>(_bottomTabContentPanels[tabState.SelectedIndex]))
+                    {
+                        _editorWorld.Add(_bottomTabContentPanels[tabState.SelectedIndex], new UIHiddenTag());
+                    }
+                }
+
+                // Show new content panel
+                if (tabIndex >= 0 && tabIndex < _bottomTabContentPanels.Length)
+                {
+                    ref var newElement = ref _editorWorld.Get<UIElement>(_bottomTabContentPanels[tabIndex]);
+                    newElement.Visible = true;
+
+                    // Remove hidden tag
+                    if (_editorWorld.Has<UIHiddenTag>(_bottomTabContentPanels[tabIndex]))
+                    {
+                        _editorWorld.Remove<UIHiddenTag>(_bottomTabContentPanels[tabIndex]);
+                    }
+                }
+
+                tabState.SelectedIndex = tabIndex;
+            }
+
+            var tabName = tabIndex == 0 ? "Console" : "Project";
+            Console.WriteLine($"Switched to {tabName} panel");
+        }
+    }
+
+    private void ExpandBottomDock()
+    {
+        if (!_bottomDockSplitter.IsValid || !_editorWorld.Has<UISplitter>(_bottomDockSplitter))
+        {
+            return;
+        }
+
+        ref var splitter = ref _editorWorld.Get<UISplitter>(_bottomDockSplitter);
+        splitter.SplitRatio = 0.75f; // Expand to show bottom dock
+
+        // Update the first pane size
+        var firstPane = Entity.Null;
+        foreach (var child in _editorWorld.GetChildren(_bottomDockSplitter))
+        {
+            if (_editorWorld.Has<UISplitterFirstPane>(child))
+            {
+                firstPane = child;
+                break;
+            }
+        }
+
+        if (firstPane.IsValid)
+        {
+            ref var rect = ref _editorWorld.Get<UIRect>(firstPane);
+            rect.Size = new Vector2(0, splitter.SplitRatio * 100);
+        }
+
+        _isBottomDockCollapsed = false;
+        _layoutManager.UpdatePanelState("console", true, collapsed: false);
+        Console.WriteLine("Bottom dock expanded");
+    }
+
+    private void CollapseBottomDock()
+    {
+        if (!_bottomDockSplitter.IsValid || !_editorWorld.Has<UISplitter>(_bottomDockSplitter))
+        {
+            return;
+        }
+
+        ref var splitter = ref _editorWorld.Get<UISplitter>(_bottomDockSplitter);
+        splitter.SplitRatio = 0.95f; // Collapse to minimal height
+
+        // Update the first pane size
+        var firstPane = Entity.Null;
+        foreach (var child in _editorWorld.GetChildren(_bottomDockSplitter))
+        {
+            if (_editorWorld.Has<UISplitterFirstPane>(child))
+            {
+                firstPane = child;
+                break;
+            }
+        }
+
+        if (firstPane.IsValid)
+        {
+            ref var rect = ref _editorWorld.Get<UIRect>(firstPane);
+            rect.Size = new Vector2(0, splitter.SplitRatio * 100);
+        }
+
+        _isBottomDockCollapsed = true;
+        _layoutManager.UpdatePanelState("console", true, collapsed: true);
+        Console.WriteLine("Bottom dock collapsed");
+    }
+
+    private void ToggleBottomDock()
+    {
+        if (_isBottomDockCollapsed)
+        {
+            ExpandBottomDock();
+        }
+        else
+        {
+            CollapseBottomDock();
+        }
+    }
+
+    #endregion
+
     private void SaveLayoutAndExit()
     {
         // Save layout before exiting
@@ -1090,25 +1336,31 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.ShowHierarchy()
     {
-        Console.WriteLine("Show Hierarchy");
+        TogglePanelVisibility("hierarchy", _hierarchyPanel);
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.ShowInspector()
     {
-        Console.WriteLine("Show Inspector");
+        TogglePanelVisibility("inspector", _inspectorPanel);
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.ShowProject()
     {
-        Console.WriteLine("Show Project");
+        ShowBottomDockTab(1); // Project is tab index 1
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.ShowConsole()
     {
-        Console.WriteLine("Show Console");
+        ShowBottomDockTab(0); // Console is tab index 0
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ToggleBottomDock()
+    {
+        ToggleBottomDock();
     }
 
     /// <inheritdoc/>

@@ -86,6 +86,8 @@ public static class EditorShortcuts
     public const string ShowProject = "window.project";
     /// <summary>Show console panel.</summary>
     public const string ShowConsole = "window.console";
+    /// <summary>Toggle bottom dock panel.</summary>
+    public const string ToggleBottomDock = "window.toggle_bottom_dock";
     /// <summary>Reset window layout.</summary>
     public const string ResetLayout = "window.reset_layout";
 
@@ -168,11 +170,12 @@ public static class EditorShortcuts
         manager.Register(StepFrame, "Step Frame", CategoryPlay, "Ctrl+Alt+P", actions.StepFrame);
 
         // Window operations
-        manager.Register(ShowHierarchy, "Hierarchy", CategoryWindow, KeyCombination.None, actions.ShowHierarchy);
-        manager.Register(ShowInspector, "Inspector", CategoryWindow, KeyCombination.None, actions.ShowInspector);
-        manager.Register(ShowProject, "Project", CategoryWindow, KeyCombination.None, actions.ShowProject);
-        manager.Register(ShowConsole, "Console", CategoryWindow, KeyCombination.None, actions.ShowConsole);
-        manager.Register(ResetLayout, "Reset Layout", CategoryWindow, KeyCombination.None, actions.ResetLayout);
+        manager.Register(ShowHierarchy, "Hierarchy", CategoryWindow, "Ctrl+1", actions.ShowHierarchy);
+        manager.Register(ShowInspector, "Inspector", CategoryWindow, "Ctrl+2", actions.ShowInspector);
+        manager.Register(ShowProject, "Project", CategoryWindow, "Ctrl+3", actions.ShowProject);
+        manager.Register(ShowConsole, "Console", CategoryWindow, "Ctrl+4", actions.ShowConsole);
+        manager.Register(ToggleBottomDock, "Toggle Bottom Dock", CategoryWindow, "Ctrl+Shift+B", actions.ToggleBottomDock);
+        manager.Register(ResetLayout, "Reset Layout", CategoryWindow, "Ctrl+Shift+R", actions.ResetLayout);
 
         // Help
         manager.Register(Documentation, "Documentation", CategoryHelp, "F1", actions.Documentation);
@@ -260,6 +263,8 @@ public interface IEditorShortcutActions
     void ShowProject();
     /// <summary>Called when Show Console shortcut is triggered.</summary>
     void ShowConsole();
+    /// <summary>Called when Toggle Bottom Dock shortcut is triggered.</summary>
+    void ToggleBottomDock();
     /// <summary>Called when Reset Layout shortcut is triggered.</summary>
     void ResetLayout();
 
