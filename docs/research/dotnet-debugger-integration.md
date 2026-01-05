@@ -326,6 +326,292 @@ public class ComponentVisualizer
 }
 ```
 
+#### Hooking into Gameplay Functionality
+
+To integrate with the running game, we need to hook into key ECS lifecycle points:
+
+**1. System Update Interception**
+
+Set breakpoints at system entry/exit to track execution flow:
+
+```csharp
+public class SystemExecutionHook
+{
+    private readonly BreakpointManager breakpoints;
+    private readonly Dictionary<string, SystemExecutionInfo> systemStats = new();
+
+    public void HookSystemUpdates(CorDebugModule coreModule)
+    {
+        // Find SystemManager.ExecuteSystem method via metadata
+        var metadata = coreModule.GetMetaDataInterface<MetaDataImport>();
+        var systemManagerType = metadata.FindTypeDefByName("KeenEyes.Core.Systems.SystemManager");
+        var executeMethod = metadata.EnumMethods(systemManagerType)
+            .First(m => metadata.GetMethodProps(m).szMethod == "ExecuteSystem");
+
+        // Set breakpoint at method entry
+        var bp = breakpoints.SetMethodBreakpoint(coreModule, executeMethod);
+        bp.OnHit += (sender, args) =>
+        {
+            // Read the ISystem parameter to get system type
+            var systemArg = args.Frame.GetArgument(0);
+            var systemType = GetTypeName(systemArg);
+
+            // Track timing
+            systemStats[systemType] = new SystemExecutionInfo
+            {
+                StartTime = Stopwatch.GetTimestamp(),
+                ThreadId = args.Thread.Id
+            };
+
+            // Continue execution (don't pause)
+            args.Continue = true;
+        };
+    }
+}
+```
+
+**2. Entity Lifecycle Hooks**
+
+Trap entity spawn/despawn to update the entity browser in real-time:
+
+```csharp
+public class EntityLifecycleHook
+{
+    public event Action<int, EntityOperation> OnEntityChanged;
+
+    public void HookEntityLifecycle(CorDebugModule coreModule)
+    {
+        // Hook World.Spawn() completion
+        SetMethodExitBreakpoint("KeenEyes.Core.World", "Spawn", args =>
+        {
+            var entity = args.ReturnValue.As<CorDebugObjectValue>();
+            var id = entity.GetFieldValue("Id").As<CorDebugGenericValue>().GetValue<int>();
+            OnEntityChanged?.Invoke(id, EntityOperation.Spawned);
+        });
+
+        // Hook World.Despawn()
+        SetMethodEntryBreakpoint("KeenEyes.Core.World", "Despawn", args =>
+        {
+            var entityArg = args.Frame.GetArgument(1); // 'this' is arg0
+            var id = entityArg.As<CorDebugObjectValue>()
+                .GetFieldValue("Id").As<CorDebugGenericValue>().GetValue<int>();
+            OnEntityChanged?.Invoke(id, EntityOperation.Despawning);
+        });
+    }
+}
+```
+
+**3. Component Change Tracking**
+
+Use data breakpoints (hardware watchpoints) for component field changes:
+
+```csharp
+public class ComponentWatchpoint
+{
+    public void WatchComponent<T>(int entityId, string fieldName) where T : struct
+    {
+        // Find component storage address for this entity
+        var componentAddress = FindComponentAddress(entityId, typeof(T));
+        var fieldOffset = GetFieldOffset(typeof(T), fieldName);
+
+        // Set hardware data breakpoint (x86/x64 debug registers)
+        var watchpoint = breakpoints.SetDataBreakpoint(
+            componentAddress + fieldOffset,
+            size: Marshal.SizeOf(typeof(T).GetField(fieldName).FieldType),
+            accessType: DataBreakpointAccessType.Write
+        );
+
+        watchpoint.OnHit += (sender, args) =>
+        {
+            var oldValue = /* read from snapshot */;
+            var newValue = ReadFieldValue(componentAddress, fieldOffset);
+            OnComponentChanged?.Invoke(entityId, typeof(T), fieldName, oldValue, newValue);
+        };
+    }
+}
+```
+
+**4. Game Loop Integration**
+
+Hook the main update loop to enable frame-by-frame stepping:
+
+```csharp
+public class GameLoopDebugger
+{
+    private bool stepOneFrame = false;
+    private CorDebugBreakpoint frameBreakpoint;
+
+    public void EnableFrameStepping(CorDebugModule gameModule)
+    {
+        // Find the game's Update/Tick method
+        // Common patterns: Game.Update(), GameLoop.Tick(), App.OnUpdate()
+        var updateMethod = FindUpdateMethod(gameModule);
+
+        frameBreakpoint = breakpoints.SetMethodBreakpoint(gameModule, updateMethod);
+        frameBreakpoint.OnHit += (sender, args) =>
+        {
+            if (stepOneFrame)
+            {
+                stepOneFrame = false;
+                OnFrameStart?.Invoke(args.Frame);
+                args.Continue = false; // Pause at frame start
+            }
+            else
+            {
+                args.Continue = true; // Keep running
+            }
+        };
+    }
+
+    public void StepOneFrame()
+    {
+        stepOneFrame = true;
+        debugger.Continue(); // Resume until next frame
+    }
+}
+```
+
+**5. Expression Evaluation for Runtime Interaction**
+
+Use ICorDebugEval to call methods in the debuggee process:
+
+```csharp
+public class RuntimeInteraction
+{
+    private readonly CorDebugEval eval;
+
+    // Call methods in the debuggee to query ECS state
+    public int GetEntityCount(CorDebugValue worldValue)
+    {
+        // Find World.EntityCount property getter
+        var getter = FindMethod(worldValue.ExactType, "get_EntityCount");
+
+        // Call the method in the debuggee
+        eval.CallFunction(getter, [worldValue]);
+        eval.WaitForResult();
+
+        return eval.Result.As<CorDebugGenericValue>().GetValue<int>();
+    }
+
+    // Spawn an entity from the debugger
+    public CorDebugValue SpawnEntity(CorDebugValue worldValue)
+    {
+        var spawnMethod = FindMethod(worldValue.ExactType, "Spawn");
+        eval.CallFunction(spawnMethod, [worldValue]);
+        eval.WaitForResult();
+
+        var builder = eval.Result; // EntityBuilder
+        var buildMethod = FindMethod(builder.ExactType, "Build");
+        eval.CallFunction(buildMethod, [builder]);
+        eval.WaitForResult();
+
+        return eval.Result; // Entity
+    }
+
+    // Add component to entity at runtime
+    public void AddComponent<T>(CorDebugValue worldValue, CorDebugValue entityValue, T component)
+    {
+        // Allocate component struct in debuggee heap
+        var componentValue = AllocateStruct<T>(component);
+
+        // Call World.Add<T>(entity, component)
+        var addMethod = FindGenericMethod(worldValue.ExactType, "Add", typeof(T));
+        eval.CallFunction(addMethod, [worldValue, entityValue, componentValue]);
+        eval.WaitForResult();
+    }
+}
+```
+
+**6. Query Execution in Debugger**
+
+Execute ECS queries to find entities matching criteria:
+
+```csharp
+public class QueryDebugger
+{
+    public List<EntityView> ExecuteQuery(CorDebugValue worldValue, string queryExpression)
+    {
+        // Parse query like "Query<Position, Velocity>().Without<Frozen>()"
+        var queryAst = ParseQueryExpression(queryExpression);
+
+        // Build and execute query in debuggee
+        var queryBuilderMethod = FindMethod(worldValue.ExactType, "Query");
+        eval.CallFunction(queryBuilderMethod, [worldValue], queryAst.ComponentTypes);
+        var queryBuilder = eval.Result;
+
+        // Apply filters
+        foreach (var without in queryAst.WithoutTypes)
+        {
+            var withoutMethod = FindGenericMethod(queryBuilder.ExactType, "Without", without);
+            eval.CallFunction(withoutMethod, [queryBuilder]);
+            queryBuilder = eval.Result;
+        }
+
+        // Enumerate results
+        var entities = new List<EntityView>();
+        var enumerator = GetEnumerator(queryBuilder);
+        while (MoveNext(enumerator))
+        {
+            var entity = GetCurrent(enumerator);
+            entities.Add(VisualizeEntity(entity, worldValue));
+        }
+
+        return entities;
+    }
+}
+```
+
+**7. Breakpoint Conditions with ECS Context**
+
+Create smart breakpoints that trigger on ECS conditions:
+
+```csharp
+public class EcsConditionalBreakpoint
+{
+    public void SetComponentBreakpoint(
+        string sourceFile, int line,
+        Func<CorDebugFrame, bool> condition)
+    {
+        var bp = breakpoints.SetBreakpoint(sourceFile, line);
+        bp.OnHit += (sender, args) =>
+        {
+            // Evaluate ECS condition
+            if (condition(args.Frame))
+            {
+                args.Continue = false; // Break
+            }
+            else
+            {
+                args.Continue = true; // Skip
+            }
+        };
+    }
+
+    // Example: Break only when entity has specific component
+    public void BreakWhenEntityHas<T>(string file, int line, string entityVarName)
+    {
+        SetComponentBreakpoint(file, line, frame =>
+        {
+            var entity = frame.GetLocalVariable(entityVarName);
+            var world = FindWorldInScope(frame);
+            return HasComponent<T>(world, entity);
+        });
+    }
+
+    // Example: Break when component field exceeds threshold
+    public void BreakWhenFieldExceeds<T>(string file, int line, string field, float threshold)
+    {
+        SetComponentBreakpoint(file, line, frame =>
+        {
+            var entity = frame.GetLocalVariable("entity");
+            var component = GetComponent<T>(entity);
+            var value = component.GetFieldValue(field).As<CorDebugGenericValue>().GetValue<float>();
+            return value > threshold;
+        });
+    }
+}
+```
+
 ### Approach 3: Hybrid (Recommended Architecture)
 
 Use SharpDbg.Infrastructure for core debugging + custom ECS layer on top.
