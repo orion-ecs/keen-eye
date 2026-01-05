@@ -23,6 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Editor.Abstractions\KeenEyes.Editor.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Editor.Common\KeenEyes.Editor.Common.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Common\KeenEyes.Common.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Logging\KeenEyes.Logging.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Runtime\KeenEyes.Runtime.csproj" />
@@ -30,6 +31,8 @@
     <ProjectReference Include="..\..\src\KeenEyes.Graphics.Silk\KeenEyes.Graphics.Silk.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Input.Silk\KeenEyes.Input.Silk.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Platform.Silk\KeenEyes.Platform.Silk.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Navigation.DotRecast\KeenEyes.Navigation.DotRecast.csproj" />
   </ItemGroup>
 
 </Project>
