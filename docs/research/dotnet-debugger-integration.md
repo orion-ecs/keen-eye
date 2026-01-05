@@ -380,6 +380,13 @@ Consider supporting multiple debuggers:
 - netcoredbg (fallback, more mature)
 - Custom adapters for specific scenarios
 
+## See Also
+
+- [Scene Editor Architecture](scene-editor-architecture.md) - Overall editor design
+- [Framework Editor](framework-editor.md) - Editor plugin architecture
+- [Editor Plugin Architecture](../adr/012-editor-plugin-extension-architecture.md) - ADR for plugin extensions
+- [Dynamic Plugin Loading](../adr/013-dynamic-plugin-loading.md) - ADR for runtime plugin loading
+
 ## Sources
 
 - [SharpDbg GitHub](https://github.com/MattParkerDev/sharpdbg)

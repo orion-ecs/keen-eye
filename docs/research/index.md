@@ -31,6 +31,7 @@ Research reports document:
 |-------|--------|---------|
 | [Scene Editor Architecture](scene-editor-architecture.md) | Research Complete | Complete Unity/Godot-class editor design |
 | [Framework Editor](framework-editor.md) | Research Complete | Editor feasibility and plugin designs |
+| [.NET Debugger Integration](dotnet-debugger-integration.md) | Research Complete | SharpDbg and DAP integration for editor debugging |
 
 ### Foundation Research
 
