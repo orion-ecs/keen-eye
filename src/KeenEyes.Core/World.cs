@@ -216,6 +216,7 @@ public sealed partial class World : IWorld,
         entityPool.Clear();
         entityNamingManager.Clear();
         hierarchyManager.Clear();
+        sceneManager?.Clear();
         singletonManager.Clear();
         extensionManager.Clear();
         eventManager.Clear();
