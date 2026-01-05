@@ -18,6 +18,7 @@
     <ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Graph.Abstractions\KeenEyes.Graph.Abstractions.csproj" />
+    <ProjectReference Include="..\..\editor\KeenEyes.Editor.Abstractions\KeenEyes.Editor.Abstractions.csproj" />
     <ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 

@@ -1,5 +1,8 @@
 using System.Numerics;
+using KeenEyes.Editor.Abstractions;
 using KeenEyes.Graph.Abstractions;
+using KeenEyes.Graph.Commands;
+using KeenEyes.Graphics.Abstractions;
 
 namespace KeenEyes.Graph;
 
@@ -21,11 +24,21 @@ public sealed class GraphContext
 {
     private readonly IWorld world;
     private readonly PortRegistry portRegistry;
+    private IUndoRedoManager? undoManager;
 
     internal GraphContext(IWorld world, PortRegistry portRegistry)
     {
         this.world = world;
         this.portRegistry = portRegistry;
+    }
+
+    /// <summary>
+    /// Sets the undo/redo manager for undoable operations.
+    /// </summary>
+    /// <param name="manager">The undo/redo manager instance.</param>
+    internal void SetUndoManager(IUndoRedoManager manager)
+    {
+        undoManager = manager;
     }
 
     /// <summary>
@@ -300,4 +313,243 @@ public sealed class GraphContext
         ref readonly var canvasData = ref world.Get<GraphCanvas>(canvas);
         return GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, canvasOrigin);
     }
+
+    #region Undoable Operations
+
+    /// <summary>
+    /// Creates a new node with undo support.
+    /// </summary>
+    /// <param name="canvas">The parent canvas entity.</param>
+    /// <param name="nodeTypeId">The node type ID from the port registry.</param>
+    /// <param name="position">The initial position in canvas coordinates.</param>
+    /// <param name="displayName">Optional display name override.</param>
+    /// <returns>The node entity.</returns>
+    public Entity CreateNodeUndoable(Entity canvas, int nodeTypeId, Vector2 position, string? displayName = null)
+    {
+        var command = new CreateNodeCommand(world, this, canvas, nodeTypeId, position, displayName);
+
+        if (undoManager is not null)
+        {
+            undoManager.Execute(command);
+            return command.CreatedNode;
+        }
+
+        command.Execute();
+        return command.CreatedNode;
+    }
+
+    /// <summary>
+    /// Deletes nodes with undo support.
+    /// </summary>
+    /// <param name="nodes">The nodes to delete.</param>
+    public void DeleteNodesUndoable(IEnumerable<Entity> nodes)
+    {
+        var command = new DeleteNodesCommand(world, this, nodes);
+
+        if (undoManager is not null)
+        {
+            undoManager.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+    }
+
+    /// <summary>
+    /// Moves nodes with undo support.
+    /// </summary>
+    /// <param name="nodePositions">Dictionary mapping nodes to their old and new positions.</param>
+    public void MoveNodesUndoable(IReadOnlyDictionary<Entity, (Vector2 OldPosition, Vector2 NewPosition)> nodePositions)
+    {
+        var command = new MoveNodesCommand(world, nodePositions);
+
+        if (undoManager is not null)
+        {
+            undoManager.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+    }
+
+    /// <summary>
+    /// Duplicates the current selection with undo support.
+    /// </summary>
+    /// <param name="duplicateOffset">Optional offset for duplicated nodes.</param>
+    /// <returns>The list of duplicated node entities.</returns>
+    public IReadOnlyList<Entity> DuplicateSelectionUndoable(Vector2? duplicateOffset = null)
+    {
+        var selectedNodes = GetSelectedNodes().ToList();
+        var command = new DuplicateNodesCommand(world, this, selectedNodes, duplicateOffset);
+
+        if (undoManager is not null)
+        {
+            undoManager.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+
+        return command.DuplicatedNodes;
+    }
+
+    /// <summary>
+    /// Creates a connection with undo support.
+    /// </summary>
+    /// <param name="sourceNode">The source node entity.</param>
+    /// <param name="sourcePortIndex">The output port index on the source.</param>
+    /// <param name="targetNode">The target node entity.</param>
+    /// <param name="targetPortIndex">The input port index on the target.</param>
+    /// <returns>The connection entity, or Entity.Null if connection is invalid.</returns>
+    public Entity ConnectUndoable(Entity sourceNode, int sourcePortIndex, Entity targetNode, int targetPortIndex)
+    {
+        var command = new CreateConnectionCommand(world, this, sourceNode, sourcePortIndex, targetNode, targetPortIndex);
+
+        if (undoManager is not null)
+        {
+            undoManager.Execute(command);
+            return command.CreatedConnection;
+        }
+
+        command.Execute();
+        return command.CreatedConnection;
+    }
+
+    /// <summary>
+    /// Deletes a connection with undo support.
+    /// </summary>
+    /// <param name="connection">The connection entity to delete.</param>
+    public void DeleteConnectionUndoable(Entity connection)
+    {
+        if (!world.IsAlive(connection) || !world.Has<GraphConnection>(connection))
+        {
+            return;
+        }
+
+        var command = new Commands.DeleteConnectionCommand(world, this, connection);
+
+        if (undoManager is not null)
+        {
+            undoManager.Execute(command);
+        }
+        else
+        {
+            command.Execute();
+        }
+    }
+
+    /// <summary>
+    /// Selects all nodes on the specified canvas.
+    /// </summary>
+    /// <param name="canvas">The canvas entity.</param>
+    public void SelectAll(Entity canvas)
+    {
+        if (!world.IsAlive(canvas) || !world.Has<GraphCanvas>(canvas))
+        {
+            return;
+        }
+
+        foreach (var node in world.Query<GraphNode>())
+        {
+            ref readonly var nodeData = ref world.Get<GraphNode>(node);
+            if (nodeData.Canvas == canvas)
+            {
+                SelectNode(node, addToSelection: true);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the bounding rectangle of all selected nodes.
+    /// </summary>
+    /// <returns>The bounding rectangle in canvas coordinates, or null if no nodes are selected.</returns>
+    public Rectangle? GetSelectionBounds()
+    {
+        var selectedNodes = GetSelectedNodes().ToList();
+        if (selectedNodes.Count == 0)
+        {
+            return null;
+        }
+
+        float minX = float.MaxValue, minY = float.MaxValue;
+        float maxX = float.MinValue, maxY = float.MinValue;
+
+        foreach (var node in selectedNodes)
+        {
+            if (!world.IsAlive(node))
+            {
+                continue;
+            }
+
+            ref readonly var nodeData = ref world.Get<GraphNode>(node);
+            minX = MathF.Min(minX, nodeData.Position.X);
+            minY = MathF.Min(minY, nodeData.Position.Y);
+            maxX = MathF.Max(maxX, nodeData.Position.X + nodeData.Width);
+            maxY = MathF.Max(maxY, nodeData.Position.Y + nodeData.Height);
+        }
+
+        return new Rectangle(minX, minY, maxX - minX, maxY - minY);
+    }
+
+    /// <summary>
+    /// Frames the current selection by animating the view to show all selected nodes.
+    /// </summary>
+    /// <param name="canvas">The canvas entity.</param>
+    /// <param name="duration">The animation duration in seconds.</param>
+    public void FrameSelection(Entity canvas, float duration = 0.2f)
+    {
+        if (!world.IsAlive(canvas) || !world.Has<GraphCanvas>(canvas))
+        {
+            return;
+        }
+
+        var bounds = GetSelectionBounds();
+        if (!bounds.HasValue)
+        {
+            return;
+        }
+
+        ref var canvasData = ref world.Get<GraphCanvas>(canvas);
+
+        // Calculate target pan/zoom to fit selection with padding
+        const float padding = 50f;
+        var paddedBounds = new Rectangle(
+            bounds.Value.X - padding,
+            bounds.Value.Y - padding,
+            bounds.Value.Width + (padding * 2),
+            bounds.Value.Height + (padding * 2));
+
+        // Assume canvas viewport is 1280x720 for zoom calculation
+        // (In a real implementation, this would come from the actual viewport size)
+        var viewportWidth = 1280f;
+        var viewportHeight = 720f;
+
+        var zoomX = viewportWidth / paddedBounds.Width;
+        var zoomY = viewportHeight / paddedBounds.Height;
+        var targetZoom = MathF.Min(zoomX, zoomY);
+        targetZoom = Math.Clamp(targetZoom, canvasData.MinZoom, canvasData.MaxZoom);
+
+        // Center the selection
+        var centerX = paddedBounds.X + (paddedBounds.Width / 2f);
+        var centerY = paddedBounds.Y + (paddedBounds.Height / 2f);
+        var targetPan = new Vector2(
+            centerX - (viewportWidth / (2f * targetZoom)),
+            centerY - (viewportHeight / (2f * targetZoom)));
+
+        // Create animation component
+        world.Add(canvas, new GraphViewAnimation
+        {
+            StartPan = canvasData.Pan,
+            TargetPan = targetPan,
+            StartZoom = canvasData.Zoom,
+            TargetZoom = targetZoom,
+            Duration = duration,
+            ElapsedTime = 0f
+        });
+    }
+
+    #endregion
 }

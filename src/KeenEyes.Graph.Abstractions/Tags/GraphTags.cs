@@ -19,3 +19,13 @@ public struct GraphConnectionSelectedTag : ITagComponent;
 /// Marks a graph node as being actively dragged.
 /// </summary>
 public struct GraphNodeDraggingTag : ITagComponent;
+
+/// <summary>
+/// Marks a graph node as a ghost preview during duplication.
+/// </summary>
+public struct GraphNodeGhostTag : ITagComponent;
+
+/// <summary>
+/// Marks that space+drag panning mode is active.
+/// </summary>
+public struct GraphSpacePanningTag : ITagComponent;

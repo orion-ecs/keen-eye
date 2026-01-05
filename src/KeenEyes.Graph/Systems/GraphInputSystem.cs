@@ -1,5 +1,6 @@
 using System.Numerics;
 using KeenEyes.Common;
+using KeenEyes.Editor.Abstractions;
 using KeenEyes.Graph.Abstractions;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Input.Abstractions;
@@ -33,6 +34,7 @@ public sealed class GraphInputSystem : SystemBase
     private GraphContext? graphContext;
     private PortRegistry? portRegistry;
     private PortPositionCache? portCache;
+    private IUndoRedoManager? undoManager;
 
     // Interaction state
     private Vector2 dragStartScreen;
@@ -42,6 +44,12 @@ public sealed class GraphInputSystem : SystemBase
     private bool isDraggingNodes;
     private bool isSelecting;
     private bool isPanning;
+
+    // Undo support for node dragging
+    private readonly Dictionary<Entity, Vector2> dragStartPositions = [];
+
+    // Key debouncing
+    private readonly HashSet<Key> keysDownLastFrame = [];
 
     // Connection dragging state
     private Entity connectionSourceNode;
@@ -89,6 +97,11 @@ public sealed class GraphInputSystem : SystemBase
             return;
         }
 
+        if (undoManager is null)
+        {
+            World.TryGetExtension(out undoManager);
+        }
+
         var mouse = inputContext!.Mouse;
         var keyboard = inputContext.Keyboard;
         var mousePos = mouse.Position;
@@ -100,12 +113,24 @@ public sealed class GraphInputSystem : SystemBase
         }
 
         lastMousePos = mousePos;
+
+        // Update key state for next frame
+        UpdateKeyState(keyboard);
     }
 
     private void ProcessCanvas(Entity canvas, IMouse mouse, IKeyboard keyboard, Vector2 mousePos)
     {
         ref var canvasData = ref World.Get<GraphCanvas>(canvas);
         var origin = new Vector2(canvasBounds.X, canvasBounds.Y);
+
+        // Skip input if context menu is open
+        if (canvasData.Mode == GraphInteractionMode.ContextMenu)
+        {
+            return;
+        }
+
+        // Handle keyboard shortcuts (before other input)
+        HandleKeyboardShortcuts(canvas, ref canvasData, keyboard, mousePos, origin);
 
         // Always update hovered port
         UpdateHoveredPort(canvas, in canvasData, mousePos, origin);
@@ -289,12 +314,19 @@ public sealed class GraphInputSystem : SystemBase
                 isDraggingNodes = true;
                 canvasData.Mode = GraphInteractionMode.DraggingNode;
 
-                // Add dragging tag to selected nodes
+                // Store start positions for undo
+                dragStartPositions.Clear();
                 foreach (var node in graphContext!.GetSelectedNodes())
                 {
-                    if (!World.Has<GraphNodeDraggingTag>(node))
+                    if (World.IsAlive(node))
                     {
-                        World.Add(node, new GraphNodeDraggingTag());
+                        ref readonly var nodeData = ref World.Get<GraphNode>(node);
+                        dragStartPositions[node] = nodeData.Position;
+
+                        if (!World.Has<GraphNodeDraggingTag>(node))
+                        {
+                            World.Add(node, new GraphNodeDraggingTag());
+                        }
                     }
                 }
             }
@@ -321,6 +353,34 @@ public sealed class GraphInputSystem : SystemBase
 
     private void EndNodeDrag(ref GraphCanvas canvasData)
     {
+        // Create undo command if nodes were actually moved
+        if (dragStartPositions.Count > 0)
+        {
+            var nodePositions = new Dictionary<Entity, (Vector2 OldPosition, Vector2 NewPosition)>();
+
+            foreach (var kvp in dragStartPositions)
+            {
+                var node = kvp.Key;
+                var startPos = kvp.Value;
+
+                if (World.IsAlive(node) && World.Has<GraphNode>(node))
+                {
+                    ref readonly var nodeData = ref World.Get<GraphNode>(node);
+                    if (nodeData.Position != startPos)
+                    {
+                        nodePositions[node] = (startPos, nodeData.Position);
+                    }
+                }
+            }
+
+            if (nodePositions.Count > 0)
+            {
+                graphContext!.MoveNodesUndoable(nodePositions);
+            }
+
+            dragStartPositions.Clear();
+        }
+
         isDraggingNodes = false;
         canvasData.Mode = GraphInteractionMode.None;
 
@@ -415,16 +475,148 @@ public sealed class GraphInputSystem : SystemBase
             connectionsToDelete.Add(connection);
         }
 
-        // Delete connections first
-        foreach (var connection in connectionsToDelete)
+        // Use undoable methods
+        if (nodesToDelete.Count > 0)
         {
-            graphContext!.DeleteConnection(connection);
+            graphContext!.DeleteNodesUndoable(nodesToDelete);
         }
 
-        // Delete nodes (this also deletes their connections)
-        foreach (var node in nodesToDelete)
+        foreach (var connection in connectionsToDelete)
         {
-            graphContext!.DeleteNode(node);
+            graphContext!.DeleteConnectionUndoable(connection);
+        }
+    }
+
+    private void HandleKeyboardShortcuts(Entity canvas, ref GraphCanvas canvasData, IKeyboard keyboard, Vector2 mousePos, Vector2 origin)
+    {
+        var ctrl = (keyboard.Modifiers & KeyModifiers.Control) != 0;
+
+        // Delete/Backspace - delete selected
+        if (WasKeyJustPressed(keyboard, Key.Delete) || WasKeyJustPressed(keyboard, Key.Backspace))
+        {
+            DeleteSelected();
+            return;
+        }
+
+        // Ctrl+Z - Undo
+        if (ctrl && WasKeyJustPressed(keyboard, Key.Z))
+        {
+            undoManager?.Undo();
+            return;
+        }
+
+        // Ctrl+Y - Redo
+        if (ctrl && WasKeyJustPressed(keyboard, Key.Y))
+        {
+            undoManager?.Redo();
+            return;
+        }
+
+        // Ctrl+A - Select All
+        if (ctrl && WasKeyJustPressed(keyboard, Key.A))
+        {
+            graphContext!.SelectAll(canvas);
+            return;
+        }
+
+        // Ctrl+D - Duplicate
+        if (ctrl && WasKeyJustPressed(keyboard, Key.D))
+        {
+            var selectedNodes = graphContext!.GetSelectedNodes().ToList();
+            if (selectedNodes.Count > 0)
+            {
+                graphContext.DuplicateSelectionUndoable();
+            }
+            return;
+        }
+
+        // F - Frame Selection
+        if (WasKeyJustPressed(keyboard, Key.F))
+        {
+            var selectedNodes = graphContext!.GetSelectedNodes().ToList();
+            if (selectedNodes.Count > 0)
+            {
+                graphContext.FrameSelection(canvas);
+            }
+            return;
+        }
+
+        // Escape - Clear selection
+        if (WasKeyJustPressed(keyboard, Key.Escape))
+        {
+            graphContext!.ClearSelection();
+            return;
+        }
+
+        // Space - Space+drag panning (handled in mouse input, but we track the state here)
+        if (keyboard.IsKeyDown(Key.Space) && !World.Has<GraphSpacePanningTag>(canvas))
+        {
+            World.Add(canvas, new GraphSpacePanningTag());
+        }
+        else if (!keyboard.IsKeyDown(Key.Space) && World.Has<GraphSpacePanningTag>(canvas))
+        {
+            World.Remove<GraphSpacePanningTag>(canvas);
+        }
+
+        // Right-click - Open context menu (handled in mouse logic, but check here)
+        if (inputContext?.Mouse.IsButtonDown(MouseButton.Right) == true && WasKeyJustPressed(keyboard, Key.Unknown))
+        {
+            OpenContextMenu(canvas, ref canvasData, mousePos, origin);
+        }
+    }
+
+    private void OpenContextMenu(Entity canvas, ref GraphCanvas canvasData, Vector2 screenPos, Vector2 origin)
+    {
+        var canvasPos = GraphTransform.ScreenToCanvas(screenPos, canvasData.Pan, canvasData.Zoom, origin);
+
+        // Determine menu type based on what's under the cursor
+        var hitNode = HitTestNodes(canvas, screenPos, canvasData.Pan, canvasData.Zoom, origin);
+
+        ContextMenuType menuType;
+        Entity targetEntity;
+
+        if (hitNode.IsValid)
+        {
+            menuType = ContextMenuType.Node;
+            targetEntity = hitNode;
+        }
+        else
+        {
+            menuType = ContextMenuType.Canvas;
+            targetEntity = Entity.Null;
+        }
+
+        World.Add(canvas, new GraphContextMenu
+        {
+            ScreenPosition = screenPos,
+            CanvasPosition = canvasPos,
+            MenuType = menuType,
+            TargetEntity = targetEntity,
+            SearchFilter = string.Empty,
+            SelectedIndex = 0
+        });
+
+        canvasData.Mode = GraphInteractionMode.ContextMenu;
+    }
+
+    private bool WasKeyJustPressed(IKeyboard keyboard, Key key)
+    {
+        var isDownNow = keyboard.IsKeyDown(key);
+        var wasDownLastFrame = keysDownLastFrame.Contains(key);
+        return isDownNow && !wasDownLastFrame;
+    }
+
+    private void UpdateKeyState(IKeyboard keyboard)
+    {
+        keysDownLastFrame.Clear();
+
+        // Track all keys that are currently down
+        for (var key = Key.Unknown; key <= Key.Slash; key++)
+        {
+            if (keyboard.IsKeyDown(key))
+            {
+                keysDownLastFrame.Add(key);
+            }
         }
     }
 

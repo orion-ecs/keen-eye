@@ -43,6 +43,9 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private static readonly Vector4 NodeHeaderColor = new(0.25f, 0.35f, 0.5f, 1f);
     private static readonly Vector4 NodeBorderColor = new(0.4f, 0.4f, 0.4f, 1f);
     private static readonly Vector4 NodeSelectedBorderColor = new(0.3f, 0.6f, 1f, 1f);
+    private static readonly Vector4 NodeGhostColor = new(0.15f, 0.15f, 0.15f, 0.5f);
+    private static readonly Vector4 NodeGhostHeaderColor = new(0.25f, 0.35f, 0.5f, 0.5f);
+    private static readonly Vector4 NodeGhostBorderColor = new(0.4f, 0.4f, 0.4f, 0.5f);
     private static readonly Vector4 PortColor = new(0.8f, 0.8f, 0.8f, 1f);
     private static readonly Vector4 ConnectionColor = new(0.6f, 0.6f, 0.6f, 1f);
     private static readonly Vector4 SelectionBoxFillColor = new(0.3f, 0.6f, 1f, 0.15f);
@@ -51,6 +54,10 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private static readonly Vector4 PortHighlightInvalidColor = new(0.9f, 0.3f, 0.3f, 1f);
     private static readonly Vector4 ConnectionPreviewColor = new(0.7f, 0.7f, 0.7f, 0.6f);
     private static readonly Vector4 ConversionIndicatorColor = new(1f, 0.8f, 0.2f, 1f);
+    private static readonly Vector4 ContextMenuBackgroundColor = new(0.15f, 0.15f, 0.15f, 0.95f);
+    private static readonly Vector4 ContextMenuBorderColor = new(0.5f, 0.5f, 0.5f, 1f);
+    private static readonly Vector4 ContextMenuItemHoverColor = new(0.3f, 0.4f, 0.6f, 1f);
+    private static readonly Vector4 ContextMenuTextColor = new(0.9f, 0.9f, 0.9f, 1f);
 
     private const float NodeBorderRadius = 6f;
     private const float BorderThickness = 2f;
@@ -131,6 +138,9 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             // Draw nodes
             DrawNodes(canvas, canvasData, origin);
 
+            // Draw ghost nodes (duplication preview)
+            DrawGhostNodes(canvas, canvasData, origin);
+
             // Draw port highlights
             DrawHoveredPort(canvas, canvasData, origin);
 
@@ -139,6 +149,9 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             {
                 DrawSelectionBox(canvasData);
             }
+
+            // Draw context menu
+            DrawContextMenu(canvas);
 
             renderer.PopClip();
         }
@@ -550,6 +563,136 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         points[3] = end;
 
         renderer!.DrawLineStrip(points, color, ConnectionThickness);
+    }
+
+    private void DrawGhostNodes(Entity canvas, in GraphCanvas canvasData, Vector2 origin)
+    {
+        // Draw ghost preview nodes (for duplication)
+        foreach (var node in World.Query<GraphNode, GraphNodeGhostTag>())
+        {
+            ref readonly var nodeData = ref World.Get<GraphNode>(node);
+            if (nodeData.Canvas != canvas)
+            {
+                continue;
+            }
+
+            DrawGhostNode(node, in nodeData, canvasData, origin);
+        }
+    }
+
+    private void DrawGhostNode(Entity node, ref readonly GraphNode nodeData, in GraphCanvas canvasData, Vector2 origin)
+    {
+        var nodeRect = new Rectangle(nodeData.Position.X, nodeData.Position.Y, nodeData.Width, nodeData.Height);
+        var screenRect = GraphTransform.CanvasToScreen(nodeRect, canvasData.Pan, canvasData.Zoom, origin);
+
+        var scaledRadius = NodeBorderRadius * canvasData.Zoom;
+
+        // Draw semi-transparent node body
+        renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, NodeGhostColor);
+
+        // Draw semi-transparent header
+        var headerHeight = GraphLayoutSystem.HeaderHeight * canvasData.Zoom;
+        renderer.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, headerHeight, scaledRadius, NodeGhostHeaderColor);
+
+        // Draw semi-transparent border
+        renderer.DrawRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, NodeGhostBorderColor, BorderThickness);
+
+        // Draw ports (also semi-transparent)
+        if (portRegistry!.TryGetNodeType(nodeData.NodeTypeId, out var nodeType))
+        {
+            var portRadius = GraphLayoutSystem.PortRadius * canvasData.Zoom;
+
+            // Draw input ports
+            for (int i = 0; i < nodeType.InputPorts.Length; i++)
+            {
+                var yOffset = GraphLayoutSystem.HeaderHeight + (i * GraphLayoutSystem.PortRowHeight) + (GraphLayoutSystem.PortRowHeight / 2);
+                var canvasPos = nodeData.Position + new Vector2(0, yOffset);
+                var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
+
+                var port = nodeType.InputPorts[i];
+                var portColor = GetPortColor(port.TypeId);
+                var ghostPortColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
+                renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostPortColor);
+            }
+
+            // Draw output ports
+            for (int i = 0; i < nodeType.OutputPorts.Length; i++)
+            {
+                var yOffset = GraphLayoutSystem.HeaderHeight + (i * GraphLayoutSystem.PortRowHeight) + (GraphLayoutSystem.PortRowHeight / 2);
+                var canvasPos = nodeData.Position + new Vector2(nodeData.Width, yOffset);
+                var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
+
+                var port = nodeType.OutputPorts[i];
+                var portColor = GetPortColor(port.TypeId);
+                var ghostPortColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
+                renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostPortColor);
+            }
+        }
+    }
+
+    private void DrawContextMenu(Entity canvas)
+    {
+        if (!World.Has<GraphContextMenu>(canvas))
+        {
+            return;
+        }
+
+        ref readonly var menu = ref World.Get<GraphContextMenu>(canvas);
+
+        // Menu dimensions
+        const float menuWidth = 250f;
+        const float itemHeight = 30f;
+        const float padding = 10f;
+
+        var items = GetContextMenuItems(menu);
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var menuHeight = (items.Count * itemHeight) + (padding * 2);
+        var menuX = menu.ScreenPosition.X;
+        var menuY = menu.ScreenPosition.Y;
+
+        // Draw menu background
+        renderer!.FillRect(menuX, menuY, menuWidth, menuHeight, ContextMenuBackgroundColor);
+        renderer.DrawRect(menuX, menuY, menuWidth, menuHeight, ContextMenuBorderColor, 1f);
+
+        // Draw menu items
+        for (int i = 0; i < items.Count; i++)
+        {
+            var itemY = menuY + padding + (i * itemHeight);
+            var isSelected = i == menu.SelectedIndex;
+
+            // Draw hover highlight
+            if (isSelected)
+            {
+                renderer.FillRect(menuX + 2, itemY, menuWidth - 4, itemHeight, ContextMenuItemHoverColor);
+            }
+
+            // Note: Text rendering would go here if textRenderer is available
+            // For now, just draw the selection highlight
+        }
+
+        // Draw search filter indicator if applicable
+        if (menu.MenuType == ContextMenuType.Canvas && !string.IsNullOrEmpty(menu.SearchFilter))
+        {
+            // Draw search box at bottom (visual indicator only, no text yet)
+            var searchY = menuY + menuHeight - 30f;
+            renderer.FillRect(menuX + 5, searchY, menuWidth - 10, 25f, new Vector4(0.2f, 0.2f, 0.2f, 1f));
+            renderer.DrawRect(menuX + 5, searchY, menuWidth - 10, 25f, ContextMenuBorderColor, 1f);
+        }
+    }
+
+    private List<string> GetContextMenuItems(in GraphContextMenu menu)
+    {
+        return menu.MenuType switch
+        {
+            ContextMenuType.Canvas => portRegistry?.GetAllNodeTypes().Select(t => t.Name).ToList() ?? [],
+            ContextMenuType.Node => ["Delete", "Duplicate"],
+            ContextMenuType.Connection => ["Delete"],
+            _ => []
+        };
     }
 
     private static Vector4 GetPortColor(PortTypeId typeId)
