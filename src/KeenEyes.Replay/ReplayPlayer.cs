@@ -560,6 +560,218 @@ public sealed class ReplayPlayer : IDisposable
     }
 
     /// <summary>
+    /// Steps the playback position by the specified number of frames.
+    /// </summary>
+    /// <param name="frames">
+    /// The number of frames to step. Positive values step forward,
+    /// negative values step backward.
+    /// </param>
+    /// <exception cref="InvalidOperationException">Thrown when no replay is loaded.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// Stepping pauses playback if it was playing. The playback position is
+    /// clamped to the valid frame range (0 to <see cref="TotalFrames"/> - 1).
+    /// </para>
+    /// <para>
+    /// For forward stepping, this simply advances the frame index. For backward
+    /// stepping, the position is set directly. Future phases will support
+    /// restoring world state from snapshots during backward stepping.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Step forward one frame
+    /// player.Step();
+    ///
+    /// // Step forward 10 frames
+    /// player.Step(10);
+    ///
+    /// // Step backward 5 frames
+    /// player.Step(-5);
+    /// </code>
+    /// </example>
+    public void Step(int frames = 1)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            ThrowIfNoReplayLoaded();
+
+            // Pause playback when stepping
+            if (state == PlaybackState.Playing)
+            {
+                state = PlaybackState.Paused;
+            }
+
+            var frameCount = replayData!.Frames.Count;
+            if (frameCount == 0)
+            {
+                return;
+            }
+
+            // Calculate target frame, clamped to valid range
+            var targetFrame = Math.Clamp(currentFrameIndex + frames, 0, frameCount - 1);
+
+            SetCurrentFrameInternal(targetFrame);
+        }
+    }
+
+    /// <summary>
+    /// Seeks to the specified frame number.
+    /// </summary>
+    /// <param name="frameNumber">The 0-based frame number to seek to.</param>
+    /// <exception cref="InvalidOperationException">Thrown when no replay is loaded.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="frameNumber"/> is negative or greater than or equal to <see cref="TotalFrames"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// Seeking pauses playback if it was playing. This method finds the nearest
+    /// snapshot at or before the target frame for efficient state restoration
+    /// in future phases.
+    /// </para>
+    /// <para>
+    /// The <see cref="CurrentFrame"/> and <see cref="CurrentTime"/> properties
+    /// are updated to reflect the new position.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Seek to frame 100
+    /// player.SeekToFrame(100);
+    ///
+    /// // Seek to the beginning
+    /// player.SeekToFrame(0);
+    ///
+    /// // Seek to the last frame
+    /// player.SeekToFrame(player.TotalFrames - 1);
+    /// </code>
+    /// </example>
+    public void SeekToFrame(int frameNumber)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            ThrowIfNoReplayLoaded();
+
+            var frameCount = replayData!.Frames.Count;
+            if (frameNumber < 0 || frameNumber >= frameCount)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(frameNumber),
+                    frameNumber,
+                    $"Frame number must be between 0 and {frameCount - 1}.");
+            }
+
+            // Pause playback when seeking
+            if (state == PlaybackState.Playing)
+            {
+                state = PlaybackState.Paused;
+            }
+
+            SetCurrentFrameInternal(frameNumber);
+        }
+    }
+
+    /// <summary>
+    /// Seeks to the frame at or before the specified time.
+    /// </summary>
+    /// <param name="time">The time to seek to.</param>
+    /// <exception cref="InvalidOperationException">Thrown when no replay is loaded.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when <paramref name="time"/> is negative or greater than <see cref="TotalDuration"/>.
+    /// </exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// This method converts the time to a frame number and delegates to
+    /// <see cref="SeekToFrame"/>. The frame at or before the specified
+    /// time is selected.
+    /// </para>
+    /// <para>
+    /// Seeking pauses playback if it was playing.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Seek to 5 seconds into the replay
+    /// player.SeekToTime(TimeSpan.FromSeconds(5));
+    ///
+    /// // Seek to 30% of the replay duration
+    /// player.SeekToTime(player.TotalDuration * 0.3);
+    /// </code>
+    /// </example>
+    public void SeekToTime(TimeSpan time)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            ThrowIfNoReplayLoaded();
+
+            if (time < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(time),
+                    time,
+                    "Time cannot be negative.");
+            }
+
+            var duration = replayData!.Duration;
+            if (time > duration)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(time),
+                    time,
+                    $"Time cannot exceed the replay duration of {duration}.");
+            }
+
+            // Pause playback when seeking
+            if (state == PlaybackState.Playing)
+            {
+                state = PlaybackState.Paused;
+            }
+
+            // Find the frame at or before the specified time
+            var targetFrame = FindFrameAtTime(time);
+            SetCurrentFrameInternal(targetFrame);
+        }
+    }
+
+    /// <summary>
+    /// Gets the snapshot marker for the nearest snapshot at or before the specified frame.
+    /// </summary>
+    /// <param name="targetFrame">The target frame number.</param>
+    /// <returns>
+    /// The snapshot marker for the nearest snapshot at or before <paramref name="targetFrame"/>,
+    /// or <c>null</c> if no such snapshot exists.
+    /// </returns>
+    /// <exception cref="InvalidOperationException">Thrown when no replay is loaded.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// This method uses binary search to efficiently find the nearest snapshot.
+    /// It is useful for determining the restore point when seeking backward
+    /// in the timeline.
+    /// </para>
+    /// </remarks>
+    public SnapshotMarker? GetNearestSnapshot(int targetFrame)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            ThrowIfNoReplayLoaded();
+
+            return FindNearestSnapshot(targetFrame);
+        }
+    }
+
+    /// <summary>
     /// Releases all resources used by the <see cref="ReplayPlayer"/>.
     /// </summary>
     public void Dispose()
@@ -636,6 +848,100 @@ public sealed class ReplayPlayer : IDisposable
         {
             throw new InvalidOperationException("No replay is loaded. Call LoadReplay first.");
         }
+    }
+
+    /// <summary>
+    /// Sets the current frame index and updates related state.
+    /// Must be called while holding the lock.
+    /// </summary>
+    private void SetCurrentFrameInternal(int frameIndex)
+    {
+        currentFrameIndex = frameIndex;
+
+        // Update current time based on frame's elapsed time
+        if (replayData!.Frames.Count > 0 && frameIndex >= 0 && frameIndex < replayData.Frames.Count)
+        {
+            currentTime = replayData.Frames[frameIndex].ElapsedTime;
+        }
+        else
+        {
+            currentTime = TimeSpan.Zero;
+        }
+
+        // Reset accumulated time when seeking/stepping
+        accumulatedTime = TimeSpan.Zero;
+    }
+
+    /// <summary>
+    /// Finds the frame index at or before the specified time using binary search.
+    /// Must be called while holding the lock.
+    /// </summary>
+    private int FindFrameAtTime(TimeSpan time)
+    {
+        var frames = replayData!.Frames;
+        if (frames.Count == 0)
+        {
+            return 0;
+        }
+
+        // Binary search for the frame at or before the specified time
+        int low = 0;
+        int high = frames.Count - 1;
+        int result = 0;
+
+        while (low <= high)
+        {
+            int mid = low + (high - low) / 2;
+            var frameTime = frames[mid].ElapsedTime;
+
+            if (frameTime <= time)
+            {
+                result = mid;
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid - 1;
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Finds the nearest snapshot at or before the specified frame using binary search.
+    /// Must be called while holding the lock.
+    /// </summary>
+    private SnapshotMarker? FindNearestSnapshot(int targetFrame)
+    {
+        var snapshots = replayData!.Snapshots;
+        if (snapshots.Count == 0)
+        {
+            return null;
+        }
+
+        // Binary search for the snapshot at or before the target frame
+        int low = 0;
+        int high = snapshots.Count - 1;
+        int resultIndex = -1;
+
+        while (low <= high)
+        {
+            int mid = low + (high - low) / 2;
+            var snapshotFrame = snapshots[mid].FrameNumber;
+
+            if (snapshotFrame <= targetFrame)
+            {
+                resultIndex = mid;
+                low = mid + 1;
+            }
+            else
+            {
+                high = mid - 1;
+            }
+        }
+
+        return resultIndex >= 0 ? snapshots[resultIndex] : null;
     }
 
     private static ReplayException ConvertToReplayException(InvalidDataException ex, string? filePath)
