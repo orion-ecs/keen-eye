@@ -48,7 +48,13 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(allComponents, static (ctx, source) =>
         {
             var (components, tagComponents) = source;
-            var allInfos = components.Concat(tagComponents).ToImmutableArray();
+
+            // Filter out any null values and cast to non-nullable
+            var allInfos = components
+                .Concat(tagComponents)
+                .Where(static info => info is not null)
+                .Cast<ComponentInfo>()
+                .ToImmutableArray();
 
             if (allInfos.Length == 0)
             {
@@ -58,16 +64,12 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             // Generate component interface implementations
             foreach (var info in allInfos)
             {
-                if (info is null)
-                {
-                    continue;
-                }
                 var componentSource = GenerateComponentPartial(info);
                 ctx.AddSource($"{info.FullName}.g.cs", SourceText.From(componentSource, Encoding.UTF8));
             }
 
             // Generate EntityBuilder extension methods
-            var builderSource = GenerateEntityBuilderExtensions(allInfos!);
+            var builderSource = GenerateEntityBuilderExtensions(allInfos);
             ctx.AddSource("EntityBuilder.Components.g.cs", SourceText.From(builderSource, Encoding.UTF8));
         });
     }
@@ -242,7 +244,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
-    private static string GenerateEntityBuilderExtensions(ImmutableArray<ComponentInfo?> components)
+    private static string GenerateEntityBuilderExtensions(ImmutableArray<ComponentInfo> components)
     {
         var sb = new StringBuilder();
 
@@ -260,8 +262,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
 
         // Detect name collisions and build suffix map
         var componentsByName = components
-            .Where(c => c is not null)
-            .GroupBy(c => c!.Name)
+            .GroupBy(c => c.Name)
             .ToImmutableArray();
 
         var suffixMap = new Dictionary<string, string>();
@@ -274,7 +275,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
                 foreach (var info in group)
                 {
                     // For nested types, use containing type name; otherwise use namespace
-                    var suffix = info!.ContainingTypeName ?? GenerateNamespaceSuffix(info.Namespace);
+                    var suffix = info.ContainingTypeName ?? GenerateNamespaceSuffix(info.Namespace);
                     suffixMap[info.FullName] = suffix;
                 }
             }
@@ -282,11 +283,6 @@ public sealed class ComponentGenerator : IIncrementalGenerator
 
         foreach (var info in components)
         {
-            if (info is null)
-            {
-                continue;
-            }
-
             // Skip non-public components - they don't need fluent builder extensions
             // (private/internal test components should use With<T>() directly)
             if (!info.IsPublic)
