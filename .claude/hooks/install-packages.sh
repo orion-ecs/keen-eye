@@ -146,6 +146,11 @@ download_pkg "System.Memory" "4.5.5"
 download_pkg "System.Buffers" "4.5.1"
 download_pkg "System.Runtime.CompilerServices.Unsafe" "6.0.0"
 
+# Navigation packages (DotRecast for 3D navmesh pathfinding)
+download_pkg "DotRecast.Core" "2024.4.1"
+download_pkg "DotRecast.Detour" "2024.4.1"
+download_pkg "DotRecast.Recast" "2024.4.1"
+
 # Clean up temp files
 rm -f "$PACKAGES_FILE"
 
