@@ -5,11 +5,9 @@ using KeenEyes.Sample.Prefabs;
 // KEEN EYES ECS - Prefabs Demo
 // =============================================================================
 // This sample demonstrates:
-// 1. Creating and registering prefabs (reusable entity templates)
-// 2. Spawning entities from prefabs
-// 3. Prefab inheritance with component overrides
-// 4. Customizing prefab instances at spawn time
-// 5. Named entity spawning from prefabs
+// 1. Source-generated prefabs (recommended approach)
+// 2. Spawning entities from .keprefab files
+// 3. Legacy runtime prefabs (deprecated, shown for migration reference)
 // =============================================================================
 
 Console.WriteLine("KeenEyes ECS - Prefabs Demo");
@@ -18,41 +16,18 @@ Console.WriteLine(new string('=', 50));
 using var world = new World();
 
 // =============================================================================
-// PART 1: Basic Prefab Creation and Registration
+// PART 1: Source-Generated Prefabs (Recommended)
 // =============================================================================
 
-Console.WriteLine("\n[1] Basic Prefab Creation\n");
+Console.WriteLine("\n[1] Source-Generated Prefabs (from .keprefab files)\n");
 
-// Create a basic enemy prefab
-var basicEnemyPrefab = new EntityPrefab()
-    .With(new Position { X = 0, Y = 0 })
-    .With(new Velocity { X = 0, Y = 0 })
-    .With(new Health { Current = 50, Max = 50 })
-    .With(new Sprite { TextureId = "enemy_basic.png", Layer = 1 })
-    .WithTag<Enemy>();
+// Prefabs defined in Prefabs/*.keprefab files are automatically compiled
+// into type-safe spawn methods in the Scenes class.
 
-world.RegisterPrefab("BasicEnemy", basicEnemyPrefab);
-Console.WriteLine("Registered 'BasicEnemy' prefab");
-
-// Create a collectible prefab
-var coinPrefab = new EntityPrefab()
-    .With(new Position { X = 0, Y = 0 })
-    .With(new Sprite { TextureId = "coin.png", Layer = 0 })
-    .WithTag<Collectible>();
-
-world.RegisterPrefab("Coin", coinPrefab);
-Console.WriteLine("Registered 'Coin' prefab");
-
-// =============================================================================
-// PART 2: Spawning Entities from Prefabs
-// =============================================================================
-
-Console.WriteLine("\n[2] Spawning from Prefabs\n");
-
-// Spawn multiple enemies from the same prefab
-var enemy1 = world.SpawnFromPrefab("BasicEnemy").Build();
-var enemy2 = world.SpawnFromPrefab("BasicEnemy").Build();
-var enemy3 = world.SpawnFromPrefab("BasicEnemy").Build();
+// Spawn multiple enemies from the BasicEnemy prefab
+var enemy1 = Scenes.SpawnBasicEnemy(world);
+var enemy2 = Scenes.SpawnBasicEnemy(world);
+var enemy3 = Scenes.SpawnBasicEnemy(world);
 
 Console.WriteLine($"Spawned enemies: {enemy1}, {enemy2}, {enemy3}");
 
@@ -64,23 +39,19 @@ foreach (var entity in world.Query<Position, Health>().With<Enemy>())
 }
 
 // =============================================================================
-// PART 3: Customizing Prefab Instances
+// PART 2: Customizing Spawned Entities
 // =============================================================================
 
-Console.WriteLine("\n[3] Customizing Prefab Instances\n");
+Console.WriteLine("\n[2] Customizing Spawned Entities\n");
 
-// Spawn enemies with custom positions
-var enemyAtOrigin = world.SpawnFromPrefab("BasicEnemy")
-    .With(new Position { X = 0, Y = 0 })
-    .Build();
+// Spawned entities can be modified after creation
+var enemyAtOrigin = Scenes.SpawnBasicEnemy(world);
+var enemyOnRight = Scenes.SpawnBasicEnemy(world);
+var enemyOnTop = Scenes.SpawnBasicEnemy(world);
 
-var enemyOnRight = world.SpawnFromPrefab("BasicEnemy")
-    .With(new Position { X = 100, Y = 0 })
-    .Build();
-
-var enemyOnTop = world.SpawnFromPrefab("BasicEnemy")
-    .With(new Position { X = 0, Y = 100 })
-    .Build();
+// Modify positions after spawning
+world.Get<Position>(enemyOnRight) = new Position { X = 100, Y = 0 };
+world.Get<Position>(enemyOnTop) = new Position { X = 0, Y = 100 };
 
 Console.WriteLine("Enemies with custom positions:");
 foreach (var entity in new[] { enemyAtOrigin, enemyOnRight, enemyOnTop })
@@ -90,142 +61,87 @@ foreach (var entity in new[] { enemyAtOrigin, enemyOnRight, enemyOnTop })
 }
 
 // =============================================================================
-// PART 4: Prefab Inheritance
+// PART 3: All Available Prefabs
 // =============================================================================
 
-Console.WriteLine("\n[4] Prefab Inheritance\n");
+Console.WriteLine("\n[3] Available Prefab Types\n");
 
-// Create a flying enemy that extends basic enemy
-var flyingEnemyPrefab = new EntityPrefab()
-    .Extends("BasicEnemy")                         // Inherit from BasicEnemy
-    .With(new Velocity { X = 0, Y = -2 })          // Add downward velocity
-    .With(new AIBehavior { DetectionRange = 150f }) // Add AI
-    .WithTag<Flying>();                            // Add Flying tag
+// Spawn one of each prefab type
+var flyingEnemy = Scenes.SpawnFlyingEnemy(world);
+var bossEnemy = Scenes.SpawnBossEnemy(world);
+var flyingBoss = Scenes.SpawnFlyingBoss(world);
+var player = Scenes.SpawnPlayer(world);
+var coin = Scenes.SpawnCoin(world);
 
-world.RegisterPrefab("FlyingEnemy", flyingEnemyPrefab);
-Console.WriteLine("Registered 'FlyingEnemy' prefab (extends BasicEnemy)");
-
-// Create a boss enemy that extends basic enemy with overrides
-var bossEnemyPrefab = new EntityPrefab()
-    .Extends("BasicEnemy")
-    .With(new Health { Current = 500, Max = 500 }) // Override health
-    .With(new Damage { Amount = 25, Range = 3f }) // Add damage
-    .With(new Sprite { TextureId = "boss.png", Layer = 5 }) // Override sprite
-    .WithTag<Boss>();
-
-world.RegisterPrefab("BossEnemy", bossEnemyPrefab);
-Console.WriteLine("Registered 'BossEnemy' prefab (extends BasicEnemy with overrides)");
-
-// Create a flying boss that extends flying enemy
-var flyingBossPrefab = new EntityPrefab()
-    .Extends("FlyingEnemy")
-    .With(new Health { Current = 750, Max = 750 })
-    .With(new Damage { Amount = 40, Range = 5f })
-    .WithTag<Boss>();
-
-world.RegisterPrefab("FlyingBoss", flyingBossPrefab);
-Console.WriteLine("Registered 'FlyingBoss' prefab (extends FlyingEnemy)");
-
-// Spawn instances of each
-var flyingEnemy = world.SpawnFromPrefab("FlyingEnemy").Build();
-var bossEnemy = world.SpawnFromPrefab("BossEnemy").Build();
-var flyingBoss = world.SpawnFromPrefab("FlyingBoss").Build();
-
-Console.WriteLine("\nSpawned inherited enemies:");
+Console.WriteLine("Spawned from .keprefab files:");
 Console.WriteLine($"  Flying Enemy: {flyingEnemy}");
 Console.WriteLine($"  Boss Enemy: {bossEnemy}");
 Console.WriteLine($"  Flying Boss: {flyingBoss}");
+Console.WriteLine($"  Player: {player}");
+Console.WriteLine($"  Coin: {coin}");
 
-// Show their health values (demonstrating inheritance)
-Console.WriteLine("\nHealth values (showing inheritance):");
-Console.WriteLine($"  Flying Enemy: {world.Get<Health>(flyingEnemy).Max} (inherited from BasicEnemy)");
-Console.WriteLine($"  Boss Enemy: {world.Get<Health>(bossEnemy).Max} (overridden)");
-Console.WriteLine($"  Flying Boss: {world.Get<Health>(flyingBoss).Max} (overridden in FlyingBoss)");
+// Show their health values
+Console.WriteLine("\nHealth values:");
+Console.WriteLine($"  Flying Enemy: {world.Get<Health>(flyingEnemy).Max}");
+Console.WriteLine($"  Boss Enemy: {world.Get<Health>(bossEnemy).Max}");
+Console.WriteLine($"  Flying Boss: {world.Get<Health>(flyingBoss).Max}");
+Console.WriteLine($"  Player: {world.Get<Health>(player).Max}");
 
-// Check tags
+// Check tags on Flying Boss
 Console.WriteLine("\nTags on Flying Boss:");
 Console.WriteLine($"  Has Enemy tag: {world.Has<Enemy>(flyingBoss)}");
 Console.WriteLine($"  Has Flying tag: {world.Has<Flying>(flyingBoss)}");
 Console.WriteLine($"  Has Boss tag: {world.Has<Boss>(flyingBoss)}");
 
 // =============================================================================
-// PART 5: Named Entity Spawning
+// PART 4: Listing Available Prefabs
 // =============================================================================
 
-Console.WriteLine("\n[5] Named Entity Spawning\n");
+Console.WriteLine("\n[4] Available Prefabs (from Scenes.All)\n");
 
-// Spawn named entities from prefabs
-var mainBoss = world.SpawnFromPrefab("BossEnemy", "MainBoss").Build();
-var miniBoss1 = world.SpawnFromPrefab("BossEnemy", "MiniBoss_Left").Build();
-var miniBoss2 = world.SpawnFromPrefab("BossEnemy", "MiniBoss_Right").Build();
-
-Console.WriteLine("Spawned named boss entities:");
-Console.WriteLine($"  MainBoss: {mainBoss}");
-Console.WriteLine($"  MiniBoss_Left: {miniBoss1}");
-Console.WriteLine($"  MiniBoss_Right: {miniBoss2}");
-
-// Retrieve by name later
-var foundBoss = world.GetEntityByName("MainBoss");
-Console.WriteLine($"\nLooking up 'MainBoss': {foundBoss}");
-Console.WriteLine($"  Found: {foundBoss.IsValid}");
-
-// =============================================================================
-// PART 6: Prefab Management
-// =============================================================================
-
-Console.WriteLine("\n[6] Prefab Management\n");
-
-// List all registered prefabs
-Console.WriteLine("Registered prefabs:");
-foreach (var prefabName in world.GetAllPrefabNames())
+// The generated Scenes class provides a list of all prefab names
+Console.WriteLine("Available prefabs:");
+foreach (var prefabName in Scenes.All)
 {
     Console.WriteLine($"  - {prefabName}");
 }
 
-// Check if a prefab exists
-Console.WriteLine($"\nHas 'BasicEnemy': {world.HasPrefab("BasicEnemy")}");
-Console.WriteLine($"Has 'Dragon': {world.HasPrefab("Dragon")}");
-
-// Unregister a prefab (entities already spawned are unaffected)
-world.UnregisterPrefab("Coin");
-Console.WriteLine("\nUnregistered 'Coin' prefab");
-Console.WriteLine($"Has 'Coin': {world.HasPrefab("Coin")}");
-
 // =============================================================================
-// PART 7: Practical Example - Level Setup
+// PART 5: Practical Example - Level Setup
 // =============================================================================
 
-Console.WriteLine("\n[7] Practical Example - Level Setup\n");
-
-// Create player prefab
-var playerPrefab = new EntityPrefab()
-    .With(new Position { X = 0, Y = 0 })
-    .With(new Velocity { X = 0, Y = 0 })
-    .With(new Health { Current = 100, Max = 100 })
-    .With(new Sprite { TextureId = "player.png", Layer = 10 })
-    .WithTag<Player>();
-
-world.RegisterPrefab("Player", playerPrefab);
+Console.WriteLine("\n[5] Practical Example - Level Setup\n");
 
 // Simulate level data (would normally come from a file)
 var levelData = new[]
 {
-    ("Player", "PlayerEntity", 100f, 50f),
-    ("BasicEnemy", null, 200f, 100f),
-    ("BasicEnemy", null, 300f, 150f),
-    ("FlyingEnemy", null, 250f, 200f),
-    ("BossEnemy", "LevelBoss", 400f, 100f),
+    ("Player", 100f, 50f),
+    ("BasicEnemy", 200f, 100f),
+    ("BasicEnemy", 300f, 150f),
+    ("FlyingEnemy", 250f, 200f),
+    ("BossEnemy", 400f, 100f),
 };
 
-Console.WriteLine("Spawning level entities from prefabs:");
-foreach (var (prefabName, entityName, x, y) in levelData)
+Console.WriteLine("Spawning level entities:");
+foreach (var (prefabName, x, y) in levelData)
 {
-    var entity = world.SpawnFromPrefab(prefabName, entityName)
-        .With(new Position { X = x, Y = y })
-        .Build();
+    // Spawn the prefab
+    Entity entity = prefabName switch
+    {
+        "Player" => Scenes.SpawnPlayer(world),
+        "BasicEnemy" => Scenes.SpawnBasicEnemy(world),
+        "FlyingEnemy" => Scenes.SpawnFlyingEnemy(world),
+        "BossEnemy" => Scenes.SpawnBossEnemy(world),
+        _ => Entity.Null
+    };
 
-    var name = entityName ?? "(unnamed)";
-    Console.WriteLine($"  {name}: {prefabName} at ({x}, {y}) -> {entity}");
+    // Set the position after spawning
+    if (entity.IsValid)
+    {
+        world.Get<Position>(entity) = new Position { X = x, Y = y };
+    }
+
+    Console.WriteLine($"  {prefabName} at ({x}, {y}) -> {entity}");
 }
 
 // Count entities by type
@@ -238,5 +154,56 @@ Console.WriteLine($"  Players: {playerCount}");
 Console.WriteLine($"  Enemies: {enemyCount}");
 Console.WriteLine($"  Bosses: {bossCount}");
 
+// =============================================================================
+// PART 6: Legacy Runtime Prefabs (Deprecated)
+// =============================================================================
+
+Console.WriteLine("\n[6] Legacy Runtime Prefabs (Deprecated)\n");
+Console.WriteLine("The following demonstrates the deprecated runtime prefab API.");
+Console.WriteLine("This is shown for migration reference - prefer .keprefab files.\n");
+
+#pragma warning disable CS0618 // Type or member is obsolete
+
+// Create a runtime prefab (deprecated)
+var customPrefab = new EntityPrefab()
+    .With(new Position { X = 0, Y = 0 })
+    .With(new Health { Current = 999, Max = 999 })
+    .WithTag<Enemy>();
+
+world.RegisterPrefab("CustomEnemy", customPrefab);
+Console.WriteLine("Registered 'CustomEnemy' runtime prefab (deprecated)");
+
+// Spawn from runtime prefab
+var customEnemy = world.SpawnFromPrefab("CustomEnemy").Build();
+Console.WriteLine($"Spawned from runtime prefab: {customEnemy}");
+Console.WriteLine($"  Health: {world.Get<Health>(customEnemy).Max}");
+
+// Named entity spawning from runtime prefab
+var namedBoss = world.SpawnFromPrefab("CustomEnemy", "TheCustomBoss").Build();
+Console.WriteLine($"Spawned named entity: {namedBoss}");
+
+// Retrieve by name
+var foundBoss = world.GetEntityByName("TheCustomBoss");
+Console.WriteLine($"Found by name: {foundBoss} (valid: {foundBoss.IsValid})");
+
+// Runtime prefab management
+Console.WriteLine($"\nHas 'CustomEnemy': {world.HasPrefab("CustomEnemy")}");
+Console.WriteLine($"Has 'NonExistent': {world.HasPrefab("NonExistent")}");
+
+Console.WriteLine("\nAll runtime prefabs:");
+foreach (var prefabName in world.GetAllPrefabNames())
+{
+    Console.WriteLine($"  - {prefabName}");
+}
+
+// Unregister
+world.UnregisterPrefab("CustomEnemy");
+Console.WriteLine("\nUnregistered 'CustomEnemy'");
+Console.WriteLine($"Has 'CustomEnemy': {world.HasPrefab("CustomEnemy")}");
+
+#pragma warning restore CS0618
+
 Console.WriteLine("\n" + new string('=', 50));
 Console.WriteLine("Prefabs demo complete!");
+Console.WriteLine("\nMigration tip: Replace runtime prefabs with .keprefab files");
+Console.WriteLine("for compile-time validation and type-safe spawn methods.");

@@ -1,3 +1,5 @@
+#pragma warning disable CS0618 // Type or member is obsolete - World implements deprecated IPrefabCapability for backwards compatibility
+
 using KeenEyes.Capabilities;
 using KeenEyes.Events;
 

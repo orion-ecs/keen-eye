@@ -1,0 +1,14 @@
+{
+  "name": "BasicEnemy",
+  "version": 1,
+  "root": {
+    "id": "enemy",
+    "components": {
+      "KeenEyes.Sample.Prefabs.Position": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Velocity": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Health": { "Current": 50, "Max": 50 },
+      "KeenEyes.Sample.Prefabs.Sprite": { "TextureId": "enemy_basic.png", "Layer": 1 },
+      "KeenEyes.Sample.Prefabs.Enemy": {}
+    }
+  }
+}

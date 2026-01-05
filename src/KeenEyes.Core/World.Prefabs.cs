@@ -1,3 +1,5 @@
+#pragma warning disable CS0618 // Type or member is obsolete - internal usage of deprecated PrefabManager
+
 namespace KeenEyes;
 
 public sealed partial class World
@@ -44,6 +46,7 @@ public sealed partial class World
     /// <seealso cref="SpawnFromPrefab(string)"/>
     /// <seealso cref="SpawnFromPrefab(string, string?)"/>
     /// <seealso cref="HasPrefab(string)"/>
+    [Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
     public void RegisterPrefab(string name, EntityPrefab prefab)
         => prefabManager.Register(name, prefab);
 
@@ -84,6 +87,7 @@ public sealed partial class World
     /// </example>
     /// <seealso cref="RegisterPrefab(string, EntityPrefab)"/>
     /// <seealso cref="SpawnFromPrefab(string, string?)"/>
+    [Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
     public IEntityBuilder SpawnFromPrefab(string name)
         => prefabManager.SpawnFromPrefab(name);
 
@@ -126,6 +130,7 @@ public sealed partial class World
     /// <seealso cref="RegisterPrefab(string, EntityPrefab)"/>
     /// <seealso cref="SpawnFromPrefab(string)"/>
     /// <seealso cref="GetEntityByName(string)"/>
+    [Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
     public IEntityBuilder SpawnFromPrefab(string prefabName, string? entityName)
         => prefabManager.SpawnFromPrefab(prefabName, entityName);
 
@@ -143,6 +148,7 @@ public sealed partial class World
     /// }
     /// </code>
     /// </example>
+    [Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
     public bool HasPrefab(string name)
         => prefabManager.HasPrefab(name);
 
@@ -156,6 +162,7 @@ public sealed partial class World
     /// Unregistering a prefab does not affect entities that were already spawned from it.
     /// Those entities continue to exist with their components intact.
     /// </remarks>
+    [Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
     public bool UnregisterPrefab(string name)
         => prefabManager.Unregister(name);
 
@@ -166,6 +173,7 @@ public sealed partial class World
     /// <remarks>
     /// The returned names are in no particular order.
     /// </remarks>
+    [Obsolete("Runtime prefabs are deprecated. Use .keprefab files with source-generated spawn methods instead. See docs/prefabs.md for migration guidance.")]
     public IEnumerable<string> GetAllPrefabNames()
         => prefabManager.GetAllPrefabNames();
 

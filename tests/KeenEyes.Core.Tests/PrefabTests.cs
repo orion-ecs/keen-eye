@@ -1,8 +1,15 @@
+#pragma warning disable CS0618 // Type or member is obsolete - testing deprecated prefab API
+
 namespace KeenEyes.Tests;
 
 /// <summary>
 /// Tests for the prefab system (reusable entity templates).
 /// </summary>
+/// <remarks>
+/// Note: The runtime prefab API is deprecated in favor of .keprefab files with
+/// source-generated spawn methods. These tests ensure the deprecated API remains
+/// functional for backwards compatibility.
+/// </remarks>
 public class PrefabTests
 {
     #region Test Components

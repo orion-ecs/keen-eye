@@ -2,13 +2,180 @@
 
 Prefabs are reusable entity templates that define a set of components. They allow you to define entity archetypes once and instantiate them multiple times with consistent component configurations.
 
-## Basic Usage
+> **Deprecation Notice**: The runtime prefab API (`EntityPrefab`, `world.RegisterPrefab()`, `world.SpawnFromPrefab()`) is deprecated. Use `.keprefab` files with source-generated spawn methods instead. See [Migration Guide](#migration-guide) below.
+
+## Source-Generated Prefabs (Recommended)
+
+The recommended approach is to define prefabs in `.keprefab` JSON files. These are processed at compile-time by the SceneGenerator to produce type-safe spawn methods.
+
+### Creating a .keprefab File
+
+Create a JSON file with the `.keprefab` extension in your project:
+
+```json
+// Prefabs/Enemy.keprefab
+{
+  "name": "Enemy",
+  "version": 1,
+  "root": {
+    "id": "enemy",
+    "name": "Enemy",
+    "components": {
+      "MyGame.Position": { "X": 0, "Y": 0 },
+      "MyGame.Health": { "Current": 100, "Max": 100 },
+      "MyGame.Sprite": { "TextureId": "enemy.png", "Layer": 1 },
+      "MyGame.EnemyTag": {}
+    }
+  },
+  "overridableFields": ["MyGame.Position.X", "MyGame.Position.Y"]
+}
+```
+
+### Project Configuration
+
+Add the prefab files to your project as `AdditionalFiles`:
+
+```xml
+<ItemGroup>
+  <AdditionalFiles Include="Prefabs\*.keprefab" />
+</ItemGroup>
+```
+
+### Using Generated Spawn Methods
+
+The generator creates a `Scenes` class with spawn methods for each prefab:
+
+```csharp
+// Spawn with default values
+var enemy = Scenes.SpawnEnemy(world);
+
+// Spawn with override parameters (from overridableFields)
+var enemy = Scenes.SpawnEnemy(world,
+    myGamePositionX: 100,
+    myGamePositionY: 50);
+```
+
+### Benefits of Source-Generated Prefabs
+
+- **Compile-time validation**: Component types and field names are verified at build time
+- **Type-safe API**: IDE autocomplete for spawn methods and parameters
+- **Zero runtime overhead**: No registration or string lookups at runtime
+- **Overridable fields**: Become typed optional parameters on spawn methods
+
+### Prefab File Schema
+
+```json
+{
+  "$schema": "https://keeneyes.dev/schemas/prefab-v1.json",
+  "name": "PrefabName",
+  "version": 1,
+  "root": {
+    "id": "unique-id",
+    "name": "EntityName",
+    "components": {
+      "Namespace.ComponentType": {
+        "FieldName": value
+      }
+    },
+    "children": []
+  },
+  "children": [],
+  "overridableFields": ["Namespace.Component.Field"]
+}
+```
+
+### Listing Available Prefabs
+
+The generated `Scenes` class provides a list of all prefab names:
+
+```csharp
+foreach (var prefabName in Scenes.All)
+{
+    Console.WriteLine($"Available: {prefabName}");
+}
+```
+
+---
+
+## Migration Guide
+
+### Step 1: Create .keprefab Files
+
+For each runtime prefab, create a corresponding `.keprefab` file:
+
+**Before (deprecated):**
+```csharp
+var enemyPrefab = new EntityPrefab()
+    .With(new Position { X = 0, Y = 0 })
+    .With(new Health { Current = 100, Max = 100 })
+    .WithTag<EnemyTag>();
+
+world.RegisterPrefab("Enemy", enemyPrefab);
+```
+
+**After (recommended):**
+```json
+// Prefabs/Enemy.keprefab
+{
+  "name": "Enemy",
+  "root": {
+    "id": "enemy",
+    "components": {
+      "MyGame.Position": { "X": 0, "Y": 0 },
+      "MyGame.Health": { "Current": 100, "Max": 100 },
+      "MyGame.EnemyTag": {}
+    }
+  }
+}
+```
+
+### Step 2: Update Project File
+
+Add the prefab files to your project:
+
+```xml
+<ItemGroup>
+  <AdditionalFiles Include="Prefabs\*.keprefab" />
+</ItemGroup>
+```
+
+### Step 3: Replace Spawn Calls
+
+**Before (deprecated):**
+```csharp
+var enemy = world.SpawnFromPrefab("Enemy").Build();
+var enemy = world.SpawnFromPrefab("Enemy")
+    .With(new Position { X = 100, Y = 50 })
+    .Build();
+```
+
+**After (recommended):**
+```csharp
+var enemy = Scenes.SpawnEnemy(world);
+var enemy = Scenes.SpawnEnemy(world,
+    myGamePositionX: 100,
+    myGamePositionY: 50);
+```
+
+### Step 4: Remove Runtime Registration
+
+Delete all `world.RegisterPrefab()` calls and `EntityPrefab` definitions.
+
+### Inheritance Note
+
+Prefab inheritance (`base` field in .keprefab) is not yet implemented. For prefabs that used `Extends()`, flatten the component definitions into each prefab file.
+
+---
+
+## Runtime Prefabs (Deprecated)
+
+> **Warning**: This API is deprecated and will be removed in a future version. Use [Source-Generated Prefabs](#source-generated-prefabs-recommended) instead.
 
 ### Defining a Prefab
 
-Create a prefab using the fluent builder pattern:
-
 ```csharp
+#pragma warning disable CS0618 // Suppress deprecation warning
+
 var enemyPrefab = new EntityPrefab()
     .With(new Position { X = 0, Y = 0 })
     .With(new Health { Current = 100, Max = 100 })
@@ -18,47 +185,23 @@ var enemyPrefab = new EntityPrefab()
 
 ### Registering a Prefab
 
-Register prefabs with the world using a unique name:
-
 ```csharp
 world.RegisterPrefab("Enemy", enemyPrefab);
 ```
 
 ### Spawning from a Prefab
 
-Create entities from registered prefabs:
-
 ```csharp
 // Spawn with default prefab values
 var enemy1 = world.SpawnFromPrefab("Enemy").Build();
 
-// Spawn multiple instances
-var enemy2 = world.SpawnFromPrefab("Enemy").Build();
-var enemy3 = world.SpawnFromPrefab("Enemy").Build();
-```
-
-### Customizing Spawned Entities
-
-Override prefab components when spawning:
-
-```csharp
-// Spawn with custom position
-var enemy = world.SpawnFromPrefab("Enemy")
+// Spawn with overridden values
+var enemy2 = world.SpawnFromPrefab("Enemy")
     .With(new Position { X = 100, Y = 50 })
     .Build();
-
-// Add additional components not in the prefab
-var bossEnemy = world.SpawnFromPrefab("Enemy")
-    .With(new BossMarker())
-    .With(new Health { Current = 500, Max = 500 })  // Override health
-    .Build();
 ```
 
-## Prefab Inheritance
-
-Prefabs support inheritance, allowing derived prefabs to extend or override base prefab components.
-
-### Creating Derived Prefabs
+### Prefab Inheritance (Deprecated)
 
 ```csharp
 // Base enemy prefab
@@ -71,172 +214,41 @@ world.RegisterPrefab("Enemy", baseEnemyPrefab);
 
 // Flying enemy extends base enemy
 var flyingEnemyPrefab = new EntityPrefab()
-    .Extends("Enemy")                              // Inherit from base
-    .With(new Velocity { X = 0, Y = -5 })          // Add new component
-    .WithTag<FlyingTag>();                         // Add new tag
+    .Extends("Enemy")
+    .With(new Velocity { X = 0, Y = -5 })
+    .WithTag<FlyingTag>();
 
 world.RegisterPrefab("FlyingEnemy", flyingEnemyPrefab);
-
-// Boss enemy extends base with overridden health
-var bossEnemyPrefab = new EntityPrefab()
-    .Extends("Enemy")
-    .With(new Health { Current = 500, Max = 500 }) // Override base health
-    .WithTag<BossTag>();
-
-world.RegisterPrefab("BossEnemy", bossEnemyPrefab);
 ```
 
-### Inheritance Rules
-
-1. **Component Merging**: Derived prefabs include all components from the base prefab
-2. **Component Override**: Components of the same type in the derived prefab replace base components
-3. **Tag Accumulation**: Tags from both base and derived prefabs are included
-4. **Resolution Order**: Base prefabs are processed first, then derived prefab components are applied
-
-## Named Entity Spawning
-
-Spawn named entities from prefabs for later retrieval:
+### Prefab Management (Deprecated)
 
 ```csharp
-// Spawn a named entity from a prefab
-var player = world.SpawnFromPrefab("Player", "MainPlayer").Build();
-
-// Later, retrieve by name
-var foundPlayer = world.GetEntityByName("MainPlayer");
-if (foundPlayer.IsValid)
-{
-    ref var pos = ref world.Get<Position>(foundPlayer);
-    // Work with the player entity
-}
-```
-
-## Prefab Management
-
-### Checking Prefab Registration
-
-```csharp
+// Check if registered
 if (world.HasPrefab("Enemy"))
 {
     var enemy = world.SpawnFromPrefab("Enemy").Build();
 }
-```
 
-### Unregistering Prefabs
+// Unregister
+world.UnregisterPrefab("Enemy");
 
-```csharp
-// Remove a prefab (existing entities are unaffected)
-bool removed = world.UnregisterPrefab("Enemy");
-```
-
-### Listing All Prefabs
-
-```csharp
+// List all prefabs
 foreach (var prefabName in world.GetAllPrefabNames())
 {
-    Console.WriteLine($"Registered prefab: {prefabName}");
-}
-```
-
-## Use Cases
-
-### Game Entity Templates
-
-```csharp
-// Define common game entities
-var playerPrefab = new EntityPrefab()
-    .With(new Position { X = 0, Y = 0 })
-    .With(new Health { Current = 100, Max = 100 })
-    .With(new Inventory { Slots = 20 })
-    .WithTag<PlayerTag>();
-
-var itemPrefab = new EntityPrefab()
-    .With(new Position { X = 0, Y = 0 })
-    .With(new ItemData { Value = 10 })
-    .WithTag<PickupableTag>();
-
-world.RegisterPrefab("Player", playerPrefab);
-world.RegisterPrefab("Item", itemPrefab);
-```
-
-### Level Loading
-
-```csharp
-// Load level data and spawn entities from prefabs
-foreach (var entityData in levelData.Entities)
-{
-    world.SpawnFromPrefab(entityData.PrefabName)
-        .With(new Position { X = entityData.X, Y = entityData.Y })
-        .Build();
-}
-```
-
-### Pooling Patterns
-
-```csharp
-// Pre-register prefabs at startup
-void InitializePrefabs(World world)
-{
-    world.RegisterPrefab("Bullet", new EntityPrefab()
-        .With(new Position())
-        .With(new Velocity())
-        .With(new Damage { Amount = 10 })
-        .WithTag<BulletTag>());
-
-    world.RegisterPrefab("Explosion", new EntityPrefab()
-        .With(new Position())
-        .With(new ParticleEffect { Type = EffectType.Explosion })
-        .With(new Lifetime { Remaining = 1.0f }));
+    Console.WriteLine($"Registered: {prefabName}");
 }
 
-// Spawn from prefabs during gameplay
-Entity SpawnBullet(World world, Position pos, Velocity vel)
-{
-    return world.SpawnFromPrefab("Bullet")
-        .With(pos)
-        .With(vel)
-        .Build();
-}
-```
-
-## Error Handling
-
-### Missing Prefab
-
-```csharp
-try
-{
-    var entity = world.SpawnFromPrefab("NonExistent").Build();
-}
-catch (InvalidOperationException ex)
-{
-    // "No prefab registered with name 'NonExistent'."
-}
-```
-
-### Circular Inheritance
-
-```csharp
-// This will throw when spawning
-var prefabA = new EntityPrefab().Extends("B");
-var prefabB = new EntityPrefab().Extends("A");
-
-world.RegisterPrefab("A", prefabA);
-world.RegisterPrefab("B", prefabB);
-
-try
-{
-    world.SpawnFromPrefab("A").Build(); // Throws InvalidOperationException
-}
-catch (InvalidOperationException ex)
-{
-    // "Circular inheritance detected in prefab 'A'..."
-}
+#pragma warning restore CS0618
 ```
 
 ## Performance Considerations
 
-- **Registration**: O(1) - Prefabs are stored by name in a dictionary
-- **Spawning**: O(C * D) where C is total components and D is inheritance depth
-- **Inheritance Resolution**: Resolved at spawn time, not registration time
+**Source-generated prefabs** have zero runtime overhead - all work is done at compile time.
 
-Prefabs are designed for convenience and maintainability rather than hot-path performance. For performance-critical spawning scenarios with thousands of entities per frame, consider direct entity creation with `world.Spawn()`.
+**Runtime prefabs** (deprecated) have the following characteristics:
+- Registration: O(1)
+- Spawning: O(C * D) where C is total components and D is inheritance depth
+- Inheritance resolution happens at spawn time
+
+For performance-critical scenarios, source-generated prefabs are always preferred.

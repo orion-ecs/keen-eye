@@ -1,0 +1,18 @@
+{
+  "name": "FlyingBoss",
+  "version": 1,
+  "root": {
+    "id": "flying-boss",
+    "components": {
+      "KeenEyes.Sample.Prefabs.Position": { "X": 0, "Y": 0 },
+      "KeenEyes.Sample.Prefabs.Velocity": { "X": 0, "Y": -2 },
+      "KeenEyes.Sample.Prefabs.Health": { "Current": 750, "Max": 750 },
+      "KeenEyes.Sample.Prefabs.Sprite": { "TextureId": "enemy_basic.png", "Layer": 1 },
+      "KeenEyes.Sample.Prefabs.AIBehavior": { "DetectionRange": 150, "AttackCooldown": 0 },
+      "KeenEyes.Sample.Prefabs.Damage": { "Amount": 40, "Range": 5 },
+      "KeenEyes.Sample.Prefabs.Enemy": {},
+      "KeenEyes.Sample.Prefabs.Flying": {},
+      "KeenEyes.Sample.Prefabs.Boss": {}
+    }
+  }
+}
