@@ -995,6 +995,344 @@ public class SerializationGeneratorTests
 
     #endregion
 
+    #region Auto-Migration Generator Tests
+
+    [Fact]
+    public void SerializationGenerator_WithDefaultValueAndVersion2_GeneratesAutoMigration()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 2)]
+            public partial struct Health
+            {
+                public int Current;
+                public int Max;
+
+                [DefaultValue(0)]
+                public int Shield;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Should generate auto-migration method
+        Assert.Contains(generatedTrees, t => t.Contains("AutoMigrate_Health"));
+        // Should register migration for version 1
+        Assert.Contains(generatedTrees, t => t.Contains("[1] = AutoMigrate_Health"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_AutoMigration_AppliesDefaultValues()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 2)]
+            public partial struct Stats
+            {
+                public int Strength;
+
+                [DefaultValue(10)]
+                public int Agility;
+
+                [DefaultValue(1.5f)]
+                public float DamageMultiplier;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("AutoMigrate_Stats"));
+        Assert.NotNull(generated);
+        // Should apply default value for Agility
+        Assert.Contains("result.Agility = 10", generated);
+        // Should apply default value for DamageMultiplier
+        Assert.Contains("result.DamageMultiplier = 1.5f", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_AutoMigration_ReadsExistingFields()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 2)]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+
+                [DefaultValue(0f)]
+                public float Z;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("AutoMigrate_Position"));
+        Assert.NotNull(generated);
+        // Should read existing X and Y fields from JSON
+        Assert.Contains("\"x\"", generated);
+        Assert.Contains("\"y\"", generated);
+        // Should apply default for Z when missing
+        Assert.Contains("result.Z = 0f", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_ExplicitMigrateFrom_OverridesAutoMigration()
+    {
+        var source = """
+            using KeenEyes;
+            using System.Text.Json;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 2)]
+            public partial struct CustomMigration
+            {
+                public int Value;
+
+                [DefaultValue(100)]
+                public int NewField;
+
+                [MigrateFrom(1)]
+                private static CustomMigration MigrateFromV1(JsonElement json)
+                {
+                    return new CustomMigration
+                    {
+                        Value = json.GetProperty("value").GetInt32(),
+                        NewField = 50
+                    };
+                }
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Should use explicit migration, not auto-migration for version 1
+        Assert.Contains(generatedTrees, t => t.Contains("[1] = json => TestApp.CustomMigration.MigrateFromV1(json)"));
+        // Should NOT register auto-migration for version 1
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("[1] = AutoMigrate_CustomMigration"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_NoDefaultValue_NoAutoMigration()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 2)]
+            public partial struct NoDefaults
+            {
+                public int Value;
+                public float Other;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Should NOT generate auto-migration when no fields have [DefaultValue]
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("AutoMigrate_NoDefaults"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_Version1_NoAutoMigration()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 1)]
+            public partial struct VersionOne
+            {
+                public int Value;
+
+                [DefaultValue(0)]
+                public int WithDefault;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Should NOT generate auto-migration for version 1 components
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("AutoMigrate_VersionOne"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_MultipleVersions_GeneratesAllAutoMigrations()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 4)]
+            public partial struct MultiVersion
+            {
+                public int A;
+
+                [DefaultValue(1)]
+                public int B;
+
+                [DefaultValue(2)]
+                public int C;
+
+                [DefaultValue(3)]
+                public int D;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Should generate auto-migration
+        Assert.Contains(generatedTrees, t => t.Contains("AutoMigrate_MultiVersion"));
+        // Should register migrations for all versions 1-3
+        Assert.Contains(generatedTrees, t => t.Contains("[1] = AutoMigrate_MultiVersion"));
+        Assert.Contains(generatedTrees, t => t.Contains("[2] = AutoMigrate_MultiVersion"));
+        Assert.Contains(generatedTrees, t => t.Contains("[3] = AutoMigrate_MultiVersion"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_MixedExplicitAndAuto_WorksTogether()
+    {
+        var source = """
+            using KeenEyes;
+            using System.Text.Json;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 3)]
+            public partial struct MixedMigration
+            {
+                public int Value;
+
+                [DefaultValue(0)]
+                public int NewInV2;
+
+                [DefaultValue(0)]
+                public int NewInV3;
+
+                [MigrateFrom(1)]
+                private static MixedMigration MigrateFromV1(JsonElement json)
+                {
+                    return new MixedMigration
+                    {
+                        Value = json.GetProperty("value").GetInt32(),
+                        NewInV2 = 42,
+                        NewInV3 = 0
+                    };
+                }
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        // Version 1 should use explicit migration
+        Assert.Contains(generatedTrees, t => t.Contains("[1] = json => TestApp.MixedMigration.MigrateFromV1(json)"));
+        // Version 2 should use auto-migration
+        Assert.Contains(generatedTrees, t => t.Contains("[2] = AutoMigrate_MixedMigration"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_AutoMigration_HandlesStringDefault()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 2)]
+            public partial struct StringDefaults
+            {
+                public int Id;
+
+                [DefaultValue("Unknown")]
+                public string Name;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("AutoMigrate_StringDefaults"));
+        Assert.NotNull(generated);
+        Assert.Contains("result.Name = \"Unknown\"", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_AutoMigration_HandlesBoolDefault()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true, Version = 2)]
+            public partial struct BoolDefaults
+            {
+                public int Id;
+
+                [DefaultValue(true)]
+                public bool IsActive;
+
+                [DefaultValue(false)]
+                public bool IsVisible;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("AutoMigrate_BoolDefaults"));
+        Assert.NotNull(generated);
+        Assert.Contains("result.IsActive = true", generated);
+        Assert.Contains("result.IsVisible = false", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_ImplementsIComponentMigrator()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct MigratorTest
+            {
+                public int Value;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        Assert.Contains(generatedTrees, t => t.Contains("IComponentMigrator"));
+        Assert.Contains(generatedTrees, t => t.Contains("public bool CanMigrate"));
+        Assert.Contains(generatedTrees, t => t.Contains("public JsonElement? Migrate"));
+        Assert.Contains(generatedTrees, t => t.Contains("public IEnumerable<int> GetMigrationVersions"));
+    }
+
+    #endregion
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;
@@ -1012,6 +1350,9 @@ public class SerializationGeneratorTests
         var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "System.Runtime.dll")));
         references.Add(MetadataReference.CreateFromFile(System.IO.Path.Join(runtimeDir, "netstandard.dll")));
+
+        // Add System.Text.Json for migration tests that use JsonElement
+        references.Add(MetadataReference.CreateFromFile(typeof(System.Text.Json.JsonElement).Assembly.Location));
 
         var compilation = CSharpCompilation.Create(
             "TestAssembly",
