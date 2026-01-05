@@ -12,11 +12,13 @@ namespace KeenEyes.Generators;
 /// <summary>
 /// Generates AOT-compatible serialization code for components marked with [Component(Serializable = true)].
 /// Eliminates runtime reflection by generating strongly-typed serialization methods.
+/// Also generates migration code for components with [MigrateFrom] methods.
 /// </summary>
 [Generator]
 public sealed class SerializationGenerator : IIncrementalGenerator
 {
     private const string ComponentAttribute = "KeenEyes.ComponentAttribute";
+    private const string MigrateFromAttribute = "KeenEyes.MigrateFromAttribute";
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -106,12 +108,44 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 isNullable));
         }
 
+        // Collect migration methods
+        var migrations = new List<MigrationMethodInfo>();
+        foreach (var member in typeSymbol.GetMembers())
+        {
+            if (member is not IMethodSymbol method)
+            {
+                continue;
+            }
+
+            foreach (var migrateAttr in method.GetAttributes())
+            {
+                if (migrateAttr.AttributeClass?.ToDisplayString() != MigrateFromAttribute)
+                {
+                    continue;
+                }
+
+                if (migrateAttr.ConstructorArguments.Length > 0 &&
+                    migrateAttr.ConstructorArguments[0].Value is int fromVersion)
+                {
+                    // Validate migration method signature
+                    if (method.IsStatic &&
+                        SymbolEqualityComparer.Default.Equals(method.ReturnType, typeSymbol) &&
+                        method.Parameters.Length == 1 &&
+                        method.Parameters[0].Type.ToDisplayString() == "System.Text.Json.JsonElement")
+                    {
+                        migrations.Add(new MigrationMethodInfo(fromVersion, method.Name));
+                    }
+                }
+            }
+        }
+
         return new SerializableComponentInfo(
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
             fields.ToImmutableArray(),
-            version);
+            version,
+            migrations.ToImmutableArray());
     }
 
     private static string GetJsonTypeName(ITypeSymbol type)
@@ -147,6 +181,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("using System;");
         sb.AppendLine("using System.Collections.Generic;");
         sb.AppendLine("using System.IO;");
+        sb.AppendLine("using System.Linq;");
         sb.AppendLine("using System.Text.Json;");
         sb.AppendLine("using KeenEyes.Capabilities;");
         sb.AppendLine("using KeenEyes.Serialization;");
@@ -172,7 +207,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("/// JsonSerializer.Serialize(value, Options);");
         sb.AppendLine("/// </code>");
         sb.AppendLine("/// </remarks>");
-        sb.AppendLine("public sealed class ComponentSerializer : IComponentSerializer, IBinaryComponentSerializer");
+        sb.AppendLine("public sealed class ComponentSerializer : IComponentSerializer, IBinaryComponentSerializer, IComponentMigrator");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// Shared instance for convenience.");
@@ -193,12 +228,18 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("    private static readonly Dictionary<string, ComponentSerializationInfo> ComponentsByName;");
         sb.AppendLine("    private static readonly Dictionary<Type, ComponentSerializationInfo> ComponentsByType;");
         sb.AppendLine();
+        sb.AppendLine("    // Migration lookup: Type -> (FromVersion -> MigrationDelegate)");
+        sb.AppendLine("    private static readonly Dictionary<Type, Dictionary<int, Func<JsonElement, object>>> MigrationsByType;");
+        sb.AppendLine("    private static readonly Dictionary<string, Dictionary<int, Func<JsonElement, object>>> MigrationsByName;");
+        sb.AppendLine();
 
         // Static constructor to initialize dictionaries
         sb.AppendLine("    static ComponentSerializer()");
         sb.AppendLine("    {");
         sb.AppendLine("        ComponentsByName = new Dictionary<string, ComponentSerializationInfo>();");
         sb.AppendLine("        ComponentsByType = new Dictionary<Type, ComponentSerializationInfo>();");
+        sb.AppendLine("        MigrationsByType = new Dictionary<Type, Dictionary<int, Func<JsonElement, object>>>();");
+        sb.AppendLine("        MigrationsByName = new Dictionary<string, Dictionary<int, Func<JsonElement, object>>>();");
         sb.AppendLine();
 
         foreach (var component in components)
@@ -218,6 +259,22 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             sb.AppendLine($"        ComponentsByName[\"{component.FullName}\"] = info_{component.Name};");
             sb.AppendLine($"        ComponentsByType[typeof({component.FullName})] = info_{component.Name};");
             sb.AppendLine();
+
+            // Register migrations for this component
+            if (component.Migrations.Length > 0)
+            {
+                sb.AppendLine($"        var migrations_{component.Name} = new Dictionary<int, Func<JsonElement, object>>");
+                sb.AppendLine("        {");
+                foreach (var migration in component.Migrations.OrderBy(m => m.FromVersion))
+                {
+                    sb.AppendLine($"            [{migration.FromVersion}] = json => {component.FullName}.{migration.MethodName}(json),");
+                }
+                sb.AppendLine("        };");
+                sb.AppendLine($"        MigrationsByType[typeof({component.FullName})] = migrations_{component.Name};");
+                sb.AppendLine($"        MigrationsByName[typeof({component.FullName}).AssemblyQualifiedName!] = migrations_{component.Name};");
+                sb.AppendLine($"        MigrationsByName[\"{component.FullName}\"] = migrations_{component.Name};");
+                sb.AppendLine();
+            }
         }
 
         sb.AppendLine("    }");
@@ -322,6 +379,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        return ComponentsByType.TryGetValue(type, out var info) ? info.Version : 1;");
         sb.AppendLine("    }");
         sb.AppendLine();
+
+        // IComponentMigrator implementation
+        GenerateMigratorMethods(sb);
 
         // Generate individual serialization/deserialization methods
         foreach (var component in components)
@@ -449,6 +509,151 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
+    private static void GenerateMigratorMethods(StringBuilder sb)
+    {
+        // CanMigrate(string, int, int)
+        sb.AppendLine("    #region IComponentMigrator Implementation");
+        sb.AppendLine();
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool CanMigrate(string typeName, int fromVersion, int toVersion)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (fromVersion >= toVersion)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (!MigrationsByName.TryGetValue(typeName, out var migrations))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        // Check all versions in the chain have migrations");
+        sb.AppendLine("        for (var v = fromVersion; v < toVersion; v++)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (!migrations.ContainsKey(v))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                return false;");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return true;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // CanMigrate(Type, int, int)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public bool CanMigrate(Type type, int fromVersion, int toVersion)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (fromVersion >= toVersion)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (!MigrationsByType.TryGetValue(type, out var migrations))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return false;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        // Check all versions in the chain have migrations");
+        sb.AppendLine("        for (var v = fromVersion; v < toVersion; v++)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (!migrations.ContainsKey(v))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                return false;");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return true;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Migrate(string, JsonElement, int, int)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public JsonElement? Migrate(string typeName, JsonElement data, int fromVersion, int toVersion)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        if (fromVersion >= toVersion)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return data; // No migration needed");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (!MigrationsByName.TryGetValue(typeName, out var migrations))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return null;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        if (!ComponentsByName.TryGetValue(typeName, out var info))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return null;");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        var currentData = data;");
+        sb.AppendLine("        object? currentValue = null;");
+        sb.AppendLine();
+        sb.AppendLine("        // Chain migrations from fromVersion to toVersion");
+        sb.AppendLine("        for (var v = fromVersion; v < toVersion; v++)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            if (!migrations.TryGetValue(v, out var migrate))");
+        sb.AppendLine("            {");
+        sb.AppendLine("                throw new ComponentVersionException(");
+        sb.AppendLine("                    typeName.Split('.').Last(),");
+        sb.AppendLine("                    v,");
+        sb.AppendLine("                    toVersion,");
+        sb.AppendLine("                    $\"No migration defined from version {v} to {v + 1}\");");
+        sb.AppendLine("            }");
+        sb.AppendLine();
+        sb.AppendLine("            // Apply migration");
+        sb.AppendLine("            currentValue = migrate(currentData);");
+        sb.AppendLine();
+        sb.AppendLine("            // If not at final version, serialize back to JSON for next migration");
+        sb.AppendLine("            if (v < toVersion - 1)");
+        sb.AppendLine("            {");
+        sb.AppendLine("                var jsonElement = info.JsonSerializer(currentValue);");
+        sb.AppendLine("                currentData = jsonElement;");
+        sb.AppendLine("            }");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        // Serialize final result to JsonElement");
+        sb.AppendLine("        if (currentValue is not null)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            return info.JsonSerializer(currentValue);");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        return null;");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Migrate(Type, JsonElement, int, int)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public JsonElement? Migrate(Type type, JsonElement data, int fromVersion, int toVersion)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        var typeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;");
+        sb.AppendLine("        return Migrate(typeName, data, fromVersion, toVersion);");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetMigrationVersions(string)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public IEnumerable<int> GetMigrationVersions(string typeName)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return MigrationsByName.TryGetValue(typeName, out var migrations)");
+        sb.AppendLine("            ? migrations.Keys.OrderBy(v => v)");
+        sb.AppendLine("            : Enumerable.Empty<int>();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // GetMigrationVersions(Type)
+        sb.AppendLine("    /// <inheritdoc />");
+        sb.AppendLine("    public IEnumerable<int> GetMigrationVersions(Type type)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        return MigrationsByType.TryGetValue(type, out var migrations)");
+        sb.AppendLine("            ? migrations.Keys.OrderBy(v => v)");
+        sb.AppendLine("            : Enumerable.Empty<int>();");
+        sb.AppendLine("    }");
+        sb.AppendLine();
+        sb.AppendLine("    #endregion");
+        sb.AppendLine();
+    }
+
     private static string GetBinaryReadMethod(string jsonTypeName, string type, bool isNullable)
     {
         return jsonTypeName switch
@@ -489,11 +694,16 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         string Namespace,
         string FullName,
         ImmutableArray<SerializableFieldInfo> Fields,
-        int Version);
+        int Version,
+        ImmutableArray<MigrationMethodInfo> Migrations);
 
     private sealed record SerializableFieldInfo(
         string Name,
         string Type,
         string JsonTypeName,
         bool IsNullable);
+
+    private sealed record MigrationMethodInfo(
+        int FromVersion,
+        string MethodName);
 }
