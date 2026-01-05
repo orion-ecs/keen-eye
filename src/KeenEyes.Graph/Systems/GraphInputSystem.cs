@@ -11,17 +11,19 @@ namespace KeenEyes.Graph;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Handles pan, zoom, node selection, and node dragging for all graph canvases.
+/// Handles pan, zoom, node selection, node dragging, and port interaction for all graph canvases.
 /// </para>
 /// <para>
 /// Controls:
 /// <list type="bullet">
 /// <item><description>Mouse wheel: Zoom (centered on cursor)</description></item>
 /// <item><description>Middle mouse drag: Pan</description></item>
-/// <item><description>Left click: Select node (Ctrl to add to selection)</description></item>
+/// <item><description>Left click on port: Start connection drag</description></item>
+/// <item><description>Left click on node: Select node (Ctrl to add to selection)</description></item>
 /// <item><description>Left drag on empty: Box selection</description></item>
 /// <item><description>Left drag on node: Move selected nodes</description></item>
 /// <item><description>Delete key: Delete selected nodes/connections</description></item>
+/// <item><description>ESC/Right click: Cancel connection drag</description></item>
 /// </list>
 /// </para>
 /// </remarks>
@@ -30,6 +32,7 @@ public sealed class GraphInputSystem : SystemBase
     private IInputContext? inputContext;
     private GraphContext? graphContext;
     private PortRegistry? portRegistry;
+    private PortPositionCache? portCache;
 
     // Interaction state
     private Vector2 dragStartScreen;
@@ -39,6 +42,13 @@ public sealed class GraphInputSystem : SystemBase
     private bool isDraggingNodes;
     private bool isSelecting;
     private bool isPanning;
+
+    // Connection dragging state
+    private Entity connectionSourceNode;
+    private int connectionSourcePort;
+    private bool connectionFromOutput;
+    private PortTypeId connectionSourceType;
+    private bool isConnecting;
 
     // Canvas bounds cache (updated by layout system)
     private Rectangle canvasBounds = new(0, 0, 1280, 720);
@@ -74,6 +84,11 @@ public sealed class GraphInputSystem : SystemBase
             return;
         }
 
+        if (portCache is null && !World.TryGetExtension(out portCache))
+        {
+            return;
+        }
+
         var mouse = inputContext!.Mouse;
         var keyboard = inputContext.Keyboard;
         var mousePos = mouse.Position;
@@ -91,6 +106,9 @@ public sealed class GraphInputSystem : SystemBase
     {
         ref var canvasData = ref World.Get<GraphCanvas>(canvas);
         var origin = new Vector2(canvasBounds.X, canvasBounds.Y);
+
+        // Always update hovered port
+        UpdateHoveredPort(canvas, in canvasData, mousePos, origin);
 
         // Handle zoom
         var scrollDelta = mouse.GetState().ScrollDelta.Y;
@@ -116,7 +134,14 @@ public sealed class GraphInputSystem : SystemBase
             EndPan(ref canvasData);
         }
 
-        // Handle left mouse for selection and dragging
+        // Handle connection in progress
+        if (isConnecting && canvasData.Mode == GraphInteractionMode.ConnectingPort)
+        {
+            UpdateConnection(canvas, ref canvasData, mousePos, origin, mouse, keyboard);
+            return; // Connection mode takes exclusive control
+        }
+
+        // Handle left mouse for selection, dragging, and port interaction
         if (mouse.IsButtonDown(MouseButton.Left))
         {
             if (!isDraggingNodes && !isSelecting && canvasData.Mode == GraphInteractionMode.None)
@@ -188,6 +213,35 @@ public sealed class GraphInputSystem : SystemBase
     private void StartLeftMouseAction(Entity canvas, ref GraphCanvas canvasData, Vector2 mousePos, Vector2 origin, IKeyboard keyboard)
     {
         dragStartScreen = mousePos;
+
+        // First check for port hit (ports have priority over node body)
+        if (portCache!.HitTestPort(mousePos, canvasData.Pan, canvasData.Zoom, origin,
+            out var hitPortNode, out var hitPortDir, out var hitPortIndex))
+        {
+            // Check if this is an input port with an existing connection (disconnect + reconnect)
+            if (hitPortDir == PortDirection.Input)
+            {
+                var existingConnection = FindConnectionToInput(hitPortNode, hitPortIndex);
+                if (existingConnection.IsValid)
+                {
+                    // Get the source info before deleting
+                    ref readonly var conn = ref World.Get<GraphConnection>(existingConnection);
+                    var sourceNode = conn.SourceNode;
+                    var sourcePort = conn.SourcePortIndex;
+
+                    // Delete the existing connection
+                    graphContext!.DeleteConnection(existingConnection);
+
+                    // Start connection from the original source output
+                    StartConnection(canvas, ref canvasData, sourceNode, PortDirection.Output, sourcePort, mousePos, origin);
+                    return;
+                }
+            }
+
+            // Start a new connection from this port
+            StartConnection(canvas, ref canvasData, hitPortNode, hitPortDir, hitPortIndex, mousePos, origin);
+            return;
+        }
 
         // Hit test nodes
         var hitNode = HitTestNodes(canvas, mousePos, canvasData.Pan, canvasData.Zoom, origin);
@@ -373,4 +427,220 @@ public sealed class GraphInputSystem : SystemBase
             graphContext!.DeleteNode(node);
         }
     }
+
+    #region Port Interaction
+
+    private void UpdateHoveredPort(Entity canvas, in GraphCanvas canvasData, Vector2 mousePos, Vector2 origin)
+    {
+        // Remove existing hover
+        if (World.Has<HoveredPort>(canvas))
+        {
+            World.Remove<HoveredPort>(canvas);
+        }
+
+        if (portCache!.HitTestPort(mousePos, canvasData.Pan, canvasData.Zoom, origin,
+            out var hitNode, out var hitDir, out var hitIndex))
+        {
+            // Get port type from registry
+            if (!World.IsAlive(hitNode))
+            {
+                return;
+            }
+
+            ref readonly var node = ref World.Get<GraphNode>(hitNode);
+            if (!portRegistry!.TryGetNodeType(node.NodeTypeId, out var nodeType))
+            {
+                return;
+            }
+
+            var ports = hitDir == PortDirection.Input ? nodeType.InputPorts : nodeType.OutputPorts;
+            if (hitIndex >= ports.Length)
+            {
+                return;
+            }
+
+            var portDef = ports[hitIndex];
+            var pos = portCache.GetPortPosition(hitNode, hitDir, hitIndex);
+
+            World.Add(canvas, new HoveredPort
+            {
+                Node = hitNode,
+                Direction = hitDir,
+                PortIndex = hitIndex,
+                TypeId = portDef.TypeId,
+                Position = pos
+            });
+        }
+    }
+
+    private void StartConnection(
+        Entity canvas,
+        ref GraphCanvas canvasData,
+        Entity node,
+        PortDirection direction,
+        int portIndex,
+        Vector2 mousePos,
+        Vector2 origin)
+    {
+        if (!World.IsAlive(node))
+        {
+            return;
+        }
+
+        ref readonly var nodeData = ref World.Get<GraphNode>(node);
+        if (!portRegistry!.TryGetNodeType(nodeData.NodeTypeId, out var nodeType))
+        {
+            return;
+        }
+
+        var ports = direction == PortDirection.Input ? nodeType.InputPorts : nodeType.OutputPorts;
+        if (portIndex >= ports.Length)
+        {
+            return;
+        }
+
+        var portDef = ports[portIndex];
+
+        connectionSourceNode = node;
+        connectionSourcePort = portIndex;
+        connectionFromOutput = direction == PortDirection.Output;
+        connectionSourceType = portDef.TypeId;
+        isConnecting = true;
+
+        canvasData.Mode = GraphInteractionMode.ConnectingPort;
+
+        // Add pending connection component
+        var canvasPos = GraphTransform.ScreenToCanvas(mousePos, canvasData.Pan, canvasData.Zoom, origin);
+        World.Add(canvas, new PendingConnection
+        {
+            SourceNode = node,
+            SourcePortIndex = portIndex,
+            IsFromOutput = connectionFromOutput,
+            CurrentPosition = canvasPos,
+            SourceType = connectionSourceType
+        });
+    }
+
+    private void UpdateConnection(
+        Entity canvas,
+        ref GraphCanvas canvasData,
+        Vector2 mousePos,
+        Vector2 origin,
+        IMouse mouse,
+        IKeyboard keyboard)
+    {
+        // Update preview position
+        if (World.Has<PendingConnection>(canvas))
+        {
+            ref var pending = ref World.Get<PendingConnection>(canvas);
+            pending.CurrentPosition = GraphTransform.ScreenToCanvas(
+                mousePos, canvasData.Pan, canvasData.Zoom, origin);
+        }
+
+        // Cancel on ESC or right-click
+        if (keyboard.IsKeyDown(Key.Escape) || mouse.IsButtonDown(MouseButton.Right))
+        {
+            CancelConnection(canvas, ref canvasData);
+            return;
+        }
+
+        // Complete on left mouse release
+        if (!mouse.IsButtonDown(MouseButton.Left))
+        {
+            CompleteConnection(canvas, ref canvasData, mousePos, origin);
+        }
+    }
+
+    private void CompleteConnection(Entity canvas, ref GraphCanvas canvasData, Vector2 mousePos, Vector2 origin)
+    {
+        if (portCache!.HitTestPort(mousePos, canvasData.Pan, canvasData.Zoom, origin,
+            out var targetNode, out var targetDir, out var targetIndex))
+        {
+            // Validate direction (output to input or input to output)
+            var isValidDirection = connectionFromOutput
+                ? targetDir == PortDirection.Input
+                : targetDir == PortDirection.Output;
+
+            if (isValidDirection && targetNode != connectionSourceNode)
+            {
+                // Get target port type for validation
+                if (World.IsAlive(targetNode))
+                {
+                    ref readonly var targetNodeData = ref World.Get<GraphNode>(targetNode);
+                    if (portRegistry!.TryGetNodeType(targetNodeData.NodeTypeId, out var targetNodeType))
+                    {
+                        var targetPorts = targetDir == PortDirection.Input
+                            ? targetNodeType.InputPorts
+                            : targetNodeType.OutputPorts;
+
+                        if (targetIndex < targetPorts.Length)
+                        {
+                            var targetType = targetPorts[targetIndex].TypeId;
+
+                            // Determine actual source and target based on drag direction
+                            PortTypeId srcType, tgtType;
+                            Entity srcNode, tgtNode;
+                            int srcPort, tgtPort;
+
+                            if (connectionFromOutput)
+                            {
+                                srcNode = connectionSourceNode;
+                                srcPort = connectionSourcePort;
+                                srcType = connectionSourceType;
+                                tgtNode = targetNode;
+                                tgtPort = targetIndex;
+                                tgtType = targetType;
+                            }
+                            else
+                            {
+                                // Dragging from input - target is actually the source
+                                srcNode = targetNode;
+                                srcPort = targetIndex;
+                                srcType = targetType;
+                                tgtNode = connectionSourceNode;
+                                tgtPort = connectionSourcePort;
+                                tgtType = connectionSourceType;
+                            }
+
+                            // Validate type compatibility
+                            if (PortTypeCompatibility.CanConnect(srcType, tgtType))
+                            {
+                                graphContext!.Connect(srcNode, srcPort, tgtNode, tgtPort);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        CancelConnection(canvas, ref canvasData);
+    }
+
+    private void CancelConnection(Entity canvas, ref GraphCanvas canvasData)
+    {
+        isConnecting = false;
+        connectionSourceNode = Entity.Null;
+        canvasData.Mode = GraphInteractionMode.None;
+
+        if (World.Has<PendingConnection>(canvas))
+        {
+            World.Remove<PendingConnection>(canvas);
+        }
+    }
+
+    private Entity FindConnectionToInput(Entity node, int portIndex)
+    {
+        foreach (var connEntity in World.Query<GraphConnection>())
+        {
+            ref readonly var conn = ref World.Get<GraphConnection>(connEntity);
+            if (conn.TargetNode == node && conn.TargetPortIndex == portIndex)
+            {
+                return connEntity;
+            }
+        }
+
+        return Entity.Null;
+    }
+
+    #endregion
 }

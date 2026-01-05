@@ -21,6 +21,7 @@ namespace KeenEyes.Graph;
 public sealed class GraphLayoutSystem : SystemBase
 {
     private PortRegistry? portRegistry;
+    private PortPositionCache? portCache;
 
     /// <summary>
     /// Height of the node header/title bar in pixels.
@@ -47,11 +48,6 @@ public sealed class GraphLayoutSystem : SystemBase
     /// </summary>
     public const float MinNodeHeight = 60f;
 
-    /// <summary>
-    /// Gets the port position cache, updated each frame.
-    /// </summary>
-    public PortPositionCache PortCache { get; } = new();
-
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
@@ -61,8 +57,13 @@ public sealed class GraphLayoutSystem : SystemBase
             return;
         }
 
+        if (portCache is null && !World.TryGetExtension(out portCache))
+        {
+            return;
+        }
+
         // Clear cache from previous frame
-        PortCache.Clear();
+        portCache!.Clear();
 
         // Process each node
         foreach (var node in World.Query<GraphNode>())
@@ -103,7 +104,7 @@ public sealed class GraphLayoutSystem : SystemBase
         {
             var yOffset = HeaderHeight + (i * PortRowHeight) + (PortRowHeight / 2);
             var position = nodeOrigin + new Vector2(0, yOffset);
-            PortCache.SetPortPosition(node, PortDirection.Input, i, position);
+            portCache!.SetPortPosition(node, PortDirection.Input, i, position);
         }
 
         // Output ports (right edge)
@@ -111,7 +112,7 @@ public sealed class GraphLayoutSystem : SystemBase
         {
             var yOffset = HeaderHeight + (i * PortRowHeight) + (PortRowHeight / 2);
             var position = nodeOrigin + new Vector2(nodeData.Width, yOffset);
-            PortCache.SetPortPosition(node, PortDirection.Output, i, position);
+            portCache!.SetPortPosition(node, PortDirection.Output, i, position);
         }
     }
 }
@@ -122,6 +123,11 @@ public sealed class GraphLayoutSystem : SystemBase
 public sealed class PortPositionCache
 {
     private readonly Dictionary<PortKey, Vector2> positions = [];
+
+    /// <summary>
+    /// Hit test radius for port interaction in canvas units.
+    /// </summary>
+    public const float PortHitRadius = 12f;
 
     /// <summary>
     /// Key for identifying a specific port.
@@ -177,4 +183,55 @@ public sealed class PortPositionCache
     /// Gets the number of cached port positions.
     /// </summary>
     public int Count => positions.Count;
+
+    /// <summary>
+    /// Performs hit testing to find a port at the given screen position.
+    /// </summary>
+    /// <param name="screenPos">The screen position to test.</param>
+    /// <param name="pan">Current canvas pan offset.</param>
+    /// <param name="zoom">Current canvas zoom level.</param>
+    /// <param name="origin">Canvas screen origin.</param>
+    /// <param name="node">Output: the node entity containing the hit port.</param>
+    /// <param name="direction">Output: the port direction.</param>
+    /// <param name="portIndex">Output: the port index.</param>
+    /// <returns>True if a port was hit.</returns>
+    public bool HitTestPort(
+        Vector2 screenPos,
+        Vector2 pan,
+        float zoom,
+        Vector2 origin,
+        out Entity node,
+        out PortDirection direction,
+        out int portIndex)
+    {
+        var hitRadiusSquared = (PortHitRadius * zoom) * (PortHitRadius * zoom);
+
+        foreach (var (key, canvasPos) in positions)
+        {
+            var screenPortPos = GraphTransform.CanvasToScreen(canvasPos, pan, zoom, origin);
+            var distSquared = Vector2.DistanceSquared(screenPos, screenPortPos);
+
+            if (distSquared <= hitRadiusSquared)
+            {
+                node = key.Node;
+                direction = key.Direction;
+                portIndex = key.PortIndex;
+                return true;
+            }
+        }
+
+        node = Entity.Null;
+        direction = default;
+        portIndex = -1;
+        return false;
+    }
+
+    /// <summary>
+    /// Gets all cached port entries for iteration.
+    /// </summary>
+    /// <returns>An enumerable of port keys and positions.</returns>
+    public IEnumerable<KeyValuePair<PortKey, Vector2>> GetAllPorts()
+    {
+        return positions;
+    }
 }

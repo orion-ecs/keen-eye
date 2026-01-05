@@ -49,6 +49,7 @@ public sealed class GraphPlugin : IWorldPlugin
 {
     private GraphContext? graphContext;
     private PortRegistry? portRegistry;
+    private PortPositionCache? portCache;
 
     /// <inheritdoc/>
     public string Name => "Graph";
@@ -62,10 +63,12 @@ public sealed class GraphPlugin : IWorldPlugin
         // Create registries and context
         portRegistry = new PortRegistry();
         graphContext = new GraphContext(context.World, portRegistry);
+        portCache = new PortPositionCache();
 
         // Expose extensions
         context.SetExtension(graphContext);
         context.SetExtension(portRegistry);
+        context.SetExtension(portCache);
 
         // Register systems
         context.AddSystem<GraphInputSystem>(SystemPhase.EarlyUpdate, order: 0);
@@ -79,9 +82,11 @@ public sealed class GraphPlugin : IWorldPlugin
         // Remove extensions
         context.RemoveExtension<GraphContext>();
         context.RemoveExtension<PortRegistry>();
+        context.RemoveExtension<PortPositionCache>();
 
         graphContext = null;
         portRegistry = null;
+        portCache = null;
 
         // Systems are automatically cleaned up by PluginManager
     }
@@ -92,6 +97,10 @@ public sealed class GraphPlugin : IWorldPlugin
         context.RegisterComponent<GraphCanvas>();
         context.RegisterComponent<GraphNode>();
         context.RegisterComponent<GraphConnection>();
+
+        // Interaction state components (added to canvas entity)
+        context.RegisterComponent<PendingConnection>();
+        context.RegisterComponent<HoveredPort>();
 
         // Tag components
         context.RegisterComponent<GraphCanvasTag>(isTag: true);

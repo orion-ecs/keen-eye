@@ -8,5 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
   </ItemGroup>
 </Project>

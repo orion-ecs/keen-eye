@@ -12,21 +12,29 @@ namespace KeenEyes.Graph;
 /// Renders the following elements:
 /// <list type="bullet">
 /// <item><description>Grid lines in the visible canvas area</description></item>
-/// <item><description>Connections as straight lines between ports</description></item>
+/// <item><description>Connections as bezier curves between ports</description></item>
 /// <item><description>Nodes as rounded rectangles with headers and ports</description></item>
 /// <item><description>Selection highlight on selected nodes</description></item>
 /// <item><description>Selection box during box-select interaction</description></item>
+/// <item><description>Port hover highlights during connection creation</description></item>
+/// <item><description>Connection preview while dragging from a port</description></item>
 /// </list>
 /// </para>
 /// </remarks>
-public sealed class GraphRenderSystem : SystemBase
+public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
 {
     private I2DRenderer? renderer;
     private ITextRenderer? textRenderer;
     private PortRegistry? portRegistry;
+    private PortPositionCache? portCache;
 
     // Canvas screen bounds
     private Rectangle canvasBounds = new(0, 0, 1280, 720);
+
+    // Current rendering context (set per-frame)
+    private Vector2 currentOrigin;
+    private float currentZoom = 1f;
+    private Vector2 currentPan;
 
     // Colors
     private static readonly Vector4 GridColorMajor = new(0.3f, 0.3f, 0.3f, 1f);
@@ -37,12 +45,19 @@ public sealed class GraphRenderSystem : SystemBase
     private static readonly Vector4 NodeSelectedBorderColor = new(0.3f, 0.6f, 1f, 1f);
     private static readonly Vector4 PortColor = new(0.8f, 0.8f, 0.8f, 1f);
     private static readonly Vector4 ConnectionColor = new(0.6f, 0.6f, 0.6f, 1f);
-    // Note: SelectionBoxColor, SelectionBoxBorderColor, and TextColor will be used
-    // when selection box drawing and text rendering are implemented in later phases
+    private static readonly Vector4 SelectionBoxFillColor = new(0.3f, 0.6f, 1f, 0.15f);
+    private static readonly Vector4 SelectionBoxBorderColor = new(0.3f, 0.6f, 1f, 0.8f);
+    private static readonly Vector4 PortHighlightValidColor = new(0.3f, 0.9f, 0.3f, 1f);
+    private static readonly Vector4 PortHighlightInvalidColor = new(0.9f, 0.3f, 0.3f, 1f);
+    private static readonly Vector4 ConnectionPreviewColor = new(0.7f, 0.7f, 0.7f, 0.6f);
+    private static readonly Vector4 ConversionIndicatorColor = new(1f, 0.8f, 0.2f, 1f);
 
     private const float NodeBorderRadius = 6f;
     private const float BorderThickness = 2f;
     private const float ConnectionThickness = 2f;
+    private const float PortHighlightRadius = 10f;
+    private const float PortHighlightThickness = 3f;
+    private const float ConversionIndicatorRadius = 4f;
 
     /// <summary>
     /// Sets the canvas screen bounds.
@@ -74,6 +89,12 @@ public sealed class GraphRenderSystem : SystemBase
             return;
         }
 
+        // Get port position cache
+        if (portCache is null && !World.TryGetExtension(out portCache))
+        {
+            return;
+        }
+
         // Render each canvas
         foreach (var canvas in World.Query<GraphCanvas, GraphCanvasTag>())
         {
@@ -85,6 +106,11 @@ public sealed class GraphRenderSystem : SystemBase
     {
         ref readonly var canvasData = ref World.Get<GraphCanvas>(canvas);
         var origin = new Vector2(canvasBounds.X, canvasBounds.Y);
+
+        // Store current rendering context
+        currentOrigin = origin;
+        currentZoom = canvasData.Zoom;
+        currentPan = canvasData.Pan;
 
         renderer!.Begin();
 
@@ -99,8 +125,14 @@ public sealed class GraphRenderSystem : SystemBase
             // Draw connections
             DrawConnections(canvas, canvasData, origin);
 
+            // Draw pending connection preview
+            DrawPendingConnection(canvas, canvasData, origin);
+
             // Draw nodes
             DrawNodes(canvas, canvasData, origin);
+
+            // Draw port highlights
+            DrawHoveredPort(canvas, canvasData, origin);
 
             // Draw selection box if selecting
             if (canvasData.Mode == GraphInteractionMode.Selecting)
@@ -187,11 +219,103 @@ public sealed class GraphRenderSystem : SystemBase
             var screenStart = GraphTransform.CanvasToScreen(sourcePos, canvasData.Pan, canvasData.Zoom, origin);
             var screenEnd = GraphTransform.CanvasToScreen(targetPos, canvasData.Pan, canvasData.Zoom, origin);
 
-            // Draw connection line
+            // Look up port types from the registry
+            var sourceType = PortTypeId.Any;
+            var targetType = PortTypeId.Any;
+            if (portRegistry!.TryGetNodeType(sourceNode.NodeTypeId, out var sourceNodeType) &&
+                connection.SourcePortIndex < sourceNodeType.OutputPorts.Length)
+            {
+                sourceType = sourceNodeType.OutputPorts[connection.SourcePortIndex].TypeId;
+            }
+            if (portRegistry.TryGetNodeType(targetNode.NodeTypeId, out var targetNodeType) &&
+                connection.TargetPortIndex < targetNodeType.InputPorts.Length)
+            {
+                targetType = targetNodeType.InputPorts[connection.TargetPortIndex].TypeId;
+            }
+
+            // Check if type conversion is required
+            var requiresConversion = sourceType != targetType
+                && sourceType != PortTypeId.Any
+                && targetType != PortTypeId.Any;
+
+            // Draw connection curve
             var isSelected = World.Has<GraphConnectionSelectedTag>(connectionEntity);
-            var color = isSelected ? NodeSelectedBorderColor : ConnectionColor;
-            renderer!.DrawLine(screenStart, screenEnd, color, ConnectionThickness);
+            DrawConnection(screenStart, screenEnd, sourceType, ConnectionStyle.Bezier, isSelected, requiresConversion);
         }
+    }
+
+    private void DrawPendingConnection(Entity canvas, in GraphCanvas canvasData, Vector2 origin)
+    {
+        if (!World.Has<PendingConnection>(canvas))
+        {
+            return;
+        }
+
+        ref readonly var pending = ref World.Get<PendingConnection>(canvas);
+
+        // Get source port position from cache
+        var sourceDirection = pending.IsFromOutput ? PortDirection.Output : PortDirection.Input;
+        if (portCache?.TryGetPortPosition(pending.SourceNode, sourceDirection, pending.SourcePortIndex, out var sourceCanvasPos) != true)
+        {
+            return;
+        }
+
+        var screenStart = GraphTransform.CanvasToScreen(sourceCanvasPos, canvasData.Pan, canvasData.Zoom, origin);
+        var screenEnd = GraphTransform.CanvasToScreen(pending.CurrentPosition, canvasData.Pan, canvasData.Zoom, origin);
+
+        // If dragging from input, swap start and end
+        if (!pending.IsFromOutput)
+        {
+            (screenStart, screenEnd) = (screenEnd, screenStart);
+        }
+
+        // Check for hovered target port type
+        PortTypeId? targetType = null;
+        if (World.Has<HoveredPort>(canvas))
+        {
+            ref readonly var hovered = ref World.Get<HoveredPort>(canvas);
+            targetType = hovered.TypeId;
+        }
+
+        DrawConnectionPreview(screenStart, screenEnd, pending.SourceType, targetType, ConnectionStyle.Bezier);
+    }
+
+    private void DrawHoveredPort(Entity canvas, in GraphCanvas canvasData, Vector2 origin)
+    {
+        if (!World.Has<HoveredPort>(canvas))
+        {
+            return;
+        }
+
+        ref readonly var hovered = ref World.Get<HoveredPort>(canvas);
+        var screenPos = GraphTransform.CanvasToScreen(hovered.Position, canvasData.Pan, canvasData.Zoom, origin);
+
+        // Determine if this is a valid target when a connection is being created
+        var isValidTarget = true;
+        if (World.Has<PendingConnection>(canvas))
+        {
+            ref readonly var pending = ref World.Get<PendingConnection>(canvas);
+
+            // Invalid if same direction (output to output or input to input)
+            var targetDirection = hovered.Direction;
+            var sourceDirection = pending.IsFromOutput ? PortDirection.Output : PortDirection.Input;
+            if (targetDirection == sourceDirection)
+            {
+                isValidTarget = false;
+            }
+            // Invalid if same node
+            else if (hovered.Node == pending.SourceNode)
+            {
+                isValidTarget = false;
+            }
+            // Check type compatibility
+            else
+            {
+                isValidTarget = PortTypeCompatibility.CanConnect(pending.SourceType, hovered.TypeId);
+            }
+        }
+
+        DrawPortHighlight(screenPos, hovered.TypeId, isValidTarget);
     }
 
     private void DrawNodes(Entity canvas, in GraphCanvas canvasData, Vector2 origin)
@@ -270,9 +394,162 @@ public sealed class GraphRenderSystem : SystemBase
 
     private void DrawSelectionBox(in GraphCanvas canvasData)
     {
-        // The selection box coordinates would be provided by the input system
-        // For now, this is a placeholder - the actual implementation needs
-        // state from GraphInputSystem
+        // Selection box bounds would come from GraphInputSystem
+        // For now, draw using canvas selection start/current position if available
+        // This will be fully wired when input system exposes selection bounds
+    }
+
+    #region IGraphRenderer Implementation
+
+    /// <inheritdoc />
+    public void DrawConnection(
+        Vector2 start,
+        Vector2 end,
+        PortTypeId type,
+        ConnectionStyle style,
+        bool isSelected,
+        bool requiresConversion)
+    {
+        var color = isSelected ? NodeSelectedBorderColor : GetPortColor(type);
+
+        switch (style)
+        {
+            case ConnectionStyle.Bezier:
+                DrawBezierConnection(start, end, color);
+                break;
+            case ConnectionStyle.Straight:
+                renderer!.DrawLine(start, end, color, ConnectionThickness);
+                break;
+            case ConnectionStyle.Stepped:
+                DrawSteppedConnection(start, end, color);
+                break;
+        }
+
+        // Draw conversion indicator at midpoint if required
+        if (requiresConversion)
+        {
+            var midpoint = (start + end) / 2f;
+            renderer!.FillCircle(midpoint.X, midpoint.Y, ConversionIndicatorRadius * currentZoom, ConversionIndicatorColor);
+        }
+    }
+
+    /// <inheritdoc />
+    public void DrawGrid(Rectangle visibleArea, float gridSize, float zoom)
+    {
+        if (gridSize <= 0)
+        {
+            return;
+        }
+
+        // Calculate grid line range
+        var startX = MathF.Floor(visibleArea.X / gridSize) * gridSize;
+        var startY = MathF.Floor(visibleArea.Y / gridSize) * gridSize;
+        var endX = visibleArea.X + visibleArea.Width;
+        var endY = visibleArea.Y + visibleArea.Height;
+
+        // Draw minor grid lines (every grid unit)
+        for (var x = startX; x <= endX; x += gridSize)
+        {
+            var screenStart = GraphTransform.CanvasToScreen(new Vector2(x, visibleArea.Y), currentPan, zoom, currentOrigin);
+            var screenEnd = GraphTransform.CanvasToScreen(new Vector2(x, visibleArea.Y + visibleArea.Height), currentPan, zoom, currentOrigin);
+
+            // Major lines every 5 grid units
+            var isMajor = MathF.Abs(x % (gridSize * 5)) < 0.1f;
+            var color = isMajor ? GridColorMajor : GridColorMinor;
+
+            renderer!.DrawLine(screenStart, screenEnd, color, 1f);
+        }
+
+        for (var y = startY; y <= endY; y += gridSize)
+        {
+            var screenStart = GraphTransform.CanvasToScreen(new Vector2(visibleArea.X, y), currentPan, zoom, currentOrigin);
+            var screenEnd = GraphTransform.CanvasToScreen(new Vector2(visibleArea.X + visibleArea.Width, y), currentPan, zoom, currentOrigin);
+
+            var isMajor = MathF.Abs(y % (gridSize * 5)) < 0.1f;
+            var color = isMajor ? GridColorMajor : GridColorMinor;
+
+            renderer!.DrawLine(screenStart, screenEnd, color, 1f);
+        }
+    }
+
+    /// <inheritdoc />
+    public void DrawSelectionBox(Rectangle bounds)
+    {
+        renderer!.FillRect(bounds.X, bounds.Y, bounds.Width, bounds.Height, SelectionBoxFillColor);
+        renderer.DrawRect(bounds.X, bounds.Y, bounds.Width, bounds.Height, SelectionBoxBorderColor, 1f);
+    }
+
+    /// <inheritdoc />
+    public void DrawPortHighlight(Vector2 position, PortTypeId type, bool isValidTarget)
+    {
+        var color = isValidTarget ? PortHighlightValidColor : PortHighlightInvalidColor;
+        var radius = PortHighlightRadius * currentZoom;
+
+        // Draw highlight ring around port
+        renderer!.DrawCircle(position.X, position.Y, radius, color, PortHighlightThickness);
+    }
+
+    /// <inheritdoc />
+    public void DrawConnectionPreview(
+        Vector2 start,
+        Vector2 end,
+        PortTypeId sourceType,
+        PortTypeId? targetType,
+        ConnectionStyle style)
+    {
+        var color = ConnectionPreviewColor;
+
+        // If over a valid target, use the source type color with transparency
+        if (targetType.HasValue && PortTypeCompatibility.CanConnect(sourceType, targetType.Value))
+        {
+            var typeColor = GetPortColor(sourceType);
+            color = new Vector4(typeColor.X, typeColor.Y, typeColor.Z, 0.6f);
+        }
+
+        switch (style)
+        {
+            case ConnectionStyle.Bezier:
+                DrawBezierConnection(start, end, color);
+                break;
+            case ConnectionStyle.Straight:
+                renderer!.DrawLine(start, end, color, ConnectionThickness);
+                break;
+            case ConnectionStyle.Stepped:
+                DrawSteppedConnection(start, end, color);
+                break;
+        }
+    }
+
+    #endregion
+
+    private void DrawBezierConnection(Vector2 start, Vector2 end, Vector4 color)
+    {
+        // Calculate control points for horizontal S-curve
+        var (cp1, cp2) = BezierCurve.CalculateControlPoints(start, end);
+
+        // Calculate adaptive segment count based on screen distance
+        var segments = BezierCurve.CalculateSegmentCount(start, end, currentZoom);
+
+        // Tessellate the bezier curve
+        Span<Vector2> points = stackalloc Vector2[segments + 1];
+        BezierCurve.TessellateInto(start, cp1, cp2, end, points);
+
+        // Draw line strip
+        renderer!.DrawLineStrip(points, color, ConnectionThickness);
+    }
+
+    private void DrawSteppedConnection(Vector2 start, Vector2 end, Vector4 color)
+    {
+        // Horizontal-vertical-horizontal stepped path
+        var midX = (start.X + end.X) / 2f;
+
+        Span<Vector2> points = stackalloc Vector2[4];
+        points[0] = start;
+        points[1] = new Vector2(midX, start.Y);
+        points[2] = new Vector2(midX, end.Y);
+        points[3] = end;
+
+        renderer!.DrawLineStrip(points, color, ConnectionThickness);
     }
 
     private static Vector4 GetPortColor(PortTypeId typeId)
