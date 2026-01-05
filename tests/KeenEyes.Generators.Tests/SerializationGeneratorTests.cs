@@ -232,7 +232,7 @@ public class SerializationGeneratorTests
     }
 
     [Fact]
-    public void SerializationGenerator_NonNullableStringField_ThrowsOnNull()
+    public void SerializationGenerator_NonNullableStringField_DefaultsToEmptyString()
     {
         var source = """
             #nullable enable
@@ -250,11 +250,11 @@ public class SerializationGeneratorTests
         var (diagnostics, generatedTrees) = RunGenerator(source);
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
-        // Non-nullable string should throw JsonException on null
+        // Non-nullable string should default to empty string when null in JSON
         var generated = generatedTrees.FirstOrDefault(t => t.Contains("Deserialize_NonNullableStringComponent"));
         Assert.NotNull(generated);
-        // Should throw JsonException with field name in error message
-        Assert.Contains("Non-nullable field 'Name' was null", generated);
+        // Should use ?? string.Empty for null coalescing
+        Assert.Contains("?? string.Empty", generated);
     }
 
     [Fact]

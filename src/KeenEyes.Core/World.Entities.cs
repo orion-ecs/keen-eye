@@ -505,10 +505,17 @@ public sealed partial class World
     /// <typeparam name="T">The component type to remove.</typeparam>
     /// <param name="entity">The entity to remove the component from.</param>
     /// <returns>
-    /// <c>true</c> if the component was removed; <c>false</c> if the entity is not alive,
-    /// the component type is not registered, or the entity does not have the component.
+    /// <c>true</c> if the component was removed; <c>false</c> otherwise.
     /// </returns>
     /// <remarks>
+    /// <para>
+    /// This method returns <c>false</c> (without throwing) in the following cases:
+    /// </para>
+    /// <list type="bullet">
+    /// <item>The entity is not alive (dead or invalid)</item>
+    /// <item>The component type <typeparamref name="T"/> is not registered</item>
+    /// <item>The entity does not have a component of type <typeparamref name="T"/></item>
+    /// </list>
     /// <para>
     /// This operation is idempotent: calling it multiple times with the same arguments
     /// will return <c>false</c> after the first successful removal.

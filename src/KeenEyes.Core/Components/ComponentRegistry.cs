@@ -120,7 +120,7 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// Gets the component info for a type, or null if not registered.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public ComponentInfo? Get<T>() where T : struct
+    public ComponentInfo? Get<T>() where T : struct, IComponent
     {
         lock (syncRoot)
         {
@@ -153,7 +153,7 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// Checks if a component type is registered.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool IsRegistered<T>() where T : struct
+    public bool IsRegistered<T>() where T : struct, IComponent
     {
         lock (syncRoot)
         {

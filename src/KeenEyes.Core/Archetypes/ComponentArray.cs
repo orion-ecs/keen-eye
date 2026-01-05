@@ -232,6 +232,8 @@ public sealed class ComponentArray<T> : IComponentArray, IDisposable where T : s
             isPooled = false;
         }
 
+        // Release reference to prevent holding onto disposed/recycled array
+        data = [];
         isDisposed = true;
         count = 0;
     }

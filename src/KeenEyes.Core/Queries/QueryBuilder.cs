@@ -6,6 +6,14 @@ namespace KeenEyes;
 /// <summary>
 /// Describes which components a query includes, requires, and excludes.
 /// </summary>
+/// <remarks>
+/// <para>
+/// <strong>Thread Safety:</strong> QueryDescription is NOT thread-safe. Like <see cref="World"/>,
+/// all operations must be called from a single thread. The lazy-initialized <see cref="AllRequired"/>
+/// cache uses an unsynchronized check-then-act pattern for performance; concurrent modification
+/// while accessing this property results in undefined behavior.
+/// </para>
+/// </remarks>
 public sealed class QueryDescription
 {
     private readonly List<Type> read = [];
