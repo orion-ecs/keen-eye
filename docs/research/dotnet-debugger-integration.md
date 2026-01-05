@@ -835,6 +835,220 @@ public class ExceptionBreakpointPanel : EditorPanel
 
 The editor's strength is **ECS-aware debugging** - seeing entity state, component values, query results. Leave source-level debugging to IDEs that do it well, and focus on what the editor uniquely provides.
 
+#### Built-in Code Editor Consideration
+
+Should KeenEyes include a basic code editor like Godot? Here's the analysis:
+
+**Godot's Approach:**
+- Built-in GDScript editor with syntax highlighting, autocomplete, debugging
+- Optional C# support opens external IDE (VS/Rider/VS Code)
+- Script editor is tightly integrated with node inspector
+- Breakpoints set in same window as scene tree
+
+**Unity's Approach:**
+- No built-in code editor
+- Double-click script → opens external IDE
+- Relies on IDE integration (VS, Rider) for debugging
+- Focus on visual tools (Inspector, Animator, etc.)
+
+**Options for KeenEyes:**
+
+| Option | Effort | Experience | Maintenance |
+|--------|--------|------------|-------------|
+| **1. No editor (Unity-style)** | Low | Context switching | Low |
+| **2. Read-only viewer + breakpoints** | Low | View code, set BPs | Low |
+| **3. Basic editor (notepad++)** | Medium | Edit + BPs, no intellisense | Medium |
+| **4. LSP-integrated editor** | High | Full IDE features | High |
+| **5. Embedded Monaco/AvalonEdit** | Medium-High | Good editing, some features | Medium |
+
+**Option 2: Read-Only Viewer with Breakpoints (Minimum Viable)**
+
+```csharp
+public class CodeViewerPanel : EditorPanel
+{
+    private SyntaxHighlightedTextView textView; // Read-only
+    private BreakpointGutter gutter;
+    private FileTreeView fileTree;
+
+    // View source, click gutter to set breakpoints
+    // Double-click line → opens in external IDE at that line
+    public void OpenInExternalIde(string file, int line)
+    {
+        // Launch configured IDE at specific line
+        var ide = Settings.PreferredIde; // "code", "rider", "vs"
+        Process.Start(ide, $"--goto \"{file}:{line}\"");
+    }
+}
+```
+
+**Option 3: Basic Editor (Godot-lite)**
+
+Provide editing without full IDE features:
+
+```csharp
+public class BasicCodeEditor : EditorPanel
+{
+    private AvalonEdit.TextEditor editor;
+    private BreakpointGutter gutter;
+
+    public BasicCodeEditor()
+    {
+        editor = new TextEditor
+        {
+            SyntaxHighlighting = LoadCSharpHighlighting(),
+            ShowLineNumbers = true,
+            FontFamily = new FontFamily("Consolas")
+        };
+
+        // Basic features only
+        editor.TextArea.TextEntering += OnTextEntering;
+        editor.TextArea.TextEntered += OnTextEntered;
+    }
+
+    // Simple bracket matching, no intellisense
+    private void OnTextEntered(object sender, TextCompositionEventArgs e)
+    {
+        if (e.Text == "{") InsertText("}");
+        if (e.Text == "(") InsertText(")");
+    }
+}
+```
+
+**Option 5: LSP Integration (Full Featured)**
+
+Use Language Server Protocol for C# features:
+
+```csharp
+public class LspCodeEditor : EditorPanel
+{
+    private ILanguageClient lspClient;
+    private TextEditor editor;
+
+    public async Task InitializeAsync()
+    {
+        // Connect to OmniSharp or csharp-ls
+        lspClient = new LanguageClient();
+        await lspClient.InitializeAsync(new InitializeParams
+        {
+            RootUri = projectRoot,
+            Capabilities = new ClientCapabilities
+            {
+                TextDocument = new TextDocumentClientCapabilities
+                {
+                    Completion = new CompletionCapability { /* ... */ },
+                    Hover = new HoverCapability { /* ... */ },
+                    Definition = new DefinitionCapability { /* ... */ }
+                }
+            }
+        });
+    }
+
+    // Autocomplete via LSP
+    private async void OnCompletionRequested(int line, int column)
+    {
+        var completions = await lspClient.RequestCompletionAsync(
+            currentFile, new Position(line, column));
+        ShowCompletionPopup(completions);
+    }
+}
+```
+
+**Recommendation:**
+
+For KeenEyes, consider a **phased approach**:
+
+| Phase | Feature | Rationale |
+|-------|---------|-----------|
+| **MVP** | Read-only viewer + breakpoints | Minimal effort, enables ECS debugging |
+| **v1.1** | Basic editing (AvalonEdit) | Indie devs want all-in-one |
+| **v2.0** | LSP integration | Compete with Godot's experience |
+
+**ECS-Specific Editor Enhancements:**
+
+Even a basic editor can have ECS-aware features:
+
+```csharp
+public class EcsAwareEditor : BasicCodeEditor
+{
+    // Hover over component type → show current values from debugger
+    public void OnHover(int line, int column)
+    {
+        var symbol = GetSymbolAtPosition(line, column);
+        if (IsComponentType(symbol))
+        {
+            // Show component data from paused game
+            var tooltip = debugger.GetComponentTooltip(symbol.Type);
+            ShowTooltip(tooltip);
+        }
+    }
+
+    // Right-click entity variable → "Inspect in Entity Browser"
+    public void OnContextMenu(int line, int column)
+    {
+        var symbol = GetSymbolAtPosition(line, column);
+        if (symbol.Type == typeof(Entity))
+        {
+            contextMenu.Add("Inspect Entity", () =>
+            {
+                var entityValue = debugger.EvaluateExpression(symbol.Name);
+                entityBrowser.Select(entityValue);
+            });
+        }
+    }
+
+    // Autocomplete for Query<...>
+    public void OnQueryCompletion()
+    {
+        // Show list of known component types
+        var components = project.GetComponentTypes();
+        ShowCompletionPopup(components.Select(c => c.Name));
+    }
+}
+```
+
+**Godot-Style Integration Example:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ KeenEyes Editor                                                     │
+├──────────────┬──────────────────────────────────────────────────────┤
+│ Scene Tree   │  MovementSystem.cs                           [x]    │
+│              │ ─────────────────────────────────────────────────────│
+│ ▼ World      │  1 │ public class MovementSystem : SystemBase       │
+│   ▼ Player   │  2 │ {                                              │
+│     Position │  3 │     public override void Update(float dt)      │
+│     Velocity │ ●4 │     {                                          │← Breakpoint
+│     Sprite   │  5 │         foreach (var e in Query<Pos, Vel>())   │
+│   ▼ Enemy    │  6 │         {                                      │
+│     Position │  7 │             ref var pos = ref Get<Pos>(e);     │← Current line
+│     Health   │  8 │             ref var vel = ref Get<Vel>(e);     │
+│              │  9 │             pos.X += vel.X * dt;  ← pos.X=42.5 │← Inline value
+│──────────────│ 10 │         }                                      │
+│ Inspector    │ 11 │     }                                          │
+│──────────────│ 12 │ }                                              │
+│ Position     │─────────────────────────────────────────────────────│
+│  X: 42.5     │ Locals          │ Call Stack                        │
+│  Y: 100.0    │ e: Entity(42)   │ MovementSystem.Update() line 7    │
+│ Velocity     │ pos: {X=42.5}   │ SystemManager.Execute() line 89   │
+│  X: 5.0      │ vel: {X=5.0}    │ World.Update() line 156           │
+│  Y: 0.0      │ dt: 0.016       │                                   │
+└──────────────┴─────────────────┴───────────────────────────────────┘
+```
+
+**Decision Factors:**
+
+| Factor | Lean Toward Built-in | Lean Toward External |
+|--------|---------------------|---------------------|
+| Target audience | Indie/hobbyist | Professional |
+| Language complexity | Simple (GDScript-like) | C# (complex) |
+| Team size | Small team wants all-in-one | Large team has IDE preferences |
+| Debugging focus | Code debugging | ECS visualization |
+| Development resources | Have time for editor | Focus on core engine |
+
+**Recommendation for KeenEyes:**
+
+Start with **Option 2 (read-only + breakpoints)** and gauge demand. The unique value is ECS-aware debugging, not competing with VS Code. If users strongly request it, add basic editing (Option 3) later.
+
 ### Approach 3: Hybrid (Recommended Architecture)
 
 Use SharpDbg.Infrastructure for core debugging + custom ECS layer on top.
