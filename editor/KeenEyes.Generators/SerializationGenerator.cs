@@ -19,6 +19,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 {
     private const string ComponentAttribute = "KeenEyes.ComponentAttribute";
     private const string MigrateFromAttribute = "KeenEyes.MigrateFromAttribute";
+    private const string DefaultValueAttribute = "KeenEyes.DefaultValueAttribute";
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -101,11 +102,25 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             }
 
             var isNullable = field.Type.NullableAnnotation == NullableAnnotation.Annotated;
+
+            // Extract [DefaultValue] attribute if present
+            string? defaultValueLiteral = null;
+            var defaultValueAttr = field.GetAttributes()
+                .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == DefaultValueAttribute);
+
+            if (defaultValueAttr is not null &&
+                defaultValueAttr.ConstructorArguments.Length > 0)
+            {
+                var value = defaultValueAttr.ConstructorArguments[0].Value;
+                defaultValueLiteral = GetCSharpLiteral(value, field.Type);
+            }
+
             fields.Add(new SerializableFieldInfo(
                 field.Name,
                 field.Type.ToDisplayString(),
                 GetJsonTypeName(field.Type),
-                isNullable));
+                isNullable,
+                defaultValueLiteral));
         }
 
         // Collect migration methods
@@ -168,6 +183,111 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "bool" or "System.Boolean" => "Boolean",
             "string" or "System.String" => "String",
             _ => "Object" // For complex types, use generic deserialization
+        };
+    }
+
+    private static string? GetCSharpLiteral(object? value, ITypeSymbol targetType)
+    {
+        if (value is null)
+        {
+            return "null";
+        }
+
+        var targetTypeName = targetType.ToDisplayString();
+
+        return value switch
+        {
+            // Numeric types
+            int i => i.ToString(),
+            long l => $"{l}L",
+            short s => $"(short){s}",
+            byte b => $"(byte){b}",
+            uint ui => $"{ui}U",
+            ulong ul => $"{ul}UL",
+            ushort us => $"(ushort){us}",
+            sbyte sb => $"(sbyte){sb}",
+            float f => FormatFloat(f),
+            double d => FormatDouble(d),
+            decimal m => $"{m}m",
+
+            // Boolean
+            bool bo => bo ? "true" : "false",
+
+            // String
+            string str => $"\"{EscapeString(str)}\"",
+
+            // Char
+            char c => $"'{EscapeChar(c)}'",
+
+            // Handle boxed enums - the value comes as the underlying type
+            _ when targetType.TypeKind == TypeKind.Enum =>
+                $"({targetTypeName}){value}",
+
+            _ => null
+        };
+    }
+
+    private static string FormatFloat(float f)
+    {
+        if (float.IsNaN(f))
+        {
+            return "float.NaN";
+        }
+        if (float.IsPositiveInfinity(f))
+        {
+            return "float.PositiveInfinity";
+        }
+        if (float.IsNegativeInfinity(f))
+        {
+            return "float.NegativeInfinity";
+        }
+        // Use 'G9' format for round-trip precision, append 'f' suffix
+        return $"{f:G9}f";
+    }
+
+    private static string FormatDouble(double d)
+    {
+        if (double.IsNaN(d))
+        {
+            return "double.NaN";
+        }
+        if (double.IsPositiveInfinity(d))
+        {
+            return "double.PositiveInfinity";
+        }
+        if (double.IsNegativeInfinity(d))
+        {
+            return "double.NegativeInfinity";
+        }
+        // Use 'G17' format for round-trip precision
+        var result = d.ToString("G17");
+        // Ensure there's a decimal point or 'd' suffix for disambiguation
+        if (!result.Contains('.') && !result.Contains('E'))
+        {
+            result += ".0";
+        }
+        return result;
+    }
+
+    private static string EscapeString(string s)
+    {
+        return s.Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\n", "\\n")
+                .Replace("\r", "\\r")
+                .Replace("\t", "\\t");
+    }
+
+    private static string EscapeChar(char c)
+    {
+        return c switch
+        {
+            '\\' => "\\\\",
+            '\'' => "\\'",
+            '\n' => "\\n",
+            '\r' => "\\r",
+            '\t' => "\\t",
+            _ => c.ToString()
         };
     }
 
@@ -266,15 +386,37 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             sb.AppendLine($"        ComponentsByType[typeof({component.FullName})] = info_{component.Name};");
             sb.AppendLine();
 
-            // Register migrations for this component
-            if (component.Migrations.Length > 0)
+            // Register migrations for this component (explicit + auto-generated)
+            var hasFieldsWithDefaults = component.Fields.Any(f => f.HasDefaultValue);
+            var explicitVersions = new HashSet<int>(component.Migrations.Select(m => m.FromVersion));
+
+            // Determine if we need to generate any migrations (explicit or auto)
+            var needsMigrations = component.Migrations.Length > 0 ||
+                                  (component.Version > 1 && hasFieldsWithDefaults);
+
+            if (needsMigrations)
             {
                 sb.AppendLine($"        var migrations_{component.Name} = new Dictionary<int, Func<JsonElement, object>>");
                 sb.AppendLine("        {");
+
+                // Add explicit migrations
                 foreach (var migration in component.Migrations.OrderBy(m => m.FromVersion))
                 {
                     sb.AppendLine($"            [{migration.FromVersion}] = json => {component.FullName}.{migration.MethodName}(json),");
                 }
+
+                // Add auto-generated migrations for missing versions (only if we have default values)
+                if (hasFieldsWithDefaults)
+                {
+                    for (var v = 1; v < component.Version; v++)
+                    {
+                        if (!explicitVersions.Contains(v))
+                        {
+                            sb.AppendLine($"            [{v}] = AutoMigrate_{component.Name},");
+                        }
+                    }
+                }
+
                 sb.AppendLine("        };");
                 sb.AppendLine($"        MigrationsByType[typeof({component.FullName})] = migrations_{component.Name};");
                 sb.AppendLine($"        MigrationsByName[typeof({component.FullName}).AssemblyQualifiedName!] = migrations_{component.Name};");
@@ -525,6 +667,79 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             sb.AppendLine($"        {binaryWrite}");
         }
 
+        sb.AppendLine("    }");
+        sb.AppendLine();
+
+        // Generate auto-migration method if any field has [DefaultValue]
+        var fieldsWithDefaults = component.Fields.Where(f => f.HasDefaultValue).ToList();
+        if (fieldsWithDefaults.Count > 0 && component.Version > 1)
+        {
+            GenerateAutoMigrationMethod(sb, component, fieldsWithDefaults);
+        }
+    }
+
+    private static void GenerateAutoMigrationMethod(
+        StringBuilder sb,
+        SerializableComponentInfo component,
+        List<SerializableFieldInfo> fieldsWithDefaults)
+    {
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// Auto-generated migration for {component.Name}.");
+        sb.AppendLine("    /// Reads existing fields from JSON and applies default values for new fields.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine($"    private static object AutoMigrate_{component.Name}(JsonElement json)");
+        sb.AppendLine("    {");
+        sb.AppendLine($"        var result = new {component.FullName}();");
+
+        foreach (var field in component.Fields)
+        {
+            var camelFieldName = StringHelpers.ToCamelCase(field.Name);
+
+            // Check if JSON has this property
+            sb.AppendLine($"        if (json.TryGetProperty(\"{camelFieldName}\", out var {camelFieldName}Elem))");
+            sb.AppendLine("        {");
+
+            // Generate the field reading code (same as deserialize)
+            if (field.JsonTypeName == "Object")
+            {
+                if (field.IsNullable)
+                {
+                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText());");
+                }
+                else
+                {
+                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText()) ?? throw new JsonException(\"Non-nullable field '{field.Name}' was null in JSON\");");
+                }
+            }
+            else if (field.JsonTypeName == "String")
+            {
+                if (field.IsNullable)
+                {
+                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString();");
+                }
+                else
+                {
+                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString() ?? string.Empty;");
+                }
+            }
+            else
+            {
+                sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.Get{field.JsonTypeName}();");
+            }
+
+            sb.AppendLine("        }");
+
+            // If field has a default value, apply it when not present in JSON
+            if (field.HasDefaultValue)
+            {
+                sb.AppendLine("        else");
+                sb.AppendLine("        {");
+                sb.AppendLine($"            result.{field.Name} = {field.DefaultValueLiteral};");
+                sb.AppendLine("        }");
+            }
+        }
+
+        sb.AppendLine("        return result;");
         sb.AppendLine("    }");
         sb.AppendLine();
     }
@@ -916,7 +1131,14 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         string Name,
         string Type,
         string JsonTypeName,
-        bool IsNullable);
+        bool IsNullable,
+        string? DefaultValueLiteral = null)
+    {
+        /// <summary>
+        /// Gets whether this field has a default value specified via [DefaultValue].
+        /// </summary>
+        public bool HasDefaultValue => DefaultValueLiteral is not null;
+    };
 
     private sealed record MigrationMethodInfo(
         int FromVersion,

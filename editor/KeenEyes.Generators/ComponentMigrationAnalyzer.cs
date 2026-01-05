@@ -8,7 +8,8 @@ using Microsoft.CodeAnalysis.Diagnostics;
 namespace KeenEyes.Generators;
 
 /// <summary>
-/// Analyzer that validates component migration methods marked with [MigrateFrom].
+/// Analyzer that validates component migration methods marked with [MigrateFrom]
+/// and [DefaultValue] attributes on component fields.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,6 +26,12 @@ namespace KeenEyes.Generators;
 /// </list>
 /// </para>
 /// <para>
+/// Also validates [DefaultValue] attributes:
+/// <list type="bullet">
+/// <item><description>Value type is compatible with the field type (KEEN118)</description></item>
+/// </list>
+/// </para>
+/// <para>
 /// <strong>Cycle Detection:</strong> Migration cycles are structurally impossible due to the
 /// version constraint (KEEN113). Since each [MigrateFrom(v)] migrates from version v to v+1,
 /// and v must be less than the component's current version, all migration edges point forward
@@ -37,6 +44,7 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
 {
     private const string MigrateFromAttribute = "KeenEyes.MigrateFromAttribute";
     private const string ComponentAttribute = "KeenEyes.ComponentAttribute";
+    private const string DefaultValueAttribute = "KeenEyes.DefaultValueAttribute";
     private const string JsonElementType = "System.Text.Json.JsonElement";
 
     /// <summary>
@@ -127,6 +135,28 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// KEEN118: DefaultValue type mismatch.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DefaultValueTypeMismatch = new(
+        id: "KEEN118",
+        title: "DefaultValue type mismatch",
+        messageFormat: "[DefaultValue] value of type '{0}' is not compatible with field type '{1}'",
+        category: "KeenEyes.Migration",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    /// <summary>
+    /// KEEN119: DefaultValue on non-serializable component field.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DefaultValueOnNonSerializableComponent = new(
+        id: "KEEN119",
+        title: "DefaultValue on non-serializable component",
+        messageFormat: "[DefaultValue] on field '{0}' has no effect because component '{1}' is not serializable",
+        category: "KeenEyes.Migration",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         ImmutableArray.Create(
@@ -137,7 +167,9 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
             MissingMigrationVersion,
             DuplicateMigrationVersion,
             MigrationMethodNotInComponent,
-            ComponentMustBeSerializable);
+            ComponentMustBeSerializable,
+            DefaultValueTypeMismatch,
+            DefaultValueOnNonSerializableComponent);
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -147,6 +179,7 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
 
         context.RegisterSymbolAction(AnalyzeMethod, SymbolKind.Method);
         context.RegisterSymbolAction(AnalyzeType, SymbolKind.NamedType);
+        context.RegisterSymbolAction(AnalyzeField, SymbolKind.Field);
     }
 
     private void AnalyzeMethod(SymbolAnalysisContext context)
@@ -295,6 +328,13 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
             return;
         }
 
+        // Check if any field has [DefaultValue] - these can auto-generate migrations
+        var hasFieldsWithDefaultValue = typeSymbol.GetMembers()
+            .OfType<IFieldSymbol>()
+            .Where(f => !f.IsStatic && !f.IsConst)
+            .Any(f => f.GetAttributes()
+                .Any(a => a.AttributeClass?.ToDisplayString() == DefaultValueAttribute));
+
         // Collect all migration versions defined
         var migrationVersions = new HashSet<int>();
         var duplicateVersions = new HashSet<int>();
@@ -331,7 +371,8 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
 
         // Check for gaps in migration chain
         // Only report if at least one migration is defined (user is opting into migrations)
-        if (migrationVersions.Count > 0)
+        // AND the component doesn't have fields with [DefaultValue] (which auto-generate migrations)
+        if (migrationVersions.Count > 0 && !hasFieldsWithDefaultValue)
         {
             var missingVersions = new List<int>();
             for (var ver = 1; ver < componentVersion; ver++)
@@ -356,5 +397,151 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
                     definedVersionsStr));
             }
         }
+    }
+
+    private void AnalyzeField(SymbolAnalysisContext context)
+    {
+        var fieldSymbol = (IFieldSymbol)context.Symbol;
+
+        // Find [DefaultValue] attribute on this field
+        var defaultValueAttr = fieldSymbol.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == DefaultValueAttribute);
+
+        if (defaultValueAttr is null)
+        {
+            return;
+        }
+
+        // Get the containing type
+        var containingType = fieldSymbol.ContainingType;
+        if (containingType is null)
+        {
+            return;
+        }
+
+        // Check if containing type has [Component] attribute
+        var componentAttr = containingType.GetAttributes()
+            .FirstOrDefault(a => a.AttributeClass?.ToDisplayString() == ComponentAttribute);
+
+        if (componentAttr is null)
+        {
+            // Not a component - DefaultValue has no migration effect, but may be used for builder
+            return;
+        }
+
+        // Check if component is serializable
+        var isSerializable = componentAttr.NamedArguments
+            .FirstOrDefault(a => a.Key == "Serializable")
+            .Value.Value is true;
+
+        if (!isSerializable)
+        {
+            // [DefaultValue] is also used for builder defaults, so we don't warn here.
+            // It's valid to use [DefaultValue] on non-serializable components for builder generation.
+            return;
+        }
+
+        // Validate type compatibility
+        if (defaultValueAttr.ConstructorArguments.Length == 0)
+        {
+            return;
+        }
+
+        var defaultValue = defaultValueAttr.ConstructorArguments[0];
+        var valueType = defaultValue.Type;
+        var fieldType = fieldSymbol.Type;
+
+        // Check if the value is null
+        if (defaultValue.Value is null)
+        {
+            // null is valid for nullable types
+            if (fieldType.NullableAnnotation != NullableAnnotation.Annotated &&
+                fieldType.IsValueType &&
+                fieldType.OriginalDefinition.SpecialType != SpecialType.System_Nullable_T)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DefaultValueTypeMismatch,
+                    fieldSymbol.Locations.FirstOrDefault(),
+                    "null",
+                    fieldType.ToDisplayString()));
+            }
+            return;
+        }
+
+        // Check type compatibility
+        if (!IsTypeCompatible(valueType, fieldType))
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DefaultValueTypeMismatch,
+                fieldSymbol.Locations.FirstOrDefault(),
+                valueType?.ToDisplayString() ?? "unknown",
+                fieldType.ToDisplayString()));
+        }
+    }
+
+    private static bool IsTypeCompatible(ITypeSymbol? valueType, ITypeSymbol fieldType)
+    {
+        if (valueType is null)
+        {
+            return false;
+        }
+
+        // Exact type match
+        if (SymbolEqualityComparer.Default.Equals(valueType, fieldType))
+        {
+            return true;
+        }
+
+        // Handle special cases for numeric types (constants can be implicitly narrowed)
+        // e.g., [DefaultValue(0)] on a float field is valid because 0 is implicitly convertible
+        if (IsNumericType(valueType) && IsNumericType(fieldType))
+        {
+            return true;
+        }
+
+        // Handle enum types - value is stored as underlying type
+        if (fieldType.TypeKind == TypeKind.Enum)
+        {
+            var underlyingType = ((INamedTypeSymbol)fieldType).EnumUnderlyingType;
+            if (underlyingType is not null && SymbolEqualityComparer.Default.Equals(valueType, underlyingType))
+            {
+                return true;
+            }
+        }
+
+        // Handle string type - string literals are always compatible with string fields
+        if (valueType.SpecialType == SpecialType.System_String &&
+            fieldType.SpecialType == SpecialType.System_String)
+        {
+            return true;
+        }
+
+        // Handle bool type
+        if (valueType.SpecialType == SpecialType.System_Boolean &&
+            fieldType.SpecialType == SpecialType.System_Boolean)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsNumericType(ITypeSymbol type)
+    {
+        return type.SpecialType switch
+        {
+            SpecialType.System_Byte => true,
+            SpecialType.System_SByte => true,
+            SpecialType.System_Int16 => true,
+            SpecialType.System_UInt16 => true,
+            SpecialType.System_Int32 => true,
+            SpecialType.System_UInt32 => true,
+            SpecialType.System_Int64 => true,
+            SpecialType.System_UInt64 => true,
+            SpecialType.System_Single => true,
+            SpecialType.System_Double => true,
+            SpecialType.System_Decimal => true,
+            _ => false
+        };
     }
 }
