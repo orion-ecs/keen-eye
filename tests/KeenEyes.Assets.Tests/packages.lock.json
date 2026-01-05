@@ -203,7 +203,7 @@
           "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "NVorbis": "[0.10.5, )",
-          "SharpGLTF.Core": "[1.0.5, )",
+          "SharpGLTF.Core": "[1.0.6, )",
           "StbImageSharp": "[2.30.15, )"
         }
       },
@@ -240,9 +240,9 @@
       },
       "SharpGLTF.Core": {
         "type": "CentralTransitive",
-        "requested": "[1.0.5, )",
-        "resolved": "1.0.5",
-        "contentHash": "HNHKPqaHXm7R1nlXZ764K5UI02IeDOQ5DQKLjwYUVNTsSW27jJpw+wLGQx6ZFoiFYqUlyZjmsu+WfEak2GmJAg=="
+        "requested": "[1.0.6, )",
+        "resolved": "1.0.6",
+        "contentHash": "m3qIvUnpvRRfQ0fp0TFfpPk+vsHkCIOf/uIVJ19fe9dwa29KCO/PeHVXKAph8nsFxFLXitTIIqCa5W8JGLMhBg=="
       },
       "StbImageSharp": {
         "type": "CentralTransitive",
