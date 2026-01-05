@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>KeenEyes.Navigation.Abstractions</PackageId>
+    <Description>Backend-agnostic navigation and pathfinding abstractions for KeenEyes ECS</Description>
+    <PackageTags>ecs;navigation;pathfinding;navmesh;abstractions</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+  </ItemGroup>
+</Project>
