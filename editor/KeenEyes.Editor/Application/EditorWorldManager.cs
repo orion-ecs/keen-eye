@@ -106,6 +106,16 @@ public sealed class EditorWorldManager : IDisposable
     }
 
     /// <summary>
+    /// Opens a scene from a file path.
+    /// </summary>
+    /// <param name="path">The path to the .kescene file.</param>
+    /// <remarks>
+    /// This is an alias for <see cref="LoadScene"/> for API consistency.
+    /// Does not check for unsaved changes - caller should handle that.
+    /// </remarks>
+    public void OpenScene(string path) => LoadScene(path);
+
+    /// <summary>
     /// Loads a scene from a file path.
     /// </summary>
     /// <param name="path">The path to the .kescene file.</param>
