@@ -39,7 +39,7 @@
     <PackageVersion Include="NVorbis" Version="0.10.5" />
   </ItemGroup>
   <ItemGroup Label="Editor">
-    <PackageVersion Include="NuGet.Configuration" Version="6.12.4" />
+    <PackageVersion Include="NuGet.Configuration" Version="7.0.1" />
     <PackageVersion Include="NuGet.Protocol" Version="6.12.4" />
     <PackageVersion Include="NuGet.Versioning" Version="6.12.4" />
   </ItemGroup>
