@@ -315,7 +315,7 @@ public sealed class Archetype : IDisposable
         // Binary search since componentTypesList is sorted by FullName
         var left = 0;
         var right = componentTypesList.Length - 1;
-        var targetName = type.FullName;
+        var targetName = type.FullName ?? type.Name;
 
         while (left <= right)
         {
