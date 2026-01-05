@@ -3,6 +3,7 @@
 
 using KeenEyes.Cli;
 using KeenEyes.Cli.Commands;
+using KeenEyes.Cli.Commands.Migrate;
 using KeenEyes.Cli.Commands.Plugin;
 using KeenEyes.Cli.Commands.Sources;
 
@@ -21,6 +22,9 @@ static Dictionary<string, ICommand> BuildCommands()
 
         // Sources commands are accessed via "sources <subcommand>" (alias for "plugin sources")
         ["sources"] = new SourcesCommandGroup(),
+
+        // Migration command for batch upgrading save files
+        ["migrate"] = new MigrateCommand(),
     };
 }
 

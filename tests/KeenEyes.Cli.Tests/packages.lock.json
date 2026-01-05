@@ -320,6 +320,7 @@
       "keeneyes": {
         "type": "Project",
         "dependencies": {
+          "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Editor": "[1.0.0, )"
         }
       },
