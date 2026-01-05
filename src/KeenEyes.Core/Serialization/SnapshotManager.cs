@@ -94,11 +94,15 @@ public static class SnapshotManager
                 // Serialize component data using IComponentSerializer for AOT compatibility
                 var jsonData = isTag ? null : serializer.Serialize(type, value);
 
+                // Get component version for schema migration support
+                var version = serializer.GetVersion(type);
+
                 components.Add(new SerializedComponent
                 {
                     TypeName = typeName,
                     Data = jsonData,
-                    IsTag = isTag
+                    IsTag = isTag,
+                    Version = version
                 });
             }
 
@@ -206,6 +210,21 @@ public static class SnapshotManager
                     continue;
                 }
 
+                // Check for version mismatch
+                var currentVersion = serializer.GetVersion(type);
+                if (component.Version > currentVersion)
+                {
+                    // Serialized version is newer than current - cannot load
+                    throw new ComponentVersionException(
+                        type.Name,
+                        component.Version,
+                        currentVersion);
+                }
+
+                // Note: If component.Version < currentVersion, migration would be needed.
+                // Migration support will be added in Phase 2 (issue #698).
+                // For now, we proceed with best-effort deserialization.
+
                 // Ensure type is registered
                 var info = world.Components.Get(type)
                     ?? RegisterComponent(world, type, component.TypeName, component.IsTag, serializer);
@@ -307,8 +326,9 @@ public static class SnapshotManager
 
     /// <summary>
     /// Current binary format version.
+    /// Version 2 adds component schema version field.
     /// </summary>
-    private const ushort BinaryFormatVersion = 1;
+    private const ushort BinaryFormatVersion = 2;
 
     /// <summary>
     /// Maximum allowed size for component/singleton data to prevent DoS via memory exhaustion.
@@ -488,6 +508,9 @@ public static class SnapshotManager
                 // Write type name as string table index
                 writer.Write(stringIndex[component.TypeName]);
                 writer.Write(component.IsTag);
+
+                // Write component schema version (int16 per ADR-015)
+                writer.Write((short)component.Version);
 
                 if (component.IsTag)
                 {
@@ -731,6 +754,9 @@ public static class SnapshotManager
 
                 var isTag = reader.ReadBoolean();
 
+                // Read component schema version (only in format version 2+)
+                var componentVersion = version >= 2 ? reader.ReadInt16() : (short)1;
+
                 JsonElement? data = null;
                 if (!isTag)
                 {
@@ -777,7 +803,8 @@ public static class SnapshotManager
                 {
                     TypeName = typeName,
                     IsTag = isTag,
-                    Data = data
+                    Data = data,
+                    Version = componentVersion
                 });
             }
 

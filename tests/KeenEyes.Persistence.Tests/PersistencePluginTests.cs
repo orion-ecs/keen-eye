@@ -843,6 +843,9 @@ internal sealed class TestPersistenceSerializer : IComponentSerializer, IBinaryC
         }
         return null;
     }
+
+    public int GetVersion(string typeName) => 1;
+    public int GetVersion(Type type) => 1;
 }
 
 #endregion

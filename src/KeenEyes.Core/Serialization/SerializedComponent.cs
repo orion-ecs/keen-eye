@@ -46,4 +46,19 @@ public sealed record SerializedComponent
     /// When <see langword="true"/>, the <see cref="Data"/> property may be null or empty.
     /// </remarks>
     public bool IsTag { get; init; }
+
+    /// <summary>
+    /// Gets or sets the schema version of this component.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This value is used during deserialization to detect version mismatches
+    /// and trigger component migrations when necessary.
+    /// </para>
+    /// <para>
+    /// Default is 1 for backward compatibility with data serialized before
+    /// versioning was introduced.
+    /// </para>
+    /// </remarks>
+    public int Version { get; init; } = 1;
 }

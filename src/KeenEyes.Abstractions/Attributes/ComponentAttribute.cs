@@ -17,6 +17,12 @@ public sealed class ComponentAttribute : Attribute
     /// If true, generates binary serialization methods for this component.
     /// </summary>
     public bool Serializable { get; set; }
+
+    /// <summary>
+    /// The schema version of this component. Used for migration during deserialization.
+    /// Default is 1. Increment when the component's schema changes.
+    /// </summary>
+    public int Version { get; set; } = 1;
 }
 
 /// <summary>

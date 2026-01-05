@@ -1328,6 +1328,165 @@ public class SerializationTests
     }
 
     #endregion
+
+    #region Component Version Tests
+
+    [Fact]
+    public void ComponentVersionException_Constructor_SetsPropertiesCorrectly()
+    {
+        var exception = new ComponentVersionException("Health", 3, 2);
+
+        Assert.Equal("Health", exception.ComponentName);
+        Assert.Equal(3, exception.SerializedVersion);
+        Assert.Equal(2, exception.CurrentVersion);
+        Assert.Contains("v3", exception.Message);
+        Assert.Contains("v2", exception.Message);
+    }
+
+    [Fact]
+    public void ComponentVersionException_NewerVersion_MessageIndicatesUpgradeNeeded()
+    {
+        var exception = new ComponentVersionException("Position", 5, 2);
+
+        Assert.Contains("newer version", exception.Message);
+        Assert.Contains("Update the application", exception.Message);
+    }
+
+    [Fact]
+    public void ComponentVersionException_OlderVersion_MessageIndicatesMigrationNeeded()
+    {
+        var exception = new ComponentVersionException("Position", 1, 3);
+
+        Assert.Contains("Cannot migrate", exception.Message);
+        Assert.Contains("v1", exception.Message);
+        Assert.Contains("v3", exception.Message);
+    }
+
+    [Fact]
+    public void ComponentVersionException_WithInnerException_PreservesInnerException()
+    {
+        var innerException = new InvalidOperationException("Inner error");
+        var exception = new ComponentVersionException("Health", 3, 2, innerException);
+
+        Assert.Same(innerException, exception.InnerException);
+    }
+
+    [Fact]
+    public void SerializedComponent_Version_DefaultsToOne()
+    {
+        var component = new SerializedComponent
+        {
+            TypeName = "Test",
+            IsTag = false
+        };
+
+        Assert.Equal(1, component.Version);
+    }
+
+    [Fact]
+    public void SerializedComponent_Version_CanBeSet()
+    {
+        var component = new SerializedComponent
+        {
+            TypeName = "Test",
+            IsTag = false,
+            Version = 3
+        };
+
+        Assert.Equal(3, component.Version);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithNewerComponentVersion_ThrowsComponentVersionException()
+    {
+        // Create a snapshot with a component that has a newer version than the serializer knows
+        var snapshot = new WorldSnapshot
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Entities =
+            [
+                new SerializedEntity
+                {
+                    Id = 1,
+                    Components =
+                    [
+                        new SerializedComponent
+                        {
+                            TypeName = typeof(SerializablePosition).AssemblyQualifiedName!,
+                            Data = System.Text.Json.JsonDocument.Parse("{\"x\": 1.0, \"y\": 2.0}").RootElement,
+                            IsTag = false,
+                            Version = 99  // Serializer only knows version 1
+                        }
+                    ]
+                }
+            ],
+            Singletons = []
+        };
+
+        using var world = new World();
+
+        var ex = Assert.Throws<ComponentVersionException>(() =>
+            SnapshotManager.RestoreSnapshot(world, snapshot, testSerializer));
+
+        Assert.Equal("SerializablePosition", ex.ComponentName);
+        Assert.Equal(99, ex.SerializedVersion);
+        Assert.Equal(1, ex.CurrentVersion);
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithSameComponentVersion_Succeeds()
+    {
+        // Create a snapshot with a component that has the same version as the serializer knows
+        var snapshot = new WorldSnapshot
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Entities =
+            [
+                new SerializedEntity
+                {
+                    Id = 1,
+                    Components =
+                    [
+                        new SerializedComponent
+                        {
+                            TypeName = typeof(SerializablePosition).AssemblyQualifiedName!,
+                            Data = System.Text.Json.JsonDocument.Parse("{\"x\": 1.0, \"y\": 2.0}").RootElement,
+                            IsTag = false,
+                            Version = 1  // Same version as serializer knows
+                        }
+                    ]
+                }
+            ],
+            Singletons = []
+        };
+
+        using var world = new World();
+
+        var entityMap = SnapshotManager.RestoreSnapshot(world, snapshot, testSerializer);
+
+        Assert.Single(entityMap);
+    }
+
+    [Fact]
+    public void ComponentInfo_Version_DefaultsToOne()
+    {
+        using var world = new World();
+        var info = world.Components.Register<SerializablePosition>();
+
+        Assert.Equal(1, info.Version);
+    }
+
+    [Fact]
+    public void ComponentInfo_ToString_IncludesVersion()
+    {
+        using var world = new World();
+        var info = world.Components.Register<SerializablePosition>();
+
+        var str = info.ToString();
+        Assert.Contains("Version=", str);
+    }
+
+    #endregion
 }
 
 /// <summary>
@@ -1363,6 +1522,8 @@ internal sealed class MockComponentSerializer : IComponentSerializer
     public ComponentInfo? RegisterComponent(ISerializationCapability serialization, string typeName, bool isTag) => null;
     public bool SetSingleton(ISerializationCapability serialization, string typeName, object value) => false;
     public object? CreateDefault(string typeName) => null;
+    public int GetVersion(string typeName) => 1;
+    public int GetVersion(Type type) => 1;
 }
 
 /// <summary>
@@ -1420,6 +1581,9 @@ internal sealed class WorkingAotSerializer : IComponentSerializer
         }
         return null;
     }
+
+    public int GetVersion(string typeName) => 1;
+    public int GetVersion(Type type) => 1;
 }
 
 /// <summary>
@@ -1477,4 +1641,7 @@ internal sealed class DeserializingAotSerializer : IComponentSerializer
         }
         return null;
     }
+
+    public int GetVersion(string typeName) => 1;
+    public int GetVersion(Type type) => 1;
 }

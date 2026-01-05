@@ -563,4 +563,7 @@ internal sealed class BenchmarkComponentSerializer : IComponentSerializer, IBina
 
         return null;
     }
+
+    public int GetVersion(string typeName) => 1;
+    public int GetVersion(Type type) => 1;
 }

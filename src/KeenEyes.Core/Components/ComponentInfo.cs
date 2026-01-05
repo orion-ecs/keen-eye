@@ -19,6 +19,12 @@ public sealed class ComponentInfo
     /// <summary>Whether this is a tag component (zero-size marker).</summary>
     public bool IsTag { get; }
 
+    /// <summary>
+    /// The schema version of this component for migration support.
+    /// Default is 1 for components that don't specify a version.
+    /// </summary>
+    public int Version { get; internal set; } = 1;
+
     /// <summary>The name of the component type.</summary>
     public string Name => Type.Name;
 
@@ -68,7 +74,7 @@ public sealed class ComponentInfo
     }
 
     /// <inheritdoc />
-    public override string ToString() => $"ComponentInfo({Name}, Id={Id.Value}, Size={Size}, IsTag={IsTag})";
+    public override string ToString() => $"ComponentInfo({Name}, Id={Id.Value}, Size={Size}, IsTag={IsTag}, Version={Version})";
 }
 
 /// <summary>
