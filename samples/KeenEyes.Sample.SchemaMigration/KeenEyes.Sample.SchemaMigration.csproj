@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- Include test data files in output -->
+  <ItemGroup>
+    <None Include="TestData\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

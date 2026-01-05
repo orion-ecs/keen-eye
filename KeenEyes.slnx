@@ -23,6 +23,7 @@
     <Project Path="samples/KeenEyes.Sample.RenderingCulling/KeenEyes.Sample.RenderingCulling.csproj" />
     <Project Path="samples/KeenEyes.Sample.Replay/KeenEyes.Sample.Replay.csproj" />
     <Project Path="samples/KeenEyes.Sample.SaveLoad/KeenEyes.Sample.SaveLoad.csproj" />
+    <Project Path="samples/KeenEyes.Sample.SchemaMigration/KeenEyes.Sample.SchemaMigration.csproj" />
     <Project Path="samples/KeenEyes.Sample.Showcase/KeenEyes.Sample.Showcase.csproj" />
     <Project Path="samples/KeenEyes.Sample.Simulation/KeenEyes.Sample.Simulation.csproj" />
     <Project Path="samples/KeenEyes.Sample.StringTags/KeenEyes.Sample.StringTags.csproj" />
