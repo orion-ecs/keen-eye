@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.AI</PackageId>
+    <Description>AI plugin with behavior trees and navigation integration for KeenEyes</Description>
+    <PackageTags>ecs;ai;behavior-tree;navigation;pathfinding;blackboard</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.AI.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Navigation\KeenEyes.Navigation.csproj" />
+    <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
+  </ItemGroup>
+
+</Project>
