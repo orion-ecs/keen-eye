@@ -1,6 +1,7 @@
 using System.Numerics;
 
 using KeenEyes.Editor.Application;
+using KeenEyes.Editor.PlayMode;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Replay;
 using KeenEyes.UI.Abstractions;
@@ -44,13 +45,13 @@ public static class FrameInspectorPanel
     /// <param name="editorWorld">The editor UI world.</param>
     /// <param name="parent">The parent container entity.</param>
     /// <param name="font">The font to use for text.</param>
-    /// <param name="replayPlayer">The replay player to inspect frames from.</param>
+    /// <param name="replayPlayback">The replay playback mode to inspect frames from (can be null).</param>
     /// <returns>The created panel entity.</returns>
     public static Entity Create(
         IWorld editorWorld,
         Entity parent,
         FontHandle font,
-        ReplayPlayer replayPlayer)
+        ReplayPlaybackMode? replayPlayback)
     {
         // Create the main panel container
         var panel = WidgetFactory.CreatePanel(editorWorld, parent, "FrameInspectorPanel", new PanelConfig(
@@ -97,7 +98,7 @@ public static class FrameInspectorPanel
             Toolbar = toolbar,
             ContentArea = contentArea,
             EmptyLabel = emptyLabel,
-            ReplayPlayer = replayPlayer,
+            ReplayPlayback = replayPlayback,
             Font = font,
             ShowEntityEvents = true,
             ShowComponentEvents = true,
@@ -109,15 +110,17 @@ public static class FrameInspectorPanel
 
         editorWorld.Add(panel, state);
 
-        // Subscribe to replay player events
-        replayPlayer.FrameChanged += frameIndex => OnFrameChanged(editorWorld, panel, frameIndex);
-        replayPlayer.PlaybackStarted += () => OnPlaybackStarted(editorWorld, panel);
-        replayPlayer.PlaybackStopped += () => OnPlaybackStopped(editorWorld, panel);
-
-        // Initial refresh if replay is already loaded
-        if (replayPlayer.IsLoaded)
+        // Subscribe to replay playback events if available
+        if (replayPlayback is not null)
         {
-            RefreshFrameDisplay(editorWorld, panel);
+            replayPlayback.FrameChanged += (_, args) => OnFrameChanged(editorWorld, panel, args);
+            replayPlayback.StateChanged += (_, args) => OnStateChanged(editorWorld, panel, args);
+
+            // Initial refresh if replay is already loaded
+            if (replayPlayback.IsLoaded)
+            {
+                RefreshFrameDisplay(editorWorld, panel);
+            }
         }
 
         return panel;
@@ -263,19 +266,18 @@ public static class FrameInspectorPanel
         return button;
     }
 
-    private static void OnFrameChanged(IWorld editorWorld, Entity panel, int frameIndex)
+    private static void OnFrameChanged(IWorld editorWorld, Entity panel, FrameChangedEventArgs args)
     {
         RefreshFrameDisplay(editorWorld, panel);
     }
 
-    private static void OnPlaybackStarted(IWorld editorWorld, Entity panel)
+    private static void OnStateChanged(IWorld editorWorld, Entity panel, PlaybackStateChangedEventArgs args)
     {
-        // Could add visual indicator that playback is active
-    }
-
-    private static void OnPlaybackStopped(IWorld editorWorld, Entity panel)
-    {
-        RefreshFrameDisplay(editorWorld, panel);
+        // Refresh when playback stops to show final state
+        if (args.NewState == PlaybackState.Stopped)
+        {
+            RefreshFrameDisplay(editorWorld, panel);
+        }
     }
 
     /// <summary>
@@ -289,25 +291,25 @@ public static class FrameInspectorPanel
         }
 
         ref readonly var state = ref editorWorld.Get<FrameInspectorPanelState>(panel);
-        var replayPlayer = state.ReplayPlayer;
+        var replayPlayback = state.ReplayPlayback;
 
         // Update header
-        UpdateHeader(editorWorld, state.Header, replayPlayer);
+        UpdateHeader(editorWorld, state.Header, replayPlayback);
 
         // Clear existing events
         ClearEventEntries(editorWorld, state.ContentArea, state.EmptyLabel);
 
-        // Check if replay is loaded
-        if (!replayPlayer.IsLoaded)
+        // Check if replay playback is available and loaded
+        if (replayPlayback is null || !replayPlayback.IsLoaded)
         {
             ShowEmptyState(editorWorld, state.EmptyLabel, "No replay loaded");
             UpdateEventCount(editorWorld, state.Toolbar, 0);
             return;
         }
 
-        // Get current frame
-        var currentFrame = replayPlayer.GetCurrentFrame();
-        if (currentFrame is null)
+        // Get current frame data
+        var frameData = replayPlayback.GetCurrentFrameData();
+        if (frameData is null)
         {
             ShowEmptyState(editorWorld, state.EmptyLabel, "No frame data");
             UpdateEventCount(editorWorld, state.Toolbar, 0);
@@ -318,7 +320,7 @@ public static class FrameInspectorPanel
         HideEmptyState(editorWorld, state.EmptyLabel);
 
         // Filter and display events
-        var filteredEvents = FilterEvents(currentFrame.Events, state);
+        var filteredEvents = FilterEvents(frameData.Events, state);
         var displayedCount = 0;
 
         foreach (var evt in filteredEvents)
@@ -337,7 +339,7 @@ public static class FrameInspectorPanel
         }
     }
 
-    private static void UpdateHeader(IWorld world, Entity header, ReplayPlayer replayPlayer)
+    private static void UpdateHeader(IWorld world, Entity header, ReplayPlaybackMode? replayPlayback)
     {
         if (!world.Has<FrameInspectorHeaderState>(header))
         {
@@ -346,9 +348,9 @@ public static class FrameInspectorPanel
 
         ref readonly var headerState = ref world.Get<FrameInspectorHeaderState>(header);
 
-        var frameNumber = replayPlayer.CurrentFrame;
-        var totalFrames = replayPlayer.TotalFrames;
-        var currentFrame = replayPlayer.GetCurrentFrame();
+        var frameNumber = replayPlayback?.CurrentFrame ?? -1;
+        var totalFrames = replayPlayback?.TotalFrames ?? 0;
+        var frameData = replayPlayback?.GetCurrentFrameData();
 
         // Update frame number label
         if (world.Has<UIText>(headerState.FrameLabel))
@@ -363,9 +365,9 @@ public static class FrameInspectorPanel
         if (world.Has<UIText>(headerState.DeltaLabel))
         {
             ref var deltaText = ref world.Get<UIText>(headerState.DeltaLabel);
-            if (currentFrame is not null)
+            if (frameData is not null)
             {
-                var deltaMs = currentFrame.DeltaTime.TotalMilliseconds;
+                var deltaMs = frameData.DeltaTime.TotalMilliseconds;
                 deltaText.Content = $"\u0394t: {deltaMs:F2}ms";
             }
             else
@@ -835,7 +837,7 @@ internal struct FrameInspectorPanelState : IComponent
     public Entity Toolbar;
     public Entity ContentArea;
     public Entity EmptyLabel;
-    public ReplayPlayer ReplayPlayer;
+    public ReplayPlaybackMode? ReplayPlayback;
     public FontHandle Font;
     public bool ShowEntityEvents;
     public bool ShowComponentEvents;
