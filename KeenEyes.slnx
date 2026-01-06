@@ -126,6 +126,7 @@
     <Project Path="editor/KeenEyes.Sdk.Plugin/KeenEyes.Sdk.Plugin.csproj" />
     <Project Path="editor/KeenEyes.Shaders.Compiler/KeenEyes.Shaders.Compiler.csproj" />
     <Project Path="editor/KeenEyes.Shaders.Generator/KeenEyes.Shaders.Generator.csproj" />
+    <Project Path="editor/KeenEyes.Graph.Kesl/KeenEyes.Graph.Kesl.csproj" />
   </Folder>
   <Folder Name="/_/">
     <File Path=".editorconfig" />

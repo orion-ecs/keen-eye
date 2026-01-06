@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>KeenEyes.Graph.Kesl</PackageId>
+    <Description>KESL (KeenEyes Shader Language) integration for the graph node editor</Description>
+    <PackageTags>ecs;graph;nodes;editor;kesl;shaders;visual</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Graph.Kesl.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Common\KeenEyes.Common.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graph.Abstractions\KeenEyes.Graph.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graph\KeenEyes.Graph.csproj" />
+    <ProjectReference Include="..\KeenEyes.Shaders.Compiler\KeenEyes.Shaders.Compiler.csproj" />
+    <ProjectReference Include="..\KeenEyes.Editor.Abstractions\KeenEyes.Editor.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
