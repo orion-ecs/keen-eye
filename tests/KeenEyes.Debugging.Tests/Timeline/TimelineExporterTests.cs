@@ -6,6 +6,7 @@ namespace KeenEyes.Debugging.Tests.Timeline;
 /// <summary>
 /// Unit tests for the <see cref="TimelineExporter"/> class.
 /// </summary>
+[Collection("DebuggingTests")]
 public class TimelineExporterTests
 {
     private static readonly TimelineEntry sampleEntry = new()

@@ -5,6 +5,7 @@ namespace KeenEyes.Debugging.Tests.Timeline;
 /// <summary>
 /// Unit tests for the <see cref="TimelineRecorder"/> class.
 /// </summary>
+[Collection("DebuggingTests")]
 public class TimelineRecorderTests
 {
     #region Constructor Tests

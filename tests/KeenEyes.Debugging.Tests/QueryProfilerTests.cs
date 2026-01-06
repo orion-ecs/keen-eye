@@ -3,6 +3,7 @@ namespace KeenEyes.Debugging.Tests;
 /// <summary>
 /// Unit tests for the <see cref="QueryProfiler"/> class.
 /// </summary>
+[Collection("DebuggingTests")]
 public partial class QueryProfilerTests
 {
 #pragma warning disable CS0649 // Field is never assigned to

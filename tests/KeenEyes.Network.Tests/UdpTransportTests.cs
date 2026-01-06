@@ -13,6 +13,7 @@ namespace KeenEyes.Network.Tests;
 /// environments (e.g., sandboxed containers). Tests that require connectivity
 /// use a helper method that skips if UDP is unavailable.
 /// </remarks>
+[Collection("NetworkTests")]
 public class UdpTransportTests
 {
     /// <summary>

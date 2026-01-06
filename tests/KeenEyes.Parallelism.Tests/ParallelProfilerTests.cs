@@ -6,6 +6,7 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for the ParallelProfiler and diagnostic components.
 /// </summary>
+[Collection("ParallelismTests")]
 public class ParallelProfilerTests
 {
     #region Test Components

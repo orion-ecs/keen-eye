@@ -29,6 +29,7 @@ public struct ParallelTestDamage : IComponent
 /// <summary>
 /// Tests for ParallelQueryExtensions.
 /// </summary>
+[Collection("ParallelismTests")]
 public class ParallelQueryExtensionsTests
 {
     #region Single Component - ForEachParallel
