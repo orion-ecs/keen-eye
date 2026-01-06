@@ -17,6 +17,31 @@ public class LocalizationPluginTests
     }
 
     [Fact]
+    public void Install_RegistersAssetResolverExtension()
+    {
+        using var world = new World();
+        var plugin = new LocalizationPlugin();
+
+        world.InstallPlugin(plugin);
+
+        world.TryGetExtension<ILocalizedAssetResolver>(out var resolver).ShouldBeTrue();
+        resolver.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void Install_WithAssetRootPath_ConfiguresResolver()
+    {
+        using var world = new World();
+        var config = new LocalizationConfig { AssetRootPath = "Assets" };
+        var plugin = new LocalizationPlugin(config);
+
+        world.InstallPlugin(plugin);
+
+        world.TryGetExtension<ILocalizedAssetResolver>(out var resolver).ShouldBeTrue();
+        resolver.ShouldNotBeNull();
+    }
+
+    [Fact]
     public void Install_DefaultConfig_UsesEnglishUS()
     {
         using var world = new World();
@@ -55,6 +80,18 @@ public class LocalizationPluginTests
         world.UninstallPlugin<LocalizationPlugin>();
 
         world.TryGetExtension<LocalizationManager>(out _).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Uninstall_RemovesAssetResolverExtension()
+    {
+        using var world = new World();
+        var plugin = new LocalizationPlugin();
+        world.InstallPlugin(plugin);
+
+        world.UninstallPlugin<LocalizationPlugin>();
+
+        world.TryGetExtension<ILocalizedAssetResolver>(out _).ShouldBeFalse();
     }
 
     #endregion
