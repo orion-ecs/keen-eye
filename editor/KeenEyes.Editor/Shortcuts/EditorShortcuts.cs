@@ -76,6 +76,12 @@ public static class EditorShortcuts
     public const string Pause = "play.pause";
     /// <summary>Step one frame forward.</summary>
     public const string StepFrame = "play.step_frame";
+    /// <summary>Step one frame backward.</summary>
+    public const string StepFrameBack = "play.step_frame_back";
+
+    // Replay playback
+    /// <summary>Toggle replay playback (play/pause).</summary>
+    public const string ReplayPlayPause = "replay.play_pause";
 
     // Window operations
     /// <summary>Show hierarchy panel.</summary>
@@ -113,6 +119,8 @@ public static class EditorShortcuts
     public const string CategoryTransform = "Transform";
     /// <summary>Play mode category.</summary>
     public const string CategoryPlay = "Play Mode";
+    /// <summary>Replay playback category.</summary>
+    public const string CategoryReplay = "Replay";
     /// <summary>Window operations category.</summary>
     public const string CategoryWindow = "Window";
     /// <summary>Help category.</summary>
@@ -168,6 +176,10 @@ public static class EditorShortcuts
         manager.Register(PlayStop, "Play/Stop", CategoryPlay, "Ctrl+P", actions.PlayStop);
         manager.Register(Pause, "Pause", CategoryPlay, "Ctrl+Shift+P", actions.Pause);
         manager.Register(StepFrame, "Step Frame", CategoryPlay, "Ctrl+Alt+P", actions.StepFrame);
+        manager.Register(StepFrameBack, "Step Frame Back", CategoryPlay, "Ctrl+Alt+Shift+P", actions.StepFrameBack);
+
+        // Replay playback
+        manager.Register(ReplayPlayPause, "Replay Play/Pause", CategoryReplay, "Space", actions.ReplayPlayPause);
 
         // Window operations
         manager.Register(ShowHierarchy, "Hierarchy", CategoryWindow, "Ctrl+1", actions.ShowHierarchy);
@@ -253,6 +265,12 @@ public interface IEditorShortcutActions
     void Pause();
     /// <summary>Called when Step Frame shortcut is triggered.</summary>
     void StepFrame();
+    /// <summary>Called when Step Frame Back shortcut is triggered.</summary>
+    void StepFrameBack();
+
+    // Replay playback
+    /// <summary>Called when Replay Play/Pause shortcut is triggered.</summary>
+    void ReplayPlayPause();
 
     // Window operations
     /// <summary>Called when Show Hierarchy shortcut is triggered.</summary>
