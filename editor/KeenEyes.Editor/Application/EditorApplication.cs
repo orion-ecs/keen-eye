@@ -40,6 +40,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private readonly EditorComponentSerializer _serializer;
     private PlayModeManager? _playMode;
     private HotReloadService? _hotReload;
+    private ReplayPlaybackMode? _replayPlayback;
     private Entity _viewportPanel;
     private Entity _hierarchyPanel;
     private Entity _inspectorPanel;
@@ -90,6 +91,11 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// Gets the hot reload service, if initialized.
     /// </summary>
     public HotReloadService? HotReload => _hotReload;
+
+    /// <summary>
+    /// Gets the replay playback mode for debugging and analysis.
+    /// </summary>
+    public ReplayPlaybackMode? ReplayPlayback => _replayPlayback;
 
     /// <summary>
     /// Gets the layout manager for window arrangement.
@@ -220,7 +226,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private void OnSceneOpened(World sceneWorld)
     {
         _playMode = new PlayModeManager(sceneWorld, _serializer);
-        Console.WriteLine("Play mode manager initialized for scene");
+        _replayPlayback = new ReplayPlaybackMode(_serializer);
+        Console.WriteLine("Play mode and replay playback initialized for scene");
 
         // Initialize hot reload service
         _hotReload = new HotReloadService(sceneWorld);
@@ -244,7 +251,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         }
 
         _playMode = null;
-        Console.WriteLine("Play mode manager disposed");
+        _replayPlayback?.Dispose();
+        _replayPlayback = null;
+        Console.WriteLine("Play mode and replay playback disposed");
     }
 
     private void OnHotReloadStatusChanged(object? sender, HotReloadStatusChangedEventArgs e)
@@ -1383,8 +1392,59 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.StepFrame()
     {
-        // TODO: Implement step frame
-        Console.WriteLine("Step Frame (not yet implemented)");
+        // If replay is loaded, step in replay playback
+        if (_replayPlayback?.IsLoaded == true)
+        {
+            _replayPlayback.StepFrame();
+            var frame = _replayPlayback.CurrentFrame;
+            var total = _replayPlayback.TotalFrames;
+            Console.WriteLine($"Replay: Frame {frame + 1}/{total}");
+            return;
+        }
+
+        // Otherwise, pause play mode if playing and advance one frame
+        if (_playMode is null)
+        {
+            Console.WriteLine("Step Frame: No scene loaded");
+            return;
+        }
+
+        if (_playMode.IsPlaying)
+        {
+            _playMode.Pause();
+        }
+
+        Console.WriteLine("Step Frame: Single frame step in play mode");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.StepFrameBack()
+    {
+        // If replay is loaded, step backward in replay playback
+        if (_replayPlayback?.IsLoaded == true)
+        {
+            _replayPlayback.StepFrameBack();
+            var frame = _replayPlayback.CurrentFrame;
+            var total = _replayPlayback.TotalFrames;
+            Console.WriteLine($"Replay: Frame {frame + 1}/{total}");
+            return;
+        }
+
+        Console.WriteLine("Step Frame Back: Only available during replay playback");
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ReplayPlayPause()
+    {
+        if (_replayPlayback?.IsLoaded != true)
+        {
+            Console.WriteLine("Replay: No replay loaded");
+            return;
+        }
+
+        _replayPlayback.TogglePlayPause();
+        var state = _replayPlayback.State == KeenEyes.Replay.PlaybackState.Playing ? "Playing" : "Paused";
+        Console.WriteLine($"Replay: {state}");
     }
 
     /// <inheritdoc/>
@@ -1449,6 +1509,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _layoutManager.Save();
 
         _hotReload?.Dispose();
+        _replayPlayback?.Dispose();
         _logProvider.Dispose();
         _assetDatabase.Dispose();
         _worldManager.Dispose();
