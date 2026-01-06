@@ -1,5 +1,8 @@
 # Engine Systems Research Roadmap
 
+> **Note**: This document was originally created for planning. Many systems have since been implemented.
+> See `ROADMAP.md` for current status.
+
 This document outlines game engine systems that require further research and architectural planning before implementation. Each section describes the system's purpose, why it matters, potential approaches, and open questions to resolve.
 
 ---
@@ -446,24 +449,33 @@ Networking is complex enough to warrant its own deep-dive planning session. Key 
 
 ## Priority Matrix
 
-| System | Complexity | Impact | Recommendation |
-|--------|------------|--------|----------------|
-| **Pathfinding** | Medium | High (completes AI) | Plan next, implement after AI |
-| **Scene Management** | Medium | Medium (large games only) | Research issue, defer implementation |
-| **Localization** | Low | Medium (release requirement) | Simple implementation early |
-| **Networking** | High | High (if multiplayer) | Separate initiative, deep planning |
+| System | Complexity | Impact | Status |
+|--------|------------|--------|--------|
+| **Pathfinding** | Medium | High (completes AI) | ✅ **COMPLETE** - DotRecast NavMesh + Grid A* |
+| **Scene Management** | Medium | Medium (large games only) | ✅ **COMPLETE** - SceneManager in Core |
+| **Localization** | Low | Medium (release requirement) | ✅ **COMPLETE** - JSON + ICU + RTL |
+| **Networking** | High | High (if multiplayer) | ✅ **COMPLETE** - KeenEyes.Network |
 
-### Suggested Next Steps
+### Implementation Summary
 
-1. **Create Pathfinding milestone** - Pairs with AI, concrete scope
-2. **Create research issue for Scene Management** - Explore options, don't implement yet
-3. **Add Localization to UI milestone** - Simple key-value system
-4. **Continue Networking discussion** - Dedicated planning effort
+All four systems have been implemented:
+
+1. **Pathfinding** - `KeenEyes.Navigation` with DotRecast NavMesh and grid-based A*
+2. **Scene Management** - `SceneManager` in Core, unified scene model
+3. **Localization** - `LocalizationPlugin` with JSON sources, ICU MessageFormat, RTL support
+4. **Networking** - `KeenEyes.Network` with replication, prediction, reconciliation
 
 ---
 
 ## Summary
 
-These four systems represent the remaining "big picture" items for KeenEyes to become a complete game engine. Pathfinding and Localization are relatively bounded problems. Scene Management and Networking are architectural decisions that affect many other systems.
+> **Update (2026)**: All four systems researched in this document have been implemented.
 
-The existing foundation (ECS, Physics, Persistence, Parallelism) provides a solid base. The planned systems (Graphics, Input, UI, Audio, Particles, Animation, AI, Assets) cover most game needs. These four fill the remaining gaps for shipping real games.
+These four systems represented the remaining "big picture" items for KeenEyes to become a complete game engine. All have now been addressed:
+
+- **Pathfinding** - Implemented with DotRecast NavMesh for 3D and grid-based A* for 2D
+- **Scene Management** - Implemented with SceneManager, scene serialization, and editor integration
+- **Localization** - Implemented with JSON/CSV sources, ICU MessageFormat, and RTL layout support
+- **Networking** - Implemented with entity replication, client prediction, and server reconciliation
+
+The existing foundation (ECS, Physics, Persistence, Parallelism) combined with these new systems provides a comprehensive base for game development. See `ROADMAP.md` for remaining work on UI, Audio, Particles, Animation, and Asset Management.
