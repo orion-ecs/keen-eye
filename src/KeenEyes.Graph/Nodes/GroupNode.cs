@@ -20,9 +20,9 @@ namespace KeenEyes.Graph.Nodes;
 /// </remarks>
 public sealed class GroupNode : INodeTypeDefinition
 {
-    private static readonly Vector4 GroupBodyColor = new(0.12f, 0.15f, 0.18f, 0.95f);
-    private static readonly Vector4 GroupBorderColor = new(0.3f, 0.4f, 0.5f, 1f);
-    private static readonly Vector4 GroupLabelColor = new(0.7f, 0.8f, 0.9f, 1f);
+    private static readonly Vector4 groupBodyColor = new(0.12f, 0.15f, 0.18f, 0.95f);
+    private static readonly Vector4 groupBorderColor = new(0.3f, 0.4f, 0.5f, 1f);
+    private static readonly Vector4 groupLabelColor = new(0.7f, 0.8f, 0.9f, 1f);
 
     /// <inheritdoc />
     public int TypeId => BuiltInNodeIds.Group;
@@ -80,7 +80,7 @@ public sealed class GroupNode : INodeTypeDefinition
         ref readonly var groupData = ref world.Get<GroupNodeData>(node);
 
         // Draw group body background
-        renderer.FillRect(bodyArea.X, bodyArea.Y, bodyArea.Width, bodyArea.Height, GroupBodyColor);
+        renderer.FillRect(bodyArea.X, bodyArea.Y, bodyArea.Width, bodyArea.Height, groupBodyColor);
 
         // Draw a subtle inner border
         renderer.DrawRect(
@@ -88,7 +88,7 @@ public sealed class GroupNode : INodeTypeDefinition
             bodyArea.Y + 4,
             bodyArea.Width - 8,
             bodyArea.Height - 8,
-            GroupBorderColor,
+            groupBorderColor,
             1f);
 
         // Draw interface port labels (when text rendering is available)
@@ -111,14 +111,14 @@ public sealed class GroupNode : INodeTypeDefinition
         for (int i = 0; i < groupData.InterfaceInputs.Count; i++)
         {
             var y = startY + (i * portSpacing);
-            renderer.FillCircle(bodyArea.X + 10f, y + (portIndicatorSize / 2f), portIndicatorSize / 2f, GroupLabelColor);
+            renderer.FillCircle(bodyArea.X + 10f, y + (portIndicatorSize / 2f), portIndicatorSize / 2f, groupLabelColor);
         }
 
         // Draw output interface indicators on right side
         for (int i = 0; i < groupData.InterfaceOutputs.Count; i++)
         {
             var y = startY + (i * portSpacing);
-            renderer.FillCircle(bodyArea.Right - 10f, y + (portIndicatorSize / 2f), portIndicatorSize / 2f, GroupLabelColor);
+            renderer.FillCircle(bodyArea.Right - 10f, y + (portIndicatorSize / 2f), portIndicatorSize / 2f, groupLabelColor);
         }
     }
 }
