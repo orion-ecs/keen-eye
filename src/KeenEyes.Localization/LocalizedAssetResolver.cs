@@ -127,11 +127,11 @@ public sealed class LocalizedAssetResolver(string rootPath, LocalizationConfig c
             if (fileName.StartsWith(baseName + ".", StringComparison.OrdinalIgnoreCase) ||
                 fileName.Equals(baseName, StringComparison.OrdinalIgnoreCase))
             {
-                // Return path relative to root
+                // Return path relative to root, normalized to forward slashes for cross-platform consistency
                 var relativePath = string.IsNullOrEmpty(rootPath)
                     ? file
                     : Path.GetRelativePath(rootPath, file);
-                yield return relativePath;
+                yield return relativePath.Replace('\\', '/');
             }
         }
     }
