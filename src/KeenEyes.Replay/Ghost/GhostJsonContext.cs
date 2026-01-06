@@ -14,7 +14,8 @@ namespace KeenEyes.Replay.Ghost;
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     WriteIndented = false,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    Converters = [typeof(Vector3JsonConverter), typeof(QuaternionJsonConverter)])]
 [JsonSerializable(typeof(GhostData))]
 [JsonSerializable(typeof(GhostFrame))]
 [JsonSerializable(typeof(GhostFileInfo))]
