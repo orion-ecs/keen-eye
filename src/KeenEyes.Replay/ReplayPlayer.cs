@@ -49,6 +49,8 @@ namespace KeenEyes.Replay;
 public sealed class ReplayPlayer : IDisposable
 {
     private readonly Lock syncRoot = new();
+    private readonly Dictionary<InputEventType, List<Action<InputEvent>>> inputHandlers = [];
+    private readonly Dictionary<string, List<Delegate>> customInputHandlers = [];
 
     private ReplayData? replayData;
     private ReplayFileInfo? fileInfo;
@@ -1682,4 +1684,439 @@ public sealed class ReplayPlayer : IDisposable
 
         return null;
     }
+
+    #region Input Handler Registration
+
+    /// <summary>
+    /// Registers a handler for input events of the specified type.
+    /// </summary>
+    /// <param name="type">The input event type to handle.</param>
+    /// <param name="handler">The handler to invoke when an input event of this type is encountered.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="handler"/> is null.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// Registered handlers are invoked during <see cref="ApplyInputFrame()"/> for each
+    /// input event matching the specified type. Multiple handlers can be registered
+    /// for the same event type; they are invoked in registration order.
+    /// </para>
+    /// <para>
+    /// For <see cref="InputEventType.Custom"/> events, use
+    /// <see cref="RegisterInputHandler{T}(string, Action{T})"/> instead to receive
+    /// typed custom data.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var player = new ReplayPlayer();
+    /// player.LoadReplay("recording.kreplay");
+    ///
+    /// // Register handlers for keyboard input
+    /// player.RegisterInputHandler(InputEventType.KeyDown, input =>
+    /// {
+    ///     Console.WriteLine($"Key pressed: {input.Key}");
+    /// });
+    ///
+    /// player.RegisterInputHandler(InputEventType.MouseMove, input =>
+    /// {
+    ///     Console.WriteLine($"Mouse moved to: {input.Position}");
+    /// });
+    /// </code>
+    /// </example>
+    public void RegisterInputHandler(InputEventType type, Action<InputEvent> handler)
+    {
+        ArgumentNullException.ThrowIfNull(handler);
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            if (!inputHandlers.TryGetValue(type, out var handlers))
+            {
+                handlers = [];
+                inputHandlers[type] = handlers;
+            }
+
+            handlers.Add(handler);
+        }
+    }
+
+    /// <summary>
+    /// Registers a typed handler for custom input events.
+    /// </summary>
+    /// <typeparam name="T">The type of custom data expected from the input event.</typeparam>
+    /// <param name="customType">The custom type name to handle.</param>
+    /// <param name="handler">The handler to invoke when a matching custom input event is encountered.</param>
+    /// <exception cref="ArgumentNullException">Thrown when <paramref name="customType"/> or <paramref name="handler"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown when <paramref name="customType"/> is empty or whitespace.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// This method registers a handler for custom input events with the specified
+    /// <see cref="InputEvent.CustomType"/> value. The <see cref="InputEvent.CustomData"/>
+    /// is cast to type <typeparamref name="T"/> before invoking the handler.
+    /// </para>
+    /// <para>
+    /// If the custom data cannot be cast to the expected type, the handler is not invoked.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Define a custom input data type
+    /// public record GestureData(string GestureType, float Scale, float Rotation);
+    ///
+    /// // Register handler for custom gesture events
+    /// player.RegisterInputHandler&lt;GestureData&gt;("TouchGesture", gesture =>
+    /// {
+    ///     Console.WriteLine($"Gesture: {gesture.GestureType}, Scale: {gesture.Scale}");
+    /// });
+    /// </code>
+    /// </example>
+    public void RegisterInputHandler<T>(string customType, Action<T> handler)
+    {
+        ArgumentNullException.ThrowIfNull(customType);
+        ArgumentException.ThrowIfNullOrWhiteSpace(customType);
+        ArgumentNullException.ThrowIfNull(handler);
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            if (!customInputHandlers.TryGetValue(customType, out var handlers))
+            {
+                handlers = [];
+                customInputHandlers[customType] = handlers;
+            }
+
+            handlers.Add(handler);
+        }
+    }
+
+    /// <summary>
+    /// Removes all handlers for the specified input event type.
+    /// </summary>
+    /// <param name="type">The input event type to clear handlers for.</param>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public void UnregisterInputHandlers(InputEventType type)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            inputHandlers.Remove(type);
+        }
+    }
+
+    /// <summary>
+    /// Removes all handlers for the specified custom input type.
+    /// </summary>
+    /// <param name="customType">The custom type name to clear handlers for.</param>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public void UnregisterCustomInputHandlers(string customType)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            customInputHandlers.Remove(customType);
+        }
+    }
+
+    /// <summary>
+    /// Removes all registered input handlers.
+    /// </summary>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public void ClearInputHandlers()
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            inputHandlers.Clear();
+            customInputHandlers.Clear();
+        }
+    }
+
+    #endregion
+
+    #region Input Playback
+
+    /// <summary>
+    /// Applies the input events from the current frame by invoking registered handlers.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown when no replay is loaded.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// This method iterates through all input events in the current frame and invokes
+    /// the appropriate registered handlers. For each input event:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// Standard input events (<see cref="InputEventType.KeyDown"/>, <see cref="InputEventType.MouseMove"/>, etc.)
+    /// invoke handlers registered via <see cref="RegisterInputHandler(InputEventType, Action{InputEvent})"/>.
+    /// </description></item>
+    /// <item><description>
+    /// Custom input events (<see cref="InputEventType.Custom"/>) invoke handlers registered via
+    /// <see cref="RegisterInputHandler{T}(string, Action{T})"/> with the matching custom type name.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// Call this method after <see cref="Update"/> to process input events for the current frame.
+    /// Input events are applied in their recorded order, preserving the original timing.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var player = new ReplayPlayer();
+    /// player.LoadReplay("recording.kreplay");
+    ///
+    /// // Register input handlers
+    /// player.RegisterInputHandler(InputEventType.KeyDown, input =>
+    ///     inputSystem.SimulateKeyDown(input.Key));
+    ///
+    /// player.Play();
+    ///
+    /// // Game loop
+    /// while (player.State == PlaybackState.Playing)
+    /// {
+    ///     if (player.Update(deltaTime))
+    ///     {
+    ///         // Frame advanced - apply input events
+    ///         player.ApplyInputFrame();
+    ///     }
+    /// }
+    /// </code>
+    /// </example>
+    public void ApplyInputFrame()
+    {
+        ThrowIfDisposed();
+
+        IReadOnlyList<InputEvent> inputEvents;
+        Dictionary<InputEventType, List<Action<InputEvent>>>? handlersCopy;
+        Dictionary<string, List<Delegate>>? customHandlersCopy;
+
+        lock (syncRoot)
+        {
+            ThrowIfNoReplayLoaded();
+
+            if (currentFrameIndex < 0 || currentFrameIndex >= replayData!.Frames.Count)
+            {
+                return;
+            }
+
+            var frame = replayData.Frames[currentFrameIndex];
+            inputEvents = frame.InputEvents;
+
+            if (inputEvents.Count == 0)
+            {
+                return;
+            }
+
+            // Copy handlers to avoid holding lock during invocation
+            handlersCopy = new Dictionary<InputEventType, List<Action<InputEvent>>>(inputHandlers.Count);
+            foreach (var kvp in inputHandlers)
+            {
+                handlersCopy[kvp.Key] = [.. kvp.Value];
+            }
+
+            customHandlersCopy = new Dictionary<string, List<Delegate>>(customInputHandlers.Count);
+            foreach (var kvp in customInputHandlers)
+            {
+                customHandlersCopy[kvp.Key] = [.. kvp.Value];
+            }
+        }
+
+        // Invoke handlers outside lock
+        foreach (var inputEvent in inputEvents)
+        {
+            if (inputEvent.Type == InputEventType.Custom)
+            {
+                // Handle custom input events
+                if (inputEvent.CustomType is not null &&
+                    customHandlersCopy.TryGetValue(inputEvent.CustomType, out var customHandlers))
+                {
+                    foreach (var handler in customHandlers)
+                    {
+                        InvokeCustomHandler(handler, inputEvent.CustomData);
+                    }
+                }
+            }
+            else
+            {
+                // Handle standard input events
+                if (handlersCopy.TryGetValue(inputEvent.Type, out var handlers))
+                {
+                    foreach (var handler in handlers)
+                    {
+                        handler.Invoke(inputEvent);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Applies input events for a specific frame by frame index.
+    /// </summary>
+    /// <param name="frameIndex">The 0-based frame index to apply input events from.</param>
+    /// <exception cref="InvalidOperationException">Thrown when no replay is loaded.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the frame index is out of range.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// This method allows applying input events from any frame, regardless of the current
+    /// playback position. This is useful for:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Replaying specific frames during debugging</description></item>
+    /// <item><description>Implementing frame-by-frame stepping with input replay</description></item>
+    /// <item><description>Pre-loading input events before actual playback</description></item>
+    /// </list>
+    /// </remarks>
+    public void ApplyInputFrame(int frameIndex)
+    {
+        ThrowIfDisposed();
+
+        IReadOnlyList<InputEvent> inputEvents;
+        Dictionary<InputEventType, List<Action<InputEvent>>>? handlersCopy;
+        Dictionary<string, List<Delegate>>? customHandlersCopy;
+
+        lock (syncRoot)
+        {
+            ThrowIfNoReplayLoaded();
+
+            if (frameIndex < 0 || frameIndex >= replayData!.Frames.Count)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(frameIndex),
+                    frameIndex,
+                    $"Frame index must be between 0 and {replayData!.Frames.Count - 1}.");
+            }
+
+            var frame = replayData.Frames[frameIndex];
+            inputEvents = frame.InputEvents;
+
+            if (inputEvents.Count == 0)
+            {
+                return;
+            }
+
+            // Copy handlers to avoid holding lock during invocation
+            handlersCopy = new Dictionary<InputEventType, List<Action<InputEvent>>>(inputHandlers.Count);
+            foreach (var kvp in inputHandlers)
+            {
+                handlersCopy[kvp.Key] = [.. kvp.Value];
+            }
+
+            customHandlersCopy = new Dictionary<string, List<Delegate>>(customInputHandlers.Count);
+            foreach (var kvp in customInputHandlers)
+            {
+                customHandlersCopy[kvp.Key] = [.. kvp.Value];
+            }
+        }
+
+        // Invoke handlers outside lock
+        foreach (var inputEvent in inputEvents)
+        {
+            if (inputEvent.Type == InputEventType.Custom)
+            {
+                // Handle custom input events
+                if (inputEvent.CustomType is not null &&
+                    customHandlersCopy.TryGetValue(inputEvent.CustomType, out var customHandlers))
+                {
+                    foreach (var handler in customHandlers)
+                    {
+                        InvokeCustomHandler(handler, inputEvent.CustomData);
+                    }
+                }
+            }
+            else
+            {
+                // Handle standard input events
+                if (handlersCopy.TryGetValue(inputEvent.Type, out var handlers))
+                {
+                    foreach (var handler in handlers)
+                    {
+                        handler.Invoke(inputEvent);
+                    }
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets the input events for the current frame.
+    /// </summary>
+    /// <returns>
+    /// The list of input events for the current frame, or an empty list if no
+    /// replay is loaded or the current frame has no input events.
+    /// </returns>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public IReadOnlyList<InputEvent> GetCurrentInputEvents()
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            if (replayData is null || currentFrameIndex < 0 || currentFrameIndex >= replayData.Frames.Count)
+            {
+                return [];
+            }
+
+            return replayData.Frames[currentFrameIndex].InputEvents;
+        }
+    }
+
+    /// <summary>
+    /// Gets the input events for a specific frame.
+    /// </summary>
+    /// <param name="frameIndex">The 0-based frame index.</param>
+    /// <returns>The list of input events for the specified frame.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when no replay is loaded.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when the frame index is out of range.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    public IReadOnlyList<InputEvent> GetInputEvents(int frameIndex)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            ThrowIfNoReplayLoaded();
+
+            if (frameIndex < 0 || frameIndex >= replayData!.Frames.Count)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(frameIndex),
+                    frameIndex,
+                    $"Frame index must be between 0 and {replayData!.Frames.Count - 1}.");
+            }
+
+            return replayData.Frames[frameIndex].InputEvents;
+        }
+    }
+
+    private static void InvokeCustomHandler(Delegate handler, object? data)
+    {
+        if (data is null)
+        {
+            return;
+        }
+
+        try
+        {
+            // Get the handler's expected parameter type
+            var parameterType = handler.Method.GetParameters()[0].ParameterType;
+
+            // Check if the data is assignable to the parameter type
+            if (parameterType.IsInstanceOfType(data))
+            {
+                handler.DynamicInvoke(data);
+            }
+        }
+        catch (Exception)
+        {
+            // Ignore type mismatch errors - handler simply won't be invoked
+        }
+    }
+
+    #endregion
 }
