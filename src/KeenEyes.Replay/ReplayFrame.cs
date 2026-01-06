@@ -78,4 +78,23 @@ public sealed record ReplayFrame
     /// </para>
     /// </remarks>
     public int? PrecedingSnapshotIndex { get; init; }
+
+    /// <summary>
+    /// Gets or sets the world state checksum at the end of this frame.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The checksum captures the complete world state (entities, components,
+    /// singletons) at the end of this frame. It is used during playback to
+    /// detect desynchronization.
+    /// </para>
+    /// <para>
+    /// A value of null indicates the checksum was not recorded. This can occur
+    /// when recording without checksum generation enabled or when loading older
+    /// replay files that predate checksum support.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="WorldChecksum"/>
+    /// <seealso cref="ReplayDesyncException"/>
+    public uint? Checksum { get; init; }
 }

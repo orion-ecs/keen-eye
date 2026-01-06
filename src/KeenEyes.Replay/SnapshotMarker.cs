@@ -69,4 +69,22 @@ public sealed record SnapshotMarker
     /// </para>
     /// </remarks>
     public required WorldSnapshot Snapshot { get; init; }
+
+    /// <summary>
+    /// Gets or sets the world state checksum when this snapshot was captured.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The checksum captures the complete world state at the moment of snapshot
+    /// capture. It can be used to verify snapshot integrity and detect desyncs
+    /// during replay seeking operations.
+    /// </para>
+    /// <para>
+    /// A value of null indicates the checksum was not recorded. This can occur
+    /// when recording without checksum generation enabled or when loading older
+    /// replay files that predate checksum support.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="WorldChecksum"/>
+    public uint? Checksum { get; init; }
 }

@@ -1239,6 +1239,154 @@ public partial class ReplayRecorderTests
     }
 
     #endregion
+
+    #region Checksum Recording Tests
+
+    [Fact]
+    public void Frame_WhenRecordChecksumsDisabled_HasNullChecksum()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordChecksums = false };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Act
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result.Frames);
+        Assert.Null(result.Frames[0].Checksum);
+    }
+
+    [Fact]
+    public void Frame_WhenRecordChecksumsEnabled_HasChecksum()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordChecksums = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Act
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result.Frames);
+        Assert.NotNull(result.Frames[0].Checksum);
+    }
+
+    [Fact]
+    public void Snapshot_WhenRecordChecksumsEnabled_HasChecksum()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordChecksums = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Initial snapshot is captured on start
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result.Snapshots);
+        Assert.NotNull(result.Snapshots[0].Checksum);
+    }
+
+    [Fact]
+    public void Snapshot_WhenRecordChecksumsDisabled_HasNullChecksum()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordChecksums = false };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Initial snapshot is captured on start
+        var result = recorder.StopRecording();
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Single(result.Snapshots);
+        Assert.Null(result.Snapshots[0].Checksum);
+    }
+
+    [Fact]
+    public void RecordChecksums_DefaultValue_IsFalse()
+    {
+        // Arrange & Act
+        var options = new ReplayOptions();
+
+        // Assert
+        Assert.False(options.RecordChecksums);
+    }
+
+    [Fact]
+    public void Frame_Checksums_AreConsistentForSameWorldState()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordChecksums = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Act - Record two frames without changing world state
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert - Same world state = same checksum
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Frames.Count);
+        Assert.NotNull(result.Frames[0].Checksum);
+        Assert.NotNull(result.Frames[1].Checksum);
+        Assert.Equal(result.Frames[0].Checksum, result.Frames[1].Checksum);
+    }
+
+    [Fact]
+    public void Frame_Checksums_DifferWhenWorldStateChanges()
+    {
+        // Arrange
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var options = new ReplayOptions { RecordChecksums = true };
+        var recorder = new ReplayRecorder(world, serializer, options);
+        recorder.StartRecording();
+
+        // Act - Record frame, change world, record another frame
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+
+        // Change world state
+        world.Spawn().Build();
+
+        recorder.BeginFrame(0.016f);
+        recorder.EndFrame(0.016f);
+        var result = recorder.StopRecording();
+
+        // Assert - Different world state = different checksum
+        Assert.NotNull(result);
+        Assert.Equal(2, result.Frames.Count);
+        Assert.NotNull(result.Frames[0].Checksum);
+        Assert.NotNull(result.Frames[1].Checksum);
+        Assert.NotEqual(result.Frames[0].Checksum, result.Frames[1].Checksum);
+    }
+
+    #endregion
 }
 
 /// <summary>
