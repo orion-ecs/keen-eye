@@ -174,6 +174,7 @@ using var world = new WorldBuilder()
 - [Plugins](plugins.md) - Modular extensions and feature packaging
 - [Networking](networking.md) - Multiplayer replication, prediction, and interpolation
 - [Logging](logging.md) - Pluggable logging system
+- [AI System](ai.md) - Finite State Machines, Behavior Trees, and Utility AI
 
 ### UI Features
 - [UI System](ui.md) - Retained-mode UI with ECS entities
@@ -219,7 +220,7 @@ Technical research reports for planned features:
 - [UI System](research/ui-system.md)
 - [Audio System](research/audio-system.md)
 - [Animation System](research/animation-system.md)
-- [AI System](research/ai-system.md)
+- [AI System Design](research/ai-system.md) - Original design document (see [AI Guide](ai.md) for usage)
 - [Particle System](research/particle-system.md)
 
 ### Foundation Research

@@ -1,5 +1,7 @@
 # AI System Architecture
 
+> **Note:** This is the original design document. For the implementation guide, see [AI System Guide](../ai.md).
+
 This document outlines the architecture for the AI system in KeenEyes, providing decision-making patterns for game entities including state machines, behavior trees, and utility AI.
 
 ---

@@ -374,17 +374,27 @@ See [ADR-001](docs/adr/001-world-manager-architecture.md) for the full decision 
 
 ```
 World (facade)
-├── HierarchyManager      - Parent-child entity relationships
-├── SystemManager         - System registration, ordering, execution
-├── PluginManager         - Plugin lifecycle
-├── SingletonManager      - Global resource storage
-├── ExtensionManager      - Plugin-provided APIs
-├── EntityNamingManager   - Entity name registration and lookup
-├── EventManager          - Component and entity lifecycle events
-├── ChangeTracker         - Dirty flag tracking with entity reconstruction
-├── ArchetypeManager      - Component storage
-├── QueryManager          - Query caching
-└── ComponentRegistry     - Component type registry
+├── HierarchyManager           - Parent-child entity relationships
+├── SystemManager              - System registration, ordering, execution
+├── SystemHookManager          - Before/after system execution hooks
+├── PluginManager              - Plugin lifecycle
+├── SingletonManager           - Global resource storage
+├── ExtensionManager           - Plugin-provided APIs
+├── EntityNamingManager        - Entity name registration and lookup
+├── EventManager               - Component and entity lifecycle events
+├── MessageManager             - Inter-system messaging
+├── TagManager                 - String-based entity tagging
+├── ChangeTracker              - Dirty flag tracking with entity reconstruction
+├── ArchetypeManager           - Component storage
+├── QueryManager               - Query caching
+├── ComponentRegistry          - Component type registry
+├── ComponentValidationManager - Component constraint enforcement
+├── PrefabManager              - Entity prefab templates
+├── SaveManager                - World persistence orchestration
+├── SnapshotManager            - World state serialization
+├── SceneManager               - Scene loading and management
+├── StatisticsManager          - Memory and performance stats
+└── ComponentArrayPoolManager  - Component array pooling
 ```
 
 ### Manager Design Rules
