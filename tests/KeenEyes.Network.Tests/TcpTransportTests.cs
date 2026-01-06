@@ -8,6 +8,7 @@ namespace KeenEyes.Network.Tests;
 /// <summary>
 /// Tests for the <see cref="TcpTransport"/> class.
 /// </summary>
+[Collection("NetworkTests")]
 public class TcpTransportTests
 {
     [Fact]

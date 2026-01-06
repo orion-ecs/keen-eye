@@ -7,6 +7,7 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for the ParallelSystemPlugin and ParallelSystemScheduler.
 /// </summary>
+[Collection("ParallelismTests")]
 public class ParallelSystemPluginTests
 {
     #region Test Components

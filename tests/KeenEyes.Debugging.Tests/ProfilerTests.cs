@@ -3,6 +3,7 @@ namespace KeenEyes.Debugging.Tests;
 /// <summary>
 /// Unit tests for the <see cref="Profiler"/> class.
 /// </summary>
+[Collection("DebuggingTests")]
 public sealed class ProfilerTests
 {
     #region BeginSample/EndSample Tests

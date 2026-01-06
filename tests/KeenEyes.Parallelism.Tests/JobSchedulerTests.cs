@@ -6,6 +6,7 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for the JobScheduler and job system components.
 /// </summary>
+[Collection("ParallelismTests")]
 public class JobSchedulerTests
 {
     #region Test Jobs

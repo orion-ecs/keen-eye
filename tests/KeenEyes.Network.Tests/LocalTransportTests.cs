@@ -5,6 +5,7 @@ namespace KeenEyes.Network.Tests;
 /// <summary>
 /// Tests for the <see cref="LocalTransport"/> class.
 /// </summary>
+[Collection("NetworkTests")]
 public class LocalTransportTests
 {
     [Fact]
