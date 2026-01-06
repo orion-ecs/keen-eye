@@ -41,7 +41,8 @@ jobs:
         run: dotnet build --no-restore --configuration Release -p:Version=${{ steps.version.outputs.VERSION }}
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        timeout-minutes: 10
+        run: dotnet test --no-build --configuration Release --verbosity normal -- --parallel-assemblies none
 
       - name: Pack
         run: dotnet pack --no-build --configuration Release -p:Version=${{ steps.version.outputs.VERSION }} --output ./nupkg
