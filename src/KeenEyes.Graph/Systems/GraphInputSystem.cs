@@ -33,6 +33,7 @@ public sealed class GraphInputSystem : SystemBase
     private IInputContext? inputContext;
     private GraphContext? graphContext;
     private PortRegistry? portRegistry;
+    private NodeTypeRegistry? nodeTypeRegistry;
     private PortPositionCache? portCache;
     private IUndoRedoManager? undoManager;
 
@@ -63,6 +64,8 @@ public sealed class GraphInputSystem : SystemBase
 
     private const float ZoomSpeed = 0.1f;
     private const float DragThreshold = 5f;
+    private const float CollapseButtonSize = 12f;
+    private const float CollapseButtonPadding = 8f;
 
     /// <summary>
     /// Sets the canvas screen bounds for hit testing.
@@ -90,6 +93,11 @@ public sealed class GraphInputSystem : SystemBase
         if (portRegistry is null && !World.TryGetExtension(out portRegistry))
         {
             return;
+        }
+
+        if (nodeTypeRegistry is null)
+        {
+            World.TryGetExtension(out nodeTypeRegistry);
         }
 
         if (portCache is null && !World.TryGetExtension(out portCache))
@@ -273,6 +281,15 @@ public sealed class GraphInputSystem : SystemBase
 
         if (hitNode.IsValid)
         {
+            ref readonly var hitNodeData = ref World.Get<GraphNode>(hitNode);
+
+            // Check if clicked on collapse button
+            if (HitTestCollapseButton(hitNode, in hitNodeData, mousePos, canvasData.Zoom, origin))
+            {
+                ToggleNodeCollapse(hitNode);
+                return; // Don't start selection/drag
+            }
+
             // Clicked on a node
             var addToSelection = (keyboard.Modifiers & KeyModifiers.Control) != 0;
 
@@ -457,6 +474,46 @@ public sealed class GraphInputSystem : SystemBase
         }
 
         return hitNode;
+    }
+
+    private bool HitTestCollapseButton(Entity node, ref readonly GraphNode nodeData, Vector2 screenPos, float zoom, Vector2 origin)
+    {
+        // Check if node type is collapsible
+        var definition = nodeTypeRegistry?.GetDefinition(nodeData.NodeTypeId);
+        if (definition is null || !definition.IsCollapsible)
+        {
+            return false;
+        }
+
+        // Calculate collapse button bounds in canvas space
+        var buttonSize = CollapseButtonSize;
+        var padding = CollapseButtonPadding;
+        var headerHeight = GraphLayoutSystem.HeaderHeight;
+
+        // Button position in canvas coordinates (right side of header)
+        var buttonX = nodeData.Position.X + nodeData.Width - padding - buttonSize;
+        var buttonY = nodeData.Position.Y + ((headerHeight - buttonSize) / 2f);
+
+        var buttonRect = new Rectangle(buttonX, buttonY, buttonSize, buttonSize);
+
+        // Hit test using the canvas pan
+        ref readonly var canvasComponent = ref World.Get<GraphCanvas>(nodeData.Canvas);
+        return GraphTransform.HitTest(screenPos, buttonRect, canvasComponent.Pan, zoom, origin);
+    }
+
+    private void ToggleNodeCollapse(Entity node)
+    {
+        if (World.Has<GraphNodeCollapsed>(node))
+        {
+            // Expand: Remove the collapsed component
+            World.Remove<GraphNodeCollapsed>(node);
+        }
+        else
+        {
+            // Collapse: Store the current height and add collapsed component
+            ref readonly var nodeData = ref World.Get<GraphNode>(node);
+            World.Add(node, new GraphNodeCollapsed { ExpandedHeight = nodeData.Height });
+        }
     }
 
     private void DeleteSelected()

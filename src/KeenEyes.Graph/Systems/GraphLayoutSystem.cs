@@ -44,9 +44,19 @@ public sealed class GraphLayoutSystem : SystemBase
     public const float PortRadius = 6f;
 
     /// <summary>
+    /// Radius of port stubs when collapsed in pixels.
+    /// </summary>
+    public const float PortStubRadius = 4f;
+
+    /// <summary>
     /// Minimum node height in pixels.
     /// </summary>
     public const float MinNodeHeight = 60f;
+
+    /// <summary>
+    /// Height of a collapsed node (header only) in pixels.
+    /// </summary>
+    public const float CollapsedHeight = HeaderHeight;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -83,16 +93,30 @@ public sealed class GraphLayoutSystem : SystemBase
             return;
         }
 
-        // Calculate height based on port count
-        var inputCount = nodeType.InputPorts.Length;
-        var outputCount = nodeType.OutputPorts.Length;
-        var maxPortCount = Math.Max(inputCount, outputCount);
+        // Check if node is collapsed
+        var isCollapsed = World.Has<GraphNodeCollapsed>(node);
 
-        nodeData.Height = HeaderHeight + (maxPortCount * PortRowHeight) + BottomPadding;
-        nodeData.Height = Math.Max(nodeData.Height, MinNodeHeight);
+        if (isCollapsed)
+        {
+            // Collapsed nodes show only the header
+            nodeData.Height = CollapsedHeight;
 
-        // Calculate port positions
-        CalculatePortPositions(node, ref nodeData, nodeType);
+            // Calculate stub positions (evenly distributed along edges)
+            CalculateCollapsedPortPositions(node, ref nodeData, nodeType);
+        }
+        else
+        {
+            // Calculate height based on port count
+            var inputCount = nodeType.InputPorts.Length;
+            var outputCount = nodeType.OutputPorts.Length;
+            var maxPortCount = Math.Max(inputCount, outputCount);
+
+            nodeData.Height = HeaderHeight + (maxPortCount * PortRowHeight) + BottomPadding;
+            nodeData.Height = Math.Max(nodeData.Height, MinNodeHeight);
+
+            // Calculate port positions
+            CalculatePortPositions(node, ref nodeData, nodeType);
+        }
     }
 
     private void CalculatePortPositions(Entity node, ref GraphNode nodeData, PortRegistry.NodeTypeInfo nodeType)
@@ -113,6 +137,44 @@ public sealed class GraphLayoutSystem : SystemBase
             var yOffset = HeaderHeight + (i * PortRowHeight) + (PortRowHeight / 2);
             var position = nodeOrigin + new Vector2(nodeData.Width, yOffset);
             portCache!.SetPortPosition(node, PortDirection.Output, i, position);
+        }
+    }
+
+    private void CalculateCollapsedPortPositions(Entity node, ref GraphNode nodeData, PortRegistry.NodeTypeInfo nodeType)
+    {
+        var nodeOrigin = nodeData.Position;
+        var centerY = HeaderHeight / 2f;
+
+        // Calculate port spacing for collapsed view
+        var inputCount = nodeType.InputPorts.Length;
+        var outputCount = nodeType.OutputPorts.Length;
+
+        // Input ports (left edge) - evenly distributed vertically
+        if (inputCount > 0)
+        {
+            var spacing = inputCount == 1 ? 0f : (HeaderHeight - 8f) / (inputCount - 1);
+            var startY = inputCount == 1 ? centerY : 4f;
+
+            for (int i = 0; i < inputCount; i++)
+            {
+                var yOffset = startY + (i * spacing);
+                var position = nodeOrigin + new Vector2(0, yOffset);
+                portCache!.SetPortPosition(node, PortDirection.Input, i, position);
+            }
+        }
+
+        // Output ports (right edge) - evenly distributed vertically
+        if (outputCount > 0)
+        {
+            var spacing = outputCount == 1 ? 0f : (HeaderHeight - 8f) / (outputCount - 1);
+            var startY = outputCount == 1 ? centerY : 4f;
+
+            for (int i = 0; i < outputCount; i++)
+            {
+                var yOffset = startY + (i * spacing);
+                var position = nodeOrigin + new Vector2(nodeData.Width, yOffset);
+                portCache!.SetPortPosition(node, PortDirection.Output, i, position);
+            }
         }
     }
 }

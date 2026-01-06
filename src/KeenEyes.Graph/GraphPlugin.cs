@@ -1,5 +1,6 @@
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Graph.Abstractions;
+using KeenEyes.Graph.Nodes;
 
 namespace KeenEyes.Graph;
 
@@ -28,6 +29,12 @@ namespace KeenEyes.Graph;
 /// </listheader>
 /// <item>
 /// <term>EarlyUpdate</term>
+/// <term>-5</term>
+/// <term><see cref="GraphWidgetSystem"/></term>
+/// <term>Process widget input (text editing, slider drag)</term>
+/// </item>
+/// <item>
+/// <term>EarlyUpdate</term>
 /// <term>0</term>
 /// <term><see cref="GraphInputSystem"/></term>
 /// <term>Pan, zoom, select, drag nodes</term>
@@ -50,6 +57,7 @@ public sealed class GraphPlugin : IWorldPlugin
 {
     private GraphContext? graphContext;
     private PortRegistry? portRegistry;
+    private NodeTypeRegistry? nodeTypeRegistry;
     private PortPositionCache? portCache;
 
     /// <inheritdoc/>
@@ -63,8 +71,12 @@ public sealed class GraphPlugin : IWorldPlugin
 
         // Create registries and context
         portRegistry = new PortRegistry();
+        nodeTypeRegistry = new NodeTypeRegistry(portRegistry);
         graphContext = new GraphContext(context.World, portRegistry);
         portCache = new PortPositionCache();
+
+        // Register built-in node types
+        RegisterBuiltInNodes();
 
         // Wire undo manager if available
         if (context.World.TryGetExtension<IUndoRedoManager>(out var undoManager) && undoManager is not null)
@@ -75,9 +87,11 @@ public sealed class GraphPlugin : IWorldPlugin
         // Expose extensions
         context.SetExtension(graphContext);
         context.SetExtension(portRegistry);
+        context.SetExtension(nodeTypeRegistry);
         context.SetExtension(portCache);
 
         // Register systems
+        context.AddSystem<GraphWidgetSystem>(SystemPhase.EarlyUpdate, order: -5);
         context.AddSystem<GraphInputSystem>(SystemPhase.EarlyUpdate, order: 0);
         context.AddSystem<GraphContextMenuSystem>(SystemPhase.EarlyUpdate, order: 5);
         context.AddSystem<GraphViewAnimationSystem>(SystemPhase.Update, order: 0);
@@ -91,10 +105,12 @@ public sealed class GraphPlugin : IWorldPlugin
         // Remove extensions
         context.RemoveExtension<GraphContext>();
         context.RemoveExtension<PortRegistry>();
+        context.RemoveExtension<NodeTypeRegistry>();
         context.RemoveExtension<PortPositionCache>();
 
         graphContext = null;
         portRegistry = null;
+        nodeTypeRegistry = null;
         portCache = null;
 
         // Systems are automatically cleaned up by PluginManager
@@ -107,11 +123,17 @@ public sealed class GraphPlugin : IWorldPlugin
         context.RegisterComponent<GraphNode>();
         context.RegisterComponent<GraphConnection>();
 
+        // Node state components
+        context.RegisterComponent<GraphNodeCollapsed>();
+        context.RegisterComponent<CommentNodeData>();
+        context.RegisterComponent<GroupNodeData>();
+
         // Interaction state components (added to canvas entity)
         context.RegisterComponent<PendingConnection>();
         context.RegisterComponent<HoveredPort>();
         context.RegisterComponent<GraphContextMenu>();
         context.RegisterComponent<GraphViewAnimation>();
+        context.RegisterComponent<WidgetFocus>();
 
         // Tag components
         context.RegisterComponent<GraphCanvasTag>(isTag: true);
@@ -120,5 +142,12 @@ public sealed class GraphPlugin : IWorldPlugin
         context.RegisterComponent<GraphNodeDraggingTag>(isTag: true);
         context.RegisterComponent<GraphNodeGhostTag>(isTag: true);
         context.RegisterComponent<GraphSpacePanningTag>(isTag: true);
+    }
+
+    private void RegisterBuiltInNodes()
+    {
+        nodeTypeRegistry!.Register<CommentNode>();
+        nodeTypeRegistry.Register<RerouteNode>();
+        nodeTypeRegistry.Register<GroupNode>();
     }
 }
