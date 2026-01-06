@@ -197,7 +197,9 @@
       "keeneyes.ai": {
         "type": "Project",
         "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
           "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Navigation": "[1.0.0, )",
           "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
         }
