@@ -346,6 +346,72 @@ public static class EditorSettings
 
     #endregion
 
+    #region Hot Reload Settings
+
+    /// <summary>
+    /// Gets or sets the path to the game project (.csproj) for hot reload.
+    /// </summary>
+    public static string GameProjectPath
+    {
+        get => _data.HotReload.GameProjectPath;
+        set
+        {
+            var newValue = value ?? string.Empty;
+            if (_data.HotReload.GameProjectPath == newValue) return;
+            var oldValue = _data.HotReload.GameProjectPath;
+            _data.HotReload.GameProjectPath = newValue;
+            OnSettingChanged(nameof(GameProjectPath), "HotReload", oldValue, newValue);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether hot reload is enabled.
+    /// </summary>
+    public static bool HotReloadEnabled
+    {
+        get => _data.HotReload.Enabled;
+        set
+        {
+            if (_data.HotReload.Enabled == value) return;
+            var oldValue = _data.HotReload.Enabled;
+            _data.HotReload.Enabled = value;
+            OnSettingChanged(nameof(HotReloadEnabled), "HotReload", oldValue, value);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the debounce delay in milliseconds before triggering a rebuild.
+    /// </summary>
+    public static int HotReloadDebounceMs
+    {
+        get => _data.HotReload.DebounceMs;
+        set
+        {
+            var clamped = Math.Clamp(value, 100, 5000);
+            if (_data.HotReload.DebounceMs == clamped) return;
+            var oldValue = _data.HotReload.DebounceMs;
+            _data.HotReload.DebounceMs = clamped;
+            OnSettingChanged(nameof(HotReloadDebounceMs), "HotReload", oldValue, clamped);
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets whether to automatically reload when files change.
+    /// </summary>
+    public static bool HotReloadAutoReload
+    {
+        get => _data.HotReload.AutoReload;
+        set
+        {
+            if (_data.HotReload.AutoReload == value) return;
+            var oldValue = _data.HotReload.AutoReload;
+            _data.HotReload.AutoReload = value;
+            OnSettingChanged(nameof(HotReloadAutoReload), "HotReload", oldValue, value);
+        }
+    }
+
+    #endregion
+
     #region External Tools Settings
 
     /// <summary>
@@ -532,6 +598,9 @@ public static class EditorSettings
             case "Shortcuts":
                 _data.Shortcuts = defaults.Shortcuts;
                 break;
+            case "HotReload":
+                _data.HotReload = defaults.HotReload;
+                break;
         }
 
         Save();
@@ -547,6 +616,7 @@ public static class EditorSettings
         "Appearance",
         "Viewport",
         "PlayMode",
+        "HotReload",
         "ExternalTools",
         "Shortcuts"
     ];
@@ -571,6 +641,7 @@ public static class EditorSettings
         target.Appearance = source.Appearance;
         target.Viewport = source.Viewport;
         target.PlayMode = source.PlayMode;
+        target.HotReload = source.HotReload;
         target.ExternalTools = source.ExternalTools;
         target.Shortcuts = source.Shortcuts;
     }
@@ -622,6 +693,7 @@ internal sealed class SettingsData
     public AppearanceSettings Appearance { get; set; } = new();
     public ViewportSettings Viewport { get; set; } = new();
     public PlayModeSettings PlayMode { get; set; } = new();
+    public HotReloadSettings HotReload { get; set; } = new();
     public ExternalToolsSettings ExternalTools { get; set; } = new();
     public ShortcutsSettings Shortcuts { get; set; } = new();
 }
@@ -690,6 +762,17 @@ internal sealed class ExternalToolsSettings
 internal sealed class ShortcutsSettings
 {
     public string CustomShortcutsPath { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Hot reload settings.
+/// </summary>
+internal sealed class HotReloadSettings
+{
+    public string GameProjectPath { get; set; } = string.Empty;
+    public bool Enabled { get; set; } = true;
+    public int DebounceMs { get; set; } = 500;
+    public bool AutoReload { get; set; } = true;
 }
 
 #endregion
