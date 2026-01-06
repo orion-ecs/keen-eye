@@ -59,7 +59,7 @@ namespace KeenEyes.Replay.Ghost;
 public sealed class GhostManager : IDisposable
 {
     private readonly Lock syncRoot = new();
-    private readonly Dictionary<string, ManagedGhost> ghosts = new();
+    private readonly Dictionary<string, ManagedGhost> ghosts = [];
     private bool disposed;
 
     /// <summary>
