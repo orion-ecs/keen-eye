@@ -34,6 +34,7 @@
     <ProjectReference Include="..\..\src\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Navigation.DotRecast\KeenEyes.Navigation.DotRecast.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Replay\KeenEyes.Replay.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.AI\KeenEyes.AI.csproj" />
   </ItemGroup>
 
 </Project>

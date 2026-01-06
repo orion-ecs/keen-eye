@@ -12,6 +12,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
     <ProjectReference Include="..\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Navigation\KeenEyes.Navigation.csproj" />
     <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
