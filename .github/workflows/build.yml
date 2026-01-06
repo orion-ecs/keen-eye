@@ -67,7 +67,7 @@ jobs:
 
       - name: Test
         timeout-minutes: 10
-        run: dotnet test --no-build --configuration Release --verbosity normal --coverage --coverage-output-format cobertura --report-github --report-github-summary-include-passed false -- --parallel-assemblies none
+        run: dotnet test --no-build --configuration Release --verbosity normal --coverage --coverage-output-format cobertura --report-github --report-github-summary-include-passed false --max-parallel-test-modules 1
 
       - name: Generate coverage report
         uses: danielpalme/ReportGenerator-GitHub-Action@5
