@@ -352,9 +352,11 @@ public static class WorldPluginExtensions
 ```bash
 dotnet restore
 dotnet build
-dotnet test
+dotnet test --max-parallel-test-modules 1
 dotnet format --verify-no-changes  # Check formatting
 ```
+
+**Important:** Always use `--max-parallel-test-modules 1` when running tests. This prevents test assemblies from running in parallel, which causes ThreadPool contention and intermittent hangs in the Parallelism, Network, and Debugging test suites.
 
 ## Key Design Decisions
 
