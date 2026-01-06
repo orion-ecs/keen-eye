@@ -38,4 +38,20 @@ public interface IStatisticsCapability
     /// Statistics are computed on-demand and represent a snapshot in time.
     /// </remarks>
     MemoryStats GetMemoryStats();
+
+    /// <summary>
+    /// Gets detailed statistics for all archetypes in the world.
+    /// </summary>
+    /// <returns>A list of statistics for each archetype.</returns>
+    /// <remarks>
+    /// <para>
+    /// Archetype statistics provide insight into how entities are distributed
+    /// across different component combinations and the memory efficiency of each.
+    /// </para>
+    /// <para>
+    /// This is useful for identifying fragmented archetypes or those consuming
+    /// unexpectedly large amounts of memory.
+    /// </para>
+    /// </remarks>
+    IReadOnlyList<ArchetypeStatistics> GetArchetypeStatistics();
 }

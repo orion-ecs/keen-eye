@@ -15,6 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\src\KeenEyes.Common\KeenEyes.Common.csproj" />
     <ProjectReference Include="..\..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
     <ProjectReference Include="..\..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
   </ItemGroup>

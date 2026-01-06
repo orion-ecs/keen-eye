@@ -5,6 +5,8 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/KeenEyes.AotVsJit.Benchmarks/KeenEyes.AotVsJit.Benchmarks.csproj" />
+    <Project Path="benchmarks/KeenEyes.AotVsJit.Benchmarks/StartupTimeBenchmark/StartupTimeBenchmark.csproj" />
     <Project Path="benchmarks/KeenEyes.Benchmarks/KeenEyes.Benchmarks.csproj" />
     <Project Path="benchmarks/KeenEyes.Spatial.Benchmarks/KeenEyes.Spatial.Benchmarks.csproj" />
   </Folder>
@@ -46,17 +48,25 @@
     <Project Path="src/KeenEyes.Platform.Silk/KeenEyes.Platform.Silk.csproj" />
   </Folder>
   <Folder Name="/src/plugins/">
+    <Project Path="src/KeenEyes.AI/KeenEyes.AI.csproj" />
     <Project Path="src/KeenEyes.Animation/KeenEyes.Animation.csproj" />
     <Project Path="src/KeenEyes.Assets/KeenEyes.Assets.csproj" />
     <Project Path="src/KeenEyes.Audio.Abstractions/KeenEyes.Audio.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Audio.Silk/KeenEyes.Audio.Silk.csproj" />
     <Project Path="src/KeenEyes.Audio/KeenEyes.Audio.csproj" />
     <Project Path="src/KeenEyes.Debugging/KeenEyes.Debugging.csproj" />
+    <Project Path="src/KeenEyes.Graph.Abstractions/KeenEyes.Graph.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Graph/KeenEyes.Graph.csproj" />
     <Project Path="src/KeenEyes.Graphics.Abstractions/KeenEyes.Graphics.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Graphics/KeenEyes.Graphics.csproj" />
     <Project Path="src/KeenEyes.Input.Abstractions/KeenEyes.Input.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Input/KeenEyes.Input.csproj" />
+    <Project Path="src/KeenEyes.Localization/KeenEyes.Localization.csproj" />
     <Project Path="src/KeenEyes.Logging/KeenEyes.Logging.csproj" />
+    <Project Path="src/KeenEyes.Navigation.Abstractions/KeenEyes.Navigation.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.Navigation.DotRecast/KeenEyes.Navigation.DotRecast.csproj" />
+    <Project Path="src/KeenEyes.Navigation.Grid/KeenEyes.Navigation.Grid.csproj" />
+    <Project Path="src/KeenEyes.Navigation/KeenEyes.Navigation.csproj" />
     <Project Path="src/KeenEyes.Network.Abstractions/KeenEyes.Network.Abstractions.csproj" />
     <Project Path="src/KeenEyes.Network.Transport.Tcp/KeenEyes.Network.Transport.Tcp.csproj" />
     <Project Path="src/KeenEyes.Network.Transport.Udp/KeenEyes.Network.Transport.Udp.csproj" />
@@ -68,9 +78,6 @@
     <Project Path="src/KeenEyes.Replay/KeenEyes.Replay.csproj" />
     <Project Path="src/KeenEyes.Spatial/KeenEyes.Spatial.csproj" />
     <Project Path="src/KeenEyes.Testing/KeenEyes.Testing.csproj" />
-    <Project Path="src/KeenEyes.Navigation.Abstractions/KeenEyes.Navigation.Abstractions.csproj" />
-    <Project Path="src/KeenEyes.Navigation.Grid/KeenEyes.Navigation.Grid.csproj" />
-    <Project Path="src/KeenEyes.Navigation/KeenEyes.Navigation.csproj" />
     <Project Path="src/KeenEyes.UI.Abstractions/KeenEyes.UI.Abstractions.csproj" />
     <Project Path="src/KeenEyes.UI/KeenEyes.UI.csproj" />
   </Folder>
@@ -78,6 +85,7 @@
     <Project Path="templates/KeenEyes.Templates/KeenEyes.Templates.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/KeenEyes.AI.Tests/KeenEyes.AI.Tests.csproj" />
     <Project Path="tests/KeenEyes.Animation.Tests/KeenEyes.Animation.Tests.csproj" />
     <Project Path="tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj" />
     <Project Path="tests/KeenEyes.Assets.Tests/KeenEyes.Assets.Tests.csproj" />
@@ -89,10 +97,15 @@
     <Project Path="tests/KeenEyes.Editor.Integration.Tests/KeenEyes.Editor.Integration.Tests.csproj" />
     <Project Path="tests/KeenEyes.Editor.Tests/KeenEyes.Editor.Tests.csproj" />
     <Project Path="tests/KeenEyes.Generators.Tests/KeenEyes.Generators.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Graph.Kesl.Tests/KeenEyes.Graph.Kesl.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Graph.Tests/KeenEyes.Graph.Tests.csproj" />
     <Project Path="tests/KeenEyes.Graphics.Tests/KeenEyes.Graphics.Tests.csproj" />
     <Project Path="tests/KeenEyes.Input.Abstractions.Tests/KeenEyes.Input.Abstractions.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Localization.Tests/KeenEyes.Localization.Tests.csproj" />
     <Project Path="tests/KeenEyes.Logging.Tests/KeenEyes.Logging.Tests.csproj" />
     <Project Path="tests/KeenEyes.Navigation.Abstractions.Tests/KeenEyes.Navigation.Abstractions.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Navigation.DotRecast.Tests/KeenEyes.Navigation.DotRecast.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Navigation.Grid.Tests/KeenEyes.Navigation.Grid.Tests.csproj" />
     <Project Path="tests/KeenEyes.Navigation.Tests/KeenEyes.Navigation.Tests.csproj" />
     <Project Path="tests/KeenEyes.Network.Abstractions.Tests/KeenEyes.Network.Abstractions.Tests.csproj" />
     <Project Path="tests/KeenEyes.Network.Tests/KeenEyes.Network.Tests.csproj" />

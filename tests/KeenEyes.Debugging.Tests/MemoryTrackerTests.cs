@@ -275,6 +275,246 @@ public partial class MemoryTrackerTests
 
     #endregion
 
+    #region GetArchetypeStats Tests
+
+    [Fact]
+    public void GetArchetypeStats_EmptyWorld_ReturnsEmptyList()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        // Act
+        var stats = tracker.GetArchetypeStats();
+
+        // Assert
+        Assert.Empty(stats);
+    }
+
+    [Fact]
+    public void GetArchetypeStats_WithEntities_ReturnsArchetypeInfo()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn()
+            .With(new TestComponent { Value = 42 })
+            .Build();
+
+        // Act
+        var stats = tracker.GetArchetypeStats();
+
+        // Assert
+        Assert.Single(stats);
+        Assert.Equal(1, stats[0].EntityCount);
+        Assert.Contains("TestComponent", stats[0].ComponentTypeNames);
+    }
+
+    [Fact]
+    public void GetArchetypeStats_MultipleArchetypes_ReturnsSeparateEntries()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn().With(new TestComponent { Value = 1 }).Build();
+        world.Spawn().With(new LargeComponent()).Build();
+        world.Spawn().With(new TestComponent { Value = 2 }).With(new LargeComponent()).Build();
+
+        // Act
+        var stats = tracker.GetArchetypeStats();
+
+        // Assert
+        Assert.Equal(3, stats.Count);
+    }
+
+    [Fact]
+    public void GetArchetypeStats_SameArchetype_CountsEntitiesTogether()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn().With(new TestComponent { Value = 1 }).Build();
+        world.Spawn().With(new TestComponent { Value = 2 }).Build();
+        world.Spawn().With(new TestComponent { Value = 3 }).Build();
+
+        // Act
+        var stats = tracker.GetArchetypeStats();
+
+        // Assert
+        Assert.Single(stats);
+        Assert.Equal(3, stats[0].EntityCount);
+    }
+
+    [Fact]
+    public void GetArchetypeStats_IncludesMemoryEstimate()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn().With(new LargeComponent()).Build();
+
+        // Act
+        var stats = tracker.GetArchetypeStats();
+
+        // Assert
+        Assert.Single(stats);
+        Assert.True(stats[0].EstimatedMemoryBytes > 0);
+    }
+
+    [Fact]
+    public void GetArchetypeStats_IncludesUtilizationPercentage()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn().With(new TestComponent { Value = 1 }).Build();
+
+        // Act
+        var stats = tracker.GetArchetypeStats();
+
+        // Assert
+        Assert.Single(stats);
+        Assert.True(stats[0].UtilizationPercentage > 0);
+        Assert.True(stats[0].UtilizationPercentage <= 100);
+    }
+
+    [Fact]
+    public void GetArchetypeStats_ReturnsComponentTypeNames()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn()
+            .With(new TestComponent { Value = 1 })
+            .With(new LargeComponent())
+            .Build();
+
+        // Act
+        var stats = tracker.GetArchetypeStats();
+
+        // Assert
+        Assert.Single(stats);
+        Assert.Equal(2, stats[0].ComponentTypeNames.Count);
+        Assert.Contains("TestComponent", stats[0].ComponentTypeNames);
+        Assert.Contains("LargeComponent", stats[0].ComponentTypeNames);
+    }
+
+    #endregion
+
+    #region GetArchetypeReport Tests
+
+    [Fact]
+    public void GetArchetypeReport_EmptyWorld_ReturnsNoArchetypesMessage()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        // Act
+        var report = tracker.GetArchetypeReport();
+
+        // Assert
+        Assert.Contains("=== Archetype Statistics ===", report);
+        Assert.Contains("Total Archetypes: 0", report);
+        Assert.Contains("No archetypes in use.", report);
+    }
+
+    [Fact]
+    public void GetArchetypeReport_WithEntities_ReturnsFormattedReport()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn().With(new TestComponent { Value = 42 }).Build();
+
+        // Act
+        var report = tracker.GetArchetypeReport();
+
+        // Assert
+        Assert.Contains("=== Archetype Statistics ===", report);
+        Assert.Contains("Total Archetypes: 1", report);
+        Assert.Contains("ID", report);
+        Assert.Contains("Entities", report);
+        Assert.Contains("Chunks", report);
+        Assert.Contains("Utilization", report);
+        Assert.Contains("Memory", report);
+        Assert.Contains("Components", report);
+    }
+
+    [Fact]
+    public void GetArchetypeReport_IncludesArchetypeDetails()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        world.Spawn().With(new TestComponent { Value = 1 }).Build();
+        world.Spawn().With(new TestComponent { Value = 2 }).Build();
+
+        // Act
+        var report = tracker.GetArchetypeReport();
+
+        // Assert
+        // Should show the archetype with 2 entities
+        Assert.Contains("TestComponent", report);
+    }
+
+    [Fact]
+    public void GetArchetypeReport_TruncatesLongComponentLists()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        // Create entity with multiple components for longer component string
+        world.Spawn()
+            .With(new TestComponent { Value = 1 })
+            .With(new LargeComponent())
+            .Build();
+
+        // Act
+        var report = tracker.GetArchetypeReport();
+
+        // Assert - should contain component names (combined length < 40 for these)
+        Assert.Contains("TestComponent", report);
+        Assert.Contains("LargeComponent", report);
+    }
+
+    [Fact]
+    public void GetArchetypeReport_SortsByEntityCountDescending()
+    {
+        // Arrange
+        using var world = new World();
+        var tracker = new MemoryTracker(world);
+
+        // Create archetypes with different entity counts
+        world.Spawn().With(new LargeComponent()).Build(); // 1 entity
+
+        world.Spawn().With(new TestComponent { Value = 1 }).Build(); // 3 entities
+        world.Spawn().With(new TestComponent { Value = 2 }).Build();
+        world.Spawn().With(new TestComponent { Value = 3 }).Build();
+
+        // Act
+        var report = tracker.GetArchetypeReport();
+        var lines = report.Split('\n');
+
+        // Assert - Find the data lines (after header lines)
+        var testCompLine = Array.FindIndex(lines, l => l.Contains("TestComponent"));
+        var largeCompLine = Array.FindIndex(lines, l => l.Contains("LargeComponent"));
+
+        // TestComponent archetype (3 entities) should come before LargeComponent (1 entity)
+        Assert.True(testCompLine < largeCompLine, "Archetypes should be sorted by entity count descending");
+    }
+
+    #endregion
+
     #region Integration Tests
 
     [Fact]

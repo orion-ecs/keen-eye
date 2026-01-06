@@ -1,4 +1,4 @@
-using KeenEyes.Generators.Attributes;
+using KeenEyes;
 
 namespace KeenEyes.AotVsJit.Benchmarks;
 
