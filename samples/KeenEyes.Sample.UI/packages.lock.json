@@ -31,6 +31,11 @@
         "resolved": "8.0.0",
         "contentHash": "NSmDw3K0ozNDgShSIpsZcbFIzBX4w28nDag+TfaQujkXGazBm+lid5onlWoCBy4VsLxqnnKjEBbGSJVWJMf43g=="
       },
+      "Microsoft.Extensions.ObjectPool": {
+        "type": "Transitive",
+        "resolved": "8.0.10",
+        "contentHash": "u7gAG7JgxF8VSJUGPSudAcPxOt+ymJKQCSxNRxiuKV+klCQbHljQR75SilpedCTfhPWDhtUwIJpnDVtspr9nMg=="
+      },
       "Silk.NET.Core": {
         "type": "Transitive",
         "resolved": "2.22.0",
@@ -97,6 +102,25 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
+      "keeneyes.assets": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Audio.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "NVorbis": "[0.10.5, )",
+          "SharpGLTF.Core": "[1.0.6, )",
+          "StbImageSharp": "[2.30.15, )"
+        }
+      },
+      "keeneyes.audio.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.common": {
         "type": "Project",
         "dependencies": {
@@ -158,6 +182,17 @@
           "Silk.NET.Input": "[2.22.0, )"
         }
       },
+      "keeneyes.localization": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Assets": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.UI.Abstractions": "[1.0.0, )",
+          "MessageFormat": "[7.1.3, )"
+        }
+      },
       "keeneyes.platform.silk": {
         "type": "Project",
         "dependencies": {
@@ -188,6 +223,7 @@
           "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.Input.Abstractions": "[1.0.0, )",
+          "KeenEyes.Localization": "[1.0.0, )",
           "KeenEyes.UI.Abstractions": "[1.0.0, )"
         }
       },
@@ -210,6 +246,27 @@
           "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.2.2",
           "StbImageSharp": "2.30.15"
         }
+      },
+      "MessageFormat": {
+        "type": "CentralTransitive",
+        "requested": "[7.1.3, )",
+        "resolved": "7.1.3",
+        "contentHash": "go1/KHij1AB5K3nKiKKzSuSVIAKivgAnC3P6FAOOhB/WMg7y6lw9n95LCyABVuoewk4CNI8S0RZVvC6gkeTp7g==",
+        "dependencies": {
+          "Microsoft.Extensions.ObjectPool": "8.0.10"
+        }
+      },
+      "NVorbis": {
+        "type": "CentralTransitive",
+        "requested": "[0.10.5, )",
+        "resolved": "0.10.5",
+        "contentHash": "o+IptCG4Avze39HrGeztC+xIp6fOOwGVAwkoa1J++4Ji1WmZ+KIKlFl5wsgxsXqBkmdpfs/vFSUproiLKYa2bw=="
+      },
+      "SharpGLTF.Core": {
+        "type": "CentralTransitive",
+        "requested": "[1.0.6, )",
+        "resolved": "1.0.6",
+        "contentHash": "m3qIvUnpvRRfQ0fp0TFfpPk+vsHkCIOf/uIVJ19fe9dwa29KCO/PeHVXKAph8nsFxFLXitTIIqCa5W8JGLMhBg=="
       },
       "Silk.NET.Input": {
         "type": "CentralTransitive",

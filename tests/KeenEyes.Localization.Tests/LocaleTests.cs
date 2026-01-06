@@ -125,6 +125,97 @@ public class LocaleTests
         Locale.RussianRU.Code.ShouldBe("ru-RU");
     }
 
+    [Fact]
+    public void PredefinedRtlLocales_HaveCorrectCodes()
+    {
+        Locale.Arabic.Code.ShouldBe("ar");
+        Locale.ArabicSA.Code.ShouldBe("ar-SA");
+        Locale.ArabicEG.Code.ShouldBe("ar-EG");
+        Locale.HebrewIL.Code.ShouldBe("he-IL");
+        Locale.PersianIR.Code.ShouldBe("fa-IR");
+        Locale.UrduPK.Code.ShouldBe("ur-PK");
+    }
+
+    [Fact]
+    public void PredefinedComplexScriptLocales_HaveCorrectCodes()
+    {
+        Locale.ThaiTH.Code.ShouldBe("th-TH");
+        Locale.HindiIN.Code.ShouldBe("hi-IN");
+    }
+
+    #endregion
+
+    #region IsRightToLeft Property
+
+    [Theory]
+    [InlineData("ar", true)]
+    [InlineData("ar-SA", true)]
+    [InlineData("ar-EG", true)]
+    [InlineData("he", true)]
+    [InlineData("he-IL", true)]
+    [InlineData("fa", true)]
+    [InlineData("fa-IR", true)]
+    [InlineData("ur", true)]
+    [InlineData("ur-PK", true)]
+    [InlineData("yi", true)]
+    [InlineData("dv", true)]
+    [InlineData("ps", true)]
+    [InlineData("sd", true)]
+    [InlineData("ug", true)]
+    public void IsRightToLeft_RtlLanguages_ReturnsTrue(string code, bool expected)
+    {
+        var locale = new Locale(code);
+
+        locale.IsRightToLeft.ShouldBe(expected);
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("en-US")]
+    [InlineData("ja-JP")]
+    [InlineData("zh-CN")]
+    [InlineData("ko-KR")]
+    [InlineData("de-DE")]
+    [InlineData("fr-FR")]
+    [InlineData("th-TH")]
+    [InlineData("hi-IN")]
+    public void IsRightToLeft_LtrLanguages_ReturnsFalse(string code)
+    {
+        var locale = new Locale(code);
+
+        locale.IsRightToLeft.ShouldBeFalse();
+    }
+
+    #endregion
+
+    #region TextDirection Property
+
+    [Fact]
+    public void TextDirection_RtlLocale_ReturnsRightToLeft()
+    {
+        var locale = Locale.Arabic;
+
+        locale.TextDirection.ShouldBe(TextDirection.RightToLeft);
+    }
+
+    [Fact]
+    public void TextDirection_LtrLocale_ReturnsLeftToRight()
+    {
+        var locale = Locale.EnglishUS;
+
+        locale.TextDirection.ShouldBe(TextDirection.LeftToRight);
+    }
+
+    [Fact]
+    public void TextDirection_PredefinedRtlLocales_AllReturnRtl()
+    {
+        Locale.Arabic.TextDirection.ShouldBe(TextDirection.RightToLeft);
+        Locale.ArabicSA.TextDirection.ShouldBe(TextDirection.RightToLeft);
+        Locale.HebrewIL.TextDirection.ShouldBe(TextDirection.RightToLeft);
+        Locale.PersianIR.TextDirection.ShouldBe(TextDirection.RightToLeft);
+        Locale.UrduPK.TextDirection.ShouldBe(TextDirection.RightToLeft);
+    }
+
     #endregion
 
     #region Equality

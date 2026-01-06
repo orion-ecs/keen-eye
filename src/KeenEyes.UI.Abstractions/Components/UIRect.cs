@@ -91,6 +91,39 @@ public struct UIRect : IComponent
     public short LocalZIndex;
 
     /// <summary>
+    /// When true, this element's horizontal layout will be mirrored for right-to-left (RTL) locales.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the layout system will automatically mirror the horizontal positioning
+    /// of this element when the active locale uses RTL text direction (Arabic, Hebrew, etc.).
+    /// </para>
+    /// <para>
+    /// This affects:
+    /// <list type="bullet">
+    ///   <item><description>Anchor point interpretation (left becomes right)</description></item>
+    ///   <item><description>Flexbox layout child ordering for horizontal layouts</description></item>
+    ///   <item><description>Offset interpretation</description></item>
+    /// </list>
+    /// </para>
+    /// <para>
+    /// Set to <c>false</c> for elements that should maintain their position regardless of
+    /// text direction (e.g., logos, images that are direction-independent).
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // In LTR: [Back] [Home] [Forward]
+    /// // In RTL: [Forward] [Home] [Back]
+    /// var navBar = new UIRect
+    /// {
+    ///     MirrorForRtl = true
+    /// };
+    /// </code>
+    /// </example>
+    public bool MirrorForRtl;
+
+    /// <summary>
     /// Creates a UI rect that stretches to fill its parent.
     /// </summary>
     public static UIRect Stretch() => new()

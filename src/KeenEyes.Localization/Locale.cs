@@ -64,6 +64,37 @@ public readonly record struct Locale(string Code)
     public Locale LanguageOnly => new(Language);
 
     /// <summary>
+    /// Gets whether this locale uses right-to-left text direction.
+    /// </summary>
+    /// <remarks>
+    /// Returns true for Arabic, Hebrew, Persian (Farsi), and Urdu languages.
+    /// </remarks>
+    public bool IsRightToLeft => Language switch
+    {
+        "ar" => true, // Arabic
+        "he" => true, // Hebrew
+        "fa" => true, // Persian (Farsi)
+        "ur" => true, // Urdu
+        "yi" => true, // Yiddish
+        "dv" => true, // Divehi (Maldivian)
+        "ps" => true, // Pashto
+        "sd" => true, // Sindhi
+        "ug" => true, // Uyghur
+        _ => false
+    };
+
+    /// <summary>
+    /// Gets the text direction for this locale.
+    /// </summary>
+    /// <remarks>
+    /// Returns <see cref="TextDirection.RightToLeft"/> for Arabic, Hebrew, Persian,
+    /// and other RTL languages. Returns <see cref="TextDirection.LeftToRight"/> for all others.
+    /// </remarks>
+    public TextDirection TextDirection => IsRightToLeft
+        ? TextDirection.RightToLeft
+        : TextDirection.LeftToRight;
+
+    /// <summary>
     /// English (United States) - "en-US".
     /// </summary>
     public static Locale EnglishUS => new("en-US");
@@ -122,6 +153,70 @@ public readonly record struct Locale(string Code)
     /// Russian (Russia) - "ru-RU".
     /// </summary>
     public static Locale RussianRU => new("ru-RU");
+
+    /// <summary>
+    /// Arabic (generic) - "ar".
+    /// </summary>
+    /// <remarks>
+    /// Arabic uses right-to-left text direction.
+    /// </remarks>
+    public static Locale Arabic => new("ar");
+
+    /// <summary>
+    /// Arabic (Saudi Arabia) - "ar-SA".
+    /// </summary>
+    /// <remarks>
+    /// Arabic uses right-to-left text direction.
+    /// </remarks>
+    public static Locale ArabicSA => new("ar-SA");
+
+    /// <summary>
+    /// Arabic (Egypt) - "ar-EG".
+    /// </summary>
+    /// <remarks>
+    /// Arabic uses right-to-left text direction.
+    /// </remarks>
+    public static Locale ArabicEG => new("ar-EG");
+
+    /// <summary>
+    /// Hebrew (Israel) - "he-IL".
+    /// </summary>
+    /// <remarks>
+    /// Hebrew uses right-to-left text direction.
+    /// </remarks>
+    public static Locale HebrewIL => new("he-IL");
+
+    /// <summary>
+    /// Persian/Farsi (Iran) - "fa-IR".
+    /// </summary>
+    /// <remarks>
+    /// Persian uses right-to-left text direction.
+    /// </remarks>
+    public static Locale PersianIR => new("fa-IR");
+
+    /// <summary>
+    /// Urdu (Pakistan) - "ur-PK".
+    /// </summary>
+    /// <remarks>
+    /// Urdu uses right-to-left text direction.
+    /// </remarks>
+    public static Locale UrduPK => new("ur-PK");
+
+    /// <summary>
+    /// Thai (Thailand) - "th-TH".
+    /// </summary>
+    /// <remarks>
+    /// Thai is a complex script language with stacking diacritics.
+    /// </remarks>
+    public static Locale ThaiTH => new("th-TH");
+
+    /// <summary>
+    /// Hindi (India) - "hi-IN".
+    /// </summary>
+    /// <remarks>
+    /// Hindi (Devanagari script) is a complex script language with stacking diacritics.
+    /// </remarks>
+    public static Locale HindiIN => new("hi-IN");
 
     /// <summary>
     /// Returns the locale code as a string.

@@ -37,6 +37,33 @@ public interface ILocalization
     Locale CurrentLocale { get; }
 
     /// <summary>
+    /// Gets the text direction for the current locale.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is a convenience property that returns the text direction of the current locale.
+    /// Use this to determine if the UI should be mirrored for RTL languages.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// if (localization.CurrentTextDirection == TextDirection.RightToLeft)
+    /// {
+    ///     // Mirror UI layout
+    /// }
+    /// </code>
+    /// </example>
+    TextDirection CurrentTextDirection => CurrentLocale.TextDirection;
+
+    /// <summary>
+    /// Gets whether the current locale uses right-to-left text direction.
+    /// </summary>
+    /// <remarks>
+    /// Convenience property equivalent to <c>CurrentLocale.IsRightToLeft</c>.
+    /// </remarks>
+    bool IsRightToLeft => CurrentLocale.IsRightToLeft;
+
+    /// <summary>
     /// Gets all locales that have registered string sources.
     /// </summary>
     IEnumerable<Locale> AvailableLocales { get; }

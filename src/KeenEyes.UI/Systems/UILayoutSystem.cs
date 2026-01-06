@@ -1,6 +1,7 @@
 using System.Numerics;
 using KeenEyes;
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Localization;
 using KeenEyes.UI.Abstractions;
 
 namespace KeenEyes.UI;
@@ -27,6 +28,8 @@ public sealed class UILayoutSystem : SystemBase
 {
     private IFontManager? fontManager;
     private bool fontManagerInitialized;
+    private ILocalization? localization;
+    private bool localizationInitialized;
     private Vector2 screenSize = new(1280, 720); // Default, should be updated from window
 
     /// <summary>
@@ -54,11 +57,33 @@ public sealed class UILayoutSystem : SystemBase
         }
     }
 
+    private void TryInitializeLocalization()
+    {
+        if (localizationInitialized)
+        {
+            return;
+        }
+
+        localizationInitialized = true;
+
+        if (World.TryGetExtension<ILocalization>(out var loc) && loc is not null)
+        {
+            localization = loc;
+        }
+    }
+
+    /// <summary>
+    /// Gets the current text direction from the localization system.
+    /// </summary>
+    private TextDirection CurrentTextDirection =>
+        localization?.CurrentTextDirection ?? TextDirection.LeftToRight;
+
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        // Lazy initialize font manager
+        // Lazy initialize dependencies
         TryInitializeFontManager();
+        TryInitializeLocalization();
 
         // Process all root canvases
         foreach (var rootEntity in World.Query<UIElement, UIRect, UIRootTag>())
@@ -109,6 +134,7 @@ public sealed class UILayoutSystem : SystemBase
     {
         // Get padding from parent style if available
         var padding = UIEdges.Zero;
+        bool isRtl = CurrentTextDirection == TextDirection.RightToLeft;
 
         foreach (var child in children)
         {
@@ -123,7 +149,8 @@ public sealed class UILayoutSystem : SystemBase
             }
 
             ref var childRect = ref World.Get<UIRect>(child);
-            childRect.ComputedBounds = CalculateAnchoredBounds(childRect, parentBounds, padding);
+            bool shouldMirror = isRtl && childRect.MirrorForRtl;
+            childRect.ComputedBounds = CalculateAnchoredBounds(childRect, parentBounds, padding, shouldMirror);
 
             // Process this child's children
             ProcessChildren(child, childRect.ComputedBounds);
@@ -133,6 +160,7 @@ public sealed class UILayoutSystem : SystemBase
     private void ProcessFlexboxLayout(Entity parent, Rectangle parentBounds, List<Entity> children)
     {
         ref readonly var layout = ref World.Get<UILayout>(parent);
+        ref readonly var parentRect = ref World.Get<UIRect>(parent);
 
         // Get padding from parent style
         var padding = UIEdges.Zero;
@@ -159,8 +187,19 @@ public sealed class UILayoutSystem : SystemBase
             return;
         }
 
-        // Reverse order if specified
-        if (layout.ReverseOrder)
+        // Determine if we should reverse for RTL
+        // For horizontal layouts with MirrorForRtl enabled, reverse the order when in RTL mode
+        bool isRtl = CurrentTextDirection == TextDirection.RightToLeft;
+        bool shouldMirrorForRtl = parentRect.MirrorForRtl && isRtl &&
+                                   layout.Direction == LayoutDirection.Horizontal;
+
+        // Reverse order logic:
+        // - If ReverseOrder is true and no RTL mirroring: reverse
+        // - If ReverseOrder is false and RTL mirroring: reverse
+        // - If both or neither: don't reverse (they cancel out)
+        bool shouldReverse = layout.ReverseOrder != shouldMirrorForRtl;
+
+        if (shouldReverse)
         {
             layoutChildren.Reverse();
         }
@@ -676,11 +715,18 @@ public sealed class UILayoutSystem : SystemBase
         return maxHeight + padding.VerticalSize;
     }
 
-    private static Rectangle CalculateAnchoredBounds(in UIRect rect, Rectangle parentBounds, UIEdges padding)
+    private static Rectangle CalculateAnchoredBounds(in UIRect rect, Rectangle parentBounds, UIEdges padding, bool mirrorHorizontal = false)
     {
+        // For RTL mirroring, we invert horizontal anchor positions and swap left/right offsets
+        float anchorMinX = mirrorHorizontal ? 1f - rect.AnchorMax.X : rect.AnchorMin.X;
+        float anchorMaxX = mirrorHorizontal ? 1f - rect.AnchorMin.X : rect.AnchorMax.X;
+        float offsetLeft = mirrorHorizontal ? rect.Offset.Right : rect.Offset.Left;
+        float offsetRight = mirrorHorizontal ? rect.Offset.Left : rect.Offset.Right;
+        float pivotX = mirrorHorizontal ? 1f - rect.Pivot.X : rect.Pivot.X;
+
         // Calculate anchor points in parent space
-        float anchorLeft = parentBounds.X + padding.Left + rect.AnchorMin.X * (parentBounds.Width - padding.HorizontalSize);
-        float anchorRight = parentBounds.X + padding.Left + rect.AnchorMax.X * (parentBounds.Width - padding.HorizontalSize);
+        float anchorLeft = parentBounds.X + padding.Left + anchorMinX * (parentBounds.Width - padding.HorizontalSize);
+        float anchorRight = parentBounds.X + padding.Left + anchorMaxX * (parentBounds.Width - padding.HorizontalSize);
         float anchorTop = parentBounds.Y + padding.Top + rect.AnchorMin.Y * (parentBounds.Height - padding.VerticalSize);
         float anchorBottom = parentBounds.Y + padding.Top + rect.AnchorMax.Y * (parentBounds.Height - padding.VerticalSize);
 
@@ -688,17 +734,17 @@ public sealed class UILayoutSystem : SystemBase
         float x, y, width, height;
 
         // Horizontal
-        if (Math.Abs(rect.AnchorMin.X - rect.AnchorMax.X) < 0.0001f)
+        if (Math.Abs(anchorMinX - anchorMaxX) < 0.0001f)
         {
             // Anchors match - use Size for width
             width = rect.WidthMode == UISizeMode.Fixed ? rect.Size.X : rect.Size.X;
-            x = anchorLeft + rect.Offset.Left - rect.Pivot.X * width;
+            x = anchorLeft + offsetLeft - pivotX * width;
         }
         else
         {
             // Anchors differ - stretch between anchors
-            x = anchorLeft + rect.Offset.Left;
-            width = anchorRight - anchorLeft - rect.Offset.Left - rect.Offset.Right;
+            x = anchorLeft + offsetLeft;
+            width = anchorRight - anchorLeft - offsetLeft - offsetRight;
         }
 
         // Vertical
