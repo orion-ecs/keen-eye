@@ -38,29 +38,29 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private Vector2 currentPan;
 
     // Colors
-    private static readonly Vector4 GridColorMajor = new(0.3f, 0.3f, 0.3f, 1f);
-    private static readonly Vector4 GridColorMinor = new(0.2f, 0.2f, 0.2f, 1f);
-    private static readonly Vector4 NodeBodyColor = new(0.15f, 0.15f, 0.15f, 1f);
-    private static readonly Vector4 NodeHeaderColor = new(0.25f, 0.35f, 0.5f, 1f);
-    private static readonly Vector4 NodeBorderColor = new(0.4f, 0.4f, 0.4f, 1f);
-    private static readonly Vector4 NodeSelectedBorderColor = new(0.3f, 0.6f, 1f, 1f);
-    private static readonly Vector4 NodeGhostColor = new(0.15f, 0.15f, 0.15f, 0.5f);
-    private static readonly Vector4 NodeGhostHeaderColor = new(0.25f, 0.35f, 0.5f, 0.5f);
-    private static readonly Vector4 NodeGhostBorderColor = new(0.4f, 0.4f, 0.4f, 0.5f);
-    private static readonly Vector4 PortColor = new(0.8f, 0.8f, 0.8f, 1f);
-    private static readonly Vector4 ConnectionColor = new(0.6f, 0.6f, 0.6f, 1f);
-    private static readonly Vector4 SelectionBoxFillColor = new(0.3f, 0.6f, 1f, 0.15f);
-    private static readonly Vector4 SelectionBoxBorderColor = new(0.3f, 0.6f, 1f, 0.8f);
-    private static readonly Vector4 PortHighlightValidColor = new(0.3f, 0.9f, 0.3f, 1f);
-    private static readonly Vector4 PortHighlightInvalidColor = new(0.9f, 0.3f, 0.3f, 1f);
-    private static readonly Vector4 ConnectionPreviewColor = new(0.7f, 0.7f, 0.7f, 0.6f);
-    private static readonly Vector4 ConversionIndicatorColor = new(1f, 0.8f, 0.2f, 1f);
-    private static readonly Vector4 ContextMenuBackgroundColor = new(0.15f, 0.15f, 0.15f, 0.95f);
-    private static readonly Vector4 ContextMenuBorderColor = new(0.5f, 0.5f, 0.5f, 1f);
-    private static readonly Vector4 ContextMenuItemHoverColor = new(0.3f, 0.4f, 0.6f, 1f);
-    private static readonly Vector4 ContextMenuTextColor = new(0.9f, 0.9f, 0.9f, 1f);
-    private static readonly Vector4 CollapseButtonColor = new(0.7f, 0.7f, 0.7f, 1f);
-    private static readonly Vector4 CollapseButtonHoverColor = new(0.9f, 0.9f, 0.9f, 1f);
+    private static readonly Vector4 gridColorMajor = new(0.3f, 0.3f, 0.3f, 1f);
+    private static readonly Vector4 gridColorMinor = new(0.2f, 0.2f, 0.2f, 1f);
+    private static readonly Vector4 nodeBodyColor = new(0.15f, 0.15f, 0.15f, 1f);
+    private static readonly Vector4 nodeHeaderColor = new(0.25f, 0.35f, 0.5f, 1f);
+    private static readonly Vector4 nodeBorderColor = new(0.4f, 0.4f, 0.4f, 1f);
+    private static readonly Vector4 nodeSelectedBorderColor = new(0.3f, 0.6f, 1f, 1f);
+    private static readonly Vector4 nodeGhostColor = new(0.15f, 0.15f, 0.15f, 0.5f);
+    private static readonly Vector4 nodeGhostHeaderColor = new(0.25f, 0.35f, 0.5f, 0.5f);
+    private static readonly Vector4 nodeGhostBorderColor = new(0.4f, 0.4f, 0.4f, 0.5f);
+    private static readonly Vector4 portColor = new(0.8f, 0.8f, 0.8f, 1f);
+    private static readonly Vector4 connectionColor = new(0.6f, 0.6f, 0.6f, 1f);
+    private static readonly Vector4 selectionBoxFillColor = new(0.3f, 0.6f, 1f, 0.15f);
+    private static readonly Vector4 selectionBoxBorderColor = new(0.3f, 0.6f, 1f, 0.8f);
+    private static readonly Vector4 portHighlightValidColor = new(0.3f, 0.9f, 0.3f, 1f);
+    private static readonly Vector4 portHighlightInvalidColor = new(0.9f, 0.3f, 0.3f, 1f);
+    private static readonly Vector4 connectionPreviewColor = new(0.7f, 0.7f, 0.7f, 0.6f);
+    private static readonly Vector4 conversionIndicatorColor = new(1f, 0.8f, 0.2f, 1f);
+    private static readonly Vector4 contextMenuBackgroundColor = new(0.15f, 0.15f, 0.15f, 0.95f);
+    private static readonly Vector4 contextMenuBorderColor = new(0.5f, 0.5f, 0.5f, 1f);
+    private static readonly Vector4 contextMenuItemHoverColor = new(0.3f, 0.4f, 0.6f, 1f);
+    private static readonly Vector4 contextMenuTextColor = new(0.9f, 0.9f, 0.9f, 1f);
+    private static readonly Vector4 collapseButtonColor = new(0.7f, 0.7f, 0.7f, 1f);
+    private static readonly Vector4 collapseButtonHoverColor = new(0.9f, 0.9f, 0.9f, 1f);
 
     private const float NodeBorderRadius = 6f;
     private const float BorderThickness = 2f;
@@ -196,7 +196,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
 
             // Major lines every 5 grid units
             var isMajor = MathF.Abs(x % (gridSize * 5)) < 0.1f;
-            var color = isMajor ? GridColorMajor : GridColorMinor;
+            var color = isMajor ? gridColorMajor : gridColorMinor;
 
             renderer!.DrawLine(screenStart, screenEnd, color, 1f);
         }
@@ -207,7 +207,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             var screenEnd = GraphTransform.CanvasToScreen(new Vector2(visibleArea.X + visibleArea.Width, y), canvasData.Pan, canvasData.Zoom, origin);
 
             var isMajor = MathF.Abs(y % (gridSize * 5)) < 0.1f;
-            var color = isMajor ? GridColorMajor : GridColorMinor;
+            var color = isMajor ? gridColorMajor : gridColorMinor;
 
             renderer!.DrawLine(screenStart, screenEnd, color, 1f);
         }
@@ -363,18 +363,18 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
 
         var isSelected = World.Has<GraphNodeSelectedTag>(node);
         var isCollapsed = World.Has<GraphNodeCollapsed>(node);
-        var borderColor = isSelected ? NodeSelectedBorderColor : NodeBorderColor;
+        var borderColor = isSelected ? nodeSelectedBorderColor : nodeBorderColor;
         var scaledRadius = NodeBorderRadius * canvasData.Zoom;
         var headerHeight = GraphLayoutSystem.HeaderHeight * canvasData.Zoom;
 
         // Draw node body (only if not collapsed)
         if (!isCollapsed)
         {
-            renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, NodeBodyColor);
+            renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, nodeBodyColor);
         }
 
         // Draw header (full node when not collapsed, entire node when collapsed)
-        renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, isCollapsed ? screenRect.Height : headerHeight, scaledRadius, NodeHeaderColor);
+        renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, isCollapsed ? screenRect.Height : headerHeight, scaledRadius, nodeHeaderColor);
 
         // Draw node border
         renderer.DrawRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, borderColor, BorderThickness);
@@ -456,7 +456,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
             var port = nodeType.InputPorts[i];
-            var portColor = GetPortColor(port.TypeId);
+            var portColor = GetportColor(port.TypeId);
             renderer!.FillCircle(screenPos.X, screenPos.Y, portRadius, portColor);
         }
 
@@ -468,7 +468,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
             var port = nodeType.OutputPorts[i];
-            var portColor = GetPortColor(port.TypeId);
+            var portColor = GetportColor(port.TypeId);
             renderer!.FillCircle(screenPos.X, screenPos.Y, portRadius, portColor);
         }
     }
@@ -513,7 +513,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         }
 
         // Draw triangle indicator as outline (FillTriangle not available in I2DRenderer)
-        renderer!.DrawPolygon(triangle, CollapseButtonColor, 1.5f * zoom);
+        renderer!.DrawPolygon(triangle, collapseButtonColor, 1.5f * zoom);
     }
 
     private void DrawPortStubs(Entity node, ref readonly GraphNode nodeData, in GraphCanvas canvasData, Vector2 origin)
@@ -533,7 +533,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             {
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
                 var port = nodeType.InputPorts[i];
-                var portColor = GetPortColor(port.TypeId);
+                var portColor = GetportColor(port.TypeId);
                 renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, portColor);
             }
         }
@@ -545,7 +545,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             {
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
                 var port = nodeType.OutputPorts[i];
-                var portColor = GetPortColor(port.TypeId);
+                var portColor = GetportColor(port.TypeId);
                 renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, portColor);
             }
         }
@@ -569,7 +569,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         bool isSelected,
         bool requiresConversion)
     {
-        var color = isSelected ? NodeSelectedBorderColor : GetPortColor(type);
+        var color = isSelected ? nodeSelectedBorderColor : GetportColor(type);
 
         switch (style)
         {
@@ -588,7 +588,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         if (requiresConversion)
         {
             var midpoint = (start + end) / 2f;
-            renderer!.FillCircle(midpoint.X, midpoint.Y, ConversionIndicatorRadius * currentZoom, ConversionIndicatorColor);
+            renderer!.FillCircle(midpoint.X, midpoint.Y, ConversionIndicatorRadius * currentZoom, conversionIndicatorColor);
         }
     }
 
@@ -614,7 +614,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
 
             // Major lines every 5 grid units
             var isMajor = MathF.Abs(x % (gridSize * 5)) < 0.1f;
-            var color = isMajor ? GridColorMajor : GridColorMinor;
+            var color = isMajor ? gridColorMajor : gridColorMinor;
 
             renderer!.DrawLine(screenStart, screenEnd, color, 1f);
         }
@@ -625,7 +625,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             var screenEnd = GraphTransform.CanvasToScreen(new Vector2(visibleArea.X + visibleArea.Width, y), currentPan, zoom, currentOrigin);
 
             var isMajor = MathF.Abs(y % (gridSize * 5)) < 0.1f;
-            var color = isMajor ? GridColorMajor : GridColorMinor;
+            var color = isMajor ? gridColorMajor : gridColorMinor;
 
             renderer!.DrawLine(screenStart, screenEnd, color, 1f);
         }
@@ -634,14 +634,14 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     /// <inheritdoc />
     public void DrawSelectionBox(Rectangle bounds)
     {
-        renderer!.FillRect(bounds.X, bounds.Y, bounds.Width, bounds.Height, SelectionBoxFillColor);
-        renderer.DrawRect(bounds.X, bounds.Y, bounds.Width, bounds.Height, SelectionBoxBorderColor, 1f);
+        renderer!.FillRect(bounds.X, bounds.Y, bounds.Width, bounds.Height, selectionBoxFillColor);
+        renderer.DrawRect(bounds.X, bounds.Y, bounds.Width, bounds.Height, selectionBoxBorderColor, 1f);
     }
 
     /// <inheritdoc />
     public void DrawPortHighlight(Vector2 position, PortTypeId type, bool isValidTarget)
     {
-        var color = isValidTarget ? PortHighlightValidColor : PortHighlightInvalidColor;
+        var color = isValidTarget ? portHighlightValidColor : portHighlightInvalidColor;
         var radius = PortHighlightRadius * currentZoom;
 
         // Draw highlight ring around port
@@ -656,12 +656,12 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         PortTypeId? targetType,
         ConnectionStyle style)
     {
-        var color = ConnectionPreviewColor;
+        var color = connectionPreviewColor;
 
         // If over a valid target, use the source type color with transparency
         if (targetType.HasValue && PortTypeCompatibility.CanConnect(sourceType, targetType.Value))
         {
-            var typeColor = GetPortColor(sourceType);
+            var typeColor = GetportColor(sourceType);
             color = new Vector4(typeColor.X, typeColor.Y, typeColor.Z, 0.6f);
         }
 
@@ -734,14 +734,14 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         var scaledRadius = NodeBorderRadius * canvasData.Zoom;
 
         // Draw semi-transparent node body
-        renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, NodeGhostColor);
+        renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, nodeGhostColor);
 
         // Draw semi-transparent header
         var headerHeight = GraphLayoutSystem.HeaderHeight * canvasData.Zoom;
-        renderer.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, headerHeight, scaledRadius, NodeGhostHeaderColor);
+        renderer.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, headerHeight, scaledRadius, nodeGhostHeaderColor);
 
         // Draw semi-transparent border
-        renderer.DrawRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, NodeGhostBorderColor, BorderThickness);
+        renderer.DrawRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, nodeGhostBorderColor, BorderThickness);
 
         // Draw ports (also semi-transparent)
         if (portRegistry!.TryGetNodeType(nodeData.NodeTypeId, out var nodeType))
@@ -756,9 +756,9 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
                 var port = nodeType.InputPorts[i];
-                var portColor = GetPortColor(port.TypeId);
-                var ghostPortColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
-                renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostPortColor);
+                var portColor = GetportColor(port.TypeId);
+                var ghostportColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
+                renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostportColor);
             }
 
             // Draw output ports
@@ -769,9 +769,9 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
                 var port = nodeType.OutputPorts[i];
-                var portColor = GetPortColor(port.TypeId);
-                var ghostPortColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
-                renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostPortColor);
+                var portColor = GetportColor(port.TypeId);
+                var ghostportColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
+                renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostportColor);
             }
         }
     }
@@ -801,8 +801,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         var menuY = menu.ScreenPosition.Y;
 
         // Draw menu background
-        renderer!.FillRect(menuX, menuY, menuWidth, menuHeight, ContextMenuBackgroundColor);
-        renderer.DrawRect(menuX, menuY, menuWidth, menuHeight, ContextMenuBorderColor, 1f);
+        renderer!.FillRect(menuX, menuY, menuWidth, menuHeight, contextMenuBackgroundColor);
+        renderer.DrawRect(menuX, menuY, menuWidth, menuHeight, contextMenuBorderColor, 1f);
 
         // Draw menu items
         for (int i = 0; i < items.Count; i++)
@@ -813,7 +813,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             // Draw hover highlight
             if (isSelected)
             {
-                renderer.FillRect(menuX + 2, itemY, menuWidth - 4, itemHeight, ContextMenuItemHoverColor);
+                renderer.FillRect(menuX + 2, itemY, menuWidth - 4, itemHeight, contextMenuItemHoverColor);
             }
 
             // Note: Text rendering would go here if textRenderer is available
@@ -826,7 +826,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             // Draw search box at bottom (visual indicator only, no text yet)
             var searchY = menuY + menuHeight - 30f;
             renderer.FillRect(menuX + 5, searchY, menuWidth - 10, 25f, new Vector4(0.2f, 0.2f, 0.2f, 1f));
-            renderer.DrawRect(menuX + 5, searchY, menuWidth - 10, 25f, ContextMenuBorderColor, 1f);
+            renderer.DrawRect(menuX + 5, searchY, menuWidth - 10, 25f, contextMenuBorderColor, 1f);
         }
     }
 
@@ -841,7 +841,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         };
     }
 
-    private static Vector4 GetPortColor(PortTypeId typeId)
+    private static Vector4 GetportColor(PortTypeId typeId)
     {
         return typeId switch
         {
@@ -850,7 +850,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             PortTypeId.Bool => new Vector4(0.8f, 0.3f, 0.3f, 1f),
             PortTypeId.Entity => new Vector4(0.8f, 0.6f, 0.2f, 1f),
             PortTypeId.Flow => new Vector4(1f, 1f, 1f, 1f),
-            _ => PortColor
+            _ => portColor
         };
     }
 }

@@ -15,7 +15,7 @@ namespace KeenEyes.Graph.Nodes;
 /// </remarks>
 public sealed class CommentNode : INodeTypeDefinition
 {
-    private static readonly Vector4 CommentBackgroundColor = new(0.2f, 0.2f, 0.15f, 0.9f);
+    private static readonly Vector4 commentBackgroundColor = new(0.2f, 0.2f, 0.15f, 0.9f);
 
     /// <inheritdoc />
     public int TypeId => BuiltInNodeIds.Comment;
@@ -54,7 +54,7 @@ public sealed class CommentNode : INodeTypeDefinition
         ref readonly var commentData = ref world.Get<CommentNodeData>(node);
 
         // Draw comment background (slightly different from node body)
-        renderer.FillRect(bodyArea.X, bodyArea.Y, bodyArea.Width, bodyArea.Height, CommentBackgroundColor);
+        renderer.FillRect(bodyArea.X, bodyArea.Y, bodyArea.Width, bodyArea.Height, commentBackgroundColor);
 
         // Note: Text rendering would go here when ITextRenderer is available
         // For now, the comment displays as a colored area indicating editable content

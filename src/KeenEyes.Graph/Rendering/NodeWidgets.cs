@@ -21,14 +21,14 @@ namespace KeenEyes.Graph.Rendering;
 public static class NodeWidgets
 {
     // Colors
-    private static readonly Vector4 FieldBackground = new(0.1f, 0.1f, 0.1f, 1f);
-    private static readonly Vector4 FieldBorder = new(0.3f, 0.3f, 0.3f, 1f);
-    private static readonly Vector4 FieldBorderFocused = new(0.4f, 0.6f, 0.8f, 1f);
-    private static readonly Vector4 SliderTrack = new(0.15f, 0.15f, 0.15f, 1f);
-    private static readonly Vector4 SliderFill = new(0.3f, 0.5f, 0.7f, 1f);
-    private static readonly Vector4 SliderHandle = new(0.6f, 0.6f, 0.6f, 1f);
-    private static readonly Vector4 DropdownArrow = new(0.6f, 0.6f, 0.6f, 1f);
-    private static readonly Vector4 DropdownHover = new(0.2f, 0.3f, 0.4f, 1f);
+    private static readonly Vector4 fieldBackground = new(0.1f, 0.1f, 0.1f, 1f);
+    private static readonly Vector4 fieldBorder = new(0.3f, 0.3f, 0.3f, 1f);
+    private static readonly Vector4 fieldBorderFocused = new(0.4f, 0.6f, 0.8f, 1f);
+    private static readonly Vector4 sliderTrack = new(0.15f, 0.15f, 0.15f, 1f);
+    private static readonly Vector4 sliderFill = new(0.3f, 0.5f, 0.7f, 1f);
+    private static readonly Vector4 sliderHandle = new(0.6f, 0.6f, 0.6f, 1f);
+    private static readonly Vector4 dropdownArrow = new(0.6f, 0.6f, 0.6f, 1f);
+    private static readonly Vector4 dropdownHover = new(0.2f, 0.3f, 0.4f, 1f);
 
     // Sizing constants
     private const float RowHeight = 22f;
@@ -51,7 +51,7 @@ public static class NodeWidgets
         var fieldArea = GetFieldArea(area);
 
         // Draw field background
-        DrawFieldBackground(ctx.Renderer, fieldArea, hasFocus);
+        DrawfieldBackground(ctx.Renderer, fieldArea, hasFocus);
 
         // Handle click to focus
         if (ctx.WasClicked(fieldArea) && !hasFocus)
@@ -89,7 +89,7 @@ public static class NodeWidgets
         var fieldArea = GetFieldArea(area);
 
         // Draw field background
-        DrawFieldBackground(ctx.Renderer, fieldArea, hasFocus);
+        DrawfieldBackground(ctx.Renderer, fieldArea, hasFocus);
 
         // Handle click to focus
         if (ctx.WasClicked(fieldArea) && !hasFocus)
@@ -129,7 +129,7 @@ public static class NodeWidgets
         // Draw color swatch
         ctx.Renderer.FillRect(swatchArea.X, swatchArea.Y, swatchArea.Width, swatchArea.Height, value);
         ctx.Renderer.DrawRect(swatchArea.X, swatchArea.Y, swatchArea.Width, swatchArea.Height,
-            hasFocus ? FieldBorderFocused : FieldBorder, BorderWidth);
+            hasFocus ? fieldBorderFocused : fieldBorder, BorderWidth);
 
         // Handle click to toggle picker
         if (ctx.WasClicked(swatchArea) && !hasFocus)
@@ -159,13 +159,13 @@ public static class NodeWidgets
         var fieldArea = GetFieldArea(area);
 
         // Draw dropdown background
-        DrawFieldBackground(ctx.Renderer, fieldArea, hasFocus);
+        DrawfieldBackground(ctx.Renderer, fieldArea, hasFocus);
 
         // Draw dropdown arrow
         var arrowSize = 8f;
         var arrowX = fieldArea.Right - arrowSize - FieldPadding;
         var arrowY = fieldArea.Y + ((fieldArea.Height - arrowSize) / 2f);
-        DrawDropdownArrow(ctx.Renderer, arrowX, arrowY, arrowSize, isExpanded);
+        DrawdropdownArrow(ctx.Renderer, arrowX, arrowY, arrowSize, isExpanded);
 
         // Handle click to toggle
         if (ctx.WasClicked(fieldArea) && !hasFocus)
@@ -185,7 +185,7 @@ public static class NodeWidgets
                 var isHovered = ctx.IsMouseOver(optionArea);
 
                 // Draw option background
-                var bgColor = isHovered ? DropdownHover : FieldBackground;
+                var bgColor = isHovered ? dropdownHover : fieldBackground;
                 ctx.Renderer.FillRect(optionArea.X, optionArea.Y, optionArea.Width, optionArea.Height, bgColor);
 
                 // Handle option click
@@ -202,7 +202,7 @@ public static class NodeWidgets
             // Draw border around options
             ctx.Renderer.DrawRect(fieldArea.X, fieldArea.Bottom + 2,
                 fieldArea.Width, options.Length * RowHeight,
-                FieldBorder, BorderWidth);
+                fieldBorder, BorderWidth);
         }
 
         return height;
@@ -228,17 +228,17 @@ public static class NodeWidgets
 
         // Draw track background
         var trackY = fieldArea.Y + ((fieldArea.Height - 6) / 2f);
-        ctx.Renderer.FillRect(fieldArea.X, trackY, fieldArea.Width, 6, SliderTrack);
+        ctx.Renderer.FillRect(fieldArea.X, trackY, fieldArea.Width, 6, sliderTrack);
 
         // Draw filled portion
         var normalizedValue = (value - min) / (max - min);
         var fillWidth = fieldArea.Width * normalizedValue;
-        ctx.Renderer.FillRect(fieldArea.X, trackY, fillWidth, 6, SliderFill);
+        ctx.Renderer.FillRect(fieldArea.X, trackY, fillWidth, 6, sliderFill);
 
         // Draw handle
         var handleX = fieldArea.X + fillWidth - 4;
         var handleY = fieldArea.Y + ((fieldArea.Height - 12) / 2f);
-        ctx.Renderer.FillRect(handleX, handleY, 8, 12, SliderHandle);
+        ctx.Renderer.FillRect(handleX, handleY, 8, 12, sliderHandle);
 
         // Handle interaction
         if (ctx.IsMouseOver(fieldArea) && ctx.Mouse.IsButtonDown(MouseButton.Left))
@@ -257,7 +257,7 @@ public static class NodeWidgets
 
         // Draw border
         ctx.Renderer.DrawRect(fieldArea.X, fieldArea.Y, fieldArea.Width, fieldArea.Height,
-            hasFocus ? FieldBorderFocused : FieldBorder, BorderWidth);
+            hasFocus ? fieldBorderFocused : fieldBorder, BorderWidth);
 
         return RowHeight;
     }
@@ -279,7 +279,7 @@ public static class NodeWidgets
             previewSize);
 
         // Draw preview background
-        ctx.Renderer.FillRect(previewArea.X, previewArea.Y, previewArea.Width, previewArea.Height, FieldBackground);
+        ctx.Renderer.FillRect(previewArea.X, previewArea.Y, previewArea.Width, previewArea.Height, fieldBackground);
 
         // Draw texture if available
         if (textureId != 0)
@@ -289,7 +289,7 @@ public static class NodeWidgets
         }
 
         // Draw border
-        ctx.Renderer.DrawRect(previewArea.X, previewArea.Y, previewArea.Width, previewArea.Height, FieldBorder, BorderWidth);
+        ctx.Renderer.DrawRect(previewArea.X, previewArea.Y, previewArea.Width, previewArea.Height, fieldBorder, BorderWidth);
 
         return previewSize + (FieldPadding * 2);
     }
@@ -311,7 +311,7 @@ public static class NodeWidgets
             ctx.Renderer.DrawLine(
                 area.X + FieldPadding, lineY,
                 area.Right - FieldPadding, lineY,
-                FieldBorder, BorderWidth);
+                fieldBorder, BorderWidth);
         }
         else
         {
@@ -319,8 +319,8 @@ public static class NodeWidgets
             var gapStart = area.X + LabelWidth;
             var gapEnd = area.Right - FieldPadding;
 
-            ctx.Renderer.DrawLine(area.X + FieldPadding, lineY, gapStart - 4, lineY, FieldBorder, BorderWidth);
-            ctx.Renderer.DrawLine(gapEnd + 4, lineY, area.Right - FieldPadding, lineY, FieldBorder, BorderWidth);
+            ctx.Renderer.DrawLine(area.X + FieldPadding, lineY, gapStart - 4, lineY, fieldBorder, BorderWidth);
+            ctx.Renderer.DrawLine(gapEnd + 4, lineY, area.Right - FieldPadding, lineY, fieldBorder, BorderWidth);
         }
 
         return RowHeight;
@@ -337,14 +337,14 @@ public static class NodeWidgets
             RowHeight - 4);
     }
 
-    private static void DrawFieldBackground(I2DRenderer renderer, Rectangle area, bool hasFocus)
+    private static void DrawfieldBackground(I2DRenderer renderer, Rectangle area, bool hasFocus)
     {
-        renderer.FillRect(area.X, area.Y, area.Width, area.Height, FieldBackground);
+        renderer.FillRect(area.X, area.Y, area.Width, area.Height, fieldBackground);
         renderer.DrawRect(area.X, area.Y, area.Width, area.Height,
-            hasFocus ? FieldBorderFocused : FieldBorder, BorderWidth);
+            hasFocus ? fieldBorderFocused : fieldBorder, BorderWidth);
     }
 
-    private static void DrawDropdownArrow(I2DRenderer renderer, float x, float y, float size, bool pointsUp)
+    private static void DrawdropdownArrow(I2DRenderer renderer, float x, float y, float size, bool pointsUp)
     {
         Vector2[] triangle;
         if (pointsUp)
@@ -366,7 +366,7 @@ public static class NodeWidgets
             ];
         }
 
-        renderer.DrawPolygon(triangle, DropdownArrow, BorderWidth);
+        renderer.DrawPolygon(triangle, dropdownArrow, BorderWidth);
     }
 
     private static void SetFocus(
