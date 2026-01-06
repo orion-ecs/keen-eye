@@ -54,7 +54,6 @@ public sealed class GhostPlayer : IDisposable
     private GhostPlaybackState state;
     private int currentFrameIndex;
     private TimeSpan currentTime;
-    private TimeSpan accumulatedTime;
     private float playbackSpeed = 1.0f;
     private GhostSyncMode syncMode = GhostSyncMode.TimeSynced;
     private bool disposed;
@@ -629,7 +628,7 @@ public sealed class GhostPlayer : IDisposable
     {
         ThrowIfDisposed();
 
-        bool shouldFireFrameChanged = false;
+        bool shouldFireFrameChanged;
         int newFrame;
 
         lock (syncRoot)
@@ -666,7 +665,6 @@ public sealed class GhostPlayer : IDisposable
             currentFrameIndex = frameIndex;
             newFrame = frameIndex;
             currentTime = time;
-            accumulatedTime = TimeSpan.Zero;
 
             // Interpolate position at exact time
             InterpolateAtTime(frames, time);
@@ -689,7 +687,7 @@ public sealed class GhostPlayer : IDisposable
     {
         ThrowIfDisposed();
 
-        bool shouldFireFrameChanged = false;
+        bool shouldFireFrameChanged;
         int newFrame;
 
         lock (syncRoot)
@@ -715,7 +713,6 @@ public sealed class GhostPlayer : IDisposable
 
             var frame = frames[frameNumber];
             currentTime = frame.ElapsedTime;
-            accumulatedTime = TimeSpan.Zero;
 
             position = frame.Position;
             rotation = frame.Rotation;
@@ -782,7 +779,6 @@ public sealed class GhostPlayer : IDisposable
         var frames = ghostData!.Frames;
 
         // Accumulate time scaled by playback speed
-        accumulatedTime += TimeSpan.FromSeconds(deltaTime * playbackSpeed);
         currentTime += TimeSpan.FromSeconds(deltaTime * playbackSpeed);
 
         // Check for end of playback
@@ -888,7 +884,6 @@ public sealed class GhostPlayer : IDisposable
         state = GhostPlaybackState.Stopped;
         currentFrameIndex = 0;
         currentTime = TimeSpan.Zero;
-        accumulatedTime = TimeSpan.Zero;
     }
 
     private void ThrowIfDisposed()
