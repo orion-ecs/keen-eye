@@ -438,33 +438,33 @@ Maximum performance optimizations.
 Record and replay gameplay for debugging and playtesting.
 
 ### 18.1 Recording System
-- [ ] `ReplayRecorder` class
-- [ ] Record all inputs (keyboard, mouse, gamepad)
-- [ ] Capture non-deterministic events (random seeds, timestamps)
-- [ ] Log system execution order
-- [ ] Interval-based snapshot capture
-- [ ] Delta compression for storage efficiency
+- [x] `ReplayRecorder` class
+- [x] Record all inputs (keyboard, mouse, gamepad)
+- [x] Capture non-deterministic events (random seeds, timestamps)
+- [x] Log system execution order
+- [x] Interval-based snapshot capture
+- [x] Delta compression for storage efficiency
 
 ### 18.2 Playback Engine
-- [ ] `ReplayPlayer` class
-- [ ] Frame-perfect input replay
-- [ ] Deterministic execution guarantee
-- [ ] State restoration at any point
-- [ ] Cross-machine determinism
+- [x] `ReplayPlayer` class
+- [x] Frame-perfect input replay
+- [x] Deterministic execution guarantee
+- [x] State restoration at any point
+- [x] Cross-machine determinism
 
 ### 18.3 Timeline Controls
-- [ ] `ReplayTimeline` class
-- [ ] Play/pause/stop
-- [ ] Timeline scrubbing (seek to any frame)
-- [ ] Speed adjustment (0.25x to 4x)
-- [ ] Frame stepping (forward/backward)
+- [x] `ReplayTimeline` class
+- [x] Play/pause/stop
+- [x] Timeline scrubbing (seek to any frame)
+- [x] Speed adjustment (0.25x to 4x)
+- [x] Frame stepping (forward/backward)
 
 ### 18.4 Playtesting Infrastructure
-- [ ] Session recording for playtesters
+- [x] Session recording for playtesters
 - [ ] Web distribution of test builds
 - [ ] Crash reporting integration
 - [ ] Player feedback collection
-- [ ] Debug visualization during replay
+- [x] Debug visualization during replay
 
 ---
 
@@ -496,50 +496,80 @@ Developer tooling for Visual Studio / VS Code / Rider.
 
 ---
 
-## Long-Term Vision: Browser-Based Editor
+## Phase 20: KESL Shader Language
 
-*Target: v1.0.0+ (2027+)*
+Custom shader language with visual graph editor integration.
 
-A full-featured browser-based game editor like Unity/Godot, powered by KeenEyes.
+### 20.1 Compiler
+- [x] Lexer and tokenization
+- [x] Parser and AST generation
+- [x] GLSL code generation
+- [x] C# binding generation
+- [ ] HLSL backend for DirectX
+- [ ] Improved error messages with source locations
 
-### Editor Frontend Application
-- [ ] Project management UI
-- [ ] Asset browser
-- [ ] Drag-and-drop entity creation
-- [ ] Visual scripting (optional)
+### 20.2 Visual Graph Editor
+- [x] Node-based graph editor UI
+- [x] Bezier curve connections
+- [x] Extensible node type system
+- [x] Undo/redo support
+- [x] Context menus
+- [ ] Hot-reload support
+- [ ] IDE syntax highlighting
+
+### 20.3 Runtime
+- [ ] Runtime shader abstractions
+- [ ] Shader parameter binding
+- [ ] Shader variant compilation
+
+---
+
+## Desktop Scene Editor
+
+*Status: Active Development*
+
+A native desktop game editor using Silk.NET/OpenGL, similar to Unity/Godot.
+
+### Editor Infrastructure
+- [x] Native desktop application (KeenEyes.Editor)
+- [x] Dockable panel system with layout persistence
+- [x] Keyboard shortcuts system
+- [x] Settings and preferences
+- [x] Hot reload via AssemblyLoadContext
 
 ### Scene Editor
-- [ ] 2D/3D viewport
-- [ ] Entity manipulation (transform gizmos)
+- [x] 3D viewport with OpenGL rendering
+- [x] Transform gizmos (translate, rotate, scale)
+- [x] Entity hierarchy panel
 - [ ] Multi-select and group operations
-- [ ] Undo/redo system
-- [ ] Scene hierarchy panel
+- [x] Undo/redo system (command pattern)
 
 ### Inspector & Properties Panel
-- [ ] Auto-generated editors from C# types
-- [ ] Custom property drawers
+- [x] Component introspection (reflection-based)
+- [x] PropertyDrawer system for custom editors
+- [x] Built-in drawers (primitives, vectors, colors)
 - [ ] Multi-entity editing
 - [ ] Property search and filtering
-- [ ] Collapsible component sections
-- [ ] Property metadata decorators (`[Range]`, `[Tooltip]`, etc.)
 
-### Code Editor Integration
-- [ ] In-browser C# editing (via Blazor/Monaco)
-- [ ] Hot reload support
-- [ ] Intellisense/autocomplete
-- [ ] Error highlighting
-
-### Editor Backend Services
-- [ ] Project persistence
-- [ ] Asset pipeline
-- [ ] Build system integration
-- [ ] Collaboration features (optional)
+### Project Management
+- [x] Project panel (asset browser)
+- [x] Console panel (logs and messages)
+- [ ] Asset import pipeline
+- [ ] Scene file format (.kescene)
 
 ### Play Mode
-- [ ] Run game in editor
-- [ ] Pause and inspect state
+- [x] Run game in editor
+- [x] Pause and inspect state
+- [x] World snapshot/restore
 - [ ] Live entity/component editing
 - [ ] Performance overlay
+
+### Plugin System
+- [x] IEditorPlugin interface
+- [x] Capability-based extensions (Panel, Menu, Inspector, Viewport, etc.)
+- [x] Plugin lifecycle management
+- [x] NuGet-based plugin installation
+- [x] Plugin security and sandboxing
 
 ---
 
@@ -557,6 +587,11 @@ Optional packages that extend KeenEyes:
 | `KeenEyes.Parallelism` | Parallel system execution | ✅ Complete |
 | `KeenEyes.Graphics` | Silk.NET OpenGL rendering | ✅ Complete |
 | `KeenEyes.Logging` | Pluggable logging providers | ✅ Complete |
+| `KeenEyes.AI` | FSM, Behavior Trees, Utility AI | ✅ Complete |
+| `KeenEyes.Navigation` | Pathfinding (NavMesh + Grid A*) | ✅ Complete |
+| `KeenEyes.Localization` | Multi-language text & assets (JSON + ICU + RTL) | ✅ Complete |
+| `KeenEyes.Network` | Multiplayer/networking plugin | ✅ Complete |
+| `KeenEyes.Replay` | Deterministic replay recording/playback | ✅ Complete |
 
 ### Planned Plugins (Milestones Created)
 
@@ -570,16 +605,12 @@ Optional packages that extend KeenEyes:
 | `KeenEyes.Particles` | High-performance particle systems | #18 |
 | `KeenEyes.Assets` | Reference-counted asset management | #19 |
 | `KeenEyes.Animation` | Sprite, skeletal, and property animation | #20 |
-| `KeenEyes.AI` | State machines, behavior trees, utility AI | #21 |
 
-### Research Required (See docs/research/engine-systems-roadmap.md)
+### Research Required
 
 | Package | Purpose | Status |
 |---------|---------|--------|
-| `KeenEyes.Navigation` | Pathfinding & NavMesh | Research Issue #430 |
-| `KeenEyes.Scenes` | Scene management & streaming | Research Issue #431 |
-| `KeenEyes.Localization` | Multi-language text & assets | Research Issue #432 |
-| `KeenEyes.Network` | Multiplayer/networking plugin | ✅ Complete |
+| `KeenEyes.Scenes` | World streaming & additive loading | Partial (SceneManager exists, streaming pending) |
 
 ### Additional Plugins from OrionECS
 | Plugin | Purpose |
@@ -635,40 +666,43 @@ Optional packages that extend KeenEyes:
 | Category | Features | Status |
 |----------|----------|--------|
 | Multi-World Support | 4 | Pending |
-| Schema Evolution | 4 | Pending |
+| Schema Evolution | 4 | ✅ Complete |
 | Enhanced Save/Load | 11 | Partial (KeenEyes.Persistence) |
 | Network Sync | 9 | ✅ Complete (KeenEyes.Network) |
 | Parallelization | 5 | ✅ Complete |
 | Native AOT | 4 | ✅ Complete |
 | Advanced Spatial | 4 | ✅ Complete |
 | Component Composition | 3 | ✅ Complete |
-| **Subtotal** | **~40** | Partial |
+| **Subtotal** | **~44** | Mostly Complete |
 
-### Tooling (Phases 18-19)
+### Tooling (Phases 18-20)
 | Category | Features | Status |
 |----------|----------|--------|
-| Replay Recording | 6 | Pending |
-| Replay Playback | 5 | Pending |
-| Timeline Controls | 5 | Pending |
-| Playtesting Infrastructure | 5 | Pending |
+| Replay Recording | 6 | ✅ Complete |
+| Replay Playback | 5 | ✅ Complete |
+| Timeline Controls | 5 | ✅ Complete |
+| Playtesting Infrastructure | 5 | Partial (3/5) |
 | IDE Code Navigation | 3 | Pending |
 | IDE Refactoring | 3 | Pending |
 | IDE Visualization | 4 | Pending |
 | IDE Debugging | 4 | Pending |
-| **Subtotal** | **~35** | |
+| KESL Compiler | 6 | Partial (4/6) |
+| KESL Graph Editor | 7 | Partial (5/7) |
+| KESL Runtime | 3 | Pending |
+| **Subtotal** | **~51** | Partial |
 
-### Long-Term: Browser Editor
+### Desktop Scene Editor
 | Category | Features | Status |
 |----------|----------|--------|
-| Editor Frontend | 4 | Future |
-| Scene Editor | 5 | Future |
-| Inspector Panel | 6 | Future |
-| Code Editor | 4 | Future |
-| Backend Services | 4 | Future |
-| Play Mode | 4 | Future |
-| **Subtotal** | **~27** | |
+| Editor Infrastructure | 5 | ✅ Complete |
+| Scene Editor | 5 | Partial (4/5) |
+| Inspector Panel | 5 | Partial (3/5) |
+| Project Management | 4 | Partial (2/4) |
+| Play Mode | 5 | Partial (3/5) |
+| Plugin System | 5 | ✅ Complete |
+| **Subtotal** | **~29** | Active Development |
 
-### Grand Total: **~253 features**
+### Grand Total: **~275+ features**
 
 ---
 
