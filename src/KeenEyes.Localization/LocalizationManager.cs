@@ -166,6 +166,119 @@ public sealed class LocalizationManager : ILocalization, IDisposable
         return TryGetWithFallback(key, out _);
     }
 
+    /// <inheritdoc />
+    public LocalizedFontConfig? GetFontConfig(Locale locale)
+    {
+        // Try exact locale match
+        if (config.FontConfigs.TryGetValue(locale, out var fontConfig))
+        {
+            return fontConfig;
+        }
+
+        // Try language-only fallback
+        if (locale.HasRegion)
+        {
+            if (config.FontConfigs.TryGetValue(locale.LanguageOnly, out fontConfig))
+            {
+                return fontConfig;
+            }
+        }
+
+        // Try default locale's configuration
+        if (locale != config.DefaultLocale)
+        {
+            if (config.FontConfigs.TryGetValue(config.DefaultLocale, out fontConfig))
+            {
+                return fontConfig;
+            }
+        }
+
+        return null;
+    }
+
+    /// <inheritdoc />
+    public LocalizedFontConfig? GetCurrentFontConfig()
+    {
+        return GetFontConfig(currentLocale);
+    }
+
+    /// <inheritdoc />
+    public async Task PreloadLocaleAssetsAsync(
+        Locale locale,
+        IEnumerable<string> assetKeys,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(assetKeys);
+
+        // Get the asset resolver from the world
+        if (!world.TryGetExtension<ILocalizedAssetResolver>(out var resolver) || resolver == null)
+        {
+            // No resolver available, nothing to preload
+            return;
+        }
+
+        // Resolve all asset paths for the target locale
+        var pathsToLoad = new List<string>();
+        foreach (var assetKey in assetKeys)
+        {
+            var resolvedPath = resolver.Resolve(assetKey, locale);
+            if (!string.IsNullOrEmpty(resolvedPath))
+            {
+                pathsToLoad.Add(resolvedPath);
+            }
+        }
+
+        // Also preload font assets for this locale
+        var fontConfig = GetFontConfig(locale);
+        if (fontConfig != null)
+        {
+            foreach (var fontPath in fontConfig.GetAllFontPaths())
+            {
+                pathsToLoad.Add(fontPath);
+            }
+        }
+
+        // Try to use the asset manager to preload
+        if (!world.TryGetExtension<KeenEyes.Assets.AssetManager>(out var assetManager) || assetManager == null)
+        {
+            // No asset manager available, nothing more we can do
+            return;
+        }
+
+        // Preload all assets in parallel as RawAsset for caching
+        var loadTasks = new List<Task>();
+        foreach (var path in pathsToLoad.Distinct())
+        {
+            if (!assetManager.IsLoaded(path))
+            {
+                loadTasks.Add(LoadAssetForPreloadAsync(assetManager, path, cancellationToken));
+            }
+        }
+
+        await Task.WhenAll(loadTasks);
+    }
+
+    private static async Task LoadAssetForPreloadAsync(
+        KeenEyes.Assets.AssetManager assetManager,
+        string path,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Preload as RawAsset - this caches the file contents
+            // The actual typed load will happen when the asset is used
+            await assetManager.LoadAsync<KeenEyes.Assets.RawAsset>(
+                path,
+                KeenEyes.Assets.LoadPriority.Low,
+                cancellationToken);
+        }
+        catch
+        {
+            // Silently ignore preload failures - the asset might not exist
+            // or might need a specialized loader. The actual load will report errors.
+        }
+    }
+
     /// <summary>
     /// Clears all registered string sources.
     /// </summary>

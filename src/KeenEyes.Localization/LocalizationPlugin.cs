@@ -11,6 +11,7 @@ namespace KeenEyes.Localization;
 /// <item><description>Managing locale switching and fallback chains</description></item>
 /// <item><description>Loading translations from JSON files or other sources</description></item>
 /// <item><description>Automatically updating UI text when the locale changes</description></item>
+/// <item><description>Resolving locale-specific assets (textures, audio, fonts)</description></item>
 /// </list>
 /// <para>
 /// After installation, access the localization API via <c>world.Localization</c>.
@@ -18,11 +19,21 @@ namespace KeenEyes.Localization;
 /// </remarks>
 /// <example>
 /// <code>
-/// // Install the plugin
+/// // Install the plugin with asset and font configuration
 /// world.InstallPlugin(new LocalizationPlugin(new LocalizationConfig
 /// {
 ///     DefaultLocale = Locale.EnglishUS,
-///     MissingKeyBehavior = MissingKeyBehavior.ReturnPlaceholder
+///     MissingKeyBehavior = MissingKeyBehavior.ReturnPlaceholder,
+///     AssetRootPath = "Assets",
+///     FontConfigs =
+///     {
+///         [Locale.EnglishUS] = new LocalizedFontConfig { PrimaryFont = "fonts/Roboto.ttf" },
+///         [Locale.JapaneseJP] = new LocalizedFontConfig
+///         {
+///             PrimaryFont = "fonts/NotoSansJP.ttf",
+///             FallbackFonts = ["fonts/Roboto.ttf"]
+///         }
+///     }
 /// }));
 ///
 /// // Load translations
@@ -32,7 +43,12 @@ namespace KeenEyes.Localization;
 /// // Get localized strings
 /// string title = world.Localization.Get("game.title");
 ///
-/// // Change locale
+/// // Create entities with localized assets
+/// world.Spawn()
+///     .With(new LocalizedAsset { AssetKey = "textures/logo" })
+///     .Build();
+///
+/// // Change locale - text and assets update automatically
 /// world.Localization.SetLocale(Locale.JapaneseJP);
 /// </code>
 /// </example>
@@ -40,6 +56,7 @@ public sealed class LocalizationPlugin : IWorldPlugin
 {
     private readonly LocalizationConfig config;
     private LocalizationManager? localizationManager;
+    private LocalizedAssetResolver? assetResolver;
 
     /// <summary>
     /// Creates a new localization plugin with default configuration.
@@ -80,24 +97,33 @@ public sealed class LocalizationPlugin : IWorldPlugin
         // Register components
         context.RegisterComponent<LocalizedText>();
         context.RegisterComponent<LocalizedTextTag>();
+        context.RegisterComponent<LocalizedAsset>();
 
         // Create and expose the localization manager
         localizationManager = new LocalizationManager(config, context.World);
         context.SetExtension(localizationManager);
 
+        // Create and expose the asset resolver
+        assetResolver = new LocalizedAssetResolver(config.AssetRootPath ?? string.Empty, config);
+        context.SetExtension<ILocalizedAssetResolver>(assetResolver);
+
         // Register systems
         context.AddSystem<LocalizedTextSystem>(SystemPhase.Update, order: 100);
+        context.AddSystem<LocalizedAssetSystem>(SystemPhase.EarlyUpdate, order: -50);
     }
 
     /// <inheritdoc />
     public void Uninstall(IPluginContext context)
     {
-        // Remove extension
+        // Remove extensions
         context.RemoveExtension<LocalizationManager>();
+        context.RemoveExtension<ILocalizedAssetResolver>();
 
         // Dispose manager
         localizationManager?.Dispose();
         localizationManager = null;
+
+        assetResolver = null;
 
         // Systems are cleaned up automatically by the framework
     }

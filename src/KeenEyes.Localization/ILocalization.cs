@@ -178,4 +178,63 @@ public interface ILocalization
     /// <param name="key">The translation key.</param>
     /// <returns><c>true</c> if the key exists; otherwise, <c>false</c>.</returns>
     bool HasKey(string key);
+
+    /// <summary>
+    /// Gets the font configuration for a specific locale.
+    /// </summary>
+    /// <param name="locale">The locale to get font configuration for.</param>
+    /// <returns>
+    /// The font configuration for the locale, or null if no specific configuration exists.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// If no font configuration exists for the exact locale, the system will try:
+    /// </para>
+    /// <list type="number">
+    /// <item><description>The exact locale</description></item>
+    /// <item><description>The language-only locale (e.g., "en-US" → "en")</description></item>
+    /// <item><description>The default locale's configuration</description></item>
+    /// </list>
+    /// </remarks>
+    LocalizedFontConfig? GetFontConfig(Locale locale);
+
+    /// <summary>
+    /// Gets the font configuration for the current locale.
+    /// </summary>
+    /// <returns>
+    /// The font configuration for the current locale, or null if no specific configuration exists.
+    /// </returns>
+    LocalizedFontConfig? GetCurrentFontConfig();
+
+    /// <summary>
+    /// Preloads all assets for a specific locale for seamless switching.
+    /// </summary>
+    /// <param name="locale">The locale to preload assets for.</param>
+    /// <param name="assetKeys">The asset keys to preload.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task that completes when all assets are preloaded.</returns>
+    /// <remarks>
+    /// <para>
+    /// Call this method before switching to a locale to ensure all localized assets
+    /// are loaded and ready, preventing loading stutters during locale changes.
+    /// </para>
+    /// <para>
+    /// This method requires the world to have the Assets plugin installed.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Preload Japanese assets before switching
+    /// await localization.PreloadLocaleAssetsAsync(
+    ///     Locale.JapaneseJP,
+    ///     ["textures/logo", "textures/menu_background", "audio/intro_voice"]);
+    ///
+    /// // Now switch locale - assets are ready
+    /// localization.SetLocale(Locale.JapaneseJP);
+    /// </code>
+    /// </example>
+    Task PreloadLocaleAssetsAsync(
+        Locale locale,
+        IEnumerable<string> assetKeys,
+        CancellationToken cancellationToken = default);
 }

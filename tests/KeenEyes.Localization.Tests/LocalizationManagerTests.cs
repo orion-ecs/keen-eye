@@ -569,4 +569,100 @@ public class LocalizationManagerTests : IDisposable
     }
 
     #endregion
+
+    #region GetFontConfig
+
+    [Fact]
+    public void GetFontConfig_ExactLocaleMatch_ReturnsFontConfig()
+    {
+        var fontConfig = new LocalizedFontConfig { PrimaryFont = "fonts/Roboto.ttf" };
+        var config = new LocalizationConfig
+        {
+            FontConfigs =
+            {
+                [Locale.EnglishUS] = fontConfig
+            }
+        };
+        using var manager = CreateManager(config);
+
+        var result = manager.GetFontConfig(Locale.EnglishUS);
+
+        result.ShouldBe(fontConfig);
+    }
+
+    [Fact]
+    public void GetFontConfig_LanguageOnlyFallback_ReturnsFontConfig()
+    {
+        var fontConfig = new LocalizedFontConfig { PrimaryFont = "fonts/Roboto.ttf" };
+        var config = new LocalizationConfig
+        {
+            FontConfigs =
+            {
+                [new Locale("en")] = fontConfig
+            }
+        };
+        using var manager = CreateManager(config);
+
+        // Request en-US, should fall back to "en"
+        var result = manager.GetFontConfig(Locale.EnglishUS);
+
+        result.ShouldBe(fontConfig);
+    }
+
+    [Fact]
+    public void GetFontConfig_DefaultLocaleFallback_ReturnsFontConfig()
+    {
+        var fontConfig = new LocalizedFontConfig { PrimaryFont = "fonts/Roboto.ttf" };
+        var config = new LocalizationConfig
+        {
+            DefaultLocale = Locale.EnglishUS,
+            FontConfigs =
+            {
+                [Locale.EnglishUS] = fontConfig
+            }
+        };
+        using var manager = CreateManager(config);
+
+        // Request Japanese, should fall back to default (en-US)
+        var result = manager.GetFontConfig(Locale.JapaneseJP);
+
+        result.ShouldBe(fontConfig);
+    }
+
+    [Fact]
+    public void GetFontConfig_NoConfig_ReturnsNull()
+    {
+        var config = new LocalizationConfig();
+        using var manager = CreateManager(config);
+
+        var result = manager.GetFontConfig(Locale.EnglishUS);
+
+        result.ShouldBeNull();
+    }
+
+    [Fact]
+    public void GetCurrentFontConfig_ReturnsConfigForCurrentLocale()
+    {
+        var enConfig = new LocalizedFontConfig { PrimaryFont = "fonts/Roboto.ttf" };
+        var jaConfig = new LocalizedFontConfig { PrimaryFont = "fonts/NotoSansJP.ttf" };
+        var config = new LocalizationConfig
+        {
+            DefaultLocale = Locale.EnglishUS,
+            FontConfigs =
+            {
+                [Locale.EnglishUS] = enConfig,
+                [Locale.JapaneseJP] = jaConfig
+            }
+        };
+        using var manager = CreateManager(config);
+
+        // Start with default (en-US)
+        manager.GetCurrentFontConfig().ShouldBe(enConfig);
+
+        // Switch to Japanese
+        manager.SetLocale(Locale.JapaneseJP);
+        manager.GetCurrentFontConfig().ShouldBe(jaConfig);
+    }
+
+    #endregion
 }
