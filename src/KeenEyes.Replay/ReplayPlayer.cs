@@ -52,10 +52,81 @@ public sealed class ReplayPlayer : IDisposable
     private ReplayFileInfo? fileInfo;
     private PlaybackState state;
     private int currentFrameIndex;
+    private int lastReportedFrameIndex = -1;
     private TimeSpan currentTime;
     private TimeSpan accumulatedTime;
     private float playbackSpeed = PlaybackSpeeds.NormalSpeed;
     private bool disposed;
+
+    /// <summary>
+    /// Raised when playback starts or resumes from a paused state.
+    /// </summary>
+    /// <remarks>
+    /// This event is fired when <see cref="Play"/> is called and the state
+    /// transitions from <see cref="PlaybackState.Stopped"/> or
+    /// <see cref="PlaybackState.Paused"/> to <see cref="PlaybackState.Playing"/>.
+    /// </remarks>
+    public event Action? PlaybackStarted;
+
+    /// <summary>
+    /// Raised when playback is paused.
+    /// </summary>
+    /// <remarks>
+    /// This event is fired when <see cref="Pause"/> is called while playback
+    /// is in the <see cref="PlaybackState.Playing"/> state.
+    /// </remarks>
+    public event Action? PlaybackPaused;
+
+    /// <summary>
+    /// Raised when playback is explicitly stopped via <see cref="Stop"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This event is only fired when <see cref="Stop"/> is called explicitly.
+    /// It is NOT fired when playback reaches the end naturally (use
+    /// <see cref="PlaybackEnded"/> for that case).
+    /// </para>
+    /// <para>
+    /// After this event, the playback position is reset to the beginning.
+    /// </para>
+    /// </remarks>
+    public event Action? PlaybackStopped;
+
+    /// <summary>
+    /// Raised when playback reaches the end of the replay naturally.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This event is fired when the <see cref="Update"/> method advances
+    /// past the last frame of the replay. This indicates the replay has
+    /// completed without user intervention.
+    /// </para>
+    /// <para>
+    /// After this event, the state transitions to <see cref="PlaybackState.Stopped"/>,
+    /// but the playback position remains at the end (unlike <see cref="PlaybackStopped"/>
+    /// which resets to the beginning).
+    /// </para>
+    /// </remarks>
+    public event Action? PlaybackEnded;
+
+    /// <summary>
+    /// Raised when the current frame changes during playback.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The integer parameter is the new 0-based frame index.
+    /// </para>
+    /// <para>
+    /// This event is fired during <see cref="Update"/> when frames advance,
+    /// and also during seeking operations (<see cref="SeekToFrame"/>,
+    /// <see cref="SeekToTime"/>, <see cref="Step"/>).
+    /// </para>
+    /// <para>
+    /// Note: This event may be called frequently (once per frame during playback),
+    /// so handlers should be lightweight to avoid impacting performance.
+    /// </para>
+    /// </remarks>
+    public event Action<int>? FrameChanged;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ReplayPlayer"/> class.
@@ -441,16 +512,33 @@ public sealed class ReplayPlayer : IDisposable
     /// If playback was paused, this resumes from the current position.
     /// If already playing, this method has no effect.
     /// </para>
+    /// <para>
+    /// The <see cref="PlaybackStarted"/> event is fired when transitioning
+    /// from <see cref="PlaybackState.Stopped"/> or <see cref="PlaybackState.Paused"/>
+    /// to <see cref="PlaybackState.Playing"/>.
+    /// </para>
     /// </remarks>
     public void Play()
     {
         ThrowIfDisposed();
 
+        bool shouldFireEvent = false;
+
         lock (syncRoot)
         {
             ThrowIfNoReplayLoaded();
 
-            state = PlaybackState.Playing;
+            if (state != PlaybackState.Playing)
+            {
+                state = PlaybackState.Playing;
+                shouldFireEvent = true;
+            }
+        }
+
+        // Fire event outside lock to prevent deadlocks
+        if (shouldFireEvent)
+        {
+            PlaybackStarted?.Invoke();
         }
     }
 
@@ -467,10 +555,16 @@ public sealed class ReplayPlayer : IDisposable
     /// <para>
     /// If already paused or stopped, this method has no effect.
     /// </para>
+    /// <para>
+    /// The <see cref="PlaybackPaused"/> event is fired when transitioning
+    /// from <see cref="PlaybackState.Playing"/> to <see cref="PlaybackState.Paused"/>.
+    /// </para>
     /// </remarks>
     public void Pause()
     {
         ThrowIfDisposed();
+
+        bool shouldFireEvent = false;
 
         lock (syncRoot)
         {
@@ -479,7 +573,14 @@ public sealed class ReplayPlayer : IDisposable
             if (state == PlaybackState.Playing)
             {
                 state = PlaybackState.Paused;
+                shouldFireEvent = true;
             }
+        }
+
+        // Fire event outside lock to prevent deadlocks
+        if (shouldFireEvent)
+        {
+            PlaybackPaused?.Invoke();
         }
     }
 
@@ -496,16 +597,34 @@ public sealed class ReplayPlayer : IDisposable
     /// <para>
     /// If already stopped, this method has no effect.
     /// </para>
+    /// <para>
+    /// The <see cref="PlaybackStopped"/> event is fired when transitioning
+    /// from <see cref="PlaybackState.Playing"/> or <see cref="PlaybackState.Paused"/>
+    /// to <see cref="PlaybackState.Stopped"/>.
+    /// </para>
     /// </remarks>
     public void Stop()
     {
         ThrowIfDisposed();
 
+        bool shouldFireEvent = false;
+
         lock (syncRoot)
         {
             ThrowIfNoReplayLoaded();
 
+            if (state != PlaybackState.Stopped)
+            {
+                shouldFireEvent = true;
+            }
+
             ResetPlaybackPosition();
+        }
+
+        // Fire event outside lock to prevent deadlocks
+        if (shouldFireEvent)
+        {
+            PlaybackStopped?.Invoke();
         }
     }
 
@@ -527,16 +646,26 @@ public sealed class ReplayPlayer : IDisposable
     /// </para>
     /// <para>
     /// When playback reaches the end of the replay, the state automatically
-    /// transitions to <see cref="PlaybackState.Stopped"/>.
+    /// transitions to <see cref="PlaybackState.Stopped"/> and the <see cref="PlaybackEnded"/>
+    /// event is fired.
     /// </para>
     /// <para>
     /// If the state is not <see cref="PlaybackState.Playing"/>, this method
     /// returns false without making any changes.
     /// </para>
+    /// <para>
+    /// The <see cref="FrameChanged"/> event is fired for each frame that advances
+    /// during this update.
+    /// </para>
     /// </remarks>
     public bool Update(float deltaTime)
     {
         ThrowIfDisposed();
+
+        bool playbackEnded = false;
+        int startFrame;
+        int endFrame;
+        var changed = false;
 
         lock (syncRoot)
         {
@@ -549,41 +678,70 @@ public sealed class ReplayPlayer : IDisposable
             if (frames.Count == 0 || currentFrameIndex >= frames.Count)
             {
                 state = PlaybackState.Stopped;
-                return true;
+                playbackEnded = true;
+                startFrame = currentFrameIndex;
+                endFrame = currentFrameIndex;
             }
-
-            // Accumulate time scaled by playback speed
-            accumulatedTime += TimeSpan.FromSeconds(deltaTime * playbackSpeed);
-            var changed = false;
-
-            // Advance frames based on accumulated time
-            while (currentFrameIndex < frames.Count)
+            else
             {
-                var currentFrame = frames[currentFrameIndex];
-                var frameEndTime = currentFrame.ElapsedTime + currentFrame.DeltaTime;
+                // Accumulate time scaled by playback speed
+                accumulatedTime += TimeSpan.FromSeconds(deltaTime * playbackSpeed);
+                startFrame = currentFrameIndex;
 
-                if (accumulatedTime < currentFrame.DeltaTime)
+                // Advance frames based on accumulated time
+                while (currentFrameIndex < frames.Count)
                 {
-                    // Not enough time has passed to complete this frame
-                    break;
+                    var currentFrame = frames[currentFrameIndex];
+                    var frameEndTime = currentFrame.ElapsedTime + currentFrame.DeltaTime;
+
+                    if (accumulatedTime < currentFrame.DeltaTime)
+                    {
+                        // Not enough time has passed to complete this frame
+                        break;
+                    }
+
+                    // Advance to the next frame
+                    accumulatedTime -= currentFrame.DeltaTime;
+                    currentTime = frameEndTime;
+                    currentFrameIndex++;
+                    changed = true;
+
+                    // Check if we've reached the end
+                    if (currentFrameIndex >= frames.Count)
+                    {
+                        state = PlaybackState.Stopped;
+                        playbackEnded = true;
+                        break;
+                    }
                 }
 
-                // Advance to the next frame
-                accumulatedTime -= currentFrame.DeltaTime;
-                currentTime = frameEndTime;
-                currentFrameIndex++;
-                changed = true;
+                endFrame = currentFrameIndex;
+            }
+        }
 
-                // Check if we've reached the end
-                if (currentFrameIndex >= frames.Count)
+        // Fire events outside lock to prevent deadlocks
+        // Fire FrameChanged for each frame that advanced
+        var frameChangedHandler = FrameChanged;
+        if (frameChangedHandler != null)
+        {
+            for (int frame = startFrame + 1; frame <= endFrame && frame < int.MaxValue; frame++)
+            {
+                // Only fire if this frame hasn't been reported yet
+                if (frame > lastReportedFrameIndex)
                 {
-                    state = PlaybackState.Stopped;
-                    break;
+                    frameChangedHandler.Invoke(frame);
+                    lastReportedFrameIndex = frame;
                 }
             }
-
-            return changed;
         }
+
+        if (playbackEnded)
+        {
+            PlaybackEnded?.Invoke();
+            return true;
+        }
+
+        return changed;
     }
 
     /// <summary>
@@ -653,6 +811,10 @@ public sealed class ReplayPlayer : IDisposable
     /// stepping, the position is set directly. Future phases will support
     /// restoring world state from snapshots during backward stepping.
     /// </para>
+    /// <para>
+    /// The <see cref="PlaybackPaused"/> event is fired if playback was playing.
+    /// The <see cref="FrameChanged"/> event is fired if the frame position changes.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -670,6 +832,10 @@ public sealed class ReplayPlayer : IDisposable
     {
         ThrowIfDisposed();
 
+        bool shouldFirePausedEvent = false;
+        bool shouldFireFrameChangedEvent = false;
+        int newFrame = 0;
+
         lock (syncRoot)
         {
             ThrowIfNoReplayLoaded();
@@ -678,18 +844,45 @@ public sealed class ReplayPlayer : IDisposable
             if (state == PlaybackState.Playing)
             {
                 state = PlaybackState.Paused;
+                shouldFirePausedEvent = true;
             }
 
             var frameCount = replayData!.Frames.Count;
             if (frameCount == 0)
             {
-                return;
+                // Fire paused event before returning if needed
+                if (shouldFirePausedEvent)
+                {
+                    // Set flag to fire after lock release
+                }
             }
+            else
+            {
+                var previousFrame = currentFrameIndex;
 
-            // Calculate target frame, clamped to valid range
-            var targetFrame = Math.Clamp(currentFrameIndex + frames, 0, frameCount - 1);
+                // Calculate target frame, clamped to valid range
+                var targetFrame = Math.Clamp(currentFrameIndex + frames, 0, frameCount - 1);
 
-            SetCurrentFrameInternal(targetFrame);
+                SetCurrentFrameInternal(targetFrame);
+
+                if (currentFrameIndex != previousFrame)
+                {
+                    shouldFireFrameChangedEvent = true;
+                    newFrame = currentFrameIndex;
+                    lastReportedFrameIndex = newFrame;
+                }
+            }
+        }
+
+        // Fire events outside lock to prevent deadlocks
+        if (shouldFirePausedEvent)
+        {
+            PlaybackPaused?.Invoke();
+        }
+
+        if (shouldFireFrameChangedEvent)
+        {
+            FrameChanged?.Invoke(newFrame);
         }
     }
 
@@ -712,6 +905,10 @@ public sealed class ReplayPlayer : IDisposable
     /// The <see cref="CurrentFrame"/> and <see cref="CurrentTime"/> properties
     /// are updated to reflect the new position.
     /// </para>
+    /// <para>
+    /// The <see cref="PlaybackPaused"/> event is fired if playback was playing.
+    /// The <see cref="FrameChanged"/> event is fired if the frame position changes.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -729,6 +926,10 @@ public sealed class ReplayPlayer : IDisposable
     {
         ThrowIfDisposed();
 
+        bool shouldFirePausedEvent = false;
+        bool shouldFireFrameChangedEvent = false;
+        int newFrame = 0;
+
         lock (syncRoot)
         {
             ThrowIfNoReplayLoaded();
@@ -742,13 +943,34 @@ public sealed class ReplayPlayer : IDisposable
                     $"Frame number must be between 0 and {frameCount - 1}.");
             }
 
+            var previousFrame = currentFrameIndex;
+
             // Pause playback when seeking
             if (state == PlaybackState.Playing)
             {
                 state = PlaybackState.Paused;
+                shouldFirePausedEvent = true;
             }
 
             SetCurrentFrameInternal(frameNumber);
+
+            if (currentFrameIndex != previousFrame)
+            {
+                shouldFireFrameChangedEvent = true;
+                newFrame = currentFrameIndex;
+                lastReportedFrameIndex = newFrame;
+            }
+        }
+
+        // Fire events outside lock to prevent deadlocks
+        if (shouldFirePausedEvent)
+        {
+            PlaybackPaused?.Invoke();
+        }
+
+        if (shouldFireFrameChangedEvent)
+        {
+            FrameChanged?.Invoke(newFrame);
         }
     }
 
@@ -770,6 +992,10 @@ public sealed class ReplayPlayer : IDisposable
     /// <para>
     /// Seeking pauses playback if it was playing.
     /// </para>
+    /// <para>
+    /// The <see cref="PlaybackPaused"/> event is fired if playback was playing.
+    /// The <see cref="FrameChanged"/> event is fired if the frame position changes.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -783,6 +1009,10 @@ public sealed class ReplayPlayer : IDisposable
     public void SeekToTime(TimeSpan time)
     {
         ThrowIfDisposed();
+
+        bool shouldFirePausedEvent = false;
+        bool shouldFireFrameChangedEvent = false;
+        int newFrame = 0;
 
         lock (syncRoot)
         {
@@ -805,15 +1035,36 @@ public sealed class ReplayPlayer : IDisposable
                     $"Time cannot exceed the replay duration of {duration}.");
             }
 
+            var previousFrame = currentFrameIndex;
+
             // Pause playback when seeking
             if (state == PlaybackState.Playing)
             {
                 state = PlaybackState.Paused;
+                shouldFirePausedEvent = true;
             }
 
             // Find the frame at or before the specified time
             var targetFrame = FindFrameAtTime(time);
             SetCurrentFrameInternal(targetFrame);
+
+            if (currentFrameIndex != previousFrame)
+            {
+                shouldFireFrameChangedEvent = true;
+                newFrame = currentFrameIndex;
+                lastReportedFrameIndex = newFrame;
+            }
+        }
+
+        // Fire events outside lock to prevent deadlocks
+        if (shouldFirePausedEvent)
+        {
+            PlaybackPaused?.Invoke();
+        }
+
+        if (shouldFireFrameChangedEvent)
+        {
+            FrameChanged?.Invoke(newFrame);
         }
     }
 
@@ -908,6 +1159,7 @@ public sealed class ReplayPlayer : IDisposable
     {
         state = PlaybackState.Stopped;
         currentFrameIndex = 0;
+        lastReportedFrameIndex = -1;
         currentTime = TimeSpan.Zero;
         accumulatedTime = TimeSpan.Zero;
     }
