@@ -15,6 +15,7 @@ using KeenEyes.Graphics.Silk;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.Input.Silk;
 using KeenEyes.Platform.Silk;
+using KeenEyes.Replay;
 using KeenEyes.Runtime;
 using KeenEyes.Serialization;
 using KeenEyes.UI;
@@ -46,6 +47,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private Entity _inspectorPanel;
     private Entity _consolePanel;
     private Entity _projectPanel;
+    private Entity _frameInspectorPanel;
     private Entity _bottomTabView;
     private Entity[] _bottomTabContentPanels = [];
     private Entity _bottomDockSplitter;
@@ -372,6 +374,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                 new MenuItemDef("Inspector", "show_inspector"),
                 new MenuItemDef("Project", "show_project"),
                 new MenuItemDef("Console", "show_console"),
+                new MenuItemDef("Frame Inspector", "show_frame_inspector"),
                 new MenuItemDef("---", "sep6", IsSeparator: true),
                 new MenuItemDef("Layout: Default", "layout_default"),
                 new MenuItemDef("Layout: Tall", "layout_tall"),
@@ -467,7 +470,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         var tabs = new TabConfig[]
         {
             new("Console", MinWidth: 80, Padding: 12),
-            new("Project", MinWidth: 80, Padding: 12)
+            new("Project", MinWidth: 80, Padding: 12),
+            new("Frame Inspector", MinWidth: 100, Padding: 12)
         };
 
         // Create tab view with editor styling
@@ -509,6 +513,15 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         ref var projectRect = ref _editorWorld.Get<UIRect>(_projectPanel);
         projectRect.WidthMode = UISizeMode.Fill;
         projectRect.HeightMode = UISizeMode.Fill;
+
+        // Create Frame Inspector panel inside third tab content area
+        // ReplayPlaybackMode will be available after a scene is opened
+        _frameInspectorPanel = FrameInspectorPanel.Create(_editorWorld, contentPanels[2], _defaultFont, _replayPlayback);
+
+        // Make frame inspector panel fill its container
+        ref var frameInspectorRect = ref _editorWorld.Get<UIRect>(_frameInspectorPanel);
+        frameInspectorRect.WidthMode = UISizeMode.Fill;
+        frameInspectorRect.HeightMode = UISizeMode.Fill;
     }
 
     private void SubscribeToMenuActions()
@@ -548,6 +561,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                     break;
                 case "show_console":
                     ShowBottomDockTab(0); // Console is tab index 0
+                    break;
+                case "show_frame_inspector":
+                    ShowBottomDockTab(2); // Frame Inspector is tab index 2
                     break;
 
                 // Layout presets
@@ -1469,6 +1485,12 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     void IEditorShortcutActions.ShowConsole()
     {
         ShowBottomDockTab(0); // Console is tab index 0
+    }
+
+    /// <inheritdoc/>
+    void IEditorShortcutActions.ShowFrameInspector()
+    {
+        ShowBottomDockTab(2); // Frame Inspector is tab index 2
     }
 
     /// <inheritdoc/>
