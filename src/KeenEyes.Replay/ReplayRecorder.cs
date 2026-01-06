@@ -1,3 +1,4 @@
+using System.Numerics;
 using KeenEyes.Serialization;
 
 namespace KeenEyes.Replay;
@@ -38,7 +39,7 @@ namespace KeenEyes.Replay;
 /// var replayData = recorder.StopRecording();
 /// </code>
 /// </example>
-public sealed class ReplayRecorder
+public sealed class ReplayRecorder : IInputRecorder
 {
     private readonly IWorld world;
     private readonly ReplayOptions options;
@@ -47,6 +48,7 @@ public sealed class ReplayRecorder
     private readonly List<ReplayFrame> frames = [];
     private readonly List<SnapshotMarker> snapshots = [];
     private readonly List<ReplayEvent> currentFrameEvents = [];
+    private readonly List<InputEvent> currentFrameInputs = [];
 
     private bool isRecording;
     private DateTimeOffset recordingStarted;
@@ -118,6 +120,12 @@ public sealed class ReplayRecorder
     /// </summary>
     public ReplayOptions Options => options;
 
+    /// <inheritdoc/>
+    public bool IsRecordingInputs => isRecording;
+
+    /// <inheritdoc/>
+    public int CurrentInputFrame => isRecording ? frameNumber : -1;
+
     /// <summary>
     /// Starts a new recording session.
     /// </summary>
@@ -146,6 +154,7 @@ public sealed class ReplayRecorder
         frames.Clear();
         snapshots.Clear();
         currentFrameEvents.Clear();
+        currentFrameInputs.Clear();
         ringBufferStart = 0;
 
         // Initialize recording state
@@ -235,6 +244,7 @@ public sealed class ReplayRecorder
         frames.Clear();
         snapshots.Clear();
         currentFrameEvents.Clear();
+        currentFrameInputs.Clear();
     }
 
     /// <summary>
@@ -311,6 +321,7 @@ public sealed class ReplayRecorder
         }
 
         currentFrameEvents.Clear();
+        currentFrameInputs.Clear();
 
         // Record frame start event
         currentFrameEvents.Add(new ReplayEvent
@@ -365,6 +376,7 @@ public sealed class ReplayRecorder
             DeltaTime = dt,
             ElapsedTime = elapsedTime,
             Events = currentFrameEvents.ToList(),
+            InputEvents = currentFrameInputs.ToList(),
             PrecedingSnapshotIndex = precedingSnapshotIndex,
             Checksum = checksum
         };
@@ -602,4 +614,144 @@ public sealed class ReplayRecorder
 
         return false;
     }
+
+    #region IInputRecorder Implementation
+
+    /// <inheritdoc/>
+    public void RecordInput(InputEvent inputEvent)
+    {
+        if (!isRecording)
+        {
+            return;
+        }
+
+        // Ensure the frame number is set correctly
+        var eventWithFrame = inputEvent.Frame == frameNumber
+            ? inputEvent
+            : inputEvent with { Frame = frameNumber };
+
+        currentFrameInputs.Add(eventWithFrame);
+    }
+
+    /// <inheritdoc/>
+    public void RecordKeyDown(string key)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.KeyDown,
+            Frame = frameNumber,
+            Key = key,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordKeyUp(string key)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.KeyUp,
+            Frame = frameNumber,
+            Key = key,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordMouseMove(Vector2 position)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.MouseMove,
+            Frame = frameNumber,
+            Position = position,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordMouseButtonDown(string button, Vector2 position)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.MouseButtonDown,
+            Frame = frameNumber,
+            Key = button,
+            Position = position,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordMouseButtonUp(string button, Vector2 position)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.MouseButtonUp,
+            Frame = frameNumber,
+            Key = button,
+            Position = position,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordMouseWheel(float delta, Vector2 position)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.MouseWheel,
+            Frame = frameNumber,
+            Value = delta,
+            Position = position,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordGamepadButton(string button, bool pressed)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.GamepadButton,
+            Frame = frameNumber,
+            Key = button,
+            Value = pressed ? 1.0f : 0.0f,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordGamepadAxis(string axis, float value)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.GamepadAxis,
+            Frame = frameNumber,
+            Key = axis,
+            Value = value,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordCustomInput(string customType, object? customData = null)
+    {
+        RecordInput(new InputEvent
+        {
+            Type = InputEventType.Custom,
+            Frame = frameNumber,
+            CustomType = customType,
+            CustomData = customData,
+            Timestamp = TimeSpan.Zero
+        });
+    }
+
+    /// <inheritdoc/>
+    public void RecordCustomInput<T>(string customType, T customData)
+    {
+        RecordCustomInput(customType, (object?)customData);
+    }
+
+    #endregion
 }

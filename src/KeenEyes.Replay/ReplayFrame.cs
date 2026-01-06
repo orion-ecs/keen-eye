@@ -97,4 +97,23 @@ public sealed record ReplayFrame
     /// <seealso cref="WorldChecksum"/>
     /// <seealso cref="ReplayDesyncException"/>
     public uint? Checksum { get; init; }
+
+    /// <summary>
+    /// Gets or sets the input events that occurred during this frame.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Input events capture user interactions such as keyboard presses, mouse
+    /// movements, and gamepad inputs. These are stored separately from replay
+    /// events to enable efficient input playback.
+    /// </para>
+    /// <para>
+    /// Input events are ordered by their <see cref="InputEvent.Timestamp"/>
+    /// values for accurate sub-frame timing during playback.
+    /// </para>
+    /// <para>
+    /// An empty list indicates no input events occurred during this frame.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<InputEvent> InputEvents { get; init; } = [];
 }
