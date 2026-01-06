@@ -261,6 +261,13 @@
           "Silk.NET.Windowing": "[2.22.0, )"
         }
       },
+      "keeneyes.replay": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )"
+        }
+      },
       "keeneyes.runtime": {
         "type": "Project",
         "dependencies": {

@@ -33,6 +33,7 @@
     <ProjectReference Include="..\..\src\KeenEyes.Platform.Silk\KeenEyes.Platform.Silk.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Navigation.Abstractions\KeenEyes.Navigation.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Navigation.DotRecast\KeenEyes.Navigation.DotRecast.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Replay\KeenEyes.Replay.csproj" />
   </ItemGroup>
 
 </Project>
