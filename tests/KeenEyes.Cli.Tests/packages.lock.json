@@ -352,6 +352,7 @@
           "KeenEyes.Navigation.Abstractions": "[1.0.0, )",
           "KeenEyes.Navigation.DotRecast": "[1.0.0, )",
           "KeenEyes.Platform.Silk": "[1.0.0, )",
+          "KeenEyes.Replay": "[1.0.0, )",
           "KeenEyes.Runtime": "[1.0.0, )",
           "KeenEyes.UI": "[1.0.0, )",
           "NuGet.Configuration": "[7.0.1, )",
@@ -445,6 +446,13 @@
         "dependencies": {
           "Silk.NET.Input": "[2.22.0, )",
           "Silk.NET.Windowing": "[2.22.0, )"
+        }
+      },
+      "keeneyes.replay": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )"
         }
       },
       "keeneyes.runtime": {
