@@ -54,6 +54,7 @@ public sealed class ReplayPlayer : IDisposable
     private int currentFrameIndex;
     private TimeSpan currentTime;
     private TimeSpan accumulatedTime;
+    private float playbackSpeed = PlaybackSpeeds.NormalSpeed;
     private bool disposed;
 
     /// <summary>
@@ -144,6 +145,78 @@ public sealed class ReplayPlayer : IDisposable
             lock (syncRoot)
             {
                 return replayData?.Duration ?? TimeSpan.Zero;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets or sets the playback speed multiplier.
+    /// </summary>
+    /// <value>
+    /// A value between <see cref="PlaybackSpeeds.MinSpeed"/> (0.25x) and
+    /// <see cref="PlaybackSpeeds.MaxSpeed"/> (4.0x). Default is 1.0 (normal speed).
+    /// </value>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// Thrown when attempting to set a value outside the valid range.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The playback speed affects how <see cref="Update"/> processes time:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>
+    /// <b>Slow motion (0.25x - 0.99x):</b> Frames advance slower than real time.
+    /// At 0.5x, it takes 2 seconds of real time to play 1 second of replay.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Normal speed (1.0x):</b> Frames advance at the recorded rate.
+    /// </description></item>
+    /// <item><description>
+    /// <b>Fast forward (1.01x - 4.0x):</b> Multiple frames may advance per update.
+    /// At 2x, 1 second of real time plays 2 seconds of replay.
+    /// </description></item>
+    /// </list>
+    /// <para>
+    /// Use <see cref="PlaybackSpeeds"/> constants for common speed values.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var player = new ReplayPlayer();
+    /// player.LoadReplay("recording.kreplay");
+    ///
+    /// // Slow motion playback
+    /// player.PlaybackSpeed = PlaybackSpeeds.HalfSpeed;
+    ///
+    /// // Fast forward
+    /// player.PlaybackSpeed = PlaybackSpeeds.QuadrupleSpeed;
+    ///
+    /// // Custom speed (1.5x)
+    /// player.PlaybackSpeed = 1.5f;
+    /// </code>
+    /// </example>
+    public float PlaybackSpeed
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return playbackSpeed;
+            }
+        }
+        set
+        {
+            if (value < PlaybackSpeeds.MinSpeed || value > PlaybackSpeeds.MaxSpeed)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(value),
+                    value,
+                    $"Playback speed must be between {PlaybackSpeeds.MinSpeed} and {PlaybackSpeeds.MaxSpeed}.");
+            }
+
+            lock (syncRoot)
+            {
+                playbackSpeed = value;
             }
         }
     }
@@ -448,7 +521,9 @@ public sealed class ReplayPlayer : IDisposable
     /// <remarks>
     /// <para>
     /// This method should be called each frame in your game loop while playback is active.
-    /// It accumulates time and advances frames based on the original recording timing.
+    /// It accumulates time scaled by <see cref="PlaybackSpeed"/> and advances frames
+    /// accordingly. At higher speeds, multiple frames may advance per update. At lower
+    /// speeds, frames may not advance every update.
     /// </para>
     /// <para>
     /// When playback reaches the end of the replay, the state automatically
@@ -477,8 +552,8 @@ public sealed class ReplayPlayer : IDisposable
                 return true;
             }
 
-            // Accumulate time
-            accumulatedTime += TimeSpan.FromSeconds(deltaTime);
+            // Accumulate time scaled by playback speed
+            accumulatedTime += TimeSpan.FromSeconds(deltaTime * playbackSpeed);
             var changed = false;
 
             // Advance frames based on accumulated time
