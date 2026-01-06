@@ -1,6 +1,7 @@
 using System.Numerics;
 using KeenEyes.Editor.Assets;
 using KeenEyes.Editor.Commands;
+using KeenEyes.Editor.HotReload;
 using KeenEyes.Editor.Layout;
 using KeenEyes.Editor.Logging;
 using KeenEyes.Editor.Panels;
@@ -38,6 +39,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private readonly AssetDatabase _assetDatabase;
     private readonly EditorComponentSerializer _serializer;
     private PlayModeManager? _playMode;
+    private HotReloadService? _hotReload;
     private Entity _viewportPanel;
     private Entity _hierarchyPanel;
     private Entity _inspectorPanel;
@@ -83,6 +85,11 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// Gets the play mode manager, if initialized.
     /// </summary>
     public PlayModeManager? PlayMode => _playMode;
+
+    /// <summary>
+    /// Gets the hot reload service, if initialized.
+    /// </summary>
+    public HotReloadService? HotReload => _hotReload;
 
     /// <summary>
     /// Gets the layout manager for window arrangement.
@@ -214,12 +221,59 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     {
         _playMode = new PlayModeManager(sceneWorld, _serializer);
         Console.WriteLine("Play mode manager initialized for scene");
+
+        // Initialize hot reload service
+        _hotReload = new HotReloadService(sceneWorld);
+        _hotReload.StatusChanged += OnHotReloadStatusChanged;
+        _hotReload.SourceFileChanged += OnHotReloadFileChanged;
+        _hotReload.ConnectPlayMode(_playMode);
+        _hotReload.Initialize();
+        Console.WriteLine("Hot reload service initialized for scene");
     }
 
     private void OnSceneClosed()
     {
+        // Dispose hot reload service
+        if (_hotReload != null)
+        {
+            _hotReload.StatusChanged -= OnHotReloadStatusChanged;
+            _hotReload.SourceFileChanged -= OnHotReloadFileChanged;
+            _hotReload.Dispose();
+            _hotReload = null;
+            Console.WriteLine("Hot reload service disposed");
+        }
+
         _playMode = null;
         Console.WriteLine("Play mode manager disposed");
+    }
+
+    private void OnHotReloadStatusChanged(object? sender, HotReloadStatusChangedEventArgs e)
+    {
+        var prefix = e.Status switch
+        {
+            HotReloadStatus.Disabled => "[HotReload] Disabled",
+            HotReloadStatus.Idle => "[HotReload] Idle",
+            HotReloadStatus.Pending => "[HotReload] Pending",
+            HotReloadStatus.Building => "[HotReload] Building",
+            HotReloadStatus.Loading => "[HotReload] Loading",
+            HotReloadStatus.Ready => "[HotReload] Ready",
+            HotReloadStatus.Failed => "[HotReload] Failed",
+            _ => "[HotReload] Unknown"
+        };
+
+        if (!string.IsNullOrEmpty(e.Message))
+        {
+            Console.WriteLine($"{prefix}: {e.Message}");
+        }
+        else
+        {
+            Console.WriteLine(prefix);
+        }
+    }
+
+    private void OnHotReloadFileChanged(object? sender, string filePath)
+    {
+        Console.WriteLine($"[HotReload] File changed: {Path.GetFileName(filePath)}");
     }
 
     private FontHandle LoadDefaultFont()
@@ -1394,6 +1448,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         // Save layout before disposing
         _layoutManager.Save();
 
+        _hotReload?.Dispose();
         _logProvider.Dispose();
         _assetDatabase.Dispose();
         _worldManager.Dispose();
