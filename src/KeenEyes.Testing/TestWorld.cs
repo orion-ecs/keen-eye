@@ -5,6 +5,7 @@ using KeenEyes.Testing.Input;
 using KeenEyes.Testing.Logging;
 using KeenEyes.Testing.Network;
 using KeenEyes.Testing.Platform;
+using KeenEyes.Testing.Systems;
 
 namespace KeenEyes.Testing;
 
@@ -161,6 +162,33 @@ public sealed class TestWorld : IDisposable
     public MockNetworkContext? MockNetwork { get; }
 
     /// <summary>
+    /// Gets the system recorder for verifying system execution in tests.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithSystemRecording"/>.
+    /// </para>
+    /// <para>
+    /// The recorder automatically captures all system executions including system type,
+    /// delta time, and timestamps. Use the fluent assertions from <see cref="SystemRecorderAssertions"/>
+    /// to verify system calls in tests.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// testWorld.SystemRecorder!
+    ///     .ShouldHaveCalledSystem&lt;MovementSystem&gt;()
+    ///     .ShouldHaveCalledSystemTimes&lt;MovementSystem&gt;(3);
+    /// </code>
+    /// </example>
+    public SystemRecorder? SystemRecorder { get; }
+
+    /// <summary>
+    /// Gets whether system recording is enabled.
+    /// </summary>
+    public bool HasSystemRecording => SystemRecorder != null;
+
+    /// <summary>
     /// Creates a new TestWorld instance.
     /// </summary>
     /// <param name="world">The underlying world.</param>
@@ -178,6 +206,7 @@ public sealed class TestWorld : IDisposable
     /// <param name="mockLogProvider">Optional mock log provider.</param>
     /// <param name="mockEncryption">Optional mock encryption provider.</param>
     /// <param name="mockNetwork">Optional mock network context.</param>
+    /// <param name="systemRecorder">Optional system execution recorder.</param>
     internal TestWorld(
         World world,
         TestClock? clock,
@@ -193,7 +222,8 @@ public sealed class TestWorld : IDisposable
         MockFontManager? mockFontManager = null,
         MockLogProvider? mockLogProvider = null,
         MockEncryptionProvider? mockEncryption = null,
-        MockNetworkContext? mockNetwork = null)
+        MockNetworkContext? mockNetwork = null,
+        SystemRecorder? systemRecorder = null)
     {
         World = world;
         Clock = clock;
@@ -209,6 +239,7 @@ public sealed class TestWorld : IDisposable
         MockLogProvider = mockLogProvider;
         MockEncryption = mockEncryption;
         MockNetwork = mockNetwork;
+        SystemRecorder = systemRecorder;
         this.eventRecorders = eventRecorders ?? [];
     }
 
@@ -409,6 +440,9 @@ public sealed class TestWorld : IDisposable
             MockFontManager?.Dispose();
             MockLogProvider?.Dispose();
             MockNetwork?.Dispose();
+
+            // Dispose system recorder
+            SystemRecorder?.Dispose();
 
             // Dispose the world
             World.Dispose();

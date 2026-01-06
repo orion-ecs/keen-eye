@@ -1,6 +1,6 @@
 using System.Diagnostics;
 using KeenEyes;
-using KeenEyes.Generators.Attributes;
+using KeenEyes.Common;
 
 // Startup Time Benchmark
 // Measures time from process start to first ECS operation
@@ -14,35 +14,6 @@ using KeenEyes.Generators.Attributes;
 //     ./bin/Release/net10.0/linux-x64/publish/StartupTimeBenchmark
 //
 // This benchmark should be run 100+ times and median/p95/p99 calculated.
-
-[Component]
-public partial struct Position
-{
-    public float X;
-    public float Y;
-}
-
-[Component]
-public partial struct Velocity
-{
-    public float X;
-    public float Y;
-}
-
-[System]
-public partial class MovementSystem : SystemBase
-{
-    public override void Update(float deltaTime)
-    {
-        foreach (var entity in World.Query<Position, Velocity>())
-        {
-            ref var pos = ref World.Get<Position>(entity);
-            ref readonly var vel = ref World.Get<Velocity>(entity);
-            pos.X += vel.X * deltaTime;
-            pos.Y += vel.Y * deltaTime;
-        }
-    }
-}
 
 // Start measuring immediately
 var sw = Stopwatch.StartNew();
@@ -74,4 +45,35 @@ if (pos.X.ApproximatelyEquals(0.016f) && pos.Y.ApproximatelyEquals(0.016f))
 else
 {
     Console.WriteLine($"Verification: FAILED (position = {pos.X}, {pos.Y})");
+}
+
+// Type declarations must come after top-level statements
+
+[Component]
+public partial struct Position
+{
+    public float X;
+    public float Y;
+}
+
+[Component]
+public partial struct Velocity
+{
+    public float X;
+    public float Y;
+}
+
+[System]
+public partial class MovementSystem : SystemBase
+{
+    public override void Update(float deltaTime)
+    {
+        foreach (var entity in World.Query<Position, Velocity>())
+        {
+            ref var pos = ref World.Get<Position>(entity);
+            ref readonly var vel = ref World.Get<Velocity>(entity);
+            pos.X += vel.X * deltaTime;
+            pos.Y += vel.Y * deltaTime;
+        }
+    }
 }

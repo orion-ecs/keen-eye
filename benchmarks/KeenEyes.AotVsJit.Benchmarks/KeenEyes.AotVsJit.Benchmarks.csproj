@@ -9,6 +9,11 @@
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
+  <!-- Exclude child project directory from compilation -->
+  <ItemGroup>
+    <Compile Remove="StartupTimeBenchmark\**" />
+  </ItemGroup>
+
   <!-- AOT compilation mode (set via /p:BenchmarkMode=AOT) -->
   <PropertyGroup Condition="'$(BenchmarkMode)' == 'AOT'">
     <PublishAot>true</PublishAot>

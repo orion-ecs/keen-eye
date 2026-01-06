@@ -1,4 +1,5 @@
 using KeenEyes.Capabilities;
+using KeenEyes.Debugging.Timeline;
 using KeenEyes.Testing.Capabilities;
 using KeenEyes.Testing.Plugins;
 
@@ -85,11 +86,13 @@ public partial class DebugPluginTests
         var memoryTracker = world.GetExtension<MemoryTracker>();
         var profiler = world.GetExtension<Profiler>();
         var gcTracker = world.GetExtension<GCTracker>();
+        var queryProfiler = world.GetExtension<QueryProfiler>();
 
         Assert.NotNull(inspector);
         Assert.NotNull(memoryTracker);
         Assert.NotNull(profiler);
         Assert.NotNull(gcTracker);
+        Assert.NotNull(queryProfiler);
     }
 
     [Fact]
@@ -139,6 +142,30 @@ public partial class DebugPluginTests
     }
 
     [Fact]
+    public void Install_QueryProfilingDisabled_DoesNotInstallQueryProfiler()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableQueryProfiling = false };
+        var plugin = new DebugPlugin(options);
+
+        // Act
+        world.InstallPlugin(plugin);
+
+        // Assert
+        var hasQueryProfiler = world.TryGetExtension<QueryProfiler>(out _);
+        Assert.False(hasQueryProfiler);
+
+        // Other extensions should still be available
+        var inspector = world.GetExtension<EntityInspector>();
+        var memoryTracker = world.GetExtension<MemoryTracker>();
+        var profiler = world.GetExtension<Profiler>();
+        Assert.NotNull(inspector);
+        Assert.NotNull(memoryTracker);
+        Assert.NotNull(profiler);
+    }
+
+    [Fact]
     public void Install_AlwaysInstalls_EntityInspectorAndMemoryTracker()
     {
         // Arrange
@@ -146,7 +173,8 @@ public partial class DebugPluginTests
         var options = new DebugOptions
         {
             EnableProfiling = false,
-            EnableGCTracking = false
+            EnableGCTracking = false,
+            EnableQueryProfiling = false
         };
         var plugin = new DebugPlugin(options);
 
@@ -158,6 +186,38 @@ public partial class DebugPluginTests
         var memoryTracker = world.GetExtension<MemoryTracker>();
         Assert.NotNull(inspector);
         Assert.NotNull(memoryTracker);
+    }
+
+    [Fact]
+    public void Install_TimelineEnabled_InstallsTimelineRecorder()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableTimeline = true };
+        var plugin = new DebugPlugin(options);
+
+        // Act
+        world.InstallPlugin(plugin);
+
+        // Assert
+        var hasTimeline = world.TryGetExtension<TimelineRecorder>(out var timeline);
+        Assert.True(hasTimeline);
+        Assert.NotNull(timeline);
+    }
+
+    [Fact]
+    public void Install_TimelineDisabledByDefault_DoesNotInstallTimelineRecorder()
+    {
+        // Arrange
+        using var world = new World();
+        var plugin = new DebugPlugin(); // Default options
+
+        // Act
+        world.InstallPlugin(plugin);
+
+        // Assert
+        var hasTimeline = world.TryGetExtension<TimelineRecorder>(out _);
+        Assert.False(hasTimeline);
     }
 
     #endregion
@@ -277,6 +337,132 @@ public partial class DebugPluginTests
 
     #endregion
 
+    #region Timeline Integration Tests
+
+    [Fact]
+    public void Timeline_AutomaticallyTracksSystemExecution()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableTimeline = true };
+        var plugin = new DebugPlugin(options);
+        world.InstallPlugin(plugin);
+
+        var system = new TestSystem();
+        world.AddSystem(system);
+
+        var timeline = world.GetExtension<TimelineRecorder>();
+        Assert.NotNull(timeline);
+
+        // Act - Run multiple updates
+        for (int i = 0; i < 5; i++)
+        {
+            world.Update(0.016f);
+            timeline.AdvanceFrame();
+        }
+
+        // Assert
+        var entries = timeline.GetAllEntries();
+        Assert.Equal(5, entries.Count);
+        Assert.All(entries, e => Assert.Equal(nameof(TestSystem), e.SystemName));
+        Assert.All(entries, e => Assert.True(e.Duration > TimeSpan.Zero));
+    }
+
+    [Fact]
+    public void Timeline_WithPhaseFilter_OnlyRecordsSpecifiedPhase()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions
+        {
+            EnableTimeline = true,
+            TimelinePhase = SystemPhase.Update
+        };
+        var plugin = new DebugPlugin(options);
+        world.InstallPlugin(plugin);
+
+        var system = new TestSystem();
+        world.AddSystem(system, phase: SystemPhase.Update);
+
+        var timeline = world.GetExtension<TimelineRecorder>();
+        Assert.NotNull(timeline);
+
+        // Act
+        world.Update(0.016f); // Should be recorded
+        world.FixedUpdate(0.016f); // Should not be recorded
+
+        // Assert
+        var entries = timeline.GetAllEntries();
+        Assert.Single(entries);
+    }
+
+    [Fact]
+    public void Timeline_CustomMaxFrames_RespectsConfiguration()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions
+        {
+            EnableTimeline = true,
+            TimelineMaxFrames = 3
+        };
+        var plugin = new DebugPlugin(options);
+        world.InstallPlugin(plugin);
+
+        var system = new TestSystem();
+        world.AddSystem(system);
+
+        var timeline = world.GetExtension<TimelineRecorder>();
+        Assert.NotNull(timeline);
+
+        // Act - Run more frames than max
+        for (int i = 0; i < 5; i++)
+        {
+            world.Update(0.016f);
+            timeline.AdvanceFrame();
+        }
+
+        // Assert - Only last 3 frames should have entries
+        var entries = timeline.GetAllEntries();
+        Assert.Equal(3, entries.Count);
+        Assert.All(entries, e => Assert.True(e.FrameNumber >= 2));
+    }
+
+    [Fact]
+    public void Timeline_StatsCalculation_ReturnsValidStatistics()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableTimeline = true };
+        var plugin = new DebugPlugin(options);
+        world.InstallPlugin(plugin);
+
+        var system = new TestSystem();
+        world.AddSystem(system);
+
+        var timeline = world.GetExtension<TimelineRecorder>();
+        Assert.NotNull(timeline);
+
+        // Act
+        for (int i = 0; i < 3; i++)
+        {
+            world.Update(0.016f);
+            timeline.AdvanceFrame();
+        }
+
+        var stats = timeline.GetSystemStats();
+
+        // Assert
+        Assert.Single(stats);
+        var systemStats = stats[nameof(TestSystem)];
+        Assert.Equal(nameof(TestSystem), systemStats.SystemName);
+        Assert.Equal(3, systemStats.CallCount);
+        Assert.True(systemStats.TotalTime > TimeSpan.Zero);
+        Assert.True(systemStats.AverageTime > TimeSpan.Zero);
+    }
+
+    #endregion
+
     #region Uninstall Tests
 
     [Fact]
@@ -292,6 +478,7 @@ public partial class DebugPluginTests
         Assert.NotNull(world.GetExtension<MemoryTracker>());
         Assert.NotNull(world.GetExtension<Profiler>());
         Assert.NotNull(world.GetExtension<GCTracker>());
+        Assert.NotNull(world.GetExtension<QueryProfiler>());
 
         // Act
         world.UninstallPlugin("Debug");
@@ -301,6 +488,7 @@ public partial class DebugPluginTests
         Assert.False(world.TryGetExtension<MemoryTracker>(out _));
         Assert.False(world.TryGetExtension<Profiler>(out _));
         Assert.False(world.TryGetExtension<GCTracker>(out _));
+        Assert.False(world.TryGetExtension<QueryProfiler>(out _));
     }
 
     [Fact]
@@ -347,6 +535,34 @@ public partial class DebugPluginTests
         // Assert - Should not throw even though Profiler and GCTracker were never installed
         Assert.False(world.TryGetExtension<EntityInspector>(out _));
         Assert.False(world.TryGetExtension<MemoryTracker>(out _));
+    }
+
+    [Fact]
+    public void Uninstall_WithTimeline_RemovesTimelineAndDisposesHook()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableTimeline = true };
+        var plugin = new DebugPlugin(options);
+        world.InstallPlugin(plugin);
+
+        var system = new TestSystem();
+        world.AddSystem(system);
+
+        var timeline = world.GetExtension<TimelineRecorder>();
+        Assert.NotNull(timeline);
+
+        // Act - Uninstall plugin
+        world.UninstallPlugin("Debug");
+
+        // Run update
+        world.Update(0.016f);
+
+        // Assert - Timeline should be removed
+        Assert.False(world.TryGetExtension<TimelineRecorder>(out _));
+
+        // Timeline should no longer track (hooks disposed)
+        Assert.Equal(0, timeline.EntryCount);
     }
 
     #endregion
@@ -455,8 +671,12 @@ public partial class DebugPluginTests
         // Assert
         Assert.True(options.EnableProfiling);
         Assert.True(options.EnableGCTracking);
+        Assert.True(options.EnableQueryProfiling);
+        Assert.False(options.EnableTimeline); // Timeline disabled by default due to memory overhead
         Assert.Null(options.ProfilingPhase);
         Assert.Null(options.GCTrackingPhase);
+        Assert.Null(options.TimelinePhase);
+        Assert.Equal(300, options.TimelineMaxFrames);
     }
 
     [Fact]
@@ -467,15 +687,21 @@ public partial class DebugPluginTests
         {
             EnableProfiling = false,
             EnableGCTracking = true,
+            EnableTimeline = true,
             ProfilingPhase = SystemPhase.Update,
-            GCTrackingPhase = SystemPhase.FixedUpdate
+            GCTrackingPhase = SystemPhase.FixedUpdate,
+            TimelinePhase = SystemPhase.Render,
+            TimelineMaxFrames = 600
         };
 
         // Assert
         Assert.False(options.EnableProfiling);
         Assert.True(options.EnableGCTracking);
+        Assert.True(options.EnableTimeline);
         Assert.Equal(SystemPhase.Update, options.ProfilingPhase);
         Assert.Equal(SystemPhase.FixedUpdate, options.GCTrackingPhase);
+        Assert.Equal(SystemPhase.Render, options.TimelinePhase);
+        Assert.Equal(600, options.TimelineMaxFrames);
     }
 
     [Fact]
@@ -543,12 +769,14 @@ public partial class DebugPluginTests
         // Act
         plugin.Install(context);
 
-        // Assert - default options enable profiling and GC tracking
-        context.ShouldHaveSetExtensionCount(4);
+        // Assert - default options enable profiling, GC tracking, and query profiling
+        context.ShouldHaveSetExtensionCount(6);
+        Assert.True(context.WasExtensionSet<DebugController>());
         Assert.True(context.WasExtensionSet<EntityInspector>());
         Assert.True(context.WasExtensionSet<MemoryTracker>());
         Assert.True(context.WasExtensionSet<Profiler>());
         Assert.True(context.WasExtensionSet<GCTracker>());
+        Assert.True(context.WasExtensionSet<QueryProfiler>());
     }
 
     [Fact]
@@ -568,6 +796,7 @@ public partial class DebugPluginTests
         Assert.True(context.WasExtensionSet<EntityInspector>());
         Assert.True(context.WasExtensionSet<MemoryTracker>());
         Assert.True(context.WasExtensionSet<GCTracker>());
+        Assert.True(context.WasExtensionSet<QueryProfiler>());
     }
 
     [Fact]
@@ -587,6 +816,7 @@ public partial class DebugPluginTests
         Assert.True(context.WasExtensionSet<EntityInspector>());
         Assert.True(context.WasExtensionSet<MemoryTracker>());
         Assert.True(context.WasExtensionSet<Profiler>());
+        Assert.True(context.WasExtensionSet<QueryProfiler>());
     }
 
     [Fact]
@@ -597,7 +827,8 @@ public partial class DebugPluginTests
         var options = new DebugOptions
         {
             EnableProfiling = false,
-            EnableGCTracking = false
+            EnableGCTracking = false,
+            EnableQueryProfiling = false
         };
         var plugin = new DebugPlugin(options);
         var context = new MockPluginContext(plugin, world);
@@ -605,12 +836,14 @@ public partial class DebugPluginTests
         // Act
         plugin.Install(context);
 
-        // Assert - only EntityInspector and MemoryTracker are always registered
-        context.ShouldHaveSetExtensionCount(2);
+        // Assert - DebugController, EntityInspector, and MemoryTracker are always registered
+        context.ShouldHaveSetExtensionCount(3);
+        Assert.True(context.WasExtensionSet<DebugController>());
         Assert.True(context.WasExtensionSet<EntityInspector>());
         Assert.True(context.WasExtensionSet<MemoryTracker>());
         Assert.False(context.WasExtensionSet<Profiler>());
         Assert.False(context.WasExtensionSet<GCTracker>());
+        Assert.False(context.WasExtensionSet<QueryProfiler>());
     }
 
     [Fact]
@@ -670,17 +903,51 @@ public partial class DebugPluginTests
         var memoryTracker = context.GetSetExtension<MemoryTracker>();
         var profiler = context.GetSetExtension<Profiler>();
         var gcTracker = context.GetSetExtension<GCTracker>();
+        var queryProfiler = context.GetSetExtension<QueryProfiler>();
 
         Assert.NotNull(inspector);
         Assert.NotNull(memoryTracker);
         Assert.NotNull(profiler);
         Assert.NotNull(gcTracker);
+        Assert.NotNull(queryProfiler);
 
         // Verify profiler can be used
         profiler.BeginSample("TestSample");
         profiler.EndSample("TestSample");
         var profile = profiler.GetSystemProfile("TestSample");
         Assert.Equal("TestSample", profile.Name);
+
+        // Verify query profiler can be used
+        queryProfiler.BeginQuery("TestQuery");
+        queryProfiler.EndQuery("TestQuery", entityCount: 10);
+        var queryProfile = queryProfiler.GetQueryProfile("TestQuery");
+        Assert.Equal("TestQuery", queryProfile.Name);
+        Assert.Equal(10, queryProfile.TotalEntities);
+    }
+
+    [Fact]
+    public void Install_WithMockContext_TimelineEnabled_RegistersTimelineRecorder()
+    {
+        // Arrange
+        using var world = new World();
+        var options = new DebugOptions { EnableTimeline = true };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - 7 extensions when timeline is enabled (including DebugController)
+        context.ShouldHaveSetExtensionCount(7);
+        Assert.True(context.WasExtensionSet<DebugController>());
+        Assert.True(context.WasExtensionSet<TimelineRecorder>());
+
+        // Verify timeline is functional
+        var timeline = context.GetSetExtension<TimelineRecorder>();
+        Assert.NotNull(timeline);
+        timeline.BeginRecording("TestSystem");
+        timeline.EndRecording("TestSystem", 0.016f);
+        Assert.Equal(1, timeline.EntryCount);
     }
 
     [Fact]
@@ -702,6 +969,7 @@ public partial class DebugPluginTests
         // Assert - phase filters don't affect extension registration
         Assert.True(context.WasExtensionSet<Profiler>());
         Assert.True(context.WasExtensionSet<GCTracker>());
+        Assert.True(context.WasExtensionSet<QueryProfiler>());
     }
 
     #endregion
@@ -809,6 +1077,50 @@ public partial class DebugPluginTests
         Assert.Single(mockHooks.RegisteredHooks);
         var hook = mockHooks.GetHook(0);
         Assert.Equal(SystemPhase.Update, hook.Phase);
+    }
+
+    [Fact]
+    public void Install_WithMockHookCapability_TimelineEnabled_RegistersThreeHooks()
+    {
+        // Arrange
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var options = new DebugOptions { EnableTimeline = true };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - should have 3 hooks: Profiling + GC + Timeline
+        Assert.Equal(3, mockHooks.HookCount);
+    }
+
+    [Fact]
+    public void Install_WithMockHookCapability_TimelineHookHasPhaseFilter()
+    {
+        // Arrange
+        using var world = new World();
+        var mockHooks = new MockSystemHookCapability();
+        var options = new DebugOptions
+        {
+            EnableProfiling = false,
+            EnableGCTracking = false,
+            EnableTimeline = true,
+            TimelinePhase = SystemPhase.Render
+        };
+        var plugin = new DebugPlugin(options);
+        var context = new MockPluginContext(plugin, world)
+            .SetCapability<ISystemHookCapability>(mockHooks);
+
+        // Act
+        plugin.Install(context);
+
+        // Assert - verify phase filter was set for timeline hook
+        Assert.Single(mockHooks.RegisteredHooks);
+        var hook = mockHooks.GetHook(0);
+        Assert.Equal(SystemPhase.Render, hook.Phase);
     }
 
     [Fact]

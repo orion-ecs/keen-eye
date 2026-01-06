@@ -5,6 +5,7 @@ using KeenEyes.Testing.Input;
 using KeenEyes.Testing.Logging;
 using KeenEyes.Testing.Network;
 using KeenEyes.Testing.Platform;
+using KeenEyes.Testing.Systems;
 
 namespace KeenEyes.Testing;
 
@@ -61,6 +62,8 @@ public sealed class TestWorldBuilder
     private bool useMockEncryption;
     private bool useMockNetwork;
     private NetworkOptions? mockNetworkOptions;
+    private bool useSystemRecording;
+    private SystemPhase? systemRecordingPhase;
 
     /// <summary>
     /// Enables deterministic entity ID assignment.
@@ -256,6 +259,43 @@ public sealed class TestWorldBuilder
     }
 
     /// <summary>
+    /// Enables system execution recording for verifying system calls in tests.
+    /// </summary>
+    /// <param name="phase">Optional phase filter. If null, all phases are recorded.</param>
+    /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the built <see cref="TestWorld"/> will have a <see cref="SystemRecorder"/>
+    /// accessible via the <see cref="TestWorld.SystemRecorder"/> property.
+    /// </para>
+    /// <para>
+    /// The recorder automatically attaches to the world using system hooks and records
+    /// all system executions, including system type, delta time, and timestamps.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// using var testWorld = new TestWorldBuilder()
+    ///     .WithSystemRecording()
+    ///     .WithSystem&lt;MovementSystem&gt;()
+    ///     .WithManualTime()
+    ///     .Build();
+    ///
+    /// testWorld.Step();
+    ///
+    /// testWorld.SystemRecorder!
+    ///     .ShouldHaveCalledSystem&lt;MovementSystem&gt;()
+    ///     .ShouldHaveCalledSystemTimes&lt;MovementSystem&gt;(1);
+    /// </code>
+    /// </example>
+    public TestWorldBuilder WithSystemRecording(SystemPhase? phase = null)
+    {
+        useSystemRecording = true;
+        systemRecordingPhase = phase;
+        return this;
+    }
+
+    /// <summary>
     /// Enables event recording for a specific event type.
     /// </summary>
     /// <typeparam name="T">The event type to record.</typeparam>
@@ -385,6 +425,14 @@ public sealed class TestWorldBuilder
             mockNetwork.Options = mockNetworkOptions;
         }
 
+        // Create system recorder and attach to world
+        SystemRecorder? systemRecorder = null;
+        if (useSystemRecording)
+        {
+            systemRecorder = new SystemRecorder();
+            systemRecorder.AttachTo(world, systemRecordingPhase);
+        }
+
         // Create event recorders
         var eventRecorders = new Dictionary<Type, object>();
         foreach (var eventType in eventRecorderTypes)
@@ -409,7 +457,8 @@ public sealed class TestWorldBuilder
             mockFontManager,
             mockLogProvider,
             mockEncryption,
-            mockNetwork);
+            mockNetwork,
+            systemRecorder);
     }
 
     /// <summary>

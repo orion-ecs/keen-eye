@@ -19,15 +19,32 @@ public sealed class MockStatisticsCapability : IStatisticsCapability
     public MemoryStats Stats { get; set; } = new MemoryStats();
 
     /// <summary>
+    /// Gets or sets the archetype statistics to return from <see cref="GetArchetypeStatistics"/>.
+    /// </summary>
+    public List<ArchetypeStatistics> ArchetypeStats { get; set; } = [];
+
+    /// <summary>
     /// Gets the number of times <see cref="GetMemoryStats"/> was called.
     /// </summary>
     public int GetStatsCallCount { get; private set; }
+
+    /// <summary>
+    /// Gets the number of times <see cref="GetArchetypeStatistics"/> was called.
+    /// </summary>
+    public int GetArchetypeStatsCallCount { get; private set; }
 
     /// <inheritdoc />
     public MemoryStats GetMemoryStats()
     {
         GetStatsCallCount++;
         return Stats;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<ArchetypeStatistics> GetArchetypeStatistics()
+    {
+        GetArchetypeStatsCallCount++;
+        return ArchetypeStats;
     }
 
     /// <summary>
@@ -53,10 +70,35 @@ public sealed class MockStatisticsCapability : IStatisticsCapability
     }
 
     /// <summary>
-    /// Resets the call count.
+    /// Adds an archetype statistic entry to the mock.
+    /// </summary>
+    public MockStatisticsCapability WithArchetype(
+        int id,
+        int entityCount,
+        int chunkCount,
+        int totalCapacity,
+        IReadOnlyList<string> componentTypeNames,
+        long estimatedMemoryBytes = 0)
+    {
+        ArchetypeStats.Add(new ArchetypeStatistics
+        {
+            Id = id,
+            EntityCount = entityCount,
+            ChunkCount = chunkCount,
+            TotalCapacity = totalCapacity,
+            ComponentTypeNames = componentTypeNames,
+            EstimatedMemoryBytes = estimatedMemoryBytes
+        });
+
+        return this;
+    }
+
+    /// <summary>
+    /// Resets the call counts.
     /// </summary>
     public void Reset()
     {
         GetStatsCallCount = 0;
+        GetArchetypeStatsCallCount = 0;
     }
 }

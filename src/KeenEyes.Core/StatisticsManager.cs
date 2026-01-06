@@ -78,4 +78,47 @@ internal sealed class StatisticsManager
             EstimatedComponentBytes = estimatedBytes
         };
     }
+
+    /// <summary>
+    /// Gets detailed statistics for all archetypes in the world.
+    /// </summary>
+    /// <returns>A list of statistics for each archetype.</returns>
+    internal IReadOnlyList<ArchetypeStatistics> GetArchetypeStatistics()
+    {
+        var result = new List<ArchetypeStatistics>();
+
+        foreach (var archetype in archetypeManager.Archetypes)
+        {
+            // Calculate estimated memory for this archetype
+            long estimatedBytes = 0;
+            foreach (var componentType in archetype.ComponentTypes)
+            {
+                var info = components.Get(componentType);
+                if (info is not null)
+                {
+                    estimatedBytes += (long)info.Size * archetype.Count;
+                }
+            }
+
+            // Calculate total capacity (sum of all chunk capacities)
+            var totalCapacity = archetype.ChunkCount * ArchetypeChunk.DefaultCapacity;
+
+            // Get component type names
+            var componentTypeNames = archetype.ComponentTypes
+                .Select(t => t.Name)
+                .ToList();
+
+            result.Add(new ArchetypeStatistics
+            {
+                Id = archetype.Id.GetHashCode(),
+                EntityCount = archetype.Count,
+                ChunkCount = archetype.ChunkCount,
+                TotalCapacity = totalCapacity,
+                ComponentTypeNames = componentTypeNames,
+                EstimatedMemoryBytes = estimatedBytes
+            });
+        }
+
+        return result;
+    }
 }
