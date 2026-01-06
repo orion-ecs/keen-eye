@@ -3,6 +3,7 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for CommandBufferPool thread-safe buffer management.
 /// </summary>
+[Collection("ThreadTests")]
 public class CommandBufferPoolTests
 {
     #region Test Components
@@ -553,8 +554,15 @@ public class CommandBufferPoolTests
 
         rentThread.Start();
         returnThread.Start();
-        rentThread.Join();
-        returnThread.Join();
+
+        if (!rentThread.Join(TestConstants.ThreadJoinTimeout))
+        {
+            throw new TimeoutException($"Rent thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+        }
+        if (!returnThread.Join(TestConstants.ThreadJoinTimeout))
+        {
+            throw new TimeoutException($"Return thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+        }
 
         Assert.Empty(exceptions);
     }
