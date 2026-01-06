@@ -92,6 +92,8 @@ public static class EditorShortcuts
     public const string ShowProject = "window.project";
     /// <summary>Show console panel.</summary>
     public const string ShowConsole = "window.console";
+    /// <summary>Show frame inspector panel.</summary>
+    public const string ShowFrameInspector = "window.frame_inspector";
     /// <summary>Toggle bottom dock panel.</summary>
     public const string ToggleBottomDock = "window.toggle_bottom_dock";
     /// <summary>Reset window layout.</summary>
@@ -186,6 +188,7 @@ public static class EditorShortcuts
         manager.Register(ShowInspector, "Inspector", CategoryWindow, "Ctrl+2", actions.ShowInspector);
         manager.Register(ShowProject, "Project", CategoryWindow, "Ctrl+3", actions.ShowProject);
         manager.Register(ShowConsole, "Console", CategoryWindow, "Ctrl+4", actions.ShowConsole);
+        manager.Register(ShowFrameInspector, "Frame Inspector", CategoryWindow, "Ctrl+5", actions.ShowFrameInspector);
         manager.Register(ToggleBottomDock, "Toggle Bottom Dock", CategoryWindow, "Ctrl+Shift+B", actions.ToggleBottomDock);
         manager.Register(ResetLayout, "Reset Layout", CategoryWindow, "Ctrl+Shift+R", actions.ResetLayout);
 
@@ -281,6 +284,8 @@ public interface IEditorShortcutActions
     void ShowProject();
     /// <summary>Called when Show Console shortcut is triggered.</summary>
     void ShowConsole();
+    /// <summary>Called when Show Frame Inspector shortcut is triggered.</summary>
+    void ShowFrameInspector();
     /// <summary>Called when Toggle Bottom Dock shortcut is triggered.</summary>
     void ToggleBottomDock();
     /// <summary>Called when Reset Layout shortcut is triggered.</summary>
