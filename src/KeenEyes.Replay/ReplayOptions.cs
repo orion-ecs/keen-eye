@@ -159,4 +159,27 @@ public sealed record ReplayOptions
     /// <see cref="ReplayRecorder.StartRecording(string?, IReadOnlyDictionary{string, object}?)"/>.
     /// </remarks>
     public string? DefaultRecordingName { get; init; }
+
+    /// <summary>
+    /// Gets or sets whether to record frame checksums for determinism validation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, a checksum of the world state is calculated at the end of
+    /// each frame and stored in the replay data. During playback, these checksums
+    /// can be used to detect desynchronization between the recorded and replayed states.
+    /// </para>
+    /// <para>
+    /// Checksum calculation has a performance cost (approximately 1ms per frame for
+    /// typical world sizes). Enable this when determinism validation is required,
+    /// such as during development testing or for competitive replay verification.
+    /// </para>
+    /// <para>
+    /// Default is false.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="WorldChecksum"/>
+    /// <seealso cref="ReplayPlayer.AutoValidate"/>
+    /// <seealso cref="ReplayPlayer.ValidateCurrentFrame"/>
+    public bool RecordChecksums { get; init; }
 }

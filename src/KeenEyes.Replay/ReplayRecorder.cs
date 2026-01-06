@@ -351,6 +351,13 @@ public sealed class ReplayRecorder
             precedingSnapshotIndex = snapshots.Count - 1;
         }
 
+        // Calculate checksum if enabled
+        uint? checksum = null;
+        if (options.RecordChecksums && world is World concreteWorld)
+        {
+            checksum = WorldChecksum.Calculate(concreteWorld, serializer);
+        }
+
         // Create the frame record
         var frame = new ReplayFrame
         {
@@ -358,7 +365,8 @@ public sealed class ReplayRecorder
             DeltaTime = dt,
             ElapsedTime = elapsedTime,
             Events = currentFrameEvents.ToList(),
-            PrecedingSnapshotIndex = precedingSnapshotIndex
+            PrecedingSnapshotIndex = precedingSnapshotIndex,
+            Checksum = checksum
         };
 
         // Add to frames (with ring buffer support)
@@ -539,11 +547,20 @@ public sealed class ReplayRecorder
         }
 
         var snapshot = SnapshotManager.CreateSnapshot(concreteWorld, serializer);
+
+        // Calculate checksum if enabled
+        uint? checksum = null;
+        if (options.RecordChecksums)
+        {
+            checksum = WorldChecksum.Calculate(concreteWorld, serializer);
+        }
+
         var marker = new SnapshotMarker
         {
             FrameNumber = frameNumber,
             ElapsedTime = elapsedTime,
-            Snapshot = snapshot
+            Snapshot = snapshot,
+            Checksum = checksum
         };
 
         snapshots.Add(marker);
