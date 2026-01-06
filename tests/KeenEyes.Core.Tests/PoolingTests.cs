@@ -5,6 +5,7 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for the object pooling system.
 /// </summary>
+[Collection("ThreadTests")]
 public class PoolingTests
 {
     #region EntityPool Tests
@@ -217,7 +218,10 @@ public class PoolingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         // Verify all entities have unique IDs
@@ -254,7 +258,10 @@ public class PoolingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         // Only one thread should successfully release
@@ -290,7 +297,10 @@ public class PoolingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         // All entities should be recycled
@@ -357,7 +367,10 @@ public class PoolingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         Assert.Empty(errors);
@@ -424,7 +437,10 @@ public class PoolingTests
 
         foreach (var thread in checkThreads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         // Should have both valid checks before release and invalid checks after
@@ -458,7 +474,10 @@ public class PoolingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         // All threads should see the same version before release
@@ -482,7 +501,10 @@ public class PoolingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         // All threads should see the incremented version after release
@@ -540,7 +562,10 @@ public class PoolingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         // All entities should be released

@@ -8,6 +8,7 @@ namespace KeenEyes.Tests;
 /// <summary>
 /// Tests for the query caching system.
 /// </summary>
+[Collection("ThreadTests")]
 public class QueryCachingTests
 {
     #region QueryDescriptor Tests
@@ -687,7 +688,10 @@ public class QueryCachingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         Assert.Empty(exceptions);
@@ -771,12 +775,18 @@ public class QueryCachingTests
 
         writerThread.Start();
 
-        writerThread.Join();
+        if (!writerThread.Join(TestConstants.ThreadJoinTimeout))
+        {
+            throw new TimeoutException($"Writer thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+        }
         stopFlag.Set();
 
         foreach (var thread in readerThreads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Reader thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         Assert.Empty(exceptions);
@@ -854,7 +864,10 @@ public class QueryCachingTests
 
         foreach (var thread in threads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         Assert.Empty(exceptions);
@@ -954,7 +967,10 @@ public class QueryCachingTests
 
         foreach (var thread in readerThreads)
         {
-            thread.Join();
+            if (!thread.Join(TestConstants.ThreadJoinTimeout))
+            {
+                throw new TimeoutException($"Reader thread did not complete within {TestConstants.ThreadJoinTimeoutSeconds} seconds");
+            }
         }
 
         Assert.Empty(exceptions);

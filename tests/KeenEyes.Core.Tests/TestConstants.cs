@@ -65,4 +65,15 @@ public static class TestConstants
     /// Number of iterations per thread in concurrent tests.
     /// </summary>
     public const int ConcurrentIterationsPerThread = 1000;
+
+    /// <summary>
+    /// Timeout in seconds for thread.Join() operations in tests.
+    /// Prevents tests from hanging indefinitely if a thread deadlocks.
+    /// </summary>
+    public const int ThreadJoinTimeoutSeconds = 30;
+
+    /// <summary>
+    /// Timeout as TimeSpan for thread.Join() operations.
+    /// </summary>
+    public static readonly TimeSpan ThreadJoinTimeout = TimeSpan.FromSeconds(ThreadJoinTimeoutSeconds);
 }

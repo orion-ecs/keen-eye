@@ -1,7 +1,3 @@
-// LocalTransport completes synchronously, so Wait() is safe
-#pragma warning disable xUnit1031 // Do not use blocking task operations
-#pragma warning disable xUnit1051 // Use TestContext.Current.CancellationToken
-
 using KeenEyes.Network.Transport;
 
 namespace KeenEyes.Network.Tests;
@@ -21,34 +17,38 @@ public class LocalTransportTests
     }
 
     [Fact]
-    public void ListenAsync_SetsStateToConnected()
+    public async Task ListenAsync_SetsStateToConnected()
     {
         var (server, _) = LocalTransport.CreatePair();
+        var ct = TestContext.Current.CancellationToken;
 
-        server.ListenAsync(7777).Wait();
+        await server.ListenAsync(7777, ct);
 
         Assert.Equal(ConnectionState.Connected, server.State);
         Assert.True(server.IsServer);
     }
 
     [Fact]
-    public void ConnectAsync_SetsStateToConnected()
+    public async Task ConnectAsync_SetsStateToConnected()
     {
         var (server, client) = LocalTransport.CreatePair();
+        var ct = TestContext.Current.CancellationToken;
 
-        server.ListenAsync(7777).Wait();
-        client.ConnectAsync("localhost", 7777).Wait();
+        await server.ListenAsync(7777, ct);
+        await client.ConnectAsync("localhost", 7777, ct);
 
         Assert.Equal(ConnectionState.Connected, client.State);
         Assert.True(client.IsClient);
     }
 
     [Fact]
-    public void Send_DeliversMessageToPeer()
+    public async Task Send_DeliversMessageToPeer()
     {
         var (server, client) = LocalTransport.CreatePair();
-        server.ListenAsync(7777).Wait();
-        client.ConnectAsync("localhost", 7777).Wait();
+        var ct = TestContext.Current.CancellationToken;
+
+        await server.ListenAsync(7777, ct);
+        await client.ConnectAsync("localhost", 7777, ct);
 
         byte[]? receivedData = null;
         server.DataReceived += (connId, data) =>
@@ -65,11 +65,13 @@ public class LocalTransportTests
     }
 
     [Fact]
-    public void Disconnect_SetsStateToDisconnected()
+    public async Task Disconnect_SetsStateToDisconnected()
     {
         var (server, client) = LocalTransport.CreatePair();
-        server.ListenAsync(7777).Wait();
-        client.ConnectAsync("localhost", 7777).Wait();
+        var ct = TestContext.Current.CancellationToken;
+
+        await server.ListenAsync(7777, ct);
+        await client.ConnectAsync("localhost", 7777, ct);
 
         client.Disconnect();
 
@@ -77,15 +79,17 @@ public class LocalTransportTests
     }
 
     [Fact]
-    public void ClientConnected_RaisedOnServerWhenClientConnects()
+    public async Task ClientConnected_RaisedOnServerWhenClientConnects()
     {
         var (server, client) = LocalTransport.CreatePair();
-        server.ListenAsync(7777).Wait();
+        var ct = TestContext.Current.CancellationToken;
+
+        await server.ListenAsync(7777, ct);
 
         int? connectedClientId = null;
         server.ClientConnected += id => connectedClientId = id;
 
-        client.ConnectAsync("localhost", 7777).Wait();
+        await client.ConnectAsync("localhost", 7777, ct);
 
         Assert.NotNull(connectedClientId);
     }
@@ -130,11 +134,13 @@ public class LocalTransportTests
     }
 
     [Fact]
-    public void SendToAll_SendsToAllConnectedClients()
+    public async Task SendToAll_SendsToAllConnectedClients()
     {
         var (server, client) = LocalTransport.CreatePair();
-        server.ListenAsync(7777).Wait();
-        client.ConnectAsync("localhost", 7777).Wait();
+        var ct = TestContext.Current.CancellationToken;
+
+        await server.ListenAsync(7777, ct);
+        await client.ConnectAsync("localhost", 7777, ct);
 
         byte[]? receivedData = null;
         client.DataReceived += (_, data) =>
@@ -151,11 +157,13 @@ public class LocalTransportTests
     }
 
     [Fact]
-    public void GetStatistics_ReturnsValidStatistics()
+    public async Task GetStatistics_ReturnsValidStatistics()
     {
         var (server, client) = LocalTransport.CreatePair();
-        server.ListenAsync(7777).Wait();
-        client.ConnectAsync("localhost", 7777).Wait();
+        var ct = TestContext.Current.CancellationToken;
+
+        await server.ListenAsync(7777, ct);
+        await client.ConnectAsync("localhost", 7777, ct);
 
         byte[] testData = [1, 2, 3, 4];
         client.Send(0, testData, DeliveryMode.Unreliable);
@@ -182,13 +190,15 @@ public class LocalTransportTests
     }
 
     [Fact]
-    public void StateChanged_FiredOnConnectionStateChange()
+    public async Task StateChanged_FiredOnConnectionStateChange()
     {
         var (server, _) = LocalTransport.CreatePair();
+        var ct = TestContext.Current.CancellationToken;
+
         var stateChanges = new List<ConnectionState>();
         server.StateChanged += state => stateChanges.Add(state);
 
-        server.ListenAsync(7777).Wait();
+        await server.ListenAsync(7777, ct);
 
         Assert.Contains(ConnectionState.Connected, stateChanges);
     }

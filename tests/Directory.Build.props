@@ -30,4 +30,12 @@
     <PackageReference Include="xunit.v3.mtp-v2" />
   </ItemGroup>
 
+  <!-- Copy global xunit.runner.json to all test project outputs -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)xunit.runner.json"
+          CopyToOutputDirectory="PreserveNewest"
+          Link="xunit.runner.json"
+          Visible="false" />
+  </ItemGroup>
+
 </Project>

@@ -12,6 +12,11 @@ namespace KeenEyes.Tests;
 /// </summary>
 internal static class TestComponentInfo
 {
+    /// <summary>
+    /// Thread-local counter for generating unique ComponentIds within each test thread.
+    /// Using ThreadStatic ensures parallel tests don't interfere with each other.
+    /// </summary>
+    [ThreadStatic]
     private static int nextId;
 
     /// <summary>
@@ -22,7 +27,8 @@ internal static class TestComponentInfo
     /// <returns>A fully configured ComponentInfo instance.</returns>
     public static ComponentInfo Create<T>(bool isTag = false) where T : struct, IComponent
     {
-        var id = new ComponentId(Interlocked.Increment(ref nextId) - 1);
+        // Note: With ThreadStatic, each thread starts at 0, no need for Interlocked
+        var id = new ComponentId(nextId++);
         var size = isTag ? 0 : Unsafe.SizeOf<T>();
 
         var info = new ComponentInfo(id, typeof(T), size, isTag)
