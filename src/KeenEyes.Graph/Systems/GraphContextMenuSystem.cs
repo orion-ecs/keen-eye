@@ -17,6 +17,7 @@ public sealed class GraphContextMenuSystem : SystemBase
     private IInputContext? inputContext;
     private GraphContext? graphContext;
     private PortRegistry? portRegistry;
+    private NodeTypeRegistry? nodeTypeRegistry;
 
     // Key state for debouncing
     private readonly HashSet<Key> keysDownLastFrame = [];
@@ -38,6 +39,11 @@ public sealed class GraphContextMenuSystem : SystemBase
         if (portRegistry is null && !World.TryGetExtension(out portRegistry))
         {
             return;
+        }
+
+        if (nodeTypeRegistry is null)
+        {
+            World.TryGetExtension(out nodeTypeRegistry);
         }
 
         var keyboard = inputContext!.Keyboard;
@@ -180,13 +186,48 @@ public sealed class GraphContextMenuSystem : SystemBase
 
         if (string.IsNullOrWhiteSpace(filter))
         {
-            return allTypes;
+            // When no filter, sort by category then by name for better organization
+            return allTypes
+                .OrderBy(t => t.Category)
+                .ThenBy(t => t.Name)
+                .ToList();
         }
 
         var lowerFilter = filter.ToLowerInvariant();
         return allTypes
-            .Where(t => t.Name.ToLowerInvariant().Contains(lowerFilter))
+            .Where(t => t.Name.ToLowerInvariant().Contains(lowerFilter) ||
+                        t.Category.ToLowerInvariant().Contains(lowerFilter))
+            .OrderBy(t => t.Category)
+            .ThenBy(t => t.Name)
             .ToList();
+    }
+
+    /// <summary>
+    /// Gets node types organized by category for hierarchical display.
+    /// </summary>
+    /// <param name="filter">Optional search filter.</param>
+    /// <returns>Dictionary of category name to list of node types in that category.</returns>
+    internal Dictionary<string, List<PortRegistry.NodeTypeInfo>> GetNodeTypesByCategory(string filter)
+    {
+        var filtered = GetFilteredNodeTypes(filter);
+        return filtered
+            .GroupBy(t => t.Category)
+            .OrderBy(g => g.Key)
+            .ToDictionary(g => g.Key, g => g.ToList());
+    }
+
+    /// <summary>
+    /// Gets all categories with registered node types.
+    /// </summary>
+    /// <returns>Sorted list of category names.</returns>
+    internal IReadOnlyList<string> GetCategories()
+    {
+        if (nodeTypeRegistry is not null)
+        {
+            return nodeTypeRegistry.GetCategories().ToList();
+        }
+
+        return portRegistry?.GetCategories().ToList() ?? [];
     }
 
     private void UpdateSearchFilter(ref GraphContextMenu menu, IKeyboard keyboard)

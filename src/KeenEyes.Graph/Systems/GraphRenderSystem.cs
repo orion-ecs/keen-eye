@@ -26,6 +26,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private I2DRenderer? renderer;
     private ITextRenderer? textRenderer;
     private PortRegistry? portRegistry;
+    private NodeTypeRegistry? nodeTypeRegistry;
     private PortPositionCache? portCache;
 
     // Canvas screen bounds
@@ -58,6 +59,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private static readonly Vector4 ContextMenuBorderColor = new(0.5f, 0.5f, 0.5f, 1f);
     private static readonly Vector4 ContextMenuItemHoverColor = new(0.3f, 0.4f, 0.6f, 1f);
     private static readonly Vector4 ContextMenuTextColor = new(0.9f, 0.9f, 0.9f, 1f);
+    private static readonly Vector4 CollapseButtonColor = new(0.7f, 0.7f, 0.7f, 1f);
+    private static readonly Vector4 CollapseButtonHoverColor = new(0.9f, 0.9f, 0.9f, 1f);
 
     private const float NodeBorderRadius = 6f;
     private const float BorderThickness = 2f;
@@ -65,6 +68,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private const float PortHighlightRadius = 10f;
     private const float PortHighlightThickness = 3f;
     private const float ConversionIndicatorRadius = 4f;
+    private const float CollapseButtonSize = 12f;
+    private const float CollapseButtonPadding = 8f;
 
     /// <summary>
     /// Sets the canvas screen bounds.
@@ -94,6 +99,12 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         if (portRegistry is null && !World.TryGetExtension(out portRegistry))
         {
             return;
+        }
+
+        // Get node type registry
+        if (nodeTypeRegistry is null)
+        {
+            World.TryGetExtension(out nodeTypeRegistry);
         }
 
         // Get port position cache
@@ -351,24 +362,81 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         var screenRect = GraphTransform.CanvasToScreen(nodeRect, canvasData.Pan, canvasData.Zoom, origin);
 
         var isSelected = World.Has<GraphNodeSelectedTag>(node);
+        var isCollapsed = World.Has<GraphNodeCollapsed>(node);
         var borderColor = isSelected ? NodeSelectedBorderColor : NodeBorderColor;
         var scaledRadius = NodeBorderRadius * canvasData.Zoom;
-
-        // Draw node body
-        renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, NodeBodyColor);
-
-        // Draw header
         var headerHeight = GraphLayoutSystem.HeaderHeight * canvasData.Zoom;
-        renderer.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, headerHeight, scaledRadius, NodeHeaderColor);
+
+        // Draw node body (only if not collapsed)
+        if (!isCollapsed)
+        {
+            renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, NodeBodyColor);
+        }
+
+        // Draw header (full node when not collapsed, entire node when collapsed)
+        renderer!.FillRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, isCollapsed ? screenRect.Height : headerHeight, scaledRadius, NodeHeaderColor);
 
         // Draw node border
         renderer.DrawRoundedRect(screenRect.X, screenRect.Y, screenRect.Width, screenRect.Height, scaledRadius, borderColor, BorderThickness);
 
+        // Draw collapse button if collapsible
+        DrawCollapseButton(node, nodeData.NodeTypeId, screenRect, canvasData.Zoom, isCollapsed);
+
         // Note: Text rendering for node name would go here if textRenderer is available
         // For Phase 1, we skip text since it requires font setup
 
-        // Draw ports
-        DrawPorts(node, in nodeData, canvasData, origin);
+        // Draw ports (or port stubs when collapsed)
+        if (isCollapsed)
+        {
+            DrawPortStubs(node, in nodeData, canvasData, origin);
+        }
+        else
+        {
+            DrawPorts(node, in nodeData, canvasData, origin);
+
+            // Render custom body content if the node type supports it
+            DrawNodeBody(node, nodeData.NodeTypeId, screenRect, canvasData.Zoom);
+        }
+    }
+
+    private void DrawNodeBody(Entity node, int nodeTypeId, Rectangle screenRect, float zoom)
+    {
+        var definition = nodeTypeRegistry?.GetDefinition(nodeTypeId);
+        if (definition is null)
+        {
+            return;
+        }
+
+        // Calculate body area below header and ports, above bottom padding
+        if (!portRegistry!.TryGetNodeType(nodeTypeId, out var nodeType))
+        {
+            return;
+        }
+
+        var inputCount = nodeType.InputPorts.Length;
+        var outputCount = nodeType.OutputPorts.Length;
+        var maxPortCount = Math.Max(inputCount, outputCount);
+
+        var headerHeight = GraphLayoutSystem.HeaderHeight * zoom;
+        var portsHeight = maxPortCount * GraphLayoutSystem.PortRowHeight * zoom;
+        var bottomPadding = GraphLayoutSystem.BottomPadding * zoom;
+
+        var bodyTop = screenRect.Y + headerHeight + portsHeight;
+        var bodyHeight = screenRect.Height - headerHeight - portsHeight - bottomPadding;
+
+        if (bodyHeight <= 0)
+        {
+            return; // No space for body content
+        }
+
+        var bodyArea = new Rectangle(
+            screenRect.X + BorderThickness,
+            bodyTop,
+            screenRect.Width - (BorderThickness * 2),
+            bodyHeight);
+
+        // Call the definition's RenderBody method
+        definition.RenderBody(node, World, renderer!, bodyArea);
     }
 
     private void DrawPorts(Entity node, ref readonly GraphNode nodeData, in GraphCanvas canvasData, Vector2 origin)
@@ -402,6 +470,84 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             var port = nodeType.OutputPorts[i];
             var portColor = GetPortColor(port.TypeId);
             renderer!.FillCircle(screenPos.X, screenPos.Y, portRadius, portColor);
+        }
+    }
+
+    private void DrawCollapseButton(Entity node, int nodeTypeId, Rectangle screenRect, float zoom, bool isCollapsed)
+    {
+        // Check if node type is collapsible
+        var definition = nodeTypeRegistry?.GetDefinition(nodeTypeId);
+        if (definition is null || !definition.IsCollapsible)
+        {
+            return;
+        }
+
+        var buttonSize = CollapseButtonSize * zoom;
+        var padding = CollapseButtonPadding * zoom;
+        var headerHeight = GraphLayoutSystem.HeaderHeight * zoom;
+
+        // Position button in right side of header
+        var buttonX = screenRect.X + screenRect.Width - padding - buttonSize;
+        var buttonY = screenRect.Y + ((headerHeight - buttonSize) / 2f);
+
+        // Draw triangle indicator (pointing right when collapsed, down when expanded)
+        var centerX = buttonX + (buttonSize / 2f);
+        var centerY = buttonY + (buttonSize / 2f);
+        var halfSize = buttonSize / 3f;
+
+        Span<Vector2> triangle = stackalloc Vector2[3];
+
+        if (isCollapsed)
+        {
+            // Right-pointing triangle (collapsed)
+            triangle[0] = new Vector2(centerX - halfSize, centerY - halfSize);
+            triangle[1] = new Vector2(centerX + halfSize, centerY);
+            triangle[2] = new Vector2(centerX - halfSize, centerY + halfSize);
+        }
+        else
+        {
+            // Down-pointing triangle (expanded)
+            triangle[0] = new Vector2(centerX - halfSize, centerY - halfSize);
+            triangle[1] = new Vector2(centerX + halfSize, centerY - halfSize);
+            triangle[2] = new Vector2(centerX, centerY + halfSize);
+        }
+
+        // Draw triangle indicator as outline (FillTriangle not available in I2DRenderer)
+        renderer!.DrawPolygon(triangle, CollapseButtonColor, 1.5f * zoom);
+    }
+
+    private void DrawPortStubs(Entity node, ref readonly GraphNode nodeData, in GraphCanvas canvasData, Vector2 origin)
+    {
+        if (!portRegistry!.TryGetNodeType(nodeData.NodeTypeId, out var nodeType))
+        {
+            return;
+        }
+
+        var stubRadius = GraphLayoutSystem.PortStubRadius * canvasData.Zoom;
+
+        // Use cached port positions (already calculated for collapsed state by layout system)
+        // Draw input port stubs
+        for (int i = 0; i < nodeType.InputPorts.Length; i++)
+        {
+            if (portCache!.TryGetPortPosition(node, PortDirection.Input, i, out var canvasPos))
+            {
+                var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
+                var port = nodeType.InputPorts[i];
+                var portColor = GetPortColor(port.TypeId);
+                renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, portColor);
+            }
+        }
+
+        // Draw output port stubs
+        for (int i = 0; i < nodeType.OutputPorts.Length; i++)
+        {
+            if (portCache!.TryGetPortPosition(node, PortDirection.Output, i, out var canvasPos))
+            {
+                var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
+                var port = nodeType.OutputPorts[i];
+                var portColor = GetPortColor(port.TypeId);
+                renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, portColor);
+            }
         }
     }
 
