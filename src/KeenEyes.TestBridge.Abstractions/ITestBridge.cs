@@ -1,6 +1,7 @@
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
+using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
 
 namespace KeenEyes.TestBridge;
@@ -57,6 +58,11 @@ public interface ITestBridge : IDisposable
     /// Gets the state query controller for inspecting world state.
     /// </summary>
     IStateController State { get; }
+
+    /// <summary>
+    /// Gets the process controller for managing child processes.
+    /// </summary>
+    IProcessController Process { get; }
 
     /// <summary>
     /// Executes a command and returns the result.
