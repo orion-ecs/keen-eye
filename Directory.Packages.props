@@ -35,6 +35,7 @@
   </ItemGroup>
   <ItemGroup Label="Assets">
     <PackageVersion Include="StbImageSharp" Version="2.30.15" />
+    <PackageVersion Include="StbImageWriteSharp" Version="1.16.7" />
     <PackageVersion Include="SharpGLTF.Core" Version="1.0.6" />
     <PackageVersion Include="NVorbis" Version="0.10.5" />
   </ItemGroup>

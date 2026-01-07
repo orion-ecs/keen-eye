@@ -430,5 +430,26 @@ public interface IGraphicsDevice : IDisposable
     /// <param name="data">The buffer to receive the data.</param>
     void GetTexImage(TextureTarget target, int level, PixelFormat format, Span<byte> data);
 
+    /// <summary>
+    /// Reads pixel data from the current framebuffer.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This method reads pixels from the currently bound framebuffer (or the default framebuffer
+    /// if none is bound). The data is returned in the specified pixel format.
+    /// </para>
+    /// <para>
+    /// Note: OpenGL reads pixels from bottom-left origin, so the resulting image may need
+    /// to be flipped vertically for typical image file formats.
+    /// </para>
+    /// </remarks>
+    /// <param name="x">The X coordinate of the lower-left corner of the rectangle to read.</param>
+    /// <param name="y">The Y coordinate of the lower-left corner of the rectangle to read.</param>
+    /// <param name="width">The width of the rectangle to read.</param>
+    /// <param name="height">The height of the rectangle to read.</param>
+    /// <param name="format">The pixel format.</param>
+    /// <param name="data">The buffer to receive the pixel data. Must be large enough to hold width * height * bytes-per-pixel.</param>
+    void ReadFramebuffer(int x, int y, int width, int height, PixelFormat format, Span<byte> data);
+
     #endregion
 }

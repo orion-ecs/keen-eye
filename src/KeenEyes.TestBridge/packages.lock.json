@@ -14,6 +14,12 @@
         "resolved": "10.17.0.131074",
         "contentHash": "N8agHzX1pK3Xv/fqMig/mHspPAmh/aKkGg7lUC1xfezAhFtPTuRqBjuyas622Tvy5jnsN5zCXJVclvNkfJJ4rQ=="
       },
+      "StbImageWriteSharp": {
+        "type": "Direct",
+        "requested": "[1.16.7, )",
+        "resolved": "1.16.7",
+        "contentHash": "NF9kOxi0iS9VunklnRKgOpAWC2knCGKRjdy7RT6XAqYNyb7LQfyPHPdl4l1fJw7TFYKrGQzQOmK1XpBONC2MoA=="
+      },
       "keeneyes.abstractions": {
         "type": "Project"
       },
@@ -43,7 +49,10 @@
         }
       },
       "keeneyes.logging": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
       },
       "keeneyes.network.abstractions": {
         "type": "Project",

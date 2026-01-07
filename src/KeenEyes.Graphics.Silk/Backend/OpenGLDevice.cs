@@ -488,6 +488,18 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         }
     }
 
+    /// <inheritdoc />
+    public void ReadFramebuffer(int x, int y, int width, int height, Abstractions.PixelFormat format, Span<byte> data)
+    {
+        unsafe
+        {
+            fixed (byte* ptr = data)
+            {
+                gl.ReadPixels(x, y, (uint)width, (uint)height, ToGL(format), PixelType.UnsignedByte, ptr);
+            }
+        }
+    }
+
     #endregion
 
     /// <inheritdoc />

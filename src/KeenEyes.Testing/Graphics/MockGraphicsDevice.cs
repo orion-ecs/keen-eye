@@ -154,6 +154,25 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// </summary>
     public int SimulatedErrorCode { get; set; }
 
+    /// <summary>
+    /// Gets or sets the simulated framebuffer data returned by <see cref="ReadFramebuffer"/>.
+    /// </summary>
+    /// <remarks>
+    /// Set this property to provide pixel data that <see cref="ReadFramebuffer"/> will copy
+    /// to the output span. The data should be in RGBA format with 4 bytes per pixel.
+    /// </remarks>
+    public byte[]? SimulatedFramebufferData { get; set; }
+
+    /// <summary>
+    /// Gets or sets the simulated framebuffer width.
+    /// </summary>
+    public int SimulatedFramebufferWidth { get; set; }
+
+    /// <summary>
+    /// Gets or sets the simulated framebuffer height.
+    /// </summary>
+    public int SimulatedFramebufferHeight { get; set; }
+
     #endregion
 
     #region Test Control
@@ -180,6 +199,9 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         ShouldFailShaderCompile = false;
         ShouldFailProgramLink = false;
         SimulatedErrorCode = 0;
+        SimulatedFramebufferData = null;
+        SimulatedFramebufferWidth = 0;
+        SimulatedFramebufferHeight = 0;
     }
 
     /// <summary>
@@ -679,6 +701,58 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         {
             var copyLength = Math.Min(data.Length, texture.Data.Length);
             texture.Data.AsSpan(0, copyLength).CopyTo(data);
+        }
+    }
+
+    /// <inheritdoc />
+    public void ReadFramebuffer(int x, int y, int width, int height, PixelFormat format, Span<byte> data)
+    {
+        if (SimulatedFramebufferData is null)
+        {
+            return;
+        }
+
+        // Calculate bytes per pixel based on format
+        var bytesPerPixel = format switch
+        {
+            PixelFormat.R => 1,
+            PixelFormat.RG => 2,
+            PixelFormat.RGB => 3,
+            PixelFormat.RGBA => 4,
+            _ => 4
+        };
+
+        // If the request is for the full framebuffer and dimensions match, just copy
+        if (x == 0 && y == 0 &&
+            width == SimulatedFramebufferWidth &&
+            height == SimulatedFramebufferHeight)
+        {
+            var copyLength = Math.Min(data.Length, SimulatedFramebufferData.Length);
+            SimulatedFramebufferData.AsSpan(0, copyLength).CopyTo(data);
+            return;
+        }
+
+        // Otherwise, copy the requested region
+        var srcRowStride = SimulatedFramebufferWidth * bytesPerPixel;
+        var dstRowStride = width * bytesPerPixel;
+
+        for (var row = 0; row < height; row++)
+        {
+            var srcY = y + row;
+            if (srcY < 0 || srcY >= SimulatedFramebufferHeight)
+            {
+                continue;
+            }
+
+            var srcOffset = (srcY * srcRowStride) + (x * bytesPerPixel);
+            var dstOffset = row * dstRowStride;
+            var rowBytes = Math.Min(dstRowStride, srcRowStride - (x * bytesPerPixel));
+
+            if (srcOffset >= 0 && srcOffset + rowBytes <= SimulatedFramebufferData.Length &&
+                dstOffset + rowBytes <= data.Length)
+            {
+                SimulatedFramebufferData.AsSpan(srcOffset, rowBytes).CopyTo(data.Slice(dstOffset, rowBytes));
+            }
         }
     }
 
