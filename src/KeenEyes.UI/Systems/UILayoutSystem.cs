@@ -149,8 +149,33 @@ public sealed class UILayoutSystem : SystemBase
             }
 
             ref var childRect = ref World.Get<UIRect>(child);
+
+            // Measure FitContent dimensions before calculating anchored bounds
+            // This is needed because CalculateAnchoredBounds uses Size.X/Y directly
+            // when anchors match, and FitContent elements have Size=0 initially
+            float measuredWidth = childRect.Size.X;
+            float measuredHeight = childRect.Size.Y;
+
+            if (childRect.WidthMode == UISizeMode.FitContent)
+            {
+                // For FitContent, use the larger of measured content width and Size.X (minimum width)
+                float contentWidth = MeasureContentWidth(child, parentBounds);
+                measuredWidth = Math.Max(childRect.Size.X, contentWidth);
+            }
+
+            if (childRect.HeightMode == UISizeMode.FitContent)
+            {
+                // For FitContent, use the larger of measured content height and Size.Y (minimum height)
+                float contentHeight = MeasureContentHeight(child, parentBounds, measuredWidth);
+                measuredHeight = Math.Max(childRect.Size.Y, contentHeight);
+            }
+
+            // Create a modified rect with measured sizes for calculation
+            var rectForCalc = childRect;
+            rectForCalc.Size = new System.Numerics.Vector2(measuredWidth, measuredHeight);
+
             bool shouldMirror = isRtl && childRect.MirrorForRtl;
-            childRect.ComputedBounds = CalculateAnchoredBounds(childRect, parentBounds, padding, shouldMirror);
+            childRect.ComputedBounds = CalculateAnchoredBounds(rectForCalc, parentBounds, padding, shouldMirror);
 
             // Process this child's children
             ProcessChildren(child, childRect.ComputedBounds);
@@ -731,6 +756,7 @@ public sealed class UILayoutSystem : SystemBase
         if (Math.Abs(anchorMinX - anchorMaxX) < 0.0001f)
         {
             // Anchors match - use Size for width
+            // Note: For FitContent mode, caller must pre-measure and set Size.X
             width = rect.Size.X;
             x = anchorLeft + offsetLeft - pivotX * width;
         }
@@ -745,6 +771,7 @@ public sealed class UILayoutSystem : SystemBase
         if (Math.Abs(rect.AnchorMin.Y - rect.AnchorMax.Y) < 0.0001f)
         {
             // Anchors match - use Size for height
+            // Note: For FitContent mode, caller must pre-measure and set Size.Y
             height = rect.Size.Y;
             y = anchorTop + rect.Offset.Top - rect.Pivot.Y * height;
         }
