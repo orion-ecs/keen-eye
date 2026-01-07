@@ -67,6 +67,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private string? _pendingOpenScenePath;
     private bool _isDisposed;
     private bool _isBottomDockCollapsed;
+    private IGraphicsContext? _graphics;
 
     /// <summary>
     /// Gets the editor's ECS world (used for UI and editor state).
@@ -210,6 +211,16 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     {
         Console.WriteLine("Editor initialized!");
 
+        // Store graphics context for frame clearing
+        _graphics = _editorWorld.GetExtension<IGraphicsContext>();
+
+        // Set initial screen size for UI layout
+        if (_graphics is not null)
+        {
+            var layoutSystem = _editorWorld.GetSystem<UILayoutSystem>();
+            layoutSystem?.SetScreenSize(_graphics.Width, _graphics.Height);
+        }
+
         // Load font
         _defaultFont = LoadDefaultFont();
 
@@ -218,6 +229,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
         // Set up input handling
         SetupInputHandling();
+
+        // Force initial layout calculation so UI bounds are ready for first frame input
+        _editorWorld.Update(0);
     }
 
     private void OnResize(int width, int height)
@@ -228,11 +242,17 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
     private void OnEditorUpdate(float deltaTime)
     {
+        // Clear the framebuffer before rendering
+        _graphics?.Clear(ClearMask.ColorBuffer);
+
         // Update viewport for camera controls and gizmo interaction
         if (_viewportPanel.IsValid)
         {
             ViewportPanel.Update(_editorWorld, _viewportPanel, deltaTime);
         }
+
+        // Run all systems (including UIRenderSystem which draws the UI)
+        _editorWorld.Update(deltaTime);
     }
 
     private void OnSceneOpened(World sceneWorld)
@@ -432,7 +452,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         mainRect.Offset = new UIEdges(0, 26, 0, 0); // Top offset for menu bar
 
         // Create vertical splitter for main content (top) and bottom dock (bottom)
-        var bottomDockRatio = _layoutManager.GetPanelState("console")?.Collapsed == true ? 0.95f : 0.75f;
+        // Ratio is for first pane (top), so 0.7 = 70% top, 30% bottom
+        var bottomDockRatio = _layoutManager.GetPanelState("console")?.Collapsed == true ? 0.92f : 0.70f;
         _isBottomDockCollapsed = bottomDockRatio > 0.9f;
 
         var (splitterContainer, topPane, bottomPane) = WidgetFactory.CreateSplitter(
@@ -441,7 +462,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                 InitialRatio: bottomDockRatio,
                 HandleSize: 4,
                 MinFirstPane: 200,
-                MinSecondPane: 80,
+                MinSecondPane: 150,
                 HandleColor: new Vector4(0.2f, 0.2f, 0.25f, 1f),
                 HandleHoverColor: new Vector4(0.3f, 0.3f, 0.4f, 1f)
             ));
