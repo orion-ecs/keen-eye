@@ -230,7 +230,10 @@
         }
       },
       "keeneyes.logging": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
       },
       "keeneyes.navigation": {
         "type": "Project",
