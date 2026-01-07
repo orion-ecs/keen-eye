@@ -1,5 +1,6 @@
 using KeenEyes.Mcp.TestBridge;
 using KeenEyes.Mcp.TestBridge.Connection;
+using KeenEyes.Mcp.TestBridge.Resources;
 using KeenEyes.Mcp.TestBridge.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -41,7 +42,10 @@ builder.Services
     .WithTools<GameTools>()
     .WithTools<InputTools>()
     .WithTools<StateTools>()
-    .WithTools<CaptureTools>();
+    .WithTools<CaptureTools>()
+    .WithResources<ConnectionResources>()
+    .WithResources<WorldResources>()
+    .WithResources<CaptureResources>();
 
 var app = builder.Build();
 
