@@ -270,11 +270,8 @@ internal sealed class StateControllerImpl(World world) : IStateController
 
     public Task<IReadOnlyList<int>> GetEntitiesWithTagAsync(string tag)
     {
-        var results = new List<int>();
-
-        // Tags are typically implemented as tag components
-        // For now, return empty list - would need tag manager access
-        return Task.FromResult<IReadOnlyList<int>>(results);
+        var entityIds = world.QueryByTag(tag).Select(e => e.Id).ToList();
+        return Task.FromResult<IReadOnlyList<int>>(entityIds);
     }
 
     #endregion

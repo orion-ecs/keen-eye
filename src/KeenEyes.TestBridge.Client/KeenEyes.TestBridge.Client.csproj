@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.TestBridge.Client</PackageId>
+    <Description>Client library for connecting to KeenEyes applications from external test processes</Description>
+    <PackageTags>ecs;testing;automation;ipc;client</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.TestBridge.Ipc.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.TestBridge.Abstractions\KeenEyes.TestBridge.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.TestBridge.Ipc\KeenEyes.TestBridge.Ipc.csproj" />
+  </ItemGroup>
+
+</Project>
