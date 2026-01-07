@@ -48,7 +48,6 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private static readonly Vector4 nodeGhostHeaderColor = new(0.25f, 0.35f, 0.5f, 0.5f);
     private static readonly Vector4 nodeGhostBorderColor = new(0.4f, 0.4f, 0.4f, 0.5f);
     private static readonly Vector4 portColor = new(0.8f, 0.8f, 0.8f, 1f);
-    private static readonly Vector4 connectionColor = new(0.6f, 0.6f, 0.6f, 1f);
     private static readonly Vector4 selectionBoxFillColor = new(0.3f, 0.6f, 1f, 0.15f);
     private static readonly Vector4 selectionBoxBorderColor = new(0.3f, 0.6f, 1f, 0.8f);
     private static readonly Vector4 portHighlightValidColor = new(0.3f, 0.9f, 0.3f, 1f);
@@ -58,9 +57,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     private static readonly Vector4 contextMenuBackgroundColor = new(0.15f, 0.15f, 0.15f, 0.95f);
     private static readonly Vector4 contextMenuBorderColor = new(0.5f, 0.5f, 0.5f, 1f);
     private static readonly Vector4 contextMenuItemHoverColor = new(0.3f, 0.4f, 0.6f, 1f);
-    private static readonly Vector4 contextMenuTextColor = new(0.9f, 0.9f, 0.9f, 1f);
     private static readonly Vector4 collapseButtonColor = new(0.7f, 0.7f, 0.7f, 1f);
-    private static readonly Vector4 collapseButtonHoverColor = new(0.9f, 0.9f, 0.9f, 1f);
 
     private const float NodeBorderRadius = 6f;
     private const float BorderThickness = 2f;

@@ -153,10 +153,13 @@ internal sealed class ObstacleUpdateSystem : SystemBase
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        obstacleStates.Clear();
-        base.Dispose();
+        if (disposing)
+        {
+            obstacleStates.Clear();
+        }
+        base.Dispose(disposing);
     }
 
     private struct ObstacleState

@@ -306,9 +306,8 @@ if (nearestSnapshot != null)
     Console.WriteLine($"  1. Restore snapshot at frame {nearestSnapshot.FrameNumber} ({nearestSnapshot.ElapsedTime.TotalSeconds:F2}s)");
 
     var framesToReplay = replayData.Frames
-        .Where(f => f.FrameNumber > nearestSnapshot.FrameNumber &&
-                    f.ElapsedTime <= targetTime)
-        .Count();
+        .Count(f => f.FrameNumber > nearestSnapshot.FrameNumber &&
+                    f.ElapsedTime <= targetTime);
     Console.WriteLine($"  2. Replay {framesToReplay} frames to reach target");
 }
 

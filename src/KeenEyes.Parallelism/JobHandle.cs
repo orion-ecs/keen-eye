@@ -171,7 +171,10 @@ public readonly struct JobHandle : IEquatable<JobHandle>
 /// <summary>
 /// Internal completion source for tracking job state.
 /// </summary>
+// S3881: Simplified dispose pattern is sufficient for this internal sealed class
+#pragma warning disable S3881
 internal class JobCompletionSource : IDisposable
+#pragma warning restore S3881
 {
     private readonly ManualResetEventSlim completionEvent = new(false);
     private volatile bool isCompleted;

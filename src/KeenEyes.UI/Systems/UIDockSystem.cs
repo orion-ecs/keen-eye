@@ -40,15 +40,19 @@ public sealed class UIDockSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        dockRequestSubscription?.Dispose();
-        floatRequestSubscription?.Dispose();
-        dragStartSubscription?.Dispose();
-        dragSubscription?.Dispose();
-        dragEndSubscription?.Dispose();
-        clickSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            dockRequestSubscription?.Dispose();
+            floatRequestSubscription?.Dispose();
+            dragStartSubscription?.Dispose();
+            dragSubscription?.Dispose();
+            dragEndSubscription?.Dispose();
+            clickSubscription?.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

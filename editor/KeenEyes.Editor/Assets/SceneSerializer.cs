@@ -49,7 +49,7 @@ public sealed class SceneSerializer
     /// <param name="world">The world to load into.</param>
     /// <param name="filePath">The file path to load from.</param>
     /// <returns>The scene name.</returns>
-    public string Load(World world, string filePath)
+    public static string Load(World world, string filePath)
     {
         var json = File.ReadAllText(filePath);
         var sceneData = JsonSerializer.Deserialize<SceneData>(json, JsonOptions)
@@ -66,7 +66,7 @@ public sealed class SceneSerializer
     /// <param name="filePath">The file path to load from.</param>
     /// <param name="sceneRoot">The scene root entity to associate restored entities with.</param>
     /// <returns>The scene name.</returns>
-    public string Load(World world, string filePath, Entity sceneRoot)
+    public static string Load(World world, string filePath, Entity sceneRoot)
     {
         var json = File.ReadAllText(filePath);
         var sceneData = JsonSerializer.Deserialize<SceneData>(json, JsonOptions)
@@ -214,7 +214,7 @@ public sealed class SceneSerializer
     /// </summary>
     /// <param name="world">The world to restore into.</param>
     /// <param name="sceneData">The scene data to restore.</param>
-    public void RestoreScene(World world, SceneData sceneData)
+    public static void RestoreScene(World world, SceneData sceneData)
     {
         RestoreSceneCore(world, sceneData, Entity.Null);
     }
@@ -225,12 +225,12 @@ public sealed class SceneSerializer
     /// <param name="world">The world to restore into.</param>
     /// <param name="sceneData">The scene data to restore.</param>
     /// <param name="sceneRoot">The scene root entity to associate restored entities with.</param>
-    public void RestoreScene(World world, SceneData sceneData, Entity sceneRoot)
+    public static void RestoreScene(World world, SceneData sceneData, Entity sceneRoot)
     {
         RestoreSceneCore(world, sceneData, sceneRoot);
     }
 
-    private void RestoreSceneCore(World world, SceneData sceneData, Entity sceneRoot)
+    private static void RestoreSceneCore(World world, SceneData sceneData, Entity sceneRoot)
     {
         // If no scene root, clear existing entities (legacy behavior)
         if (!sceneRoot.IsValid)

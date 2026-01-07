@@ -98,7 +98,9 @@ public sealed class DotRecastMeshBuilder
         var bmax = geom.GetMeshBoundsMax();
 
         // Build the navmesh
-        return BuildFromGeometry(geom, bmin, bmax, areaIds);
+        // areaIds reserved for future area marking support
+        _ = areaIds;
+        return BuildFromGeometry(geom, bmin, bmax);
     }
 
     /// <summary>
@@ -185,10 +187,10 @@ public sealed class DotRecastMeshBuilder
         return Build(vertices, indices, null);
     }
 
-    private NavMeshData BuildFromGeometry(IInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax, int[]? areaIds)
+    private NavMeshData BuildFromGeometry(IInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax)
     {
         // Create Recast config
-        var rcConfig = CreateRcConfig(bmin, bmax);
+        var rcConfig = CreateRcConfig();
 
         // Create builder config
         var bcfg = new RcBuilderConfig(rcConfig, bmin, bmax);
@@ -217,7 +219,7 @@ public sealed class DotRecastMeshBuilder
         return new NavMeshData(navMesh, config.ToAgentSettings());
     }
 
-    private RcConfig CreateRcConfig(RcVec3f bmin, RcVec3f bmax)
+    private RcConfig CreateRcConfig()
     {
         // RcConfig constructor takes agent parameters in world units
         return new RcConfig(

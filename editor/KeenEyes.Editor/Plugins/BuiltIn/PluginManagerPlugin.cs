@@ -117,11 +117,11 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc />
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        editorWorld = panelContext.EditorWorld;
-        editorContext = panelContext.EditorContext;
-        rootEntity = panelContext.Parent;
+        editorWorld = context.EditorWorld;
+        editorContext = context.EditorContext;
+        rootEntity = context.Parent;
 
         // Get the plugin manager from the editor context
         if (editorContext.TryGetExtension<EditorPluginManager>(out var manager))
@@ -218,7 +218,6 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         {
             ref readonly var settingsData = ref editorWorld.Get<SettingsControlData>(clickedEntity);
             ExecuteSettingsAction(settingsData);
-            return;
         }
     }
 
@@ -268,7 +267,6 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         if (e.Modal == state.AddPathDialog)
         {
             HandleAddPathDialogResult(e.Modal, e.Result);
-            return;
         }
     }
 

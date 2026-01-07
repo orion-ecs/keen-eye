@@ -115,29 +115,20 @@ public sealed class ComponentDependencies(IEnumerable<Type> reads, IEnumerable<T
     public bool ConflictsWith(ComponentDependencies other)
     {
         // Write-write conflict: both write to the same component
-        if (!writesSet.IsEmpty && !other.writesSet.IsEmpty)
+        if (!writesSet.IsEmpty && !other.writesSet.IsEmpty && writesSet.Overlaps(other.writesSet))
         {
-            if (writesSet.Overlaps(other.writesSet))
-            {
-                return true;
-            }
+            return true;
         }
 
         // Read-write conflict: one reads what the other writes
-        if (!writesSet.IsEmpty && !other.readsSet.IsEmpty)
+        if (!writesSet.IsEmpty && !other.readsSet.IsEmpty && writesSet.Overlaps(other.readsSet))
         {
-            if (writesSet.Overlaps(other.readsSet))
-            {
-                return true;
-            }
+            return true;
         }
 
-        if (!readsSet.IsEmpty && !other.writesSet.IsEmpty)
+        if (!readsSet.IsEmpty && !other.writesSet.IsEmpty && readsSet.Overlaps(other.writesSet))
         {
-            if (readsSet.Overlaps(other.writesSet))
-            {
-                return true;
-            }
+            return true;
         }
 
         return false;

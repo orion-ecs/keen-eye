@@ -20,60 +20,60 @@ public sealed class ParticlePool : IDisposable
     #region Position and Movement
 
     /// <summary>X positions of all particles.</summary>
-    public float[] PositionsX = [];
+    public float[] PositionsX;
 
     /// <summary>Y positions of all particles.</summary>
-    public float[] PositionsY = [];
+    public float[] PositionsY;
 
     /// <summary>X velocities of all particles (units per second).</summary>
-    public float[] VelocitiesX = [];
+    public float[] VelocitiesX;
 
     /// <summary>Y velocities of all particles (units per second).</summary>
-    public float[] VelocitiesY = [];
+    public float[] VelocitiesY;
 
     #endregion
 
     #region Visual Properties
 
     /// <summary>Red color component (0-1).</summary>
-    public float[] ColorsR = [];
+    public float[] ColorsR;
 
     /// <summary>Green color component (0-1).</summary>
-    public float[] ColorsG = [];
+    public float[] ColorsG;
 
     /// <summary>Blue color component (0-1).</summary>
-    public float[] ColorsB = [];
+    public float[] ColorsB;
 
     /// <summary>Alpha color component (0-1).</summary>
-    public float[] ColorsA = [];
+    public float[] ColorsA;
 
     /// <summary>Particle sizes (diameter in pixels).</summary>
-    public float[] Sizes = [];
+    public float[] Sizes;
 
     /// <summary>Initial sizes for modifier calculations.</summary>
-    public float[] InitialSizes = [];
+    public float[] InitialSizes;
 
     /// <summary>Particle rotations (in radians).</summary>
-    public float[] Rotations = [];
+    public float[] Rotations;
 
     /// <summary>Rotation speeds (radians per second).</summary>
-    public float[] RotationSpeeds = [];
+    public float[] RotationSpeeds;
 
     #endregion
 
     #region Lifecycle
 
     /// <summary>Current age of particles (seconds since spawn).</summary>
-    public float[] Ages = [];
+    public float[] Ages;
 
     /// <summary>Total lifetime of particles (seconds).</summary>
-    public float[] Lifetimes = [];
+    public float[] Lifetimes;
 
     /// <summary>Normalized age (Age / Lifetime, 0-1).</summary>
-    public float[] NormalizedAges = [];
+    public float[] NormalizedAges;
 
     /// <summary>Whether each particle slot is currently active.</summary>
-    public bool[] Alive = [];
+    public bool[] Alive;
 
     #endregion
 
@@ -90,7 +90,7 @@ public sealed class ParticlePool : IDisposable
     public int ActiveCount { get; private set; }
 
     // Free list for O(1) allocation
-    private int[] freeIndices = [];
+    private int[] freeIndices;
     private int freeCount;
     private bool isDisposed;
 

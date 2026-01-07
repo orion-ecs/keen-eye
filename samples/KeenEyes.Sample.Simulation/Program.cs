@@ -216,7 +216,7 @@ void RenderFrame()
 
     // Count entities
     int enemyCount = world.Query<Position>().With<Enemy>().Without<Dead>().Without<Projectile>().Count();
-    int projectileCount = world.Query<Position>().With<Projectile>().Without<Dead>().Count();
+    _ = world.Query<Position>().With<Projectile>().Without<Dead>().Count();
 
     // Get player health
     int playerHealth = 0;

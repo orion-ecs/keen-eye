@@ -136,7 +136,7 @@ public sealed class EditorWorldManager : IDisposable
         _sceneModificationCount = 0;
 
         // Load scene data and restore entities, associating with the scene root
-        _ = _sceneSerializer.Load(_world, path, _currentSceneRoot);
+        _ = SceneSerializer.Load(_world, path, _currentSceneRoot);
 
         SceneOpened?.Invoke(_world);
     }

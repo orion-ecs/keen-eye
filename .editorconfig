@@ -223,7 +223,27 @@ dotnet_diagnostic.CS0219.severity = warning
 dotnet_diagnostic.CS1591.severity = warning
 
 # Sonar diagnostics
-# S1066: Collapsible "if" statements should be merged
+# S125: Commented code - disabled (sometimes useful for documentation)
 dotnet_diagnostic.S125.severity = none
+# S1104: Public fields - disabled (components use public fields by design)
 dotnet_diagnostic.S1104.severity = none
+# S1066: Collapsible "if" statements should be merged
 dotnet_diagnostic.S1066.severity = warning
+# S1133: Obsolete code reminders - disabled (intentional deprecation markers)
+dotnet_diagnostic.S1133.severity = none
+# S3246: Contravariance - disabled (not applicable to struct-constrained delegates)
+dotnet_diagnostic.S3246.severity = none
+# S3871: Internal exceptions - disabled (internal parser exceptions are valid design)
+dotnet_diagnostic.S3871.severity = none
+# S1135: TODO comments - disabled (intentional work markers)
+dotnet_diagnostic.S1135.severity = none
+# S1172: Unused parameters - suggestion only (reserved for future use patterns are common)
+dotnet_diagnostic.S1172.severity = suggestion
+# S1450: Field should be local - suggestion only (plugin field patterns are intentional)
+dotnet_diagnostic.S1450.severity = suggestion
+# S1117: Name shadowing - suggestion only (local port colors are intentional)
+dotnet_diagnostic.S1117.severity = suggestion
+# S2365: Property copies collection - suggestion only (small collections are acceptable)
+dotnet_diagnostic.S2365.severity = suggestion
+# S1694: Abstract record to interface - suggestion only (design preference)
+dotnet_diagnostic.S1694.severity = suggestion

@@ -126,6 +126,9 @@ public class SingletonScalingBenchmarks
         world.SetSingleton(new GameTime { DeltaTime = 0.016f, TotalTime = 0 });
     }
 
+    // S907: The 'goto case' pattern is an intentional C# idiom for fall-through
+    // in switch statements. It's cleaner than alternatives for registering N singletons.
+#pragma warning disable S907
     private void RegisterSingletons()
     {
         switch (SingletonCount)
@@ -162,6 +165,7 @@ public class SingletonScalingBenchmarks
                 break;
         }
     }
+#pragma warning restore S907
 
     [GlobalCleanup]
     public void Cleanup()

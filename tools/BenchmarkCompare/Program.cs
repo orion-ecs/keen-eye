@@ -6,21 +6,29 @@ string? currentPath = null;
 string? outputPath = null;
 double threshold = 5.0;
 
-for (int i = 0; i < args.Length; i++)
+int i = 0;
+while (i < args.Length)
 {
-    switch (args[i])
+    var arg = args[i];
+    var hasNext = i + 1 < args.Length;
+
+    switch (arg)
     {
-        case "--baseline" when i + 1 < args.Length:
-            baselinePath = args[++i];
+        case "--baseline" when hasNext:
+            baselinePath = args[i + 1];
+            i += 2;
             break;
-        case "--current" when i + 1 < args.Length:
-            currentPath = args[++i];
+        case "--current" when hasNext:
+            currentPath = args[i + 1];
+            i += 2;
             break;
-        case "--output" when i + 1 < args.Length:
-            outputPath = args[++i];
+        case "--output" when hasNext:
+            outputPath = args[i + 1];
+            i += 2;
             break;
-        case "--threshold" when i + 1 < args.Length:
-            threshold = double.Parse(args[++i]);
+        case "--threshold" when hasNext:
+            threshold = double.Parse(args[i + 1]);
+            i += 2;
             break;
         case "--help" or "-h":
             Console.WriteLine("BenchmarkCompare - Compare BenchmarkDotNet results");
@@ -34,6 +42,9 @@ for (int i = 0; i < args.Length; i++)
             Console.WriteLine("  --output <file>     Output file for the comparison report");
             Console.WriteLine("  --help, -h          Show this help message");
             return 0;
+        default:
+            i++;
+            break;
     }
 }
 

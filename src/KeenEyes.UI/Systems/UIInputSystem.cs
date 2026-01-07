@@ -44,7 +44,7 @@ public sealed class UIInputSystem : SystemBase
         foreach (var entity in World.Query<UIInteractable>())
         {
             ref var interactable = ref World.Get<UIInteractable>(entity);
-            interactable.PendingEvents = UIEventFlags.None;
+            interactable.PendingEvents = UIEventType.None;
         }
     }
 
@@ -85,29 +85,28 @@ public sealed class UIInputSystem : SystemBase
     private void ProcessHover(Entity hitEntity, Vector2 mousePos)
     {
         // Hover exit
-        if (hoveredEntity.IsValid && hoveredEntity != hitEntity)
+        if (hoveredEntity.IsValid &&
+            hoveredEntity != hitEntity &&
+            World.IsAlive(hoveredEntity) &&
+            World.Has<UIInteractable>(hoveredEntity))
         {
-            if (World.IsAlive(hoveredEntity) && World.Has<UIInteractable>(hoveredEntity))
-            {
-                ref var interactable = ref World.Get<UIInteractable>(hoveredEntity);
-                interactable.State &= ~UIInteractionState.Hovered;
-                interactable.PendingEvents |= UIEventFlags.PointerExit;
+            ref var interactable = ref World.Get<UIInteractable>(hoveredEntity);
+            interactable.State &= ~UIInteractionState.Hovered;
+            interactable.PendingEvents |= UIEventType.PointerExit;
 
-                World.Send(new UIPointerExitEvent(hoveredEntity));
-            }
+            World.Send(new UIPointerExitEvent(hoveredEntity));
         }
 
         // Hover enter
-        if (hitEntity.IsValid && hitEntity != hoveredEntity)
+        if (hitEntity.IsValid &&
+            hitEntity != hoveredEntity &&
+            World.Has<UIInteractable>(hitEntity))
         {
-            if (World.Has<UIInteractable>(hitEntity))
-            {
-                ref var interactable = ref World.Get<UIInteractable>(hitEntity);
-                interactable.State |= UIInteractionState.Hovered;
-                interactable.PendingEvents |= UIEventFlags.PointerEnter;
+            ref var interactable = ref World.Get<UIInteractable>(hitEntity);
+            interactable.State |= UIInteractionState.Hovered;
+            interactable.PendingEvents |= UIEventType.PointerEnter;
 
-                World.Send(new UIPointerEnterEvent(hitEntity, mousePos));
-            }
+            World.Send(new UIPointerEnterEvent(hitEntity, mousePos));
         }
 
         hoveredEntity = hitEntity;
@@ -126,7 +125,7 @@ public sealed class UIInputSystem : SystemBase
                 {
                     pressedEntity = hitEntity;
                     interactable.State |= UIInteractionState.Pressed;
-                    interactable.PendingEvents |= UIEventFlags.PointerDown;
+                    interactable.PendingEvents |= UIEventType.PointerDown;
                     dragStartPosition = mousePos;
                     lastDragPosition = mousePos;
 
@@ -151,7 +150,7 @@ public sealed class UIInputSystem : SystemBase
                     {
                         isDragging = true;
                         interactable.State |= UIInteractionState.Dragging;
-                        interactable.PendingEvents |= UIEventFlags.DragStart;
+                        interactable.PendingEvents |= UIEventType.DragStart;
 
                         World.Send(new UIDragStartEvent(pressedEntity, dragStartPosition));
                     }
@@ -172,13 +171,13 @@ public sealed class UIInputSystem : SystemBase
             {
                 ref var interactable = ref World.Get<UIInteractable>(pressedEntity);
                 interactable.State &= ~UIInteractionState.Pressed;
-                interactable.PendingEvents |= UIEventFlags.PointerUp;
+                interactable.PendingEvents |= UIEventType.PointerUp;
 
                 if (isDragging)
                 {
                     // End drag
                     interactable.State &= ~UIInteractionState.Dragging;
-                    interactable.PendingEvents |= UIEventFlags.DragEnd;
+                    interactable.PendingEvents |= UIEventType.DragEnd;
                     isDragging = false;
 
                     World.Send(new UIDragEndEvent(pressedEntity, mousePos));
@@ -186,13 +185,13 @@ public sealed class UIInputSystem : SystemBase
                 else if (interactable.CanClick && pressedEntity == hitEntity)
                 {
                     // Click occurred
-                    interactable.PendingEvents |= UIEventFlags.Click;
+                    interactable.PendingEvents |= UIEventType.Click;
 
                     // Check for double-click
                     var currentTime = Environment.TickCount / 1000.0;
                     if (currentTime - lastClickTime < DoubleClickTime)
                     {
-                        interactable.PendingEvents |= UIEventFlags.DoubleClick;
+                        interactable.PendingEvents |= UIEventType.DoubleClick;
                     }
                     lastClickTime = currentTime;
 

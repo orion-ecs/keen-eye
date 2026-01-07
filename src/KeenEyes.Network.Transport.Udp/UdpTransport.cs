@@ -465,7 +465,7 @@ public sealed class UdpTransport : INetworkTransport
         CleanupOldSequences(connection);
     }
 
-    private void CleanupOldSequences(UdpConnection connection)
+    private static void CleanupOldSequences(UdpConnection connection)
     {
         // Remove sequences that are too old
         var minSequence = (ushort)(connection.NextExpectedSequence - SequenceWindowSize);
@@ -478,7 +478,7 @@ public sealed class UdpTransport : INetworkTransport
         return (short)(a - b) > 0;
     }
 
-    private void ProcessAckPacket(UdpConnection connection, ushort ack)
+    private static void ProcessAckPacket(UdpConnection connection, ushort ack)
     {
         if (connection.PendingReliable.TryRemove(ack, out var pending))
         {

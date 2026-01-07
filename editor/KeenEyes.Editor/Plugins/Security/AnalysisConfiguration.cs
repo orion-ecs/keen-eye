@@ -38,7 +38,7 @@ public sealed class AnalysisConfiguration
     /// <summary>
     /// Gets or sets patterns to exclude from analysis (known safe uses).
     /// </summary>
-    public IReadOnlyList<PatternException> Exceptions { get; init; } = [];
+    public IReadOnlyList<PatternExclusion> Exceptions { get; init; } = [];
 
     /// <summary>
     /// Checks if a specific pattern is enabled for detection.
@@ -84,9 +84,9 @@ public sealed class AnalysisConfiguration
 }
 
 /// <summary>
-/// Represents an exception rule for security analysis.
+/// Represents an exclusion rule for security analysis.
 /// </summary>
-public sealed class PatternException
+public sealed class PatternExclusion
 {
     /// <summary>
     /// Gets or sets the pattern to except.

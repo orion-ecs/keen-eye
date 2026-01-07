@@ -39,11 +39,15 @@ public sealed class UIModalSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        clickSubscription?.Dispose();
-        clickSubscription = null;
-        base.Dispose();
+        if (disposing)
+        {
+            clickSubscription?.Dispose();
+            clickSubscription = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

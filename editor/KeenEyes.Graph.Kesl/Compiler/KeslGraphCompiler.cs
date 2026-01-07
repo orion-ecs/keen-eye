@@ -25,7 +25,6 @@ public sealed class KeslGraphCompiler
 {
     private static readonly SourceLocation GeneratedLocation = new("graph://generated", 0, 0);
 
-    private readonly GraphTraverser traverser = new();
     private readonly CompilationContext context = new();
 
     /// <summary>
@@ -39,7 +38,7 @@ public sealed class KeslGraphCompiler
         context.Clear();
 
         // Find root ComputeShader node
-        var rootNode = traverser.FindRootNode(canvas, world);
+        var rootNode = GraphTraverser.FindRootNode(canvas, world);
         if (rootNode is null)
         {
             return CompilationResult.Error("No ComputeShader node found in graph");
@@ -82,7 +81,7 @@ public sealed class KeslGraphCompiler
         return CompilationResult.Success(declaration);
     }
 
-    private List<QueryBinding> CollectQueryBindings(Entity canvas, IWorld world)
+    private static List<QueryBinding> CollectQueryBindings(Entity canvas, IWorld world)
     {
         var bindings = new List<QueryBinding>();
 
@@ -106,7 +105,7 @@ public sealed class KeslGraphCompiler
         return bindings;
     }
 
-    private List<ParamDeclaration> CollectParameters(Entity canvas, IWorld world)
+    private static List<ParamDeclaration> CollectParameters(Entity canvas, IWorld world)
     {
         var parameters = new List<ParamDeclaration>();
 
@@ -133,10 +132,10 @@ public sealed class KeslGraphCompiler
     private List<Statement> BuildExecuteBlock(Entity rootNode, Entity canvas, IWorld world)
     {
         var statements = new List<Statement>();
-        var expressionBuilder = new ExpressionBuilder(traverser);
+        var expressionBuilder = new ExpressionBuilder();
 
         // Get nodes in topological order
-        var sortedNodes = traverser.TopologicalSort(canvas, world);
+        var sortedNodes = GraphTraverser.TopologicalSort(canvas, world);
         if (sortedNodes.Count == 0)
         {
             context.AddError(Entity.Null, null, "Graph contains cycles or has no nodes", "KESL030");
@@ -189,7 +188,7 @@ public sealed class KeslGraphCompiler
     {
         // The ComputeShader node typically has an "Execute" flow input
         // that connects to the actual shader logic
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(rootNode, 0, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(rootNode, 0, canvas, world))
         {
             BuildNodeStatements(sourceNode, canvas, world, expressionBuilder, statements);
         }
@@ -242,7 +241,7 @@ public sealed class KeslGraphCompiler
 
         // Get the value input
         Expression? valueExpr = null;
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, 1, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, 1, canvas, world))
         {
             var sourceData = world.Get<GraphNode>(sourceNode);
             valueExpr = expressionBuilder.BuildExpression(sourceNode, sourceData.NodeTypeId, canvas, world, context);
@@ -269,7 +268,7 @@ public sealed class KeslGraphCompiler
     {
         // Get condition expression (input 0)
         Expression? condition = null;
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, 0, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, 0, canvas, world))
         {
             var sourceData = world.Get<GraphNode>(sourceNode);
             condition = expressionBuilder.BuildExpression(sourceNode, sourceData.NodeTypeId, canvas, world, context);
@@ -283,14 +282,14 @@ public sealed class KeslGraphCompiler
 
         // Build then branch (input 1 - True flow)
         var thenStatements = new List<Statement>();
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, 1, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, 1, canvas, world))
         {
             BuildNodeStatements(sourceNode, canvas, world, expressionBuilder, thenStatements);
         }
 
         // Build else branch (input 2 - False flow)
         var elseStatements = new List<Statement>();
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, 2, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, 2, canvas, world))
         {
             BuildNodeStatements(sourceNode, canvas, world, expressionBuilder, elseStatements);
         }
@@ -315,7 +314,7 @@ public sealed class KeslGraphCompiler
 
         // Get start expression (input 0)
         Expression? start = null;
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, 0, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, 0, canvas, world))
         {
             var sourceData = world.Get<GraphNode>(sourceNode);
             start = expressionBuilder.BuildExpression(sourceNode, sourceData.NodeTypeId, canvas, world, context);
@@ -324,7 +323,7 @@ public sealed class KeslGraphCompiler
 
         // Get end expression (input 1)
         Expression? end = null;
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, 1, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, 1, canvas, world))
         {
             var sourceData = world.Get<GraphNode>(sourceNode);
             end = expressionBuilder.BuildExpression(sourceNode, sourceData.NodeTypeId, canvas, world, context);
@@ -336,7 +335,7 @@ public sealed class KeslGraphCompiler
 
         // Build loop body (input 2 - Body flow)
         var bodyStatements = new List<Statement>();
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, 2, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, 2, canvas, world))
         {
             BuildNodeStatements(sourceNode, canvas, world, expressionBuilder, bodyStatements);
         }
@@ -349,7 +348,7 @@ public sealed class KeslGraphCompiler
             GeneratedLocation));
     }
 
-    private int CountOutputConnections(Entity node, Entity canvas, IWorld world)
+    private static int CountOutputConnections(Entity node, Entity canvas, IWorld world)
     {
         var count = 0;
         foreach (var entity in world.Query<GraphConnection>())

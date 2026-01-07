@@ -99,20 +99,20 @@ internal sealed class HierarchyPanelImpl : IEditorPanel
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc />
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        context = panelContext.EditorContext;
-        editorWorld = panelContext.EditorWorld;
+        this.context = context.EditorContext;
+        editorWorld = context.EditorWorld;
 
         // Create the hierarchy panel UI using the existing static method
         // The existing HierarchyPanel.Create expects specific dependencies
         // For now, we'll create a placeholder and refactor later
-        rootEntity = CreatePanelUI(panelContext);
+        rootEntity = CreatePanelUI(context);
 
         // Subscribe to editor events
-        sceneOpenedSubscription = context.OnSceneOpened(OnSceneOpened);
-        sceneClosedSubscription = context.OnSceneClosed(OnSceneClosed);
-        selectionChangedSubscription = context.OnSelectionChanged(OnSelectionChanged);
+        sceneOpenedSubscription = this.context.OnSceneOpened(OnSceneOpened);
+        sceneClosedSubscription = this.context.OnSceneClosed(OnSceneClosed);
+        selectionChangedSubscription = this.context.OnSelectionChanged(OnSelectionChanged);
     }
 
     /// <inheritdoc />
@@ -135,7 +135,7 @@ internal sealed class HierarchyPanelImpl : IEditorPanel
         }
     }
 
-    private Entity CreatePanelUI(PanelContext panelContext)
+    private static Entity CreatePanelUI(PanelContext panelContext)
     {
         // TODO: Refactor HierarchyPanel.Create to work without static dependencies
         // For now, return a placeholder entity

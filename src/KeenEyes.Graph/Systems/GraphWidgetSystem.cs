@@ -185,15 +185,11 @@ public sealed class GraphWidgetSystem : SystemBase
         }
 
         // Decimal point (for float fields only)
-        if (focus.Type == WidgetType.FloatField)
+        if (focus.Type == WidgetType.FloatField &&
+            (WasKeyJustPressed(keyboard, Key.Period) || WasKeyJustPressed(keyboard, Key.KeypadDecimal)) &&
+            !focus.EditBuffer.Contains('.'))
         {
-            if (WasKeyJustPressed(keyboard, Key.Period) || WasKeyJustPressed(keyboard, Key.KeypadDecimal))
-            {
-                if (!focus.EditBuffer.Contains('.'))
-                {
-                    InsertChar(ref focus, '.');
-                }
-            }
+            InsertChar(ref focus, '.');
         }
     }
 

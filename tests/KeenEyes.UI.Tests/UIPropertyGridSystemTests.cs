@@ -45,7 +45,7 @@ public class UIPropertyGridSystemTests
 
         // Set click flag on header to trigger expand
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -90,7 +90,7 @@ public class UIPropertyGridSystemTests
 
         // Set click flag on header to trigger collapse
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -148,7 +148,7 @@ public class UIPropertyGridSystemTests
 
         // Set click flag on header to trigger expand
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -198,7 +198,7 @@ public class UIPropertyGridSystemTests
 
         // Set click flag on header to trigger collapse
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -250,7 +250,7 @@ public class UIPropertyGridSystemTests
 
         // Set click flag on header to trigger expand
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -337,7 +337,7 @@ public class UIPropertyGridSystemTests
             .Build();
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         // Should not throw or crash
         propertyGridSystem.Update(0);
@@ -364,7 +364,7 @@ public class UIPropertyGridSystemTests
         world.SetParent(header, parent);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         // Should not throw or crash - parent traversal finds no category
         propertyGridSystem.Update(0);
@@ -410,7 +410,7 @@ public class UIPropertyGridSystemTests
         world.SetParent(header, intermediate);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -448,7 +448,7 @@ public class UIPropertyGridSystemTests
         world.SetParent(header, category);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -489,7 +489,7 @@ public class UIPropertyGridSystemTests
         world.Subscribe<UIPropertyCategoryExpandedEvent>(e => eventFired = true);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -531,7 +531,7 @@ public class UIPropertyGridSystemTests
         world.Subscribe<UIPropertyCategoryCollapsedEvent>(e => eventFired = true);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -582,7 +582,7 @@ public class UIPropertyGridSystemTests
         world.SetParent(arrow, header);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -632,7 +632,7 @@ public class UIPropertyGridSystemTests
         world.SetParent(arrow, header);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         // Should not throw
         propertyGridSystem.Update(0);
@@ -677,7 +677,7 @@ public class UIPropertyGridSystemTests
         // No children at all
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         propertyGridSystem.Update(0);
 
@@ -718,7 +718,7 @@ public class UIPropertyGridSystemTests
         world.SetParent(header, category);
 
         ref var interactable = ref world.Get<UIInteractable>(header);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
 
         // Should not throw
         propertyGridSystem.Update(0);

@@ -12,7 +12,7 @@ namespace KeenEyes.Graph.Kesl.Compiler;
 /// have all been processed.
 /// </para>
 /// </remarks>
-public sealed class GraphTraverser
+public static class GraphTraverser
 {
     /// <summary>
     /// Returns graph nodes in topological (dependency) order.
@@ -20,7 +20,7 @@ public sealed class GraphTraverser
     /// <param name="canvas">The graph canvas entity.</param>
     /// <param name="world">The world containing the graph.</param>
     /// <returns>Nodes sorted by dependency order, or empty if cycle detected.</returns>
-    public IReadOnlyList<Entity> TopologicalSort(Entity canvas, IWorld world)
+    public static IReadOnlyList<Entity> TopologicalSort(Entity canvas, IWorld world)
     {
         // Collect all nodes on this canvas
         var nodes = new List<Entity>();
@@ -105,7 +105,7 @@ public sealed class GraphTraverser
     /// <param name="canvas">The graph canvas entity.</param>
     /// <param name="world">The world containing the graph.</param>
     /// <returns>The root node, or null if not found.</returns>
-    public Entity? FindRootNode(Entity canvas, IWorld world)
+    public static Entity? FindRootNode(Entity canvas, IWorld world)
     {
         foreach (var entity in world.Query<GraphNode>())
         {
@@ -132,7 +132,7 @@ public sealed class GraphTraverser
     /// <param name="canvas">The graph canvas entity.</param>
     /// <param name="world">The world containing the graph.</param>
     /// <returns>The source nodes connected to this input.</returns>
-    public IEnumerable<(Entity SourceNode, int SourcePort)> GetInputConnections(
+    public static IEnumerable<(Entity SourceNode, int SourcePort)> GetInputConnections(
         Entity node,
         int portIndex,
         Entity canvas,

@@ -44,15 +44,15 @@ public sealed class NavigationPanel : IEditorPanel
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc/>
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        context = panelContext;
+        this.context = context;
 
         // Create the root entity for the panel UI
-        rootEntity = panelContext.EditorWorld.Spawn("NavigationPanel").Build();
+        rootEntity = context.EditorWorld.Spawn("NavigationPanel").Build();
 
         // Try to get the visualizer from the viewport capability
-        if (panelContext.EditorContext.TryGetCapability<IViewportCapability>(out var viewport) && viewport != null)
+        if (context.EditorContext.TryGetCapability<IViewportCapability>(out var viewport) && viewport != null)
         {
             foreach (var renderer in viewport.GetGizmoRenderers())
             {

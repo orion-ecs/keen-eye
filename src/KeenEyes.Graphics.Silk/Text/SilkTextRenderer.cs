@@ -56,7 +56,7 @@ internal sealed class SilkTextRenderer(IGraphicsDevice device, SilkFontManager f
     }
 
     /// <inheritdoc />
-    public void Begin(in Matrix4x4 customProjection)
+    public void Begin(in Matrix4x4 projection)
     {
         if (isBatching)
         {
@@ -64,7 +64,7 @@ internal sealed class SilkTextRenderer(IGraphicsDevice device, SilkFontManager f
         }
 
         isBatching = true;
-        renderer.Begin(customProjection);
+        renderer.Begin(projection);
     }
 
     /// <inheritdoc />

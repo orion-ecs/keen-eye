@@ -114,7 +114,7 @@ public static partial class WidgetFactory
         return toolbar;
     }
 
-    private static Entity CreateToolbarButton(
+    private static void CreateToolbarButton(
         IWorld world,
         Entity toolbar,
         ToolbarButtonDef def,
@@ -184,11 +184,9 @@ public static partial class WidgetFactory
 
             world.SetParent(icon, button);
         }
-
-        return button;
     }
 
-    private static Entity CreateToolbarSeparator(
+    private static void CreateToolbarSeparator(
         IWorld world,
         Entity toolbar,
         int itemIndex,
@@ -233,8 +231,6 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(line, separator);
-
-        return separator;
     }
 
     /// <summary>
@@ -356,7 +352,7 @@ public static partial class WidgetFactory
         return statusBar;
     }
 
-    private static Entity CreateStatusBarSection(
+    private static void CreateStatusBarSection(
         IWorld world,
         Entity statusBar,
         FontHandle font,
@@ -411,11 +407,9 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(label, section);
-
-        return section;
     }
 
-    private static Entity CreateStatusBarSeparator(
+    private static void CreateStatusBarSeparator(
         IWorld world,
         Entity statusBar,
         int afterIndex,
@@ -436,8 +430,6 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(separator, statusBar);
-
-        return separator;
     }
 
     /// <summary>

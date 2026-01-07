@@ -460,7 +460,7 @@ public class IWorldCastAnalyzerTests
             references,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 
-        var analyzer = new IWorldCastAnalyzer();
+        var analyzer = new WorldCastAnalyzer();
         var compilationWithAnalyzers = compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(analyzer));
 
         var diagnostics = compilationWithAnalyzers.GetAnalyzerDiagnosticsAsync().Result;

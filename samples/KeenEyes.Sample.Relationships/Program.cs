@@ -133,7 +133,7 @@ var enemy1 = world.Spawn("Goblin")
     .WithHealth(30, 30)
     .Build();
 
-var enemy2 = world.Spawn("Orc")
+_ = world.Spawn("Orc")
     .WithPosition(250, 100)
     .WithHealth(50, 50)
     .Build();

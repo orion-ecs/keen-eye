@@ -45,6 +45,7 @@ public abstract class SystemBase : ISystem, ISystemLifecycle
 {
     private IWorld? world;
     private bool enabled = true;
+    private bool disposed;
 
     /// <summary>
     /// Gets the world this system operates on.
@@ -144,5 +145,24 @@ public abstract class SystemBase : ISystem, ISystemLifecycle
     public abstract void Update(float deltaTime);
 
     /// <inheritdoc />
-    public virtual void Dispose() { }
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases resources used by this system.
+    /// </summary>
+    /// <param name="disposing">True if called from Dispose(), false if called from finalizer.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed)
+        {
+            return;
+        }
+
+        // Derived classes can override to dispose managed resources when disposing is true
+        disposed = true;
+    }
 }

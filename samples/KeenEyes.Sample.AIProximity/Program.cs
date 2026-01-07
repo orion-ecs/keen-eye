@@ -8,7 +8,7 @@ using KeenEyes.Spatial;
 /// Demonstrates AI proximity detection for vision and hearing using spatial queries.
 /// Shows how AI agents can detect players/enemies within sensory ranges.
 /// </summary>
-public class Program
+public static class Program
 {
     public const int GuardCount = 50;
     public const int PlayerCount = 10;
@@ -319,6 +319,9 @@ public class GuardAISystem(DetectionStats stats) : SystemBase
 
     private void CheckForThreats(Entity guardEntity, ref Guard guard, Transform3D guardTransform)
     {
+        // guardEntity reserved for future target tracking
+        _ = guardEntity;
+
         // Vision check (can see players)
         if (CanSeePlayer(guardTransform, guard.VisionRange))
         {

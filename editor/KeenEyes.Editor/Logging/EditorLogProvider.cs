@@ -129,15 +129,12 @@ public sealed class EditorLogProvider : ILogProvider
     {
         foreach (var entry in _entries)
         {
-            if (entry.Level >= LogLevel.Error && showErrors)
-            {
-                yield return entry;
-            }
-            else if (entry.Level == LogLevel.Warning && showWarnings)
-            {
-                yield return entry;
-            }
-            else if (entry.Level < LogLevel.Warning && showInfo)
+            var shouldInclude =
+                (entry.Level >= LogLevel.Error && showErrors) ||
+                (entry.Level == LogLevel.Warning && showWarnings) ||
+                (entry.Level < LogLevel.Warning && showInfo);
+
+            if (shouldInclude)
             {
                 yield return entry;
             }

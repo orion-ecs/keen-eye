@@ -8,7 +8,7 @@ using KeenEyes.Spatial;
 /// Demonstrates broadphase/narrowphase collision detection using spatial partitioning.
 /// Compares performance against naive O(n²) approach.
 /// </summary>
-public class Program
+public static class Program
 {
     public const int EntityCount = 1000;
     public const float WorldSize = 1000f;

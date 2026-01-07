@@ -29,7 +29,7 @@ namespace KeenEyes.Generators;
 /// </para>
 /// </remarks>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
-public sealed class IWorldCastAnalyzer : DiagnosticAnalyzer
+public sealed class WorldCastAnalyzer : DiagnosticAnalyzer
 {
     private const string IWorldTypeName = "KeenEyes.IWorld";
     private const string WorldTypeName = "KeenEyes.World";

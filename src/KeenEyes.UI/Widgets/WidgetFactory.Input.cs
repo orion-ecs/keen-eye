@@ -693,7 +693,7 @@ public static partial class WidgetFactory
                 CanClick = true,
                 CanFocus = true,
                 TabIndex = config.TabIndex,
-                State = config.IsOn ? UIInteractionState.Pressed : UIInteractionState.Normal
+                State = config.IsOn ? UIInteractionState.Pressed : UIInteractionState.None
             })
             .Build();
 
@@ -828,7 +828,7 @@ public static partial class WidgetFactory
                 CanClick = true,
                 CanFocus = true,
                 TabIndex = config.TabIndex,
-                State = config.IsOn ? UIInteractionState.Pressed : UIInteractionState.Normal
+                State = config.IsOn ? UIInteractionState.Pressed : UIInteractionState.None
             })
             .Build();
 
@@ -2058,7 +2058,7 @@ public static partial class WidgetFactory
         int year = initialValue.Year;
         int month = initialValue.Month;
         int daysInMonth = DateTime.DaysInMonth(year, month);
-        int firstDayOfMonth = (int)new DateTime(year, month, 1).DayOfWeek;
+        int firstDayOfMonth = (int)new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Unspecified).DayOfWeek;
         int firstDayOffset = (int)config.FirstDayOfWeek;
 
         // Calculate the offset for the first day
@@ -2115,7 +2115,7 @@ public static partial class WidgetFactory
 
     private static bool IsDateDisabled(int year, int month, int day, DatePickerConfig config)
     {
-        var date = new DateTime(year, month, day);
+        var date = new DateTime(year, month, day, 0, 0, 0, DateTimeKind.Unspecified);
         return (config.MinDate.HasValue && date < config.MinDate.Value.Date) ||
                (config.MaxDate.HasValue && date > config.MaxDate.Value.Date);
     }

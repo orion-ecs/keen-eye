@@ -24,7 +24,7 @@ public sealed class UICheckboxSystem : SystemBase
             ref readonly var interactable = ref World.Get<UIInteractable>(entity);
 
             // Check if clicked
-            if ((interactable.PendingEvents & UIEventFlags.Click) != 0)
+            if ((interactable.PendingEvents & UIEventType.Click) != 0)
             {
                 // Toggle state
                 checkbox.IsChecked = !checkbox.IsChecked;
@@ -41,7 +41,7 @@ public sealed class UICheckboxSystem : SystemBase
             ref readonly var interactable = ref World.Get<UIInteractable>(entity);
 
             // Check if clicked
-            if ((interactable.PendingEvents & UIEventFlags.Click) != 0)
+            if ((interactable.PendingEvents & UIEventType.Click) != 0)
             {
                 // Toggle state
                 toggle.IsOn = !toggle.IsOn;

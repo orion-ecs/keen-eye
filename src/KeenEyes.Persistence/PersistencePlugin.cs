@@ -43,13 +43,6 @@ public sealed class PersistencePlugin(PersistenceConfig? config = null) : IWorld
 {
     private readonly PersistenceConfig config = config ?? PersistenceConfig.Default;
 
-    /// <summary>
-    /// Creates a new persistence plugin with default options (no encryption).
-    /// </summary>
-    public PersistencePlugin() : this(null)
-    {
-    }
-
     /// <inheritdoc />
     public string Name => "Persistence";
 

@@ -9,7 +9,7 @@ public enum UIInteractionState : byte
     /// <summary>
     /// Element is in its normal, idle state.
     /// </summary>
-    Normal = 0,
+    None = 0,
 
     /// <summary>
     /// Pointer is hovering over the element.

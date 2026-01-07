@@ -63,12 +63,10 @@ public static class NodeWidgets
         // Would draw label on left, value on right when ITextRenderer is implemented
 
         // Commit value when focus is lost
-        if (!hasFocus && ctx.Focus.HasValue && ctx.Focus.Value.WidgetId == widgetId)
+        if (!hasFocus && ctx.Focus.HasValue && ctx.Focus.Value.WidgetId == widgetId &&
+            float.TryParse(ctx.Focus.Value.EditBuffer, out var parsed))
         {
-            if (float.TryParse(ctx.Focus.Value.EditBuffer, out var parsed))
-            {
-                value = parsed;
-            }
+            value = parsed;
         }
 
         return RowHeight;
@@ -98,12 +96,10 @@ public static class NodeWidgets
         }
 
         // Commit value when focus is lost
-        if (!hasFocus && ctx.Focus.HasValue && ctx.Focus.Value.WidgetId == widgetId)
+        if (!hasFocus && ctx.Focus.HasValue && ctx.Focus.Value.WidgetId == widgetId &&
+            int.TryParse(ctx.Focus.Value.EditBuffer, out var parsed))
         {
-            if (int.TryParse(ctx.Focus.Value.EditBuffer, out var parsed))
-            {
-                value = parsed;
-            }
+            value = parsed;
         }
 
         return RowHeight;

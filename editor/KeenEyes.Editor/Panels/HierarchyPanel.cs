@@ -224,7 +224,8 @@ public static class HierarchyPanel
             return;
         }
 
-        ref readonly var state = ref editorWorld.Get<HierarchyPanelState>(panel);
+        // Note: HierarchyPanelState.TreeRoot will be used here when tree scrolling is implemented
+        _ = editorWorld.Get<HierarchyPanelState>(panel);
 
         // Find the tree node corresponding to this entity
         foreach (var nodeEntity in editorWorld.Query<HierarchyNodeData>())

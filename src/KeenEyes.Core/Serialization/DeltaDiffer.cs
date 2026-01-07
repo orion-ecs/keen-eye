@@ -97,26 +97,15 @@ public static class DeltaDiffer
                 continue;
             }
 
-            if (!baselineSingletons.TryGetValue(typeName, out var baselineSingleton))
+            // Add if new singleton or if singleton changed
+            if (!baselineSingletons.TryGetValue(typeName, out var baselineSingleton) ||
+                !JsonElementEquals(jsonData.Value, baselineSingleton.Data))
             {
-                // New singleton
                 modifiedSingletons.Add(new SerializedSingleton
                 {
                     TypeName = typeName,
                     Data = jsonData.Value
                 });
-            }
-            else
-            {
-                // Check if singleton changed
-                if (!JsonElementEquals(jsonData.Value, baselineSingleton.Data))
-                {
-                    modifiedSingletons.Add(new SerializedSingleton
-                    {
-                        TypeName = typeName,
-                        Data = jsonData.Value
-                    });
-                }
             }
         }
 
@@ -237,18 +226,16 @@ public static class DeltaDiffer
                     IsTag = isTag
                 });
             }
-            else if (!isTag && jsonData.HasValue && baselineComponent.Data.HasValue)
+            else if (!isTag && jsonData.HasValue && baselineComponent.Data.HasValue &&
+                     !JsonElementEquals(jsonData.Value, baselineComponent.Data.Value))
             {
-                // Component exists - check if modified
-                if (!JsonElementEquals(jsonData.Value, baselineComponent.Data.Value))
+                // Component exists and was modified
+                modifiedComponents.Add(new SerializedComponent
                 {
-                    modifiedComponents.Add(new SerializedComponent
-                    {
-                        TypeName = typeName,
-                        Data = jsonData,
-                        IsTag = isTag
-                    });
-                }
+                    TypeName = typeName,
+                    Data = jsonData,
+                    IsTag = isTag
+                });
             }
         }
 

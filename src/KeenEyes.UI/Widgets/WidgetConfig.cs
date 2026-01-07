@@ -1182,7 +1182,13 @@ public sealed record ToolbarButtonDef(
 /// <summary>
 /// Definition for a toolbar separator.
 /// </summary>
+/// <remarks>
+/// S2094: This empty record is intentional - it serves as a marker type
+/// for the discriminated union pattern in <see cref="ToolbarItemDef"/>.
+/// </remarks>
+#pragma warning disable S2094
 public sealed record ToolbarSeparatorDef;
+#pragma warning restore S2094
 
 /// <summary>
 /// Union type for toolbar items (button or separator).

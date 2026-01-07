@@ -159,6 +159,9 @@ public static class HealthExtensions
         /// <summary>
         /// Gets whether the entity is alive (has health remaining).
         /// </summary>
+        // S2325 suppressed: Extension member properties use the 'health' parameter
+#pragma warning disable S2325
         public bool IsAlive => health.Current > 0;
+#pragma warning restore S2325
     }
 }

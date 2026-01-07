@@ -80,7 +80,8 @@ public sealed class UIDatePickerSystem : SystemBase
             calendarDay.Day,
             picker.Value.Hour,
             picker.Value.Minute,
-            picker.Value.Second);
+            picker.Value.Second,
+            picker.Value.Kind);
 
         // Check min/max constraints
         if (picker.MinDate.HasValue && newDate < picker.MinDate.Value)
@@ -140,7 +141,7 @@ public sealed class UIDatePickerSystem : SystemBase
                 // Wrap around if needed
                 if (newValue.Day != picker.Value.Day)
                 {
-                    newValue = new DateTime(picker.Value.Year, picker.Value.Month, picker.Value.Day, 0, picker.Value.Minute, picker.Value.Second);
+                    newValue = new DateTime(picker.Value.Year, picker.Value.Month, picker.Value.Day, 0, picker.Value.Minute, picker.Value.Second, picker.Value.Kind);
                 }
                 break;
 
@@ -149,7 +150,7 @@ public sealed class UIDatePickerSystem : SystemBase
                 // Keep same hour
                 if (newValue.Hour != picker.Value.Hour)
                 {
-                    newValue = new DateTime(picker.Value.Year, picker.Value.Month, picker.Value.Day, picker.Value.Hour, 0, picker.Value.Second);
+                    newValue = new DateTime(picker.Value.Year, picker.Value.Month, picker.Value.Day, picker.Value.Hour, 0, picker.Value.Second, picker.Value.Kind);
                 }
                 break;
 
@@ -158,7 +159,7 @@ public sealed class UIDatePickerSystem : SystemBase
                 // Keep same minute
                 if (newValue.Minute != picker.Value.Minute)
                 {
-                    newValue = new DateTime(picker.Value.Year, picker.Value.Month, picker.Value.Day, picker.Value.Hour, picker.Value.Minute, 0);
+                    newValue = new DateTime(picker.Value.Year, picker.Value.Month, picker.Value.Day, picker.Value.Hour, picker.Value.Minute, 0, picker.Value.Kind);
                 }
                 break;
 
@@ -270,7 +271,7 @@ public sealed class UIDatePickerSystem : SystemBase
             calendarDay.Year == picker.DisplayYear;
 
         // Check if disabled
-        var cellDate = new DateTime(calendarDay.Year, calendarDay.Month, calendarDay.Day);
+        var cellDate = new DateTime(calendarDay.Year, calendarDay.Month, calendarDay.Day, 0, 0, 0, DateTimeKind.Unspecified);
         calendarDay.IsDisabled =
             (picker.MinDate.HasValue && cellDate < picker.MinDate.Value.Date) ||
             (picker.MaxDate.HasValue && cellDate > picker.MaxDate.Value.Date);
@@ -524,6 +525,6 @@ public sealed class UIDatePickerSystem : SystemBase
     /// <returns>The day of week (0 = Sunday, 6 = Saturday).</returns>
     public static DayOfWeek GetFirstDayOfMonth(int year, int month)
     {
-        return new DateTime(year, month, 1).DayOfWeek;
+        return new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Unspecified).DayOfWeek;
     }
 }

@@ -1199,7 +1199,7 @@ public class UIRenderSystemTests
         var element = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Fixed(10, 10, 100, 50))
-            .With(new UIInteractable { State = UIInteractionState.Normal })
+            .With(new UIInteractable { State = UIInteractionState.None })
             .Build();
         world.SetParent(element, canvas);
         SetComputedBounds(world, element, 10, 10, 100, 50);

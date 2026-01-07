@@ -71,56 +71,41 @@ public sealed class EditorCameraController
     private const float MinPitch = -89f;
     private const float MaxPitch = 89f;
 
-    private Vector3 _target = Vector3.Zero;
-    private float _distance = DefaultDistance;
-    private float _yaw;
-    private float _pitch = -30f;
-    private EditorCameraMode _mode = EditorCameraMode.Orbit;
+    private float distance = DefaultDistance;
+    private float pitch = -30f;
 
     /// <summary>
     /// Gets or sets the target point to orbit around.
     /// </summary>
-    public Vector3 Target
-    {
-        get => _target;
-        set => _target = value;
-    }
+    public Vector3 Target { get; set; } = Vector3.Zero;
 
     /// <summary>
     /// Gets or sets the distance from the target.
     /// </summary>
     public float Distance
     {
-        get => _distance;
-        set => _distance = Math.Clamp(value, MinDistance, MaxDistance);
+        get => distance;
+        set => distance = Math.Clamp(value, MinDistance, MaxDistance);
     }
 
     /// <summary>
     /// Gets or sets the yaw angle in degrees.
     /// </summary>
-    public float Yaw
-    {
-        get => _yaw;
-        set => _yaw = value;
-    }
+    public float Yaw { get; set; }
 
     /// <summary>
     /// Gets or sets the pitch angle in degrees.
     /// </summary>
     public float Pitch
     {
-        get => _pitch;
-        set => _pitch = Math.Clamp(value, MinPitch, MaxPitch);
+        get => pitch;
+        set => pitch = Math.Clamp(value, MinPitch, MaxPitch);
     }
 
     /// <summary>
     /// Gets or sets the camera control mode.
     /// </summary>
-    public EditorCameraMode Mode
-    {
-        get => _mode;
-        set => _mode = value;
-    }
+    public EditorCameraMode Mode { get; set; } = EditorCameraMode.Orbit;
 
     /// <summary>
     /// Gets the computed camera position based on current settings.
@@ -129,21 +114,21 @@ public sealed class EditorCameraController
     {
         get
         {
-            var yawRad = MathF.PI * _yaw / 180f;
-            var pitchRad = MathF.PI * _pitch / 180f;
+            var yawRad = MathF.PI * Yaw / 180f;
+            var pitchRad = MathF.PI * pitch / 180f;
 
-            var x = _distance * MathF.Cos(pitchRad) * MathF.Sin(yawRad);
-            var y = _distance * MathF.Sin(pitchRad);
-            var z = _distance * MathF.Cos(pitchRad) * MathF.Cos(yawRad);
+            var x = distance * MathF.Cos(pitchRad) * MathF.Sin(yawRad);
+            var y = distance * MathF.Sin(pitchRad);
+            var z = distance * MathF.Cos(pitchRad) * MathF.Cos(yawRad);
 
-            return _target + new Vector3(x, y, z);
+            return Target + new Vector3(x, y, z);
         }
     }
 
     /// <summary>
     /// Gets the forward direction of the camera.
     /// </summary>
-    public Vector3 Forward => Vector3.Normalize(_target - Position);
+    public Vector3 Forward => Vector3.Normalize(Target - Position);
 
     /// <summary>
     /// Gets the right direction of the camera.
@@ -176,7 +161,7 @@ public sealed class EditorCameraController
     /// <returns>The view matrix.</returns>
     public Matrix4x4 GetViewMatrix()
     {
-        return Matrix4x4.CreateLookAt(Position, _target, Vector3.UnitY);
+        return Matrix4x4.CreateLookAt(Position, Target, Vector3.UnitY);
     }
 
     /// <summary>
@@ -192,7 +177,7 @@ public sealed class EditorCameraController
             return;
         }
 
-        switch (_mode)
+        switch (Mode)
         {
             case EditorCameraMode.Orbit:
                 ProcessOrbitInput(input, deltaTime);
@@ -209,8 +194,8 @@ public sealed class EditorCameraController
         var scroll = input.MouseScrollDelta;
         if (MathF.Abs(scroll.Y) > 0.01f)
         {
-            _distance *= 1f - scroll.Y * ZoomSensitivity;
-            _distance = Math.Clamp(_distance, MinDistance, MaxDistance);
+            distance *= 1f - scroll.Y * ZoomSensitivity;
+            distance = Math.Clamp(distance, MinDistance, MaxDistance);
         }
     }
 
@@ -218,13 +203,13 @@ public sealed class EditorCameraController
     /// Focuses the camera on a specific position.
     /// </summary>
     /// <param name="position">The position to focus on.</param>
-    /// <param name="distance">Optional distance from the target.</param>
-    public void FocusOn(Vector3 position, float? distance = null)
+    /// <param name="newDistance">Optional distance from the target.</param>
+    public void FocusOn(Vector3 position, float? newDistance = null)
     {
-        _target = position;
-        if (distance.HasValue)
+        Target = position;
+        if (newDistance.HasValue)
         {
-            _distance = Math.Clamp(distance.Value, MinDistance, MaxDistance);
+            Distance = Math.Clamp(newDistance.Value, MinDistance, MaxDistance);
         }
     }
 
@@ -242,11 +227,11 @@ public sealed class EditorCameraController
     /// </summary>
     public void Reset()
     {
-        _target = Vector3.Zero;
-        _distance = DefaultDistance;
-        _yaw = 0f;
-        _pitch = -30f;
-        _mode = EditorCameraMode.Orbit;
+        Target = Vector3.Zero;
+        distance = DefaultDistance;
+        Yaw = 0f;
+        pitch = -30f;
+        Mode = EditorCameraMode.Orbit;
     }
 
     /// <summary>
@@ -258,28 +243,28 @@ public sealed class EditorCameraController
         switch (preset)
         {
             case ViewPreset.Front:
-                _yaw = 0f;
-                _pitch = 0f;
+                Yaw = 0f;
+                pitch = 0f;
                 break;
             case ViewPreset.Back:
-                _yaw = 180f;
-                _pitch = 0f;
+                Yaw = 180f;
+                pitch = 0f;
                 break;
             case ViewPreset.Left:
-                _yaw = -90f;
-                _pitch = 0f;
+                Yaw = -90f;
+                pitch = 0f;
                 break;
             case ViewPreset.Right:
-                _yaw = 90f;
-                _pitch = 0f;
+                Yaw = 90f;
+                pitch = 0f;
                 break;
             case ViewPreset.Top:
-                _yaw = 0f;
-                _pitch = -89f;
+                Yaw = 0f;
+                pitch = -89f;
                 break;
             case ViewPreset.Bottom:
-                _yaw = 0f;
-                _pitch = 89f;
+                Yaw = 0f;
+                pitch = 89f;
                 break;
         }
     }
@@ -295,20 +280,20 @@ public sealed class EditorCameraController
             if (altDown)
             {
                 // Orbit around target
-                _yaw += mouseDelta.X * OrbitSensitivity;
-                _pitch -= mouseDelta.Y * OrbitSensitivity;
-                _pitch = Math.Clamp(_pitch, MinPitch, MaxPitch);
+                Yaw += mouseDelta.X * OrbitSensitivity;
+                pitch -= mouseDelta.Y * OrbitSensitivity;
+                pitch = Math.Clamp(pitch, MinPitch, MaxPitch);
             }
             else
             {
                 // Pan
                 var panAmount = new Vector3(
-                    -mouseDelta.X * PanSensitivity * _distance,
-                    mouseDelta.Y * PanSensitivity * _distance,
+                    -mouseDelta.X * PanSensitivity * distance,
+                    mouseDelta.Y * PanSensitivity * distance,
                     0);
 
-                _target += Right * panAmount.X;
-                _target += Up * panAmount.Y;
+                Target += Right * panAmount.X;
+                Target += Up * panAmount.Y;
             }
         }
     }
@@ -321,9 +306,9 @@ public sealed class EditorCameraController
         {
             // Mouse look
             var mouseDelta = input.MouseDelta;
-            _yaw += mouseDelta.X * OrbitSensitivity;
-            _pitch -= mouseDelta.Y * OrbitSensitivity;
-            _pitch = Math.Clamp(_pitch, MinPitch, MaxPitch);
+            Yaw += mouseDelta.X * OrbitSensitivity;
+            pitch -= mouseDelta.Y * OrbitSensitivity;
+            pitch = Math.Clamp(pitch, MinPitch, MaxPitch);
         }
 
         // WASD movement
@@ -360,7 +345,7 @@ public sealed class EditorCameraController
             movement -= Vector3.UnitY * speed;
         }
 
-        _target += movement;
+        Target += movement;
     }
 
     private void ProcessTopDownInput(IInputProvider input, float deltaTime)
@@ -372,15 +357,15 @@ public sealed class EditorCameraController
         {
             // Pan in XZ plane
             var panAmount = new Vector3(
-                -mouseDelta.X * PanSensitivity * _distance,
+                -mouseDelta.X * PanSensitivity * distance,
                 0,
-                mouseDelta.Y * PanSensitivity * _distance);
+                mouseDelta.Y * PanSensitivity * distance);
 
-            _target += panAmount;
+            Target += panAmount;
         }
 
         // Force top-down view
-        _pitch = -89f;
+        pitch = -89f;
     }
 
     private static Quaternion CreateLookAtRotation(Vector3 forward, Vector3 up)

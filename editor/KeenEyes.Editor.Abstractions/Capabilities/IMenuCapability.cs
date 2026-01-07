@@ -75,7 +75,7 @@ public readonly struct MenuPath : IEquatable<MenuPath>
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return new MenuPath([]);
+            return new MenuPath();
         }
 
         return new MenuPath(path.Split('/'));
@@ -91,7 +91,7 @@ public readonly struct MenuPath : IEquatable<MenuPath>
     /// </summary>
     public MenuPath Parent => segments.Length > 1
         ? new MenuPath(segments[..^1])
-        : new MenuPath([]);
+        : new MenuPath();
 
     /// <summary>
     /// Gets the final segment (the menu item name).

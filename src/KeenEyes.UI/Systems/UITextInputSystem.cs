@@ -38,12 +38,16 @@ public sealed class UITextInputSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        focusGainedSubscription?.Dispose();
-        focusLostSubscription?.Dispose();
-        UnsubscribeFromInput();
-        base.Dispose();
+        if (disposing)
+        {
+            focusGainedSubscription?.Dispose();
+            focusLostSubscription?.Dispose();
+            UnsubscribeFromInput();
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

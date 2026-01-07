@@ -18,17 +18,6 @@ public sealed class ExpressionBuilder
 {
     private static readonly SourceLocation GeneratedLocation = new("graph://generated", 0, 0);
 
-    private readonly GraphTraverser traverser;
-
-    /// <summary>
-    /// Initializes a new expression builder.
-    /// </summary>
-    /// <param name="traverser">The graph traverser for connection lookups.</param>
-    public ExpressionBuilder(GraphTraverser traverser)
-    {
-        this.traverser = traverser;
-    }
-
     /// <summary>
     /// Builds an expression for a node.
     /// </summary>
@@ -227,7 +216,7 @@ public sealed class ExpressionBuilder
             GeneratedLocation);
     }
 
-    private Expression BuildFloatConstant(Entity node, IWorld world)
+    private static Expression BuildFloatConstant(Entity node, IWorld world)
     {
         var data = world.Has<FloatConstantData>(node)
             ? world.Get<FloatConstantData>(node)
@@ -236,7 +225,7 @@ public sealed class ExpressionBuilder
         return new FloatLiteralExpression(data.Value, GeneratedLocation);
     }
 
-    private Expression BuildIntConstant(Entity node, IWorld world)
+    private static Expression BuildIntConstant(Entity node, IWorld world)
     {
         var data = world.Has<IntConstantData>(node)
             ? world.Get<IntConstantData>(node)
@@ -245,7 +234,7 @@ public sealed class ExpressionBuilder
         return new IntLiteralExpression(data.Value, GeneratedLocation);
     }
 
-    private Expression BuildBoolConstant(Entity node, IWorld world)
+    private static Expression BuildBoolConstant(Entity node, IWorld world)
     {
         var data = world.Has<BoolConstantData>(node)
             ? world.Get<BoolConstantData>(node)
@@ -254,7 +243,7 @@ public sealed class ExpressionBuilder
         return new BoolLiteralExpression(data.Value, GeneratedLocation);
     }
 
-    private Expression BuildGetVariable(Entity node, IWorld world, CompilationContext context)
+    private static Expression BuildGetVariable(Entity node, IWorld world, CompilationContext context)
     {
         var data = world.Has<VariableNodeData>(node)
             ? world.Get<VariableNodeData>(node)
@@ -271,7 +260,7 @@ public sealed class ExpressionBuilder
         CompilationContext context)
     {
         // Find what's connected to this input
-        foreach (var (sourceNode, _) in traverser.GetInputConnections(node, portIndex, canvas, world))
+        foreach (var (sourceNode, _) in GraphTraverser.GetInputConnections(node, portIndex, canvas, world))
         {
             // If the source node has a variable assigned, use that
             var varName = context.GetNodeVariable(sourceNode);

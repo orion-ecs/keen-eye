@@ -105,12 +105,10 @@ public sealed class SkeletonPoseSystem : SystemBase
 
             // Get next state clip if transitioning
             AnimationClip? nextClip = null;
-            if (animator.NextStateHash != 0)
+            if (animator.NextStateHash != 0 &&
+                controller.TryGetState(animator.NextStateHash, out var nextState) && nextState != null)
             {
-                if (controller.TryGetState(animator.NextStateHash, out var nextState) && nextState != null)
-                {
-                    manager.TryGetClip(nextState.ClipId, out nextClip);
-                }
+                manager.TryGetClip(nextState.ClipId, out nextClip);
             }
 
             animatorCache[entity.Id] = (currentClip, animator.StateTime, nextClip, animator.NextStateTime, animator.TransitionProgress);
@@ -146,29 +144,27 @@ public sealed class SkeletonPoseSystem : SystemBase
             }
 
             // If transitioning, blend with next pose
-            if (animatorData.NextClip != null && animatorData.BlendWeight > 0f)
+            if (animatorData.NextClip != null && animatorData.BlendWeight > 0f &&
+                animatorData.NextClip.TryGetBoneTrack(boneRef.BoneName, out var nextTrack) && nextTrack != null)
             {
-                if (animatorData.NextClip.TryGetBoneTrack(boneRef.BoneName, out var nextTrack) && nextTrack != null)
-                {
-                    nextTrack.Sample(animatorData.NextTime, out var nextPos, out var nextRot, out var nextScale);
+                nextTrack.Sample(animatorData.NextTime, out var nextPos, out var nextRot, out var nextScale);
 
-                    if (hasCurrentPose)
-                    {
-                        // Crossfade blend
-                        var t = animatorData.BlendWeight;
-                        transform.Position = Vector3.Lerp(currentPos, nextPos, t);
-                        transform.Rotation = Quaternion.Slerp(currentRot, nextRot, t);
-                        transform.Scale = Vector3.Lerp(currentScale, nextScale, t);
-                    }
-                    else
-                    {
-                        // Only next pose available
-                        transform.Position = nextPos;
-                        transform.Rotation = nextRot;
-                        transform.Scale = nextScale;
-                    }
-                    return;
+                if (hasCurrentPose)
+                {
+                    // Crossfade blend
+                    var t = animatorData.BlendWeight;
+                    transform.Position = Vector3.Lerp(currentPos, nextPos, t);
+                    transform.Rotation = Quaternion.Slerp(currentRot, nextRot, t);
+                    transform.Scale = Vector3.Lerp(currentScale, nextScale, t);
                 }
+                else
+                {
+                    // Only next pose available
+                    transform.Position = nextPos;
+                    transform.Rotation = nextRot;
+                    transform.Scale = nextScale;
+                }
+                return;
             }
 
             // No transition, just use current pose

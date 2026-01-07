@@ -12,7 +12,6 @@ internal sealed class SilkMouse : IMouse
     private readonly SilkInput.IMouse mouse;
     private readonly SilkInputConfig config;
     private Vector2 lastPosition;
-    private Vector2 delta;
     private Vector2 scrollDelta;
 
     /// <inheritdoc />
@@ -141,7 +140,7 @@ internal sealed class SilkMouse : IMouse
         }
     }
 
-    private KeyModifiers GetCurrentModifiers()
+    private static KeyModifiers GetCurrentModifiers()
     {
         // Mouse events in Silk.NET don't provide modifier info directly,
         // so we return None. Users should check keyboard state if needed.
@@ -151,7 +150,7 @@ internal sealed class SilkMouse : IMouse
     private void HandleMouseMove(SilkInput.IMouse _, System.Numerics.Vector2 position)
     {
         var currentPosition = new Vector2(position.X, position.Y);
-        delta = currentPosition - lastPosition;
+        var delta = currentPosition - lastPosition;
         lastPosition = currentPosition;
 
         OnMove?.Invoke(new MouseMoveEventArgs(currentPosition, delta));

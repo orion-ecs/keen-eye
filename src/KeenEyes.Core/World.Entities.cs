@@ -451,7 +451,7 @@ public sealed partial class World
     /// </summary>
     /// <typeparam name="T">The component type to update.</typeparam>
     /// <param name="entity">The entity to update the component on.</param>
-    /// <param name="value">The new component value.</param>
+    /// <param name="component">The new component value.</param>
     /// <exception cref="InvalidOperationException">
     /// Thrown when the entity is not alive, the component type is not registered,
     /// or the entity does not have the specified component. Use <see cref="EntityBuilder.With{T}(T)"/>
@@ -462,7 +462,7 @@ public sealed partial class World
     /// world.Set(entity, new Position { X = 100, Y = 200 });
     /// </code>
     /// </example>
-    public void Set<T>(Entity entity, in T value) where T : struct, IComponent
+    public void Set<T>(Entity entity, in T component) where T : struct, IComponent
     {
         if (!IsAlive(entity))
         {
@@ -487,10 +487,10 @@ public sealed partial class World
         // Capture old value before setting new value (for change event)
         var oldValue = archetypeManager.Get<T>(entity);
 
-        archetypeManager.Set(entity, in value);
+        archetypeManager.Set(entity, in component);
 
         // Fire component changed event after successful update
-        eventManager.FireComponentChanged(entity, in oldValue, in value);
+        eventManager.FireComponentChanged(entity, in oldValue, in component);
 
         // Auto-track dirty if enabled for this component type
         if (changeTracker.IsAutoTrackingEnabled<T>())

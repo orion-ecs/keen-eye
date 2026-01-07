@@ -176,21 +176,15 @@ public sealed class LocalizationManager : ILocalization, IDisposable
         }
 
         // Try language-only fallback
-        if (locale.HasRegion)
+        if (locale.HasRegion && config.FontConfigs.TryGetValue(locale.LanguageOnly, out fontConfig))
         {
-            if (config.FontConfigs.TryGetValue(locale.LanguageOnly, out fontConfig))
-            {
-                return fontConfig;
-            }
+            return fontConfig;
         }
 
         // Try default locale's configuration
-        if (locale != config.DefaultLocale)
+        if (locale != config.DefaultLocale && config.FontConfigs.TryGetValue(config.DefaultLocale, out fontConfig))
         {
-            if (config.FontConfigs.TryGetValue(config.DefaultLocale, out fontConfig))
-            {
-                return fontConfig;
-            }
+            return fontConfig;
         }
 
         return null;
@@ -331,31 +325,22 @@ public sealed class LocalizationManager : ILocalization, IDisposable
         }
 
         // Try custom fallback override
-        if (config.FallbackOverrides.TryGetValue(currentLocale, out var fallbackLocale))
+        if (config.FallbackOverrides.TryGetValue(currentLocale, out var fallbackLocale) &&
+            TryGetForLocale(fallbackLocale, key, out value))
         {
-            if (TryGetForLocale(fallbackLocale, key, out value))
-            {
-                return true;
-            }
+            return true;
         }
 
         // Try language-only fallback (e.g., "en-US" -> "en")
-        if (currentLocale.HasRegion)
+        if (currentLocale.HasRegion && TryGetForLocale(currentLocale.LanguageOnly, key, out value))
         {
-            var languageOnly = currentLocale.LanguageOnly;
-            if (TryGetForLocale(languageOnly, key, out value))
-            {
-                return true;
-            }
+            return true;
         }
 
         // Try default locale as last resort
-        if (currentLocale != config.DefaultLocale)
+        if (currentLocale != config.DefaultLocale && TryGetForLocale(config.DefaultLocale, key, out value))
         {
-            if (TryGetForLocale(config.DefaultLocale, key, out value))
-            {
-                return true;
-            }
+            return true;
         }
 
         value = null;

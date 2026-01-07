@@ -92,7 +92,6 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
                 break;
             }
 
-            var bytesBefore = bytesSentThisTick;
             SendEntityUpdate(entity, networkId, ref networkState);
             networkState.LastSentTick = plugin.CurrentTick;
             networkState.AccumulatedPriority = 0; // Reset priority after sending

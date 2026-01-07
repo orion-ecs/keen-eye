@@ -66,7 +66,10 @@ public sealed class LocalTransport : INetworkTransport
                 return state;
             }
         }
+        // S1144: Setter reserved for future refactoring to unify state change handling
+#pragma warning disable S1144
         private set
+#pragma warning restore S1144
         {
             ConnectionState oldState;
             lock (stateLock)
@@ -226,12 +229,9 @@ public sealed class LocalTransport : INetworkTransport
         }
 
         // Simulate packet loss for unreliable modes
-        if (mode is DeliveryMode.Unreliable or DeliveryMode.UnreliableSequenced)
+        if ((mode is DeliveryMode.Unreliable or DeliveryMode.UnreliableSequenced) && random.NextDouble() * 100 < simulatedPacketLossPercent)
         {
-            if (random.NextDouble() * 100 < simulatedPacketLossPercent)
-            {
-                return; // Packet "lost"
-            }
+            return; // Packet "lost"
         }
 
         var message = new PendingMessage

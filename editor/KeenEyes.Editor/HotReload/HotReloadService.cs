@@ -203,7 +203,7 @@ public sealed class HotReloadService : IDisposable
     /// Sets the game project path and reconfigures hot reload.
     /// </summary>
     /// <param name="projectPath">Path to the game's .csproj file.</param>
-    public void SetGameProject(string? projectPath)
+    public static void SetGameProject(string? projectPath)
     {
         EditorSettings.GameProjectPath = projectPath ?? string.Empty;
         // ConfigureManager will be called via the SettingChanged event
@@ -341,21 +341,18 @@ public sealed class HotReloadService : IDisposable
             pendingReloadAfterPlayMode = false;
             Console.WriteLine("[HotReload] Paused - play mode active");
         }
-        else if (!isPlayModeActive && wasPlayMode)
+        else if (!isPlayModeActive && wasPlayMode && EditorSettings.HotReloadAutoReload)
         {
             // Exiting play mode - resume watching
-            if (EditorSettings.HotReloadAutoReload)
-            {
-                manager.StartWatching();
-                Console.WriteLine("[HotReload] Resumed - play mode ended");
+            manager.StartWatching();
+            Console.WriteLine("[HotReload] Resumed - play mode ended");
 
-                // Check if we need to reload after play mode
-                if (pendingReloadAfterPlayMode)
-                {
-                    pendingReloadAfterPlayMode = false;
-                    Console.WriteLine("[HotReload] Pending changes detected, triggering reload...");
-                    _ = ReloadAsync(); // Fire and forget
-                }
+            // Check if we need to reload after play mode
+            if (pendingReloadAfterPlayMode)
+            {
+                pendingReloadAfterPlayMode = false;
+                Console.WriteLine("[HotReload] Pending changes detected, triggering reload...");
+                _ = ReloadAsync(); // Fire and forget
             }
         }
     }

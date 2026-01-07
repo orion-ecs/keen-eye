@@ -268,7 +268,10 @@ public sealed class HotReloadManager : IDisposable
         _gameContext = null;
         _gameAssembly = null;
 
-        // Force garbage collection to fully unload the context
+        // Force garbage collection to fully unload the assembly context
+        // GC.Collect is required for proper AssemblyLoadContext unloading - this is the recommended pattern
+        // See: https://learn.microsoft.com/en-us/dotnet/standard/assembly/unloadability
+#pragma warning disable S1215 // GC.Collect should not be called
         for (int i = 0; i < 10 && contextRef.IsAlive; i++)
         {
             GC.Collect();
@@ -276,6 +279,7 @@ public sealed class HotReloadManager : IDisposable
             GC.Collect();
             await Task.Delay(10);
         }
+#pragma warning restore S1215
 
         if (contextRef.IsAlive)
         {

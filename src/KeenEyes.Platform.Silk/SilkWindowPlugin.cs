@@ -39,7 +39,6 @@ namespace KeenEyes.Platform.Silk;
 public sealed class SilkWindowPlugin(WindowConfig config) : IWorldPlugin
 {
     private SilkWindowProvider? provider;
-    private SilkLoopProvider? loopProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SilkWindowPlugin"/> class with default configuration.
@@ -56,7 +55,7 @@ public sealed class SilkWindowPlugin(WindowConfig config) : IWorldPlugin
     public void Install(IPluginContext context)
     {
         provider = new SilkWindowProvider(config);
-        loopProvider = new SilkLoopProvider(provider);
+        var loopProvider = new SilkLoopProvider(provider);
 
         context.SetExtension<ISilkWindowProvider>(provider);
         context.SetExtension<ILoopProvider>(loopProvider);
@@ -69,6 +68,5 @@ public sealed class SilkWindowPlugin(WindowConfig config) : IWorldPlugin
         context.RemoveExtension<ISilkWindowProvider>();
         provider?.Dispose();
         provider = null;
-        loopProvider = null;
     }
 }

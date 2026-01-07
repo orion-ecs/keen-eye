@@ -423,12 +423,10 @@ internal sealed class SystemManager
         {
             foreach (var targetType in entry.RunsBefore)
             {
-                if (typeToEntry.TryGetValue(targetType, out var targetEntry))
+                if (typeToEntry.TryGetValue(targetType, out var targetEntry) &&
+                    graph[entry].Add(targetEntry))
                 {
-                    if (graph[entry].Add(targetEntry))
-                    {
-                        inDegree[targetEntry]++;
-                    }
+                    inDegree[targetEntry]++;
                 }
             }
         }
@@ -438,12 +436,10 @@ internal sealed class SystemManager
         {
             foreach (var targetType in entry.RunsAfter)
             {
-                if (typeToEntry.TryGetValue(targetType, out var targetEntry))
+                if (typeToEntry.TryGetValue(targetType, out var targetEntry) &&
+                    graph[targetEntry].Add(entry))
                 {
-                    if (graph[targetEntry].Add(entry))
-                    {
-                        inDegree[entry]++;
-                    }
+                    inDegree[entry]++;
                 }
             }
         }

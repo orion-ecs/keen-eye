@@ -208,14 +208,12 @@ public sealed class PluginInstaller
             resolved.Add(dep.PackageId);
 
             // Check if already installed at compatible version
+            // Check if installed version satisfies the dependency
             var installed = registry.GetInstalledPlugin(dep.PackageId);
-            if (installed != null)
+            if (installed != null &&
+                IsVersionSatisfied(installed.Version, dep.VersionRange))
             {
-                // Check if installed version satisfies the dependency
-                if (IsVersionSatisfied(installed.Version, dep.VersionRange))
-                {
-                    continue;
-                }
+                continue;
             }
 
             // Parse version range to get minimum version

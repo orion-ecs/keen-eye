@@ -289,6 +289,9 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     /// </summary>
     private void UpdateInternal(Entity entity, Vector2 position, (Vector2 min, Vector2 max)? bounds)
     {
+        // bounds reserved for future bounded entity support
+        _ = bounds;
+
         // Store entity position for potential redistribution during subdivision
         entityPositions[entity] = position;
 
@@ -589,19 +592,16 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
             {
                 if (entityPositions.TryGetValue(entity, out var pos) &&
                     pos.X >= min.X && pos.X <= max.X &&
-                    pos.Y >= min.Y && pos.Y <= max.Y)
+                    pos.Y >= min.Y && pos.Y <= max.Y &&
+                    !SpanContainsEntity(results, count, entity))
                 {
-                    // Check for duplicates (linear scan)
-                    if (!SpanContainsEntity(results, count, entity))
+                    if (count < results.Length)
                     {
-                        if (count < results.Length)
-                        {
-                            results[count++] = entity;
-                        }
-                        else
-                        {
-                            overflow = true;
-                        }
+                        results[count++] = entity;
+                    }
+                    else
+                    {
+                        overflow = true;
                     }
                 }
             }
@@ -637,19 +637,15 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
                 if (entityPositions.TryGetValue(entity, out var pos2D))
                 {
                     var pos3D = new Vector3(pos2D.X, 0, pos2D.Y);
-                    if (frustum.Contains(pos3D))
+                    if (frustum.Contains(pos3D) && !SpanContainsEntity(results, count, entity))
                     {
-                        // Check for duplicates (linear scan)
-                        if (!SpanContainsEntity(results, count, entity))
+                        if (count < results.Length)
                         {
-                            if (count < results.Length)
-                            {
-                                results[count++] = entity;
-                            }
-                            else
-                            {
-                                overflow = true;
-                            }
+                            results[count++] = entity;
+                        }
+                        else
+                        {
+                            overflow = true;
                         }
                     }
                 }

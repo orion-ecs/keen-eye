@@ -8,7 +8,7 @@ using KeenEyes.Spatial;
 /// Demonstrates frustum culling for 3D rendering optimization.
 /// Compares rendering with/without spatial frustum queries.
 /// </summary>
-public class Program
+public static class Program
 {
     public const int EntityCount = 5000;
     public const float WorldSize = 2000f;

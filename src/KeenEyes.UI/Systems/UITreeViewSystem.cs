@@ -35,7 +35,7 @@ public sealed class UITreeViewSystem : SystemBase
         {
             ref readonly var interactable = ref World.Get<UIInteractable>(arrowEntity);
 
-            if (!interactable.HasEvent(UIEventFlags.Click))
+            if (!interactable.HasEvent(UIEventType.Click))
             {
                 continue;
             }
@@ -93,7 +93,7 @@ public sealed class UITreeViewSystem : SystemBase
         {
             ref readonly var interactable = ref World.Get<UIInteractable>(nodeEntity);
 
-            if (!interactable.HasEvent(UIEventFlags.Click))
+            if (!interactable.HasEvent(UIEventType.Click))
             {
                 continue;
             }
@@ -109,14 +109,13 @@ public sealed class UITreeViewSystem : SystemBase
             ref var treeViewData = ref World.Get<UITreeView>(treeView);
 
             // Deselect previous selection
-            if (treeViewData.SelectedItem.IsValid && treeViewData.SelectedItem != nodeEntity)
+            if (treeViewData.SelectedItem.IsValid &&
+                treeViewData.SelectedItem != nodeEntity &&
+                World.Has<UITreeNode>(treeViewData.SelectedItem))
             {
-                if (World.Has<UITreeNode>(treeViewData.SelectedItem))
-                {
-                    ref var prevNode = ref World.Get<UITreeNode>(treeViewData.SelectedItem);
-                    prevNode.IsSelected = false;
-                    UpdateNodeSelectionVisual(treeViewData.SelectedItem, false);
-                }
+                ref var prevNode = ref World.Get<UITreeNode>(treeViewData.SelectedItem);
+                prevNode.IsSelected = false;
+                UpdateNodeSelectionVisual(treeViewData.SelectedItem, false);
             }
 
             // Select new node
@@ -128,7 +127,7 @@ public sealed class UITreeViewSystem : SystemBase
             World.Send(new UITreeNodeSelectedEvent(nodeEntity, treeView));
 
             // Check for double-click
-            if (interactable.HasEvent(UIEventFlags.DoubleClick))
+            if (interactable.HasEvent(UIEventType.DoubleClick))
             {
                 World.Send(new UITreeNodeDoubleClickedEvent(nodeEntity, treeView));
             }

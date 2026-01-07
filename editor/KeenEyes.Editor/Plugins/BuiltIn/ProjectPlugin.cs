@@ -100,13 +100,13 @@ internal sealed class ProjectPanelImpl : IEditorPanel
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc />
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        editorWorld = panelContext.EditorWorld;
-        rootEntity = panelContext.Parent;
+        editorWorld = context.EditorWorld;
+        rootEntity = context.Parent;
 
         // TODO: Create project browser UI with folder tree and file grid
-        // Access panelContext.EditorContext.Assets for asset database
+        // Access context.EditorContext.Assets for asset database
     }
 
     /// <inheritdoc />

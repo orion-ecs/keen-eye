@@ -161,11 +161,9 @@ public sealed class NavigationEditorPlugin : EditorPluginBase
         OpenNavigationPanel();
     }
 
-    private bool CanBakeNavMesh()
-    {
-        // Check if we have a valid scene to bake from
-        return true; // Would check for active scene
-    }
+    // Navigation mesh baking is always enabled - actual scene validation happens during bake
+    private const bool CanBakeNavMeshResult = true;
+    private static bool CanBakeNavMesh() => CanBakeNavMeshResult;
 
     private void ClearNavMesh()
     {

@@ -60,6 +60,9 @@ public sealed class TransportOptions
     /// <summary>
     /// Parses command-line arguments into transport options.
     /// </summary>
+    // S127: Modifying loop counter in switch cases is a standard CLI arg parsing pattern
+    // to consume the next argument as a value.
+#pragma warning disable S127
     public static TransportOptions Parse(string[] args)
     {
         var transport = TransportType.Local;
@@ -131,6 +134,7 @@ public sealed class TransportOptions
             ShowHelp = showHelp
         };
     }
+#pragma warning restore S127
 
     /// <summary>
     /// Prints usage information to the console.

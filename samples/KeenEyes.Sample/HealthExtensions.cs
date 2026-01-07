@@ -56,6 +56,9 @@ public static class HealthExtensions
         /// }
         /// </code>
         /// </example>
+        // S2325 suppressed: Extension member properties use the 'health' parameter
+#pragma warning disable S2325
         public float Percentage => health.Max > 0 ? health.Current / health.Max : 0;
+#pragma warning restore S2325
     }
 }

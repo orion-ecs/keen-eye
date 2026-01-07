@@ -118,10 +118,13 @@ public sealed class PhysicsSyncSystem : SystemBase
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        previousPositions.Clear();
-        previousRotations.Clear();
-        base.Dispose();
+        if (disposing)
+        {
+            previousPositions.Clear();
+            previousRotations.Clear();
+        }
+        base.Dispose(disposing);
     }
 }

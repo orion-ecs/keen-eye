@@ -193,8 +193,7 @@ public sealed class ComponentValidationManager(World world)
     private void ValidateRequirements(Entity entity, Type componentType, ComponentValidationInfo info)
     {
         var missingRequired = info.RequiredComponents
-            .Where(requiredType => !world.HasComponent(entity, requiredType))
-            .FirstOrDefault();
+            .FirstOrDefault(requiredType => !world.HasComponent(entity, requiredType));
 
         if (missingRequired != null)
         {
@@ -211,8 +210,7 @@ public sealed class ComponentValidationManager(World world)
     private void ValidateConflicts(Entity entity, Type componentType, ComponentValidationInfo info)
     {
         var presentConflict = info.ConflictingComponents
-            .Where(conflictType => world.HasComponent(entity, conflictType))
-            .FirstOrDefault();
+            .FirstOrDefault(conflictType => world.HasComponent(entity, conflictType));
 
         if (presentConflict != null)
         {
@@ -229,8 +227,7 @@ public sealed class ComponentValidationManager(World world)
     private static void ValidateRequirementsBuild(Type componentType, ComponentValidationInfo info, HashSet<Type> componentTypes)
     {
         var missingRequired = info.RequiredComponents
-            .Where(requiredType => !componentTypes.Contains(requiredType))
-            .FirstOrDefault();
+            .FirstOrDefault(requiredType => !componentTypes.Contains(requiredType));
 
         if (missingRequired != null)
         {
@@ -247,8 +244,7 @@ public sealed class ComponentValidationManager(World world)
     private static void ValidateConflictsBuild(Type componentType, ComponentValidationInfo info, HashSet<Type> componentTypes)
     {
         var presentConflict = info.ConflictingComponents
-            .Where(conflictType => componentTypes.Contains(conflictType) && conflictType != componentType)
-            .FirstOrDefault();
+            .FirstOrDefault(conflictType => componentTypes.Contains(conflictType) && conflictType != componentType);
 
         if (presentConflict != null)
         {
@@ -296,6 +292,7 @@ public sealed class ComponentValidationManager(World world)
     /// Checks if this is a debug build.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+#pragma warning disable S3400 // Methods should not return constants - value depends on build configuration
     private static bool IsDebugBuild()
     {
 #if DEBUG
@@ -304,6 +301,7 @@ public sealed class ComponentValidationManager(World world)
         return false;
 #endif
     }
+#pragma warning restore S3400
 
     /// <summary>
     /// Delegate type for the generated TryGetConstraints method.

@@ -197,7 +197,7 @@ public sealed class ParallelProfiler(ParallelSystemScheduler scheduler) : IDispo
             var avgTicks = totalTicks / timingsArr.Length;
             batchStats.Add(new BatchStats(
                 BatchIndex: group.Key,
-                SystemCount: timingsArr.First().SystemCount,
+                SystemCount: timingsArr[0].SystemCount,
                 ExecutionCount: timingsArr.Length,
                 AverageTimeMs: TicksToMs(avgTicks)));
         }
@@ -370,7 +370,7 @@ public sealed class ParallelProfiler(ParallelSystemScheduler scheduler) : IDispo
         return name.Replace(".", "_").Replace("<", "_").Replace(">", "_").Replace(",", "_");
     }
 
-    private IReadOnlyList<BottleneckInfo> IdentifyBottlenecks(BatchAnalysis analysis, Dictionary<Type, SystemStats> systemStats)
+    private static IReadOnlyList<BottleneckInfo> IdentifyBottlenecks(BatchAnalysis analysis, Dictionary<Type, SystemStats> systemStats)
     {
         var bottlenecks = new List<BottleneckInfo>();
 

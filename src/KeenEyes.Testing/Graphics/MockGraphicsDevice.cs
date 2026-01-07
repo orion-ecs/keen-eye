@@ -69,7 +69,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// <summary>
     /// Gets the dictionary of created VAOs by handle.
     /// </summary>
-    public Dictionary<uint, MockVAO> VAOs { get; } = [];
+    public Dictionary<uint, MockVao> VAOs { get; } = [];
 
     /// <summary>
     /// Gets the current render state.
@@ -198,7 +198,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     public uint GenVertexArray()
     {
         var handle = nextHandle++;
-        VAOs[handle] = new MockVAO(handle);
+        VAOs[handle] = new MockVao(handle);
         return handle;
     }
 
@@ -856,7 +856,7 @@ public sealed class MockProgram(uint handle)
 /// <summary>
 /// Tracks VAO state.
 /// </summary>
-public sealed class MockVAO(uint handle)
+public sealed class MockVao(uint handle)
 {
     /// <summary>
     /// Gets the VAO handle.

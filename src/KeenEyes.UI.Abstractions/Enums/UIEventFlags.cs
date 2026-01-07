@@ -5,7 +5,7 @@ namespace KeenEyes.UI.Abstractions;
 /// Used for polling-based event handling in systems.
 /// </summary>
 [Flags]
-public enum UIEventFlags : ushort
+public enum UIEventType : ushort
 {
     /// <summary>
     /// No pending events.

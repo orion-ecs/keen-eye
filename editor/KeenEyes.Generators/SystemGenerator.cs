@@ -88,19 +88,17 @@ public sealed class SystemGenerator : IIncrementalGenerator
         foreach (var attrData in typeSymbol.GetAttributes())
         {
             var attrName = attrData.AttributeClass?.ToDisplayString();
-            if (attrName == RunBeforeAttribute && attrData.ConstructorArguments.Length > 0)
+            if (attrName == RunBeforeAttribute &&
+                attrData.ConstructorArguments.Length > 0 &&
+                attrData.ConstructorArguments[0].Value is INamedTypeSymbol beforeTargetType)
             {
-                if (attrData.ConstructorArguments[0].Value is INamedTypeSymbol targetType)
-                {
-                    runsBefore.Add(targetType.ToDisplayString());
-                }
+                runsBefore.Add(beforeTargetType.ToDisplayString());
             }
-            else if (attrName == RunAfterAttribute && attrData.ConstructorArguments.Length > 0)
+            else if (attrName == RunAfterAttribute &&
+                     attrData.ConstructorArguments.Length > 0 &&
+                     attrData.ConstructorArguments[0].Value is INamedTypeSymbol afterTargetType)
             {
-                if (attrData.ConstructorArguments[0].Value is INamedTypeSymbol targetType)
-                {
-                    runsAfter.Add(targetType.ToDisplayString());
-                }
+                runsAfter.Add(afterTargetType.ToDisplayString());
             }
         }
 

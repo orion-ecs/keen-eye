@@ -119,15 +119,19 @@ internal sealed class SpatialUpdateSystem : SystemBase
         }
     }
 
-    public override void Dispose()
+    /// <inheritdoc/>
+    protected override void Dispose(bool disposing)
     {
-        // Unsubscribe from events
-        spatialIndexedAddedSubscription?.Dispose();
-        spatialIndexedRemovedSubscription?.Dispose();
-        entityDestroyedSubscription?.Dispose();
+        if (disposing)
+        {
+            // Unsubscribe from events
+            spatialIndexedAddedSubscription?.Dispose();
+            spatialIndexedRemovedSubscription?.Dispose();
+            entityDestroyedSubscription?.Dispose();
 
-        // Disable auto-tracking when system is disposed
-        World.DisableAutoTracking<Transform3D>();
-        base.Dispose();
+            // Disable auto-tracking when system is disposed
+            World.DisableAutoTracking<Transform3D>();
+        }
+        base.Dispose(disposing);
     }
 }

@@ -116,14 +116,14 @@ internal sealed class ViewportPanelImpl : IEditorPanel
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc />
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        context = panelContext.EditorContext;
-        editorWorld = panelContext.EditorWorld;
-        rootEntity = panelContext.Parent;
+        this.context = context.EditorContext;
+        editorWorld = context.EditorWorld;
+        rootEntity = context.Parent;
 
         // Subscribe to scene changes
-        sceneOpenedSubscription = context.OnSceneOpened(OnSceneOpened);
+        sceneOpenedSubscription = this.context.OnSceneOpened(OnSceneOpened);
     }
 
     /// <inheritdoc />

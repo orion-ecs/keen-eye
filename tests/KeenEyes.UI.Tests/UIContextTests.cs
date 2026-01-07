@@ -57,7 +57,7 @@ public class UIContextTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
         Assert.True(interactable.IsFocused);
-        Assert.True(interactable.HasEvent(UIEventFlags.FocusGained));
+        Assert.True(interactable.HasEvent(UIEventType.FocusGained));
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public class UIContextTests
         Assert.False(world.Has<UIFocusedTag>(button1));
         ref readonly var interactable1 = ref world.Get<UIInteractable>(button1);
         Assert.False(interactable1.IsFocused);
-        Assert.True(interactable1.HasEvent(UIEventFlags.FocusLost));
+        Assert.True(interactable1.HasEvent(UIEventType.FocusLost));
 
         // Button2 should now be focused
         Assert.True(world.Has<UIFocusedTag>(button2));
@@ -156,14 +156,14 @@ public class UIContextTests
 
         // Clear pending events for the test
         ref var interactable = ref world.Get<UIInteractable>(button);
-        interactable.PendingEvents = UIEventFlags.None;
+        interactable.PendingEvents = UIEventType.None;
 
         // Focus same button again
         context.RequestFocus(button);
 
         // Should not trigger focus gained again
         ref readonly var interactable2 = ref world.Get<UIInteractable>(button);
-        Assert.False(interactable2.HasEvent(UIEventFlags.FocusGained));
+        Assert.False(interactable2.HasEvent(UIEventType.FocusGained));
     }
 
     #endregion
@@ -221,7 +221,7 @@ public class UIContextTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
         Assert.False(interactable.IsFocused);
-        Assert.True(interactable.HasEvent(UIEventFlags.FocusLost));
+        Assert.True(interactable.HasEvent(UIEventType.FocusLost));
     }
 
     [Fact]

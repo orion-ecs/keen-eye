@@ -31,7 +31,7 @@ public sealed class UIPropertyGridSystem : SystemBase
         {
             ref readonly var interactable = ref World.Get<UIInteractable>(headerEntity);
 
-            if (!interactable.HasEvent(UIEventFlags.Click))
+            if (!interactable.HasEvent(UIEventType.Click))
             {
                 continue;
             }

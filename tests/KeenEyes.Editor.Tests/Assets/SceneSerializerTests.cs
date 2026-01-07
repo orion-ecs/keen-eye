@@ -125,7 +125,7 @@ public class SceneSerializerTests : IDisposable
         world.Spawn("Existing").Build();
         var sceneData = new SceneData { Name = "Empty", Entities = [] };
 
-        serializer.RestoreScene(world, sceneData);
+        SceneSerializer.RestoreScene(world, sceneData);
 
         Assert.Equal(0, world.EntityCount);
     }
@@ -142,7 +142,7 @@ public class SceneSerializerTests : IDisposable
             ]
         };
 
-        serializer.RestoreScene(world, sceneData);
+        SceneSerializer.RestoreScene(world, sceneData);
 
         Assert.Equal(1, world.EntityCount);
         var entities = world.GetAllEntities().ToList();
@@ -163,7 +163,7 @@ public class SceneSerializerTests : IDisposable
             ]
         };
 
-        serializer.RestoreScene(world, sceneData);
+        SceneSerializer.RestoreScene(world, sceneData);
 
         Assert.Equal(3, world.EntityCount);
     }
@@ -181,7 +181,7 @@ public class SceneSerializerTests : IDisposable
             ]
         };
 
-        serializer.RestoreScene(world, sceneData);
+        SceneSerializer.RestoreScene(world, sceneData);
 
         var entities = world.GetAllEntities().ToList();
         var parent = entities.First(e => world.GetName(e) == "Parent");
@@ -202,7 +202,7 @@ public class SceneSerializerTests : IDisposable
             ]
         };
 
-        serializer.RestoreScene(world, sceneData);
+        SceneSerializer.RestoreScene(world, sceneData);
 
         var child = world.GetAllEntities().First();
         Assert.Equal(Entity.Null, world.GetParent(child));
@@ -223,7 +223,7 @@ public class SceneSerializerTests : IDisposable
             ]
         };
 
-        serializer.RestoreScene(world, sceneData);
+        SceneSerializer.RestoreScene(world, sceneData);
 
         Assert.Equal(1, world.EntityCount);
         var entity = world.GetAllEntities().First();
@@ -267,7 +267,7 @@ public class SceneSerializerTests : IDisposable
         serializer.Save(sourceWorld, "MyScene", filePath);
         sourceWorld.Dispose();
 
-        var loadedName = serializer.Load(world, filePath);
+        var loadedName = SceneSerializer.Load(world, filePath);
 
         Assert.Equal("MyScene", loadedName);
     }
@@ -282,7 +282,7 @@ public class SceneSerializerTests : IDisposable
         serializer.Save(sourceWorld, "TestScene", filePath);
         sourceWorld.Dispose();
 
-        serializer.Load(world, filePath);
+        SceneSerializer.Load(world, filePath);
 
         Assert.Equal(2, world.EntityCount);
     }
@@ -293,7 +293,7 @@ public class SceneSerializerTests : IDisposable
         var filePath = Path.Combine(tempDir, "invalid.kescene");
         File.WriteAllText(filePath, "not valid json {{{");
 
-        Assert.ThrowsAny<Exception>(() => serializer.Load(world, filePath));
+        Assert.ThrowsAny<Exception>(() => SceneSerializer.Load(world, filePath));
     }
 
     [Fact]
@@ -301,7 +301,7 @@ public class SceneSerializerTests : IDisposable
     {
         var filePath = Path.Combine(tempDir, "nonexistent.kescene");
 
-        Assert.Throws<FileNotFoundException>(() => serializer.Load(world, filePath));
+        Assert.Throws<FileNotFoundException>(() => SceneSerializer.Load(world, filePath));
     }
 
     #endregion
@@ -319,7 +319,7 @@ public class SceneSerializerTests : IDisposable
         serializer.Save(world, "Test", filePath);
 
         var newWorld = new World();
-        serializer.Load(newWorld, filePath);
+        SceneSerializer.Load(newWorld, filePath);
 
         var names = newWorld.GetAllEntities()
             .Select(e => newWorld.GetName(e))
@@ -344,7 +344,7 @@ public class SceneSerializerTests : IDisposable
         serializer.Save(world, "Test", filePath);
 
         var newWorld = new World();
-        serializer.Load(newWorld, filePath);
+        SceneSerializer.Load(newWorld, filePath);
 
         var loadedChild = newWorld.GetAllEntities()
             .First(e => newWorld.GetName(e) == "Child");
@@ -365,7 +365,7 @@ public class SceneSerializerTests : IDisposable
         var sceneData = serializer.CaptureScene(world, "TestScene");
 
         var newWorld = new World();
-        serializer.RestoreScene(newWorld, sceneData);
+        SceneSerializer.RestoreScene(newWorld, sceneData);
 
         Assert.Equal(world.EntityCount, newWorld.EntityCount);
 

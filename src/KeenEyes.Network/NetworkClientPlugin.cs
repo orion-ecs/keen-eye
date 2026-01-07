@@ -180,16 +180,16 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     }
 
     /// <inheritdoc/>
-    public void Install(IPluginContext ctx)
+    public void Install(IPluginContext context)
     {
-        context = ctx;
+        this.context = context;
 
         // Subscribe to transport events
         transport.StateChanged += OnStateChanged;
         transport.DataReceived += OnDataReceived;
 
         // Register systems
-        ctx.AddSystem(new NetworkClientReceiveSystem(this), SystemPhase.EarlyUpdate);
+        context.AddSystem(new NetworkClientReceiveSystem(this), SystemPhase.EarlyUpdate);
 
         // Add prediction system if enabled
         if (config.EnablePrediction)
@@ -198,20 +198,20 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
                 this,
                 config.Interpolator,
                 config.InputApplicator);
-            ctx.AddSystem(predictionSystem, SystemPhase.Update);
+            context.AddSystem(predictionSystem, SystemPhase.Update);
         }
 
-        ctx.AddSystem(new NetworkClientSendSystem(this), SystemPhase.LateUpdate);
+        context.AddSystem(new NetworkClientSendSystem(this), SystemPhase.LateUpdate);
     }
 
     /// <inheritdoc/>
-    public void Uninstall(IPluginContext ctx)
+    public void Uninstall(IPluginContext context)
     {
         // Unsubscribe from transport events
         transport.StateChanged -= OnStateChanged;
         transport.DataReceived -= OnDataReceived;
 
-        context = null;
+        this.context = null;
     }
 
     /// <summary>
@@ -738,12 +738,9 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
         // Look up parent entity (0 = no parent)
         Entity parentEntity = Entity.Null;
-        if (parentNetworkId != 0)
+        if (parentNetworkId != 0 && !networkIdManager.TryGetLocalEntity(parentNetworkId, out parentEntity))
         {
-            if (!networkIdManager.TryGetLocalEntity(parentNetworkId, out parentEntity))
-            {
-                return;
-            }
+            return;
         }
 
         // Apply the hierarchy change

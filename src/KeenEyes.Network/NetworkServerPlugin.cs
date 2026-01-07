@@ -83,9 +83,9 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     public event Action<int, uint, ReadOnlySpan<byte>>? ClientInputReceived;
 
     /// <inheritdoc/>
-    public void Install(IPluginContext ctx)
+    public void Install(IPluginContext context)
     {
-        context = ctx;
+        this.context = context;
 
         // Subscribe to transport events
         transport.ClientConnected += OnClientConnected;
@@ -93,16 +93,16 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         transport.DataReceived += OnDataReceived;
 
         // Register systems
-        ctx.AddSystem(new NetworkServerReceiveSystem(this), SystemPhase.EarlyUpdate);
-        ctx.AddSystem(new NetworkServerSendSystem(this), SystemPhase.LateUpdate);
+        context.AddSystem(new NetworkServerReceiveSystem(this), SystemPhase.EarlyUpdate);
+        context.AddSystem(new NetworkServerSendSystem(this), SystemPhase.LateUpdate);
 
         // Subscribe to entity events for replication
-        entityCreatedSubscription = ctx.World.OnEntityCreated(OnEntityCreated);
-        entityDestroyedSubscription = ctx.World.OnEntityDestroyed(OnEntityDestroyed);
+        entityCreatedSubscription = context.World.OnEntityCreated(OnEntityCreated);
+        entityDestroyedSubscription = context.World.OnEntityDestroyed(OnEntityDestroyed);
     }
 
     /// <inheritdoc/>
-    public void Uninstall(IPluginContext ctx)
+    public void Uninstall(IPluginContext context)
     {
         // Unsubscribe from transport events
         transport.ClientConnected -= OnClientConnected;
@@ -113,7 +113,7 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         entityCreatedSubscription?.Dispose();
         entityDestroyedSubscription?.Dispose();
 
-        context = null;
+        this.context = null;
     }
 
     /// <summary>
@@ -289,14 +289,11 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         foreach (var entity in context.World.Query<NetworkId>())
         {
             var parent = context.World.GetParent(entity);
-            if (parent != Entity.Null && context.World.IsAlive(parent))
+            if (parent != Entity.Null && context.World.IsAlive(parent) && context.World.Has<NetworkId>(parent))
             {
-                if (context.World.Has<NetworkId>(parent))
-                {
-                    ref readonly var childNetId = ref context.World.Get<NetworkId>(entity);
-                    ref readonly var parentNetId = ref context.World.Get<NetworkId>(parent);
-                    hierarchyChanges.Add((childNetId.Value, parentNetId.Value));
-                }
+                ref readonly var childNetId = ref context.World.Get<NetworkId>(entity);
+                ref readonly var parentNetId = ref context.World.Get<NetworkId>(parent);
+                hierarchyChanges.Add((childNetId.Value, parentNetId.Value));
             }
         }
 
@@ -427,12 +424,9 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     private void OnEntityCreated(Entity entity, string? name)
     {
         // Auto-register entities with Networked tag
-        if (context is not null && context.World.Has<Networked>(entity))
+        if (context is not null && context.World.Has<Networked>(entity) && !networkIdManager.HasNetworkId(entity))
         {
-            if (!networkIdManager.HasNetworkId(entity))
-            {
-                RegisterNetworkedEntity(entity);
-            }
+            RegisterNetworkedEntity(entity);
         }
     }
 

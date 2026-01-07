@@ -67,7 +67,7 @@ world.OnComponentAdded<Health>((entity, health) =>
 });
 
 // Add another entity to trigger the event
-var latecomer = world.Spawn("Latecomer")
+_ = world.Spawn("Latecomer")
     .With(new Position { X = 50, Y = 50 })
     .With(new Health { Current = 100, Max = 100 })
     .Build();

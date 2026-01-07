@@ -226,7 +226,7 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
         new("Advanced", MinWidth: 80)
     };
 
-    var (tabView, contentPanels) = WidgetFactory.CreateTabView(
+    var (_, contentPanels) = WidgetFactory.CreateTabView(
         world, mainPanel, "MainTabs", tabs, font,
         new TabViewConfig(
             Width: 1060,
@@ -662,7 +662,7 @@ static void PopulateLayoutTab(World world, Entity panel, FontHandle font)
     // --- ScrollView Section ---
     var scrollSection = CreateSection(world, panel, "ScrollView", font);
 
-    var (scrollView, scrollContent) = WidgetFactory.CreateScrollView(
+    var (_, scrollContent) = WidgetFactory.CreateScrollView(
         world, scrollSection, "DemoScrollView",
         new ScrollViewConfig(
             Width: 700,
@@ -701,7 +701,7 @@ static void PopulateLayoutTab(World world, Entity panel, FontHandle font)
     ));
 
     // Card 1: Simple card
-    var (card1, card1Content) = WidgetFactory.CreateCard(world, cardsRow, "Info Card", font, new CardConfig(
+    var (_, card1Content) = WidgetFactory.CreateCard(world, cardsRow, "Info Card", font, new CardConfig(
         Width: 220,
         TitleBarColor: Colors.Primary,
         BorderWidth: 1,
@@ -713,7 +713,7 @@ static void PopulateLayoutTab(World world, Entity panel, FontHandle font)
         new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
 
     // Card 2: Warning card
-    var (card2, card2Content) = WidgetFactory.CreateCard(world, cardsRow, "Warning", font, new CardConfig(
+    var (_, card2Content) = WidgetFactory.CreateCard(world, cardsRow, "Warning", font, new CardConfig(
         Width: 220,
         TitleBarColor: Colors.Warning,
         BorderColor: Colors.WarningBorder,
@@ -724,7 +724,7 @@ static void PopulateLayoutTab(World world, Entity panel, FontHandle font)
         new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
 
     // Card 3: Success card
-    var (card3, card3Content) = WidgetFactory.CreateCard(world, cardsRow, "Status", font, new CardConfig(
+    var (_, card3Content) = WidgetFactory.CreateCard(world, cardsRow, "Status", font, new CardConfig(
         Width: 220,
         TitleBarColor: Colors.Success,
         BorderWidth: 1,
@@ -1215,7 +1215,7 @@ static void PopulateTreeViewTab(World world, Entity panel, FontHandle font)
         new("Controls")
     };
 
-    var (accordion, sectionEntities) = WidgetFactory.CreateAccordionWithSections(
+    var (_, sectionEntities) = WidgetFactory.CreateAccordionWithSections(
         world, accordionSection, font, accordionSections,
         new AccordionConfig(
             Width: 450,
@@ -1361,7 +1361,7 @@ static void PopulateWindowsTab(World world, Entity panel, FontHandle font, Entit
     ));
 
     // Create a demo window
-    var (window1, window1Content) = WidgetFactory.CreateWindow(
+    var (_, window1Content) = WidgetFactory.CreateWindow(
         world, windowRow, "Properties", font,
         new UIWindowConfig(
             Width: 280,
@@ -1383,7 +1383,7 @@ static void PopulateWindowsTab(World world, Entity panel, FontHandle font, Entit
     ));
 
     // Second window with different style
-    var (window2, window2Content) = WidgetFactory.CreateWindow(
+    var (_, window2Content) = WidgetFactory.CreateWindow(
         world, windowRow, "Settings", font,
         new UIWindowConfig(
             Width: 280,
@@ -1405,7 +1405,7 @@ static void PopulateWindowsTab(World world, Entity panel, FontHandle font, Entit
     ));
 
     // Third window
-    var (window3, window3Content) = WidgetFactory.CreateWindow(
+    var (_, window3Content) = WidgetFactory.CreateWindow(
         world, windowRow, "Info", font,
         new UIWindowConfig(
             Width: 280,
@@ -1468,23 +1468,23 @@ static void PopulateWindowsTab(World world, Entity panel, FontHandle font, Entit
     WidgetFactory.AddTooltip(world, customBtn, "Opens a custom modal");
 
     // Create demo modals (hidden by default)
-    var (alertModal, _, alertContent) = WidgetFactory.CreateAlert(
+    _ = WidgetFactory.CreateAlert(
         world, canvas,
         "This is an alert dialog. It displays important information to the user.",
         font, new AlertConfig(Title: "Information", Width: 400));
 
-    var (confirmModal, _, confirmContent) = WidgetFactory.CreateConfirm(
+    _ = WidgetFactory.CreateConfirm(
         world, canvas,
         "Are you sure you want to proceed? This action cannot be undone.",
         font, new ConfirmConfig(Title: "Confirm Action", Width: 420));
 
-    var (promptModal, _, promptContent, promptInput) = WidgetFactory.CreatePrompt(
+    _ = WidgetFactory.CreatePrompt(
         world, canvas,
         "Please enter your name:",
         font, new PromptConfig(Title: "Enter Value", Width: 400, InitialValue: "John Doe"));
 
     // Custom modal with more content
-    var (customModal, _, customContent) = WidgetFactory.CreateModal(
+    var (_, _, customContent) = WidgetFactory.CreateModal(
         world, canvas, font,
         new ModalConfig(Title: "Custom Dialog", Width: 450, Height: 250));
 
@@ -1493,7 +1493,7 @@ static void PopulateWindowsTab(World world, Entity panel, FontHandle font, Entit
     WidgetFactory.CreateLabel(world, customContent, "CustomLabel2", "You can add any widgets here:", font,
         new LabelConfig(FontSize: 12, TextColor: Colors.TextMuted));
 
-    var customSlider = WidgetFactory.CreateSlider(world, customContent, "ModalSlider", new SliderConfig(
+    _ = WidgetFactory.CreateSlider(world, customContent, "ModalSlider", new SliderConfig(
         Width: 380, Height: 24, Value: 50, FillColor: Colors.AccentBlue
     ));
 
@@ -1536,7 +1536,7 @@ static void PopulatePickersTab(World world, Entity panel, FontHandle font)
     ));
 
     // Create color picker
-    var colorPicker = WidgetFactory.CreateColorPicker(world, colorRow, new ColorPickerConfig(
+    _ = WidgetFactory.CreateColorPicker(world, colorRow, new ColorPickerConfig(
         Width: 400,
         Height: 280,
         InitialColor: new Vector4(0.3f, 0.6f, 0.9f, 1f),
@@ -1550,7 +1550,7 @@ static void PopulatePickersTab(World world, Entity panel, FontHandle font)
         new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
 
     // Color presets row
-    var presetsLabel = WidgetFactory.CreateLabel(world, colorRow, "PresetsLabel", "Color Presets:", font,
+    _ = WidgetFactory.CreateLabel(world, colorRow, "PresetsLabel", "Color Presets:", font,
         new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
 
     var presetsRow = WidgetFactory.CreatePanel(world, colorRow, "PresetsRow", new PanelConfig(
@@ -1585,7 +1585,7 @@ static void PopulatePickersTab(World world, Entity panel, FontHandle font)
     ));
 
     // Date picker
-    var datePicker = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
+    _ = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
         Width: 320,
         InitialValue: DateTime.Now,
         Mode: DatePickerMode.Date
@@ -1599,7 +1599,7 @@ static void PopulatePickersTab(World world, Entity panel, FontHandle font)
     WidgetFactory.CreateLabel(world, dateRow, "TimeLabel", "Time Picker:", font,
         new LabelConfig(FontSize: 13, TextColor: Colors.TextLight));
 
-    var timePicker = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
+    _ = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
         Width: 200,
         InitialValue: DateTime.Now,
         Mode: DatePickerMode.Time
@@ -1756,26 +1756,26 @@ static void PopulateAdvancedTab(World world, Entity panel, FontHandle font, Enti
     world.SetParent(toastContainer, canvas);
 
     // Toast trigger buttons
-    var infoToastBtn = WidgetFactory.CreateButton(world, toastRow, "InfoToastBtn", "Info Toast", font, new ButtonConfig(
+    _ = WidgetFactory.CreateButton(world, toastRow, "InfoToastBtn", "Info Toast", font, new ButtonConfig(
         Width: 110, Height: 36,
         BackgroundColor: Colors.Info,
         CornerRadius: 6
     ));
 
-    var successToastBtn = WidgetFactory.CreateButton(world, toastRow, "SuccessToastBtn", "Success Toast", font, new ButtonConfig(
+    _ = WidgetFactory.CreateButton(world, toastRow, "SuccessToastBtn", "Success Toast", font, new ButtonConfig(
         Width: 120, Height: 36,
         BackgroundColor: Colors.Success,
         CornerRadius: 6
     ));
 
-    var warningToastBtn = WidgetFactory.CreateButton(world, toastRow, "WarningToastBtn", "Warning Toast", font, new ButtonConfig(
+    _ = WidgetFactory.CreateButton(world, toastRow, "WarningToastBtn", "Warning Toast", font, new ButtonConfig(
         Width: 125, Height: 36,
         BackgroundColor: Colors.Warning,
         CornerRadius: 6,
         TextColor: Colors.TextDark
     ));
 
-    var errorToastBtn = WidgetFactory.CreateButton(world, toastRow, "ErrorToastBtn", "Error Toast", font, new ButtonConfig(
+    _ = WidgetFactory.CreateButton(world, toastRow, "ErrorToastBtn", "Error Toast", font, new ButtonConfig(
         Width: 110, Height: 36,
         BackgroundColor: Colors.Danger,
         CornerRadius: 6

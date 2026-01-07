@@ -17,10 +17,10 @@ public class PluginManagerAdditionalTests
             UpdateCount++;
         }
 
-        public override void Dispose()
+        protected override void Dispose(bool disposing)
         {
             Disposed = true;
-            base.Dispose();
+            base.Dispose(disposing);
         }
     }
 

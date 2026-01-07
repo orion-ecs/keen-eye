@@ -200,8 +200,7 @@ public class CompilerTests
             }
         ";
 
-        var compiler = new KeslCompiler();
-        var result = compiler.Compile(source);
+        var result = KeslCompiler.Compile(source);
 
         Assert.True(result.HasErrors);
         Assert.NotEmpty(result.Errors);

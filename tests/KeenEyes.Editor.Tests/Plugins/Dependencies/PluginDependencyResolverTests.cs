@@ -456,14 +456,14 @@ public sealed class PluginDependencyResolverTests
     public void CanUnload_NoDependents_ReturnsTrue()
     {
         // Arrange
-        var resolver = new PluginDependencyResolver(EditorVersion);
+        _ = new PluginDependencyResolver(EditorVersion);
         var plugins = new Dictionary<string, LoadedPlugin>
         {
             ["plugin-a"] = CreatePlugin("plugin-a")
         };
 
         // Act
-        var (canUnload, blocking) = resolver.CanUnload("plugin-a", plugins);
+        var (canUnload, blocking) = PluginDependencyResolver.CanUnload("plugin-a", plugins);
 
         // Assert
         Assert.True(canUnload);
@@ -474,7 +474,7 @@ public sealed class PluginDependencyResolverTests
     public void CanUnload_WithEnabledDependents_ReturnsFalse()
     {
         // Arrange
-        var resolver = new PluginDependencyResolver(EditorVersion);
+        _ = new PluginDependencyResolver(EditorVersion);
         var pluginB = CreatePlugin("plugin-b");
         pluginB.State = PluginState.Enabled;
 
@@ -486,7 +486,7 @@ public sealed class PluginDependencyResolverTests
         plugins["plugin-b"].Manifest.Dependencies["plugin-a"] = ">=1.0.0";
 
         // Act
-        var (canUnload, blocking) = resolver.CanUnload("plugin-a", plugins);
+        var (canUnload, blocking) = PluginDependencyResolver.CanUnload("plugin-a", plugins);
 
         // Assert
         Assert.False(canUnload);
@@ -497,7 +497,7 @@ public sealed class PluginDependencyResolverTests
     public void CanUnload_WithDisabledDependents_ReturnsTrue()
     {
         // Arrange
-        var resolver = new PluginDependencyResolver(EditorVersion);
+        _ = new PluginDependencyResolver(EditorVersion);
         var pluginB = CreatePlugin("plugin-b");
         pluginB.State = PluginState.Disabled;
 
@@ -509,7 +509,7 @@ public sealed class PluginDependencyResolverTests
         plugins["plugin-b"].Manifest.Dependencies["plugin-a"] = ">=1.0.0";
 
         // Act
-        var (canUnload, blocking) = resolver.CanUnload("plugin-a", plugins);
+        var (canUnload, blocking) = PluginDependencyResolver.CanUnload("plugin-a", plugins);
 
         // Assert
         Assert.True(canUnload);

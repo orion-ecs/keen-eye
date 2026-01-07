@@ -41,7 +41,7 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
 
             foreach (var file in files)
             {
-                var configInfo = ProcessWorldConfigFile(ctx, file, compilation, rootNamespace);
+                var configInfo = ProcessWorldConfigFile(ctx, file, compilation);
                 if (configInfo != null)
                 {
                     configInfos.Add(configInfo);
@@ -65,8 +65,7 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
     private static WorldConfigInfo? ProcessWorldConfigFile(
         SourceProductionContext context,
         AdditionalText file,
-        Compilation compilation,
-        string rootNamespace)
+        Compilation compilation)
     {
         var sourceText = file.GetText(context.CancellationToken);
         if (sourceText is null)
@@ -119,7 +118,7 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
         // Validate plugin types
         foreach (var pluginName in config.Plugins)
         {
-            var pluginType = FindPluginType(compilation, pluginName);
+            var pluginType = FindClassType(compilation, pluginName);
             if (pluginType is null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(
@@ -132,7 +131,7 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
         // Validate system types
         foreach (var system in config.Systems)
         {
-            var systemType = FindSystemType(compilation, system.Type);
+            var systemType = FindClassType(compilation, system.Type);
             if (systemType is null)
             {
                 context.ReportDiagnostic(Diagnostic.Create(
@@ -166,31 +165,9 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
         return candidates.FirstOrDefault();
     }
 
-    private static INamedTypeSymbol? FindPluginType(Compilation compilation, string typeName)
+    private static INamedTypeSymbol? FindClassType(Compilation compilation, string typeName)
     {
-        // Look for classes that might be plugins
-        var candidates = compilation.GetSymbolsWithName(typeName, SymbolFilter.Type)
-            .OfType<INamedTypeSymbol>()
-            .Where(t => t.TypeKind == TypeKind.Class)
-            .ToList();
-
-        if (candidates.Count == 1)
-        {
-            return candidates[0];
-        }
-
-        var type = compilation.GetTypeByMetadataName(typeName);
-        if (type != null)
-        {
-            return type;
-        }
-
-        return candidates.FirstOrDefault();
-    }
-
-    private static INamedTypeSymbol? FindSystemType(Compilation compilation, string typeName)
-    {
-        // Look for classes that might be systems
+        // Look for classes (plugins, systems, etc.)
         var candidates = compilation.GetSymbolsWithName(typeName, SymbolFilter.Type)
             .OfType<INamedTypeSymbol>()
             .Where(t => t.TypeKind == TypeKind.Class)
@@ -222,10 +199,9 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
 
         var loweredTypeName = typeName.ToLowerInvariant();
         return allTypes
-            .Where(t => t.ToLowerInvariant().Contains(loweredTypeName) ||
+            .FirstOrDefault(t => t.ToLowerInvariant().Contains(loweredTypeName) ||
                        loweredTypeName.Contains(t.ToLowerInvariant()) ||
-                       LevenshteinDistance(t.ToLowerInvariant(), loweredTypeName) <= 2)
-            .FirstOrDefault();
+                       LevenshteinDistance(t.ToLowerInvariant(), loweredTypeName) <= 2);
     }
 
     private static int LevenshteinDistance(string s1, string s2)

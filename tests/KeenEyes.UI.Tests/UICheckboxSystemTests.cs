@@ -623,7 +623,7 @@ public class UICheckboxSystemTests
     private static void SimulateClick(World world, Entity entity)
     {
         ref var interactable = ref world.Get<UIInteractable>(entity);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
     }
 
     #endregion

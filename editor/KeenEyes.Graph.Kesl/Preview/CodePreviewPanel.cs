@@ -19,7 +19,6 @@ namespace KeenEyes.Graph.Kesl.Preview;
 public sealed class CodePreviewPanel
 {
     private readonly KeslGraphExporter exporter = new();
-    private readonly KeslCompiler keslCompiler = new();
     private readonly GlslGenerator glslGenerator = new();
 
     private Entity currentCanvas;
@@ -122,7 +121,7 @@ public sealed class CodePreviewPanel
             cachedKeslSource = exportResult.Source;
 
             // Generate GLSL from KESL
-            var compileResult = keslCompiler.Compile(cachedKeslSource);
+            var compileResult = KeslCompiler.Compile(cachedKeslSource);
             if (!compileResult.HasErrors && compileResult.SourceFile is not null)
             {
                 var glslBuilder = new StringBuilder();

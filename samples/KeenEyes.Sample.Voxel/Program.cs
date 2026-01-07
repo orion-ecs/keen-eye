@@ -119,17 +119,15 @@ while (running)
     // Read input
     ReadInput();
 
-    if (inputState is { Forward: false, Backward: false, Left: false, Right: false, Jump: false, TurnLeft: false, TurnRight: false })
+    if (inputState is { Forward: false, Backward: false, Left: false, Right: false, Jump: false, TurnLeft: false, TurnRight: false }
+        && Console.KeyAvailable)
     {
         // Check for key without blocking
-        if (Console.KeyAvailable)
+        var key = Console.ReadKey(true);
+        if (key.Key == ConsoleKey.Escape)
         {
-            var key = Console.ReadKey(true);
-            if (key.Key == ConsoleKey.Escape)
-            {
-                running = false;
-                continue;
-            }
+            running = false;
+            continue;
         }
     }
 

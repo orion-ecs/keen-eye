@@ -299,38 +299,29 @@ public partial class VoxelPhysicsSystem : SystemBase
             collider.OnGround = false;
 
             // X axis
-            if (MathF.Abs(dx) > 0.001f)
+            if (MathF.Abs(dx) > 0.001f && CheckCollision(pos.X + dx, pos.Y, pos.Z, collider))
             {
-                if (CheckCollision(pos.X + dx, pos.Y, pos.Z, collider))
-                {
-                    dx = 0;
-                    vel.X = 0;
-                }
+                dx = 0;
+                vel.X = 0;
             }
 
             // Z axis
-            if (MathF.Abs(dz) > 0.001f)
+            if (MathF.Abs(dz) > 0.001f && CheckCollision(pos.X + dx, pos.Y, pos.Z + dz, collider))
             {
-                if (CheckCollision(pos.X + dx, pos.Y, pos.Z + dz, collider))
-                {
-                    dz = 0;
-                    vel.Z = 0;
-                }
+                dz = 0;
+                vel.Z = 0;
             }
 
             // Y axis
-            if (MathF.Abs(dy) > 0.001f)
+            if (MathF.Abs(dy) > 0.001f && CheckCollision(pos.X + dx, pos.Y + dy, pos.Z + dz, collider))
             {
-                if (CheckCollision(pos.X + dx, pos.Y + dy, pos.Z + dz, collider))
+                if (dy < 0)
                 {
-                    if (dy < 0)
-                    {
-                        collider.OnGround = true;
-                    }
-
-                    dy = 0;
-                    vel.Y = 0;
+                    collider.OnGround = true;
                 }
+
+                dy = 0;
+                vel.Y = 0;
             }
 
             // Apply movement

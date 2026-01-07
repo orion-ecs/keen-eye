@@ -210,7 +210,7 @@ internal sealed class PluginDependencyResolver
     /// A tuple indicating whether unload is possible and the list of
     /// blocking dependents if not.
     /// </returns>
-    public (bool CanUnload, IReadOnlyList<string> BlockingDependents) CanUnload(
+    public static (bool CanUnload, IReadOnlyList<string> BlockingDependents) CanUnload(
         string pluginId,
         IReadOnlyDictionary<string, LoadedPlugin> loadedPlugins)
     {
@@ -227,13 +227,11 @@ internal sealed class PluginDependencyResolver
             }
 
             // Check if this plugin depends on the one being unloaded
-            if (plugin.Manifest.Dependencies.ContainsKey(pluginId))
+            // Only count enabled plugins as blocking
+            if (plugin.Manifest.Dependencies.ContainsKey(pluginId) &&
+                plugin.State == PluginState.Enabled)
             {
-                // Only count enabled plugins as blocking
-                if (plugin.State == PluginState.Enabled)
-                {
-                    blockingDependents.Add(id);
-                }
+                blockingDependents.Add(id);
             }
         }
 
@@ -271,35 +269,27 @@ internal sealed class PluginDependencyResolver
         }
 
         // Check minimum version
-        if (compatibility.MinEditorVersion is not null)
+        if (compatibility.MinEditorVersion is not null &&
+            NuGetVersion.TryParse(compatibility.MinEditorVersion, out var minVersion) &&
+            editorVersion < minVersion)
         {
-            if (NuGetVersion.TryParse(compatibility.MinEditorVersion, out var minVersion))
-            {
-                if (editorVersion < minVersion)
-                {
-                    return new EditorVersionIncompatibleError(
-                        pluginId,
-                        editorVersion.ToString(),
-                        compatibility.MinEditorVersion,
-                        compatibility.MaxEditorVersion);
-                }
-            }
+            return new EditorVersionIncompatibleError(
+                pluginId,
+                editorVersion.ToString(),
+                compatibility.MinEditorVersion,
+                compatibility.MaxEditorVersion);
         }
 
         // Check maximum version
-        if (compatibility.MaxEditorVersion is not null)
+        if (compatibility.MaxEditorVersion is not null &&
+            NuGetVersion.TryParse(compatibility.MaxEditorVersion, out var maxVersion) &&
+            editorVersion > maxVersion)
         {
-            if (NuGetVersion.TryParse(compatibility.MaxEditorVersion, out var maxVersion))
-            {
-                if (editorVersion > maxVersion)
-                {
-                    return new EditorVersionIncompatibleError(
-                        pluginId,
-                        editorVersion.ToString(),
-                        compatibility.MinEditorVersion,
-                        compatibility.MaxEditorVersion);
-                }
-            }
+            return new EditorVersionIncompatibleError(
+                pluginId,
+                editorVersion.ToString(),
+                compatibility.MinEditorVersion,
+                compatibility.MaxEditorVersion);
         }
 
         return null;

@@ -43,13 +43,6 @@ public sealed class ParallelSystemPlugin(ParallelSystemOptions? options = null) 
     private ParallelSystemScheduler? scheduler;
 
     /// <summary>
-    /// Creates a new parallel system plugin with default options.
-    /// </summary>
-    public ParallelSystemPlugin() : this(null)
-    {
-    }
-
-    /// <summary>
     /// Gets the name of this plugin.
     /// </summary>
     public string Name => "ParallelSystem";

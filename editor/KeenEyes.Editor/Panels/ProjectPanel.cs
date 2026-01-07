@@ -207,16 +207,16 @@ public static class ProjectPanel
         foreach (var asset in assets)
         {
             // Apply search filter
-            if (!string.IsNullOrWhiteSpace(searchText))
+            if (!string.IsNullOrWhiteSpace(searchText) &&
+                !asset.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) &&
+                !asset.RelativePath.Contains(searchText, StringComparison.OrdinalIgnoreCase))
             {
-                if (!asset.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) &&
-                    !asset.RelativePath.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-                {
-                    continue;
-                }
+                continue;
             }
 
-            var pathParts = asset.RelativePath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+#pragma warning disable S3878 // Arrays should not be created for params parameters - S3220 requires explicit array to disambiguate overload
+            var pathParts = asset.RelativePath.Split([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar]);
+#pragma warning restore S3878
 
             var currentFolder = root;
             for (int i = 0; i < pathParts.Length - 1; i++)
@@ -309,7 +309,8 @@ public static class ProjectPanel
         }
     }
 
-    private static string GetFolderIcon() => "\uD83D\uDCC1"; // Folder emoji
+    private const string FolderIcon = "\uD83D\uDCC1"; // Folder emoji
+    private static string GetFolderIcon() => FolderIcon;
 
     private static string GetAssetTypeIcon(AssetType assetType)
     {

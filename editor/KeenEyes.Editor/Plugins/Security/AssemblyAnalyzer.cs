@@ -182,7 +182,7 @@ internal sealed class AssemblyAnalyzer
         return result.Findings;
     }
 
-    private IEnumerable<SecurityFinding> DetectPInvoke(MetadataReader reader)
+    private static IEnumerable<SecurityFinding> DetectPInvoke(MetadataReader reader)
     {
         foreach (var methodHandle in reader.MethodDefinitions)
         {
@@ -234,57 +234,48 @@ internal sealed class AssemblyAnalyzer
             var fullRef = $"{typeName}.{memberName}";
 
             // Check for reflection
-            if (configuration.IsPatternEnabled(DetectionPattern.Reflection))
+            if (configuration.IsPatternEnabled(DetectionPattern.Reflection) &&
+                ReflectionTypes.Contains(typeName) &&
+                ReflectionMethods.Contains(memberName))
             {
-                if (ReflectionTypes.Contains(typeName) && ReflectionMethods.Contains(memberName))
-                {
-                    yield return SecurityFinding.Reflection("MemberReference", fullRef);
-                }
+                yield return SecurityFinding.Reflection("MemberReference", fullRef);
             }
 
             // Check for file system access
-            if (configuration.IsPatternEnabled(DetectionPattern.FileSystemAccess))
+            if (configuration.IsPatternEnabled(DetectionPattern.FileSystemAccess) &&
+                FileSystemTypes.Contains(typeName))
             {
-                if (FileSystemTypes.Contains(typeName))
-                {
-                    yield return SecurityFinding.FileSystem("MemberReference", fullRef);
-                }
+                yield return SecurityFinding.FileSystem("MemberReference", fullRef);
             }
 
             // Check for network access
-            if (configuration.IsPatternEnabled(DetectionPattern.NetworkAccess))
+            if (configuration.IsPatternEnabled(DetectionPattern.NetworkAccess) &&
+                NetworkTypes.Contains(typeName))
             {
-                if (NetworkTypes.Contains(typeName))
-                {
-                    yield return SecurityFinding.Network("MemberReference", fullRef);
-                }
+                yield return SecurityFinding.Network("MemberReference", fullRef);
             }
 
             // Check for process execution
-            if (configuration.IsPatternEnabled(DetectionPattern.ProcessExecution))
+            if (configuration.IsPatternEnabled(DetectionPattern.ProcessExecution) &&
+                ProcessTypes.Contains(typeName) &&
+                memberName == "Start")
             {
-                if (ProcessTypes.Contains(typeName) && memberName == "Start")
-                {
-                    yield return SecurityFinding.ProcessExec("MemberReference", fullRef);
-                }
+                yield return SecurityFinding.ProcessExec("MemberReference", fullRef);
             }
 
             // Check for environment access
-            if (configuration.IsPatternEnabled(DetectionPattern.EnvironmentAccess))
+            if (configuration.IsPatternEnabled(DetectionPattern.EnvironmentAccess) &&
+                EnvironmentTypes.Contains(typeName))
             {
-                if (EnvironmentTypes.Contains(typeName))
-                {
-                    yield return SecurityFinding.Environment("MemberReference", fullRef);
-                }
+                yield return SecurityFinding.Environment("MemberReference", fullRef);
             }
 
             // Check for assembly loading
-            if (configuration.IsPatternEnabled(DetectionPattern.AssemblyLoading))
+            if (configuration.IsPatternEnabled(DetectionPattern.AssemblyLoading) &&
+                AssemblyLoadTypes.Contains(typeName) &&
+                AssemblyLoadMethods.Contains(memberName))
             {
-                if (AssemblyLoadTypes.Contains(typeName) && AssemblyLoadMethods.Contains(memberName))
-                {
-                    yield return SecurityFinding.AssemblyLoad("MemberReference", fullRef);
-                }
+                yield return SecurityFinding.AssemblyLoad("MemberReference", fullRef);
             }
         }
     }

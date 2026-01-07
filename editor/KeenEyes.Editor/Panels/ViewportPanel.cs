@@ -430,13 +430,14 @@ public static class ViewportPanel
         Matrix4x4 projectionMatrix,
         Entity selectedEntity)
     {
-        if (!sceneWorld.Has<Transform3D>(selectedEntity))
-        {
-            return;
-        }
-
         // Selection highlight rendering will be implemented with TransformGizmo
         // For now, this is a placeholder
+        // Suppress unused parameter warnings until implementation
+        _ = sceneWorld;
+        _ = graphics;
+        _ = viewMatrix;
+        _ = projectionMatrix;
+        _ = selectedEntity;
     }
 
     private static void OnSceneOpened(IWorld editorWorld, Entity panel, World scene)

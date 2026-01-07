@@ -367,13 +367,11 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
     public bool LoadDynamicPlugin(LoadedPlugin loadedPlugin)
     {
         // Load the assembly if not already loaded
-        if (loadedPlugin.State == PluginState.Discovered ||
-            loadedPlugin.State == PluginState.Failed)
+        if ((loadedPlugin.State == PluginState.Discovered ||
+            loadedPlugin.State == PluginState.Failed) &&
+            !loader.Load(loadedPlugin))
         {
-            if (!loader.Load(loadedPlugin))
-            {
-                return false;
-            }
+            return false;
         }
 
         // Enable the plugin
@@ -881,19 +879,19 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
         LogError(message);
     }
 
-    private void LogInfo(string message)
+    private static void LogInfo(string message)
     {
         // TODO: Integrate with editor logging system
         Console.WriteLine($"[Plugin] INFO: {message}");
     }
 
-    private void LogWarning(string message)
+    private static void LogWarning(string message)
     {
         // TODO: Integrate with editor logging system
         Console.WriteLine($"[Plugin] WARN: {message}");
     }
 
-    private void LogError(string message)
+    private static void LogError(string message)
     {
         // TODO: Integrate with editor logging system
         Console.WriteLine($"[Plugin] ERROR: {message}");

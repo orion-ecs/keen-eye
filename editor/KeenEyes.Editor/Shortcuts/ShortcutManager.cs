@@ -148,14 +148,13 @@ public sealed class ShortcutManager
         }
 
         // Check for conflicts
-        if (newShortcut.IsValid && _shortcutToAction.TryGetValue(newShortcut, out var conflictingAction))
+        if (newShortcut.IsValid &&
+            _shortcutToAction.TryGetValue(newShortcut, out var conflictingAction) &&
+            !conflictingAction.Equals(actionId, StringComparison.OrdinalIgnoreCase))
         {
-            if (!conflictingAction.Equals(actionId, StringComparison.OrdinalIgnoreCase))
-            {
-                var conflictBinding = _bindings[conflictingAction];
-                ConflictDetected?.Invoke(this, new ShortcutConflictEventArgs(binding, conflictBinding, newShortcut));
-                return false;
-            }
+            var conflictBinding = _bindings[conflictingAction];
+            ConflictDetected?.Invoke(this, new ShortcutConflictEventArgs(binding, conflictBinding, newShortcut));
+            return false;
         }
 
         // Remove old shortcut mapping
@@ -228,13 +227,13 @@ public sealed class ShortcutManager
 
         var combination = new KeyCombination(key, modifiers & (KeyModifiers.Control | KeyModifiers.Shift | KeyModifiers.Alt | KeyModifiers.Super));
 
-        if (_shortcutToAction.TryGetValue(combination, out var actionId))
+        if (_shortcutToAction.TryGetValue(combination, out var actionId) &&
+            _bindings.TryGetValue(actionId, out var binding) &&
+            binding.IsEnabled &&
+            binding.Action != null)
         {
-            if (_bindings.TryGetValue(actionId, out var binding) && binding.IsEnabled && binding.Action != null)
-            {
-                binding.Action.Invoke();
-                return true;
-            }
+            binding.Action.Invoke();
+            return true;
         }
 
         return false;

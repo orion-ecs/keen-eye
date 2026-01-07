@@ -115,12 +115,12 @@ public class UIComponentTests
     {
         var interactable = new UIInteractable
         {
-            PendingEvents = UIEventFlags.Click | UIEventFlags.PointerEnter
+            PendingEvents = UIEventType.Click | UIEventType.PointerEnter
         };
 
-        Assert.True(interactable.HasEvent(UIEventFlags.Click));
-        Assert.True(interactable.HasEvent(UIEventFlags.PointerEnter));
-        Assert.False(interactable.HasEvent(UIEventFlags.PointerExit));
+        Assert.True(interactable.HasEvent(UIEventType.Click));
+        Assert.True(interactable.HasEvent(UIEventType.PointerEnter));
+        Assert.False(interactable.HasEvent(UIEventType.PointerExit));
     }
 
     [Fact]
