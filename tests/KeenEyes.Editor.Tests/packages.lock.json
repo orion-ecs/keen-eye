@@ -382,6 +382,9 @@
           "KeenEyes.Platform.Silk": "[1.0.0, )",
           "KeenEyes.Replay": "[1.0.0, )",
           "KeenEyes.Runtime": "[1.0.0, )",
+          "KeenEyes.TestBridge": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",
+          "KeenEyes.TestBridge.Ipc": "[1.0.0, )",
           "KeenEyes.UI": "[1.0.0, )",
           "NuGet.Configuration": "[7.0.1, )",
           "NuGet.Protocol": "[7.0.1, )",
@@ -481,6 +484,19 @@
           "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
         }
       },
+      "keeneyes.network.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.persistence": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )"
+        }
+      },
       "keeneyes.platform.silk": {
         "type": "Project",
         "dependencies": {
@@ -508,6 +524,44 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.testbridge": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",
+          "KeenEyes.Testing": "[1.0.0, )",
+          "StbImageWriteSharp": "[1.16.7, )"
+        }
+      },
+      "keeneyes.testbridge.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.testbridge.ipc": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Input.Abstractions": "[1.0.0, )",
+          "KeenEyes.TestBridge": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.testing": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )",
+          "KeenEyes.Network.Abstractions": "[1.0.0, )",
+          "KeenEyes.Persistence": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )"
         }
       },
       "keeneyes.ui": {
@@ -653,6 +707,12 @@
         "requested": "[2.30.15, )",
         "resolved": "2.30.15",
         "contentHash": "7QqbupVhz2kcFUPTgMw4iHR9rYDHGundzzee19Mwmd1typ2Lnv8EVJcLJxlkeBM2+4ex0NwsMtdbGSJctp1XCQ=="
+      },
+      "StbImageWriteSharp": {
+        "type": "CentralTransitive",
+        "requested": "[1.16.7, )",
+        "resolved": "1.16.7",
+        "contentHash": "NF9kOxi0iS9VunklnRKgOpAWC2knCGKRjdy7RT6XAqYNyb7LQfyPHPdl4l1fJw7TFYKrGQzQOmK1XpBONC2MoA=="
       }
     }
   }

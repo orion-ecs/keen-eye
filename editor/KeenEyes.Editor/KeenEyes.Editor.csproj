@@ -35,6 +35,9 @@
     <ProjectReference Include="..\..\src\KeenEyes.Navigation.DotRecast\KeenEyes.Navigation.DotRecast.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Replay\KeenEyes.Replay.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.AI\KeenEyes.AI.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge.Abstractions\KeenEyes.TestBridge.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge\KeenEyes.TestBridge.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge.Ipc\KeenEyes.TestBridge.Ipc.csproj" />
   </ItemGroup>
 
 </Project>

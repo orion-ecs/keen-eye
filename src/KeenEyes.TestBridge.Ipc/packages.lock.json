@@ -87,7 +87,8 @@
           "KeenEyes.Input.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
           "KeenEyes.Network.Abstractions": "[1.0.0, )",
-          "KeenEyes.Persistence": "[1.0.0, )"
+          "KeenEyes.Persistence": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )"
         }
       },
       "StbImageWriteSharp": {

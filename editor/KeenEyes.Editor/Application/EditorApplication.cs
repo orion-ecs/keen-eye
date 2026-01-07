@@ -51,6 +51,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private PlayModeManager? _playMode;
     private HotReloadService? _hotReload;
     private ReplayPlaybackMode? _replayPlayback;
+    private TestBridgeManager? _testBridge;
     private Entity _viewportPanel;
     private Entity _hierarchyPanel;
     private Entity _inspectorPanel;
@@ -108,6 +109,11 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// Gets the replay playback mode for debugging and analysis.
     /// </summary>
     public ReplayPlaybackMode? ReplayPlayback => _replayPlayback;
+
+    /// <summary>
+    /// Gets the TestBridge manager for external tool connections.
+    /// </summary>
+    public TestBridgeManager? TestBridge => _testBridge;
 
     /// <summary>
     /// Gets the layout manager for window arrangement.
@@ -268,10 +274,37 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _hotReload.ConnectPlayMode(_playMode);
         _hotReload.Initialize();
         Console.WriteLine("Hot reload service initialized for scene");
+
+        // Initialize TestBridge for external tool connections
+        _testBridge = new TestBridgeManager(sceneWorld);
+        _ = StartTestBridgeAsync();
+    }
+
+    private async Task StartTestBridgeAsync()
+    {
+        if (_testBridge is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _testBridge.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to start TestBridge: {ex.Message}");
+        }
     }
 
     private void OnSceneClosed()
     {
+        // Stop and dispose TestBridge
+        if (_testBridge != null)
+        {
+            _ = StopTestBridgeAsync();
+        }
+
         // Dispose hot reload service
         if (_hotReload != null)
         {
@@ -286,6 +319,27 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _replayPlayback?.Dispose();
         _replayPlayback = null;
         Console.WriteLine("Play mode and replay playback disposed");
+    }
+
+    private async Task StopTestBridgeAsync()
+    {
+        if (_testBridge is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _testBridge.DisposeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error stopping TestBridge: {ex.Message}");
+        }
+        finally
+        {
+            _testBridge = null;
+        }
     }
 
     private static void OnHotReloadStatusChanged(object? sender, HotReloadStatusChangedEventArgs e)
@@ -1659,6 +1713,13 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
         // Save layout before disposing
         _layoutManager.Save();
+
+        // Dispose TestBridge (blocking wait for async disposal)
+        if (_testBridge != null)
+        {
+            _testBridge.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _testBridge = null;
+        }
 
         _hotReload?.Dispose();
         _replayPlayback?.Dispose();
