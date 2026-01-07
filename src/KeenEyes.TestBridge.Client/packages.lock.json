@@ -43,7 +43,10 @@
         }
       },
       "keeneyes.logging": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
       },
       "keeneyes.network.abstractions": {
         "type": "Project",
@@ -62,8 +65,10 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",
-          "KeenEyes.Testing": "[1.0.0, )"
+          "KeenEyes.Testing": "[1.0.0, )",
+          "StbImageWriteSharp": "[1.16.7, )"
         }
       },
       "keeneyes.testbridge.abstractions": {
@@ -92,6 +97,12 @@
           "KeenEyes.Network.Abstractions": "[1.0.0, )",
           "KeenEyes.Persistence": "[1.0.0, )"
         }
+      },
+      "StbImageWriteSharp": {
+        "type": "CentralTransitive",
+        "requested": "[1.16.7, )",
+        "resolved": "1.16.7",
+        "contentHash": "NF9kOxi0iS9VunklnRKgOpAWC2knCGKRjdy7RT6XAqYNyb7LQfyPHPdl4l1fJw7TFYKrGQzQOmK1XpBONC2MoA=="
       }
     }
   }

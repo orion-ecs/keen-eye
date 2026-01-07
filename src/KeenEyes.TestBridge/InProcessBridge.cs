@@ -1,3 +1,4 @@
+using KeenEyes.Graphics.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -34,7 +35,8 @@ public sealed class InProcessBridge : ITestBridge
     /// </summary>
     /// <param name="world">The world to bridge.</param>
     /// <param name="options">Configuration options.</param>
-    public InProcessBridge(World world, TestBridgeOptions? options = null)
+    /// <param name="graphicsContext">Optional graphics context for screenshot capture.</param>
+    public InProcessBridge(World world, TestBridgeOptions? options = null, IGraphicsContext? graphicsContext = null)
     {
         this.world = world;
         this.options = options ?? new TestBridgeOptions();
@@ -45,7 +47,7 @@ public sealed class InProcessBridge : ITestBridge
 
         inputController = new InputControllerImpl(inputContext);
         stateController = new StateControllerImpl(world);
-        captureController = new CaptureControllerImpl();
+        captureController = new CaptureControllerImpl(graphicsContext);
     }
 
     /// <inheritdoc />

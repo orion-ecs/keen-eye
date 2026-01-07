@@ -417,6 +417,22 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         }
     }
 
+    public void ReadFramebuffer(int x, int y, int width, int height, PixelFormat format, Span<byte> data)
+    {
+        Calls.Add($"ReadFramebuffer({x}, {y}, {width}, {height}, {format}, {data.Length} bytes)");
+        // Fill with test pattern in mock
+        for (int i = 0; i < data.Length; i += 4)
+        {
+            data[i] = 128;     // R
+            data[i + 1] = 64;  // G
+            data[i + 2] = 32;  // B
+            if (i + 3 < data.Length)
+            {
+                data[i + 3] = 255; // A
+            }
+        }
+    }
+
     #endregion
 
     /// <summary>

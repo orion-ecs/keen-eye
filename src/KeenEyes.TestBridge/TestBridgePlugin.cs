@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using KeenEyes.Capabilities;
+using KeenEyes.Graphics.Abstractions;
 
 namespace KeenEyes.TestBridge;
 
@@ -36,8 +37,11 @@ public sealed class TestBridgePlugin(TestBridgeOptions? options = null) : IWorld
         var world = context.World as World
             ?? throw new InvalidOperationException("TestBridgePlugin requires a concrete World instance.");
 
+        // Try to get graphics context (optional - may not exist in headless mode)
+        context.TryGetExtension<IGraphicsContext>(out var graphicsContext);
+
         // Create the in-process bridge
-        bridge = new InProcessBridge(world, options);
+        bridge = new InProcessBridge(world, options, graphicsContext);
 
         // Expose the bridge as an extension
         context.SetExtension<ITestBridge>(bridge);

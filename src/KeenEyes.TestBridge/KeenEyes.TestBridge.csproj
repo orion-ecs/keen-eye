@@ -12,9 +12,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="StbImageWriteSharp" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\KeenEyes.TestBridge.Abstractions\KeenEyes.TestBridge.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
     <ProjectReference Include="..\KeenEyes.Testing\KeenEyes.Testing.csproj" />
+    <ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>
