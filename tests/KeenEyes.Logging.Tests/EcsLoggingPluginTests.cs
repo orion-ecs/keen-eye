@@ -1,3 +1,4 @@
+using KeenEyes;
 using KeenEyes.Logging.Providers;
 
 namespace KeenEyes.Logging.Tests;
