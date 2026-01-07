@@ -1,5 +1,6 @@
 using KeenEyes.Mcp.TestBridge;
 using KeenEyes.Mcp.TestBridge.Connection;
+using KeenEyes.Mcp.TestBridge.Prompts;
 using KeenEyes.Mcp.TestBridge.Resources;
 using KeenEyes.Mcp.TestBridge.Tools;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +20,8 @@ builder.Services.AddSingleton<BridgeConnectionManager>(sp =>
     {
         HeartbeatInterval = TimeSpan.FromMilliseconds(config.HeartbeatInterval),
         PingTimeout = TimeSpan.FromMilliseconds(config.HeartbeatTimeout),
-        MaxPingFailures = config.MaxPingFailures
+        MaxPingFailures = config.MaxPingFailures,
+        ConnectionTimeout = TimeSpan.FromMilliseconds(config.ConnectionTimeout)
     };
 });
 
@@ -35,7 +37,8 @@ builder.Services
         options.Capabilities = new()
         {
             Tools = new() { ListChanged = true },
-            Resources = new() { ListChanged = true, Subscribe = true }
+            Resources = new() { ListChanged = true, Subscribe = true },
+            Prompts = new() { ListChanged = true }
         };
     })
     .WithStdioServerTransport()
@@ -45,7 +48,8 @@ builder.Services
     .WithTools<CaptureTools>()
     .WithResources<ConnectionResources>()
     .WithResources<WorldResources>()
-    .WithResources<CaptureResources>();
+    .WithResources<CaptureResources>()
+    .WithPrompts<WorkflowPrompts>();
 
 var app = builder.Build();
 
@@ -65,6 +69,40 @@ connectionManager.ConnectionStateChanged += async () =>
         // Ignore notification errors
     }
 };
+
+// Handle graceful shutdown
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+
+lifetime.ApplicationStopping.Register(() =>
+{
+    Console.Error.WriteLine("Shutting down MCP TestBridge Server...");
+});
+
+// Handle Ctrl+C / SIGTERM
+Console.CancelKeyPress += (_, e) =>
+{
+    e.Cancel = true;
+    lifetime.StopApplication();
+};
+
+// Monitor stdin close (MCP client disconnect)
+_ = Task.Run(async () =>
+{
+    try
+    {
+        while (Console.In.Peek() != -1)
+        {
+            await Task.Delay(100);
+        }
+
+        lifetime.StopApplication();
+    }
+    catch
+    {
+        // Stdin closed or error - trigger shutdown
+        lifetime.StopApplication();
+    }
+});
 
 // Log to stderr (stdout is for MCP protocol)
 Console.Error.WriteLine($"KeenEyes MCP TestBridge Server starting...");
@@ -90,6 +128,7 @@ namespace KeenEyes.Mcp.TestBridge
             var heartbeatInterval = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_HEARTBEAT_INTERVAL"), out var hi) ? hi : 5000;
             var heartbeatTimeout = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_HEARTBEAT_TIMEOUT"), out var ht) ? ht : 10000;
             var maxPingFailures = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_MAX_PING_FAILURES"), out var mpf) ? mpf : 3;
+            var connectionTimeout = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_TIMEOUT"), out var ct) ? ct : 30000;
 
             // Parse command line arguments
             var i = 0;
@@ -116,13 +155,18 @@ namespace KeenEyes.Mcp.TestBridge
                     transport = args[i + 1];
                     i += 2;
                 }
+                else if (arg == "--timeout" && i + 1 < args.Length)
+                {
+                    connectionTimeout = int.Parse(args[i + 1]);
+                    i += 2;
+                }
                 else
                 {
                     i++;
                 }
             }
 
-            return new McpConfiguration(pipeName, tcpHost, port, transport, heartbeatInterval, heartbeatTimeout, maxPingFailures);
+            return new McpConfiguration(pipeName, tcpHost, port, transport, heartbeatInterval, heartbeatTimeout, maxPingFailures, connectionTimeout);
         }
     }
 
@@ -133,5 +177,6 @@ namespace KeenEyes.Mcp.TestBridge
         string Transport,
         int HeartbeatInterval,
         int HeartbeatTimeout,
-        int MaxPingFailures);
+        int MaxPingFailures,
+        int ConnectionTimeout);
 }

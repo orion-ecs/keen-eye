@@ -34,6 +34,11 @@ public sealed class BridgeConnectionManager : IAsyncDisposable
     public int MaxPingFailures { get; init; } = 3;
 
     /// <summary>
+    /// Gets the connection timeout for initial connection attempts.
+    /// </summary>
+    public TimeSpan ConnectionTimeout { get; init; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>
     /// Gets whether the connection is currently active.
     /// </summary>
     public bool IsConnected => client?.IsConnected == true;
