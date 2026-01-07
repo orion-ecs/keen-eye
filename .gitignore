@@ -84,3 +84,5 @@ BenchmarkDotNet.Artifacts/
 _site/
 api/*.yml
 api/.manifest
+# MCP server published binaries
+.mcp/
