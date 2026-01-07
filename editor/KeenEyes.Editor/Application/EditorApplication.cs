@@ -1,6 +1,7 @@
 using System.Numerics;
 using KeenEyes.Editor.Assets;
 using KeenEyes.Editor.Commands;
+using KeenEyes.Editor.Common.Clipboard;
 using KeenEyes.Editor.HotReload;
 using KeenEyes.Editor.Layout;
 using KeenEyes.Editor.Logging;
@@ -30,11 +31,19 @@ namespace KeenEyes.Editor.Application;
 /// </summary>
 public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 {
+    /// <summary>
+    /// URL to the KeenEyes documentation.
+    /// </summary>
+#pragma warning disable S1075 // Documentation URL is a well-known, stable endpoint
+    private const string DocumentationUrl = "https://github.com/orion-ecs/keen-eye/wiki";
+#pragma warning restore S1075
+
     private readonly World _editorWorld;
     private readonly EditorWorldManager _worldManager;
     private readonly ShortcutManager _shortcuts;
     private readonly UndoRedoManager _undoRedo;
     private readonly SelectionManager _selection;
+    private readonly EntityClipboard _clipboard;
     private readonly LayoutManager _layoutManager;
     private readonly EditorLogProvider _logProvider;
     private readonly AssetDatabase _assetDatabase;
@@ -114,6 +123,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _shortcuts = new ShortcutManager();
         _undoRedo = new UndoRedoManager(EditorSettings.UndoHistoryLimit);
         _selection = new SelectionManager();
+        _clipboard = new EntityClipboard();
         _layoutManager = LayoutManager.Instance;
         _logProvider = new EditorLogProvider();
         _assetDatabase = new AssetDatabase(Environment.CurrentDirectory);
@@ -1210,22 +1220,74 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.Cut()
     {
-        // TODO: Implement cut
-        Console.WriteLine("Cut (not yet implemented)");
+        var selected = _selection.SelectedEntities.ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            return;
+        }
+
+        var count = _clipboard.Cut(sceneWorld, selected);
+        _selection.ClearSelection();
+        Console.WriteLine($"Cut {count} entity(ies) to clipboard");
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.Copy()
     {
-        // TODO: Implement copy
-        Console.WriteLine("Copy (not yet implemented)");
+        var selected = _selection.SelectedEntities.ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            return;
+        }
+
+        var count = _clipboard.Copy(sceneWorld, selected);
+        Console.WriteLine($"Copied {count} entity(ies) to clipboard");
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.Paste()
     {
-        // TODO: Implement paste
-        Console.WriteLine("Paste (not yet implemented)");
+        if (!_clipboard.HasContent)
+        {
+            Console.WriteLine("Clipboard is empty");
+            return;
+        }
+
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            return;
+        }
+
+        // Paste as children of the first selected entity, or at root if nothing selected
+        Entity? parent = _selection.SelectedEntities.FirstOrDefault();
+        if (parent.HasValue && !sceneWorld.IsAlive(parent.Value))
+        {
+            parent = null;
+        }
+
+        var pasted = _clipboard.Paste(sceneWorld, parent);
+
+        // Select the newly pasted entities
+        _selection.ClearSelection();
+        foreach (var entity in pasted)
+        {
+            _selection.AddToSelection(entity);
+        }
+
+        Console.WriteLine($"Pasted {pasted.Count} entity(ies)");
     }
 
     /// <inheritdoc/>
@@ -1277,8 +1339,38 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.Duplicate()
     {
-        // TODO: Implement duplicate
-        Console.WriteLine("Duplicate (not yet implemented)");
+        var selected = _selection.SelectedEntities.ToList();
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            return;
+        }
+
+        // Duplicate is copy + paste in place (with same parent)
+        _clipboard.Copy(sceneWorld, selected);
+
+        // Find common parent for duplicated entities
+        Entity? parent = null;
+        if (selected.Count == 1 && sceneWorld is KeenEyes.Capabilities.IHierarchyCapability hierarchy)
+        {
+            parent = hierarchy.GetParent(selected[0]);
+        }
+
+        var duplicated = _clipboard.Paste(sceneWorld, parent);
+
+        // Select the duplicated entities
+        _selection.ClearSelection();
+        foreach (var entity in duplicated)
+        {
+            _selection.AddToSelection(entity);
+        }
+
+        Console.WriteLine($"Duplicated {duplicated.Count} entity(ies)");
     }
 
     /// <inheritdoc/>
@@ -1507,7 +1599,27 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     void IEditorShortcutActions.Documentation()
     {
         Console.WriteLine("Opening documentation...");
-        // TODO: Open browser to docs
+        OpenUrl(DocumentationUrl);
+    }
+
+    /// <summary>
+    /// Opens a URL in the default browser.
+    /// </summary>
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            // Use shell execute to open URL in default browser
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to open URL: {ex.Message}");
+        }
     }
 
     /// <inheritdoc/>

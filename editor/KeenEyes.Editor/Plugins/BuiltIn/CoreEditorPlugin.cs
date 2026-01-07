@@ -3,6 +3,7 @@
 
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Abstractions.Capabilities;
+using KeenEyes.Editor.Common.Serialization;
 
 namespace KeenEyes.Editor.Plugins.BuiltIn;
 
@@ -144,22 +145,39 @@ internal sealed class CoreEditorPlugin : EditorPluginBase
             return;
         }
 
-        // TODO: Implement proper entity duplication
-        // This requires serializing entities and restoring them as new entities
-        _ = selected; // Suppress unused warning until implementation
+        // Capture the selected entities
+        var snapshots = EntitySerializer.CaptureEntities(sceneWorld, selected, includeChildren: true);
+
+        // For single entity, duplicate with same parent; for multiple, place at root
+        Entity? parent = null;
+        if (selected.Count == 1 && sceneWorld is KeenEyes.Capabilities.IHierarchyCapability hierarchy)
+        {
+            parent = hierarchy.GetParent(selected[0]);
+        }
+
+        // Restore as new entities
+        var duplicated = EntitySerializer.RestoreEntities(sceneWorld, snapshots, parent);
+
+        // Select the duplicated entities
+        context.Selection.ClearSelection();
+        foreach (var entity in duplicated)
+        {
+            context.Selection.AddToSelection(entity);
+        }
     }
 
     /// <summary>
-    /// Command to delete entities from the scene.
+    /// Command to delete entities from the scene with full undo support.
     /// </summary>
     /// <remarks>
-    /// This is a simplified delete command that stores entity IDs for undo.
-    /// A full implementation would use entity serialization for proper restoration.
+    /// Uses <see cref="EntitySerializer"/> to capture entity state before deletion,
+    /// enabling full restoration on undo including component data and hierarchy.
     /// </remarks>
     private sealed class DeleteEntitiesCommand : IEditorCommand
     {
         private readonly IEditorContext context;
         private readonly List<Entity> entities;
+        private IReadOnlyList<EntitySnapshot>? snapshots;
 
         public DeleteEntitiesCommand(IEditorContext context, List<Entity> entities)
         {
@@ -177,22 +195,41 @@ internal sealed class CoreEditorPlugin : EditorPluginBase
                 return;
             }
 
-            // TODO: Store entity state before deletion for proper undo
-            // For now, we just delete the entities
+            // Capture entity state before deletion for undo
+            snapshots = EntitySerializer.CaptureEntities(sceneWorld, entities, includeChildren: true);
+
+            // Delete the entities (children are included in snapshots)
             foreach (var entity in entities)
             {
                 if (entity.IsValid && sceneWorld.IsAlive(entity))
                 {
-                    sceneWorld.Despawn(entity);
+                    if (sceneWorld is KeenEyes.Capabilities.IHierarchyCapability hierarchy)
+                    {
+                        hierarchy.DespawnRecursive(entity);
+                    }
+                    else
+                    {
+                        sceneWorld.Despawn(entity);
+                    }
                 }
             }
         }
 
         public void Undo()
         {
-            // TODO: Restore deleted entities from stored state
-            // This requires entity serialization which is complex
-            // For now, undo is not fully supported for delete
+            if (snapshots is null || snapshots.Count == 0)
+            {
+                return;
+            }
+
+            var sceneWorld = context.Worlds.CurrentSceneWorld;
+            if (sceneWorld is null)
+            {
+                return;
+            }
+
+            // Restore entities from captured snapshots
+            _ = EntitySerializer.RestoreEntities(sceneWorld, snapshots, parent: null);
         }
 
         public bool TryMerge(IEditorCommand other)

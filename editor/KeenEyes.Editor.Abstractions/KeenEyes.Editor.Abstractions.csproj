@@ -12,6 +12,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Editor" />
+    <InternalsVisibleTo Include="KeenEyes.Editor.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
   </ItemGroup>

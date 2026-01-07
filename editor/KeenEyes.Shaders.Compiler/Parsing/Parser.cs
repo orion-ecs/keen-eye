@@ -1,3 +1,4 @@
+using KeenEyes.Shaders.Compiler.Diagnostics;
 using KeenEyes.Shaders.Compiler.Lexing;
 using KeenEyes.Shaders.Compiler.Parsing.Ast;
 
@@ -73,15 +74,15 @@ public sealed class Parser
         }
 
         // Throw to trigger synchronization - otherwise we'd loop infinitely
-        throw Error(Current, "Expected 'component' or 'compute' declaration");
+        throw Error(Current, "Expected 'component' or 'compute' declaration", KeslErrorCodes.ExpectedDeclaration);
     }
 
     private ComponentDeclaration ParseComponentDeclaration()
     {
         var location = Current.Location;
-        Consume(TokenKind.Component, "Expected 'component'");
-        var name = Consume(TokenKind.Identifier, "Expected component name").Text;
-        Consume(TokenKind.LeftBrace, "Expected '{' after component name");
+        Consume(TokenKind.Component, "Expected 'component'", KeslErrorCodes.MissingToken);
+        var name = Consume(TokenKind.Identifier, "Expected component name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.LeftBrace, "Expected '{' after component name", KeslErrorCodes.ExpectedOpenBrace);
 
         var fields = new List<FieldDeclaration>();
         while (!Check(TokenKind.RightBrace) && !IsAtEnd())
@@ -92,7 +93,7 @@ public sealed class Parser
             Match(TokenKind.Comma);
         }
 
-        Consume(TokenKind.RightBrace, "Expected '}' after component fields");
+        Consume(TokenKind.RightBrace, "Expected '}' after component fields", KeslErrorCodes.ExpectedCloseBrace);
 
         return new ComponentDeclaration(name, fields, location);
     }
@@ -100,8 +101,8 @@ public sealed class Parser
     private FieldDeclaration ParseFieldDeclaration()
     {
         var location = Current.Location;
-        var name = Consume(TokenKind.Identifier, "Expected field name").Text;
-        Consume(TokenKind.Colon, "Expected ':' after field name");
+        var name = Consume(TokenKind.Identifier, "Expected field name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.Colon, "Expected ':' after field name", KeslErrorCodes.MissingToken);
         var type = ParseType();
 
         return new FieldDeclaration(name, type, location);
@@ -110,9 +111,9 @@ public sealed class Parser
     private ComputeDeclaration ParseComputeDeclaration()
     {
         var location = Current.Location;
-        Consume(TokenKind.Compute, "Expected 'compute'");
-        var name = Consume(TokenKind.Identifier, "Expected shader name").Text;
-        Consume(TokenKind.LeftBrace, "Expected '{' after shader name");
+        Consume(TokenKind.Compute, "Expected 'compute'", KeslErrorCodes.MissingToken);
+        var name = Consume(TokenKind.Identifier, "Expected shader name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.LeftBrace, "Expected '{' after shader name", KeslErrorCodes.ExpectedOpenBrace);
 
         // Parse query block (required)
         var query = ParseQueryBlock();
@@ -127,7 +128,7 @@ public sealed class Parser
         // Parse execute block (required)
         var execute = ParseExecuteBlock();
 
-        Consume(TokenKind.RightBrace, "Expected '}' after shader body");
+        Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
 
         return new ComputeDeclaration(name, query, paramsBlock, execute, location);
     }
@@ -135,8 +136,8 @@ public sealed class Parser
     private QueryBlock ParseQueryBlock()
     {
         var location = Current.Location;
-        Consume(TokenKind.Query, "Expected 'query'");
-        Consume(TokenKind.LeftBrace, "Expected '{' after 'query'");
+        Consume(TokenKind.Query, "Expected 'query'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftBrace, "Expected '{' after 'query'", KeslErrorCodes.ExpectedOpenBrace);
 
         var bindings = new List<QueryBinding>();
         while (!Check(TokenKind.RightBrace) && !IsAtEnd())
@@ -144,7 +145,7 @@ public sealed class Parser
             bindings.Add(ParseQueryBinding());
         }
 
-        Consume(TokenKind.RightBrace, "Expected '}' after query bindings");
+        Consume(TokenKind.RightBrace, "Expected '}' after query bindings", KeslErrorCodes.ExpectedCloseBrace);
 
         return new QueryBlock(bindings, location);
     }
@@ -159,11 +160,11 @@ public sealed class Parser
             TokenKind.Write => AccessMode.Write,
             TokenKind.Optional => AccessMode.Optional,
             TokenKind.Without => AccessMode.Without,
-            _ => throw Error(Current, "Expected 'read', 'write', 'optional', or 'without'")
+            _ => throw Error(Current, "Expected 'read', 'write', 'optional', or 'without'", KeslErrorCodes.ExpectedBindingMode)
         };
         Advance();
 
-        var componentName = Consume(TokenKind.Identifier, "Expected component name").Text;
+        var componentName = Consume(TokenKind.Identifier, "Expected component name", KeslErrorCodes.ExpectedIdentifier).Text;
 
         return new QueryBinding(accessMode, componentName, location);
     }
@@ -171,8 +172,8 @@ public sealed class Parser
     private ParamsBlock ParseParamsBlock()
     {
         var location = Current.Location;
-        Consume(TokenKind.Params, "Expected 'params'");
-        Consume(TokenKind.LeftBrace, "Expected '{' after 'params'");
+        Consume(TokenKind.Params, "Expected 'params'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftBrace, "Expected '{' after 'params'", KeslErrorCodes.ExpectedOpenBrace);
 
         var parameters = new List<ParamDeclaration>();
         while (!Check(TokenKind.RightBrace) && !IsAtEnd())
@@ -181,7 +182,7 @@ public sealed class Parser
             Match(TokenKind.Comma);
         }
 
-        Consume(TokenKind.RightBrace, "Expected '}' after parameters");
+        Consume(TokenKind.RightBrace, "Expected '}' after parameters", KeslErrorCodes.ExpectedCloseBrace);
 
         return new ParamsBlock(parameters, location);
     }
@@ -189,8 +190,8 @@ public sealed class Parser
     private ParamDeclaration ParseParamDeclaration()
     {
         var location = Current.Location;
-        var name = Consume(TokenKind.Identifier, "Expected parameter name").Text;
-        Consume(TokenKind.Colon, "Expected ':' after parameter name");
+        var name = Consume(TokenKind.Identifier, "Expected parameter name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.Colon, "Expected ':' after parameter name", KeslErrorCodes.MissingToken);
         var type = ParseType();
 
         return new ParamDeclaration(name, type, location);
@@ -199,9 +200,9 @@ public sealed class Parser
     private ExecuteBlock ParseExecuteBlock()
     {
         var location = Current.Location;
-        Consume(TokenKind.Execute, "Expected 'execute'");
-        Consume(TokenKind.LeftParen, "Expected '(' after 'execute'");
-        Consume(TokenKind.RightParen, "Expected ')' after 'execute('");
+        Consume(TokenKind.Execute, "Expected 'execute'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftParen, "Expected '(' after 'execute'", KeslErrorCodes.ExpectedOpenParen);
+        Consume(TokenKind.RightParen, "Expected ')' after 'execute('", KeslErrorCodes.ExpectedCloseParen);
 
         var statements = ParseBlock();
 
@@ -210,7 +211,7 @@ public sealed class Parser
 
     private List<Statement> ParseBlock()
     {
-        Consume(TokenKind.LeftBrace, "Expected '{'");
+        Consume(TokenKind.LeftBrace, "Expected '{'", KeslErrorCodes.ExpectedOpenBrace);
 
         var statements = new List<Statement>();
         while (!Check(TokenKind.RightBrace) && !IsAtEnd())
@@ -222,7 +223,7 @@ public sealed class Parser
             }
         }
 
-        Consume(TokenKind.RightBrace, "Expected '}'");
+        Consume(TokenKind.RightBrace, "Expected '}'", KeslErrorCodes.ExpectedCloseBrace);
 
         return statements;
     }
@@ -246,10 +247,10 @@ public sealed class Parser
     private IfStatement ParseIfStatement()
     {
         var location = Current.Location;
-        Consume(TokenKind.If, "Expected 'if'");
-        Consume(TokenKind.LeftParen, "Expected '(' after 'if'");
+        Consume(TokenKind.If, "Expected 'if'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftParen, "Expected '(' after 'if'", KeslErrorCodes.ExpectedOpenParen);
         var condition = ParseExpression();
-        Consume(TokenKind.RightParen, "Expected ')' after condition");
+        Consume(TokenKind.RightParen, "Expected ')' after condition", KeslErrorCodes.ExpectedCloseParen);
 
         var thenBranch = ParseBlock();
 
@@ -265,14 +266,14 @@ public sealed class Parser
     private ForStatement ParseForStatement()
     {
         var location = Current.Location;
-        Consume(TokenKind.For, "Expected 'for'");
-        Consume(TokenKind.LeftParen, "Expected '(' after 'for'");
-        var variable = Consume(TokenKind.Identifier, "Expected loop variable name").Text;
-        Consume(TokenKind.Colon, "Expected ':' after variable");
+        Consume(TokenKind.For, "Expected 'for'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftParen, "Expected '(' after 'for'", KeslErrorCodes.ExpectedOpenParen);
+        var variable = Consume(TokenKind.Identifier, "Expected loop variable name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.Colon, "Expected ':' after variable", KeslErrorCodes.MissingToken);
         var start = ParseExpression();
-        Consume(TokenKind.DotDot, "Expected '..' in range");
+        Consume(TokenKind.DotDot, "Expected '..' in range", KeslErrorCodes.MissingToken);
         var end = ParseExpression();
-        Consume(TokenKind.RightParen, "Expected ')' after range");
+        Consume(TokenKind.RightParen, "Expected ')' after range", KeslErrorCodes.ExpectedCloseParen);
 
         var body = ParseBlock();
 
@@ -288,7 +289,7 @@ public sealed class Parser
         if (Match(TokenKind.Equal))
         {
             var value = ParseExpression();
-            Consume(TokenKind.Semicolon, "Expected ';' after assignment");
+            Consume(TokenKind.Semicolon, "Expected ';' after assignment", KeslErrorCodes.ExpectedSemicolon);
             return new AssignmentStatement(expr, value, location);
         }
 
@@ -306,11 +307,11 @@ public sealed class Parser
             };
             Advance();
             var value = ParseExpression();
-            Consume(TokenKind.Semicolon, "Expected ';' after compound assignment");
+            Consume(TokenKind.Semicolon, "Expected ';' after compound assignment", KeslErrorCodes.ExpectedSemicolon);
             return new CompoundAssignmentStatement(expr, op, value, location);
         }
 
-        Consume(TokenKind.Semicolon, "Expected ';' after expression");
+        Consume(TokenKind.Semicolon, "Expected ';' after expression", KeslErrorCodes.ExpectedSemicolon);
         return new ExpressionStatement(expr, location);
     }
 
@@ -330,7 +331,7 @@ public sealed class Parser
             TokenKind.Uint => PrimitiveTypeKind.Uint,
             TokenKind.Bool => PrimitiveTypeKind.Bool,
             TokenKind.Mat4 => PrimitiveTypeKind.Mat4,
-            _ => throw Error(Current, "Expected type name")
+            _ => throw Error(Current, "Expected type name", KeslErrorCodes.ExpectedTypeName)
         };
         Advance();
 
@@ -468,7 +469,7 @@ public sealed class Parser
         {
             if (Match(TokenKind.Dot))
             {
-                var memberName = Consume(TokenKind.Identifier, "Expected member name after '.'").Text;
+                var memberName = Consume(TokenKind.Identifier, "Expected member name after '.'", KeslErrorCodes.ExpectedIdentifier).Text;
                 expr = new MemberAccessExpression(expr, memberName, Previous.Location);
             }
             else if (Match(TokenKind.LeftParen))
@@ -477,12 +478,12 @@ public sealed class Parser
                 if (expr is IdentifierExpression id)
                 {
                     var args = ParseArguments();
-                    Consume(TokenKind.RightParen, "Expected ')' after arguments");
+                    Consume(TokenKind.RightParen, "Expected ')' after arguments", KeslErrorCodes.ExpectedCloseParen);
                     expr = new CallExpression(id.Name, args, id.Location);
                 }
                 else
                 {
-                    throw Error(Previous, "Can only call functions by name");
+                    throw Error(Previous, "Can only call functions by name", KeslErrorCodes.InvalidExpression);
                 }
             }
             else
@@ -537,7 +538,7 @@ public sealed class Parser
         // Has expression
         if (Match(TokenKind.Has))
         {
-            var componentName = Consume(TokenKind.Identifier, "Expected component name after 'has'").Text;
+            var componentName = Consume(TokenKind.Identifier, "Expected component name after 'has'", KeslErrorCodes.ExpectedIdentifier).Text;
             return new HasExpression(componentName, location);
         }
 
@@ -551,11 +552,11 @@ public sealed class Parser
         if (Match(TokenKind.LeftParen))
         {
             var inner = ParseExpression();
-            Consume(TokenKind.RightParen, "Expected ')' after expression");
+            Consume(TokenKind.RightParen, "Expected ')' after expression", KeslErrorCodes.ExpectedCloseParen);
             return new ParenthesizedExpression(inner, location);
         }
 
-        throw Error(Current, "Expected expression");
+        throw Error(Current, "Expected expression", KeslErrorCodes.InvalidExpression);
     }
 
     #endregion
@@ -593,18 +594,18 @@ public sealed class Parser
         return Previous;
     }
 
-    private Token Consume(TokenKind kind, string message)
+    private Token Consume(TokenKind kind, string message, string? code = null)
     {
         if (Check(kind))
         {
             return Advance();
         }
-        throw Error(Current, message);
+        throw Error(Current, message, code);
     }
 
-    private ParseException Error(Token token, string message)
+    private ParseException Error(Token token, string message, string? code = null)
     {
-        _errors.Add(new CompilerError(message, token.Location));
+        _errors.Add(new CompilerError(message, token.Location, code));
         return new ParseException(message);
     }
 
@@ -639,12 +640,16 @@ public sealed class Parser
 /// </summary>
 /// <param name="Message">The error message.</param>
 /// <param name="Location">The source location of the error.</param>
-public record CompilerError(string Message, SourceLocation Location)
+/// <param name="Code">The optional error code (e.g., "KESL200").</param>
+public record CompilerError(string Message, SourceLocation Location, string? Code = null)
 {
     /// <summary>
     /// Returns a formatted error message.
     /// </summary>
-    public override string ToString() => $"{Location}: error: {Message}";
+    public override string ToString() =>
+        Code is not null
+            ? $"{Location}: error {Code}: {Message}"
+            : $"{Location}: error: {Message}";
 }
 
 /// <summary>
