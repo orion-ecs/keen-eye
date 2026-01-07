@@ -53,12 +53,12 @@ for (int i = 0; i < 3; i++)
 // Create NPCs
 var merchant = world.Spawn("Merchant")
     .WithPosition(x: 50, y: 200)
-    .WithNPC()
+    .WithNpc()
     .Build();
 
 var questGiver = world.Spawn("QuestGiver")
     .WithPosition(x: 150, y: 200)
-    .WithNPC()
+    .WithNpc()
     .Build();
 
 Console.WriteLine($"Created NPCs: Merchant={merchant}, QuestGiver={questGiver}");
@@ -328,7 +328,7 @@ static void PrintWorldState(World world, string label)
 
     var playerCount = world.Query<Position>().With<Player>().Count();
     var enemyCount = world.Query<Position>().With<Enemy>().Count();
-    var npcCount = world.Query<Position>().With<NPC>().Count();
+    var npcCount = world.Query<Position>().With<Npc>().Count();
 
     Console.WriteLine($"Entities: {playerCount} players, {enemyCount} enemies, {npcCount} NPCs");
 
