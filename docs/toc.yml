@@ -136,6 +136,8 @@
       href: aot-deployment.md
     - name: Testing
       href: testing.md
+    - name: MCP TestBridge Server
+      href: mcp-server.md
     - name: Migration Guide (Phase 0)
       href: migration-guide-phase-0.md
 - name: Troubleshooting
