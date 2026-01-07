@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\KeenEyes.Logging\KeenEyes.Logging.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
   </ItemGroup>
 
 </Project>

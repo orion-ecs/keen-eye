@@ -191,8 +191,20 @@
           "xunit.v3.runner.common": "[3.2.1]"
         }
       },
-      "keeneyes.logging": {
+      "keeneyes.abstractions": {
         "type": "Project"
+      },
+      "keeneyes.core": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.logging": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
       }
     }
   }
