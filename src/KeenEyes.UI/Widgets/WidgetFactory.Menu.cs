@@ -275,7 +275,7 @@ public static partial class WidgetFactory
         return menu;
     }
 
-    private static Entity CreateMenuItemEntity(
+    private static void CreateMenuItemEntity(
         IWorld world,
         Entity menu,
         FontHandle font,
@@ -316,7 +316,7 @@ public static partial class WidgetFactory
                 .Build();
 
             world.SetParent(separator, menu);
-            return separator;
+            return;
         }
 
         // Create regular menu item
@@ -468,8 +468,6 @@ public static partial class WidgetFactory
         {
             world.Add(item, new UIMenuToggleTag());
         }
-
-        return item;
     }
 
     #endregion

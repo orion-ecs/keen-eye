@@ -210,7 +210,7 @@ public sealed class GraphInputSystem : SystemBase
         }
     }
 
-    private void ProcessZoom(ref GraphCanvas canvasData, float scrollDelta, Vector2 mousePos, Vector2 origin)
+    private static void ProcessZoom(ref GraphCanvas canvasData, float scrollDelta, Vector2 mousePos, Vector2 origin)
     {
         var zoomFactor = 1f + (scrollDelta > 0 ? ZoomSpeed : -ZoomSpeed);
         var newZoom = Math.Clamp(canvasData.Zoom * zoomFactor, canvasData.MinZoom, canvasData.MaxZoom);
@@ -438,12 +438,9 @@ public sealed class GraphInputSystem : SystemBase
                 var nodeRect = new Rectangle(nodeData.Position.X, nodeData.Position.Y, nodeData.Width, nodeData.Height);
                 var screenRect = GraphTransform.CanvasToScreen(nodeRect, canvasData.Pan, canvasData.Zoom, origin);
 
-                if (selectionBox.Intersects(screenRect))
+                if (selectionBox.Intersects(screenRect) && !World.Has<GraphNodeSelectedTag>(node))
                 {
-                    if (!World.Has<GraphNodeSelectedTag>(node))
-                    {
-                        World.Add(node, new GraphNodeSelectedTag());
-                    }
+                    World.Add(node, new GraphNodeSelectedTag());
                 }
             }
         }
@@ -810,52 +807,49 @@ public sealed class GraphInputSystem : SystemBase
                 ? targetDir == PortDirection.Input
                 : targetDir == PortDirection.Output;
 
-            if (isValidDirection && targetNode != connectionSourceNode)
+            if (isValidDirection && targetNode != connectionSourceNode && World.IsAlive(targetNode))
             {
                 // Get target port type for validation
-                if (World.IsAlive(targetNode))
+                ref readonly var targetNodeData = ref World.Get<GraphNode>(targetNode);
+                if (portRegistry!.TryGetNodeType(targetNodeData.NodeTypeId, out var targetNodeType))
                 {
-                    ref readonly var targetNodeData = ref World.Get<GraphNode>(targetNode);
-                    if (portRegistry!.TryGetNodeType(targetNodeData.NodeTypeId, out var targetNodeType))
+                    var targetPorts = targetDir == PortDirection.Input
+                        ? targetNodeType.InputPorts
+                        : targetNodeType.OutputPorts;
+
+                    if (targetIndex < targetPorts.Length)
                     {
-                        var targetPorts = targetDir == PortDirection.Input
-                            ? targetNodeType.InputPorts
-                            : targetNodeType.OutputPorts;
+                        var targetType = targetPorts[targetIndex].TypeId;
 
-                        if (targetIndex < targetPorts.Length)
+                        // Determine actual source and target based on drag direction
+                        PortTypeId srcType, tgtType;
+                        Entity srcNode, tgtNode;
+                        int srcPort, tgtPort;
+
+                        if (connectionFromOutput)
                         {
-                            var targetType = targetPorts[targetIndex].TypeId;
+                            srcNode = connectionSourceNode;
+                            srcPort = connectionSourcePort;
+                            srcType = connectionSourceType;
+                            tgtNode = targetNode;
+                            tgtPort = targetIndex;
+                            tgtType = targetType;
+                        }
+                        else
+                        {
+                            // Dragging from input - target is actually the source
+                            srcNode = targetNode;
+                            srcPort = targetIndex;
+                            srcType = targetType;
+                            tgtNode = connectionSourceNode;
+                            tgtPort = connectionSourcePort;
+                            tgtType = connectionSourceType;
+                        }
 
-                            // Determine actual source and target based on drag direction
-                            PortTypeId srcType, tgtType;
-                            Entity srcNode, tgtNode;
-                            int srcPort, tgtPort;
-
-                            if (connectionFromOutput)
-                            {
-                                srcNode = connectionSourceNode;
-                                srcPort = connectionSourcePort;
-                                srcType = connectionSourceType;
-                                tgtNode = targetNode;
-                                tgtPort = targetIndex;
-                                tgtType = targetType;
-                            }
-                            else
-                            {
-                                // Dragging from input - target is actually the source
-                                srcNode = targetNode;
-                                srcPort = targetIndex;
-                                srcType = targetType;
-                                tgtNode = connectionSourceNode;
-                                tgtPort = connectionSourcePort;
-                                tgtType = connectionSourceType;
-                            }
-
-                            // Validate type compatibility
-                            if (PortTypeCompatibility.CanConnect(srcType, tgtType))
-                            {
-                                graphContext!.Connect(srcNode, srcPort, tgtNode, tgtPort);
-                            }
+                        // Validate type compatibility
+                        if (PortTypeCompatibility.CanConnect(srcType, tgtType))
+                        {
+                            graphContext!.Connect(srcNode, srcPort, tgtNode, tgtPort);
                         }
                     }
                 }

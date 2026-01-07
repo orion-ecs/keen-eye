@@ -13,8 +13,10 @@ namespace KeenEyes.Navigation.Abstractions;
 /// of both walkable terrain and roads.
 /// </para>
 /// </remarks>
+#pragma warning disable S4070 // Flag values are computed from NavAreaType enum
 [Flags]
 public enum NavAreaMask : uint
+#pragma warning restore S4070
 {
     /// <summary>
     /// No areas are traversable.

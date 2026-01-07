@@ -30,16 +30,14 @@ public sealed class UIAccordionSystem : SystemBase
         {
             ref readonly var interactable = ref World.Get<UIInteractable>(headerEntity);
 
-            if (!interactable.HasEvent(UIEventFlags.Click))
+            if (!interactable.HasEvent(UIEventType.Click))
             {
                 continue;
             }
 
             // Clear the click flag so it doesn't get processed again
-            {
-                ref var mutableInteractable = ref World.Get<UIInteractable>(headerEntity);
-                mutableInteractable.PendingEvents &= ~UIEventFlags.Click;
-            }
+            ref var mutableInteractable = ref World.Get<UIInteractable>(headerEntity);
+            mutableInteractable.PendingEvents &= ~UIEventType.Click;
 
             // Find the parent section
             var parent = World.GetParent(headerEntity);

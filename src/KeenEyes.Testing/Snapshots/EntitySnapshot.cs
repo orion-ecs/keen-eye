@@ -98,9 +98,9 @@ public sealed class EntitySnapshot
         }
 
         // Handle numeric conversions
-        if (value != null && typeof(T).IsAssignableFrom(value.GetType()))
+        if (value is T assignableValue)
         {
-            return (T)value;
+            return assignableValue;
         }
 
         try

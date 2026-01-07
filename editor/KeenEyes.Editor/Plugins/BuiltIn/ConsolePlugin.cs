@@ -99,10 +99,10 @@ internal sealed class ConsolePanelImpl : IEditorPanel
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc />
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        editorWorld = panelContext.EditorWorld;
-        rootEntity = panelContext.Parent;
+        editorWorld = context.EditorWorld;
+        rootEntity = context.Parent;
 
         // TODO: Create console UI with log list and filter buttons
     }

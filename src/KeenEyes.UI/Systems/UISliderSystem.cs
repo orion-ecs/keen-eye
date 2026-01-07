@@ -25,11 +25,15 @@ public sealed class UISliderSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        dragSubscription?.Dispose();
-        clickSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            dragSubscription?.Dispose();
+            clickSubscription?.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

@@ -32,7 +32,8 @@
     <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
 
     <!-- Suppress CS1591 - no XML docs needed for SDK package (no public API) -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- Suppress S3904 - no assembly version needed (SDK packages don't produce assemblies) -->
+    <NoWarn>$(NoWarn);CS1591;S3904</NoWarn>
 
     <!-- SDK package type -->
     <PackageType>MSBuildSdk</PackageType>

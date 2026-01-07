@@ -6,7 +6,7 @@ using KeenEyes.Editor.Plugins.Security;
 namespace KeenEyes.Editor.Tests.Plugins.Security;
 
 /// <summary>
-/// Tests for <see cref="AnalysisConfiguration"/> and <see cref="PatternException"/>.
+/// Tests for <see cref="AnalysisConfiguration"/> and <see cref="PatternExclusion"/>.
 /// </summary>
 public sealed class AnalysisConfigurationTests
 {
@@ -139,7 +139,7 @@ public sealed class AnalysisConfigurationTests
         {
             Exceptions =
             [
-                new PatternException { Pattern = DetectionPattern.Reflection }
+                new PatternExclusion { Pattern = DetectionPattern.Reflection }
             ]
         };
         var finding = SecurityFinding.Reflection("Test", "System.Type.GetMethod");
@@ -156,7 +156,7 @@ public sealed class AnalysisConfigurationTests
         {
             Exceptions =
             [
-                new PatternException { Pattern = DetectionPattern.Reflection }
+                new PatternExclusion { Pattern = DetectionPattern.Reflection }
             ]
         };
         var finding = SecurityFinding.FileSystem("Test", "System.IO.File.Read");
@@ -173,7 +173,7 @@ public sealed class AnalysisConfigurationTests
         {
             Exceptions =
             [
-                new PatternException
+                new PatternExclusion
                 {
                     Pattern = DetectionPattern.FileSystemAccess,
                     MemberPattern = "System.IO.File.Exists"
@@ -194,7 +194,7 @@ public sealed class AnalysisConfigurationTests
         {
             Exceptions =
             [
-                new PatternException
+                new PatternExclusion
                 {
                     Pattern = DetectionPattern.FileSystemAccess,
                     MemberPattern = "System.IO.Path.*"
@@ -224,13 +224,13 @@ public sealed class AnalysisConfigurationTests
 
     #endregion
 
-    #region PatternException.Matches Tests
+    #region PatternExclusion.Matches Tests
 
     [Fact]
-    public void PatternException_Matches_WithNullPattern_MatchesAnyPattern()
+    public void PatternExclusion_Matches_WithNullPattern_MatchesAnyPattern()
     {
         // Arrange
-        var exception = new PatternException { Pattern = null };
+        var exception = new PatternExclusion { Pattern = null };
         var finding1 = SecurityFinding.Reflection("Test", "Type.GetMethod");
         var finding2 = SecurityFinding.FileSystem("Test", "File.Read");
 
@@ -240,10 +240,10 @@ public sealed class AnalysisConfigurationTests
     }
 
     [Fact]
-    public void PatternException_Matches_WithNullMemberPattern_MatchesAnyMember()
+    public void PatternExclusion_Matches_WithNullMemberPattern_MatchesAnyMember()
     {
         // Arrange
-        var exception = new PatternException
+        var exception = new PatternExclusion
         {
             Pattern = DetectionPattern.FileSystemAccess,
             MemberPattern = null
@@ -257,10 +257,10 @@ public sealed class AnalysisConfigurationTests
     }
 
     [Fact]
-    public void PatternException_Matches_ExactMemberMatch()
+    public void PatternExclusion_Matches_ExactMemberMatch()
     {
         // Arrange
-        var exception = new PatternException
+        var exception = new PatternExclusion
         {
             Pattern = DetectionPattern.Reflection,
             MemberPattern = "System.Type.GetMethod"

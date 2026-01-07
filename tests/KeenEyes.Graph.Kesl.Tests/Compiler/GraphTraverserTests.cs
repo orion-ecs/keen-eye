@@ -4,8 +4,6 @@ namespace KeenEyes.Graph.Kesl.Tests.Compiler;
 
 public class GraphTraverserTests
 {
-    private readonly GraphTraverser traverser = new();
-
     #region Topological Sort Tests
 
     [Fact]
@@ -14,7 +12,7 @@ public class GraphTraverserTests
         using var builder = new TestGraphBuilder();
         var root = builder.CreateComputeShader();
 
-        var sorted = traverser.TopologicalSort(builder.Canvas, builder.World);
+        var sorted = GraphTraverser.TopologicalSort(builder.Canvas, builder.World);
 
         Assert.Single(sorted);
         Assert.Equal(root, sorted[0]);
@@ -31,7 +29,7 @@ public class GraphTraverserTests
         // constant -> add -> compute (via execute port)
         builder.Connect(constant, 0, add, 0);
 
-        var sorted = traverser.TopologicalSort(builder.Canvas, builder.World);
+        var sorted = GraphTraverser.TopologicalSort(builder.Canvas, builder.World);
 
         // Dependencies should come before dependents
         var constantIndex = sorted.IndexOf(constant);
@@ -51,7 +49,7 @@ public class GraphTraverserTests
         builder.Connect(const1, 0, add, 0); // Left input
         builder.Connect(const2, 0, add, 1); // Right input
 
-        var sorted = traverser.TopologicalSort(builder.Canvas, builder.World);
+        var sorted = GraphTraverser.TopologicalSort(builder.Canvas, builder.World);
 
         var const1Index = sorted.IndexOf(const1);
         var const2Index = sorted.IndexOf(const2);
@@ -73,7 +71,7 @@ public class GraphTraverserTests
         builder.Connect(shared, 0, add1, 0);
         builder.Connect(shared, 0, add2, 0);
 
-        var sorted = traverser.TopologicalSort(builder.Canvas, builder.World);
+        var sorted = GraphTraverser.TopologicalSort(builder.Canvas, builder.World);
 
         // Shared should appear exactly once
         var sharedCount = sorted.Count(n => n == shared);
@@ -98,7 +96,7 @@ public class GraphTraverserTests
         using var builder = new TestGraphBuilder();
         var node = builder.CreateAddNode();
 
-        var inputs = traverser.GetInputConnections(node, 0, builder.Canvas, builder.World).ToList();
+        var inputs = GraphTraverser.GetInputConnections(node, 0, builder.Canvas, builder.World).ToList();
 
         Assert.Empty(inputs);
     }
@@ -112,7 +110,7 @@ public class GraphTraverserTests
 
         builder.Connect(source, 0, target, 0);
 
-        var inputs = traverser.GetInputConnections(target, 0, builder.Canvas, builder.World).ToList();
+        var inputs = GraphTraverser.GetInputConnections(target, 0, builder.Canvas, builder.World).ToList();
 
         Assert.Single(inputs);
         Assert.Equal(source, inputs[0].SourceNode);
@@ -130,8 +128,8 @@ public class GraphTraverserTests
         builder.Connect(source1, 0, add, 0); // Port 0
         builder.Connect(source2, 0, add, 1); // Port 1
 
-        var port0Inputs = traverser.GetInputConnections(add, 0, builder.Canvas, builder.World).ToList();
-        var port1Inputs = traverser.GetInputConnections(add, 1, builder.Canvas, builder.World).ToList();
+        var port0Inputs = GraphTraverser.GetInputConnections(add, 0, builder.Canvas, builder.World).ToList();
+        var port1Inputs = GraphTraverser.GetInputConnections(add, 1, builder.Canvas, builder.World).ToList();
 
         Assert.Single(port0Inputs);
         Assert.Equal(source1, port0Inputs[0].SourceNode);

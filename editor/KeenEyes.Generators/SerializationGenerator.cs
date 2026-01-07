@@ -139,17 +139,15 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                     continue;
                 }
 
+                // Validate migration method signature and extract version
                 if (migrateAttr.ConstructorArguments.Length > 0 &&
-                    migrateAttr.ConstructorArguments[0].Value is int fromVersion)
+                    migrateAttr.ConstructorArguments[0].Value is int fromVersion &&
+                    method.IsStatic &&
+                    SymbolEqualityComparer.Default.Equals(method.ReturnType, typeSymbol) &&
+                    method.Parameters.Length == 1 &&
+                    method.Parameters[0].Type.ToDisplayString() == "System.Text.Json.JsonElement")
                 {
-                    // Validate migration method signature
-                    if (method.IsStatic &&
-                        SymbolEqualityComparer.Default.Equals(method.ReturnType, typeSymbol) &&
-                        method.Parameters.Length == 1 &&
-                        method.Parameters[0].Type.ToDisplayString() == "System.Text.Json.JsonElement")
-                    {
-                        migrations.Add(new MigrationMethodInfo(fromVersion, method.Name));
-                    }
+                    migrations.Add(new MigrationMethodInfo(fromVersion, method.Name));
                 }
             }
         }
@@ -663,7 +661,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         foreach (var field in component.Fields)
         {
-            var binaryWrite = GetBinaryWriteCode(field.JsonTypeName, field.Type, $"value.{field.Name}");
+            var binaryWrite = GetBinaryWriteCode(field.JsonTypeName, $"value.{field.Name}");
             sb.AppendLine($"        {binaryWrite}");
         }
 
@@ -674,14 +672,13 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         var fieldsWithDefaults = component.Fields.Where(f => f.HasDefaultValue).ToList();
         if (fieldsWithDefaults.Count > 0 && component.Version > 1)
         {
-            GenerateAutoMigrationMethod(sb, component, fieldsWithDefaults);
+            GenerateAutoMigrationMethod(sb, component);
         }
     }
 
     private static void GenerateAutoMigrationMethod(
         StringBuilder sb,
-        SerializableComponentInfo component,
-        List<SerializableFieldInfo> fieldsWithDefaults)
+        SerializableComponentInfo component)
     {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine($"    /// Auto-generated migration for {component.Name}.");
@@ -1107,7 +1104,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         };
     }
 
-    private static string GetBinaryWriteCode(string jsonTypeName, string type, string valueExpr)
+    private static string GetBinaryWriteCode(string jsonTypeName, string valueExpr)
     {
         return jsonTypeName switch
         {

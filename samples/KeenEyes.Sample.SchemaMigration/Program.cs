@@ -64,7 +64,7 @@ foreach (var entity in v1Snapshot.Entities)
 {
     foreach (var comp in entity.Components)
     {
-        var shortName = comp.TypeName.Split('.').Last().Split(',').First();
+        var shortName = comp.TypeName.Split('.')[^1].Split(',')[0];
         Console.WriteLine($"    {entity.Name ?? $"Entity{entity.Id}"}.{shortName}: v{comp.Version}");
     }
 }
@@ -114,7 +114,7 @@ foreach (var entity in v2Snapshot.Entities)
 {
     foreach (var comp in entity.Components)
     {
-        var shortName = comp.TypeName.Split('.').Last().Split(',').First();
+        var shortName = comp.TypeName.Split('.')[^1].Split(',')[0];
         Console.WriteLine($"    {entity.Name ?? $"Entity{entity.Id}"}.{shortName}: v{comp.Version}");
     }
 }
@@ -122,7 +122,7 @@ foreach (var entity in v2Snapshot.Entities)
 // Restore to world
 using var world2 = new World();
 Console.WriteLine("\n  Restoring to world (v2 → v3 migrations run)...");
-var entityMap2 = SnapshotManager.RestoreSnapshot(world2, v2Snapshot, ComponentSerializer.Instance);
+_ = SnapshotManager.RestoreSnapshot(world2, v2Snapshot, ComponentSerializer.Instance);
 
 var player2 = world2.GetEntityByName("Mage");
 if (player2.IsValid)
@@ -152,7 +152,7 @@ if (diagnostics != null)
     Console.WriteLine("  Components with migrations:");
     foreach (var component in diagnostics.GetComponentsWithMigrations())
     {
-        var shortName = component.Split('.').Last();
+        var shortName = component.Split('.')[^1];
         var versions = diagnostics.GetMigrationVersions(component);
         Console.WriteLine($"    {shortName}: migrates from versions [{string.Join(", ", versions)}]");
     }
@@ -236,7 +236,7 @@ foreach (var entity in snapshot3.Entities)
 {
     foreach (var comp in entity.Components)
     {
-        var shortName = comp.TypeName.Split('.').Last().Split(',').First();
+        var shortName = comp.TypeName.Split('.')[^1].Split(',')[0];
         Console.WriteLine($"    {entity.Name ?? $"Entity{entity.Id}"}.{shortName}: v{comp.Version}");
     }
 }

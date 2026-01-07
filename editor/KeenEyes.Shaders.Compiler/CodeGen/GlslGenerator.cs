@@ -109,7 +109,7 @@ public sealed class GlslGenerator
 
             case AssignmentStatement assignStmt:
                 Append(GenerateIndent());
-                _sb.Append(GenerateExpression(assignStmt.Target, bindings, isLValue: true));
+                _sb.Append(GenerateExpression(assignStmt.Target, bindings));
                 _sb.Append(" = ");
                 _sb.Append(GenerateExpression(assignStmt.Value, bindings));
                 _sb.AppendLine(";");
@@ -117,7 +117,7 @@ public sealed class GlslGenerator
 
             case CompoundAssignmentStatement compoundStmt:
                 Append(GenerateIndent());
-                _sb.Append(GenerateExpression(compoundStmt.Target, bindings, isLValue: true));
+                _sb.Append(GenerateExpression(compoundStmt.Target, bindings));
                 _sb.Append(' ');
                 _sb.Append(compoundStmt.Operator switch
                 {
@@ -200,7 +200,7 @@ public sealed class GlslGenerator
         AppendLine("}");
     }
 
-    private string GenerateExpression(Expression expr, IReadOnlyList<QueryBinding> bindings, bool isLValue = false)
+    private string GenerateExpression(Expression expr, IReadOnlyList<QueryBinding> bindings)
     {
         return expr switch
         {
@@ -212,7 +212,7 @@ public sealed class GlslGenerator
                 ? $"{id.Name}[idx]"
                 : id.Name,
 
-            MemberAccessExpression member => GenerateMemberAccess(member, bindings, isLValue),
+            MemberAccessExpression member => GenerateMemberAccess(member, bindings),
 
             BinaryExpression binary => $"({GenerateExpression(binary.Left, bindings)} {GetBinaryOp(binary.Operator)} {GenerateExpression(binary.Right, bindings)})",
 
@@ -228,7 +228,7 @@ public sealed class GlslGenerator
         };
     }
 
-    private string GenerateMemberAccess(MemberAccessExpression member, IReadOnlyList<QueryBinding> bindings, bool isLValue)
+    private string GenerateMemberAccess(MemberAccessExpression member, IReadOnlyList<QueryBinding> bindings)
     {
         // Check if the base is a component name
         if (member.Object is IdentifierExpression id && IsComponentName(id.Name, bindings))
@@ -333,7 +333,7 @@ public sealed class GlslGenerator
                 PrimitiveTypeKind.Uint => "uint",
                 PrimitiveTypeKind.Bool => "bool",
                 PrimitiveTypeKind.Mat4 => "mat4",
-                _ => throw new ArgumentOutOfRangeException()
+                _ => throw new ArgumentOutOfRangeException(nameof(type), pt.Kind, "Unsupported primitive type")
             };
         }
 

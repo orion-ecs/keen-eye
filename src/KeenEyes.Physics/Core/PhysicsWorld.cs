@@ -52,7 +52,6 @@ public sealed class PhysicsWorld : IDisposable
     private readonly CollisionEventManager collisionEventManager;
     private Simulation simulation = null!;
     private bool disposed;
-    private Vector3 gravity;
 
     // State for interpolation
     private float accumulator;
@@ -71,11 +70,7 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary>
     /// Gets or sets the gravity vector.
     /// </summary>
-    public Vector3 Gravity
-    {
-        get => gravity;
-        set => gravity = value;
-    }
+    public Vector3 Gravity { get; set; }
 
     /// <summary>
     /// Gets the number of physics bodies (dynamic + kinematic).
@@ -111,7 +106,7 @@ public sealed class PhysicsWorld : IDisposable
     {
         this.world = world;
         this.config = config;
-        gravity = config.Gravity;
+        Gravity = config.Gravity;
         bodyLookup = new BodyLookup();
         collisionEventManager = new CollisionEventManager(world);
         bufferPool = new BufferPool();
@@ -123,7 +118,7 @@ public sealed class PhysicsWorld : IDisposable
     private void InitializeSimulation()
     {
         var narrowPhaseCallbacks = new NarrowPhaseCallbacks(this);
-        var poseIntegratorCallbacks = new PoseIntegratorCallbacks(gravity);
+        var poseIntegratorCallbacks = new PoseIntegratorCallbacks(Gravity);
 
         simulation = Simulation.Create(
             bufferPool,
@@ -410,7 +405,7 @@ public sealed class PhysicsWorld : IDisposable
     /// <param name="newGravity">The new gravity vector.</param>
     public void SetGravity(Vector3 newGravity)
     {
-        gravity = newGravity;
+        Gravity = newGravity;
     }
 
     /// <summary>
@@ -471,25 +466,23 @@ public sealed class PhysicsWorld : IDisposable
 
             ref readonly var rigidBody = ref world.Get<RigidBody>(entity);
 
-            if (rigidBody.BodyType == RigidBodyType.Kinematic)
+            if (rigidBody.BodyType == RigidBodyType.Kinematic &&
+                world.Has<Transform3D>(entity) && bodyLookup.TryGetBody(entity, out var handle))
             {
-                if (world.Has<Transform3D>(entity) && bodyLookup.TryGetBody(entity, out var handle))
+                ref readonly var transform = ref world.Get<Transform3D>(entity);
+                simulation.Bodies[handle].Pose.Position = transform.Position;
+                simulation.Bodies[handle].Pose.Orientation = transform.Rotation;
+
+                if (world.Has<Velocity3D>(entity))
                 {
-                    ref readonly var transform = ref world.Get<Transform3D>(entity);
-                    simulation.Bodies[handle].Pose.Position = transform.Position;
-                    simulation.Bodies[handle].Pose.Orientation = transform.Rotation;
+                    ref readonly var velocity = ref world.Get<Velocity3D>(entity);
+                    simulation.Bodies[handle].Velocity.Linear = velocity.Value;
+                }
 
-                    if (world.Has<Velocity3D>(entity))
-                    {
-                        ref readonly var velocity = ref world.Get<Velocity3D>(entity);
-                        simulation.Bodies[handle].Velocity.Linear = velocity.Value;
-                    }
-
-                    if (world.Has<AngularVelocity3D>(entity))
-                    {
-                        ref readonly var angVel = ref world.Get<AngularVelocity3D>(entity);
-                        simulation.Bodies[handle].Velocity.Angular = angVel.Value;
-                    }
+                if (world.Has<AngularVelocity3D>(entity))
+                {
+                    ref readonly var angVel = ref world.Get<AngularVelocity3D>(entity);
+                    simulation.Bodies[handle].Velocity.Angular = angVel.Value;
                 }
             }
         }
@@ -852,6 +845,8 @@ public sealed class PhysicsWorld : IDisposable
         }
     }
 
+    // S927: Parameter names are dictated by BepuPhysics IRayHitHandler interface
+#pragma warning disable S927
     private struct RayHitHandler(PhysicsWorld physicsWorld) : IRayHitHandler
     {
         public bool HasHit;
@@ -884,11 +879,13 @@ public sealed class PhysicsWorld : IDisposable
         }
     }
 
+    // S927: Parameter names are dictated by BepuPhysics ISweepHitHandler interface
     private readonly struct OverlapHandler(PhysicsWorld physicsWorld, List<Entity> results) : ISweepHitHandler
     {
         public readonly bool AllowTest(CollidableReference collidable) => true;
 
         public readonly bool AllowTest(CollidableReference collidable, int childIndex) => true;
+#pragma warning restore S927
 
         public readonly void OnHit(ref float maximumT, float t, in Vector3 hitLocation, in Vector3 hitNormal, CollidableReference collidable)
         {

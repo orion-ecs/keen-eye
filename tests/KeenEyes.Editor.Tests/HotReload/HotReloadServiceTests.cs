@@ -129,7 +129,7 @@ public class HotReloadServiceTests : IDisposable
             using var service = new HotReloadService(world);
             service.Initialize();
 
-            service.SetGameProject(tempProject);
+            HotReloadService.SetGameProject(tempProject);
 
             Assert.Equal(tempProject, EditorSettings.GameProjectPath);
         }
@@ -150,7 +150,7 @@ public class HotReloadServiceTests : IDisposable
 
             EditorSettings.GameProjectPath = tempProject;
             service.Initialize();
-            service.SetGameProject(null);
+            HotReloadService.SetGameProject(null);
 
             Assert.Equal(string.Empty, EditorSettings.GameProjectPath);
         }

@@ -304,7 +304,7 @@ internal sealed class PluginLoader
         return true;
     }
 
-    private WeakReference? TryUnloadContext(PluginLoadContext context)
+    private static WeakReference? TryUnloadContext(PluginLoadContext context)
     {
         if (!context.IsCollectible)
         {
@@ -321,12 +321,16 @@ internal sealed class PluginLoader
         string pluginId,
         int maxAttempts = 10)
     {
+        // GC.Collect is required for proper AssemblyLoadContext unloading - this is the recommended pattern
+        // See: https://learn.microsoft.com/en-us/dotnet/standard/assembly/unloadability
+#pragma warning disable S1215 // GC.Collect should not be called
         int attempts = 0;
         for (; attempts < maxAttempts && weakRef.IsAlive; attempts++)
         {
             GC.Collect();
             GC.WaitForPendingFinalizers();
         }
+#pragma warning restore S1215
 
         bool fullyUnloaded = !weakRef.IsAlive;
 

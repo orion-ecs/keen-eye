@@ -14,7 +14,7 @@ namespace KeenEyes.Sample.Multiplayer;
 /// Supports delta serialization for bandwidth efficiency.
 /// </summary>
 [Component]
-public partial struct Position : INetworkSerializable, INetworkDeltaSerializable<Position>
+public partial struct Position : INetworkDeltaSerializable<Position>
 {
     public float X;
     public float Y;

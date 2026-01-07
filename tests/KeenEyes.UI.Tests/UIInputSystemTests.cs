@@ -27,7 +27,7 @@ public class UIInputSystemTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
         Assert.True(interactable.IsHovered);
-        Assert.True(interactable.HasEvent(UIEventFlags.PointerEnter));
+        Assert.True(interactable.HasEvent(UIEventType.PointerEnter));
     }
 
     [Fact]
@@ -45,7 +45,7 @@ public class UIInputSystemTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
         Assert.False(interactable.IsHovered);
-        Assert.False(interactable.HasEvent(UIEventFlags.PointerEnter));
+        Assert.False(interactable.HasEvent(UIEventType.PointerEnter));
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public class UIInputSystemTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
         Assert.False(interactable.IsHovered);
-        Assert.True(interactable.HasEvent(UIEventFlags.PointerExit));
+        Assert.True(interactable.HasEvent(UIEventType.PointerExit));
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class UIInputSystemTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
         Assert.True(interactable.IsPressed);
-        Assert.True(interactable.HasEvent(UIEventFlags.PointerDown));
+        Assert.True(interactable.HasEvent(UIEventType.PointerDown));
     }
 
     [Fact]
@@ -187,8 +187,8 @@ public class UIInputSystemTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
         Assert.False(interactable.IsPressed);
-        Assert.True(interactable.HasEvent(UIEventFlags.Click));
-        Assert.True(interactable.HasEvent(UIEventFlags.PointerUp));
+        Assert.True(interactable.HasEvent(UIEventType.Click));
+        Assert.True(interactable.HasEvent(UIEventType.PointerUp));
     }
 
     [Fact]
@@ -259,7 +259,7 @@ public class UIInputSystemTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(draggable);
         Assert.True(interactable.IsDragging);
-        Assert.True(interactable.HasEvent(UIEventFlags.DragStart));
+        Assert.True(interactable.HasEvent(UIEventType.DragStart));
     }
 
     [Fact]
@@ -343,7 +343,7 @@ public class UIInputSystemTests
 
         ref readonly var interactable = ref world.Get<UIInteractable>(draggable);
         Assert.False(interactable.IsDragging);
-        Assert.True(interactable.HasEvent(UIEventFlags.DragEnd));
+        Assert.True(interactable.HasEvent(UIEventType.DragEnd));
     }
 
     #endregion
@@ -427,7 +427,7 @@ public class UIInputSystemTests
         system.Update(0);
 
         ref readonly var interactable = ref world.Get<UIInteractable>(button);
-        Assert.True(interactable.HasEvent(UIEventFlags.DoubleClick));
+        Assert.True(interactable.HasEvent(UIEventType.DoubleClick));
     }
 
     [Fact]
@@ -553,7 +553,7 @@ public class UIInputSystemTests
 
         ref readonly var interactable2 = ref world.Get<UIInteractable>(draggable);
         Assert.False(interactable2.IsDragging);
-        Assert.True(interactable2.HasEvent(UIEventFlags.DragEnd));
+        Assert.True(interactable2.HasEvent(UIEventType.DragEnd));
     }
 
     [Fact]

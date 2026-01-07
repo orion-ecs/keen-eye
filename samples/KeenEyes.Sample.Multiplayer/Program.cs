@@ -166,23 +166,19 @@ async Task RunLocalDemo()
 
         for (int frame = 0; frame < simulationFrames; frame++)
         {
-            // Move entities
-            {
-                ref var npcPos = ref serverWorld.Get<Position>(npc);
-                ref readonly var npcVel = ref serverWorld.Get<Velocity>(npc);
-                npcPos.X += npcVel.X * deltaTime * 60;
-            }
+            // Move NPC
+            ref var npcPos = ref serverWorld.Get<Position>(npc);
+            ref readonly var npcVel = ref serverWorld.Get<Velocity>(npc);
+            npcPos.X += npcVel.X * deltaTime * 60;
 
-            {
-                ref var remotePos = ref serverWorld.Get<Position>(remotePlayer);
-                ref readonly var remoteVel = ref serverWorld.Get<Velocity>(remotePlayer);
-                remotePos.X += remoteVel.X * deltaTime * 60;
-            }
+            // Move remote player
+            ref var remotePos = ref serverWorld.Get<Position>(remotePlayer);
+            ref readonly var remoteVel = ref serverWorld.Get<Velocity>(remotePlayer);
+            remotePos.X += remoteVel.X * deltaTime * 60;
 
-            {
-                ref var localPos = ref serverWorld.Get<Position>(localPlayer);
-                localPos.X += 2.0f;
-            }
+            // Move local player
+            ref var localPos = ref serverWorld.Get<Position>(localPlayer);
+            localPos.X += 2.0f;
 
             if (serverPlugin.Tick(deltaTime))
             {

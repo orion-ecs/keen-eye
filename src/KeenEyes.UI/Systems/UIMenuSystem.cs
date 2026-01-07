@@ -35,15 +35,19 @@ public sealed class UIMenuSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        clickSubscription?.Dispose();
-        pointerEnterSubscription?.Dispose();
-        contextMenuSubscription?.Dispose();
-        clickSubscription = null;
-        pointerEnterSubscription = null;
-        contextMenuSubscription = null;
-        base.Dispose();
+        if (disposing)
+        {
+            clickSubscription?.Dispose();
+            pointerEnterSubscription?.Dispose();
+            contextMenuSubscription?.Dispose();
+            clickSubscription = null;
+            pointerEnterSubscription = null;
+            contextMenuSubscription = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

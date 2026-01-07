@@ -206,28 +206,26 @@ void SaveUndoState()
     Console.WriteLine($"  [Saved undo state, stack size: {undoStack.Count}]");
 }
 
-bool Undo()
+void Undo()
 {
     if (undoStack.Count == 0)
     {
-        return false;
+        return;
     }
 
     redoStack.Push(SnapshotManager.CreateSnapshot(world, ComponentSerializer.Instance));
     SnapshotManager.RestoreSnapshot(world, undoStack.Pop(), ComponentSerializer.Instance);
-    return true;
 }
 
-bool Redo()
+void Redo()
 {
     if (redoStack.Count == 0)
     {
-        return false;
+        return;
     }
 
     undoStack.Push(SnapshotManager.CreateSnapshot(world, ComponentSerializer.Instance));
     SnapshotManager.RestoreSnapshot(world, redoStack.Pop(), ComponentSerializer.Instance);
-    return true;
 }
 
 // Initial state

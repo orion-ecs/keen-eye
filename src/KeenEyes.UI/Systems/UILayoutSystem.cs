@@ -428,12 +428,6 @@ public sealed class UILayoutSystem : SystemBase
             lineHeights.Add(maxCrossSize);
         }
 
-        // Calculate total cross size needed
-        float totalCrossSize = lineHeights.Sum() + spacing * (lines.Count - 1);
-        float availableCrossSize = direction == LayoutDirection.Horizontal
-            ? contentArea.Height
-            : contentArea.Width;
-
         // Calculate cross axis starting position based on alignment
         float crossStart = direction == LayoutDirection.Horizontal ? contentArea.Y : contentArea.X;
 
@@ -737,7 +731,7 @@ public sealed class UILayoutSystem : SystemBase
         if (Math.Abs(anchorMinX - anchorMaxX) < 0.0001f)
         {
             // Anchors match - use Size for width
-            width = rect.WidthMode == UISizeMode.Fixed ? rect.Size.X : rect.Size.X;
+            width = rect.Size.X;
             x = anchorLeft + offsetLeft - pivotX * width;
         }
         else
@@ -751,7 +745,7 @@ public sealed class UILayoutSystem : SystemBase
         if (Math.Abs(rect.AnchorMin.Y - rect.AnchorMax.Y) < 0.0001f)
         {
             // Anchors match - use Size for height
-            height = rect.HeightMode == UISizeMode.Fixed ? rect.Size.Y : rect.Size.Y;
+            height = rect.Size.Y;
             y = anchorTop + rect.Offset.Top - rect.Pivot.Y * height;
         }
         else

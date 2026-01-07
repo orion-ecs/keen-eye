@@ -76,7 +76,7 @@ public sealed class StateMachineSystem : SystemBase
         }
     }
 
-    private void InitializeStateMachine(
+    private static void InitializeStateMachine(
         ref StateMachineComponent fsm,
         Entity entity,
         Blackboard blackboard,

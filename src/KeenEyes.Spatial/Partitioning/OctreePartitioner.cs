@@ -275,6 +275,9 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     /// </summary>
     private void UpdateInternal(Entity entity, Vector3 position, (Vector3 min, Vector3 max)? bounds)
     {
+        // bounds reserved for future bounded entity support
+        _ = bounds;
+
         // Store entity position for potential redistribution during subdivision
         entityPositions[entity] = position;
 
@@ -544,12 +547,9 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
             // Add entities from this node that are within frustum
             foreach (var entity in Entities)
             {
-                if (entityPositions.TryGetValue(entity, out var pos))
+                if (entityPositions.TryGetValue(entity, out var pos) && frustum.Contains(pos))
                 {
-                    if (frustum.Contains(pos))
-                    {
-                        results.Add(entity);
-                    }
+                    results.Add(entity);
                 }
             }
 
@@ -581,19 +581,16 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
                 if (entityPositions.TryGetValue(entity, out var pos) &&
                     pos.X >= min.X && pos.X <= max.X &&
                     pos.Y >= min.Y && pos.Y <= max.Y &&
-                    pos.Z >= min.Z && pos.Z <= max.Z)
+                    pos.Z >= min.Z && pos.Z <= max.Z &&
+                    !SpanContainsEntity(results, count, entity))
                 {
-                    // Check for duplicates (linear scan)
-                    if (!SpanContainsEntity(results, count, entity))
+                    if (count < results.Length)
                     {
-                        if (count < results.Length)
-                        {
-                            results[count++] = entity;
-                        }
-                        else
-                        {
-                            overflow = true;
-                        }
+                        results[count++] = entity;
+                    }
+                    else
+                    {
+                        overflow = true;
                     }
                 }
             }
@@ -622,22 +619,16 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
             // Add entities from this node that are within frustum
             foreach (var entity in Entities)
             {
-                if (entityPositions.TryGetValue(entity, out var pos))
+                if (entityPositions.TryGetValue(entity, out var pos) && frustum.Contains(pos) &&
+                    !SpanContainsEntity(results, count, entity))
                 {
-                    if (frustum.Contains(pos))
+                    if (count < results.Length)
                     {
-                        // Check for duplicates (linear scan)
-                        if (!SpanContainsEntity(results, count, entity))
-                        {
-                            if (count < results.Length)
-                            {
-                                results[count++] = entity;
-                            }
-                            else
-                            {
-                                overflow = true;
-                            }
-                        }
+                        results[count++] = entity;
+                    }
+                    else
+                    {
+                        overflow = true;
                     }
                 }
             }

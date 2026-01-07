@@ -141,6 +141,8 @@ public struct UIColorPicker(Vector4 color) : IComponent
         }
 
         float hue;
+        // S1244 disabled: exact equality is intentional here - comparing against same computed max value
+#pragma warning disable S1244
         if (max == r)
         {
             hue = 60f * (((g - b) / delta) % 6);
@@ -153,6 +155,7 @@ public struct UIColorPicker(Vector4 color) : IComponent
         {
             hue = 60f * (((r - g) / delta) + 4);
         }
+#pragma warning restore S1244
 
         if (hue < 0)
         {

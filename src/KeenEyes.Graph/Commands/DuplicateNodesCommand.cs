@@ -79,21 +79,19 @@ public sealed class DuplicateNodesCommand(
             ref readonly var conn = ref world.Get<GraphConnection>(connectionEntity);
 
             // Only duplicate connections where both endpoints were duplicated
-            if (originalSet.Contains(conn.SourceNode) && originalSet.Contains(conn.TargetNode))
+            if (originalSet.Contains(conn.SourceNode) && originalSet.Contains(conn.TargetNode) &&
+                originalToNew.TryGetValue(conn.SourceNode, out var newSource) &&
+                originalToNew.TryGetValue(conn.TargetNode, out var newTarget))
             {
-                if (originalToNew.TryGetValue(conn.SourceNode, out var newSource) &&
-                    originalToNew.TryGetValue(conn.TargetNode, out var newTarget))
-                {
-                    var newConnection = graphContext.Connect(
-                        newSource,
-                        conn.SourcePortIndex,
-                        newTarget,
-                        conn.TargetPortIndex);
+                var newConnection = graphContext.Connect(
+                    newSource,
+                    conn.SourcePortIndex,
+                    newTarget,
+                    conn.TargetPortIndex);
 
-                    if (newConnection.IsValid)
-                    {
-                        duplicatedConnections.Add(newConnection);
-                    }
+                if (newConnection.IsValid)
+                {
+                    duplicatedConnections.Add(newConnection);
                 }
             }
         }

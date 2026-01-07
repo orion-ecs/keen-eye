@@ -38,13 +38,17 @@ public sealed class UIWindowSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        dragSubscription?.Dispose();
-        clickSubscription?.Dispose();
-        dragSubscription = null;
-        clickSubscription = null;
-        base.Dispose();
+        if (disposing)
+        {
+            dragSubscription?.Dispose();
+            clickSubscription?.Dispose();
+            dragSubscription = null;
+            clickSubscription = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />
@@ -442,17 +446,16 @@ public sealed class UIWindowSystem : SystemBase
         }
 
         // If currently minimized, restore content first
-        if (windowComponent.State == WindowState.Minimized)
+        if (windowComponent.State == WindowState.Minimized &&
+            windowComponent.ContentPanel.IsValid &&
+            World.Has<UIElement>(windowComponent.ContentPanel))
         {
-            if (windowComponent.ContentPanel.IsValid && World.Has<UIElement>(windowComponent.ContentPanel))
-            {
-                ref var contentElement = ref World.Get<UIElement>(windowComponent.ContentPanel);
-                contentElement.Visible = true;
+            ref var contentElement = ref World.Get<UIElement>(windowComponent.ContentPanel);
+            contentElement.Visible = true;
 
-                if (World.Has<UIHiddenTag>(windowComponent.ContentPanel))
-                {
-                    World.Remove<UIHiddenTag>(windowComponent.ContentPanel);
-                }
+            if (World.Has<UIHiddenTag>(windowComponent.ContentPanel))
+            {
+                World.Remove<UIHiddenTag>(windowComponent.ContentPanel);
             }
         }
 

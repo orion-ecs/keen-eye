@@ -321,7 +321,7 @@ public class UITreeViewSystemTests
 
         // Simulate double-click
         ref var interactable = ref world.Get<UIInteractable>(nodes[0]);
-        interactable.PendingEvents |= UIEventFlags.Click | UIEventFlags.DoubleClick;
+        interactable.PendingEvents |= UIEventType.Click | UIEventType.DoubleClick;
 
         system.Update(0);
 
@@ -778,7 +778,7 @@ public class UITreeViewSystemTests
     private static void SimulateClick(World world, Entity entity)
     {
         ref var interactable = ref world.Get<UIInteractable>(entity);
-        interactable.PendingEvents |= UIEventFlags.Click;
+        interactable.PendingEvents |= UIEventType.Click;
     }
 
     #endregion

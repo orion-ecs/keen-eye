@@ -347,7 +347,7 @@ public sealed class CSharpBindingGenerator
                 PrimitiveTypeKind.Uint => "uint",
                 PrimitiveTypeKind.Bool => "bool",
                 PrimitiveTypeKind.Mat4 => "System.Numerics.Matrix4x4",
-                _ => throw new ArgumentOutOfRangeException()
+                _ => throw new ArgumentOutOfRangeException(nameof(type), pt.Kind, "Unsupported primitive type")
             };
         }
 

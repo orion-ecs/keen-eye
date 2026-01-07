@@ -253,12 +253,10 @@ public readonly struct KeyCombination : IEquatable<KeyCombination>
             else
             {
                 // Try single character keys
-                if (normalized.Length == 1 && char.IsLetterOrDigit(normalized[0]))
+                if (normalized.Length == 1 && char.IsLetterOrDigit(normalized[0]) &&
+                    Enum.TryParse<Key>(normalized, true, out var charKey))
                 {
-                    if (Enum.TryParse<Key>(normalized, true, out var charKey))
-                    {
-                        key = charKey;
-                    }
+                    key = charKey;
                 }
             }
         }

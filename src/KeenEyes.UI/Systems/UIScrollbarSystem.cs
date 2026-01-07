@@ -23,10 +23,14 @@ public sealed class UIScrollbarSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        dragSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            dragSubscription?.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

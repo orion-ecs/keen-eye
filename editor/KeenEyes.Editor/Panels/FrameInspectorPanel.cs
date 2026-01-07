@@ -633,23 +633,22 @@ public static class FrameInspectorPanel
     private static (string Text, Vector4 Color) FormatDiffValue(object value)
     {
         // Check if this is a delta value dictionary
-        if (value is IDictionary<string, object> dict)
+        if (value is IDictionary<string, object> dict &&
+            dict.TryGetValue("before", out var before) &&
+            dict.TryGetValue("after", out var after))
         {
-            if (dict.TryGetValue("before", out var before) && dict.TryGetValue("after", out var after))
+            var beforeStr = FormatValue(before);
+            var afterStr = FormatValue(after);
+
+            // Calculate delta for numeric types
+            var deltaStr = TryCalculateDelta(before, after);
+            if (!string.IsNullOrEmpty(deltaStr))
             {
-                var beforeStr = FormatValue(before);
-                var afterStr = FormatValue(after);
-
-                // Calculate delta for numeric types
-                var deltaStr = TryCalculateDelta(before, after);
-                if (!string.IsNullOrEmpty(deltaStr))
-                {
-                    var color = deltaStr.StartsWith('-') ? NegativeDeltaColor : PositiveDeltaColor;
-                    return ($"{beforeStr} \u2192 {afterStr} ({deltaStr})", color);
-                }
-
-                return ($"{beforeStr} \u2192 {afterStr}", ComponentChangedColor);
+                var color = deltaStr.StartsWith('-') ? NegativeDeltaColor : PositiveDeltaColor;
+                return ($"{beforeStr} \u2192 {afterStr} ({deltaStr})", color);
             }
+
+            return ($"{beforeStr} \u2192 {afterStr}", ComponentChangedColor);
         }
 
         return (FormatValue(value), EditorColors.TextLight);

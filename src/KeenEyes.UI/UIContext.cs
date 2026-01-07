@@ -87,7 +87,7 @@ public sealed class UIContext
         // Set new focus
         focusedEntity = entity;
         interactable.State |= UIInteractionState.Focused;
-        interactable.PendingEvents |= UIEventFlags.FocusGained;
+        interactable.PendingEvents |= UIEventType.FocusGained;
         world.Add(entity, new UIFocusedTag());
 
         // Send focus event
@@ -118,7 +118,7 @@ public sealed class UIContext
         {
             ref var interactable = ref world.Get<UIInteractable>(entity);
             interactable.State &= ~UIInteractionState.Focused;
-            interactable.PendingEvents |= UIEventFlags.FocusLost;
+            interactable.PendingEvents |= UIEventType.FocusLost;
         }
 
         if (world.Has<UIFocusedTag>(entity))

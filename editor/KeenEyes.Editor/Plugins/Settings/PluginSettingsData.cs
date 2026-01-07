@@ -161,9 +161,10 @@ internal sealed class PluginSettingsData
     public int Version { get; set; } = 1;
 
     /// <summary>
-    /// Gets or sets the configured package sources.
+    /// Gets or sets the configured plugin sources.
     /// </summary>
     [JsonPropertyName("sources")]
+#pragma warning disable S1075 // Default NuGet API URL is a well-known, stable endpoint
     public List<PluginSourceSettings> Sources { get; set; } =
     [
         new PluginSourceSettings
@@ -174,6 +175,7 @@ internal sealed class PluginSettingsData
             IsEnabled = true
         }
     ];
+#pragma warning restore S1075
 
     /// <summary>
     /// Gets or sets the plugin search paths.

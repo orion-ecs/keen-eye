@@ -126,8 +126,6 @@ public sealed class TransformGizmo
     private bool _meshesCreated;
 
     // State
-    private GizmoMode _mode = GizmoMode.Translate;
-    private GizmoSpace _space = GizmoSpace.World;
     private GizmoAxis _hoveredAxis = GizmoAxis.None;
     private GizmoAxis _activeAxis = GizmoAxis.None;
     private bool _isDragging;
@@ -141,20 +139,12 @@ public sealed class TransformGizmo
     /// <summary>
     /// Gets or sets the current gizmo mode.
     /// </summary>
-    public GizmoMode Mode
-    {
-        get => _mode;
-        set => _mode = value;
-    }
+    public GizmoMode Mode { get; set; } = GizmoMode.Translate;
 
     /// <summary>
     /// Gets or sets the coordinate space for transform operations.
     /// </summary>
-    public GizmoSpace Space
-    {
-        get => _space;
-        set => _space = value;
-    }
+    public GizmoSpace Space { get; set; } = GizmoSpace.World;
 
     /// <summary>
     /// Gets whether the gizmo is currently being dragged.
@@ -306,13 +296,13 @@ public sealed class TransformGizmo
         var gizmoScale = distanceToCamera * 0.1f;
 
         // Get rotation for local space
-        var gizmoRotation = _space == GizmoSpace.Local ? transform.Rotation : Quaternion.Identity;
+        var gizmoRotation = Space == GizmoSpace.Local ? transform.Rotation : Quaternion.Identity;
 
         // Disable depth testing so gizmo is always visible
         graphics.SetDepthTest(false);
         graphics.SetBlending(true);
 
-        switch (_mode)
+        switch (Mode)
         {
             case GizmoMode.Translate:
                 RenderTranslateGizmo(graphics, gizmoPosition, gizmoRotation, gizmoScale, viewMatrix, projectionMatrix);
@@ -335,7 +325,7 @@ public sealed class TransformGizmo
     /// </summary>
     public void CycleMode()
     {
-        _mode = _mode switch
+        Mode = Mode switch
         {
             GizmoMode.Translate => GizmoMode.Rotate,
             GizmoMode.Rotate => GizmoMode.Scale,
@@ -349,7 +339,7 @@ public sealed class TransformGizmo
     /// </summary>
     public void ToggleSpace()
     {
-        _space = _space == GizmoSpace.World ? GizmoSpace.Local : GizmoSpace.World;
+        Space = Space == GizmoSpace.World ? GizmoSpace.Local : GizmoSpace.World;
     }
 
     private void StartDrag(
@@ -368,7 +358,7 @@ public sealed class TransformGizmo
         // Set up drag plane based on mode and axis
         var cameraForward = cameraController.Forward;
 
-        switch (_mode)
+        switch (Mode)
         {
             case GizmoMode.Translate:
             case GizmoMode.Scale:
@@ -446,7 +436,7 @@ public sealed class TransformGizmo
     {
         var mouseDelta = input.MousePosition - _dragStartMouse;
 
-        switch (_mode)
+        switch (Mode)
         {
             case GizmoMode.Translate:
                 ProcessTranslateDrag(input, cameraController, ref transform, gizmoScale, viewportBounds, projectionMatrix);
@@ -533,7 +523,7 @@ public sealed class TransformGizmo
             _ => Vector3.UnitY
         };
 
-        if (_space == GizmoSpace.Local)
+        if (Space == GizmoSpace.Local)
         {
             axis = Vector3.Transform(axis, _dragStartRotation);
         }
@@ -570,7 +560,7 @@ public sealed class TransformGizmo
         transform.Scale = Vector3.Max(transform.Scale, new Vector3(0.01f, 0.01f, 0.01f));
     }
 
-    private GizmoAxis HitTestGizmo(
+    private static GizmoAxis HitTestGizmo(
         float normalizedX,
         float normalizedY,
         Vector3 gizmoPosition,
@@ -732,7 +722,7 @@ public sealed class TransformGizmo
         in Matrix4x4 projectionMatrix)
     {
         // Transform direction if in local space
-        var worldDirection = _space == GizmoSpace.Local
+        var worldDirection = Space == GizmoSpace.Local
             ? Vector3.Transform(direction, rotation)
             : direction;
 
@@ -781,7 +771,7 @@ public sealed class TransformGizmo
     {
         // For rotation gizmo, we draw a torus-like representation
         // Simplified: draw small cubes along the circle circumference
-        var worldAxis = _space == GizmoSpace.Local
+        var worldAxis = Space == GizmoSpace.Local
             ? Vector3.Transform(axis, rotation)
             : axis;
 
@@ -828,7 +818,7 @@ public sealed class TransformGizmo
         in Matrix4x4 viewMatrix,
         in Matrix4x4 projectionMatrix)
     {
-        var worldDirection = _space == GizmoSpace.Local
+        var worldDirection = Space == GizmoSpace.Local
             ? Vector3.Transform(direction, rotation)
             : direction;
 

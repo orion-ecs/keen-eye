@@ -489,15 +489,12 @@ internal sealed class GridPartitioner : ISpatialPartitioner
             // Remove from cells it no longer occupies
             foreach (var oldCell in oldCells)
             {
-                if (!newCellsList.Contains(oldCell))
+                if (!newCellsList.Contains(oldCell) && grid.TryGetValue(oldCell, out var entitiesInCell))
                 {
-                    if (grid.TryGetValue(oldCell, out var entitiesInCell))
+                    entitiesInCell.Remove(entity);
+                    if (entitiesInCell.Count == 0)
                     {
-                        entitiesInCell.Remove(entity);
-                        if (entitiesInCell.Count == 0)
-                        {
-                            grid.Remove(oldCell);
-                        }
+                        grid.Remove(oldCell);
                     }
                 }
             }

@@ -48,7 +48,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Load into new world
         using var loadedWorld = new World();
-        var sceneName = serializer.Load(loadedWorld, filePath);
+        var sceneName = SceneSerializer.Load(loadedWorld, filePath);
 
         Assert.Equal("GameLevel", sceneName);
         Assert.Equal(4, loadedWorld.EntityCount);
@@ -72,7 +72,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Load into new world
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         var names = loadedWorld.GetAllEntities()
             .Select(e => loadedWorld.GetName(e))
@@ -104,7 +104,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Load and verify
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         var loadedParent = loadedWorld.GetAllEntities()
             .First(e => loadedWorld.GetName(e) == "Parent");
@@ -140,7 +140,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Load and verify chain
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         var entities = loadedWorld.GetAllEntities().ToList();
         var loadedRoot = entities.First(e => loadedWorld.GetName(e) == "Root");
@@ -174,14 +174,14 @@ public class SceneWorkflowTests : IDisposable
         // Load, modify, and save
         using (var world = new World())
         {
-            serializer.Load(world, filePath);
+            SceneSerializer.Load(world, filePath);
             world.Spawn("Added").Build();
             serializer.Save(world, "Scene", filePath);
         }
 
         // Load final state
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         Assert.Equal(2, loadedWorld.EntityCount);
         var names = loadedWorld.GetAllEntities()
@@ -207,7 +207,7 @@ public class SceneWorkflowTests : IDisposable
         // Load, rename, and save
         using (var world = new World())
         {
-            serializer.Load(world, filePath);
+            SceneSerializer.Load(world, filePath);
             var entity = world.GetAllEntities().First();
             var renameCommand = new RenameEntityCommand(world, entity, "NewName");
             renameCommand.Execute();
@@ -216,7 +216,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Load final state
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         var name = loadedWorld.GetName(loadedWorld.GetAllEntities().First());
         Assert.Equal("NewName", name);
@@ -239,7 +239,7 @@ public class SceneWorkflowTests : IDisposable
         // Load, delete one, and save
         using (var world = new World())
         {
-            serializer.Load(world, filePath);
+            SceneSerializer.Load(world, filePath);
             var toDelete = world.GetAllEntities()
                 .First(e => world.GetName(e) == "Delete");
             world.Despawn(toDelete);
@@ -248,7 +248,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Load final state
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         Assert.Equal(1, loadedWorld.EntityCount);
         var name = loadedWorld.GetName(loadedWorld.GetAllEntities().First());
@@ -274,7 +274,7 @@ public class SceneWorkflowTests : IDisposable
         // Load, reparent, and save
         using (var world = new World())
         {
-            serializer.Load(world, filePath);
+            SceneSerializer.Load(world, filePath);
             var entities = world.GetAllEntities().ToList();
             var newParent = entities.First(e => world.GetName(e) == "NewParent");
             var child = entities.First(e => world.GetName(e) == "Child");
@@ -284,7 +284,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Load final state
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         var loadedEntities = loadedWorld.GetAllEntities().ToList();
         var loadedNewParent = loadedEntities.First(e => loadedWorld.GetName(e) == "NewParent");
@@ -328,8 +328,8 @@ public class SceneWorkflowTests : IDisposable
         using var loadedAfterCommands = new World();
         using var loadedAfterUndo = new World();
 
-        serializer.Load(loadedAfterCommands, afterCommandsPath);
-        serializer.Load(loadedAfterUndo, afterUndoPath);
+        SceneSerializer.Load(loadedAfterCommands, afterCommandsPath);
+        SceneSerializer.Load(loadedAfterUndo, afterUndoPath);
 
         Assert.Equal(3, loadedAfterCommands.EntityCount);
         Assert.Equal(0, loadedAfterUndo.EntityCount);
@@ -352,7 +352,7 @@ public class SceneWorkflowTests : IDisposable
         using var loadedWorld = new World();
         var manager = new UndoRedoManager();
 
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         // Add more entities via commands
         manager.Execute(new CreateEntityCommand(loadedWorld, "New1"));
@@ -395,7 +395,7 @@ public class SceneWorkflowTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             using var world = new World();
-            serializer.Load(world, filePath);
+            SceneSerializer.Load(world, filePath);
 
             // Verify structure is intact
             var entities = world.GetAllEntities().ToList();
@@ -409,7 +409,7 @@ public class SceneWorkflowTests : IDisposable
 
         // Final verification
         using var finalWorld = new World();
-        serializer.Load(finalWorld, filePath);
+        SceneSerializer.Load(finalWorld, filePath);
         Assert.Equal(2, finalWorld.EntityCount);
     }
 
@@ -430,8 +430,8 @@ public class SceneWorkflowTests : IDisposable
         using var world1 = new World();
         using var world2 = new World();
 
-        serializer.Load(world1, filePath);
-        serializer.Load(world2, filePath);
+        SceneSerializer.Load(world1, filePath);
+        SceneSerializer.Load(world2, filePath);
 
         // Modify world1 only
         world1.Spawn("OnlyInWorld1").Build();
@@ -462,7 +462,7 @@ public class SceneWorkflowTests : IDisposable
         }
 
         using var loadedWorld = new World();
-        var sceneName = serializer.Load(loadedWorld, filePath);
+        var sceneName = SceneSerializer.Load(loadedWorld, filePath);
 
         Assert.Equal("Empty", sceneName);
         Assert.Equal(0, loadedWorld.EntityCount);
@@ -489,7 +489,7 @@ public class SceneWorkflowTests : IDisposable
 
         Assert.Equal(3, loadedWorld.EntityCount);
 
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         // Should only have entity from file
         Assert.Equal(1, loadedWorld.EntityCount);
@@ -511,7 +511,7 @@ public class SceneWorkflowTests : IDisposable
         }
 
         using var loadedWorld = new World();
-        serializer.Load(loadedWorld, filePath);
+        SceneSerializer.Load(loadedWorld, filePath);
 
         Assert.Equal(2, loadedWorld.EntityCount);
 

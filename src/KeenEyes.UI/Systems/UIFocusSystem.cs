@@ -80,13 +80,13 @@ public sealed class UIFocusSystem : SystemBase
 
                     if (enterPressed)
                     {
-                        interactable.PendingEvents |= UIEventFlags.Submit;
+                        interactable.PendingEvents |= UIEventType.Submit;
                         World.Send(new UISubmitEvent(focused));
                     }
 
                     if (spacePressed && interactable.CanClick)
                     {
-                        interactable.PendingEvents |= UIEventFlags.Click;
+                        interactable.PendingEvents |= UIEventType.Click;
                         var rect = World.Get<UIRect>(focused);
                         World.Send(new UIClickEvent(focused, rect.ComputedBounds.Center, MouseButton.Left));
                     }

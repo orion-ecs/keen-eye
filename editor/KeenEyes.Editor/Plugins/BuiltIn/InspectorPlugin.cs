@@ -92,14 +92,14 @@ internal sealed class InspectorPanelImpl : IEditorPanel
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc />
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        context = panelContext.EditorContext;
-        editorWorld = panelContext.EditorWorld;
-        rootEntity = panelContext.Parent;
+        this.context = context.EditorContext;
+        editorWorld = context.EditorWorld;
+        rootEntity = context.Parent;
 
         // Subscribe to selection changes to update the inspector
-        selectionChangedSubscription = context.OnSelectionChanged(OnSelectionChanged);
+        selectionChangedSubscription = this.context.OnSelectionChanged(OnSelectionChanged);
     }
 
     /// <inheritdoc />

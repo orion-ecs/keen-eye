@@ -32,11 +32,15 @@ public sealed class UIRadialMenuSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        openRequestSubscription?.Dispose();
-        openRequestSubscription = null;
-        base.Dispose();
+        if (disposing)
+        {
+            openRequestSubscription?.Dispose();
+            openRequestSubscription = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

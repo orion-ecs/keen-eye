@@ -17,8 +17,6 @@ namespace KeenEyes.Graph.Kesl.Validation.Rules;
 /// </remarks>
 public sealed class NoCyclesRule : IValidationRule
 {
-    private readonly GraphTraverser traverser = new();
-
     /// <inheritdoc />
     public void Validate(Entity canvas, IWorld world, ValidationResult result)
     {
@@ -39,7 +37,7 @@ public sealed class NoCyclesRule : IValidationRule
         }
 
         // Try topological sort
-        var sorted = traverser.TopologicalSort(canvas, world);
+        var sorted = GraphTraverser.TopologicalSort(canvas, world);
 
         // If sorted.Count != nodeCount, there's a cycle
         if (sorted.Count != nodeCount)

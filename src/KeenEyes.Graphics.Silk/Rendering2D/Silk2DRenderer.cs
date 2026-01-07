@@ -192,7 +192,7 @@ public sealed class Silk2DRenderer : I2DRenderer
     }
 
     /// <inheritdoc />
-    public void Begin(in Matrix4x4 customProjection)
+    public void Begin(in Matrix4x4 projection)
     {
         if (isBatching)
         {
@@ -205,7 +205,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         currentTexture = whiteTexture;
 
         device.UseProgram(shaderProgram);
-        device.UniformMatrix4(projectionLocation, customProjection);
+        device.UniformMatrix4(projectionLocation, projection);
         device.Uniform1(textureLocation, 0);
 
         device.Enable(RenderCapability.Blend);

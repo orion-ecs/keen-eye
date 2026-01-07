@@ -1,6 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+using KeenEyes.Common;
+
 namespace KeenEyes.Editor.Settings;
 
 /// <summary>
@@ -142,7 +144,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Clamp(value, 0.5f, 3.0f);
-            if (_data.Appearance.UiScale == clamped) return;
+            if (_data.Appearance.UiScale.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.Appearance.UiScale;
             _data.Appearance.UiScale = clamped;
             OnSettingChanged(nameof(UiScale), "Appearance", oldValue, clamped);
@@ -192,7 +194,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Max(0.1f, value);
-            if (_data.Viewport.GridSize == clamped) return;
+            if (_data.Viewport.GridSize.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.Viewport.GridSize;
             _data.Viewport.GridSize = clamped;
             OnSettingChanged(nameof(GridSize), "Viewport", oldValue, clamped);
@@ -208,7 +210,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Clamp(value, 0.1f, 5.0f);
-            if (_data.Viewport.GizmoSize == clamped) return;
+            if (_data.Viewport.GizmoSize.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.Viewport.GizmoSize;
             _data.Viewport.GizmoSize = clamped;
             OnSettingChanged(nameof(GizmoSize), "Viewport", oldValue, clamped);
@@ -224,7 +226,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Max(0.1f, value);
-            if (_data.Viewport.CameraSpeed == clamped) return;
+            if (_data.Viewport.CameraSpeed.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.Viewport.CameraSpeed;
             _data.Viewport.CameraSpeed = clamped;
             OnSettingChanged(nameof(CameraSpeed), "Viewport", oldValue, clamped);
@@ -240,7 +242,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Clamp(value, 10f, 170f);
-            if (_data.Viewport.CameraFieldOfView == clamped) return;
+            if (_data.Viewport.CameraFieldOfView.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.Viewport.CameraFieldOfView;
             _data.Viewport.CameraFieldOfView = clamped;
             OnSettingChanged(nameof(CameraFieldOfView), "Viewport", oldValue, clamped);
@@ -256,7 +258,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Max(0.001f, value);
-            if (_data.Viewport.CameraNearClip == clamped) return;
+            if (_data.Viewport.CameraNearClip.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.Viewport.CameraNearClip;
             _data.Viewport.CameraNearClip = clamped;
             OnSettingChanged(nameof(CameraNearClip), "Viewport", oldValue, clamped);
@@ -272,7 +274,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Max(1f, value);
-            if (_data.Viewport.CameraFarClip == clamped) return;
+            if (_data.Viewport.CameraFarClip.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.Viewport.CameraFarClip;
             _data.Viewport.CameraFarClip = clamped;
             OnSettingChanged(nameof(CameraFarClip), "Viewport", oldValue, clamped);
@@ -322,7 +324,7 @@ public static class EditorSettings
         set
         {
             var clamped = Math.Clamp(value, 0f, 100f);
-            if (_data.PlayMode.DefaultTimeScale == clamped) return;
+            if (_data.PlayMode.DefaultTimeScale.ApproximatelyEquals(clamped)) return;
             var oldValue = _data.PlayMode.DefaultTimeScale;
             _data.PlayMode.DefaultTimeScale = clamped;
             OnSettingChanged(nameof(DefaultTimeScale), "PlayMode", oldValue, clamped);

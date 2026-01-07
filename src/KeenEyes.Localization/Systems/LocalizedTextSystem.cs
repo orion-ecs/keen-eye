@@ -64,11 +64,14 @@ public sealed class LocalizedTextSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        localeChangedSubscription?.Dispose();
-        localeChangedSubscription = null;
-        base.Dispose();
+        if (disposing)
+        {
+            localeChangedSubscription?.Dispose();
+            localeChangedSubscription = null;
+        }
+        base.Dispose(disposing);
     }
 
     private void OnLocaleChanged(LocaleChangedEvent evt)

@@ -224,13 +224,11 @@ public static class ConsolePanel
         }
 
         // Search filter
-        if (!string.IsNullOrWhiteSpace(searchText))
+        if (!string.IsNullOrWhiteSpace(searchText) &&
+            !entry.Message.Contains(searchText, StringComparison.OrdinalIgnoreCase) &&
+            !entry.Category.Contains(searchText, StringComparison.OrdinalIgnoreCase))
         {
-            if (!entry.Message.Contains(searchText, StringComparison.OrdinalIgnoreCase) &&
-                !entry.Category.Contains(searchText, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
+            return false;
         }
 
         return true;

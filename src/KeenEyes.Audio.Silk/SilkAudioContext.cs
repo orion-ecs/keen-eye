@@ -519,7 +519,7 @@ public sealed class SilkAudioContext : IAudioContext
     /// <summary>
     /// Internal record for tracking active sound instances.
     /// </summary>
-    private record SoundInstance(
+    private sealed record SoundInstance(
         uint SourceId,
         AudioClipHandle Clip,
         AudioChannel Channel,

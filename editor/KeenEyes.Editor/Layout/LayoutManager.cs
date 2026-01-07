@@ -5,8 +5,10 @@ namespace KeenEyes.Editor.Layout;
 /// </summary>
 public sealed class LayoutManager
 {
-    private static readonly string DefaultLayoutPath;
-    private static readonly string CustomLayoutsFolder;
+    private static readonly string KeenEyesFolder = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KeenEyes");
+    private static readonly string DefaultLayoutPath = Path.Combine(KeenEyesFolder, "layout.json");
+    private static readonly string CustomLayoutsFolder = Path.Combine(KeenEyesFolder, "layouts");
     private static readonly Lazy<LayoutManager> LazyInstance = new(() => new LayoutManager());
 
     private EditorLayout _currentLayout;
@@ -17,14 +19,6 @@ public sealed class LayoutManager
     /// Gets the singleton instance of the layout manager.
     /// </summary>
     public static LayoutManager Instance => LazyInstance.Value;
-
-    static LayoutManager()
-    {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var keenEyesFolder = Path.Combine(appData, "KeenEyes");
-        DefaultLayoutPath = Path.Combine(keenEyesFolder, "layout.json");
-        CustomLayoutsFolder = Path.Combine(keenEyesFolder, "layouts");
-    }
 
     private LayoutManager()
     {
@@ -155,7 +149,7 @@ public sealed class LayoutManager
     /// <summary>
     /// Gets all available custom layouts.
     /// </summary>
-    public IEnumerable<string> GetCustomLayouts()
+    public static IEnumerable<string> GetCustomLayouts()
     {
         if (!Directory.Exists(CustomLayoutsFolder))
         {
@@ -211,7 +205,7 @@ public sealed class LayoutManager
     /// </summary>
     /// <param name="name">The name of the custom layout to delete.</param>
     /// <returns>True if deleted successfully.</returns>
-    public bool DeleteCustomLayout(string name)
+    public static bool DeleteCustomLayout(string name)
     {
         var safeName = string.Join("_", name.Split(Path.GetInvalidFileNameChars()));
         var path = Path.Combine(CustomLayoutsFolder, $"{safeName}.json");

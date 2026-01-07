@@ -44,7 +44,7 @@ public sealed class SceneGenerator : IIncrementalGenerator
 
             foreach (var file in files)
             {
-                var sceneInfo = ProcessAssetFile(ctx, file, compilation, rootNamespace);
+                var sceneInfo = ProcessAssetFile(ctx, file, compilation);
                 if (sceneInfo != null)
                 {
                     sceneInfos.Add(sceneInfo);
@@ -68,8 +68,7 @@ public sealed class SceneGenerator : IIncrementalGenerator
     private static SceneInfo? ProcessAssetFile(
         SourceProductionContext context,
         AdditionalText file,
-        Compilation compilation,
-        string rootNamespace)
+        Compilation compilation)
     {
         var sourceText = file.GetText(context.CancellationToken);
         if (sourceText is null)
@@ -233,10 +232,9 @@ public sealed class SceneGenerator : IIncrementalGenerator
 
         var loweredTypeName = typeName.ToLowerInvariant();
         return allTypes
-            .Where(t => t.ToLowerInvariant().Contains(loweredTypeName) ||
+            .FirstOrDefault(t => t.ToLowerInvariant().Contains(loweredTypeName) ||
                        loweredTypeName.Contains(t.ToLowerInvariant()) ||
-                       LevenshteinDistance(t.ToLowerInvariant(), loweredTypeName) <= 2)
-            .FirstOrDefault();
+                       LevenshteinDistance(t.ToLowerInvariant(), loweredTypeName) <= 2);
     }
 
     private static int LevenshteinDistance(string s1, string s2)
@@ -372,7 +370,7 @@ public sealed class SceneGenerator : IIncrementalGenerator
                 {
                     sb.AppendLine();
                     sb.AppendLine("            {");
-                    GenerateComponentInitializerWithOverrides(sb, componentName, componentData, componentOverrides, "                ");
+                    GenerateComponentInitializerWithOverrides(sb, componentData, componentOverrides, "                ");
                     sb.Append("            }");
                 }
                 else
@@ -483,7 +481,6 @@ public sealed class SceneGenerator : IIncrementalGenerator
 
     private static void GenerateComponentInitializerWithOverrides(
         StringBuilder sb,
-        string componentName,
         Dictionary<string, object?> data,
         List<OverrideParameter> overrides,
         string indent)

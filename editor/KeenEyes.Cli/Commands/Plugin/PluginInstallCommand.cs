@@ -38,15 +38,18 @@ internal sealed class PluginInstallCommand : ICommand
         string? version = null;
         string? source = null;
 
-        for (var i = 1; i < args.Length; i++)
+        var i = 1;
+        while (i < args.Length)
         {
             switch (args[i])
             {
                 case "--version" or "-v" when i + 1 < args.Length:
-                    version = args[++i];
+                    version = args[i + 1];
+                    i += 2;
                     break;
                 case "--source" or "-s" when i + 1 < args.Length:
-                    source = args[++i];
+                    source = args[i + 1];
+                    i += 2;
                     break;
                 case "-h" or "--help":
                     ShowHelp(output);

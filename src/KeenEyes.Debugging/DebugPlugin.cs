@@ -51,13 +51,6 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
     private EventSubscription? timelineHook;
 
     /// <summary>
-    /// Creates a new debug plugin with default options.
-    /// </summary>
-    public DebugPlugin() : this(null)
-    {
-    }
-
-    /// <summary>
     /// Gets the name of this plugin.
     /// </summary>
     public string Name => "Debug";
@@ -93,14 +86,11 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
 
         // Get the system hook capability for profiling, GC tracking, and timeline
         ISystemHookCapability? hookCapability = null;
-        if (options.EnableProfiling || options.EnableGCTracking || options.EnableTimeline)
+        if ((options.EnableProfiling || options.EnableGCTracking || options.EnableTimeline) && !context.TryGetCapability<ISystemHookCapability>(out hookCapability))
         {
-            if (!context.TryGetCapability<ISystemHookCapability>(out hookCapability))
-            {
-                throw new InvalidOperationException(
-                    "DebugPlugin requires ISystemHookCapability for profiling, GC tracking, or timeline. " +
-                    "Disable these options or provide a world that supports system hooks.");
-            }
+            throw new InvalidOperationException(
+                "DebugPlugin requires ISystemHookCapability for profiling, GC tracking, or timeline. " +
+                "Disable these options or provide a world that supports system hooks.");
         }
 
         // Conditionally install profiling

@@ -51,7 +51,8 @@ public sealed class CommentNode : INodeTypeDefinition
             return 0f;
         }
 
-        ref readonly var commentData = ref world.Get<CommentNodeData>(node);
+        // Future: access comment data for text rendering
+        _ = world.Get<CommentNodeData>(node);
 
         // Draw comment background (slightly different from node body)
         renderer.FillRect(bodyArea.X, bodyArea.Y, bodyArea.Width, bodyArea.Height, commentBackgroundColor);

@@ -182,7 +182,7 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
         context.RegisterSymbolAction(AnalyzeField, SymbolKind.Field);
     }
 
-    private void AnalyzeMethod(SymbolAnalysisContext context)
+    private static void AnalyzeMethod(SymbolAnalysisContext context)
     {
         var methodSymbol = (IMethodSymbol)context.Symbol;
 
@@ -273,24 +273,22 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
         foreach (var attr in migrateFromAttrs)
         {
             if (attr.ConstructorArguments.Length > 0 &&
-                attr.ConstructorArguments[0].Value is int fromVersion)
+                attr.ConstructorArguments[0].Value is int fromVersion &&
+                fromVersion >= componentVersion)
             {
-                if (fromVersion >= componentVersion)
-                {
-                    var location = attr.ApplicationSyntaxReference?.GetSyntax()?.GetLocation()
-                        ?? methodSymbol.Locations.FirstOrDefault();
+                var location = attr.ApplicationSyntaxReference?.GetSyntax()?.GetLocation()
+                    ?? methodSymbol.Locations.FirstOrDefault();
 
-                    context.ReportDiagnostic(Diagnostic.Create(
-                        MigrationVersionTooHigh,
-                        location,
-                        fromVersion,
-                        componentVersion));
-                }
+                context.ReportDiagnostic(Diagnostic.Create(
+                    MigrationVersionTooHigh,
+                    location,
+                    fromVersion,
+                    componentVersion));
             }
         }
     }
 
-    private void AnalyzeType(SymbolAnalysisContext context)
+    private static void AnalyzeType(SymbolAnalysisContext context)
     {
         var typeSymbol = (INamedTypeSymbol)context.Symbol;
 
@@ -349,12 +347,10 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
                 }
 
                 if (attr.ConstructorArguments.Length > 0 &&
-                    attr.ConstructorArguments[0].Value is int fromVersion)
+                    attr.ConstructorArguments[0].Value is int fromVersion &&
+                    !migrationVersions.Add(fromVersion))
                 {
-                    if (!migrationVersions.Add(fromVersion))
-                    {
-                        duplicateVersions.Add(fromVersion);
-                    }
+                    duplicateVersions.Add(fromVersion);
                 }
             }
         }
@@ -399,7 +395,7 @@ public sealed class ComponentMigrationAnalyzer : DiagnosticAnalyzer
         }
     }
 
-    private void AnalyzeField(SymbolAnalysisContext context)
+    private static void AnalyzeField(SymbolAnalysisContext context)
     {
         var fieldSymbol = (IFieldSymbol)context.Symbol;
 

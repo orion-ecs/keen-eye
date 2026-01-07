@@ -47,7 +47,7 @@ public struct UIInteractable : IComponent
     /// Pending events that occurred this frame.
     /// Cleared automatically at the start of each frame.
     /// </summary>
-    public UIEventFlags PendingEvents;
+    public UIEventType PendingEvents;
 
     /// <summary>
     /// Creates a basic clickable interactable.
@@ -88,7 +88,7 @@ public struct UIInteractable : IComponent
     /// </summary>
     /// <param name="flag">The event flag to check.</param>
     /// <returns>True if the event occurred this frame.</returns>
-    public readonly bool HasEvent(UIEventFlags flag) => (PendingEvents & flag) != 0;
+    public readonly bool HasEvent(UIEventType flag) => (PendingEvents & flag) != 0;
 
     /// <summary>
     /// Checks if the element is currently hovered.

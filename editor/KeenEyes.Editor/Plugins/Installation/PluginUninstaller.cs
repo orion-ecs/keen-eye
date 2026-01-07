@@ -253,31 +253,16 @@ public sealed class PluginUninstaller
         order.Add(packageId);
     }
 
-    private List<string> FindOrphanedDependencies(List<string> dependencies, string excludePackageId)
+    private static List<string> FindOrphanedDependencies(List<string> dependencies, string excludePackageId)
     {
-        var orphaned = new List<string>();
-
-        foreach (var dep in dependencies)
-        {
-            // Check if this dependency is still needed by other plugins
-            var dependents = registry.GetDependentPlugins(dep)
-                .Where(d => !d.PackageId.Equals(excludePackageId, StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            // Also check if the dependency itself is a primary installed plugin
-            var depEntry = registry.GetInstalledPlugin(dep);
-            if (depEntry == null)
-            {
-                // Not registered, skip
-                continue;
-            }
-
-            // If no other plugins depend on it and it's not a user-installed plugin,
-            // it's orphaned. For now, we consider all registered plugins as user-installed
-            // unless we add a flag to distinguish them. Skip this optimization for now.
-            // In the future, we could add an "isUserInstalled" flag to InstalledPluginEntry.
-        }
-
-        return orphaned;
+        // TODO: Implement orphan detection
+        // To fully implement orphan detection, we would need to:
+        // 1. Check if each dependency is still needed by other plugins
+        // 2. Check if it's a user-installed plugin vs transitive dependency
+        // For now, we consider all registered plugins as user-installed
+        // unless we add a flag to distinguish them.
+        _ = dependencies;
+        _ = excludePackageId;
+        return [];
     }
 }

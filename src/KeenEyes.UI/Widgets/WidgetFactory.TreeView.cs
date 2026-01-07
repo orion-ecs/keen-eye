@@ -433,13 +433,12 @@ public static partial class WidgetFactory
         ref var treeViewData = ref world.Get<UITreeView>(nodeData.TreeView);
 
         // Deselect previous
-        if (treeViewData.SelectedItem.IsValid && treeViewData.SelectedItem != node)
+        if (treeViewData.SelectedItem.IsValid &&
+            treeViewData.SelectedItem != node &&
+            world.Has<UITreeNode>(treeViewData.SelectedItem))
         {
-            if (world.Has<UITreeNode>(treeViewData.SelectedItem))
-            {
-                ref var prevNode = ref world.Get<UITreeNode>(treeViewData.SelectedItem);
-                prevNode.IsSelected = false;
-            }
+            ref var prevNode = ref world.Get<UITreeNode>(treeViewData.SelectedItem);
+            prevNode.IsSelected = false;
         }
 
         // Select new

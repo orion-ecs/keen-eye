@@ -26,32 +26,25 @@ public sealed class AIDebugPanel : IEditorPanel
 {
     private PanelContext? context;
     private Entity rootEntity;
-    private Entity? selectedEntity;
-    private AIDebugTab currentTab = AIDebugTab.Overview;
 
     /// <inheritdoc/>
     public Entity RootEntity => rootEntity;
 
     /// <inheritdoc/>
-    public void Initialize(PanelContext panelContext)
+    public void Initialize(PanelContext context)
     {
-        context = panelContext;
+        this.context = context;
 
         // Create the root entity for the panel UI
-        rootEntity = panelContext.EditorWorld.Spawn("AIDebugPanel").Build();
+        rootEntity = context.EditorWorld.Spawn("AIDebugPanel").Build();
     }
 
     /// <inheritdoc/>
     public void Update(float deltaTime)
     {
-        if (context == null)
-        {
-            return;
-        }
-
         // Get the scene world to access AI entities
         // In a real implementation, this would get the current scene world
-        // and update the debug visualization
+        // and update the debug visualization when context is available
     }
 
     /// <inheritdoc/>
@@ -66,20 +59,12 @@ public sealed class AIDebugPanel : IEditorPanel
     /// <summary>
     /// Gets or sets the currently selected entity for debugging.
     /// </summary>
-    public Entity? SelectedEntity
-    {
-        get => selectedEntity;
-        set => selectedEntity = value;
-    }
+    public Entity? SelectedEntity { get; set; }
 
     /// <summary>
     /// Gets or sets the current debug tab.
     /// </summary>
-    public AIDebugTab CurrentTab
-    {
-        get => currentTab;
-        set => currentTab = value;
-    }
+    public AIDebugTab CurrentTab { get; set; } = AIDebugTab.Overview;
 
     /// <summary>
     /// Gets the layout data for the AI debug panel.
@@ -90,8 +75,8 @@ public sealed class AIDebugPanel : IEditorPanel
     {
         var layout = new AIDebugPanelLayout
         {
-            CurrentTab = currentTab,
-            SelectedEntity = selectedEntity
+            CurrentTab = CurrentTab,
+            SelectedEntity = SelectedEntity
         };
 
         if (sceneWorld == null)
@@ -109,9 +94,9 @@ public sealed class AIDebugPanel : IEditorPanel
         }
 
         // Get detailed info for selected entity
-        if (selectedEntity.HasValue && sceneWorld.IsAlive(selectedEntity.Value))
+        if (SelectedEntity.HasValue && sceneWorld.IsAlive(SelectedEntity.Value))
         {
-            var entity = selectedEntity.Value;
+            var entity = SelectedEntity.Value;
             layout.StateMachineInfo = GetStateMachineInfo(sceneWorld, entity);
             layout.BehaviorTreeInfo = GetBehaviorTreeInfo(sceneWorld, entity);
             layout.UtilityAIInfo = GetUtilityAIInfo(sceneWorld, entity);

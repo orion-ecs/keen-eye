@@ -258,7 +258,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         Console.WriteLine("Play mode and replay playback disposed");
     }
 
-    private void OnHotReloadStatusChanged(object? sender, HotReloadStatusChangedEventArgs e)
+    private static void OnHotReloadStatusChanged(object? sender, HotReloadStatusChangedEventArgs e)
     {
         var prefix = e.Status switch
         {
@@ -282,7 +282,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         }
     }
 
-    private void OnHotReloadFileChanged(object? sender, string filePath)
+    private static void OnHotReloadFileChanged(object? sender, string filePath)
     {
         Console.WriteLine($"[HotReload] File changed: {Path.GetFileName(filePath)}");
     }
@@ -868,35 +868,32 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             }
             _pendingActionAfterDialog = null;
         }
-        else if (e.Modal == _saveAsDialog)
+        else if (e.Modal == _saveAsDialog && e.Result == ModalResult.OK)
         {
-            if (e.Result == ModalResult.OK)
+            // Get the text from the input
+            var filename = GetSaveAsDialogText();
+            if (!string.IsNullOrWhiteSpace(filename))
             {
-                // Get the text from the input
-                var filename = GetSaveAsDialogText();
-                if (!string.IsNullOrWhiteSpace(filename))
+                // Ensure .kescene extension
+                if (!filename.EndsWith(".kescene", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Ensure .kescene extension
-                    if (!filename.EndsWith(".kescene", StringComparison.OrdinalIgnoreCase))
-                    {
-                        filename += ".kescene";
-                    }
+                    filename += ".kescene";
+                }
 
-                    // Determine save path
-                    var savePath = Path.IsPathRooted(filename)
-                        ? filename
-                        : Path.Combine(_assetDatabase.ProjectRoot, filename);
+                // Determine save path
+                var savePath = Path.IsPathRooted(filename)
+                    ? filename
+                    : Path.Combine(_assetDatabase.ProjectRoot, filename);
 
-                    if (_worldManager.SaveSceneAs(savePath))
-                    {
-                        Console.WriteLine($"Scene saved as: {savePath}");
-                        // Refresh asset database to show new file
-                        _assetDatabase.Scan(".kescene", ".keprefab", ".keworld");
-                    }
-                    else
-                    {
-                        Console.WriteLine($"Failed to save scene to: {savePath}");
-                    }
+                if (_worldManager.SaveSceneAs(savePath))
+                {
+                    Console.WriteLine($"Scene saved as: {savePath}");
+                    // Refresh asset database to show new file
+                    _assetDatabase.Scan(".kescene", ".keprefab", ".keworld");
+                }
+                else
+                {
+                    Console.WriteLine($"Failed to save scene to: {savePath}");
                 }
             }
         }
@@ -1274,7 +1271,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             _selection.AddToSelection(entity);
         }
 
-        Console.WriteLine($"Selected all entities ({_selection.SelectedEntities.Count()})");
+        Console.WriteLine($"Selected all entities ({_selection.SelectedEntities.Count})");
     }
 
     /// <inheritdoc/>

@@ -37,33 +37,36 @@ public sealed class UITooltipSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        pointerEnterSubscription?.Dispose();
-        pointerExitSubscription?.Dispose();
-        clickSubscription?.Dispose();
-        pointerEnterSubscription = null;
-        pointerExitSubscription = null;
-        clickSubscription = null;
-        base.Dispose();
+        if (disposing)
+        {
+            pointerEnterSubscription?.Dispose();
+            pointerExitSubscription?.Dispose();
+            clickSubscription?.Dispose();
+            pointerEnterSubscription = null;
+            pointerExitSubscription = null;
+            clickSubscription = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
         // Update hover timing for tooltip delay
-        if (currentHoveredElement.IsValid && World.IsAlive(currentHoveredElement))
+        if (currentHoveredElement.IsValid &&
+            World.IsAlive(currentHoveredElement) &&
+            World.Has<UITooltip>(currentHoveredElement))
         {
-            if (World.Has<UITooltip>(currentHoveredElement))
-            {
-                hoverTime += deltaTime;
-                ref readonly var tooltip = ref World.Get<UITooltip>(currentHoveredElement);
+            hoverTime += deltaTime;
+            ref readonly var tooltip = ref World.Get<UITooltip>(currentHoveredElement);
 
-                // Show tooltip after delay if not already shown
-                if (hoverTime >= tooltip.Delay && !activeTooltip.IsValid)
-                {
-                    ShowTooltip(currentHoveredElement, tooltip);
-                }
+            // Show tooltip after delay if not already shown
+            if (hoverTime >= tooltip.Delay && !activeTooltip.IsValid)
+            {
+                ShowTooltip(currentHoveredElement, tooltip);
             }
         }
 
@@ -286,13 +289,13 @@ public sealed class UITooltipSystem : SystemBase
         foreach (var entity in World.Query<UIPopover>())
         {
             ref var popover = ref World.Get<UIPopover>(entity);
-            if (popover.IsOpen && popover.CloseOnClickOutside)
+            // Check if click was outside this popover
+            if (popover.IsOpen &&
+                popover.CloseOnClickOutside &&
+                !IsDescendantOf(clickedElement, entity) &&
+                clickedElement != entity)
             {
-                // Check if click was outside this popover
-                if (!IsDescendantOf(clickedElement, entity) && clickedElement != entity)
-                {
-                    ClosePopover(entity, ref popover);
-                }
+                ClosePopover(entity, ref popover);
             }
         }
     }

@@ -96,10 +96,13 @@ public partial class HealthSystem : SystemBase
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        damageSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            damageSubscription?.Dispose();
+        }
+        base.Dispose(disposing);
     }
 }
 
@@ -129,28 +132,31 @@ public partial class AudioSystem : SystemBase
         // Nothing to do in Update - audio is event-driven
     }
 
-    private void HandleDamage(DamageMessage msg)
+    private static void HandleDamage(DamageMessage msg)
     {
         Console.WriteLine($"  [Audio] Playing hit sound for entity {msg.Target.Id}");
     }
 
-    private void HandleDeath(DeathMessage msg)
+    private static void HandleDeath(DeathMessage msg)
     {
         Console.WriteLine($"  [Audio] Playing death sound for entity {msg.Entity.Id}");
     }
 
-    private void HandlePickup(ItemPickupMessage msg)
+    private static void HandlePickup(ItemPickupMessage msg)
     {
         Console.WriteLine($"  [Audio] Playing pickup sound for {msg.ItemType}");
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        damageSubscription?.Dispose();
-        deathSubscription?.Dispose();
-        pickupSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            damageSubscription?.Dispose();
+            deathSubscription?.Dispose();
+            pickupSubscription?.Dispose();
+        }
+        base.Dispose(disposing);
     }
 }
 
@@ -177,22 +183,25 @@ public partial class UISystem : SystemBase
         // Nothing to do - UI updates are event-driven
     }
 
-    private void HandleScoreChanged(ScoreChangedMessage msg)
+    private static void HandleScoreChanged(ScoreChangedMessage msg)
     {
         Console.WriteLine($"  [UI] Score updated: {msg.OldScore} -> {msg.NewScore}");
     }
 
-    private void HandleDeath(DeathMessage msg)
+    private static void HandleDeath(DeathMessage msg)
     {
         Console.WriteLine($"  [UI] Entity {msg.Entity.Id} death notification displayed");
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        scoreSubscription?.Dispose();
-        deathSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            scoreSubscription?.Dispose();
+            deathSubscription?.Dispose();
+        }
+        base.Dispose(disposing);
     }
 }
 
@@ -234,10 +243,13 @@ public partial class ScoreSystem : SystemBase
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        deathSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            deathSubscription?.Dispose();
+        }
+        base.Dispose(disposing);
     }
 }
 
@@ -285,10 +297,13 @@ public partial class SpawnerSystem : SystemBase
     }
 
     /// <inheritdoc/>
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        spawnRequestSubscription?.Dispose();
-        base.Dispose();
+        if (disposing)
+        {
+            spawnRequestSubscription?.Dispose();
+        }
+        base.Dispose(disposing);
     }
 }
 

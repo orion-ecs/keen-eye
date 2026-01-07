@@ -125,7 +125,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         });
     }
 
-    private static bool IsBundleType(ITypeSymbol typeSymbol, Compilation compilation)
+    private static bool IsBundleType(ITypeSymbol typeSymbol)
     {
         // Must be a struct
         if (typeSymbol.TypeKind != TypeKind.Struct)
@@ -198,7 +198,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             }
 
             // Check if this field is a bundle
-            if (IsBundleType(underlyingType, compilation))
+            if (IsBundleType(underlyingType))
             {
                 // Recursively flatten the nested bundle
                 var nestedFields = FlattenBundle(
@@ -341,7 +341,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             if (fieldInfo is null)
             {
                 // Field had validation errors that should stop bundle processing
-                if (HasCircularReference(field.Type, typeSymbol, compilation))
+                if (HasCircularReference(field.Type, typeSymbol))
                 {
                     return null;
                 }
@@ -374,7 +374,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         var underlyingType = GetUnderlyingType(fieldType, isNullable);
 
         // Check for circular reference first (bundle containing itself)
-        if (HasCircularReference(underlyingType, bundleType, compilation))
+        if (HasCircularReference(underlyingType, bundleType))
         {
             var location = field.Locations.FirstOrDefault();
             if (location is not null)
@@ -388,7 +388,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         }
 
         // Check if this is a bundle type
-        var isBundle = IsBundleType(underlyingType, compilation);
+        var isBundle = IsBundleType(underlyingType);
 
         // Validate nesting depth for nested bundles
         if (isBundle)
@@ -442,7 +442,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         return fieldType;
     }
 
-    private static bool HasCircularReference(ITypeSymbol underlyingType, INamedTypeSymbol bundleType, Compilation compilation)
+    private static bool HasCircularReference(ITypeSymbol underlyingType, INamedTypeSymbol bundleType)
     {
         return underlyingType.ToDisplayString() == bundleType.ToDisplayString();
     }

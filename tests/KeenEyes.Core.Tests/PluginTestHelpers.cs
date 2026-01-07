@@ -40,10 +40,10 @@ public class TestPluginSystem : SystemBase
         UpdateCount++;
     }
 
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
         Disposed = true;
-        base.Dispose();
+        base.Dispose(disposing);
     }
 }
 
@@ -60,10 +60,10 @@ public class TestSecondPluginSystem : SystemBase
         UpdateCount++;
     }
 
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
         Disposed = true;
-        base.Dispose();
+        base.Dispose(disposing);
     }
 }
 

@@ -143,7 +143,7 @@ public static partial class WidgetFactory
         return CreateDataGrid(world, DataGridConfig.WithHeaders(headers));
     }
 
-    private static Entity CreateColumnHeader(
+    private static void CreateColumnHeader(
         IWorld world,
         Entity grid,
         Entity headerRow,
@@ -253,8 +253,6 @@ public static partial class WidgetFactory
             world.SetParent(resizeHandle, column);
             colComp.ResizeHandle = resizeHandle;
         }
-
-        return column;
     }
 
     /// <summary>
@@ -343,7 +341,7 @@ public static partial class WidgetFactory
         return row;
     }
 
-    private static Entity CreateDataGridCell(
+    private static void CreateDataGridCell(
         IWorld world,
         Entity gridEntity,
         Entity row,
@@ -414,8 +412,6 @@ public static partial class WidgetFactory
             .Build();
 
         world.SetParent(cellText, cell);
-
-        return cell;
     }
 
     /// <summary>

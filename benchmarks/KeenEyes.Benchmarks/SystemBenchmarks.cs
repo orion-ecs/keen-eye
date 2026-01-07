@@ -163,6 +163,9 @@ public class SystemPipelineBenchmarks
         AddSystemsByCount();
     }
 
+    // S907: The 'goto case' pattern is an intentional C# idiom for fall-through
+    // in switch statements. It's cleaner than alternatives for adding N systems.
+#pragma warning disable S907
     private void AddSystemsByCount()
     {
         switch (SystemCount)
@@ -184,6 +187,7 @@ public class SystemPipelineBenchmarks
                 break;
         }
     }
+#pragma warning restore S907
 
     [GlobalCleanup]
     public void Cleanup()

@@ -170,7 +170,7 @@ public sealed class DotRecastProvider : INavigationProvider
             startPt, endPt,
             pathList, pathList.Count,
             straightPath, out var straightPathCount, 256,
-            (int)DtStraightPathOptions.DT_STRAIGHTPATH_ALL_CROSSINGS);
+            DtStraightPathOptions.DT_STRAIGHTPATH_ALL_CROSSINGS);
 
         if (status.Failed() || straightPathCount == 0)
         {

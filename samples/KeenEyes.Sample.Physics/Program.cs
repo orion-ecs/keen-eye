@@ -67,7 +67,7 @@ void RunFallingObjectsDemo()
     }));
 
     // Create ground plane (static body - never moves)
-    var ground = world.Spawn()
+    _ = world.Spawn()
         .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
         .With(RigidBody.Static())
         .With(PhysicsShape.Box(100, 1, 100))  // Large flat box
@@ -181,7 +181,7 @@ void RunStackingCollisionDemo()
     Console.WriteLine("Subscribed to collision events");
 
     // Create ground
-    var ground = world.Spawn()
+    _ = world.Spawn()
         .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
         .With(RigidBody.Static())
         .With(PhysicsShape.Box(50, 1, 50))
@@ -214,7 +214,7 @@ void RunStackingCollisionDemo()
     Console.WriteLine();
     Console.WriteLine("Creating ball to knock over the stack...");
 
-    var knockerBall = world.Spawn()
+    _ = world.Spawn()
         .With(new Transform3D(new Vector3(-20, 5, 0), Quaternion.Identity, Vector3.One))
         .With(new Velocity3D(30, 0, 0))  // Moving fast toward stack
         .With(RigidBody.Dynamic(10.0f))  // Heavy ball
@@ -280,7 +280,7 @@ void RunRaycastingDemo()
     var physics = world.GetExtension<PhysicsWorld>();
 
     // Create ground
-    var ground = world.Spawn()
+    _ = world.Spawn()
         .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
         .With(RigidBody.Static())
         .With(PhysicsShape.Box(100, 1, 100))
@@ -379,7 +379,7 @@ void RunRaycastingDemo()
     // Raycast that misses (backward)
     Console.WriteLine();
     Console.WriteLine("  Ray 4: Backward (-X direction, should miss)");
-    if (physics.Raycast(origin, -Vector3.UnitX, 50f, out var hit4))
+    if (physics.Raycast(origin, -Vector3.UnitX, 50f, out _))
     {
         Console.WriteLine($"    HIT: Unexpected hit!");
     }

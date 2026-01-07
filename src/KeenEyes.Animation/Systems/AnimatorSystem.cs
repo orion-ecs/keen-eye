@@ -148,16 +148,14 @@ public sealed class AnimatorSystem : SystemBase
             }
 
             // Check if we've passed the exit time
-            if (normalizedTime >= transition.ExitTime.Value)
+            if (normalizedTime >= transition.ExitTime.Value &&
+                controller.TryGetState(transition.TargetStateHash, out var targetState) && targetState != null)
             {
-                if (controller.TryGetState(transition.TargetStateHash, out var targetState) && targetState != null)
-                {
-                    animator.NextStateHash = transition.TargetStateHash;
-                    animator.TransitionDuration = transition.Duration;
-                    animator.TransitionProgress = 0f;
-                    animator.NextStateTime = 0f;
-                    break;
-                }
+                animator.NextStateHash = transition.TargetStateHash;
+                animator.TransitionDuration = transition.Duration;
+                animator.TransitionProgress = 0f;
+                animator.NextStateTime = 0f;
+                break;
             }
         }
     }

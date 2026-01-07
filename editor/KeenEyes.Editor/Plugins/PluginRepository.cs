@@ -120,25 +120,22 @@ internal sealed class PluginRepository
             foreach (var subDir in Directory.GetDirectories(directory))
             {
                 var manifestPath = Path.Combine(subDir, ManifestFileName);
-                if (File.Exists(manifestPath))
+                if (File.Exists(manifestPath) &&
+                    TryLoadManifest(manifestPath, subDir, out var plugin))
                 {
-                    if (TryLoadManifest(manifestPath, subDir, out var plugin))
-                    {
-                        RegisterPlugin(plugin);
-                        count++;
-                    }
+                    RegisterPlugin(plugin);
+                    count++;
                 }
 
                 // Also check lib/net10.0 structure (NuGet package layout)
                 var libPath = Path.Combine(subDir, "lib", "net10.0");
                 manifestPath = Path.Combine(subDir, "content", ManifestFileName);
-                if (Directory.Exists(libPath) && File.Exists(manifestPath))
+                if (Directory.Exists(libPath) &&
+                    File.Exists(manifestPath) &&
+                    TryLoadManifest(manifestPath, libPath, out var plugin2))
                 {
-                    if (TryLoadManifest(manifestPath, libPath, out var plugin2))
-                    {
-                        RegisterPlugin(plugin2);
-                        count++;
-                    }
+                    RegisterPlugin(plugin2);
+                    count++;
                 }
             }
         }
@@ -172,18 +169,14 @@ internal sealed class PluginRepository
                     var manifestPath = Path.Combine(versionDir, "content", ManifestFileName);
                     var libPath = Path.Combine(versionDir, "lib", "net10.0");
 
-                    if (File.Exists(manifestPath) && Directory.Exists(libPath))
+                    if (File.Exists(manifestPath) &&
+                        Directory.Exists(libPath) &&
+                        TryLoadManifest(manifestPath, libPath, out var plugin) &&
+                        (!discoveredPlugins.TryGetValue(plugin.Manifest.Id, out var existing) ||
+                            IsNewerVersion(plugin.Manifest.Version, existing.Manifest.Version)))
                     {
-                        if (TryLoadManifest(manifestPath, libPath, out var plugin))
-                        {
-                            // Only register if we don't have a newer version
-                            if (!discoveredPlugins.TryGetValue(plugin.Manifest.Id, out var existing) ||
-                                IsNewerVersion(plugin.Manifest.Version, existing.Manifest.Version))
-                            {
-                                RegisterPlugin(plugin);
-                                count++;
-                            }
-                        }
+                        RegisterPlugin(plugin);
+                        count++;
                     }
                 }
             }

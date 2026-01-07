@@ -160,6 +160,10 @@ public sealed class WorldGenerator(int seed)
 
     private byte GetBlockForPosition(int worldX, int worldY, int worldZ, int terrainHeight, BiomeType biome, BiomeProperties biomeProps)
     {
+        // worldX/worldZ reserved for future ore distribution or structure placement
+        _ = worldX;
+        _ = worldZ;
+
         // Bedrock layer
         if (worldY <= BedrockHeight)
         {

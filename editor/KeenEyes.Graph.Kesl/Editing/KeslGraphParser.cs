@@ -19,7 +19,6 @@ namespace KeenEyes.Graph.Kesl.Editing;
 public sealed class KeslGraphParser
 {
     private readonly NodeTypeRegistry nodeTypeRegistry;
-    private readonly KeslCompiler compiler = new();
 
     /// <summary>
     /// Initializes a new graph parser.
@@ -42,7 +41,7 @@ public sealed class KeslGraphParser
         var mapping = new SourceMapping();
 
         // Use existing compiler to parse to AST
-        var compileResult = compiler.Compile(source);
+        var compileResult = KeslCompiler.Compile(source);
         if (compileResult.Errors.Count > 0)
         {
             var errors = compileResult.Errors.Select(e =>
@@ -66,7 +65,7 @@ public sealed class KeslGraphParser
         }
 
         // Build graph from AST
-        var context = new ParseContext(canvas, world, nodeTypeRegistry, mapping);
+        var context = new ParseContext(canvas, world, mapping);
         CreateNodesFromDeclaration(computeDecl, context);
 
         // Auto-layout the nodes
@@ -135,28 +134,29 @@ public sealed class KeslGraphParser
         }
     }
 
-    private Entity CreateNodeFromStatement(Statement statement, Vector2 position, ParseContext context)
+    private void CreateNodeFromStatement(Statement statement, Vector2 position, ParseContext context)
     {
         switch (statement)
         {
             case AssignmentStatement assign:
-                return CreateNodesFromAssignment(assign, position, context);
+                CreateNodesFromAssignment(assign, position, context);
+                break;
 
             case IfStatement ifStmt:
-                return CreateNodeFromIf(ifStmt, position, context);
+                CreateNodeFromIf(ifStmt, position, context);
+                break;
 
             case ForStatement forStmt:
-                return CreateNodeFromFor(forStmt, position, context);
+                CreateNodeFromFor(forStmt, position, context);
+                break;
 
             case ExpressionStatement exprStmt:
-                return CreateNodeFromExpression(exprStmt.Expression, position, context);
-
-            default:
-                return Entity.Null;
+                CreateNodeFromExpression(exprStmt.Expression, position, context);
+                break;
         }
     }
 
-    private Entity CreateNodesFromAssignment(AssignmentStatement assign, Vector2 position, ParseContext context)
+    private void CreateNodesFromAssignment(AssignmentStatement assign, Vector2 position, ParseContext context)
     {
         if (assign.Target is IdentifierExpression identifier)
         {
@@ -177,14 +177,10 @@ public sealed class KeslGraphParser
             {
                 CreateConnection(valueNode, 0, setVarNode, 1, context);
             }
-
-            return setVarNode;
         }
-
-        return Entity.Null;
     }
 
-    private Entity CreateNodeFromIf(IfStatement ifStmt, Vector2 position, ParseContext context)
+    private void CreateNodeFromIf(IfStatement ifStmt, Vector2 position, ParseContext context)
     {
         var ifNode = CreateNode(KeslNodeIds.If, position, context);
         context.Mapping.AddMapping(ifNode, CreateSpan(ifStmt.Location));
@@ -195,11 +191,9 @@ public sealed class KeslGraphParser
         {
             CreateConnection(conditionNode, 0, ifNode, 0, context);
         }
-
-        return ifNode;
     }
 
-    private Entity CreateNodeFromFor(ForStatement forStmt, Vector2 position, ParseContext context)
+    private void CreateNodeFromFor(ForStatement forStmt, Vector2 position, ParseContext context)
     {
         var forNode = CreateNode(KeslNodeIds.ForLoop, position, context);
         if (context.World.Has<ForLoopNodeData>(forNode))
@@ -223,8 +217,6 @@ public sealed class KeslGraphParser
         {
             CreateConnection(endNode, 0, forNode, 1, context);
         }
-
-        return forNode;
     }
 
     private Entity CreateNodeFromExpression(Expression expression, Vector2 position, ParseContext context)
@@ -511,11 +503,10 @@ public sealed class KeslGraphParser
         // and arrange nodes to minimize edge crossings
     }
 
-    private sealed class ParseContext(Entity canvas, IWorld world, NodeTypeRegistry registry, SourceMapping mapping)
+    private sealed class ParseContext(Entity canvas, IWorld world, SourceMapping mapping)
     {
         public Entity Canvas => canvas;
         public IWorld World => world;
-        public NodeTypeRegistry Registry => registry;
         public SourceMapping Mapping => mapping;
         public Entity RootNode { get; set; }
     }

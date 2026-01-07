@@ -41,8 +41,8 @@ public enum TextAlignV
 [Flags]
 public enum TextStyle
 {
-    /// <summary>Normal text rendering.</summary>
-    Normal = 0,
+    /// <summary>No special text styling.</summary>
+    None = 0,
 
     /// <summary>Bold text (if supported by font).</summary>
     Bold = 1,

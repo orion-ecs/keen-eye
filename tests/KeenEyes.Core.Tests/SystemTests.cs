@@ -21,10 +21,10 @@ public class TestCountingSystem : SystemBase
         TotalDeltaTime += deltaTime;
     }
 
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
         WasDisposed = true;
-        base.Dispose();
+        base.Dispose(disposing);
     }
 }
 

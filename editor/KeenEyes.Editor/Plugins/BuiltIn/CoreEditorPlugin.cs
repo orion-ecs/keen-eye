@@ -140,11 +140,13 @@ internal sealed class CoreEditorPlugin : EditorPluginBase
         var selected = context.Selection.SelectedEntities.ToList();
         if (selected.Count == 0)
         {
+            // Nothing to duplicate
             return;
         }
 
         // TODO: Implement proper entity duplication
         // This requires serializing entities and restoring them as new entities
+        _ = selected; // Suppress unused warning until implementation
     }
 
     /// <summary>

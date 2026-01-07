@@ -29,31 +29,31 @@ internal sealed class MigrateCommand : ICommand
         // Parse options
         var options = ParseOptions(args);
 
-        if (options.ShowHelp)
+        if (options.DisplayHelp)
         {
             ShowHelp(output);
             return CommandResult.Success();
         }
 
         // Validate required options
-        if (string.IsNullOrEmpty(options.Path))
+        if (string.IsNullOrEmpty(options.InputPath))
         {
             return CommandResult.InvalidArguments("Required option --path not specified. Use --help for usage.");
         }
 
-        if (!Directory.Exists(options.Path))
+        if (!Directory.Exists(options.InputPath))
         {
-            return CommandResult.Failure($"Path does not exist: {options.Path}");
+            return CommandResult.Failure($"Path does not exist: {options.InputPath}");
         }
 
         try
         {
             // Find save files
-            var files = FindSaveFiles(options.Path, options.Pattern);
+            var files = FindSaveFiles(options.InputPath, options.Pattern);
 
             if (files.Count == 0)
             {
-                output.WriteLine($"No save files found in {options.Path}");
+                output.WriteLine($"No save files found in {options.InputPath}");
                 if (!string.IsNullOrEmpty(options.Pattern))
                 {
                     output.WriteLine($"Pattern: {options.Pattern}");
@@ -88,12 +88,12 @@ internal sealed class MigrateCommand : ICommand
             string? backupDir = null;
             if (options.Backup)
             {
-                backupDir = await CreateBackupAsync(filesNeedingMigration, options.Path, output, cancellationToken);
+                backupDir = await CreateBackupAsync(filesNeedingMigration, options.InputPath, output, cancellationToken);
                 output.WriteSuccess($"Backup created: {backupDir}");
             }
 
             // Prepare output directory
-            var outputDir = options.OutputPath ?? options.Path;
+            var outputDir = options.OutputPath ?? options.InputPath;
             if (options.OutputPath is not null && !Directory.Exists(options.OutputPath))
             {
                 Directory.CreateDirectory(options.OutputPath);
@@ -132,52 +132,56 @@ internal sealed class MigrateCommand : ICommand
     private static MigrateOptions ParseOptions(string[] args)
     {
         var options = new MigrateOptions();
+        var i = 0;
 
-        for (var i = 0; i < args.Length; i++)
+        while (i < args.Length)
         {
             var arg = args[i];
 
             switch (arg)
             {
                 case "-h" or "--help":
-                    options.ShowHelp = true;
+                    options.DisplayHelp = true;
+                    i++;
                     break;
 
-                case "-p" or "--path":
-                    if (i + 1 < args.Length)
-                    {
-                        options.Path = args[++i];
-                    }
+                case "-p" or "--path" when i + 1 < args.Length:
+                    options.InputPath = args[i + 1];
+                    i += 2;
                     break;
 
-                case "--pattern":
-                    if (i + 1 < args.Length)
-                    {
-                        options.Pattern = args[++i];
-                    }
+                case "--pattern" when i + 1 < args.Length:
+                    options.Pattern = args[i + 1];
+                    i += 2;
                     break;
 
                 case "-n" or "--dry-run":
                     options.DryRun = true;
+                    i++;
                     break;
 
                 case "-b" or "--backup":
                     options.Backup = true;
+                    i++;
                     break;
 
-                case "-o" or "--output":
-                    if (i + 1 < args.Length)
-                    {
-                        options.OutputPath = args[++i];
-                    }
+                case "-o" or "--output" when i + 1 < args.Length:
+                    options.OutputPath = args[i + 1];
+                    i += 2;
                     break;
 
                 case "-v" or "--verbose":
                     options.Verbose = true;
+                    i++;
                     break;
 
                 case "--continue-on-error":
                     options.ContinueOnError = true;
+                    i++;
+                    break;
+
+                default:
+                    i++;
                     break;
             }
         }
@@ -378,9 +382,9 @@ internal sealed class MigrateCommand : ICommand
             var version = reader.ReadUInt16();
             var flags = reader.ReadUInt16();
             var entityCount = reader.ReadInt32();
-            var singletonCount = reader.ReadInt32();
-            var timestamp = reader.ReadInt64();
-            var snapshotVersion = reader.ReadInt32();
+            _ = reader.ReadInt32(); // singletonCount - skip
+            _ = reader.ReadInt64(); // timestamp - skip
+            _ = reader.ReadInt32(); // snapshotVersion - skip
 
             // Read string table
             var hasStringTable = (flags & 0x02) != 0;
@@ -401,9 +405,9 @@ internal sealed class MigrateCommand : ICommand
 
             for (var i = 0; i < entityCount; i++)
             {
-                var entityId = reader.ReadInt32();
-                var parentId = reader.ReadInt32();
-                var name = reader.ReadString();
+                _ = reader.ReadInt32(); // entityId - skip
+                _ = reader.ReadInt32(); // parentId - skip
+                _ = reader.ReadString(); // name - skip
 
                 var componentCount = reader.ReadUInt16();
 
@@ -598,9 +602,9 @@ internal sealed class MigrateCommand : ICommand
         bool verbose,
         CancellationToken cancellationToken)
     {
-        // Read the original file
+        // Read the original file to validate it's a valid save file
         using var inputStream = File.OpenRead(file.FilePath);
-        var (slotInfo, snapshotData) = SaveFileFormat.Read(inputStream);
+        _ = SaveFileFormat.Read(inputStream);
 
         // For a complete implementation, we would:
         // 1. Parse the snapshot using SnapshotManager.FromBinary/FromJson
@@ -660,8 +664,8 @@ internal sealed class MigrateCommand : ICommand
 
     private sealed class MigrateOptions
     {
-        public bool ShowHelp { get; set; }
-        public string? Path { get; set; }
+        public bool DisplayHelp { get; set; }
+        public string? InputPath { get; set; }
         public string? Pattern { get; set; }
         public bool DryRun { get; set; }
         public bool Backup { get; set; }

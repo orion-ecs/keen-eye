@@ -36,19 +36,21 @@ internal sealed class PluginSearchCommand : ICommand
         string? source = null;
         var take = 20;
 
-        for (var i = 1; i < args.Length; i++)
+        var i = 1;
+        while (i < args.Length)
         {
             switch (args[i])
             {
                 case "--source" or "-s" when i + 1 < args.Length:
-                    source = args[++i];
+                    source = args[i + 1];
+                    i += 2;
                     break;
                 case "--take" or "-t" when i + 1 < args.Length:
-                    if (int.TryParse(args[++i], out var takeValue))
+                    if (int.TryParse(args[i + 1], out var takeValue))
                     {
                         take = takeValue;
                     }
-
+                    i += 2;
                     break;
                 case "-h" or "--help":
                     ShowHelp(output);

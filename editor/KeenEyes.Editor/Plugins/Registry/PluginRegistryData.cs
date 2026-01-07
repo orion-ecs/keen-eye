@@ -26,6 +26,7 @@ internal sealed class PluginRegistryData
     /// Gets or sets the configured sources.
     /// </summary>
     [JsonPropertyName("sources")]
+#pragma warning disable S1075 // Default NuGet API URL is a well-known, stable endpoint
     public List<PluginSource> Sources { get; set; } =
     [
         new PluginSource
@@ -35,4 +36,5 @@ internal sealed class PluginRegistryData
             IsDefault = true
         }
     ];
+#pragma warning restore S1075
 }

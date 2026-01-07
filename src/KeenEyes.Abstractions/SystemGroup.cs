@@ -28,8 +28,8 @@ public class SystemGroup(string name) : ISystem
 {
     private readonly List<SystemEntry> systems = [];
     private IWorld? world;
-    private bool enabled = true;
     private bool systemsSorted = true;
+    private bool disposed;
 
     /// <summary>
     /// Gets the name of this system group.
@@ -37,11 +37,7 @@ public class SystemGroup(string name) : ISystem
     public string Name { get; } = name;
 
     /// <inheritdoc />
-    public bool Enabled
-    {
-        get => enabled;
-        set => enabled = value;
-    }
+    public bool Enabled { get; set; } = true;
 
     /// <summary>
     /// Adds a system to this group with specified execution order.
@@ -152,11 +148,31 @@ public class SystemGroup(string name) : ISystem
     /// <inheritdoc />
     public void Dispose()
     {
-        foreach (var entry in systems)
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Releases resources used by this system group.
+    /// </summary>
+    /// <param name="disposing">True if called from Dispose(), false if called from finalizer.</param>
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposed)
         {
-            entry.System.Dispose();
+            return;
         }
-        systems.Clear();
+
+        if (disposing)
+        {
+            foreach (var entry in systems)
+            {
+                entry.System.Dispose();
+            }
+            systems.Clear();
+        }
+
+        disposed = true;
     }
 
     /// <summary>

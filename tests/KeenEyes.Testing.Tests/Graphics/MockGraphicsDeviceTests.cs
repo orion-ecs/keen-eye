@@ -1010,12 +1010,12 @@ public class MockProgramTests
     }
 }
 
-public class MockVAOTests
+public class MockVaoTests
 {
     [Fact]
-    public void MockVAO_StoresProperties()
+    public void MockVao_StoresProperties()
     {
-        var vao = new MockVAO(1);
+        var vao = new MockVao(1);
         vao.EnabledAttributes.Add(0);
         vao.EnabledAttributes.Add(1);
         vao.Attributes[0] = new VertexAttribute(0, 3, VertexAttribType.Float, false, 12, 0);

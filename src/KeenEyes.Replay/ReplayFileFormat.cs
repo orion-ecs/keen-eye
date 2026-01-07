@@ -58,15 +58,10 @@ public static class ReplayFileFormat
     private const int HeaderSize = 16;
 
     /// <summary>
-    /// CRC32 checksum size in bytes.
-    /// </summary>
-    private const int ChecksumSize = 4;
-
-    /// <summary>
     /// File format flags.
     /// </summary>
     [Flags]
-    private enum FormatFlags : ushort
+    private enum FormatOption : ushort
     {
         None = 0,
 
@@ -107,7 +102,7 @@ public static class ReplayFileFormat
         var flags = compressionFlag;
         if (options.IncludeChecksum)
         {
-            flags |= FormatFlags.HasChecksum;
+            flags |= FormatOption.HasChecksum;
         }
 
         // Compute checksum if needed
@@ -258,7 +253,7 @@ public static class ReplayFileFormat
         var compressedData = reader.ReadBytes(dataLength);
 
         // Validate checksum if present and requested
-        if ((flags & FormatFlags.HasChecksum) != 0 && validateChecksum)
+        if ((flags & FormatOption.HasChecksum) != 0 && validateChecksum)
         {
             var storedChecksum = reader.ReadUInt32();
             var computedChecksum = ComputeChecksumValue(compressedData);
@@ -336,7 +331,7 @@ public static class ReplayFileFormat
             }
 
             // Validate checksum if present
-            if ((flags & FormatFlags.HasChecksum) != 0)
+            if ((flags & FormatOption.HasChecksum) != 0)
             {
                 var compressedData = reader.ReadBytes(dataLength);
                 var storedChecksum = reader.ReadUInt32();
@@ -437,7 +432,7 @@ public static class ReplayFileFormat
     /// <summary>
     /// Reads and validates the file header.
     /// </summary>
-    private static (FormatFlags Flags, int MetadataLength, int DataLength) ReadHeader(BinaryReader reader)
+    private static (FormatOption Flags, int MetadataLength, int DataLength) ReadHeader(BinaryReader reader)
     {
         // Read magic
         Span<byte> magic = stackalloc byte[4];
@@ -455,7 +450,7 @@ public static class ReplayFileFormat
         }
 
         // Read flags and lengths
-        var flags = (FormatFlags)reader.ReadUInt16();
+        var flags = (FormatOption)reader.ReadUInt16();
         var metadataLength = reader.ReadInt32();
         var dataLength = reader.ReadInt32();
 
@@ -470,14 +465,14 @@ public static class ReplayFileFormat
     /// <summary>
     /// Compresses data using the specified compression mode.
     /// </summary>
-    private static (byte[] CompressedData, FormatFlags Flag) CompressData(
+    private static (byte[] CompressedData, FormatOption Flag) CompressData(
         byte[] data,
         CompressionMode compression,
         CompressionLevel level)
     {
         if (compression == CompressionMode.None)
         {
-            return (data, FormatFlags.None);
+            return (data, FormatOption.None);
         }
 
         using var output = new MemoryStream();
@@ -489,14 +484,14 @@ public static class ReplayFileFormat
                 {
                     gzip.Write(data);
                 }
-                return (output.ToArray(), FormatFlags.GZipCompressed);
+                return (output.ToArray(), FormatOption.GZipCompressed);
 
             case CompressionMode.Brotli:
                 using (var brotli = new BrotliStream(output, level, leaveOpen: true))
                 {
                     brotli.Write(data);
                 }
-                return (output.ToArray(), FormatFlags.BrotliCompressed);
+                return (output.ToArray(), FormatOption.BrotliCompressed);
 
             default:
                 throw new ArgumentOutOfRangeException(nameof(compression), compression, "Unknown compression mode.");
@@ -540,14 +535,14 @@ public static class ReplayFileFormat
     /// <summary>
     /// Gets the compression mode from flags.
     /// </summary>
-    private static CompressionMode GetCompressionMode(FormatFlags flags)
+    private static CompressionMode GetCompressionMode(FormatOption flags)
     {
-        if ((flags & FormatFlags.BrotliCompressed) != 0)
+        if ((flags & FormatOption.BrotliCompressed) != 0)
         {
             return CompressionMode.Brotli;
         }
 
-        if ((flags & FormatFlags.GZipCompressed) != 0)
+        if ((flags & FormatOption.GZipCompressed) != 0)
         {
             return CompressionMode.GZip;
         }

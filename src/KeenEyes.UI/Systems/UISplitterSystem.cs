@@ -31,11 +31,15 @@ public sealed class UISplitterSystem : SystemBase
     }
 
     /// <inheritdoc />
-    public override void Dispose()
+    protected override void Dispose(bool disposing)
     {
-        dragSubscription?.Dispose();
-        dragSubscription = null;
-        base.Dispose();
+        if (disposing)
+        {
+            dragSubscription?.Dispose();
+            dragSubscription = null;
+        }
+
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

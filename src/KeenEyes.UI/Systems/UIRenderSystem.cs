@@ -75,24 +75,20 @@ public sealed class UIRenderSystem : SystemBase
 
     private void TryInitializeRenderers()
     {
-        // Try getting I2DRenderer directly as extension first
-        if (!World.TryGetExtension(out renderer2D))
+        // Try getting I2DRenderer directly as extension first, fall back to provider
+        if (!World.TryGetExtension(out renderer2D) &&
+            World.TryGetExtension<I2DRendererProvider>(out var provider) &&
+            provider is not null)
         {
-            // Fall back to getting it from a 2D renderer provider (e.g., SilkGraphicsContext)
-            if (World.TryGetExtension<I2DRendererProvider>(out var provider) && provider is not null)
-            {
-                renderer2D = provider.Get2DRenderer();
-            }
+            renderer2D = provider.Get2DRenderer();
         }
 
-        // Try getting ITextRenderer directly as extension first
-        if (!World.TryGetExtension(out textRenderer))
+        // Try getting ITextRenderer directly as extension first, fall back to provider
+        if (!World.TryGetExtension(out textRenderer) &&
+            World.TryGetExtension<ITextRendererProvider>(out var textProvider) &&
+            textProvider is not null)
         {
-            // Fall back to getting it from a text renderer provider (e.g., SilkGraphicsContext)
-            if (World.TryGetExtension<ITextRendererProvider>(out var textProvider) && textProvider is not null)
-            {
-                textRenderer = textProvider.GetTextRenderer();
-            }
+            textRenderer = textProvider.GetTextRenderer();
         }
     }
 

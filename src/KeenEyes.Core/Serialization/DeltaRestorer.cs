@@ -223,12 +223,10 @@ public static class DeltaRestorer
                 world.SetParent(entity, Entity.Null);
             }
         }
-        else if (delta.NewParentId.HasValue)
+        else if (delta.NewParentId.HasValue &&
+                 entityMap.TryGetValue(delta.NewParentId.Value, out var newParent))
         {
-            if (entityMap.TryGetValue(delta.NewParentId.Value, out var newParent))
-            {
-                world.SetParent(entity, newParent);
-            }
+            world.SetParent(entity, newParent);
         }
 
         // Remove components

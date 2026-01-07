@@ -21,7 +21,7 @@ public sealed class KeslCompiler
     /// <param name="source">The KESL source code.</param>
     /// <param name="filePath">The file path for error reporting.</param>
     /// <returns>The compilation result.</returns>
-    public CompilationResult Compile(string source, string filePath = "<input>")
+    public static CompilationResult Compile(string source, string filePath = "<input>")
     {
         var errors = new List<CompilerError>();
 
@@ -61,7 +61,7 @@ public sealed class KeslCompiler
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
     /// <returns>The generated GLSL code.</returns>
-    public string GenerateGlsl(ComputeDeclaration compute)
+    public static string GenerateGlsl(ComputeDeclaration compute)
     {
         var generator = new GlslGenerator();
         return generator.Generate(compute);
