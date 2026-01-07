@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.TestBridge.Abstractions</PackageId>
+    <Description>Abstractions for automated testing and debugging of KeenEyes applications</Description>
+    <PackageTags>ecs;testing;automation;debugging;input-injection;screenshot;abstractions</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
