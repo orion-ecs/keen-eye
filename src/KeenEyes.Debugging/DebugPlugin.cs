@@ -62,6 +62,12 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
         var debugController = new DebugController(options.InitialDebugMode);
         context.SetExtension(debugController);
 
+        // Wire up optional callback for debug mode changes (enables logging integration)
+        if (options.OnDebugModeChanged is not null)
+        {
+            debugController.DebugModeChanged += (_, isDebug) => options.OnDebugModeChanged(isDebug);
+        }
+
         // Install EntityInspector if inspection capability is available (no performance overhead)
         if (context.TryGetCapability<IInspectionCapability>(out var inspectionCapability) && inspectionCapability is not null)
         {
@@ -266,4 +272,31 @@ public sealed record DebugOptions
     /// If null, all systems in all phases are recorded. Default is null (record all phases).
     /// </remarks>
     public SystemPhase? TimelinePhase { get; init; } = null;
+
+    /// <summary>
+    /// Gets or initializes a callback invoked when debug mode changes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Use this callback to integrate with logging systems. The callback receives
+    /// the new debug mode state (true = debug mode enabled, false = disabled).
+    /// </para>
+    /// <para>
+    /// Example usage with KeenEyes.Logging:
+    /// <code>
+    /// var options = new DebugOptions
+    /// {
+    ///     OnDebugModeChanged = (isDebug) =>
+    ///     {
+    ///         logManager.MinimumLevel = isDebug ? LogLevel.Debug : LogLevel.Info;
+    ///     }
+    /// };
+    /// world.InstallPlugin(new DebugPlugin(options));
+    /// </code>
+    /// </para>
+    /// <para>
+    /// Default is null (no callback).
+    /// </para>
+    /// </remarks>
+    public Action<bool>? OnDebugModeChanged { get; init; } = null;
 }

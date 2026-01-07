@@ -1153,7 +1153,15 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
 
         if (!result.Success)
         {
-            // TODO: Show error toast or dialog
+            // Show error feedback - use notification capability when available
+            if (editorContext?.TryGetCapability<INotificationCapability>(out var notifications) == true && notifications is not null)
+            {
+                notifications.ShowError(result.ErrorMessage ?? "Failed to uninstall plugin", "Uninstall Failed");
+            }
+            else
+            {
+                Console.WriteLine($"Plugin uninstall failed: {result.ErrorMessage ?? "Unknown error"}");
+            }
             return;
         }
 

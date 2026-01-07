@@ -261,59 +261,59 @@ Pluggable logging with multiple providers.
 Development tools and diagnostics.
 
 ### 13.1 Debug Mode
-- [ ] `World.DebugMode` toggle
-- [ ] Verbose logging option
-- [ ] Entity/component inspection
+- [x] `World.DebugMode` toggle (`DebugController.IsDebugMode` with events)
+- [x] Verbose logging option (`DebugOptions.OnDebugModeChanged` callback for logging integration)
+- [x] Entity/component inspection (`EntityInspector` with full component details)
 
 ### 13.2 Profiling
-- [ ] System execution timing
-- [ ] Query performance metrics
-- [ ] Memory usage tracking
-- [ ] GC allocation monitoring
+- [x] System execution timing (`Profiler` class)
+- [x] Query performance metrics (`QueryProfiler` class)
+- [x] Memory usage tracking (`MemoryTracker` class)
+- [x] GC allocation monitoring (`GCTracker` class)
 
 ### 13.3 Visualization
-- [ ] Entity inspector API
-- [ ] System execution timeline
-- [ ] Archetype statistics
+- [x] Entity inspector API (`EntityInspector`)
+- [x] System execution timeline (`TimelineRecorder`)
+- [x] Archetype statistics (`MemoryTracker` + `IStatisticsCapability`)
 
 ---
 
 ## Phase 14: Testing Tools
 
-Utilities for testing ECS code.
+Utilities for testing ECS code. **Status: 75-80% Complete** (KeenEyes.Testing package)
 
 ### 14.1 Test World Builder
-- [ ] `TestWorldBuilder` with fluent API
-- [ ] Pre-configured test worlds
-- [ ] Isolated world instances per test
-- [ ] Deterministic entity ID generation
-- [ ] Time control (manual tick advancement)
+- [x] `TestWorldBuilder` with fluent API
+- [x] Pre-configured test worlds
+- [x] Isolated world instances per test
+- [x] Deterministic entity ID generation
+- [x] Time control (`TestClock` for manual tick advancement)
 
 ### 14.2 Assertion Helpers
-- [ ] `entity.ShouldHaveComponent<T>()`
-- [ ] `entity.ShouldNotHaveComponent<T>()`
-- [ ] `entity.ShouldBeAlive()` / `ShouldBeDead()`
-- [ ] `component.ShouldEqual(expected)`
-- [ ] `world.ShouldHaveEntityCount(n)`
-- [ ] `query.ShouldMatchEntities(count)`
+- [x] `entity.ShouldHaveComponent<T>()` (`EntityAssertions`)
+- [x] `entity.ShouldNotHaveComponent<T>()` (`EntityAssertions`)
+- [x] `entity.ShouldBeAlive()` / `ShouldBeDead()` (`EntityAssertions`)
+- [x] `component.ShouldEqual(expected)` (`ComponentAssertions`)
+- [x] `world.ShouldHaveEntityCount(n)` (`WorldAssertions`)
+- [ ] `query.ShouldMatchEntities(count)` (partial - needs enhancement)
 
 ### 14.3 Mock Utilities
-- [ ] Mock system base class
-- [ ] System execution recording
-- [ ] Component change tracking for tests
-- [ ] Event capture and verification
+- [x] Mock system base class (`MockPlugin`, `MockPluginContext`)
+- [x] System execution recording (`EventRecorder<T>`)
+- [x] Component change tracking for tests (`EventRecorder`)
+- [x] Event capture and verification (`EventAssertions`)
 
 ### 14.4 Snapshot Testing
-- [ ] World state snapshots for comparison
-- [ ] Entity snapshot assertions
-- [ ] Component data diffing
-- [ ] Snapshot serialization format
+- [x] World state snapshots for comparison (`SnapshotComparer`)
+- [x] Entity snapshot assertions (`SnapshotAssertions`)
+- [ ] Advanced component data diffing (partial implementation)
+- [x] Snapshot serialization format (uses Core's `SnapshotManager`)
 
 ### 14.5 Test Fixtures
-- [ ] Common component fixtures
-- [ ] Entity builder presets
-- [ ] System test harness
-- [ ] Integration test utilities
+- [x] Common component fixtures (`CommonComponents` - Position, Velocity, Health, etc.)
+- [x] Entity builder presets (`EntityPresets`)
+- [x] System test harness (`SystemPresets`)
+- [x] Integration test utilities (mock providers for Input, Graphics, Network, Logging)
 
 ---
 
