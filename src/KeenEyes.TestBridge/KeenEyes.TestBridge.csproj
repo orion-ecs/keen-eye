@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.TestBridge</PackageId>
+    <Description>In-process debugging bridge for automated testing of KeenEyes applications</Description>
+    <PackageTags>ecs;testing;automation;debugging;input-injection;screenshot</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.TestBridge.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.TestBridge.Abstractions\KeenEyes.TestBridge.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\KeenEyes.Testing\KeenEyes.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

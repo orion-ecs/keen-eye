@@ -49,6 +49,8 @@
   </Folder>
   <Folder Name="/src/plugins/">
     <Project Path="src/KeenEyes.AI/KeenEyes.AI.csproj" />
+    <Project Path="src/KeenEyes.TestBridge.Abstractions/KeenEyes.TestBridge.Abstractions.csproj" />
+    <Project Path="src/KeenEyes.TestBridge/KeenEyes.TestBridge.csproj" />
     <Project Path="src/KeenEyes.Animation/KeenEyes.Animation.csproj" />
     <Project Path="src/KeenEyes.Assets/KeenEyes.Assets.csproj" />
     <Project Path="src/KeenEyes.Audio.Abstractions/KeenEyes.Audio.Abstractions.csproj" />
@@ -117,6 +119,7 @@
     <Project Path="tests/KeenEyes.Shaders.Compiler.Tests/KeenEyes.Shaders.Compiler.Tests.csproj" />
     <Project Path="tests/KeenEyes.Shaders.Generator.IntegrationTests/KeenEyes.Shaders.Generator.IntegrationTests.csproj" />
     <Project Path="tests/KeenEyes.Spatial.Tests/KeenEyes.Spatial.Tests.csproj" />
+    <Project Path="tests/KeenEyes.TestBridge.Tests/KeenEyes.TestBridge.Tests.csproj" />
     <Project Path="tests/KeenEyes.Testing.Tests/KeenEyes.Testing.Tests.csproj" />
     <Project Path="tests/KeenEyes.UI.Tests/KeenEyes.UI.Tests.csproj" />
   </Folder>
