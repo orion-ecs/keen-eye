@@ -140,25 +140,57 @@ When adding new features, always ask: "Would this work with Native AOT compilati
 
 ```
 keen-eye/
-├── src/
-│   ├── KeenEyes.Core/                 # Runtime ECS framework
-│   │   ├── Components/               # IComponent, ComponentRegistry
+├── src/                              # Runtime libraries
+│   ├── KeenEyes.Abstractions/        # Core interfaces, attributes, contracts
+│   ├── KeenEyes.Common/              # Shared utilities (FloatExtensions, etc.)
+│   ├── KeenEyes.Core/                # ECS framework (World, Entity, Components, Systems)
+│   │   ├── Archetypes/               # Archetype storage and management
+│   │   ├── Components/               # ComponentRegistry, validation
 │   │   ├── Entities/                 # Entity, EntityBuilder
-│   │   ├── Queries/                  # QueryBuilder, QueryEnumerator
+│   │   ├── Events/                   # ChangeTracker, lifecycle events
+│   │   ├── Queries/                  # QueryBuilder, QueryManager
+│   │   ├── Serialization/            # SnapshotManager, serializers
 │   │   └── Systems/                  # ISystem, SystemBase
-│   └── KeenEyes.Abstractions/         # Interfaces and attributes
-├── editor/                           # Build-time tooling
-│   ├── KeenEyes.Generators/           # Source generators
-│   ├── KeenEyes.Sdk/                  # MSBuild SDK for games
-│   ├── KeenEyes.Sdk.Plugin/           # MSBuild SDK for plugins
-│   ├── KeenEyes.Sdk.Library/          # MSBuild SDK for libraries
-│   └── KeenEyes.Shaders.*/            # KESL shader compiler and generator
+│   ├── KeenEyes.Generators/          # Source generators (also in editor/)
+│   ├── KeenEyes.AI/                  # AI behaviors (behavior trees, GOAP, etc.)
+│   ├── KeenEyes.Animation/           # Animation system
+│   ├── KeenEyes.Assets/              # Asset management
+│   ├── KeenEyes.Audio*/              # Audio system (Abstractions, Silk impl)
+│   ├── KeenEyes.Debugging/           # Debug tooling
+│   ├── KeenEyes.Graph*/              # Node graph system (Abstractions, KESL)
+│   ├── KeenEyes.Graphics*/           # Graphics system (Abstractions, Silk impl)
+│   ├── KeenEyes.Input*/              # Input system (Abstractions, Silk impl)
+│   ├── KeenEyes.Localization/        # Localization support
+│   ├── KeenEyes.Logging/             # Logging infrastructure
+│   ├── KeenEyes.Navigation*/         # Pathfinding (Abstractions, DotRecast, Grid)
+│   ├── KeenEyes.Network*/            # Networking (Abstractions, TCP, UDP)
+│   ├── KeenEyes.Parallelism/         # Parallel job system
+│   ├── KeenEyes.Particles/           # Particle system
+│   ├── KeenEyes.Persistence/         # Save/load infrastructure
+│   ├── KeenEyes.Physics/             # Physics simulation
+│   ├── KeenEyes.Platform.Silk*/      # Platform abstraction (Silk.NET)
+│   ├── KeenEyes.Replay/              # Replay recording/playback
+│   ├── KeenEyes.Runtime/             # Game runtime/loop
+│   ├── KeenEyes.Spatial/             # Spatial partitioning
+│   ├── KeenEyes.Testing/             # Test utilities
+│   └── KeenEyes.UI*/                 # UI system (Abstractions, impl)
+├── editor/                           # Build-time and editor tooling
+│   ├── KeenEyes.Cli/                 # Command-line interface
+│   ├── KeenEyes.Editor*/             # Editor application (Abstractions, Common)
+│   ├── KeenEyes.Generators/          # Source generators (shared with src/)
+│   ├── KeenEyes.Graph.Kesl/          # KESL graph language support
+│   ├── KeenEyes.Sdk/                 # MSBuild SDK for games
+│   ├── KeenEyes.Sdk.Plugin/          # MSBuild SDK for plugins
+│   ├── KeenEyes.Sdk.Library/         # MSBuild SDK for libraries
+│   └── KeenEyes.Shaders.*/           # KESL shader compiler and generator
 ├── tests/                            # Unit and integration tests
-├── samples/                          # Example projects
+├── samples/                          # Example projects (20+ samples)
 ├── templates/                        # dotnet new templates
 ├── benchmarks/                       # Performance benchmarks
-└── docs/                             # Documentation
+└── docs/                             # Documentation and ADRs
 ```
+
+Note: `*` indicates multiple related packages (e.g., `KeenEyes.Audio*` = `Audio`, `Audio.Abstractions`, `Audio.Silk`).
 
 ## Custom MSBuild SDK
 
@@ -393,7 +425,7 @@ World (facade)
 ├── ComponentValidationManager - Component constraint enforcement
 ├── PrefabManager              - Entity prefab templates
 ├── SaveManager                - World persistence orchestration
-├── SnapshotManager            - World state serialization
+├── SnapshotManager            - World state serialization (static utility class)
 ├── SceneManager               - Scene loading and management
 ├── StatisticsManager          - Memory and performance stats
 └── ComponentArrayPoolManager  - Component array pooling
@@ -1052,16 +1084,26 @@ public class ProfilingPlugin : IWorldPlugin
 
 ## Claude Code Web Sessions
 
-Claude Code web environments have proxy restrictions that prevent NuGet from authenticating properly. A SessionStart hook automatically handles this.
+Claude Code web environments have proxy restrictions that prevent NuGet from authenticating properly. SessionStart hooks automatically handle this.
 
 ### How It Works
 
-1. **SessionStart hook** (`.claude/hooks/install-packages.sh`) runs automatically on web sessions
-2. Downloads packages via `wget` (which handles proxy auth correctly)
-3. Extracts packages to `~/.nuget/packages/` (global cache)
-4. Copies `.nupkg` files to `/tmp/nuget-feed/` (local source)
-5. **PreToolUse hook** (`.claude/hooks/dotnet-pre.sh`) disables `nuget.org` before any `dotnet` command
-6. **PostToolUse hook** (`.claude/hooks/dotnet-post.sh`) re-enables `nuget.org` after (keeps config clean for commits)
+The hooks are configured in `.claude/settings.json` and run automatically:
+
+**On session startup:**
+1. `./scripts/install-dotnet.sh` - Installs .NET SDK if needed
+2. `./scripts/install-hooks.sh` - Sets up git hooks
+3. `./.claude/hooks/install-packages.sh` - Downloads NuGet packages via `wget` (bypasses proxy auth issues)
+4. `./.claude/hooks/install-gh-cli.sh` - Installs GitHub CLI
+
+**On session resume:**
+1. `./scripts/resume-dotnet.sh` - Restores .NET SDK path
+2. `./.claude/hooks/install-gh-cli.sh` - Ensures GitHub CLI is available
+
+The package install script:
+- Downloads packages via `wget` (handles proxy auth correctly)
+- Extracts packages to `~/.nuget/packages/` (global cache)
+- Copies `.nupkg` files to `/tmp/nuget-feed/` (local source)
 
 ### If Restore Fails with Missing Packages
 
