@@ -1,3 +1,4 @@
+using KeenEyes.TestBridge;
 using KeenEyes.Testing.Encryption;
 using KeenEyes.Testing.Events;
 using KeenEyes.Testing.Graphics;
@@ -64,6 +65,8 @@ public sealed class TestWorldBuilder
     private NetworkOptions? mockNetworkOptions;
     private bool useSystemRecording;
     private SystemPhase? systemRecordingPhase;
+    private bool enableTestBridge;
+    private Func<World, MockInputContext?, ITestBridge>? testBridgeFactory;
 
     /// <summary>
     /// Enables deterministic entity ID assignment.
@@ -296,6 +299,45 @@ public sealed class TestWorldBuilder
     }
 
     /// <summary>
+    /// Enables TestBridge integration for input simulation, state inspection,
+    /// screenshot capture, and process management.
+    /// </summary>
+    /// <param name="factory">Factory function that creates the TestBridge given a World and optional MockInputContext.</param>
+    /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the built <see cref="TestWorld"/> will have an <see cref="ITestBridge"/>
+    /// accessible via the <see cref="TestWorld.Bridge"/> property.
+    /// </para>
+    /// <para>
+    /// If <see cref="WithMockInput"/> is also enabled, the MockInputContext will be passed
+    /// to the factory for consistent input simulation.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// // Using with InProcessBridge from KeenEyes.TestBridge
+    /// using var testWorld = new TestWorldBuilder()
+    ///     .WithTestBridge((world, mockInput) =>
+    ///         new InProcessBridge(world, new TestBridgeOptions
+    ///         {
+    ///             CustomInputContext = mockInput
+    ///         }))
+    ///     .Build();
+    ///
+    /// await testWorld.Bridge!.Input.KeyPressAsync(Key.Space);
+    /// var stats = await testWorld.Bridge.State.GetWorldStatsAsync();
+    /// </code>
+    /// </example>
+    public TestWorldBuilder WithTestBridge(Func<World, MockInputContext?, ITestBridge> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        enableTestBridge = true;
+        testBridgeFactory = factory;
+        return this;
+    }
+
+    /// <summary>
     /// Enables event recording for a specific event type.
     /// </summary>
     /// <typeparam name="T">The event type to record.</typeparam>
@@ -442,6 +484,13 @@ public sealed class TestWorldBuilder
             eventRecorders[eventType] = recorder!;
         }
 
+        // Create TestBridge if enabled
+        ITestBridge? bridge = null;
+        if (enableTestBridge && testBridgeFactory != null)
+        {
+            bridge = testBridgeFactory(world, mockInput);
+        }
+
         return new TestWorld(
             world,
             clock,
@@ -458,7 +507,8 @@ public sealed class TestWorldBuilder
             mockLogProvider,
             mockEncryption,
             mockNetwork,
-            systemRecorder);
+            systemRecorder,
+            bridge);
     }
 
     /// <summary>

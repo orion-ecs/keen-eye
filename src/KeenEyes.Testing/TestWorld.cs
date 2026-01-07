@@ -1,3 +1,4 @@
+using KeenEyes.TestBridge;
 using KeenEyes.Testing.Encryption;
 using KeenEyes.Testing.Events;
 using KeenEyes.Testing.Graphics;
@@ -189,6 +190,30 @@ public sealed class TestWorld : IDisposable
     public bool HasSystemRecording => SystemRecorder != null;
 
     /// <summary>
+    /// Gets the TestBridge for input simulation, state inspection, and capture.
+    /// </summary>
+    /// <remarks>
+    /// This is only available if the world was built with <see cref="TestWorldBuilder.WithTestBridge"/>.
+    /// </remarks>
+    public ITestBridge? Bridge { get; }
+
+    /// <summary>
+    /// Gets whether TestBridge is enabled.
+    /// </summary>
+    public bool HasTestBridge => Bridge != null;
+
+    /// <summary>
+    /// Gets the TestBridge, throwing if not configured.
+    /// </summary>
+    /// <returns>The TestBridge instance.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown if <see cref="TestWorldBuilder.WithTestBridge"/> was not called on the builder.
+    /// </exception>
+    public ITestBridge RequireBridge() => Bridge
+        ?? throw new InvalidOperationException(
+            "TestBridge not configured. Call WithTestBridge() on TestWorldBuilder.");
+
+    /// <summary>
     /// Creates a new TestWorld instance.
     /// </summary>
     /// <param name="world">The underlying world.</param>
@@ -207,6 +232,7 @@ public sealed class TestWorld : IDisposable
     /// <param name="mockEncryption">Optional mock encryption provider.</param>
     /// <param name="mockNetwork">Optional mock network context.</param>
     /// <param name="systemRecorder">Optional system execution recorder.</param>
+    /// <param name="bridge">Optional TestBridge for input simulation and state inspection.</param>
     internal TestWorld(
         World world,
         TestClock? clock,
@@ -223,7 +249,8 @@ public sealed class TestWorld : IDisposable
         MockLogProvider? mockLogProvider = null,
         MockEncryptionProvider? mockEncryption = null,
         MockNetworkContext? mockNetwork = null,
-        SystemRecorder? systemRecorder = null)
+        SystemRecorder? systemRecorder = null,
+        ITestBridge? bridge = null)
     {
         World = world;
         Clock = clock;
@@ -240,6 +267,7 @@ public sealed class TestWorld : IDisposable
         MockEncryption = mockEncryption;
         MockNetwork = mockNetwork;
         SystemRecorder = systemRecorder;
+        Bridge = bridge;
         this.eventRecorders = eventRecorders ?? [];
     }
 
@@ -443,6 +471,9 @@ public sealed class TestWorld : IDisposable
 
             // Dispose system recorder
             SystemRecorder?.Dispose();
+
+            // Dispose TestBridge (disposes its internal MockInputContext only if not shared)
+            (Bridge as IDisposable)?.Dispose();
 
             // Dispose the world
             World.Dispose();
