@@ -5,6 +5,7 @@ using KeenEyes.Mcp.TestBridge.Resources;
 using KeenEyes.Mcp.TestBridge.Tools;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 
 // Parse configuration from environment variables and command line
@@ -12,6 +13,9 @@ var config = ConfigurationParser.Parse(args);
 
 // Build and run the MCP server
 var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(args);
+
+// CRITICAL: Disable all console logging - stdout must only contain MCP JSON-RPC messages
+builder.Logging.ClearProviders();
 
 // Register the connection manager as singleton
 builder.Services.AddSingleton<BridgeConnectionManager>(sp =>
@@ -85,25 +89,6 @@ Console.CancelKeyPress += (_, e) =>
     e.Cancel = true;
     lifetime.StopApplication();
 };
-
-// Monitor stdin close (MCP client disconnect)
-_ = Task.Run(async () =>
-{
-    try
-    {
-        while (Console.In.Peek() != -1)
-        {
-            await Task.Delay(100);
-        }
-
-        lifetime.StopApplication();
-    }
-    catch
-    {
-        // Stdin closed or error - trigger shutdown
-        lifetime.StopApplication();
-    }
-});
 
 // Log to stderr (stdout is for MCP protocol)
 Console.Error.WriteLine($"KeenEyes MCP TestBridge Server starting...");
