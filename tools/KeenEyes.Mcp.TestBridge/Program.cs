@@ -39,7 +39,8 @@ builder.Services
     })
     .WithStdioServerTransport()
     .WithTools<GameTools>()
-    .WithTools<InputTools>();
+    .WithTools<InputTools>()
+    .WithTools<StateTools>();
 
 var app = builder.Build();
 
