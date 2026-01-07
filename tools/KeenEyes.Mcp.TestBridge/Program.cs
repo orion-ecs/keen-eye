@@ -48,6 +48,7 @@ builder.Services
     .WithTools<CaptureTools>()
     .WithResources<ConnectionResources>()
     .WithResources<WorldResources>()
+    .WithResources<ExtensionResources>()
     .WithResources<CaptureResources>()
     .WithPrompts<WorkflowPrompts>();
 
