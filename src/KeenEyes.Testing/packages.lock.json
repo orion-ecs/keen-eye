@@ -54,6 +54,13 @@
           "KeenEyes.Common": "[1.0.0, )",
           "KeenEyes.Core": "[1.0.0, )"
         }
+      },
+      "keeneyes.testbridge.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
       }
     }
   }
