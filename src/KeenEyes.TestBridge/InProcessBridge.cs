@@ -2,6 +2,8 @@ using KeenEyes.Graphics.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
+using KeenEyes.TestBridge.Process;
+using KeenEyes.TestBridge.ProcessImpl;
 using KeenEyes.TestBridge.State;
 using KeenEyes.Testing.Input;
 
@@ -27,6 +29,7 @@ public sealed class InProcessBridge : ITestBridge
     private readonly InputControllerImpl inputController;
     private readonly StateControllerImpl stateController;
     private readonly CaptureControllerImpl captureController;
+    private readonly ProcessControllerImpl processController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -48,6 +51,7 @@ public sealed class InProcessBridge : ITestBridge
         inputController = new InputControllerImpl(inputContext);
         stateController = new StateControllerImpl(world);
         captureController = new CaptureControllerImpl(graphicsContext);
+        processController = new ProcessControllerImpl();
     }
 
     /// <inheritdoc />
@@ -61,6 +65,9 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public IStateController State => stateController;
+
+    /// <inheritdoc />
+    public IProcessController Process => processController;
 
     /// <summary>
     /// Gets the underlying mock input context for direct access.
@@ -164,6 +171,9 @@ public sealed class InProcessBridge : ITestBridge
         }
 
         disposed = true;
+
+        // Dispose managed processes
+        processController.Dispose();
 
         // Only dispose input context if we created it
         if (options.CustomInputContext == null)

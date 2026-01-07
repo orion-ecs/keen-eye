@@ -6,6 +6,7 @@ using KeenEyes.TestBridge.Input;
 using KeenEyes.TestBridge.Ipc;
 using KeenEyes.TestBridge.Ipc.Protocol;
 using KeenEyes.TestBridge.Ipc.Transport;
+using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
 
 namespace KeenEyes.TestBridge.Client;
@@ -79,6 +80,14 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public ICaptureController Capture { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Process management is not supported over IPC. Use in-process testing
+    /// with <see cref="InProcessBridge"/> for process management capabilities.
+    /// </remarks>
+    public IProcessController Process => throw new NotSupportedException(
+        "Process management is not supported over IPC. Use in-process testing for process management.");
 
     /// <summary>
     /// Raised when the connection state changes.
