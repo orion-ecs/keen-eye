@@ -58,11 +58,27 @@
           "KeenEyes.Core": "[1.0.0, )"
         }
       },
+      "keeneyes.testbridge": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",
+          "KeenEyes.Testing": "[1.0.0, )"
+        }
+      },
       "keeneyes.testbridge.abstractions": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )",
           "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.testbridge.ipc": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Input.Abstractions": "[1.0.0, )",
+          "KeenEyes.TestBridge": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )"
         }
       },
       "keeneyes.testing": {

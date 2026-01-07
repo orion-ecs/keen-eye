@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageId>KeenEyes.TestBridge.Ipc</PackageId>
+    <Description>IPC server for external test process connections to KeenEyes applications</Description>
+    <PackageTags>ecs;testing;automation;ipc;named-pipes;tcp</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.TestBridge.Ipc.Tests" />
+    <InternalsVisibleTo Include="KeenEyes.TestBridge.Tests" />
+    <InternalsVisibleTo Include="KeenEyes.TestBridge.Client" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.TestBridge.Abstractions\KeenEyes.TestBridge.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.TestBridge\KeenEyes.TestBridge.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -6,6 +6,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\KeenEyes.TestBridge\KeenEyes.TestBridge.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge.Ipc\KeenEyes.TestBridge.Ipc.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge.Client\KeenEyes.TestBridge.Client.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
     <ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>

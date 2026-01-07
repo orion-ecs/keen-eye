@@ -51,6 +51,8 @@
     <Project Path="src/KeenEyes.AI/KeenEyes.AI.csproj" />
     <Project Path="src/KeenEyes.TestBridge.Abstractions/KeenEyes.TestBridge.Abstractions.csproj" />
     <Project Path="src/KeenEyes.TestBridge/KeenEyes.TestBridge.csproj" />
+    <Project Path="src/KeenEyes.TestBridge.Ipc/KeenEyes.TestBridge.Ipc.csproj" />
+    <Project Path="src/KeenEyes.TestBridge.Client/KeenEyes.TestBridge.Client.csproj" />
     <Project Path="src/KeenEyes.Animation/KeenEyes.Animation.csproj" />
     <Project Path="src/KeenEyes.Assets/KeenEyes.Assets.csproj" />
     <Project Path="src/KeenEyes.Audio.Abstractions/KeenEyes.Audio.Abstractions.csproj" />
