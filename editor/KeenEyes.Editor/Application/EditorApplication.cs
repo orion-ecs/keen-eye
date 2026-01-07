@@ -51,7 +51,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private PlayModeManager? _playMode;
     private HotReloadService? _hotReload;
     private ReplayPlaybackMode? _replayPlayback;
-    private TestBridgeManager? _testBridge;
+    private TestBridgeManager? _editorTestBridge;
+    private TestBridgeManager? _sceneTestBridge;
     private Entity _viewportPanel;
     private Entity _hierarchyPanel;
     private Entity _inspectorPanel;
@@ -111,9 +112,14 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     public ReplayPlaybackMode? ReplayPlayback => _replayPlayback;
 
     /// <summary>
-    /// Gets the TestBridge manager for external tool connections.
+    /// Gets the TestBridge manager for the editor world (UI debugging).
     /// </summary>
-    public TestBridgeManager? TestBridge => _testBridge;
+    public TestBridgeManager? EditorTestBridge => _editorTestBridge;
+
+    /// <summary>
+    /// Gets the TestBridge manager for the scene world (game debugging).
+    /// </summary>
+    public TestBridgeManager? SceneTestBridge => _sceneTestBridge;
 
     /// <summary>
     /// Gets the layout manager for window arrangement.
@@ -236,8 +242,29 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         // Set up input handling
         SetupInputHandling();
 
+        // Start TestBridge for the editor world (allows debugging editor UI)
+        _editorTestBridge = new TestBridgeManager(_editorWorld);
+        _ = StartEditorTestBridgeAsync();
+
         // Force initial layout calculation so UI bounds are ready for first frame input
         _editorWorld.Update(0);
+    }
+
+    private async Task StartEditorTestBridgeAsync()
+    {
+        if (_editorTestBridge is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _editorTestBridge.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to start Editor TestBridge: {ex.Message}");
+        }
     }
 
     private void OnResize(int width, int height)
@@ -275,34 +302,34 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _hotReload.Initialize();
         Console.WriteLine("Hot reload service initialized for scene");
 
-        // Initialize TestBridge for external tool connections
-        _testBridge = new TestBridgeManager(sceneWorld);
-        _ = StartTestBridgeAsync();
+        // Initialize TestBridge for scene world (game debugging)
+        _sceneTestBridge = new TestBridgeManager(sceneWorld, "KeenEyes.Editor.Scene.TestBridge");
+        _ = StartSceneTestBridgeAsync();
     }
 
-    private async Task StartTestBridgeAsync()
+    private async Task StartSceneTestBridgeAsync()
     {
-        if (_testBridge is null)
+        if (_sceneTestBridge is null)
         {
             return;
         }
 
         try
         {
-            await _testBridge.StartAsync();
+            await _sceneTestBridge.StartAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Failed to start TestBridge: {ex.Message}");
+            Console.WriteLine($"Failed to start Scene TestBridge: {ex.Message}");
         }
     }
 
     private void OnSceneClosed()
     {
-        // Stop and dispose TestBridge
-        if (_testBridge != null)
+        // Stop and dispose Scene TestBridge
+        if (_sceneTestBridge != null)
         {
-            _ = StopTestBridgeAsync();
+            _ = StopSceneTestBridgeAsync();
         }
 
         // Dispose hot reload service
@@ -321,24 +348,24 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         Console.WriteLine("Play mode and replay playback disposed");
     }
 
-    private async Task StopTestBridgeAsync()
+    private async Task StopSceneTestBridgeAsync()
     {
-        if (_testBridge is null)
+        if (_sceneTestBridge is null)
         {
             return;
         }
 
         try
         {
-            await _testBridge.DisposeAsync();
+            await _sceneTestBridge.DisposeAsync();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error stopping TestBridge: {ex.Message}");
+            Console.WriteLine($"Error stopping Scene TestBridge: {ex.Message}");
         }
         finally
         {
-            _testBridge = null;
+            _sceneTestBridge = null;
         }
     }
 
@@ -1714,11 +1741,17 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         // Save layout before disposing
         _layoutManager.Save();
 
-        // Dispose TestBridge (blocking wait for async disposal)
-        if (_testBridge != null)
+        // Dispose TestBridges (blocking wait for async disposal)
+        if (_editorTestBridge != null)
         {
-            _testBridge.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            _testBridge = null;
+            _editorTestBridge.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _editorTestBridge = null;
+        }
+
+        if (_sceneTestBridge != null)
+        {
+            _sceneTestBridge.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            _sceneTestBridge = null;
         }
 
         _hotReload?.Dispose();

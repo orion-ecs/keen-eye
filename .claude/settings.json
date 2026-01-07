@@ -1,4 +1,6 @@
 {
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": ["keeneyes-bridge"],
   "hooks": {
     "SessionStart": [
       {

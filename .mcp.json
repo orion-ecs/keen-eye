@@ -6,7 +6,7 @@
       "args": [],
       "env": {
         "KEENEYES_TRANSPORT": "pipe",
-        "KEENEYES_PIPE_NAME": "KeenEyes.TestBridge",
+        "KEENEYES_PIPE_NAME": "KeenEyes.Editor.TestBridge",
         "KEENEYES_HEARTBEAT_INTERVAL": "5000",
         "KEENEYES_HEARTBEAT_TIMEOUT": "10000"
       }
