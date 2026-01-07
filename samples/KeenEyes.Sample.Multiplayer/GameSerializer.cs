@@ -7,6 +7,11 @@ namespace KeenEyes.Sample.Multiplayer;
 /// Network serializer for the multiplayer sample.
 /// Registers all game components for network replication.
 /// </summary>
+/// <remarks>
+/// Uses static serialization helpers from <see cref="PositionSerializer"/>,
+/// <see cref="VelocitySerializer"/>, etc. to maintain ECS principle that
+/// components are pure data.
+/// </remarks>
 public sealed class GameSerializer : INetworkSerializer
 {
     private readonly Dictionary<Type, ushort> typeToId = new()
@@ -38,13 +43,13 @@ public sealed class GameSerializer : INetworkSerializer
 
         if (type == typeof(Position))
         {
-            ((Position)value).NetworkSerialize(ref writer);
+            PositionSerializer.Serialize(ref writer, (Position)value);
             return true;
         }
 
         if (type == typeof(Velocity))
         {
-            ((Velocity)value).NetworkSerialize(ref writer);
+            VelocitySerializer.Serialize(ref writer, (Velocity)value);
             return true;
         }
 
@@ -56,13 +61,9 @@ public sealed class GameSerializer : INetworkSerializer
         switch (networkTypeId)
         {
             case 1:
-                var pos = new Position();
-                pos.NetworkDeserialize(ref reader);
-                return pos;
+                return PositionSerializer.Deserialize(ref reader);
             case 2:
-                var vel = new Velocity();
-                vel.NetworkDeserialize(ref reader);
-                return vel;
+                return VelocitySerializer.Deserialize(ref reader);
             default:
                 return null;
         }
@@ -102,7 +103,7 @@ public sealed class GameSerializer : INetworkSerializer
     {
         if (type == typeof(Position))
         {
-            return ((Position)current).GetDirtyMask((Position)baseline);
+            return PositionSerializer.GetDirtyMask((Position)current, (Position)baseline);
         }
 
         return 0;
@@ -114,11 +115,11 @@ public sealed class GameSerializer : INetworkSerializer
         {
             var c = (Position)current;
             var b = (Position)baseline;
-            var mask = c.GetDirtyMask(b);
+            var mask = PositionSerializer.GetDirtyMask(c, b);
             writer.WriteUInt32(mask);
             if (mask != 0)
             {
-                c.NetworkSerializeDelta(ref writer, b, mask);
+                PositionSerializer.SerializeDelta(ref writer, c, b, mask);
             }
 
             return true;
@@ -138,7 +139,7 @@ public sealed class GameSerializer : INetworkSerializer
         if (networkTypeId == 1)
         {
             var b = (Position)baseline;
-            new Position().NetworkDeserializeDelta(ref reader, ref b, mask);
+            PositionSerializer.DeserializeDelta(ref reader, ref b, mask);
             return b;
         }
 
