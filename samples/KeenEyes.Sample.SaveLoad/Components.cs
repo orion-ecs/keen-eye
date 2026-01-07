@@ -88,4 +88,4 @@ public partial struct Enemy;
 /// Tag for NPC entities.
 /// </summary>
 [TagComponent]
-public partial struct NPC;
+public partial struct Npc;
