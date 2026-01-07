@@ -415,4 +415,180 @@ public class TestWorldBuilderTests
     }
 
     #endregion
+
+    #region WithTestBridge Tests
+
+    // Helper factory that creates an InProcessBridge
+    private static KeenEyes.TestBridge.ITestBridge CreateTestBridge(World world, KeenEyes.Testing.Input.MockInputContext? mockInput)
+    {
+        return new KeenEyes.TestBridge.InProcessBridge(world, new KeenEyes.TestBridge.TestBridgeOptions
+        {
+            CustomInputContext = mockInput
+        });
+    }
+
+    [Fact]
+    public void WithTestBridge_BridgeIsAvailable()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        testWorld.Bridge.ShouldNotBeNull();
+        testWorld.HasTestBridge.ShouldBeTrue();
+        testWorld.Bridge!.IsConnected.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void WithTestBridge_AllControllersAvailable()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        testWorld.Bridge!.Input.ShouldNotBeNull();
+        testWorld.Bridge.State.ShouldNotBeNull();
+        testWorld.Bridge.Capture.ShouldNotBeNull();
+        testWorld.Bridge.Process.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public void WithTestBridge_WithCustomOptions_AppliesOptions()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithTestBridge((world, mockInput) => new KeenEyes.TestBridge.InProcessBridge(world, new KeenEyes.TestBridge.TestBridgeOptions
+            {
+                GamepadCount = 2,
+                CustomInputContext = mockInput
+            }))
+            .Build();
+
+        testWorld.Bridge.ShouldNotBeNull();
+        testWorld.HasTestBridge.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void WithTestBridge_WithNullFactory_Throws()
+    {
+        var builder = new TestWorldBuilder();
+
+        Should.Throw<ArgumentNullException>(() =>
+            builder.WithTestBridge((Func<World, KeenEyes.Testing.Input.MockInputContext?, KeenEyes.TestBridge.ITestBridge>)null!));
+    }
+
+    [Fact]
+    public void WithMockInput_WithTestBridge_SharesInputContext()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockInput(gamepadCount: 2)
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        // Both should be available
+        testWorld.MockInput.ShouldNotBeNull();
+        testWorld.Bridge.ShouldNotBeNull();
+        testWorld.MockInput!.Gamepads.Length.ShouldBe(2);
+    }
+
+    [Fact]
+    public void WithoutTestBridge_BridgeIsNull()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithDeterministicIds()
+            .Build();
+
+        testWorld.Bridge.ShouldBeNull();
+        testWorld.HasTestBridge.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void RequireBridge_WithoutTestBridge_Throws()
+    {
+        using var testWorld = new TestWorldBuilder().Build();
+
+        Should.Throw<InvalidOperationException>(() => testWorld.RequireBridge());
+    }
+
+    [Fact]
+    public void RequireBridge_WithTestBridge_ReturnsBridge()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        var bridge = testWorld.RequireBridge();
+        bridge.ShouldNotBeNull();
+        bridge.ShouldBe(testWorld.Bridge);
+    }
+
+    [Fact]
+    public void Dispose_DisposesTestBridge()
+    {
+        var testWorld = new TestWorldBuilder()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        var bridge = testWorld.Bridge;
+        testWorld.Dispose();
+
+        bridge!.IsConnected.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task WithTestBridge_CanSimulateInput()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        // Should not throw
+        await testWorld.Bridge!.Input.KeyPressAsync(KeenEyes.Input.Abstractions.Key.Space);
+    }
+
+    [Fact]
+    public async Task WithTestBridge_CanQueryState()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        testWorld.World.Spawn().Build();
+
+        var count = await testWorld.Bridge!.State.GetEntityCountAsync();
+        count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void WithTestBridge_ComposesWithOtherFeatures()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithDeterministicIds()
+            .WithManualTime(fps: 60)
+            .WithMockInput()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        // All features work together
+        testWorld.Bridge.ShouldNotBeNull();
+        testWorld.MockInput.ShouldNotBeNull();
+        testWorld.Clock.ShouldNotBeNull();
+
+        var entity = testWorld.World.Spawn().Build();
+        entity.Id.ShouldBe(0); // Deterministic
+    }
+
+    [Fact]
+    public void WithMockGraphics_WithTestBridge_CaptureAvailable()
+    {
+        using var testWorld = new TestWorldBuilder()
+            .WithMockGraphics()
+            .WithTestBridge(CreateTestBridge)
+            .Build();
+
+        testWorld.Bridge.ShouldNotBeNull();
+        testWorld.Bridge!.Capture.ShouldNotBeNull();
+        testWorld.MockGraphicsContext.ShouldNotBeNull();
+    }
+
+    #endregion
 }
