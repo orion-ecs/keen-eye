@@ -248,11 +248,11 @@ Pluggable logging with multiple providers.
 - [x] Performance-friendly (zero overhead when disabled)
 
 ### 12.4 ECS-Specific Logging
-- [ ] System execution logging
-- [ ] Entity lifecycle logging
-- [ ] Component change logging
-- [ ] Query execution logging
-- [ ] Configurable verbosity per category
+- [x] System execution logging
+- [x] Entity lifecycle logging
+- [x] Component change logging
+- [x] Query execution logging
+- [x] Configurable verbosity per category
 
 ---
 
@@ -651,7 +651,7 @@ Optional packages that extend KeenEyes:
 | Log Provider Architecture | 4 | ✅ Complete |
 | Built-in Log Providers | 4 | ✅ Complete |
 | Logging Features | 6 | ✅ Complete |
-| ECS-Specific Logging | 5 | Pending |
+| ECS-Specific Logging | 5 | ✅ Complete |
 | Debug Mode | 3 | Pending |
 | Profiling | 4 | Pending |
 | Visualization | 3 | Pending |
