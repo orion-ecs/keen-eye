@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <!-- Tool doesn't need XML docs -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <!-- MCP server name -->
+    <AssemblyTitle>KeenEyes MCP TestBridge Server</AssemblyTitle>
+    <Description>MCP server bridging LLM clients to KeenEyes games via TestBridge IPC</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge.Client\KeenEyes.TestBridge.Client.csproj" />
+  </ItemGroup>
+
+</Project>
