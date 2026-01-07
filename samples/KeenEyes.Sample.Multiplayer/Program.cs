@@ -205,7 +205,7 @@ async Task RunLocalDemo()
         var baseline = new Position { X = 100, Y = 100 };
         var current = new Position { X = 110, Y = 100 };
 
-        var dirtyMask = current.GetDirtyMask(baseline);
+        var dirtyMask = PositionSerializer.GetDirtyMask(current, baseline);
         Console.WriteLine($"  Baseline: {baseline}");
         Console.WriteLine($"  Current:  {current}");
         Console.WriteLine($"  Dirty Mask: 0b{Convert.ToString(dirtyMask, 2).PadLeft(2, '0')} (bit 0=X, bit 1=Y)");

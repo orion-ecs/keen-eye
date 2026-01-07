@@ -230,12 +230,13 @@ public class PlayerMovementSystem : SystemBase
             }
 
             // Randomly change direction occasionally
-            if (Random.Shared.NextSingle() < 0.02f)
+            // Use World's seeded RNG for deterministic replay support
+            if (World.NextFloat() < 0.02f)
             {
                 velocity.Value = new Vector3(
-                    Random.Shared.NextSingle() * 20f - 10f,
+                    World.NextFloat() * 20f - 10f,
                     0,
-                    Random.Shared.NextSingle() * 20f - 10f);
+                    World.NextFloat() * 20f - 10f);
             }
         }
     }
