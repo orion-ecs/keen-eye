@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -93,6 +94,14 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public ILogController Logs { get; }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// Direct input context access is not supported over IPC. Use the <see cref="Input"/>
+    /// controller to inject input events, which will be forwarded to the server.
+    /// </remarks>
+    public IInputContext InputContext => throw new NotSupportedException(
+        "Direct input context access is not supported over IPC. Use the Input controller to inject input events.");
 
     /// <summary>
     /// Raised when the connection state changes.

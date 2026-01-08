@@ -1,4 +1,5 @@
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Input.Abstractions;
 using KeenEyes.Logging;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
@@ -28,7 +29,8 @@ namespace KeenEyes.TestBridge;
 public sealed class InProcessBridge : ITestBridge
 {
     private readonly World world;
-    private readonly MockInputContext inputContext;
+    private readonly MockInputContext mockInputContext;
+    private readonly CompositeInputContext? compositeInputContext;
     private readonly InputControllerImpl inputController;
     private readonly StateControllerImpl stateController;
     private readonly CaptureControllerImpl captureController;
@@ -50,10 +52,16 @@ public sealed class InProcessBridge : ITestBridge
         this.options = options ?? new TestBridgeOptions();
 
         // Use provided input context or create a new one
-        inputContext = (this.options.CustomInputContext as MockInputContext)
+        mockInputContext = (this.options.CustomInputContext as MockInputContext)
             ?? new MockInputContext(this.options.GamepadCount);
 
-        inputController = new InputControllerImpl(inputContext);
+        // Create composite input context if real input is provided
+        if (this.options.RealInputContext != null)
+        {
+            compositeInputContext = new CompositeInputContext(this.options.RealInputContext, mockInputContext);
+        }
+
+        inputController = new InputControllerImpl(mockInputContext);
         stateController = new StateControllerImpl(world);
         captureController = new CaptureControllerImpl(graphicsContext, loopProvider);
         processController = new ProcessControllerImpl();
@@ -81,10 +89,19 @@ public sealed class InProcessBridge : ITestBridge
     /// <inheritdoc />
     public ILogController Logs => logController;
 
+    /// <inheritdoc />
+    public IInputContext InputContext => compositeInputContext is not null
+        ? compositeInputContext
+        : mockInputContext;
+
     /// <summary>
-    /// Gets the underlying mock input context for direct access.
+    /// Gets the underlying mock input context for direct virtual input injection.
     /// </summary>
-    public MockInputContext InputContext => inputContext;
+    /// <remarks>
+    /// Use this for injecting virtual input via TestBridge. The mock input is
+    /// merged with real hardware input when a composite context is active.
+    /// </remarks>
+    public MockInputContext MockInputContext => mockInputContext;
 
     /// <summary>
     /// Gets the underlying world for direct access.
@@ -187,10 +204,13 @@ public sealed class InProcessBridge : ITestBridge
         // Dispose managed processes
         processController.Dispose();
 
-        // Only dispose input context if we created it
+        // Dispose composite context if it exists
+        compositeInputContext?.Dispose();
+
+        // Only dispose mock input context if we created it
         if (options.CustomInputContext == null)
         {
-            inputContext.Dispose();
+            mockInputContext.Dispose();
         }
     }
 }

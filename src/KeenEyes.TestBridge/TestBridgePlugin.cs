@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using KeenEyes.Capabilities;
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Input.Abstractions;
 
 namespace KeenEyes.TestBridge;
 
@@ -27,6 +28,7 @@ public sealed class TestBridgePlugin(TestBridgeOptions? options = null) : IWorld
     private InProcessBridge? bridge;
     private EventSubscription? systemHookSubscription;
     private readonly Stopwatch frameStopwatch = new();
+    private IInputContext? originalInputContext;
 
     /// <inheritdoc />
     public string Name => "TestBridge";
@@ -43,14 +45,23 @@ public sealed class TestBridgePlugin(TestBridgeOptions? options = null) : IWorld
         // Try to get loop provider (optional - needed for render thread marshalling)
         context.TryGetExtension<ILoopProvider>(out var loopProvider);
 
+        // Get existing input context for hybrid mode (may be null if no input plugin installed)
+        context.TryGetExtension<IInputContext>(out originalInputContext);
+
+        // Create options with real input context for hybrid mode
+        var bridgeOptions = options with { RealInputContext = originalInputContext };
+
         // Create the in-process bridge
-        bridge = new InProcessBridge(world, options, graphicsContext, loopProvider);
+        bridge = new InProcessBridge(world, bridgeOptions, graphicsContext, loopProvider);
 
         // Expose the bridge as an extension
         context.SetExtension<ITestBridge>(bridge);
 
         // Also expose the concrete type for direct access
         context.SetExtension(bridge);
+
+        // Replace the World's IInputContext with the composite (enables hybrid input)
+        context.SetExtension<IInputContext>(bridge.InputContext);
 
         // Hook into system execution for profiling
         if (context.TryGetCapability<ISystemHookCapability>(out var hookCapability) && hookCapability is not null)
@@ -88,6 +99,18 @@ public sealed class TestBridgePlugin(TestBridgeOptions? options = null) : IWorld
         // Remove extensions
         context.RemoveExtension<ITestBridge>();
         context.RemoveExtension<InProcessBridge>();
+
+        // Restore original input context if it existed, otherwise remove it
+        if (originalInputContext != null)
+        {
+            context.SetExtension<IInputContext>(originalInputContext);
+        }
+        else
+        {
+            context.RemoveExtension<IInputContext>();
+        }
+
+        originalInputContext = null;
 
         // Dispose the bridge
         bridge?.Dispose();

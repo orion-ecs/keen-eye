@@ -58,6 +58,21 @@ public sealed record TestBridgeOptions
     /// </para>
     /// </remarks>
     public ILogQueryable? LogQueryable { get; init; }
+
+    /// <summary>
+    /// Gets or sets the real hardware input context to merge with virtual input.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When set, the TestBridge creates a composite input context that merges
+    /// both real hardware input and virtual TestBridge-injected input. This enables
+    /// hybrid testing scenarios where both can work together.
+    /// </para>
+    /// <para>
+    /// If null, only virtual input is available (useful for headless testing).
+    /// </para>
+    /// </remarks>
+    public IInputContext? RealInputContext { get; init; }
 }
 
 /// <summary>

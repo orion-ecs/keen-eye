@@ -10,6 +10,11 @@ namespace KeenEyes.TestBridge.Input;
 /// </summary>
 internal sealed class InputControllerImpl(MockInputContext inputContext) : IInputController
 {
+    /// <summary>
+    /// Default hold duration for key presses (50ms, roughly 3 frames at 60fps).
+    /// This ensures the key press spans at least one frame and is detected by polling-based systems.
+    /// </summary>
+    private static readonly TimeSpan defaultKeyHoldDuration = TimeSpan.FromMilliseconds(50);
     private readonly Dictionary<string, bool> actionStates = [];
     private readonly Dictionary<string, float> actionValues = [];
     private readonly Dictionary<string, (float X, float Y)> actionVectors = [];
@@ -30,13 +35,10 @@ internal sealed class InputControllerImpl(MockInputContext inputContext) : IInpu
 
     public async Task KeyPressAsync(Key key, KeyModifiers modifiers = KeyModifiers.None, TimeSpan? holdDuration = null)
     {
+        var actualDuration = holdDuration ?? defaultKeyHoldDuration;
+
         await KeyDownAsync(key, modifiers);
-
-        if (holdDuration.HasValue && holdDuration.Value > TimeSpan.Zero)
-        {
-            await Task.Delay(holdDuration.Value);
-        }
-
+        await Task.Delay(actualDuration);
         await KeyUpAsync(key, modifiers);
     }
 

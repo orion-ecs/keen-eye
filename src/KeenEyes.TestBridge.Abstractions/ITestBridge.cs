@@ -1,3 +1,4 @@
+using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -69,6 +70,22 @@ public interface ITestBridge : IDisposable
     /// Gets the log controller for querying application logs.
     /// </summary>
     ILogController Logs { get; }
+
+    /// <summary>
+    /// Gets the input context used by this bridge.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When the bridge is installed as a plugin, this context is registered as the
+    /// World's <see cref="IInputContext"/> extension. This enables both real hardware
+    /// input and virtual TestBridge-injected input to work together.
+    /// </para>
+    /// <para>
+    /// For in-process testing, you can use this directly to query input state or
+    /// inject virtual input via the underlying mock context.
+    /// </para>
+    /// </remarks>
+    IInputContext InputContext { get; }
 
     /// <summary>
     /// Executes a command and returns the result.

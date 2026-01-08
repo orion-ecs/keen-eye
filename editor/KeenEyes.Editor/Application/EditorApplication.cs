@@ -244,7 +244,12 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
         // Start TestBridge for the editor world (allows debugging editor UI)
         // Pass the log provider so MCP tools can query editor logs
-        _editorTestBridge = new TestBridgeManager(_editorWorld, logQueryable: _logProvider);
+        // Pass the real input context for hybrid mode (both real + virtual input work)
+        var editorInputContext = _editorWorld.GetExtension<IInputContext>();
+        _editorTestBridge = new TestBridgeManager(
+            _editorWorld,
+            logQueryable: _logProvider,
+            realInputContext: editorInputContext);
         _ = StartEditorTestBridgeAsync();
 
         // Force initial layout calculation so UI bounds are ready for first frame input
@@ -304,7 +309,12 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         Console.WriteLine("Hot reload service initialized for scene");
 
         // Initialize TestBridge for scene world (game debugging)
-        _sceneTestBridge = new TestBridgeManager(sceneWorld, "KeenEyes.Editor.Scene.TestBridge");
+        // Pass the scene input context for hybrid mode (both real + virtual input work)
+        var sceneInputContext = sceneWorld.TryGetExtension<IInputContext>(out var ctx) ? ctx : null;
+        _sceneTestBridge = new TestBridgeManager(
+            sceneWorld,
+            pipeName: "KeenEyes.Editor.Scene.TestBridge",
+            realInputContext: sceneInputContext);
         _ = StartSceneTestBridgeAsync();
     }
 
