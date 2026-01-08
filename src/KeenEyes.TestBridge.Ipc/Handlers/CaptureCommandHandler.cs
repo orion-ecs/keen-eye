@@ -20,6 +20,9 @@ internal sealed class CaptureCommandHandler(ICaptureController captureController
             "saveScreenshot" => await HandleSaveScreenshotAsync(args),
             "getScreenshotBytes" => await HandleGetScreenshotBytesAsync(args),
             "getFrameSize" => await HandleGetFrameSizeAsync(),
+            "captureRegion" => await HandleCaptureRegionAsync(args),
+            "getRegionScreenshotBytes" => await HandleGetRegionScreenshotBytesAsync(args),
+            "saveRegionScreenshot" => await HandleSaveRegionScreenshotAsync(args),
             "startRecording" => await HandleStartRecordingAsync(args),
             "stopRecording" => await captureController.StopRecordingAsync(),
             "isRecording" => captureController.IsRecording,
@@ -56,6 +59,38 @@ internal sealed class CaptureCommandHandler(ICaptureController captureController
         return null;
     }
 
+    private async Task<object?> HandleCaptureRegionAsync(JsonElement? args)
+    {
+        var x = GetRequiredInt(args, "x");
+        var y = GetRequiredInt(args, "y");
+        var width = GetRequiredInt(args, "width");
+        var height = GetRequiredInt(args, "height");
+        return await captureController.CaptureRegionAsync(x, y, width, height);
+    }
+
+    private async Task<object?> HandleGetRegionScreenshotBytesAsync(JsonElement? args)
+    {
+        var x = GetRequiredInt(args, "x");
+        var y = GetRequiredInt(args, "y");
+        var width = GetRequiredInt(args, "width");
+        var height = GetRequiredInt(args, "height");
+        var format = GetOptionalEnum<ImageFormat>(args, "format") ?? ImageFormat.Png;
+        var bytes = await captureController.GetRegionScreenshotBytesAsync(x, y, width, height, format);
+        // Return as base64 for JSON transport
+        return Convert.ToBase64String(bytes);
+    }
+
+    private async Task<object?> HandleSaveRegionScreenshotAsync(JsonElement? args)
+    {
+        var x = GetRequiredInt(args, "x");
+        var y = GetRequiredInt(args, "y");
+        var width = GetRequiredInt(args, "width");
+        var height = GetRequiredInt(args, "height");
+        var filePath = GetRequiredString(args, "filePath");
+        var format = GetOptionalEnum<ImageFormat>(args, "format") ?? ImageFormat.Png;
+        return await captureController.SaveRegionScreenshotAsync(x, y, width, height, filePath, format);
+    }
+
     #region Typed Argument Helpers (AOT-compatible)
 
     private static string GetRequiredString(JsonElement? args, string name)
@@ -66,6 +101,16 @@ internal sealed class CaptureCommandHandler(ICaptureController captureController
         }
 
         return prop.GetString() ?? throw new ArgumentException($"Invalid value for argument: {name}");
+    }
+
+    private static int GetRequiredInt(JsonElement? args, string name)
+    {
+        if (!args.HasValue || !args.Value.TryGetProperty(name, out var prop))
+        {
+            throw new ArgumentException($"Missing required argument: {name}");
+        }
+
+        return prop.GetInt32();
     }
 
     private static int? GetOptionalInt(JsonElement? args, string name)

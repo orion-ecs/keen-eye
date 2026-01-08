@@ -327,4 +327,67 @@ public sealed record StartRecordingArgs
     public int MaxFrames { get; init; } = 300;
 }
 
+/// <summary>
+/// Arguments for capture region command.
+/// </summary>
+public sealed record CaptureRegionArgs
+{
+    /// <summary>Gets the left edge X coordinate.</summary>
+    public int X { get; init; }
+
+    /// <summary>Gets the top edge Y coordinate.</summary>
+    public int Y { get; init; }
+
+    /// <summary>Gets the region width.</summary>
+    public int Width { get; init; }
+
+    /// <summary>Gets the region height.</summary>
+    public int Height { get; init; }
+}
+
+/// <summary>
+/// Arguments for get region screenshot bytes command.
+/// </summary>
+public sealed record GetRegionScreenshotBytesArgs
+{
+    /// <summary>Gets the left edge X coordinate.</summary>
+    public int X { get; init; }
+
+    /// <summary>Gets the top edge Y coordinate.</summary>
+    public int Y { get; init; }
+
+    /// <summary>Gets the region width.</summary>
+    public int Width { get; init; }
+
+    /// <summary>Gets the region height.</summary>
+    public int Height { get; init; }
+
+    /// <summary>Gets the image format.</summary>
+    public string Format { get; init; } = "Png";
+}
+
+/// <summary>
+/// Arguments for save region screenshot command.
+/// </summary>
+public sealed record SaveRegionScreenshotArgs
+{
+    /// <summary>Gets the left edge X coordinate.</summary>
+    public int X { get; init; }
+
+    /// <summary>Gets the top edge Y coordinate.</summary>
+    public int Y { get; init; }
+
+    /// <summary>Gets the region width.</summary>
+    public int Width { get; init; }
+
+    /// <summary>Gets the region height.</summary>
+    public int Height { get; init; }
+
+    /// <summary>Gets the file path.</summary>
+    public string FilePath { get; init; } = "";
+
+    /// <summary>Gets the image format.</summary>
+    public string Format { get; init; } = "Png";
+}
+
 #endregion

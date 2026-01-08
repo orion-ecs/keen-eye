@@ -62,6 +62,35 @@ internal sealed class RemoteCaptureController(TestBridgeClient client) : ICaptur
     }
 
     /// <inheritdoc />
+    public async Task<FrameCapture> CaptureRegionAsync(int x, int y, int width, int height)
+    {
+        var args = new CaptureRegionArgs { X = x, Y = y, Width = width, Height = height };
+        var result = await client.SendRequestAsync<FrameCapture>("capture.captureRegion", args, CancellationToken.None);
+        return result;
+    }
+
+    /// <inheritdoc />
+    public async Task<byte[]> GetRegionScreenshotBytesAsync(int x, int y, int width, int height, ImageFormat format = ImageFormat.Png)
+    {
+        var args = new GetRegionScreenshotBytesArgs { X = x, Y = y, Width = width, Height = height, Format = format.ToString() };
+        var base64 = await client.SendRequestAsync<string>("capture.getRegionScreenshotBytes", args, CancellationToken.None);
+        if (string.IsNullOrEmpty(base64))
+        {
+            throw new InvalidOperationException("Failed to get region screenshot bytes");
+        }
+
+        return Convert.FromBase64String(base64);
+    }
+
+    /// <inheritdoc />
+    public async Task<string> SaveRegionScreenshotAsync(int x, int y, int width, int height, string filePath, ImageFormat format = ImageFormat.Png)
+    {
+        var args = new SaveRegionScreenshotArgs { X = x, Y = y, Width = width, Height = height, FilePath = filePath, Format = format.ToString() };
+        var result = await client.SendRequestAsync<string>("capture.saveRegionScreenshot", args, CancellationToken.None);
+        return result ?? throw new InvalidOperationException("Failed to save region screenshot");
+    }
+
+    /// <inheritdoc />
     public async Task StartRecordingAsync(int maxFrames = 300)
     {
         var args = new StartRecordingArgs { MaxFrames = maxFrames };

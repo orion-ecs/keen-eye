@@ -105,6 +105,121 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         }
     }
 
+    [McpServerTool(Name = "capture_screenshot_region")]
+    [Description("Capture a region of the screen and return it as base64-encoded image data.")]
+    public async Task<ScreenshotResult> CaptureScreenshotRegion(
+        [Description("Left edge X coordinate (0-based)")]
+        int x,
+        [Description("Top edge Y coordinate (0-based)")]
+        int y,
+        [Description("Region width in pixels")]
+        int width,
+        [Description("Region height in pixels")]
+        int height,
+        [Description("Image format: 'png' (default), 'jpeg', or 'bmp'")]
+        string format = "png")
+    {
+        var bridge = connection.GetBridge();
+
+        if (!bridge.Capture.IsAvailable)
+        {
+            return new ScreenshotResult
+            {
+                Success = false,
+                Error = "Capture is not available"
+            };
+        }
+
+        try
+        {
+            var imageFormat = ParseImageFormat(format);
+            var bytes = await bridge.Capture.GetRegionScreenshotBytesAsync(x, y, width, height, imageFormat);
+            var base64 = Convert.ToBase64String(bytes);
+
+            return new ScreenshotResult
+            {
+                Success = true,
+                Data = base64,
+                MimeType = GetMimeType(imageFormat),
+                Width = width,
+                Height = height
+            };
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return new ScreenshotResult
+            {
+                Success = false,
+                Error = $"Invalid region: {ex.Message}"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ScreenshotResult
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
+    }
+
+    [McpServerTool(Name = "capture_screenshot_region_to_file")]
+    [Description("Capture a region of the screen and save it to a file.")]
+    public async Task<ScreenshotFileResult> CaptureScreenshotRegionToFile(
+        [Description("Left edge X coordinate (0-based)")]
+        int x,
+        [Description("Top edge Y coordinate (0-based)")]
+        int y,
+        [Description("Region width in pixels")]
+        int width,
+        [Description("Region height in pixels")]
+        int height,
+        [Description("The file path to save the screenshot to")]
+        string filePath,
+        [Description("Image format: 'png' (default), 'jpeg', or 'bmp'")]
+        string format = "png")
+    {
+        var bridge = connection.GetBridge();
+
+        if (!bridge.Capture.IsAvailable)
+        {
+            return new ScreenshotFileResult
+            {
+                Success = false,
+                Error = "Capture is not available"
+            };
+        }
+
+        try
+        {
+            var imageFormat = ParseImageFormat(format);
+            var savedPath = await bridge.Capture.SaveRegionScreenshotAsync(x, y, width, height, filePath, imageFormat);
+
+            return new ScreenshotFileResult
+            {
+                Success = true,
+                FilePath = savedPath,
+                Message = $"Region screenshot saved to {savedPath}"
+            };
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return new ScreenshotFileResult
+            {
+                Success = false,
+                Error = $"Invalid region: {ex.Message}"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ScreenshotFileResult
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
+    }
+
     #endregion
 
     #region Recording

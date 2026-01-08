@@ -58,6 +58,45 @@ public interface ICaptureController
     Task<(int Width, int Height)> GetFrameSizeAsync();
 
     /// <summary>
+    /// Captures a region of the current frame from the GPU framebuffer.
+    /// </summary>
+    /// <param name="x">Left edge in pixels (0-based, screen coordinates).</param>
+    /// <param name="y">Top edge in pixels (0-based, screen coordinates).</param>
+    /// <param name="width">Region width in pixels.</param>
+    /// <param name="height">Region height in pixels.</param>
+    /// <returns>Raw RGBA pixel data for the region.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when capture is not available.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when region extends outside screen bounds.</exception>
+    Task<FrameCapture> CaptureRegionAsync(int x, int y, int width, int height);
+
+    /// <summary>
+    /// Captures a region and returns it as encoded image bytes.
+    /// </summary>
+    /// <param name="x">Left edge in pixels (0-based, screen coordinates).</param>
+    /// <param name="y">Top edge in pixels (0-based, screen coordinates).</param>
+    /// <param name="width">Region width in pixels.</param>
+    /// <param name="height">Region height in pixels.</param>
+    /// <param name="format">The image format. Defaults to PNG.</param>
+    /// <returns>The region screenshot as encoded image bytes.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when capture is not available.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when region extends outside screen bounds.</exception>
+    Task<byte[]> GetRegionScreenshotBytesAsync(int x, int y, int width, int height, ImageFormat format = ImageFormat.Png);
+
+    /// <summary>
+    /// Captures a region and saves it to a file.
+    /// </summary>
+    /// <param name="x">Left edge in pixels (0-based, screen coordinates).</param>
+    /// <param name="y">Top edge in pixels (0-based, screen coordinates).</param>
+    /// <param name="width">Region width in pixels.</param>
+    /// <param name="height">Region height in pixels.</param>
+    /// <param name="filePath">The path to save the screenshot to.</param>
+    /// <param name="format">The image format. Defaults to PNG.</param>
+    /// <returns>The full path to the saved file.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when capture is not available.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when region extends outside screen bounds.</exception>
+    Task<string> SaveRegionScreenshotAsync(int x, int y, int width, int height, string filePath, ImageFormat format = ImageFormat.Png);
+
+    /// <summary>
     /// Starts recording frames for later retrieval.
     /// </summary>
     /// <param name="maxFrames">Maximum number of frames to record. Older frames are discarded.</param>
