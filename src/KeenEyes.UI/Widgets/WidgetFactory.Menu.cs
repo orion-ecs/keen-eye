@@ -189,6 +189,9 @@ public static partial class WidgetFactory
             })
             .Build();
 
+        // Menus start hidden - add UIHiddenTag for layout system to skip
+        world.Add(menu, new UIHiddenTag());
+
         if (parent.IsValid)
         {
             world.SetParent(menu, parent);
@@ -264,6 +267,9 @@ public static partial class WidgetFactory
                 MenuBarItem = Entity.Null
             })
             .Build();
+
+        // Context menus start hidden - add UIHiddenTag for layout system to skip
+        world.Add(menu, new UIHiddenTag());
 
         var itemIndex = 0;
         foreach (var itemDef in itemList)
@@ -534,6 +540,9 @@ public static partial class WidgetFactory
                 OpenTime = 0f
             })
             .Build();
+
+        // Radial menus start hidden - add UIHiddenTag for layout system to skip
+        world.Add(menu, new UIHiddenTag());
 
         // Create slices
         for (var i = 0; i < sliceCount; i++)
