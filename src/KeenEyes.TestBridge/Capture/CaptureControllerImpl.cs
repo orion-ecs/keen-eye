@@ -132,6 +132,85 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
     }
 
     /// <inheritdoc />
+    public async Task<FrameCapture> CaptureRegionAsync(int x, int y, int width, int height)
+    {
+        ThrowIfNotAvailable();
+
+        // If we have a loop provider, marshal to render thread for GL context
+        if (loopProvider != null)
+        {
+            return await loopProvider.InvokeOnRenderThreadAsync(() => CaptureRegionCore(x, y, width, height));
+        }
+
+        // No loop provider - call directly (assumes we're on the right thread)
+        return CaptureRegionCore(x, y, width, height);
+    }
+
+    /// <summary>
+    /// Core region capture logic that must run on the render thread.
+    /// </summary>
+    private FrameCapture CaptureRegionCore(int x, int y, int width, int height)
+    {
+        var screenWidth = graphicsContext!.Width;
+        var screenHeight = graphicsContext.Height;
+
+        // Validate bounds
+        if (x < 0 || y < 0 || width <= 0 || height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), "Region dimensions must be positive and coordinates non-negative.");
+        }
+
+        if (x + width > screenWidth || y + height > screenHeight)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width),
+                $"Region ({x}, {y}, {width}x{height}) extends outside screen bounds ({screenWidth}x{screenHeight}).");
+        }
+
+        var pixels = new byte[width * height * 4];
+
+        // Convert screen coordinates (top-left origin) to OpenGL (bottom-left origin)
+        var glY = screenHeight - y - height;
+
+        graphicsContext.Device!.ReadFramebuffer(x, glY, width, height, PixelFormat.RGBA, pixels);
+
+        // OpenGL reads pixels from bottom-left origin, flip vertically for standard top-left origin
+        FlipVertically(pixels, width, height);
+
+        return new FrameCapture
+        {
+            Width = width,
+            Height = height,
+            Pixels = pixels,
+            FrameNumber = currentFrameNumber,
+            Timestamp = TimeSpan.FromSeconds(currentFrameNumber / 60.0)
+        };
+    }
+
+    /// <inheritdoc />
+    public async Task<byte[]> GetRegionScreenshotBytesAsync(int x, int y, int width, int height, ImageFormat format = ImageFormat.Png)
+    {
+        var capture = await CaptureRegionAsync(x, y, width, height);
+        return ImageEncoder.Encode(capture.Pixels, capture.Width, capture.Height, format);
+    }
+
+    /// <inheritdoc />
+    public async Task<string> SaveRegionScreenshotAsync(int x, int y, int width, int height, string filePath, ImageFormat format = ImageFormat.Png)
+    {
+        var bytes = await GetRegionScreenshotBytesAsync(x, y, width, height, format);
+        var fullPath = Path.GetFullPath(filePath);
+
+        // Ensure directory exists
+        var directory = Path.GetDirectoryName(fullPath);
+        if (!string.IsNullOrEmpty(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await File.WriteAllBytesAsync(fullPath, bytes);
+        return fullPath;
+    }
+
+    /// <inheritdoc />
     public Task StartRecordingAsync(int maxFrames = 300)
     {
         if (isRecording)

@@ -418,6 +418,166 @@ public class CaptureControllerImplTests
 
     #endregion
 
+    #region CaptureRegionAsync
+
+    [Fact]
+    public async Task CaptureRegionAsync_WhenNotAvailable_ThrowsInvalidOperation()
+    {
+        var controller = new CaptureControllerImpl();
+
+        await Should.ThrowAsync<InvalidOperationException>(async () =>
+            await controller.CaptureRegionAsync(0, 0, 10, 10));
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_ValidRegion_ReturnsFrameWithCorrectDimensions()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        var frame = await controller.CaptureRegionAsync(10, 20, 50, 30);
+
+        frame.Width.ShouldBe(50);
+        frame.Height.ShouldBe(30);
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_ValidRegion_ReturnsPixelsOfCorrectSize()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        var frame = await controller.CaptureRegionAsync(0, 0, 25, 25);
+
+        frame.Pixels.Length.ShouldBe(25 * 25 * 4);
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_NegativeX_ThrowsArgumentOutOfRange()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () =>
+            await controller.CaptureRegionAsync(-10, 0, 50, 50));
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_NegativeY_ThrowsArgumentOutOfRange()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () =>
+            await controller.CaptureRegionAsync(0, -10, 50, 50));
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_ZeroWidth_ThrowsArgumentOutOfRange()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () =>
+            await controller.CaptureRegionAsync(0, 0, 0, 50));
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_ZeroHeight_ThrowsArgumentOutOfRange()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () =>
+            await controller.CaptureRegionAsync(0, 0, 50, 0));
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_ExceedsScreenWidth_ThrowsArgumentOutOfRange()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () =>
+            await controller.CaptureRegionAsync(80, 0, 50, 50)); // 80 + 50 = 130 > 100
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_ExceedsScreenHeight_ThrowsArgumentOutOfRange()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        await Should.ThrowAsync<ArgumentOutOfRangeException>(async () =>
+            await controller.CaptureRegionAsync(0, 80, 50, 50)); // 80 + 50 = 130 > 100
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_FullScreen_ReturnsSameAsCaptureFull()
+    {
+        var (controller, _) = CreateInitializedController(50, 50);
+
+        var regionFrame = await controller.CaptureRegionAsync(0, 0, 50, 50);
+        var fullFrame = await controller.CaptureFrameAsync();
+
+        regionFrame.Width.ShouldBe(fullFrame.Width);
+        regionFrame.Height.ShouldBe(fullFrame.Height);
+        regionFrame.Pixels.Length.ShouldBe(fullFrame.Pixels.Length);
+    }
+
+    #endregion
+
+    #region GetRegionScreenshotBytesAsync
+
+    [Fact]
+    public async Task GetRegionScreenshotBytesAsync_ValidRegion_ReturnsPngByDefault()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        var bytes = await controller.GetRegionScreenshotBytesAsync(10, 10, 50, 50);
+
+        // PNG magic bytes
+        bytes[0].ShouldBe((byte)0x89);
+        bytes[1].ShouldBe((byte)'P');
+    }
+
+    [Fact]
+    public async Task GetRegionScreenshotBytesAsync_JpegFormat_ReturnsJpeg()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+
+        var bytes = await controller.GetRegionScreenshotBytesAsync(10, 10, 50, 50, ImageFormat.Jpeg);
+
+        // JPEG magic bytes
+        bytes[0].ShouldBe((byte)0xFF);
+        bytes[1].ShouldBe((byte)0xD8);
+    }
+
+    #endregion
+
+    #region SaveRegionScreenshotAsync
+
+    [Fact]
+    public async Task SaveRegionScreenshotAsync_ValidRegion_WritesFile()
+    {
+        var (controller, _) = CreateInitializedController(100, 100);
+        var tempPath = Path.Combine(Path.GetTempPath(), $"region_test_{Guid.NewGuid()}.png");
+
+        try
+        {
+            var resultPath = await controller.SaveRegionScreenshotAsync(10, 10, 50, 50, tempPath);
+
+            File.Exists(resultPath).ShouldBeTrue();
+            resultPath.ShouldBe(Path.GetFullPath(tempPath));
+
+#pragma warning disable xUnit1051 // Test verifies file content, cancellation not needed
+            var bytes = await File.ReadAllBytesAsync(resultPath);
+#pragma warning restore xUnit1051
+            bytes[0].ShouldBe((byte)0x89); // PNG magic byte
+        }
+        finally
+        {
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+        }
+    }
+
+    #endregion
+
     #region Helper Methods
 
     private static (CaptureControllerImpl Controller, MockGraphicsDevice Device) CreateInitializedController(int width, int height)

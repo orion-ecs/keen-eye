@@ -111,6 +111,9 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(SaveScreenshotArgs))]
 [JsonSerializable(typeof(GetScreenshotBytesArgs))]
 [JsonSerializable(typeof(StartRecordingArgs))]
+[JsonSerializable(typeof(CaptureRegionArgs))]
+[JsonSerializable(typeof(GetRegionScreenshotBytesArgs))]
+[JsonSerializable(typeof(SaveRegionScreenshotArgs))]
 internal partial class IpcJsonContext : JsonSerializerContext
 {
 }
