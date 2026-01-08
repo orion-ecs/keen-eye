@@ -1082,6 +1082,252 @@ public class ProfilingPlugin : IWorldPlugin
 4. **Plugin cleanup**: Plugins should always dispose their hook subscriptions in `Uninstall()`
 5. **Exception handling**: Hook exceptions propagate to the caller; handle errors appropriately
 
+## MCP TestBridge Integration
+
+The TestBridge enables external tools (like Claude Code) to inspect and control running KeenEyes applications via the Model Context Protocol (MCP).
+
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Claude Code                                                      │
+│   └── MCP Client                                                 │
+│         │                                                        │
+│         ▼ (stdio)                                                │
+│   ┌─────────────────────────────────────────────────────┐       │
+│   │ KeenEyes.Mcp.TestBridge (tools/KeenEyes.Mcp.TestBridge)     │
+│   │   - MCP Server (stdio transport)                     │       │
+│   │   - StateTools, InputTools, CaptureTools, GameTools  │       │
+│   └─────────────────────────────────────────────────────┘       │
+│         │                                                        │
+│         ▼ (named pipe IPC)                                       │
+│   ┌─────────────────────────────────────────────────────┐       │
+│   │ KeenEyes.TestBridge.Ipc (IpcBridgeServer)           │       │
+│   │   - Protocol: JSON over named pipes                  │       │
+│   │   - Handlers: StateCommandHandler, InputCommandHandler      │
+│   └─────────────────────────────────────────────────────┘       │
+│         │                                                        │
+│         ▼ (in-process)                                           │
+│   ┌─────────────────────────────────────────────────────┐       │
+│   │ KeenEyes.TestBridge (InProcessBridge)               │       │
+│   │   - StateControllerImpl → World state inspection     │       │
+│   │   - InputControllerImpl → Virtual input injection    │       │
+│   │   - CaptureControllerImpl → Screenshot capture       │       │
+│   └─────────────────────────────────────────────────────┘       │
+│         │                                                        │
+│         ▼                                                        │
+│   ┌─────────────────────────────────────────────────────┐       │
+│   │ World (ECS)                                          │       │
+│   │   - Entities, Components, Systems                    │       │
+│   └─────────────────────────────────────────────────────┘       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Packages
+
+| Package | Purpose |
+|---------|---------|
+| `KeenEyes.TestBridge.Abstractions` | Interfaces: `ITestBridge`, `IStateController`, `IInputController`, `ICaptureController` |
+| `KeenEyes.TestBridge` | In-process implementation that directly accesses World |
+| `KeenEyes.TestBridge.Ipc` | IPC layer: named pipe server/client, JSON protocol |
+| `KeenEyes.Mcp.TestBridge` | MCP server exposing TestBridge as Claude Code tools |
+
+### Editor Integration
+
+The editor (`KeenEyes.Editor`) integrates the TestBridge for both UI debugging and scene debugging:
+
+```csharp
+// In EditorApplication.cs
+private TestBridgeManager? editorTestBridge;   // For editor UI world
+private TestBridgeManager? sceneTestBridge;    // For loaded scene world
+
+// Editor TestBridge starts when editor launches
+private async Task StartEditorTestBridgeAsync()
+{
+    editorTestBridge = new TestBridgeManager(editorWorld);
+    await editorTestBridge.StartIpcServerAsync("KeenEyes.Editor.TestBridge");
+}
+
+// Scene TestBridge starts when a scene is opened
+private async Task StartSceneTestBridgeAsync()
+{
+    sceneTestBridge = new TestBridgeManager(sceneWorld);
+    await sceneTestBridge.StartIpcServerAsync("KeenEyes.Editor.Scene.TestBridge");
+}
+```
+
+**Named Pipes:**
+- `KeenEyes.Editor.TestBridge` - Connects to the editor UI world (menus, panels, etc.)
+- `KeenEyes.Editor.Scene.TestBridge` - Connects to the currently loaded scene world
+
+### MCP Configuration
+
+The MCP server is configured in `.mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "keeneyes-bridge": {
+      "type": "stdio",
+      "command": ".mcp/KeenEyes.Mcp.TestBridge.exe",
+      "args": [],
+      "env": {
+        "KEENEYES_TRANSPORT": "pipe",
+        "KEENEYES_PIPE_NAME": "KeenEyes.Editor.TestBridge",
+        "KEENEYES_HEARTBEAT_INTERVAL": "5000",
+        "KEENEYES_HEARTBEAT_TIMEOUT": "10000"
+      }
+    }
+  }
+}
+```
+
+**Environment Variables:**
+- `KEENEYES_TRANSPORT`: `pipe` (named pipes) or `tcp` (network)
+- `KEENEYES_PIPE_NAME`: Named pipe to connect to
+- `KEENEYES_HOST`/`KEENEYES_PORT`: For TCP transport (default: 127.0.0.1:19283)
+
+### Publishing the MCP Server
+
+Before using the MCP tools, publish the server to `.mcp/`:
+
+```bash
+dotnet publish tools/KeenEyes.Mcp.TestBridge -c Release -o .mcp
+```
+
+### Launching the Editor for Debugging
+
+To debug the editor with MCP tools available:
+
+```bash
+# Terminal 1: Launch the editor
+dotnet run --project editor/KeenEyes.Editor -c Release
+
+# The editor starts and logs:
+# [TestBridge] IPC server started on pipe: KeenEyes.Editor.TestBridge
+```
+
+Claude Code will automatically connect via the MCP configuration. Use the tools to inspect state:
+
+```
+# In Claude Code, the tools become available after connection:
+mcp__keeneyes-bridge__game_connect        # Connect to the editor
+mcp__keeneyes-bridge__state_get_entity_count    # Query entity count
+mcp__keeneyes-bridge__state_query_entities      # List entities
+```
+
+### Available MCP Tools
+
+**Connection:**
+| Tool | Description |
+|------|-------------|
+| `game_connect` | Connect to running game/editor |
+| `game_disconnect` | Disconnect from game |
+| `game_status` | Get connection status with latency |
+| `game_get_screen_size` | Get window dimensions |
+| `game_wait_for_condition` | Wait for entity/component state |
+
+**State Inspection:**
+| Tool | Status | Description |
+|------|--------|-------------|
+| `state_get_entity_count` | ✓ | Total entity count |
+| `state_get_world_stats` | ✓ | Entity/archetype/memory stats |
+| `state_get_systems` | ✓ | List all systems with timing |
+| `state_get_performance` | ✓ | FPS and frame timing |
+| `state_query_entities` | ✓* | Query entities with filters |
+| `state_get_entity` | ✗ | Get entity by ID (see #843) |
+| `state_get_entity_by_name` | ✗ | Get entity by name (see #843) |
+| `state_get_component` | ✗ | Get component data (see #843) |
+| `state_get_children` | ✓ | Get child entity IDs |
+| `state_get_parent` | ✓ | Get parent entity ID |
+| `state_get_entities_with_tag` | ✓ | Find entities by tag |
+
+*`state_query_entities` works with `includeComponentData=false` only.
+
+**Input Injection:**
+| Tool | Description |
+|------|-------------|
+| `input_key_press` | Press and release a key |
+| `input_key_down` / `input_key_up` | Hold/release a key |
+| `input_type_text` | Type text string |
+| `input_mouse_move` | Move mouse to position |
+| `input_mouse_click` | Click at position |
+| `input_mouse_drag` | Drag from one point to another |
+| `input_mouse_scroll` | Scroll wheel |
+| `input_gamepad_*` | Gamepad button/stick/trigger |
+| `input_trigger_action` | Trigger named input action |
+| `input_reset` | Reset all input state |
+
+**Capture:**
+| Tool | Status | Description |
+|------|--------|-------------|
+| `capture_is_available` | ✓ | Check if capture is available |
+| `capture_screenshot` | ✗ | Capture screenshot (see #844) |
+| `capture_screenshot_to_file` | ✗ | Save screenshot to file |
+| `capture_start_recording` | ✓ | Start frame recording |
+| `capture_stop_recording` | ✓ | Stop recording |
+| `capture_is_recording` | ✓ | Check recording status |
+
+### Integrating TestBridge in Your Application
+
+To add TestBridge support to a KeenEyes game/application:
+
+```csharp
+using KeenEyes.TestBridge;
+using KeenEyes.TestBridge.Ipc;
+
+public class Game
+{
+    private TestBridgeManager? testBridge;
+
+    public void Initialize(World world)
+    {
+        // Create the bridge manager
+        testBridge = new TestBridgeManager(world);
+
+        // Start IPC server (optional - for external tool connections)
+        _ = testBridge.StartIpcServerAsync("MyGame.TestBridge");
+    }
+
+    public void Shutdown()
+    {
+        testBridge?.Dispose();
+    }
+}
+```
+
+For headless/CI testing, use the in-process bridge directly:
+
+```csharp
+using KeenEyes.TestBridge;
+
+var world = new World();
+var bridge = new InProcessBridge(world, inputContext, captureContext);
+
+// Inject input
+await bridge.Input.KeyPressAsync(Key.Space);
+
+// Query state
+var entities = await bridge.State.QueryEntitiesAsync(new EntityQuery
+{
+    WithComponents = ["Position", "Velocity"],
+    MaxResults = 100
+});
+```
+
+### Known Issues
+
+- **#843**: `state_get_entity`, `state_get_component`, and `state_query_entities` with component data fail due to `Dictionary<string, object?>` not being AOT-serializable
+- **#844**: Screenshot capture fails with OpenGL context error (must run on render thread)
+
+### Debugging Tips
+
+1. **Check connection**: Use `game_status` to verify connection and latency
+2. **Query entity structure**: Use `state_query_entities` without component data to see entity hierarchy
+3. **Use hierarchical queries**: `state_get_children` and `state_get_parent` work reliably
+4. **Inject input for testing**: Use `input_*` tools to simulate user interaction
+5. **Monitor performance**: Use `state_get_performance` to track frame times
+
 ## Claude Code Web Sessions
 
 Claude Code web environments have proxy restrictions that prevent NuGet from authenticating properly. SessionStart hooks automatically handle this.
