@@ -25,8 +25,15 @@ namespace KeenEyes.UI;
 /// </remarks>
 public sealed class UIRenderSystem : SystemBase
 {
+    /// <summary>
+    /// Elements with LocalZIndex at or above this threshold are rendered in a second pass
+    /// on top of all other elements. Used for menus, tooltips, modals, etc.
+    /// </summary>
+    private const short OverlayZIndexThreshold = 1000;
+
     private I2DRenderer? renderer2D;
     private ITextRenderer? textRenderer;
+    private List<(Entity Entity, int DepthScore)>? deferredOverlays;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -48,7 +55,10 @@ public sealed class UIRenderSystem : SystemBase
 
         try
         {
-            // Process all root canvases
+            // Initialize deferred overlay list for two-pass rendering
+            deferredOverlays = [];
+
+            // FIRST PASS: Render normal elements, collect overlay elements for later
             foreach (var rootEntity in World.Query<UIElement, UIRect, UIRootTag>())
             {
                 ref readonly var element = ref World.Get<UIElement>(rootEntity);
@@ -65,9 +75,26 @@ public sealed class UIRenderSystem : SystemBase
                 // Render root and children recursively
                 RenderElement(rootEntity, 0);
             }
+
+            // SECOND PASS: Render overlay elements (menus, tooltips, modals) on top
+            if (deferredOverlays.Count > 0)
+            {
+                // Clear any active clipping so overlays can extend beyond parent bounds
+                renderer2D.ClearClip();
+
+                // Sort overlays by depth score to ensure correct stacking order
+                // (parent overlays render before child overlays)
+                deferredOverlays.Sort((a, b) => a.DepthScore.CompareTo(b.DepthScore));
+
+                foreach (var (entity, _) in deferredOverlays)
+                {
+                    RenderOverlayElement(entity);
+                }
+            }
         }
         finally
         {
+            deferredOverlays = null;
             textRenderer?.End();
             renderer2D.End();
         }
@@ -106,6 +133,16 @@ public sealed class UIRenderSystem : SystemBase
         }
 
         ref readonly var rect = ref World.Get<UIRect>(entity);
+
+        // Check if this element should be deferred to overlay pass
+        if (rect.LocalZIndex >= OverlayZIndexThreshold)
+        {
+            int depthScore = depth * 10000 + rect.LocalZIndex;
+            deferredOverlays?.Add((entity, depthScore));
+            CollectOverlayChildren(entity, depth + 1);
+            return; // Don't render now - will be rendered in overlay pass
+        }
+
         var bounds = rect.ComputedBounds;
 
         // Push clip if element has clipping
@@ -146,6 +183,57 @@ public sealed class UIRenderSystem : SystemBase
         {
             renderer2D.PopClip();
         }
+    }
+
+    /// <summary>
+    /// Recursively collects all visible children of an overlay element.
+    /// Each child is added with its own depth score for proper stacking order.
+    /// </summary>
+    private void CollectOverlayChildren(Entity parent, int depth)
+    {
+        var children = World.GetChildren(parent);
+        foreach (var child in children)
+        {
+            if (!World.Has<UIElement>(child) || !World.Has<UIRect>(child))
+            {
+                continue;
+            }
+
+            if (World.Has<UIHiddenTag>(child))
+            {
+                continue;
+            }
+
+            ref readonly var element = ref World.Get<UIElement>(child);
+            if (!element.Visible)
+            {
+                continue;
+            }
+
+            ref readonly var rect = ref World.Get<UIRect>(child);
+            int depthScore = depth * 10000 + rect.LocalZIndex;
+            deferredOverlays?.Add((child, depthScore));
+
+            // Continue collecting grandchildren
+            CollectOverlayChildren(child, depth + 1);
+        }
+    }
+
+    /// <summary>
+    /// Renders a single overlay element without clipping constraints.
+    /// Called during the overlay pass after all normal elements have been rendered.
+    /// </summary>
+    private void RenderOverlayElement(Entity entity)
+    {
+        if (renderer2D is null)
+        {
+            return;
+        }
+
+        ref readonly var rect = ref World.Get<UIRect>(entity);
+        var bounds = rect.ComputedBounds;
+
+        RenderElementVisuals(entity, bounds);
     }
 
     private void RenderElementVisuals(Entity entity, Rectangle bounds)
