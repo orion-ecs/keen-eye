@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
+using System.Text.Json;
 using KeenEyes.Capabilities;
 using KeenEyes.TestBridge.State;
 
@@ -121,7 +122,7 @@ internal sealed class StateControllerImpl(World world) : IStateController
         return Task.FromResult<EntitySnapshot?>(CreateEntitySnapshot(entity, includeComponentData: true));
     }
 
-    public Task<IReadOnlyDictionary<string, object?>?> GetComponentAsync(int entityId, string componentTypeName)
+    public Task<JsonElement?> GetComponentAsync(int entityId, string componentTypeName)
     {
         foreach (var entity in world.GetAllEntities())
         {
@@ -131,14 +132,13 @@ internal sealed class StateControllerImpl(World world) : IStateController
                 {
                     if (type.Name == componentTypeName || type.FullName == componentTypeName)
                     {
-                        return Task.FromResult<IReadOnlyDictionary<string, object?>?>(
-                            SerializeComponent(type, value));
+                        return Task.FromResult<JsonElement?>(SerializeComponent(type, value));
                     }
                 }
             }
         }
 
-        return Task.FromResult<IReadOnlyDictionary<string, object?>?>(null);
+        return Task.FromResult<JsonElement?>(null);
     }
 
     #endregion
@@ -396,7 +396,7 @@ internal sealed class StateControllerImpl(World world) : IStateController
         var components = world.GetComponents(entity).ToList();
         var componentTypes = components.Select(c => c.Type.Name).ToArray();
 
-        var componentData = new Dictionary<string, IReadOnlyDictionary<string, object?>>();
+        var componentData = new Dictionary<string, JsonElement>();
         if (includeComponentData)
         {
             foreach (var (type, value) in components)
@@ -419,7 +419,9 @@ internal sealed class StateControllerImpl(World world) : IStateController
     }
 
     [UnconditionalSuppressMessage("AOT", "IL2072:Target parameter of method has annotations that do not match target.", Justification = "TestBridge is debug infrastructure - reflection is acceptable.")]
-    private static IReadOnlyDictionary<string, object?> SerializeComponent(
+    [UnconditionalSuppressMessage("AOT", "IL2026:Members with RequiresUnreferencedCodeAttribute are used.", Justification = "TestBridge is debug infrastructure - reflection and dynamic serialization are acceptable.")]
+    [UnconditionalSuppressMessage("AOT", "IL3050:Members with RequiresDynamicCodeAttribute are used.", Justification = "TestBridge is debug infrastructure - dynamic code generation is acceptable.")]
+    private static JsonElement SerializeComponent(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)] Type type,
         object value)
     {
@@ -446,7 +448,8 @@ internal sealed class StateControllerImpl(World world) : IStateController
             }
         }
 
-        return result;
+        // Convert to JsonElement - this is serializable by source-generated JSON
+        return JsonSerializer.SerializeToElement(result);
     }
 
     /// <summary>

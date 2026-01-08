@@ -1,3 +1,4 @@
+using System.Text.Json;
 using KeenEyes.TestBridge.Ipc.Protocol;
 using KeenEyes.TestBridge.State;
 
@@ -34,9 +35,9 @@ internal sealed class RemoteStateController(TestBridgeClient client) : IStateCon
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyDictionary<string, object?>?> GetComponentAsync(int entityId, string componentTypeName)
+    public async Task<JsonElement?> GetComponentAsync(int entityId, string componentTypeName)
     {
-        return await client.SendRequestAsync<Dictionary<string, object?>?>(
+        return await client.SendRequestAsync<JsonElement?>(
             "state.getComponent",
             new ComponentArgs { EntityId = entityId, ComponentTypeName = componentTypeName },
             CancellationToken.None);

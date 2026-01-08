@@ -40,8 +40,11 @@ public sealed class TestBridgePlugin(TestBridgeOptions? options = null) : IWorld
         // Try to get graphics context (optional - may not exist in headless mode)
         context.TryGetExtension<IGraphicsContext>(out var graphicsContext);
 
+        // Try to get loop provider (optional - needed for render thread marshalling)
+        context.TryGetExtension<ILoopProvider>(out var loopProvider);
+
         // Create the in-process bridge
-        bridge = new InProcessBridge(world, options, graphicsContext);
+        bridge = new InProcessBridge(world, options, graphicsContext, loopProvider);
 
         // Expose the bridge as an extension
         context.SetExtension<ITestBridge>(bridge);

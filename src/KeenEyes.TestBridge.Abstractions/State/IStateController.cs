@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace KeenEyes.TestBridge.State;
 
 /// <summary>
@@ -50,12 +52,11 @@ public interface IStateController
     /// </summary>
     /// <param name="entityId">The entity ID.</param>
     /// <param name="componentTypeName">The component type name.</param>
-    /// <returns>The component data as a dictionary of field names to values.</returns>
+    /// <returns>The component data as a JSON element, or null if not found.</returns>
     /// <remarks>
-    /// For IPC mode, component data is serialized as a dictionary. For in-process mode,
-    /// this may return the actual component object.
+    /// Component data is serialized as a JSON element containing field names and values.
     /// </remarks>
-    Task<IReadOnlyDictionary<string, object?>?> GetComponentAsync(int entityId, string componentTypeName);
+    Task<JsonElement?> GetComponentAsync(int entityId, string componentTypeName);
 
     /// <summary>
     /// Gets world statistics.
@@ -189,9 +190,9 @@ public sealed record EntitySnapshot
     /// Gets the component data for each component type.
     /// </summary>
     /// <remarks>
-    /// Keys are component type names. Values are dictionaries of field names to values.
+    /// Keys are component type names. Values are JSON elements containing field data.
     /// </remarks>
-    public required IReadOnlyDictionary<string, IReadOnlyDictionary<string, object?>> Components { get; init; }
+    public required IReadOnlyDictionary<string, JsonElement> Components { get; init; }
 
     /// <summary>
     /// Gets the component type names (without full data).
