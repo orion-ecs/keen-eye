@@ -37,7 +37,9 @@ public sealed class StateTools(BridgeConnectionManager connection)
         [Description("Parent entity ID to filter by")]
         int? parentId = null,
         [Description("Maximum results to return (default: 100)")]
-        int maxResults = 100)
+        int maxResults = 100,
+        [Description("Include full component data in results (default: false for performance)")]
+        bool includeComponentData = false)
     {
         var bridge = connection.GetBridge();
 
@@ -48,7 +50,8 @@ public sealed class StateTools(BridgeConnectionManager connection)
             WithTags = withTags,
             NamePattern = namePattern,
             ParentId = parentId,
-            MaxResults = maxResults
+            MaxResults = maxResults,
+            IncludeComponentData = includeComponentData
         };
 
         return await bridge.State.QueryEntitiesAsync(query);

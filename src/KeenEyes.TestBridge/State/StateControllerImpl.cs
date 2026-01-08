@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Reflection;
 using KeenEyes.Capabilities;
 using KeenEyes.TestBridge.State;
 
@@ -89,7 +90,7 @@ internal sealed class StateControllerImpl(World world) : IStateController
                 continue;
             }
 
-            results.Add(CreateEntitySnapshot(entity, includeComponentData: false));
+            results.Add(CreateEntitySnapshot(entity, includeComponentData: query.IncludeComponentData));
             count++;
         }
 
@@ -417,6 +418,7 @@ internal sealed class StateControllerImpl(World world) : IStateController
         };
     }
 
+    [UnconditionalSuppressMessage("AOT", "IL2072:Target parameter of method has annotations that do not match target.", Justification = "TestBridge is debug infrastructure - reflection is acceptable.")]
     private static IReadOnlyDictionary<string, object?> SerializeComponent(
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)] Type type,
         object value)
@@ -426,7 +428,7 @@ internal sealed class StateControllerImpl(World world) : IStateController
         // Get public fields and properties
         foreach (var field in type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
         {
-            result[field.Name] = field.GetValue(value);
+            result[field.Name] = ToJsonSafeValue(field.GetValue(value), field.FieldType);
         }
 
         foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
@@ -435,7 +437,7 @@ internal sealed class StateControllerImpl(World world) : IStateController
             {
                 try
                 {
-                    result[prop.Name] = prop.GetValue(value);
+                    result[prop.Name] = ToJsonSafeValue(prop.GetValue(value), prop.PropertyType);
                 }
                 catch
                 {
@@ -445,6 +447,152 @@ internal sealed class StateControllerImpl(World world) : IStateController
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Converts a value to a JSON-safe type that can be serialized by the source-generated context.
+    /// </summary>
+    /// <remarks>
+    /// This method uses reflection which is acceptable for TestBridge debugging infrastructure.
+    /// The trim warnings are suppressed because this is test/debug code.
+    /// </remarks>
+    [UnconditionalSuppressMessage("AOT", "IL2072:Target parameter of method has annotations that do not match target.", Justification = "TestBridge is debug infrastructure - reflection is acceptable.")]
+    [UnconditionalSuppressMessage("AOT", "IL2062:Value passed to parameter can not be statically determined.", Justification = "TestBridge is debug infrastructure - reflection is acceptable.")]
+    private static object? ToJsonSafeValue(
+        object? value,
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields | DynamicallyAccessedMemberTypes.PublicProperties)] Type type)
+    {
+        if (value == null)
+        {
+            return null;
+        }
+
+        // Handle nullable types - unwrap the underlying type
+        var underlyingType = Nullable.GetUnderlyingType(type);
+        if (underlyingType != null)
+        {
+            type = underlyingType;
+        }
+
+        // Primitives and strings are JSON-safe
+        if (type.IsPrimitive || type == typeof(string) || type == typeof(decimal))
+        {
+            return value;
+        }
+
+        // Enums convert to strings
+        if (type.IsEnum)
+        {
+            return value.ToString();
+        }
+
+        // TimeSpan to total milliseconds
+        if (type == typeof(TimeSpan))
+        {
+            return ((TimeSpan)value).TotalMilliseconds;
+        }
+
+        // DateTime/DateTimeOffset to ISO 8601 string
+        if (type == typeof(DateTime))
+        {
+            return ((DateTime)value).ToString("O");
+        }
+
+        if (type == typeof(DateTimeOffset))
+        {
+            return ((DateTimeOffset)value).ToString("O");
+        }
+
+        // Guid to string
+        if (type == typeof(Guid))
+        {
+            return value.ToString();
+        }
+
+        // Arrays and collections - recursively convert elements
+        if (type.IsArray)
+        {
+            var elementType = type.GetElementType()!;
+            var array = (Array)value;
+            var result = new object?[array.Length];
+            for (var i = 0; i < array.Length; i++)
+            {
+                result[i] = ToJsonSafeValue(array.GetValue(i), elementType);
+            }
+
+            return result;
+        }
+
+        // Generic lists/collections
+        if (type.IsGenericType)
+        {
+            var genericDef = type.GetGenericTypeDefinition();
+            if (genericDef == typeof(List<>) || genericDef == typeof(IList<>) ||
+                genericDef == typeof(IReadOnlyList<>) || genericDef == typeof(IEnumerable<>))
+            {
+                var elementType = type.GetGenericArguments()[0];
+                var list = new List<object?>();
+                foreach (var item in (System.Collections.IEnumerable)value)
+                {
+                    list.Add(ToJsonSafeValue(item, elementType));
+                }
+
+                return list;
+            }
+
+            // Dictionaries - recursively convert values
+            if (genericDef == typeof(Dictionary<,>) || genericDef == typeof(IDictionary<,>) ||
+                genericDef == typeof(IReadOnlyDictionary<,>))
+            {
+                var valueType = type.GetGenericArguments()[1];
+                var dict = new Dictionary<string, object?>();
+                foreach (System.Collections.DictionaryEntry entry in (System.Collections.IDictionary)value)
+                {
+                    var key = entry.Key?.ToString() ?? "null";
+                    dict[key] = ToJsonSafeValue(entry.Value, valueType);
+                }
+
+                return dict;
+            }
+        }
+
+        // Complex value types (structs) and classes - serialize as nested dictionary
+        if (type.IsValueType || type.IsClass)
+        {
+            var nested = new Dictionary<string, object?>();
+
+            foreach (var field in type.GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                try
+                {
+                    nested[field.Name] = ToJsonSafeValue(field.GetValue(value), field.FieldType);
+                }
+                catch
+                {
+                    // Skip fields that throw
+                }
+            }
+
+            foreach (var prop in type.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (prop.CanRead && prop.GetIndexParameters().Length == 0)
+                {
+                    try
+                    {
+                        nested[prop.Name] = ToJsonSafeValue(prop.GetValue(value), prop.PropertyType);
+                    }
+                    catch
+                    {
+                        // Skip properties that throw
+                    }
+                }
+            }
+
+            return nested;
+        }
+
+        // Fallback: convert to string
+        return value.ToString();
     }
 
     #endregion

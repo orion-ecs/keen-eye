@@ -107,6 +107,10 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(FrameCountArgs))]
 [JsonSerializable(typeof(TagArgs))]
 [JsonSerializable(typeof(ParentIdArgs))]
+// Capture command arguments
+[JsonSerializable(typeof(SaveScreenshotArgs))]
+[JsonSerializable(typeof(GetScreenshotBytesArgs))]
+[JsonSerializable(typeof(StartRecordingArgs))]
 internal partial class IpcJsonContext : JsonSerializerContext
 {
 }

@@ -294,3 +294,37 @@ public sealed record ParentIdArgs
 }
 
 #endregion
+
+#region Capture Command Arguments
+
+/// <summary>
+/// Arguments for save screenshot command.
+/// </summary>
+public sealed record SaveScreenshotArgs
+{
+    /// <summary>Gets the file path.</summary>
+    public string FilePath { get; init; } = "";
+
+    /// <summary>Gets the image format.</summary>
+    public string Format { get; init; } = "Png";
+}
+
+/// <summary>
+/// Arguments for get screenshot bytes command.
+/// </summary>
+public sealed record GetScreenshotBytesArgs
+{
+    /// <summary>Gets the image format.</summary>
+    public string Format { get; init; } = "Png";
+}
+
+/// <summary>
+/// Arguments for start recording command.
+/// </summary>
+public sealed record StartRecordingArgs
+{
+    /// <summary>Gets the maximum number of frames to record.</summary>
+    public int MaxFrames { get; init; } = 300;
+}
+
+#endregion
