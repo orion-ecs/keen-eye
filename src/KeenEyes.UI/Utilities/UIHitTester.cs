@@ -53,7 +53,8 @@ public sealed class UIHitTester(IWorld world)
             }
 
             // Test this root and its descendants
-            var hit = HitTestRecursive(rootEntity, screenPosition, 0, ref topDepth);
+            // baseZIndex starts at 0 and accumulates z-index from ancestors
+            var hit = HitTestRecursive(rootEntity, screenPosition, 0, 0, ref topDepth);
             if (hit.IsValid)
             {
                 topHit = hit;
@@ -87,7 +88,8 @@ public sealed class UIHitTester(IWorld world)
             }
 
             // Test this root and its descendants
-            HitTestRecursiveAll(rootEntity, screenPosition, 0, hits);
+            // baseZIndex starts at 0 and accumulates z-index from ancestors
+            HitTestRecursiveAll(rootEntity, screenPosition, 0, 0, hits);
         }
 
         // Sort by depth (highest first) and return entities
@@ -97,9 +99,13 @@ public sealed class UIHitTester(IWorld world)
             .ToList();
     }
 
-    private Entity HitTestRecursive(Entity entity, Vector2 position, int depth, ref int topDepth)
+    private Entity HitTestRecursive(Entity entity, Vector2 position, int depth, int baseZIndex, ref int topDepth)
     {
         Entity topHit = Entity.Null;
+
+        // Get this entity's z-index to pass to children
+        ref readonly var rect = ref world.Get<UIRect>(entity);
+        int childBaseZIndex = baseZIndex + rect.LocalZIndex;
 
         // Check children first (they render on top) - using IWorld.GetChildren
         foreach (var child in world.GetChildren(entity))
@@ -120,7 +126,7 @@ public sealed class UIHitTester(IWorld world)
                 continue;
             }
 
-            var hit = HitTestRecursive(child, position, depth + 1, ref topDepth);
+            var hit = HitTestRecursive(child, position, depth + 1, childBaseZIndex, ref topDepth);
             if (hit.IsValid)
             {
                 topHit = hit;
@@ -140,14 +146,16 @@ public sealed class UIHitTester(IWorld world)
             return Entity.Null;
         }
 
-        ref readonly var rect = ref world.Get<UIRect>(entity);
         if (!rect.ComputedBounds.Contains(position))
         {
             return Entity.Null;
         }
 
-        // Calculate depth score
-        int depthScore = depth * 10000 + rect.LocalZIndex;
+        // Calculate depth score: z-index takes priority over depth
+        // Formula: (accumulated z-index) * 100000 + depth * 100 + local z-index
+        // This ensures overlay elements (z >= 1000) always beat non-overlay elements
+        int totalZIndex = baseZIndex + rect.LocalZIndex;
+        int depthScore = totalZIndex * 100000 + depth * 100;
         if (depthScore > topDepth)
         {
             topDepth = depthScore;
@@ -157,7 +165,7 @@ public sealed class UIHitTester(IWorld world)
         return Entity.Null;
     }
 
-    private void HitTestRecursiveAll(Entity entity, Vector2 position, int depth, List<(Entity, int)> hits)
+    private void HitTestRecursiveAll(Entity entity, Vector2 position, int depth, int baseZIndex, List<(Entity, int)> hits)
     {
         // Check this entity
         ref readonly var element = ref world.Get<UIElement>(entity);
@@ -165,9 +173,16 @@ public sealed class UIHitTester(IWorld world)
 
         if (element.RaycastTarget && rect.ComputedBounds.Contains(position))
         {
-            int depthScore = depth * 10000 + rect.LocalZIndex;
+            // Calculate depth score: z-index takes priority over depth
+            // Formula: (accumulated z-index) * 100000 + depth * 100
+            // This ensures overlay elements (z >= 1000) always beat non-overlay elements
+            int totalZIndex = baseZIndex + rect.LocalZIndex;
+            int depthScore = totalZIndex * 100000 + depth * 100;
             hits.Add((entity, depthScore));
         }
+
+        // Calculate z-index to pass to children
+        int childBaseZIndex = baseZIndex + rect.LocalZIndex;
 
         // Check children - using IWorld.GetChildren
         foreach (var child in world.GetChildren(entity))
@@ -188,7 +203,7 @@ public sealed class UIHitTester(IWorld world)
                 continue;
             }
 
-            HitTestRecursiveAll(child, position, depth + 1, hits);
+            HitTestRecursiveAll(child, position, depth + 1, childBaseZIndex, hits);
         }
     }
 }
