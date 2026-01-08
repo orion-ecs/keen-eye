@@ -10,6 +10,17 @@
         "KEENEYES_HEARTBEAT_INTERVAL": "5000",
         "KEENEYES_HEARTBEAT_TIMEOUT": "10000"
       }
+    },
+    "keeneyes-sample-ui": {
+      "type": "stdio",
+      "command": ".mcp/KeenEyes.Mcp.TestBridge.exe",
+      "args": [],
+      "env": {
+        "KEENEYES_TRANSPORT": "pipe",
+        "KEENEYES_PIPE_NAME": "KeenEyes.Sample.UI.TestBridge",
+        "KEENEYES_HEARTBEAT_INTERVAL": "5000",
+        "KEENEYES_HEARTBEAT_TIMEOUT": "10000"
+      }
     }
   }
 }

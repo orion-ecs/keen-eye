@@ -353,6 +353,13 @@
           "Silk.NET.Windowing": "[2.22.0, )"
         }
       },
+      "keeneyes.testbridge.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.testing": {
         "type": "Project",
         "dependencies": {
@@ -362,7 +369,8 @@
           "KeenEyes.Input.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
           "KeenEyes.Network.Abstractions": "[1.0.0, )",
-          "KeenEyes.Persistence": "[1.0.0, )"
+          "KeenEyes.Persistence": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )"
         }
       },
       "FontStashSharp.PlatformAgnostic": {
