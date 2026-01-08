@@ -1,4 +1,5 @@
 using KeenEyes.Input.Abstractions;
+using KeenEyes.Logging;
 
 namespace KeenEyes.TestBridge;
 
@@ -43,6 +44,20 @@ public sealed record TestBridgeOptions
     /// This allows sharing an input context with other test infrastructure.
     /// </remarks>
     public IInputContext? CustomInputContext { get; init; }
+
+    /// <summary>
+    /// Gets or sets the log queryable provider for log browsing.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// If null, the bridge will attempt to find an <see cref="ILogQueryable"/>
+    /// provider from an installed logging plugin's LogManager.
+    /// </para>
+    /// <para>
+    /// Provide a queryable log provider (such as RingBufferLogProvider) for log querying support.
+    /// </para>
+    /// </remarks>
+    public ILogQueryable? LogQueryable { get; init; }
 }
 
 /// <summary>

@@ -2,6 +2,7 @@ using KeenEyes.TestBridge;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
+using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
 
@@ -17,11 +18,13 @@ internal sealed class MockTestBridge : ITestBridge
     public MockStateController MockState { get; } = new();
     public MockCaptureController MockCapture { get; } = new();
     public MockProcessController MockProcess { get; } = new();
+    public MockLogController MockLogs { get; } = new();
 
     IInputController ITestBridge.Input => MockInput;
     ICaptureController ITestBridge.Capture => MockCapture;
     IStateController ITestBridge.State => MockState;
     IProcessController ITestBridge.Process => MockProcess;
+    ILogController ITestBridge.Logs => MockLogs;
 
     public Task<CommandResult> ExecuteAsync(ITestCommand command, CancellationToken cancellationToken = default)
     {

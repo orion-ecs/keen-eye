@@ -1,4 +1,5 @@
 using System.Text.Json;
+using KeenEyes.TestBridge.Logging;
 
 namespace KeenEyes.TestBridge.State;
 
@@ -259,6 +260,11 @@ public sealed record WorldStats
     /// Gets the total elapsed time.
     /// </summary>
     public required TimeSpan ElapsedTime { get; init; }
+
+    /// <summary>
+    /// Gets log statistics, or null if logging is not available.
+    /// </summary>
+    public LogStatsSnapshot? LogStats { get; init; }
 }
 
 /// <summary>

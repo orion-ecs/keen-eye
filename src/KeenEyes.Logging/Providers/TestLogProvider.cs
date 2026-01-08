@@ -25,7 +25,7 @@ namespace KeenEyes.Logging.Providers;
 /// Assert.Contains("expected text", testProvider.Messages[0].Message);
 /// </code>
 /// </example>
-public sealed class TestLogProvider : ILogProvider
+public sealed class TestLogProvider : ILogProvider, ILogQueryable
 {
     private readonly List<LogEntry> messages = [];
     private readonly Lock messagesLock = new();
@@ -83,6 +83,8 @@ public sealed class TestLogProvider : ILogProvider
         {
             messages.Add(entry);
         }
+
+        LogAdded?.Invoke(entry);
     }
 
     /// <summary>
@@ -94,6 +96,8 @@ public sealed class TestLogProvider : ILogProvider
         {
             messages.Clear();
         }
+
+        LogsCleared?.Invoke();
     }
 
     /// <summary>
@@ -173,18 +177,114 @@ public sealed class TestLogProvider : ILogProvider
         Clear();
     }
 
-    /// <summary>
-    /// Represents a captured log entry.
-    /// </summary>
-    /// <param name="Timestamp">The time the message was logged.</param>
-    /// <param name="Level">The severity level of the message.</param>
-    /// <param name="Category">The category or source of the message.</param>
-    /// <param name="Message">The log message text.</param>
-    /// <param name="Properties">The structured properties, if any.</param>
-    public sealed record LogEntry(
-        DateTime Timestamp,
-        LogLevel Level,
-        string Category,
-        string Message,
-        IReadOnlyDictionary<string, object?>? Properties);
+    #region ILogQueryable Implementation
+
+    /// <inheritdoc />
+    int ILogQueryable.EntryCount => MessageCount;
+
+    /// <inheritdoc />
+    IReadOnlyList<LogEntry> ILogQueryable.GetEntries() => Messages;
+
+    /// <inheritdoc />
+    public IReadOnlyList<LogEntry> Query(LogQuery query)
+    {
+        ArgumentNullException.ThrowIfNull(query);
+
+        lock (messagesLock)
+        {
+            IEnumerable<LogEntry> result = messages;
+
+            // Apply level filters
+            if (query.MinLevel.HasValue)
+            {
+                result = result.Where(e => e.Level >= query.MinLevel.Value);
+            }
+
+            if (query.MaxLevel.HasValue)
+            {
+                result = result.Where(e => e.Level <= query.MaxLevel.Value);
+            }
+
+            // Apply category filter (simple contains for TestLogProvider)
+            if (!string.IsNullOrEmpty(query.CategoryPattern))
+            {
+                var pattern = query.CategoryPattern;
+                if (pattern.Contains('*') || pattern.Contains('?'))
+                {
+                    // Simple wildcard - just check prefix for "Pattern.*"
+                    var prefix = pattern.TrimEnd('*', '?', '.');
+                    result = result.Where(e => e.Category.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+                }
+                else
+                {
+                    result = result.Where(e => e.Category.Equals(pattern, StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            // Apply message filter
+            if (!string.IsNullOrEmpty(query.MessageContains))
+            {
+                result = result.Where(e => e.Message.Contains(query.MessageContains, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Apply time filters
+            if (query.After.HasValue)
+            {
+                result = result.Where(e => e.Timestamp >= query.After.Value);
+            }
+
+            if (query.Before.HasValue)
+            {
+                result = result.Where(e => e.Timestamp <= query.Before.Value);
+            }
+
+            // Apply ordering
+            if (query.NewestFirst)
+            {
+                result = result.Reverse();
+            }
+
+            // Apply pagination
+            if (query.Skip > 0)
+            {
+                result = result.Skip(query.Skip);
+            }
+
+            if (query.MaxResults > 0)
+            {
+                result = result.Take(query.MaxResults);
+            }
+
+            return [.. result];
+        }
+    }
+
+    /// <inheritdoc />
+    public LogStats GetStats()
+    {
+        lock (messagesLock)
+        {
+            return new LogStats
+            {
+                TotalCount = messages.Count,
+                TraceCount = messages.Count(m => m.Level == LogLevel.Trace),
+                DebugCount = messages.Count(m => m.Level == LogLevel.Debug),
+                InfoCount = messages.Count(m => m.Level == LogLevel.Info),
+                WarningCount = messages.Count(m => m.Level == LogLevel.Warning),
+                ErrorCount = messages.Count(m => m.Level == LogLevel.Error),
+                FatalCount = messages.Count(m => m.Level == LogLevel.Fatal),
+                OldestTimestamp = messages.Count > 0 ? messages[0].Timestamp : null,
+                NewestTimestamp = messages.Count > 0 ? messages[^1].Timestamp : null,
+                Capacity = null // Unbounded
+            };
+        }
+    }
+
+    /// <inheritdoc />
+    public event Action<LogEntry>? LogAdded;
+
+    /// <inheritdoc />
+    public event Action? LogsCleared;
+
+    #endregion
 }

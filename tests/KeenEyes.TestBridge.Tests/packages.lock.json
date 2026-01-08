@@ -249,6 +249,7 @@
         "dependencies": {
           "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )",
           "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",
           "KeenEyes.Testing": "[1.0.0, )",
           "StbImageWriteSharp": "[1.16.7, )"
@@ -286,7 +287,8 @@
           "KeenEyes.Input.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
           "KeenEyes.Network.Abstractions": "[1.0.0, )",
-          "KeenEyes.Persistence": "[1.0.0, )"
+          "KeenEyes.Persistence": "[1.0.0, )",
+          "KeenEyes.TestBridge.Abstractions": "[1.0.0, )"
         }
       },
       "StbImageWriteSharp": {

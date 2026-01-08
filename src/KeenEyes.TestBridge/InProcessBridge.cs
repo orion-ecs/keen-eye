@@ -1,7 +1,10 @@
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Logging;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
+using KeenEyes.TestBridge.Logging;
+using KeenEyes.TestBridge.LoggingImpl;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.ProcessImpl;
 using KeenEyes.TestBridge.State;
@@ -30,6 +33,7 @@ public sealed class InProcessBridge : ITestBridge
     private readonly StateControllerImpl stateController;
     private readonly CaptureControllerImpl captureController;
     private readonly ProcessControllerImpl processController;
+    private readonly LogControllerImpl logController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -53,6 +57,10 @@ public sealed class InProcessBridge : ITestBridge
         stateController = new StateControllerImpl(world);
         captureController = new CaptureControllerImpl(graphicsContext, loopProvider);
         processController = new ProcessControllerImpl();
+        logController = new LogControllerImpl(this.options.LogQueryable);
+
+        // Wire up log controller to state controller for WorldStats
+        stateController.SetLogController(logController);
     }
 
     /// <inheritdoc />
@@ -69,6 +77,9 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public IProcessController Process => processController;
+
+    /// <inheritdoc />
+    public ILogController Logs => logController;
 
     /// <summary>
     /// Gets the underlying mock input context for direct access.

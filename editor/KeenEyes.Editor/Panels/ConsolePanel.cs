@@ -263,7 +263,7 @@ public static class ConsolePanel
 
         // Timestamp
         WidgetFactory.CreateLabel(editorWorld, row, $"Time_{entry.Timestamp.Ticks}",
-            entry.FormattedTime, font, new LabelConfig(
+            entry.GetFormattedTime(), font, new LabelConfig(
                 FontSize: 10,
                 TextColor: EditorColors.TextMuted,
                 HorizontalAlign: TextAlignH.Left

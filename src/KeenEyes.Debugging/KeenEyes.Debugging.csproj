@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Common\KeenEyes.Common.csproj" />
     <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\KeenEyes.Logging\KeenEyes.Logging.csproj" />
   </ItemGroup>
 
 </Project>

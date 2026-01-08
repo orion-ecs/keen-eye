@@ -1,5 +1,6 @@
 using KeenEyes.Capabilities;
 using KeenEyes.Debugging.Timeline;
+using KeenEyes.Logging;
 
 namespace KeenEyes.Debugging;
 
@@ -49,6 +50,7 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
     private EventSubscription? profilingHook;
     private EventSubscription? gcTrackingHook;
     private EventSubscription? timelineHook;
+    private LogCapture? logCapture;
 
     /// <summary>
     /// Gets the name of this plugin.
@@ -137,6 +139,33 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
                 phase: options.TimelinePhase
             );
         }
+
+        // Conditionally install log capture
+        if (options.EnableLogCapture)
+        {
+            logCapture = new LogCapture(options.LogQueryable, options.LogCaptureMaxEntries);
+            context.SetExtension(logCapture);
+
+            // Auto-start capture when debug mode is enabled (if configured)
+            if (options.AutoStartLogCaptureOnDebugMode)
+            {
+                var controller = context.GetExtension<DebugController>();
+                if (controller is not null)
+                {
+                    controller.DebugModeChanged += (_, isDebug) =>
+                    {
+                        if (isDebug && logCapture is not null && !logCapture.IsCapturing)
+                        {
+                            logCapture.StartCapture();
+                        }
+                        else if (!isDebug && logCapture is not null && logCapture.IsCapturing)
+                        {
+                            logCapture.StopCapture();
+                        }
+                    };
+                }
+            }
+        }
     }
 
     /// <inheritdoc />
@@ -170,6 +199,12 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
         if (options.EnableTimeline)
         {
             context.RemoveExtension<TimelineRecorder>();
+        }
+
+        if (options.EnableLogCapture)
+        {
+            logCapture?.Dispose();
+            context.RemoveExtension<LogCapture>();
         }
     }
 }
@@ -299,4 +334,50 @@ public sealed record DebugOptions
     /// </para>
     /// </remarks>
     public Action<bool>? OnDebugModeChanged { get; init; } = null;
+
+    /// <summary>
+    /// Gets or initializes a value indicating whether log capture is enabled.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the <see cref="LogCapture"/> extension is installed, allowing
+    /// capture of log entries during debug sessions for later analysis.
+    /// </para>
+    /// <para>
+    /// Default is false. Set <see cref="LogQueryable"/> to provide the log source.
+    /// </para>
+    /// </remarks>
+    public bool EnableLogCapture { get; init; } = false;
+
+    /// <summary>
+    /// Gets or initializes the log queryable provider to capture logs from.
+    /// </summary>
+    /// <remarks>
+    /// Required when <see cref="EnableLogCapture"/> is true. Pass a reference to your
+    /// RingBufferLogProvider or other <see cref="ILogQueryable"/> implementation.
+    /// </remarks>
+    public ILogQueryable? LogQueryable { get; init; } = null;
+
+    /// <summary>
+    /// Gets or initializes the maximum number of log entries to capture.
+    /// </summary>
+    /// <remarks>
+    /// Older entries are discarded when this limit is reached. Default is 10,000.
+    /// </remarks>
+    public int LogCaptureMaxEntries { get; init; } = 10_000;
+
+    /// <summary>
+    /// Gets or initializes a value indicating whether log capture should automatically
+    /// start when debug mode is enabled and stop when debug mode is disabled.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When true, log capture is tied to the debug mode toggle, making it easy to
+    /// capture logs during debugging sessions without manual start/stop calls.
+    /// </para>
+    /// <para>
+    /// Default is true. Set to false for manual control over log capture.
+    /// </para>
+    /// </remarks>
+    public bool AutoStartLogCaptureOnDebugMode { get; init; } = true;
 }
