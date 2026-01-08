@@ -1,3 +1,4 @@
+using KeenEyes.Logging;
 using KeenEyes.TestBridge;
 using KeenEyes.TestBridge.Ipc;
 
@@ -34,7 +35,8 @@ public sealed class TestBridgeManager : IAsyncDisposable
     /// </summary>
     /// <param name="sceneWorld">The scene world to bridge.</param>
     /// <param name="pipeName">The named pipe name for IPC connections. If null, uses <see cref="DefaultPipeName"/>.</param>
-    public TestBridgeManager(World sceneWorld, string? pipeName = null)
+    /// <param name="logQueryable">Optional log queryable provider for log browsing via MCP.</param>
+    public TestBridgeManager(World sceneWorld, string? pipeName = null, ILogQueryable? logQueryable = null)
     {
         ArgumentNullException.ThrowIfNull(sceneWorld);
 
@@ -43,6 +45,7 @@ public sealed class TestBridgeManager : IAsyncDisposable
         {
             EnableIpc = true,
             EnableCapture = true,
+            LogQueryable = logQueryable,
             IpcOptions = new IpcOptions
             {
                 PipeName = pipeName ?? DefaultPipeName,

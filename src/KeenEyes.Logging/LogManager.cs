@@ -165,6 +165,30 @@ public sealed class LogManager : IDisposable
     }
 
     /// <summary>
+    /// Gets the first registered provider that implements the specified type.
+    /// </summary>
+    /// <typeparam name="T">The type to find.</typeparam>
+    /// <returns>The first provider of type T, or null if none found.</returns>
+    /// <remarks>
+    /// Use this to find providers with specific capabilities, such as <see cref="ILogQueryable"/>.
+    /// </remarks>
+    public T? GetProvider<T>() where T : class
+    {
+        lock (providersLock)
+        {
+            foreach (var provider in providers)
+            {
+                if (provider is T typed)
+                {
+                    return typed;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// Begins a new logging scope with optional properties.
     /// </summary>
     /// <param name="name">A name for the scope.</param>

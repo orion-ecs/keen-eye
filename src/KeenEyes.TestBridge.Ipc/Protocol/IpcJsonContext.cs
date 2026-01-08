@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.Capture;
+using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.State;
 
 namespace KeenEyes.TestBridge.Ipc.Protocol;
@@ -43,6 +44,13 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 // Capture types
 [JsonSerializable(typeof(FrameCapture))]
 [JsonSerializable(typeof(ImageFormat))]
+// Logging types
+[JsonSerializable(typeof(LogQueryDto))]
+[JsonSerializable(typeof(LogEntrySnapshot))]
+[JsonSerializable(typeof(LogStatsSnapshot))]
+[JsonSerializable(typeof(LogEntrySnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<LogEntrySnapshot>))]
+[JsonSerializable(typeof(List<LogEntrySnapshot>))]
 // Collections
 [JsonSerializable(typeof(IReadOnlyList<EntitySnapshot>))]
 [JsonSerializable(typeof(IReadOnlyList<SystemInfo>))]

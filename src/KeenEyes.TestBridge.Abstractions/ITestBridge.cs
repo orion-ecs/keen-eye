@@ -1,6 +1,7 @@
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
+using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
 
@@ -63,6 +64,11 @@ public interface ITestBridge : IDisposable
     /// Gets the process controller for managing child processes.
     /// </summary>
     IProcessController Process { get; }
+
+    /// <summary>
+    /// Gets the log controller for querying application logs.
+    /// </summary>
+    ILogController Logs { get; }
 
     /// <summary>
     /// Executes a command and returns the result.

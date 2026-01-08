@@ -243,7 +243,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         SetupInputHandling();
 
         // Start TestBridge for the editor world (allows debugging editor UI)
-        _editorTestBridge = new TestBridgeManager(_editorWorld);
+        // Pass the log provider so MCP tools can query editor logs
+        _editorTestBridge = new TestBridgeManager(_editorWorld, logQueryable: _logProvider);
         _ = StartEditorTestBridgeAsync();
 
         // Force initial layout calculation so UI bounds are ready for first frame input

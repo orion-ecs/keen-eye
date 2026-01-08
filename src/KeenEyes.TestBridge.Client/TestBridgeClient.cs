@@ -6,6 +6,7 @@ using KeenEyes.TestBridge.Input;
 using KeenEyes.TestBridge.Ipc;
 using KeenEyes.TestBridge.Ipc.Protocol;
 using KeenEyes.TestBridge.Ipc.Transport;
+using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
 
@@ -64,6 +65,7 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Input = new RemoteInputController(this);
         State = new RemoteStateController(this);
         Capture = new RemoteCaptureController(this);
+        Logs = new RemoteLogController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -88,6 +90,9 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
     /// </remarks>
     public IProcessController Process => throw new NotSupportedException(
         "Process management is not supported over IPC. Use in-process testing for process management.");
+
+    /// <inheritdoc />
+    public ILogController Logs { get; }
 
     /// <summary>
     /// Raised when the connection state changes.
@@ -356,6 +361,17 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         if (type == typeof(Dictionary<string, object?>))
         {
             return (T?)(object?)element.Deserialize(IpcJsonContext.Default.DictionaryStringObject);
+        }
+
+        // Logging types
+        if (type == typeof(LogEntrySnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.LogEntrySnapshotArray);
+        }
+
+        if (type == typeof(LogStatsSnapshot))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.LogStatsSnapshot);
         }
 
         // Fallback for unknown types - let the exception surface during development

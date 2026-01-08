@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json;
 using KeenEyes.Capabilities;
+using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.State;
 
 namespace KeenEyes.TestBridge.State;
@@ -13,12 +14,22 @@ internal sealed class StateControllerImpl(World world) : IStateController
 {
     private readonly IInspectionCapability? inspectionCapability = world as IInspectionCapability;
     private readonly IStatisticsCapability? statisticsCapability = world as IStatisticsCapability;
+    private ILogController? logController;
 
     // Frame timing for performance metrics
     private readonly Queue<double> frameTimes = new();
     private readonly Dictionary<string, Queue<double>> systemTimes = [];
     private long frameNumber;
     private readonly DateTime startTime = DateTime.UtcNow;
+
+    /// <summary>
+    /// Sets the log controller for including log stats in WorldStats.
+    /// </summary>
+    /// <param name="controller">The log controller, or null to disable log stats.</param>
+    internal void SetLogController(ILogController? controller)
+    {
+        logController = controller;
+    }
 
     /// <summary>
     /// Records frame time for performance metrics.
@@ -145,7 +156,7 @@ internal sealed class StateControllerImpl(World world) : IStateController
 
     #region World Statistics
 
-    public Task<WorldStats> GetWorldStatsAsync()
+    public async Task<WorldStats> GetWorldStatsAsync()
     {
         long memoryBytes = 0;
         int archetypeCount = 0;
@@ -167,7 +178,14 @@ internal sealed class StateControllerImpl(World world) : IStateController
         // Count systems (we'll need to estimate this)
         var systemCount = systemTimes.Count;
 
-        return Task.FromResult(new WorldStats
+        // Get log stats if available
+        LogStatsSnapshot? logStats = null;
+        if (logController is not null)
+        {
+            logStats = await logController.GetStatsAsync();
+        }
+
+        return new WorldStats
         {
             EntityCount = world.EntityCount,
             ArchetypeCount = archetypeCount,
@@ -176,8 +194,9 @@ internal sealed class StateControllerImpl(World world) : IStateController
             ComponentTypeCount = componentTypeCount,
             PluginCount = pluginCount,
             FrameNumber = frameNumber,
-            ElapsedTime = DateTime.UtcNow - startTime
-        });
+            ElapsedTime = DateTime.UtcNow - startTime,
+            LogStats = logStats
+        };
     }
 
     public Task<IReadOnlyList<SystemInfo>> GetSystemsAsync()

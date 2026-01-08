@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Text.RegularExpressions;
 using KeenEyes.Logging;
 
 namespace KeenEyes.Editor.Logging;
@@ -10,14 +11,19 @@ namespace KeenEyes.Editor.Logging;
 /// This provider maintains a ring buffer of log entries to prevent unbounded memory usage.
 /// Entries are stored thread-safely and can be accessed for UI display.
 /// </remarks>
-public sealed class EditorLogProvider : ILogProvider
+public sealed class EditorLogProvider : ILogProvider, ILogQueryable
 {
     private readonly ConcurrentQueue<LogEntry> _entries = new();
     private readonly int _maxEntries;
     private int _entryCount;
+    private int _traceCount;
+    private int _debugCount;
     private int _infoCount;
     private int _warningCount;
     private int _errorCount;
+    private int _fatalCount;
+    private DateTime? _oldestTimestamp;
+    private DateTime? _newestTimestamp;
 
     /// <inheritdoc/>
     public string Name => "EditorConsole";
@@ -43,7 +49,7 @@ public sealed class EditorLogProvider : ILogProvider
     /// <summary>
     /// Gets the count of info-level (and below) log entries.
     /// </summary>
-    public int InfoCount => _infoCount;
+    public int InfoCount => _traceCount + _debugCount + _infoCount;
 
     /// <summary>
     /// Gets the count of warning-level log entries.
@@ -53,7 +59,7 @@ public sealed class EditorLogProvider : ILogProvider
     /// <summary>
     /// Gets the count of error-level (and above) log entries.
     /// </summary>
-    public int ErrorCount => _errorCount;
+    public int ErrorCount => _errorCount + _fatalCount;
 
     /// <summary>
     /// Creates a new editor log provider with the specified maximum entry count.
@@ -72,48 +78,87 @@ public sealed class EditorLogProvider : ILogProvider
         _entries.Enqueue(entry);
         Interlocked.Increment(ref _entryCount);
 
+        // Update timestamps
+        if (_oldestTimestamp == null)
+        {
+            _oldestTimestamp = entry.Timestamp;
+        }
+        _newestTimestamp = entry.Timestamp;
+
         // Update level counts
-        if (level >= LogLevel.Error)
-        {
-            Interlocked.Increment(ref _errorCount);
-        }
-        else if (level == LogLevel.Warning)
-        {
-            Interlocked.Increment(ref _warningCount);
-        }
-        else
-        {
-            Interlocked.Increment(ref _infoCount);
-        }
+        IncrementLevelCount(level);
 
         // Trim old entries if over limit
         while (_entryCount > _maxEntries && _entries.TryDequeue(out var removed))
         {
             Interlocked.Decrement(ref _entryCount);
+            DecrementLevelCount(removed.Level);
 
-            // Update level counts for removed entry
-            if (removed.Level >= LogLevel.Error)
+            // Update oldest timestamp
+            if (_entries.TryPeek(out var oldest))
             {
-                Interlocked.Decrement(ref _errorCount);
-            }
-            else if (removed.Level == LogLevel.Warning)
-            {
-                Interlocked.Decrement(ref _warningCount);
-            }
-            else
-            {
-                Interlocked.Decrement(ref _infoCount);
+                _oldestTimestamp = oldest.Timestamp;
             }
         }
 
         LogAdded?.Invoke(entry);
     }
 
+    private void IncrementLevelCount(LogLevel level)
+    {
+        switch (level)
+        {
+            case LogLevel.Trace:
+                Interlocked.Increment(ref _traceCount);
+                break;
+            case LogLevel.Debug:
+                Interlocked.Increment(ref _debugCount);
+                break;
+            case LogLevel.Info:
+                Interlocked.Increment(ref _infoCount);
+                break;
+            case LogLevel.Warning:
+                Interlocked.Increment(ref _warningCount);
+                break;
+            case LogLevel.Error:
+                Interlocked.Increment(ref _errorCount);
+                break;
+            case LogLevel.Fatal:
+                Interlocked.Increment(ref _fatalCount);
+                break;
+        }
+    }
+
+    private void DecrementLevelCount(LogLevel level)
+    {
+        switch (level)
+        {
+            case LogLevel.Trace:
+                Interlocked.Decrement(ref _traceCount);
+                break;
+            case LogLevel.Debug:
+                Interlocked.Decrement(ref _debugCount);
+                break;
+            case LogLevel.Info:
+                Interlocked.Decrement(ref _infoCount);
+                break;
+            case LogLevel.Warning:
+                Interlocked.Decrement(ref _warningCount);
+                break;
+            case LogLevel.Error:
+                Interlocked.Decrement(ref _errorCount);
+                break;
+            case LogLevel.Fatal:
+                Interlocked.Decrement(ref _fatalCount);
+                break;
+        }
+    }
+
     /// <summary>
     /// Gets all log entries as a snapshot.
     /// </summary>
-    /// <returns>An enumerable of all current log entries.</returns>
-    public IEnumerable<LogEntry> GetEntries()
+    /// <returns>A read-only list of all current log entries.</returns>
+    public IReadOnlyList<LogEntry> GetEntries()
     {
         return _entries.ToArray();
     }
@@ -175,11 +220,101 @@ public sealed class EditorLogProvider : ILogProvider
         }
 
         _entryCount = 0;
+        _traceCount = 0;
+        _debugCount = 0;
         _infoCount = 0;
         _warningCount = 0;
         _errorCount = 0;
+        _fatalCount = 0;
+        _oldestTimestamp = null;
+        _newestTimestamp = null;
 
         LogsCleared?.Invoke();
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<LogEntry> Query(LogQuery query)
+    {
+        var result = _entries.AsEnumerable();
+
+        // Filter by level range
+        if (query.MinLevel.HasValue)
+        {
+            result = result.Where(e => e.Level >= query.MinLevel.Value);
+        }
+
+        if (query.MaxLevel.HasValue)
+        {
+            result = result.Where(e => e.Level <= query.MaxLevel.Value);
+        }
+
+        // Filter by category pattern
+        if (!string.IsNullOrEmpty(query.CategoryPattern))
+        {
+            var regex = WildcardToRegex(query.CategoryPattern);
+            result = result.Where(e => regex.IsMatch(e.Category));
+        }
+
+        // Filter by message content
+        if (!string.IsNullOrEmpty(query.MessageContains))
+        {
+            result = result.Where(e => e.Message.Contains(query.MessageContains, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // Filter by time range
+        if (query.After.HasValue)
+        {
+            result = result.Where(e => e.Timestamp > query.After.Value);
+        }
+
+        if (query.Before.HasValue)
+        {
+            result = result.Where(e => e.Timestamp < query.Before.Value);
+        }
+
+        // Apply ordering
+        result = query.NewestFirst
+            ? result.OrderByDescending(e => e.Timestamp)
+            : result.OrderBy(e => e.Timestamp);
+
+        // Apply pagination
+        if (query.Skip > 0)
+        {
+            result = result.Skip(query.Skip);
+        }
+
+        if (query.MaxResults > 0)
+        {
+            result = result.Take(query.MaxResults);
+        }
+
+        return result.ToList();
+    }
+
+    /// <inheritdoc />
+    public LogStats GetStats()
+    {
+        return new LogStats
+        {
+            TotalCount = _entryCount,
+            TraceCount = _traceCount,
+            DebugCount = _debugCount,
+            InfoCount = _infoCount,
+            WarningCount = _warningCount,
+            ErrorCount = _errorCount,
+            FatalCount = _fatalCount,
+            OldestTimestamp = _oldestTimestamp,
+            NewestTimestamp = _newestTimestamp,
+            Capacity = _maxEntries
+        };
+    }
+
+    private static Regex WildcardToRegex(string pattern)
+    {
+        var regexPattern = "^" + Regex.Escape(pattern)
+            .Replace("\\*", ".*")
+            .Replace("\\?", ".") + "$";
+        return new Regex(regexPattern, RegexOptions.IgnoreCase);
     }
 
     /// <inheritdoc/>
