@@ -1,3 +1,4 @@
+using KeenEyes.Input.Abstractions;
 using KeenEyes.Logging;
 using KeenEyes.TestBridge;
 using KeenEyes.TestBridge.Ipc;
@@ -36,7 +37,16 @@ public sealed class TestBridgeManager : IAsyncDisposable
     /// <param name="sceneWorld">The scene world to bridge.</param>
     /// <param name="pipeName">The named pipe name for IPC connections. If null, uses <see cref="DefaultPipeName"/>.</param>
     /// <param name="logQueryable">Optional log queryable provider for log browsing via MCP.</param>
-    public TestBridgeManager(World sceneWorld, string? pipeName = null, ILogQueryable? logQueryable = null)
+    /// <param name="realInputContext">
+    /// Optional real hardware input context to merge with virtual input.
+    /// When provided, enables hybrid input mode where both real hardware input
+    /// and virtual TestBridge-injected input work together.
+    /// </param>
+    public TestBridgeManager(
+        World sceneWorld,
+        string? pipeName = null,
+        ILogQueryable? logQueryable = null,
+        IInputContext? realInputContext = null)
     {
         ArgumentNullException.ThrowIfNull(sceneWorld);
 
@@ -46,6 +56,7 @@ public sealed class TestBridgeManager : IAsyncDisposable
             EnableIpc = true,
             EnableCapture = true,
             LogQueryable = logQueryable,
+            RealInputContext = realInputContext,
             IpcOptions = new IpcOptions
             {
                 PipeName = pipeName ?? DefaultPipeName,
