@@ -39,7 +39,8 @@ public sealed class InProcessBridge : ITestBridge
     /// <param name="world">The world to bridge.</param>
     /// <param name="options">Configuration options.</param>
     /// <param name="graphicsContext">Optional graphics context for screenshot capture.</param>
-    public InProcessBridge(World world, TestBridgeOptions? options = null, IGraphicsContext? graphicsContext = null)
+    /// <param name="loopProvider">Optional loop provider for render thread marshalling.</param>
+    public InProcessBridge(World world, TestBridgeOptions? options = null, IGraphicsContext? graphicsContext = null, ILoopProvider? loopProvider = null)
     {
         this.world = world;
         this.options = options ?? new TestBridgeOptions();
@@ -50,7 +51,7 @@ public sealed class InProcessBridge : ITestBridge
 
         inputController = new InputControllerImpl(inputContext);
         stateController = new StateControllerImpl(world);
-        captureController = new CaptureControllerImpl(graphicsContext);
+        captureController = new CaptureControllerImpl(graphicsContext, loopProvider);
         processController = new ProcessControllerImpl();
     }
 

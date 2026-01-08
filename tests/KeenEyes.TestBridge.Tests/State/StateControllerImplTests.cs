@@ -188,8 +188,8 @@ public class StateControllerImplTests
         var component = await state.GetComponentAsync(entity.Id, "TestPosition");
 
         component.ShouldNotBeNull();
-        component["X"].ShouldBe(42f);
-        component["Y"].ShouldBe(99f);
+        component.Value.GetProperty("X").GetSingle().ShouldBe(42f);
+        component.Value.GetProperty("Y").GetSingle().ShouldBe(99f);
     }
 
     [Fact]

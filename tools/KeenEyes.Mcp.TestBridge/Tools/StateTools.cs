@@ -81,36 +81,20 @@ public sealed class StateTools(BridgeConnectionManager connection)
 
     #region Components
 
-    [McpServerTool(Name = "state_get_component")]
-    [Description("Get component data from an entity. Returns field names and values as a dictionary.")]
-    public async Task<ComponentResult> StateGetComponent(
-        [Description("The entity ID")]
-        int entityId,
-        [Description("The component type name (e.g., 'Position', 'Health')")]
-        string componentType)
-    {
-        var bridge = connection.GetBridge();
-        var data = await bridge.State.GetComponentAsync(entityId, componentType);
-
-        if (data == null)
-        {
-            return new ComponentResult
-            {
-                Found = false,
-                EntityId = entityId,
-                ComponentType = componentType,
-                Data = null
-            };
-        }
-
-        return new ComponentResult
-        {
-            Found = true,
-            EntityId = entityId,
-            ComponentType = componentType,
-            Data = data
-        };
-    }
+    // TODO: Issue #853 - state_get_component fails with MCP serialization error
+    // The MCP framework cannot serialize JsonElement? return types.
+    // Use state_get_entity instead which returns full component data.
+    // [McpServerTool(Name = "state_get_component")]
+    // [Description("Get component data from an entity. Returns field names and values as a dictionary.")]
+    // public async Task<JsonElement?> StateGetComponent(
+    //     [Description("The entity ID")]
+    //     int entityId,
+    //     [Description("The component type name (e.g., 'Position', 'Health')")]
+    //     string componentType)
+    // {
+    //     var bridge = connection.GetBridge();
+    //     return await bridge.State.GetComponentAsync(entityId, componentType);
+    // }
 
     #endregion
 
@@ -208,17 +192,6 @@ public sealed class StateTools(BridgeConnectionManager connection)
 public sealed record EntityCountResult
 {
     public required int Count { get; init; }
-}
-
-/// <summary>
-/// Result of a component query.
-/// </summary>
-public sealed record ComponentResult
-{
-    public required bool Found { get; init; }
-    public required int EntityId { get; init; }
-    public required string ComponentType { get; init; }
-    public IReadOnlyDictionary<string, object?>? Data { get; init; }
 }
 
 /// <summary>

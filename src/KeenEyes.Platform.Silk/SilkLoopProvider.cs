@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Silk.NET.Windowing;
 
 namespace KeenEyes.Platform.Silk;
@@ -20,6 +21,7 @@ namespace KeenEyes.Platform.Silk;
 public sealed class SilkLoopProvider : ILoopProvider
 {
     private readonly ISilkWindowProvider windowProvider;
+    private readonly ConcurrentQueue<Action> renderThreadQueue = new();
     private bool initialized;
 
     /// <summary>
@@ -55,6 +57,33 @@ public sealed class SilkLoopProvider : ILoopProvider
 
     /// <inheritdoc />
     public bool IsInitialized => initialized;
+
+    /// <inheritdoc />
+    public Task<T> InvokeOnRenderThreadAsync<T>(Func<T> action)
+    {
+        var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        renderThreadQueue.Enqueue(() =>
+        {
+            try
+            {
+                var result = action();
+                tcs.SetResult(result);
+            }
+            catch (Exception ex)
+            {
+                tcs.SetException(ex);
+            }
+        });
+
+        return tcs.Task;
+    }
+
+    /// <inheritdoc />
+    public void InvokeOnRenderThread(Action action)
+    {
+        renderThreadQueue.Enqueue(action);
+    }
 
     /// <inheritdoc />
     public void Initialize()
@@ -93,6 +122,20 @@ public sealed class SilkLoopProvider : ILoopProvider
 
     private void HandleRender(double deltaTime)
     {
+        // Process any pending render thread work
+        while (renderThreadQueue.TryDequeue(out var action))
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                // Log but don't crash - individual queue items handle their own errors
+                System.Diagnostics.Debug.WriteLine($"Render thread action failed: {ex.Message}");
+            }
+        }
+
         OnRender?.Invoke((float)deltaTime);
     }
 

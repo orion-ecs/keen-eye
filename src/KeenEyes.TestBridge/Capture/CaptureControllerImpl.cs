@@ -11,9 +11,14 @@ namespace KeenEyes.TestBridge.Capture;
 /// when a graphics context is available. Falls back gracefully when no graphics
 /// context is present (e.g., headless testing mode).
 /// </para>
+/// <para>
+/// When an <see cref="ILoopProvider"/> is available, OpenGL operations are marshalled
+/// to the render thread to ensure the GL context is current.
+/// </para>
 /// </remarks>
 /// <param name="graphicsContext">Optional graphics context for GPU capture.</param>
-internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = null) : ICaptureController
+/// <param name="loopProvider">Optional loop provider for render thread marshalling.</param>
+internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = null, ILoopProvider? loopProvider = null) : ICaptureController
 {
     private readonly List<FrameCapture> recordedFrames = [];
     private bool isRecording;
@@ -38,10 +43,39 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
     }
 
     /// <inheritdoc />
-    public Task<FrameCapture> CaptureFrameAsync()
+    public async Task<FrameCapture> CaptureFrameAsync()
     {
         ThrowIfNotAvailable();
 
+        // If we have a loop provider, marshal to render thread for GL context
+        if (loopProvider != null)
+        {
+            var capture = await loopProvider.InvokeOnRenderThreadAsync(() => CaptureFrameCore());
+
+            if (isRecording)
+            {
+                RecordFrame(capture);
+            }
+
+            return capture;
+        }
+
+        // No loop provider - call directly (assumes we're on the right thread)
+        var directCapture = CaptureFrameCore();
+
+        if (isRecording)
+        {
+            RecordFrame(directCapture);
+        }
+
+        return directCapture;
+    }
+
+    /// <summary>
+    /// Core frame capture logic that must run on the render thread.
+    /// </summary>
+    private FrameCapture CaptureFrameCore()
+    {
         var width = graphicsContext!.Width;
         var height = graphicsContext.Height;
         var pixels = new byte[width * height * 4];
@@ -52,7 +86,7 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
         // OpenGL reads pixels from bottom-left origin, flip vertically for standard top-left origin
         FlipVertically(pixels, width, height);
 
-        var capture = new FrameCapture
+        return new FrameCapture
         {
             Width = width,
             Height = height,
@@ -60,13 +94,6 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
             FrameNumber = currentFrameNumber,
             Timestamp = TimeSpan.FromSeconds(currentFrameNumber / 60.0)
         };
-
-        if (isRecording)
-        {
-            RecordFrame(capture);
-        }
-
-        return Task.FromResult(capture);
     }
 
     /// <inheritdoc />

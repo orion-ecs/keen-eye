@@ -54,6 +54,25 @@ public sealed class MockLoopProvider : ILoopProvider, IDisposable
     /// <inheritdoc />
     public bool IsInitialized => isInitialized;
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// In the mock, this executes the action synchronously (for testing purposes).
+    /// </remarks>
+    public Task<T> InvokeOnRenderThreadAsync<T>(Func<T> action)
+    {
+        var result = action();
+        return Task.FromResult(result);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// In the mock, this executes the action synchronously (for testing purposes).
+    /// </remarks>
+    public void InvokeOnRenderThread(Action action)
+    {
+        action();
+    }
+
     /// <summary>
     /// Gets whether the loop is currently running.
     /// </summary>

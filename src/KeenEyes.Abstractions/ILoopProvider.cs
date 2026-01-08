@@ -68,4 +68,26 @@ public interface ILoopProvider
     /// Gets whether the loop provider is initialized.
     /// </summary>
     bool IsInitialized { get; }
+
+    /// <summary>
+    /// Queues an action to run on the render thread and waits for completion.
+    /// </summary>
+    /// <typeparam name="T">The return type of the action.</typeparam>
+    /// <param name="action">The action to execute on the render thread.</param>
+    /// <returns>A task that completes with the result when the action has executed.</returns>
+    /// <remarks>
+    /// Use this method when you need to perform operations that require the render thread's
+    /// OpenGL context (e.g., reading framebuffers, creating textures). The action will be
+    /// executed during the next render frame.
+    /// </remarks>
+    Task<T> InvokeOnRenderThreadAsync<T>(Func<T> action);
+
+    /// <summary>
+    /// Queues an action to run on the render thread (fire-and-forget).
+    /// </summary>
+    /// <param name="action">The action to execute on the render thread.</param>
+    /// <remarks>
+    /// Use this for render thread operations where you don't need to wait for completion.
+    /// </remarks>
+    void InvokeOnRenderThread(Action action);
 }
