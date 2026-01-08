@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Common;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.UI.Abstractions;
 
@@ -30,6 +31,7 @@ public sealed class UIInputSystem : SystemBase
     private bool isDragging;
     private double lastClickTime;
     private const double DoubleClickTime = 0.3; // seconds
+    private bool scrollSubscribed;
 
     /// <inheritdoc />
     protected override void OnInitialize()
@@ -71,6 +73,13 @@ public sealed class UIInputSystem : SystemBase
         var input = inputContext!;
         var mouse = input.Mouse;
         var mousePos = mouse.Position;
+
+        // Subscribe to scroll events once we have input context
+        if (!scrollSubscribed)
+        {
+            mouse.OnScroll += OnMouseScroll;
+            scrollSubscribed = true;
+        }
 
         // Hit test
         var hitEntity = hitTester.HitTest(mousePos);
@@ -201,5 +210,85 @@ public sealed class UIInputSystem : SystemBase
 
             pressedEntity = Entity.Null;
         }
+    }
+
+    private void OnMouseScroll(MouseScrollEventArgs args)
+    {
+        if (hitTester is null)
+        {
+            return;
+        }
+
+        // Hit test at the scroll position
+        var hitEntity = hitTester.HitTest(args.Position);
+
+        // Walk up hierarchy to find nearest UIScrollable
+        var scrollableEntity = FindScrollable(hitEntity);
+        if (!scrollableEntity.IsValid)
+        {
+            return;
+        }
+
+        ref var scrollable = ref World.Get<UIScrollable>(scrollableEntity);
+
+        // Get viewport size for clamping
+        Vector2 viewportSize = Vector2.Zero;
+        if (World.Has<UIRect>(scrollableEntity))
+        {
+            ref readonly var rect = ref World.Get<UIRect>(scrollableEntity);
+            viewportSize = rect.ComputedBounds.Size;
+        }
+
+        var maxScroll = scrollable.GetMaxScroll(viewportSize);
+        var sensitivity = scrollable.ScrollSensitivity > 0 ? scrollable.ScrollSensitivity : 20f;
+
+        // Apply scroll delta (negative deltaY = scroll down = increase scroll position)
+        if (scrollable.VerticalScroll && !args.DeltaY.IsApproximatelyZero())
+        {
+            var newY = scrollable.ScrollPosition.Y - args.DeltaY * sensitivity;
+            scrollable.ScrollPosition = new Vector2(
+                scrollable.ScrollPosition.X,
+                Math.Clamp(newY, 0, maxScroll.Y));
+        }
+
+        if (scrollable.HorizontalScroll && !args.DeltaX.IsApproximatelyZero())
+        {
+            var newX = scrollable.ScrollPosition.X - args.DeltaX * sensitivity;
+            scrollable.ScrollPosition = new Vector2(
+                Math.Clamp(newX, 0, maxScroll.X),
+                scrollable.ScrollPosition.Y);
+        }
+    }
+
+    private Entity FindScrollable(Entity entity)
+    {
+        var current = entity;
+        while (current.IsValid && World.IsAlive(current))
+        {
+            if (World.Has<UIScrollable>(current))
+            {
+                ref readonly var scrollable = ref World.Get<UIScrollable>(current);
+                if (scrollable.VerticalScroll || scrollable.HorizontalScroll)
+                {
+                    return current;
+                }
+            }
+
+            current = World.GetParent(current);
+        }
+
+        return Entity.Null;
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing && scrollSubscribed && inputContext is not null)
+        {
+            inputContext.Mouse.OnScroll -= OnMouseScroll;
+            scrollSubscribed = false;
+        }
+
+        base.Dispose(disposing);
     }
 }

@@ -15,6 +15,9 @@
     <ProjectReference Include="..\..\src\KeenEyes.Input\KeenEyes.Input.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Platform.Silk\KeenEyes.Platform.Silk.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Runtime\KeenEyes.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge.Abstractions\KeenEyes.TestBridge.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge\KeenEyes.TestBridge.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.TestBridge.Ipc\KeenEyes.TestBridge.Ipc.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.UI.Abstractions\KeenEyes.UI.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.UI\KeenEyes.UI.csproj" />
   </ItemGroup>

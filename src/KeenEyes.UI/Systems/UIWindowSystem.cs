@@ -396,7 +396,10 @@ public sealed class UIWindowSystem : SystemBase
             return;
         }
 
-        // Store current position and size for restore
+        // Store the current state so we can restore to it later
+        windowComponent.PreMinimizeState = windowComponent.State;
+
+        // Store current position and size for restore (only if Normal)
         if (windowComponent.State == WindowState.Normal && World.Has<UIRect>(window))
         {
             ref readonly var rect = ref World.Get<UIRect>(window);
@@ -416,6 +419,24 @@ public sealed class UIWindowSystem : SystemBase
             {
                 World.Add(windowComponent.ContentPanel, new UIHiddenTag());
             }
+        }
+
+        // Collapse window to title bar height
+        if (World.Has<UIRect>(window))
+        {
+            ref var rect = ref World.Get<UIRect>(window);
+
+            // Get title bar height (default to 32px if not available)
+            float titleBarHeight = 32f;
+            if (windowComponent.TitleBar.IsValid && World.Has<UIRect>(windowComponent.TitleBar))
+            {
+                ref readonly var titleRect = ref World.Get<UIRect>(windowComponent.TitleBar);
+                titleBarHeight = titleRect.Size.Y > 0 ? titleRect.Size.Y : titleBarHeight;
+            }
+
+            // Set window height to just the title bar
+            rect.Size = new Vector2(rect.Size.X, titleBarHeight);
+            rect.HeightMode = UISizeMode.Fixed;
         }
 
         // Mark layout dirty
@@ -509,6 +530,34 @@ public sealed class UIWindowSystem : SystemBase
         }
 
         var previousState = windowComponent.State;
+
+        // When restoring from minimized, check if we should restore to maximized state
+        if (previousState == WindowState.Minimized && windowComponent.PreMinimizeState == WindowState.Maximized)
+        {
+            // Restore content panel visibility first
+            if (windowComponent.ContentPanel.IsValid && World.Has<UIElement>(windowComponent.ContentPanel))
+            {
+                ref var contentElement = ref World.Get<UIElement>(windowComponent.ContentPanel);
+                contentElement.Visible = true;
+
+                if (World.Has<UIHiddenTag>(windowComponent.ContentPanel))
+                {
+                    World.Remove<UIHiddenTag>(windowComponent.ContentPanel);
+                }
+            }
+
+            // Set state to normal temporarily so MaximizeWindow will work
+            windowComponent.State = WindowState.Normal;
+
+            // Re-maximize the window
+            MaximizeWindow(window);
+
+            // Fire restored event indicating we came from minimized
+            World.Send(new UIWindowRestoredEvent(window, previousState));
+            return;
+        }
+
+        // Standard restore to Normal state
         windowComponent.State = WindowState.Normal;
 
         // Restore content panel visibility

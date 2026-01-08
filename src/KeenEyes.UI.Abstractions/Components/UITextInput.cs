@@ -69,7 +69,7 @@ public struct UITextInput : IComponent
         MaxLength = maxLength,
         Multiline = false,
         PlaceholderText = placeholder,
-        ShowingPlaceholder = true
+        ShowingPlaceholder = !string.IsNullOrEmpty(placeholder)
     };
 
     /// <summary>
@@ -86,7 +86,7 @@ public struct UITextInput : IComponent
         MaxLength = maxLength,
         Multiline = true,
         PlaceholderText = placeholder,
-        ShowingPlaceholder = true
+        ShowingPlaceholder = !string.IsNullOrEmpty(placeholder)
     };
 
     /// <summary>

@@ -1793,7 +1793,7 @@ public static partial class WidgetFactory
                 })
                 .With(new UIText
                 {
-                    Content = "\u25C0",  // Left arrow
+                    Content = "<",  // Left arrow (ASCII-safe)
                     Font = font,
                     FontSize = 16f,
                     Color = Vector4.One,
@@ -1843,7 +1843,7 @@ public static partial class WidgetFactory
                 })
                 .With(new UIText
                 {
-                    Content = "\u25B6",  // Right arrow
+                    Content = ">",  // Right arrow (ASCII-safe)
                     Font = font,
                     FontSize = 16f,
                     Color = Vector4.One,
@@ -1855,7 +1855,7 @@ public static partial class WidgetFactory
 
             world.SetParent(nextButton, headerRow);
 
-            // Create weekday headers
+            // Create weekday headers (use Start alignment with spacing to match grid)
             var dayHeaderRow = world.Spawn($"{name}_DayHeaders")
                 .With(new UIElement { Visible = true, RaycastTarget = false })
                 .With(new UIRect
@@ -1869,8 +1869,9 @@ public static partial class WidgetFactory
                 .With(new UILayout
                 {
                     Direction = LayoutDirection.Horizontal,
-                    MainAxisAlign = LayoutAlign.SpaceEvenly,
-                    CrossAxisAlign = LayoutAlign.Center
+                    MainAxisAlign = LayoutAlign.Start,
+                    CrossAxisAlign = LayoutAlign.Center,
+                    Spacing = 2f  // Match grid spacing
                 })
                 .Build();
 
@@ -1903,7 +1904,7 @@ public static partial class WidgetFactory
                 world.SetParent(dayHeader, dayHeaderRow);
             }
 
-            // Create calendar grid
+            // Create calendar grid (use Start alignment for consistent cell spacing)
             calendarGrid = world.Spawn($"{name}_Grid")
                 .With(new UIElement { Visible = true, RaycastTarget = false })
                 .With(new UIRect
@@ -1912,12 +1913,12 @@ public static partial class WidgetFactory
                     AnchorMax = Vector2.One,
                     Size = new Vector2(0, 0),
                     WidthMode = UISizeMode.Fill,
-                    HeightMode = UISizeMode.Fill
+                    HeightMode = UISizeMode.FitContent  // Fit to content for proper layout
                 })
                 .With(new UILayout
                 {
                     Direction = LayoutDirection.Horizontal,
-                    MainAxisAlign = LayoutAlign.SpaceEvenly,
+                    MainAxisAlign = LayoutAlign.Start,
                     CrossAxisAlign = LayoutAlign.Start,
                     Wrap = true,
                     Spacing = 2f

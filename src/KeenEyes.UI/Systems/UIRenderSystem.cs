@@ -152,9 +152,8 @@ public sealed class UIRenderSystem : SystemBase
             renderer2D.PushClip(bounds);
         }
 
-        // TODO: Implement scroll offset for scrollable containers
-        // The scroll position would be used to translate child rendering
-        _ = World.Has<UIScrollable>(entity)
+        // Get scroll offset for scrollable containers
+        Vector2 scrollOffset = World.Has<UIScrollable>(entity)
             ? World.Get<UIScrollable>(entity).ScrollPosition
             : Vector2.Zero;
 
@@ -175,7 +174,28 @@ public sealed class UIRenderSystem : SystemBase
                 continue;
             }
 
-            RenderElement(child, depth + 1);
+            // Apply scroll offset to child's computed bounds for rendering
+            if (scrollOffset != Vector2.Zero)
+            {
+                ref var childRect = ref World.Get<UIRect>(child);
+                var originalBounds = childRect.ComputedBounds;
+
+                // Offset the computed bounds by the scroll position
+                childRect.ComputedBounds = new Rectangle(
+                    originalBounds.X - scrollOffset.X,
+                    originalBounds.Y - scrollOffset.Y,
+                    originalBounds.Width,
+                    originalBounds.Height);
+
+                RenderElement(child, depth + 1);
+
+                // Restore original bounds
+                childRect.ComputedBounds = originalBounds;
+            }
+            else
+            {
+                RenderElement(child, depth + 1);
+            }
         }
 
         // Pop clip
@@ -276,6 +296,20 @@ public sealed class UIRenderSystem : SystemBase
         {
             RenderFocusIndicator(bounds);
         }
+
+        // Render spinner
+        if (World.Has<UISpinner>(entity))
+        {
+            ref readonly var spinner = ref World.Get<UISpinner>(entity);
+            RenderSpinner(bounds, spinner);
+        }
+
+        // Render progress bar
+        if (World.Has<UIProgressBar>(entity))
+        {
+            ref readonly var progressBar = ref World.Get<UIProgressBar>(entity);
+            RenderProgressBar(bounds, progressBar);
+        }
     }
 
     private void RenderStyle(Rectangle bounds, in UIStyle style)
@@ -354,6 +388,13 @@ public sealed class UIRenderSystem : SystemBase
         // Flush 2D batch first to ensure backgrounds are drawn before text
         renderer2D?.Flush();
 
+        // Apply clipping for overflow modes (Hidden or Ellipsis)
+        bool shouldClip = text.Overflow == TextOverflow.Hidden || text.Overflow == TextOverflow.Ellipsis;
+        if (shouldClip && renderer2D is not null)
+        {
+            renderer2D.PushClip(bounds);
+        }
+
         // Calculate text position based on alignment
         float x = text.HorizontalAlign switch
         {
@@ -385,6 +426,12 @@ public sealed class UIRenderSystem : SystemBase
 
         // Flush text immediately so it renders on top of background
         textRenderer.Flush();
+
+        // Pop clip after rendering
+        if (shouldClip && renderer2D is not null)
+        {
+            renderer2D.PopClip();
+        }
     }
 
     private void RenderInteractionState(Rectangle bounds, in UIInteractable interactable)
@@ -425,5 +472,146 @@ public sealed class UIRenderSystem : SystemBase
             bounds.Height + focusOutlineWidth * 2,
             focusColor,
             focusOutlineWidth);
+    }
+
+    private void RenderSpinner(Rectangle bounds, in UISpinner spinner)
+    {
+        if (renderer2D is null)
+        {
+            return;
+        }
+
+        var centerX = bounds.X + bounds.Width / 2;
+        var centerY = bounds.Y + bounds.Height / 2;
+        var radius = Math.Min(bounds.Width, bounds.Height) / 2 - spinner.Thickness;
+
+        switch (spinner.Style)
+        {
+            case SpinnerStyle.Circular:
+                RenderCircularSpinner(centerX, centerY, radius, spinner);
+                break;
+            case SpinnerStyle.Dots:
+                RenderDotsSpinner(centerX, centerY, radius, spinner);
+                break;
+            case SpinnerStyle.Bar:
+                RenderBarSpinner(bounds, spinner);
+                break;
+        }
+    }
+
+    private void RenderCircularSpinner(float centerX, float centerY, float radius, in UISpinner spinner)
+    {
+        if (renderer2D is null)
+        {
+            return;
+        }
+
+        // Draw an arc by drawing line segments
+        const int segments = 32;
+        float arcAngle = spinner.ArcLength * MathF.PI * 2;
+        float startAngle = spinner.CurrentAngle;
+        float step = arcAngle / segments;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle1 = startAngle + i * step;
+            float angle2 = startAngle + (i + 1) * step;
+
+            float x1 = centerX + MathF.Cos(angle1) * radius;
+            float y1 = centerY + MathF.Sin(angle1) * radius;
+            float x2 = centerX + MathF.Cos(angle2) * radius;
+            float y2 = centerY + MathF.Sin(angle2) * radius;
+
+            renderer2D.DrawLine(x1, y1, x2, y2, spinner.Color, spinner.Thickness);
+        }
+    }
+
+    private void RenderDotsSpinner(float centerX, float centerY, float radius, in UISpinner spinner)
+    {
+        if (renderer2D is null)
+        {
+            return;
+        }
+
+        int dotCount = Math.Max(3, spinner.ElementCount);
+        float dotRadius = spinner.Thickness;
+        float angleStep = MathF.PI * 2 / dotCount;
+
+        // Find which dot is "active" based on current angle
+        float normalizedAngle = spinner.CurrentAngle / (MathF.PI * 2);
+        float activePosition = normalizedAngle * dotCount;
+
+        for (int i = 0; i < dotCount; i++)
+        {
+            float angle = i * angleStep - MathF.PI / 2; // Start at top
+            float x = centerX + MathF.Cos(angle) * radius;
+            float y = centerY + MathF.Sin(angle) * radius;
+
+            // Calculate opacity based on distance from active position
+            float distance = Math.Min(
+                Math.Abs(i - activePosition),
+                Math.Min(Math.Abs(i - activePosition + dotCount), Math.Abs(i - activePosition - dotCount)));
+            float normalizedDistance = distance / (dotCount / 2f);
+            float opacity = Math.Clamp(1f - normalizedDistance * 0.7f, 0.3f, 1f);
+
+            var color = spinner.Color with { W = spinner.Color.W * opacity };
+            renderer2D.FillCircle(x, y, dotRadius, color);
+        }
+    }
+
+    private void RenderBarSpinner(Rectangle bounds, in UISpinner spinner)
+    {
+        if (renderer2D is null || bounds.Width <= 0 || bounds.Height <= 0)
+        {
+            return;
+        }
+
+        // Oscillating bar - use 30% of width but clamp to reasonable bounds
+        float barWidth = bounds.Width * 0.3f;
+        barWidth = Math.Max(barWidth, 4f); // Minimum 4 pixels
+        barWidth = Math.Min(barWidth, bounds.Width); // Can't exceed container
+
+        float oscillation = (MathF.Sin(spinner.CurrentAngle) + 1f) / 2f; // 0 to 1
+        float maxTravel = bounds.Width - barWidth;
+        float barX = bounds.X + maxTravel * oscillation;
+
+        // Clamp bar position to container bounds
+        barX = Math.Clamp(barX, bounds.X, bounds.X + bounds.Width - barWidth);
+
+        renderer2D.FillRect(barX, bounds.Y, barWidth, bounds.Height, spinner.Color);
+    }
+
+    private void RenderProgressBar(Rectangle bounds, in UIProgressBar progressBar)
+    {
+        if (renderer2D is null)
+        {
+            return;
+        }
+
+        // Draw background
+        renderer2D.FillRect(bounds, progressBar.BackgroundColor);
+
+        // Draw fill
+        float fillWidth = bounds.Width * progressBar.AnimatedValue;
+        if (fillWidth > 0)
+        {
+            renderer2D.FillRect(bounds.X, bounds.Y, fillWidth, bounds.Height, progressBar.FillColor);
+        }
+
+        // Draw text if enabled
+        if (progressBar.ShowText && textRenderer is not null)
+        {
+            renderer2D.Flush();
+            string text = $"{(int)(progressBar.AnimatedValue * 100)}%";
+            textRenderer.DrawText(
+                default,
+                text.AsSpan(),
+                bounds.X + bounds.Width / 2,
+                bounds.Y + bounds.Height / 2,
+                new Vector4(1, 1, 1, 1),
+                TextAlignH.Center,
+                TextAlignV.Middle);
+            textRenderer.Flush();
+        }
     }
 }
