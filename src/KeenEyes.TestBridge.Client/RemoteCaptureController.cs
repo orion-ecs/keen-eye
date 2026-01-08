@@ -30,7 +30,8 @@ internal sealed class RemoteCaptureController(TestBridgeClient client) : ICaptur
     /// <inheritdoc />
     public async Task<string> SaveScreenshotAsync(string filePath, ImageFormat format = ImageFormat.Png)
     {
-        var result = await client.SendRequestAsync<string>("capture.saveScreenshot", new { filePath, format }, CancellationToken.None);
+        var args = new SaveScreenshotArgs { FilePath = filePath, Format = format.ToString() };
+        var result = await client.SendRequestAsync<string>("capture.saveScreenshot", args, CancellationToken.None);
         return result ?? throw new InvalidOperationException("Failed to save screenshot");
     }
 
@@ -38,7 +39,8 @@ internal sealed class RemoteCaptureController(TestBridgeClient client) : ICaptur
     public async Task<byte[]> GetScreenshotBytesAsync(ImageFormat format = ImageFormat.Png)
     {
         // Server returns base64-encoded bytes
-        var base64 = await client.SendRequestAsync<string>("capture.getScreenshotBytes", new { format }, CancellationToken.None);
+        var args = new GetScreenshotBytesArgs { Format = format.ToString() };
+        var base64 = await client.SendRequestAsync<string>("capture.getScreenshotBytes", args, CancellationToken.None);
         if (string.IsNullOrEmpty(base64))
         {
             throw new InvalidOperationException("Failed to get screenshot bytes");
@@ -62,7 +64,8 @@ internal sealed class RemoteCaptureController(TestBridgeClient client) : ICaptur
     /// <inheritdoc />
     public async Task StartRecordingAsync(int maxFrames = 300)
     {
-        await client.SendRequestAsync("capture.startRecording", new { maxFrames }, CancellationToken.None);
+        var args = new StartRecordingArgs { MaxFrames = maxFrames };
+        await client.SendRequestAsync("capture.startRecording", args, CancellationToken.None);
     }
 
     /// <inheritdoc />

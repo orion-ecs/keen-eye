@@ -154,6 +154,15 @@ public sealed record EntityQuery
     /// Gets or sets the number of results to skip (for pagination).
     /// </summary>
     public int Skip { get; init; } = 0;
+
+    /// <summary>
+    /// Gets or sets whether to include component data in entity snapshots.
+    /// </summary>
+    /// <remarks>
+    /// When false (default), only component type names are returned for performance.
+    /// When true, full component field values are included in the response.
+    /// </remarks>
+    public bool IncludeComponentData { get; init; } = false;
 }
 
 /// <summary>
