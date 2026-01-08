@@ -30,6 +30,8 @@ using KeenEyes.Input.Abstractions;
 using KeenEyes.Input.Silk;
 using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
+using KeenEyes.TestBridge;
+using KeenEyes.TestBridge.Ipc;
 using KeenEyes.UI;
 using KeenEyes.UI.Abstractions;
 using KeenEyes.UI.Widgets;
@@ -130,8 +132,32 @@ try
             // Create the widget gallery
             CreateWidgetGallery(world, ui, font);
 
-            // Handle escape key to exit
+            // Initialize TestBridge for MCP integration (hybrid input mode)
             var input = world.GetExtension<IInputContext>();
+            var testBridge = new TestBridgePlugin(new TestBridgeOptions
+            {
+                EnableIpc = true,
+                EnableCapture = true,
+                RealInputContext = input,
+                IpcOptions = new IpcOptions
+                {
+                    PipeName = "KeenEyes.Sample.UI.TestBridge",
+                    TransportMode = IpcTransportMode.NamedPipe
+                }
+            });
+            world.InstallPlugin(testBridge);
+
+            // Start IPC server for external tool connections
+            var bridge = world.GetExtension<ITestBridge>();
+            var ipcServer = new IpcBridgeServer(bridge, new IpcOptions
+            {
+                PipeName = "KeenEyes.Sample.UI.TestBridge",
+                TransportMode = IpcTransportMode.NamedPipe
+            });
+            _ = ipcServer.StartAsync();
+            Console.WriteLine("[TestBridge] IPC server started on pipe: KeenEyes.Sample.UI.TestBridge");
+
+            // Handle escape key to exit
             input.Keyboard.OnKeyDown += args =>
             {
                 if (args.Key == Key.Escape)
@@ -286,7 +312,7 @@ static void PopulateControlsTab(World world, Entity panel, FontHandle font)
     var buttonsSection = CreateSection(world, panel, "Buttons (with Tooltips)", font);
 
     // Row 1: Different colors with tooltips
-    var colorRow = WidgetFactory.CreatePanel(world, buttonsSection, "ColorRow", new PanelConfig(
+    var colorRow = WidgetFactory.CreatePanel(world, buttonsSection, "ButtonColorRow", new PanelConfig(
         Height: 50,
         Direction: LayoutDirection.Horizontal,
         MainAxisAlign: LayoutAlign.Center,
@@ -1585,7 +1611,7 @@ static void PopulatePickersTab(World world, Entity panel, FontHandle font)
     ));
 
     // Date picker
-    _ = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
+    _ = WidgetFactory.CreateDatePicker(world, dateRow, font, "DatePicker", new DatePickerConfig(
         Width: 320,
         InitialValue: DateTime.Now,
         Mode: DatePickerMode.Date
@@ -1599,7 +1625,7 @@ static void PopulatePickersTab(World world, Entity panel, FontHandle font)
     WidgetFactory.CreateLabel(world, dateRow, "TimeLabel", "Time Picker:", font,
         new LabelConfig(FontSize: 13, TextColor: Colors.TextLight));
 
-    _ = WidgetFactory.CreateDatePicker(world, dateRow, font, new DatePickerConfig(
+    _ = WidgetFactory.CreateDatePicker(world, dateRow, font, "TimePicker", new DatePickerConfig(
         Width: 200,
         InitialValue: DateTime.Now,
         Mode: DatePickerMode.Time

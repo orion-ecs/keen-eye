@@ -66,6 +66,28 @@ public sealed class UITreeViewSystem : SystemBase
             {
                 ref var childElement = ref World.Get<UIElement>(node.ChildContainer);
                 childElement.Visible = node.IsExpanded;
+
+                // Toggle UIHiddenTag so layout system properly reclaims space
+                if (node.IsExpanded)
+                {
+                    if (World.Has<UIHiddenTag>(node.ChildContainer))
+                    {
+                        World.Remove<UIHiddenTag>(node.ChildContainer);
+                    }
+                }
+                else
+                {
+                    if (!World.Has<UIHiddenTag>(node.ChildContainer))
+                    {
+                        World.Add(node.ChildContainer, new UIHiddenTag());
+                    }
+                }
+            }
+
+            // Mark tree view root dirty to force layout recalculation
+            if (node.TreeView.IsValid && !World.Has<UILayoutDirtyTag>(node.TreeView))
+            {
+                World.Add(node.TreeView, new UILayoutDirtyTag());
             }
 
             // Update arrow rotation visual
@@ -137,10 +159,11 @@ public sealed class UITreeViewSystem : SystemBase
     private void UpdateExpandArrowVisual(Entity arrowEntity, bool isExpanded)
     {
         // Update arrow text based on expansion state
+        // Uses "v" and ">" for better font compatibility than Unicode arrows
         if (World.Has<UIText>(arrowEntity))
         {
             ref var text = ref World.Get<UIText>(arrowEntity);
-            text.Content = isExpanded ? "▼" : "▶";
+            text.Content = isExpanded ? "v" : ">";
         }
     }
 

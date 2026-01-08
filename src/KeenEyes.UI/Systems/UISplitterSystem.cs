@@ -124,10 +124,13 @@ public sealed class UISplitterSystem : SystemBase
         // Clamp ratio to valid range
         newRatio = Math.Clamp(newRatio, 0.0f, 1.0f);
 
-        // Only update if changed
-        if (Math.Abs(newRatio - oldRatio) > 0.0001f)
+        // Only update if changed significantly (larger epsilon reduces jitter)
+        if (Math.Abs(newRatio - oldRatio) > 0.001f)
         {
             splitter.SplitRatio = newRatio;
+
+            // Update the first pane's size to reflect the new ratio
+            UpdatePaneSizes(splitterContainer, splitter);
 
             // Mark layout dirty
             if (!World.Has<UILayoutDirtyTag>(splitterContainer))
@@ -137,6 +140,38 @@ public sealed class UISplitterSystem : SystemBase
 
             // Fire changed event
             World.Send(new UISplitterChangedEvent(splitterContainer, oldRatio, newRatio));
+        }
+    }
+
+    private void UpdatePaneSizes(Entity splitterContainer, in UISplitter splitter)
+    {
+        // Find and update the first pane's percentage size
+        foreach (var child in World.GetChildren(splitterContainer))
+        {
+            if (World.Has<UISplitterFirstPane>(child) && World.Has<UIRect>(child))
+            {
+                ref var paneRect = ref World.Get<UIRect>(child);
+
+                // Convert ratio to percentage (0-100)
+                float percentage = splitter.SplitRatio * 100f;
+
+                if (splitter.Orientation == LayoutDirection.Horizontal)
+                {
+                    paneRect.Size = new System.Numerics.Vector2(percentage, paneRect.Size.Y);
+                }
+                else
+                {
+                    paneRect.Size = new System.Numerics.Vector2(paneRect.Size.X, percentage);
+                }
+
+                // Mark this pane dirty too
+                if (!World.Has<UILayoutDirtyTag>(child))
+                {
+                    World.Add(child, new UILayoutDirtyTag());
+                }
+
+                break;
+            }
         }
     }
 }

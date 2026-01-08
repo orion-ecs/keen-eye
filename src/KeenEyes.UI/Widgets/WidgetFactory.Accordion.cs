@@ -175,7 +175,7 @@ public static partial class WidgetFactory
         world.SetParent(headerEntity, sectionEntity);
         world.Add(headerEntity, new UIAccordionHeaderTag());
 
-        // Create expand arrow
+        // Create expand arrow (uses ASCII for better font compatibility)
         var arrowEntity = world.Spawn()
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
@@ -190,7 +190,7 @@ public static partial class WidgetFactory
             .With(new UIStyle())
             .With(new UIText
             {
-                Content = isExpanded ? "▼" : "▶",
+                Content = isExpanded ? "v" : ">",
                 Font = font,
                 FontSize = 12,
                 Color = config.GetArrowColor(),
@@ -322,7 +322,7 @@ public static partial class WidgetFactory
             contentElement.Visible = isExpanded;
         }
 
-        // Update arrow visual
+        // Update arrow visual (uses ASCII for better font compatibility)
         if (section.Header.IsValid)
         {
             foreach (var child in world.GetChildren(section.Header))
@@ -330,7 +330,7 @@ public static partial class WidgetFactory
                 if (world.Has<UIAccordionArrowTag>(child) && world.Has<UIText>(child))
                 {
                     ref var text = ref world.Get<UIText>(child);
-                    text.Content = isExpanded ? "▼" : "▶";
+                    text.Content = isExpanded ? "v" : ">";
                     break;
                 }
             }

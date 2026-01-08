@@ -146,7 +146,7 @@ public sealed class UITooltipSystem : SystemBase
         // Calculate tooltip position
         Vector2 position = CalculateTooltipPosition(element, tooltip);
 
-        // Create the tooltip entity
+        // Create the tooltip entity with improved styling
         activeTooltip = World.Spawn()
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
@@ -155,21 +155,26 @@ public sealed class UITooltipSystem : SystemBase
                 AnchorMax = Vector2.Zero,
                 Pivot = Vector2.Zero,
                 Offset = new UIEdges(position.X, position.Y, 0, 0),
-                Size = new Vector2(tooltip.MaxWidth > 0 ? tooltip.MaxWidth : 200, 30),
-                WidthMode = UISizeMode.Fixed,
-                HeightMode = UISizeMode.Fixed,
+                Size = new Vector2(tooltip.MaxWidth > 0 ? tooltip.MaxWidth : 200, 0),
+                WidthMode = tooltip.MaxWidth > 0 ? UISizeMode.Fixed : UISizeMode.FitContent,
+                HeightMode = UISizeMode.FitContent,
                 LocalZIndex = 1000  // Tooltips on top
             })
             .With(new UIStyle
             {
-                BackgroundColor = new Vector4(0.1f, 0.1f, 0.12f, 0.95f),
-                CornerRadius = 4,
-                Padding = new UIEdges(8, 6, 8, 6)
+                // Lighter, more modern background color
+                BackgroundColor = new Vector4(0.2f, 0.2f, 0.25f, 0.95f),
+                // Subtle border for depth
+                BorderColor = new Vector4(0.35f, 0.35f, 0.4f, 0.8f),
+                BorderWidth = 1,
+                CornerRadius = 6,
+                // Generous padding for readability
+                Padding = new UIEdges(12, 10, 12, 10)
             })
             .With(new UIText
             {
                 Content = tooltip.Text,
-                Color = new Vector4(0.9f, 0.9f, 0.9f, 1f),
+                Color = new Vector4(0.95f, 0.95f, 0.95f, 1f),
                 FontSize = 13,
                 WordWrap = tooltip.MaxWidth > 0
             })

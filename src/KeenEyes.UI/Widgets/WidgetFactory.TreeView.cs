@@ -234,9 +234,9 @@ public static partial class WidgetFactory
             world.SetParent(indent, nodeRow);
         }
 
-        // Create expand arrow placeholder (will be shown/hidden based on children)
+        // Create expand arrow placeholder (always visible to reserve space, color shows/hides based on children)
         var expandArrow = world.Spawn($"TreeNode_{label}_Arrow")
-            .With(new UIElement { Visible = false, RaycastTarget = true })
+            .With(new UIElement { Visible = true, RaycastTarget = true })
             .With(new UIRect
             {
                 AnchorMin = Vector2.Zero,
@@ -249,10 +249,12 @@ public static partial class WidgetFactory
             .With(new UIStyle())
             .With(new UIText
             {
-                Content = config.IsExpanded ? "▼" : "▶",
+                // Use ">" and "v" for better font compatibility than Unicode arrows
+                Content = config.IsExpanded ? "v" : ">",
                 Font = font,
                 FontSize = 12,
-                Color = treeViewConfig.GetExpandArrowColor(),
+                // Start with transparent color - UpdateTreeNodeHasChildren will make it visible
+                Color = Vector4.Zero,
                 HorizontalAlign = TextAlignH.Center,
                 VerticalAlign = TextAlignV.Middle
             })
@@ -283,7 +285,7 @@ public static partial class WidgetFactory
             world.SetParent(icon, nodeRow);
         }
 
-        // Create label text
+        // Create label text (fills remaining width with ellipsis overflow)
         var labelText = world.Spawn($"TreeNode_{label}_Label")
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
@@ -292,7 +294,7 @@ public static partial class WidgetFactory
                 AnchorMax = Vector2.Zero,
                 Pivot = Vector2.Zero,
                 Size = new Vector2(0, treeViewConfig.RowHeight),
-                WidthMode = UISizeMode.FitContent,
+                WidthMode = UISizeMode.Fill,
                 HeightMode = UISizeMode.Fill
             })
             .With(new UIStyle())
@@ -303,7 +305,8 @@ public static partial class WidgetFactory
                 FontSize = treeViewConfig.FontSize,
                 Color = treeViewConfig.GetTextColor(),
                 HorizontalAlign = TextAlignH.Left,
-                VerticalAlign = TextAlignV.Middle
+                VerticalAlign = TextAlignV.Middle,
+                Overflow = TextOverflow.Ellipsis
             })
             .Build();
 
@@ -367,6 +370,12 @@ public static partial class WidgetFactory
     /// </summary>
     /// <param name="world">The world containing the node.</param>
     /// <param name="node">The tree node entity.</param>
+    /// <remarks>
+    /// <para>
+    /// The arrow element is always visible to reserve layout space, but the text
+    /// color is set to transparent for nodes without children.
+    /// </para>
+    /// </remarks>
     public static void UpdateTreeNodeHasChildren(IWorld world, Entity node)
     {
         if (!world.Has<UITreeNode>(node))
@@ -376,10 +385,23 @@ public static partial class WidgetFactory
 
         ref readonly var nodeData = ref world.Get<UITreeNode>(node);
 
-        if (nodeData.ExpandArrow.IsValid && world.Has<UIElement>(nodeData.ExpandArrow))
+        // Update arrow text color (transparent when no children, visible when has children)
+        if (nodeData.ExpandArrow.IsValid && world.Has<UIText>(nodeData.ExpandArrow))
         {
-            ref var arrowElement = ref world.Get<UIElement>(nodeData.ExpandArrow);
-            arrowElement.Visible = nodeData.HasChildren;
+            ref var arrowText = ref world.Get<UIText>(nodeData.ExpandArrow);
+            if (nodeData.HasChildren)
+            {
+                // Get the tree view config to use the proper arrow color
+                var treeViewConfig = nodeData.TreeView.IsValid && world.Has<UITreeView>(nodeData.TreeView)
+                    ? GetTreeViewConfigFromEntity(world, nodeData.TreeView)
+                    : TreeViewConfig.Default;
+                arrowText.Color = treeViewConfig.GetExpandArrowColor();
+            }
+            else
+            {
+                // Transparent color hides the arrow but reserves space
+                arrowText.Color = Vector4.Zero;
+            }
         }
     }
 

@@ -454,7 +454,15 @@ public static partial class WidgetFactory
 
         if (!isReadOnly)
         {
-            editorBuilder = editorBuilder.With(UIInteractable.Button(0));
+            editorBuilder = editorBuilder
+                .With(new UIInteractable
+                {
+                    CanClick = true,
+                    CanFocus = true,
+                    CanDrag = false,
+                    TabIndex = 0
+                })
+                .With(UITextInput.SingleLine());
         }
 
         var editorEntity = editorBuilder.Build();
@@ -498,7 +506,15 @@ public static partial class WidgetFactory
 
         if (!isReadOnly)
         {
-            editorBuilder = editorBuilder.With(UIInteractable.Draggable());
+            editorBuilder = editorBuilder
+                .With(new UIInteractable
+                {
+                    CanClick = true,
+                    CanFocus = true,
+                    CanDrag = true, // Keep drag-to-change behavior
+                    TabIndex = 0
+                })
+                .With(UITextInput.SingleLine());
         }
 
         var editorEntity = editorBuilder.Build();
@@ -679,7 +695,15 @@ public static partial class WidgetFactory
 
             if (!isReadOnly)
             {
-                fieldBuilder = fieldBuilder.With(UIInteractable.Draggable());
+                fieldBuilder = fieldBuilder
+                    .With(new UIInteractable
+                    {
+                        CanClick = true,
+                        CanFocus = true,
+                        CanDrag = true,
+                        TabIndex = 0
+                    })
+                    .With(UITextInput.SingleLine());
             }
 
             var fieldEntity = fieldBuilder.Build();

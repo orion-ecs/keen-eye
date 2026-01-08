@@ -95,6 +95,12 @@ public struct UIWindow(string title) : IComponent
     public Vector2 RestoreSize = Vector2.Zero;
 
     /// <summary>
+    /// The state the window was in before being minimized.
+    /// Used to restore to the correct state (Normal or Maximized).
+    /// </summary>
+    public WindowState PreMinimizeState = WindowState.Normal;
+
+    /// <summary>
     /// Reference to the content panel entity (hidden when minimized).
     /// </summary>
     public Entity ContentPanel = Entity.Null;

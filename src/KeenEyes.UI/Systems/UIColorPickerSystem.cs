@@ -100,6 +100,7 @@ public sealed class UIColorPickerSystem : SystemBase
         picker.Color = HsvToRgb(picker.Hue, picker.Saturation, picker.Value, picker.Color.W);
 
         UpdatePreview(pickerEntity, ref picker);
+        UpdateSliderVisuals(pickerEntity, ref picker);
 
         if (oldColor != picker.Color)
         {
@@ -179,9 +180,29 @@ public sealed class UIColorPickerSystem : SystemBase
 
     private void UpdateSliderVisuals(Entity pickerEntity, ref UIColorPicker picker)
     {
-        // Update RGB slider thumb positions if they exist
-        // This is needed when HSV changes affect RGB values
-        // Implementation depends on how sliders are structured
+        // Update the saturation-value area background color when hue changes
+        // The background should show the pure hue at max saturation/value
+        foreach (var satValEntity in World.Query<UIColorSatValArea>())
+        {
+            ref readonly var satValArea = ref World.Get<UIColorSatValArea>(satValEntity);
+            if (satValArea.ColorPicker != pickerEntity)
+            {
+                continue;
+            }
+
+            if (World.Has<UIStyle>(satValEntity))
+            {
+                ref var style = ref World.Get<UIStyle>(satValEntity);
+                // Background shows pure hue at full saturation and value
+                style.BackgroundColor = HsvToRgb(picker.Hue, 1f, 1f);
+            }
+
+            break;
+        }
+
+        // Note: Slider thumb positioning would require thumb entities to be created
+        // and tracked in the widget factory. Currently sliders are simple track
+        // backgrounds without explicit thumb children.
     }
 
     private static void UpdateHsvFromRgb(ref UIColorPicker picker)

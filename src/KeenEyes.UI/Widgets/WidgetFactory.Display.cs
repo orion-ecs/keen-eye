@@ -543,34 +543,46 @@ public static partial class WidgetFactory
 
         world.SetParent(contentArea, container);
 
-        // Create content panels with UITabPanel component for visibility toggling
+        // Create content panels wrapped in ScrollViews for scrollable content
         var contentPanels = new Entity[tabs.Length];
         for (var i = 0; i < tabs.Length; i++)
         {
             var isActive = i == selectedIndex;
 
-            var panelBuilder = world.Spawn()
-                .With(new UIElement { Visible = isActive, RaycastTarget = false })
-                .With(UIRect.Stretch())
-                .With(new UILayout
-                {
-                    Direction = LayoutDirection.Vertical,
-                    MainAxisAlign = LayoutAlign.Start,
-                    CrossAxisAlign = LayoutAlign.Start,
-                    Spacing = 8
-                })
-                .With(new UITabPanel(i, container));
+            // Create a ScrollView for each tab panel
+            var (scrollView, scrollContent) = CreateScrollView(world, Entity.Null, new ScrollViewConfig
+            {
+                ShowVerticalScrollbar = true,
+                ShowHorizontalScrollbar = false,
+                ScrollbarWidth = 8f
+            });
+
+            // Configure scroll view visibility and add tab panel component
+            ref var scrollElement = ref world.Get<UIElement>(scrollView);
+            scrollElement.Visible = isActive;
+
+            // Configure scroll view to stretch
+            ref var scrollRect = ref world.Get<UIRect>(scrollView);
+            scrollRect.AnchorMin = Vector2.Zero;
+            scrollRect.AnchorMax = Vector2.One;
+            scrollRect.Pivot = Vector2.Zero;
+            scrollRect.Size = Vector2.Zero;
+            scrollRect.WidthMode = UISizeMode.Fill;
+            scrollRect.HeightMode = UISizeMode.Fill;
+
+            // Add tab panel component to scroll view
+            world.Add(scrollView, new UITabPanel(i, container));
 
             // Add UIHiddenTag to non-selected panels so layout system skips them
             if (!isActive)
             {
-                panelBuilder = panelBuilder.WithTag<UIHiddenTag>();
+                world.Add(scrollView, new UIHiddenTag());
             }
 
-            var panel = panelBuilder.Build();
+            world.SetParent(scrollView, contentArea);
 
-            world.SetParent(panel, contentArea);
-            contentPanels[i] = panel;
+            // Return the content panel (inner container) for users to add content to
+            contentPanels[i] = scrollContent;
         }
 
         return (container, contentPanels);
@@ -704,33 +716,46 @@ public static partial class WidgetFactory
 
         world.SetParent(contentArea, container);
 
+        // Create content panels wrapped in ScrollViews for scrollable content
         var contentPanels = new Entity[tabs.Length];
         for (var i = 0; i < tabs.Length; i++)
         {
             var isActive = i == selectedIndex;
 
-            var panelBuilder = world.Spawn($"{name}_Panel_{i}")
-                .With(new UIElement { Visible = isActive, RaycastTarget = false })
-                .With(UIRect.Stretch())
-                .With(new UILayout
-                {
-                    Direction = LayoutDirection.Vertical,
-                    MainAxisAlign = LayoutAlign.Start,
-                    CrossAxisAlign = LayoutAlign.Start,
-                    Spacing = 8
-                })
-                .With(new UITabPanel(i, container));
+            // Create a ScrollView for each tab panel
+            var (scrollView, scrollContent) = CreateScrollView(world, Entity.Null, new ScrollViewConfig
+            {
+                ShowVerticalScrollbar = true,
+                ShowHorizontalScrollbar = false,
+                ScrollbarWidth = 8f
+            });
+
+            // Configure scroll view visibility
+            ref var scrollElement = ref world.Get<UIElement>(scrollView);
+            scrollElement.Visible = isActive;
+
+            // Configure scroll view to stretch
+            ref var scrollRect = ref world.Get<UIRect>(scrollView);
+            scrollRect.AnchorMin = Vector2.Zero;
+            scrollRect.AnchorMax = Vector2.One;
+            scrollRect.Pivot = Vector2.Zero;
+            scrollRect.Size = Vector2.Zero;
+            scrollRect.WidthMode = UISizeMode.Fill;
+            scrollRect.HeightMode = UISizeMode.Fill;
+
+            // Add tab panel component to scroll view
+            world.Add(scrollView, new UITabPanel(i, container));
 
             // Add UIHiddenTag to non-selected panels so layout system skips them
             if (!isActive)
             {
-                panelBuilder = panelBuilder.WithTag<UIHiddenTag>();
+                world.Add(scrollView, new UIHiddenTag());
             }
 
-            var panel = panelBuilder.Build();
+            world.SetParent(scrollView, contentArea);
 
-            world.SetParent(panel, contentArea);
-            contentPanels[i] = panel;
+            // Return the content panel (inner container) for users to add content to
+            contentPanels[i] = scrollContent;
         }
 
         return (container, contentPanels);
@@ -839,16 +864,20 @@ public static partial class WidgetFactory
         var contentWidth = config.ContentWidth ?? 0;
         var contentHeight = config.ContentHeight ?? 0;
 
+        // Use stretching anchors when Fill mode is needed, otherwise point anchors for fixed size
+        var useHorizontalStretch = !config.ContentWidth.HasValue;
+        var useVerticalStretch = !config.ContentHeight.HasValue;
+
         var contentPanel = world.Spawn()
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
             {
                 AnchorMin = Vector2.Zero,
-                AnchorMax = Vector2.Zero,
+                AnchorMax = new Vector2(useHorizontalStretch ? 1 : 0, useVerticalStretch ? 1 : 0),
                 Pivot = Vector2.Zero,
                 Size = new Vector2(contentWidth, contentHeight),
                 WidthMode = config.ContentWidth.HasValue ? UISizeMode.Fixed : UISizeMode.Fill,
-                HeightMode = config.ContentHeight.HasValue ? UISizeMode.Fixed : UISizeMode.Fill
+                HeightMode = config.ContentHeight.HasValue ? UISizeMode.Fixed : UISizeMode.FitContent
             })
             .With(new UILayout
             {
@@ -1003,16 +1032,20 @@ public static partial class WidgetFactory
         var contentWidth = config.ContentWidth ?? 0;
         var contentHeight = config.ContentHeight ?? 0;
 
+        // Use stretching anchors when Fill mode is needed, otherwise point anchors for fixed size
+        var useHorizontalStretch = !config.ContentWidth.HasValue;
+        var useVerticalStretch = !config.ContentHeight.HasValue;
+
         var contentPanel = world.Spawn($"{name}_Content")
             .With(new UIElement { Visible = true, RaycastTarget = false })
             .With(new UIRect
             {
                 AnchorMin = Vector2.Zero,
-                AnchorMax = Vector2.Zero,
+                AnchorMax = new Vector2(useHorizontalStretch ? 1 : 0, useVerticalStretch ? 1 : 0),
                 Pivot = Vector2.Zero,
                 Size = new Vector2(contentWidth, contentHeight),
                 WidthMode = config.ContentWidth.HasValue ? UISizeMode.Fixed : UISizeMode.Fill,
-                HeightMode = config.ContentHeight.HasValue ? UISizeMode.Fixed : UISizeMode.Fill
+                HeightMode = config.ContentHeight.HasValue ? UISizeMode.Fixed : UISizeMode.FitContent
             })
             .With(new UILayout
             {
