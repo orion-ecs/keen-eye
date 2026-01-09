@@ -40,6 +40,11 @@ public sealed class MockGraphicsContext : IGraphicsContext
     private readonly Dictionary<int, TextureHandle> boundTextures = [];
 
     /// <summary>
+    /// Default texture size for textures loaded via <see cref="LoadTexture"/> (default: 64).
+    /// </summary>
+    public int MockDefaultTextureSize { get; set; } = 64;
+
+    /// <summary>
     /// Creates a new mock graphics context.
     /// </summary>
     public MockGraphicsContext()
@@ -54,7 +59,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
         SolidShader = AllocateShaderHandle();
         Shaders[SolidShader] = new MockShaderInfo("solid_vertex", "solid_fragment");
 
-        WhiteTexture = AllocateTextureHandle();
+        WhiteTexture = AllocateTextureHandle(1, 1);
         Textures[WhiteTexture] = new MockTextureInfo(1, 1, null);
     }
 
@@ -213,7 +218,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     /// <inheritdoc />
     public TextureHandle CreateTexture(int width, int height, ReadOnlySpan<byte> pixels)
     {
-        var handle = AllocateTextureHandle();
+        var handle = AllocateTextureHandle(width, height);
         Textures[handle] = new MockTextureInfo(width, height, null) { Data = pixels.ToArray() };
         return handle;
     }
@@ -221,8 +226,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
     /// <inheritdoc />
     public TextureHandle LoadTexture(string path)
     {
-        var handle = AllocateTextureHandle();
-        Textures[handle] = new MockTextureInfo(0, 0, path);
+        // In mock context, we don't know dimensions - use 0,0 (callers should set MockDefaultTextureSize)
+        var handle = AllocateTextureHandle(MockDefaultTextureSize, MockDefaultTextureSize);
+        Textures[handle] = new MockTextureInfo(MockDefaultTextureSize, MockDefaultTextureSize, path);
         return handle;
     }
 
@@ -406,9 +412,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
         return new MeshHandle(nextHandleId++);
     }
 
-    private TextureHandle AllocateTextureHandle()
+    private TextureHandle AllocateTextureHandle(int width, int height)
     {
-        return new TextureHandle(nextHandleId++);
+        return new TextureHandle(nextHandleId++, width, height);
     }
 
     private ShaderHandle AllocateShaderHandle()

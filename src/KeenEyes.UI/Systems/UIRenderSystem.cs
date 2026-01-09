@@ -329,19 +329,366 @@ public sealed class UIRenderSystem : SystemBase
             return;
         }
 
-        var destRect = bounds;
-        var sourceRect = image.SourceRect;
+        // Get texture dimensions
+        int texWidth = image.Texture.Width;
+        int texHeight = image.Texture.Height;
 
-        // If no source rect specified, use whole texture
-        if (sourceRect.Width <= 0 || sourceRect.Height <= 0)
+        // If texture has no dimensions, fall back to simple stretch
+        if (texWidth <= 0 || texHeight <= 0)
         {
-            sourceRect = new Rectangle(0, 0, 1, 1); // Normalized coordinates
+            RenderImageStretched(bounds, image);
+            return;
+        }
+
+        // Get source region dimensions (either from SourceRect or full texture)
+        var sourceRect = image.SourceRect;
+        float srcWidth, srcHeight;
+
+        if (sourceRect.Width > 0 && sourceRect.Height > 0)
+        {
+            // SourceRect is in normalized coordinates (0-1)
+            srcWidth = sourceRect.Width * texWidth;
+            srcHeight = sourceRect.Height * texHeight;
+        }
+        else
+        {
+            srcWidth = texWidth;
+            srcHeight = texHeight;
         }
 
         // Apply scale mode
-        // For now, just draw the texture - more sophisticated scale modes would
-        // require knowing the texture dimensions
-        renderer2D.DrawTextureRegion(image.Texture, destRect, sourceRect, image.Tint);
+        switch (image.ScaleMode)
+        {
+            case ImageScaleMode.Stretch:
+                if (image.PreserveAspect)
+                {
+                    RenderImageScaleToFit(bounds, image, srcWidth, srcHeight);
+                }
+                else
+                {
+                    RenderImageStretched(bounds, image);
+                }
+                break;
+
+            case ImageScaleMode.ScaleToFit:
+                RenderImageScaleToFit(bounds, image, srcWidth, srcHeight);
+                break;
+
+            case ImageScaleMode.ScaleToFill:
+                RenderImageScaleToFill(bounds, image, srcWidth, srcHeight);
+                break;
+
+            case ImageScaleMode.Tile:
+                RenderImageTiled(bounds, image, srcWidth, srcHeight);
+                break;
+
+            case ImageScaleMode.NineSlice:
+                RenderImageNineSlice(bounds, image);
+                break;
+
+            default:
+                RenderImageStretched(bounds, image);
+                break;
+        }
+    }
+
+    private void RenderImageStretched(Rectangle bounds, in UIImage image)
+    {
+        var sourceRect = image.SourceRect;
+        if (sourceRect.Width <= 0 || sourceRect.Height <= 0)
+        {
+            sourceRect = new Rectangle(0, 0, 1, 1); // Normalized coordinates for full texture
+        }
+
+        renderer2D!.DrawTextureRegion(image.Texture, bounds, sourceRect, image.Tint);
+    }
+
+    private void RenderImageScaleToFit(Rectangle bounds, in UIImage image, float srcWidth, float srcHeight)
+    {
+        // Calculate uniform scale to fit within bounds (letterbox)
+        float scaleX = bounds.Width / srcWidth;
+        float scaleY = bounds.Height / srcHeight;
+        float scale = Math.Min(scaleX, scaleY);
+
+        float destWidth = srcWidth * scale;
+        float destHeight = srcHeight * scale;
+
+        // Center within bounds
+        float destX = bounds.X + (bounds.Width - destWidth) / 2;
+        float destY = bounds.Y + (bounds.Height - destHeight) / 2;
+
+        var destRect = new Rectangle(destX, destY, destWidth, destHeight);
+        var sourceRect = image.SourceRect;
+        if (sourceRect.Width <= 0 || sourceRect.Height <= 0)
+        {
+            sourceRect = new Rectangle(0, 0, 1, 1);
+        }
+
+        renderer2D!.DrawTextureRegion(image.Texture, destRect, sourceRect, image.Tint);
+    }
+
+    private void RenderImageScaleToFill(Rectangle bounds, in UIImage image, float srcWidth, float srcHeight)
+    {
+        // Calculate uniform scale to fill bounds (may crop)
+        float scaleX = bounds.Width / srcWidth;
+        float scaleY = bounds.Height / srcHeight;
+        float scale = Math.Max(scaleX, scaleY);
+
+        // Calculate cropped source region (in normalized coordinates)
+        float visibleWidth = bounds.Width / scale;
+        float visibleHeight = bounds.Height / scale;
+
+        // Center the crop
+        float cropX = (srcWidth - visibleWidth) / 2;
+        float cropY = (srcHeight - visibleHeight) / 2;
+
+        // Convert to normalized coordinates
+        int texWidth = image.Texture.Width;
+        int texHeight = image.Texture.Height;
+
+        Rectangle baseSource = image.SourceRect;
+        if (baseSource.Width <= 0 || baseSource.Height <= 0)
+        {
+            baseSource = new Rectangle(0, 0, 1, 1);
+        }
+
+        // Apply crop within the source rect
+        float sourceU = baseSource.X + (cropX / texWidth);
+        float sourceV = baseSource.Y + (cropY / texHeight);
+        float sourceW = visibleWidth / texWidth;
+        float sourceH = visibleHeight / texHeight;
+
+        var croppedSource = new Rectangle(sourceU, sourceV, sourceW, sourceH);
+        renderer2D!.DrawTextureRegion(image.Texture, bounds, croppedSource, image.Tint);
+    }
+
+    private void RenderImageTiled(Rectangle bounds, in UIImage image, float srcWidth, float srcHeight)
+    {
+        var sourceRect = image.SourceRect;
+        if (sourceRect.Width <= 0 || sourceRect.Height <= 0)
+        {
+            sourceRect = new Rectangle(0, 0, 1, 1);
+        }
+
+        // Calculate how many tiles we need
+        int tilesX = (int)Math.Ceiling(bounds.Width / srcWidth);
+        int tilesY = (int)Math.Ceiling(bounds.Height / srcHeight);
+
+        for (int ty = 0; ty < tilesY; ty++)
+        {
+            for (int tx = 0; tx < tilesX; tx++)
+            {
+                float tileX = bounds.X + tx * srcWidth;
+                float tileY = bounds.Y + ty * srcHeight;
+                float tileW = srcWidth;
+                float tileH = srcHeight;
+                var tileSrc = sourceRect;
+
+                // Clip the last column if it extends beyond bounds
+                if (tileX + tileW > bounds.Right)
+                {
+                    float excess = (tileX + tileW) - bounds.Right;
+                    float ratio = 1 - (excess / srcWidth);
+                    tileW = bounds.Right - tileX;
+                    tileSrc = new Rectangle(sourceRect.X, sourceRect.Y, sourceRect.Width * ratio, sourceRect.Height);
+                }
+
+                // Clip the last row if it extends beyond bounds
+                if (tileY + tileH > bounds.Bottom)
+                {
+                    float excess = (tileY + tileH) - bounds.Bottom;
+                    float ratio = 1 - (excess / srcHeight);
+                    tileH = bounds.Bottom - tileY;
+                    tileSrc = new Rectangle(tileSrc.X, tileSrc.Y, tileSrc.Width, sourceRect.Height * ratio);
+                }
+
+                var destRect = new Rectangle(tileX, tileY, tileW, tileH);
+                renderer2D!.DrawTextureRegion(image.Texture, destRect, tileSrc, image.Tint);
+            }
+        }
+    }
+
+    private void RenderImageNineSlice(Rectangle bounds, in UIImage image)
+    {
+        var tex = image.Texture;
+        var border = image.SliceBorder;
+        float texW = tex.Width;
+        float texH = tex.Height;
+
+        // Handle case where texture has no dimensions
+        if (texW <= 0 || texH <= 0)
+        {
+            RenderImageStretched(bounds, image);
+            return;
+        }
+
+        // Destination border sizes (in screen pixels)
+        float dLeft = border.Left;
+        float dRight = border.Right;
+        float dTop = border.Top;
+        float dBottom = border.Bottom;
+
+        // Clamp borders if destination is smaller than combined borders
+        float totalHorizontal = dLeft + dRight;
+        float totalVertical = dTop + dBottom;
+
+        if (totalHorizontal > bounds.Width && totalHorizontal > 0)
+        {
+            float scale = bounds.Width / totalHorizontal;
+            dLeft *= scale;
+            dRight *= scale;
+        }
+
+        if (totalVertical > bounds.Height && totalVertical > 0)
+        {
+            float scale = bounds.Height / totalVertical;
+            dTop *= scale;
+            dBottom *= scale;
+        }
+
+        // Calculate destination positions
+        float x0 = bounds.X;
+        float x1 = bounds.X + dLeft;
+        float x2 = bounds.Right - dRight;
+
+        float y0 = bounds.Y;
+        float y1 = bounds.Y + dTop;
+        float y2 = bounds.Bottom - dBottom;
+
+        // Normalized UV border sizes
+        float uLeft = border.Left / texW;
+        float uRight = border.Right / texW;
+        float vTop = border.Top / texH;
+        float vBottom = border.Bottom / texH;
+
+        // UV coordinates
+        float u0 = 0, u1 = uLeft, u2 = 1 - uRight, u3 = 1;
+        float v0 = 0, v1 = vTop, v2 = 1 - vBottom, v3 = 1;
+
+        // Define destination rectangles for all 9 regions
+        var destRects = new Rectangle[9];
+        var srcRects = new Rectangle[9];
+
+        // Corners (fixed size, no stretch/tile)
+        destRects[0] = new Rectangle(x0, y0, dLeft, dTop);           // Top-left
+        srcRects[0] = new Rectangle(u0, v0, u1 - u0, v1 - v0);
+
+        destRects[2] = new Rectangle(x2, y0, dRight, dTop);          // Top-right
+        srcRects[2] = new Rectangle(u2, v0, u3 - u2, v1 - v0);
+
+        destRects[6] = new Rectangle(x0, y2, dLeft, dBottom);        // Bottom-left
+        srcRects[6] = new Rectangle(u0, v2, u1 - u0, v3 - v2);
+
+        destRects[8] = new Rectangle(x2, y2, dRight, dBottom);       // Bottom-right
+        srcRects[8] = new Rectangle(u2, v2, u3 - u2, v3 - v2);
+
+        // Edges (stretch in one axis)
+        destRects[1] = new Rectangle(x1, y0, x2 - x1, dTop);         // Top edge
+        srcRects[1] = new Rectangle(u1, v0, u2 - u1, v1 - v0);
+
+        destRects[7] = new Rectangle(x1, y2, x2 - x1, dBottom);      // Bottom edge
+        srcRects[7] = new Rectangle(u1, v2, u2 - u1, v3 - v2);
+
+        destRects[3] = new Rectangle(x0, y1, dLeft, y2 - y1);        // Left edge
+        srcRects[3] = new Rectangle(u0, v1, u1 - u0, v2 - v1);
+
+        destRects[5] = new Rectangle(x2, y1, dRight, y2 - y1);       // Right edge
+        srcRects[5] = new Rectangle(u2, v1, u3 - u2, v2 - v1);
+
+        // Center (stretch in both axes)
+        destRects[4] = new Rectangle(x1, y1, x2 - x1, y2 - y1);      // Center
+        srcRects[4] = new Rectangle(u1, v1, u2 - u1, v2 - v1);
+
+        // Draw corners (always stretched, they're fixed size)
+        int[] corners = [0, 2, 6, 8];
+        foreach (int i in corners)
+        {
+            if (destRects[i].Width > 0 && destRects[i].Height > 0)
+            {
+                renderer2D!.DrawTextureRegion(image.Texture, destRects[i], srcRects[i], image.Tint);
+            }
+        }
+
+        // Draw edges based on EdgeFillMode
+        int[] edges = [1, 3, 5, 7];
+        foreach (int i in edges)
+        {
+            if (destRects[i].Width > 0 && destRects[i].Height > 0)
+            {
+                if (image.EdgeFillMode == SlicedFillMode.Tile)
+                {
+                    RenderTiledRegion(destRects[i], srcRects[i], image, texW, texH, i);
+                }
+                else
+                {
+                    renderer2D!.DrawTextureRegion(image.Texture, destRects[i], srcRects[i], image.Tint);
+                }
+            }
+        }
+
+        // Draw center based on CenterFillMode
+        if (destRects[4].Width > 0 && destRects[4].Height > 0)
+        {
+            if (image.CenterFillMode == SlicedFillMode.Tile)
+            {
+                RenderTiledRegion(destRects[4], srcRects[4], image, texW, texH, 4);
+            }
+            else
+            {
+                renderer2D!.DrawTextureRegion(image.Texture, destRects[4], srcRects[4], image.Tint);
+            }
+        }
+    }
+
+    private void RenderTiledRegion(Rectangle destRect, Rectangle srcRect, in UIImage image, float texW, float texH, int regionIndex)
+    {
+        // Calculate source region size in pixels
+        float srcPixelW = srcRect.Width * texW;
+        float srcPixelH = srcRect.Height * texH;
+
+        if (srcPixelW <= 0 || srcPixelH <= 0)
+        {
+            return;
+        }
+
+        // For edge regions, only tile in one direction
+        bool isHorizontalEdge = regionIndex == 1 || regionIndex == 7; // Top/bottom edges
+        bool isVerticalEdge = regionIndex == 3 || regionIndex == 5;   // Left/right edges
+
+        int tilesX = isVerticalEdge ? 1 : (int)Math.Ceiling(destRect.Width / srcPixelW);
+        int tilesY = isHorizontalEdge ? 1 : (int)Math.Ceiling(destRect.Height / srcPixelH);
+
+        for (int ty = 0; ty < tilesY; ty++)
+        {
+            for (int tx = 0; tx < tilesX; tx++)
+            {
+                float tileX = destRect.X + tx * srcPixelW;
+                float tileY = destRect.Y + ty * srcPixelH;
+                float tileW = isVerticalEdge ? destRect.Width : srcPixelW;
+                float tileH = isHorizontalEdge ? destRect.Height : srcPixelH;
+                var tileSrc = srcRect;
+
+                // Clip if extends beyond dest rect
+                if (tileX + tileW > destRect.Right)
+                {
+                    float excess = (tileX + tileW) - destRect.Right;
+                    float ratio = 1 - (excess / srcPixelW);
+                    tileW = destRect.Right - tileX;
+                    tileSrc = new Rectangle(srcRect.X, srcRect.Y, srcRect.Width * ratio, srcRect.Height);
+                }
+
+                if (tileY + tileH > destRect.Bottom)
+                {
+                    float excess = (tileY + tileH) - destRect.Bottom;
+                    float ratio = 1 - (excess / srcPixelH);
+                    tileH = destRect.Bottom - tileY;
+                    tileSrc = new Rectangle(tileSrc.X, tileSrc.Y, tileSrc.Width, srcRect.Height * ratio);
+                }
+
+                var dest = new Rectangle(tileX, tileY, tileW, tileH);
+                renderer2D!.DrawTextureRegion(image.Texture, dest, tileSrc, image.Tint);
+            }
+        }
     }
 
     private void RenderText(Rectangle bounds, in UIText text)
