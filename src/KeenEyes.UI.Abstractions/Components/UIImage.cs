@@ -44,6 +44,22 @@ public struct UIImage : IComponent
     public bool PreserveAspect;
 
     /// <summary>
+    /// Border sizes for 9-slice rendering (in source texture pixels).
+    /// Only used when <see cref="ScaleMode"/> is <see cref="ImageScaleMode.NineSlice"/>.
+    /// </summary>
+    public UIEdges SliceBorder;
+
+    /// <summary>
+    /// How to fill the center region when 9-slice rendering.
+    /// </summary>
+    public SlicedFillMode CenterFillMode;
+
+    /// <summary>
+    /// How to fill the edge regions when 9-slice rendering.
+    /// </summary>
+    public SlicedFillMode EdgeFillMode;
+
+    /// <summary>
     /// Creates an image component with no tint (original colors).
     /// </summary>
     /// <param name="texture">The texture to render.</param>
@@ -81,5 +97,41 @@ public struct UIImage : IComponent
         ScaleMode = ImageScaleMode.ScaleToFit,
         SourceRect = sourceRect,
         PreserveAspect = true
+    };
+
+    /// <summary>
+    /// Creates an image component with 9-slice scaling.
+    /// </summary>
+    /// <param name="texture">The texture to render.</param>
+    /// <param name="border">The border sizes in source texture pixels.</param>
+    /// <param name="centerFill">How to fill the center region (default: Stretch).</param>
+    /// <param name="edgeFill">How to fill the edge regions (default: Stretch).</param>
+    public static UIImage NineSlice(
+        TextureHandle texture,
+        UIEdges border,
+        SlicedFillMode centerFill = SlicedFillMode.Stretch,
+        SlicedFillMode edgeFill = SlicedFillMode.Stretch) => new()
+        {
+            Texture = texture,
+            Tint = Vector4.One,
+            ScaleMode = ImageScaleMode.NineSlice,
+            SourceRect = Rectangle.Empty,
+            PreserveAspect = false,
+            SliceBorder = border,
+            CenterFillMode = centerFill,
+            EdgeFillMode = edgeFill
+        };
+
+    /// <summary>
+    /// Creates an image component that tiles the texture.
+    /// </summary>
+    /// <param name="texture">The texture to render.</param>
+    public static UIImage Tiled(TextureHandle texture) => new()
+    {
+        Texture = texture,
+        Tint = Vector4.One,
+        ScaleMode = ImageScaleMode.Tile,
+        SourceRect = Rectangle.Empty,
+        PreserveAspect = false
     };
 }

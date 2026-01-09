@@ -244,9 +244,9 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
             DefaultShaders.SolidFragmentShader);
         SolidShader = new ShaderHandle(solidId);
 
-        // Create default white texture
+        // Create default white texture (1x1 pixel)
         var whiteId = textureManager.CreateSolidColorTexture(255, 255, 255, 255);
-        WhiteTexture = new TextureHandle(whiteId);
+        WhiteTexture = new TextureHandle(whiteId, 1, 1);
 
         // Create 2D renderer
         renderer2D = new Silk2DRenderer(device!, textureManager, Width, Height);
@@ -404,7 +404,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     public TextureHandle CreateTexture(int width, int height, ReadOnlySpan<byte> pixels)
     {
         var id = textureManager.CreateTexture(width, height, pixels);
-        return new TextureHandle(id);
+        return new TextureHandle(id, width, height);
     }
 
     /// <inheritdoc />
@@ -415,7 +415,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     }
 
     /// <summary>
-    /// Creates a solid color texture.
+    /// Creates a solid color texture (1x1 pixel).
     /// </summary>
     /// <param name="r">Red component (0-255).</param>
     /// <param name="g">Green component (0-255).</param>
@@ -425,7 +425,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     public TextureHandle CreateSolidColorTexture(byte r, byte g, byte b, byte a = 255)
     {
         var id = textureManager.CreateSolidColorTexture(r, g, b, a);
-        return new TextureHandle(id);
+        return new TextureHandle(id, 1, 1);
     }
 
     /// <inheritdoc />

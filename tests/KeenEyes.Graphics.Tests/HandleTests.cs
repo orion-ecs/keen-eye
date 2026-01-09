@@ -97,7 +97,14 @@ public class HandleTests
     public void TextureHandle_ToString_ValidHandle_ShowsId()
     {
         var handle = new TextureHandle(42);
-        Assert.Equal("Texture(42)", handle.ToString());
+        Assert.Equal("Texture(42, 0x0)", handle.ToString());
+    }
+
+    [Fact]
+    public void TextureHandle_ToString_ValidHandleWithDimensions_ShowsDimensions()
+    {
+        var handle = new TextureHandle(42, 128, 256);
+        Assert.Equal("Texture(42, 128x256)", handle.ToString());
     }
 
     [Fact]
