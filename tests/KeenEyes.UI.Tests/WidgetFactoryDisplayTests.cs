@@ -1059,8 +1059,10 @@ public class WidgetFactoryDisplayTests
     }
 
     [Fact]
-    public void CreateScrollView_ContentPanel_FillsWhenNoContentSize()
+    public void CreateScrollView_ContentPanel_UsesFillWidthAndFitContentHeight()
     {
+        // Content panel uses Fill width to expand horizontally, but FitContent height
+        // to allow measuring actual content size for proper scrolling behavior
         using var world = new World();
         var parent = CreateRootEntity(world);
 
@@ -1068,7 +1070,7 @@ public class WidgetFactoryDisplayTests
 
         ref readonly var rect = ref world.Get<UIRect>(contentPanel);
         Assert.Equal(UISizeMode.Fill, rect.WidthMode);
-        Assert.Equal(UISizeMode.Fill, rect.HeightMode);
+        Assert.Equal(UISizeMode.FitContent, rect.HeightMode);
     }
 
     [Fact]

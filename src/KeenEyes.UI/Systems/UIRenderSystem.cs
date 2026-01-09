@@ -73,7 +73,7 @@ public sealed class UIRenderSystem : SystemBase
                 }
 
                 // Render root and children recursively
-                RenderElement(rootEntity, 0);
+                RenderElement(rootEntity, 0, Vector2.Zero);
             }
 
             // SECOND PASS: Render overlay elements (menus, tooltips, modals) on top
@@ -119,7 +119,7 @@ public sealed class UIRenderSystem : SystemBase
         }
     }
 
-    private void RenderElement(Entity entity, int depth)
+    private void RenderElement(Entity entity, int depth, Vector2 accumulatedScrollOffset)
     {
         if (renderer2D is null)
         {
@@ -143,21 +143,31 @@ public sealed class UIRenderSystem : SystemBase
             return; // Don't render now - will be rendered in overlay pass
         }
 
+        // Apply accumulated scroll offset to bounds for rendering
         var bounds = rect.ComputedBounds;
+        if (accumulatedScrollOffset != Vector2.Zero)
+        {
+            bounds = new Rectangle(
+                bounds.X - accumulatedScrollOffset.X,
+                bounds.Y - accumulatedScrollOffset.Y,
+                bounds.Width,
+                bounds.Height);
+        }
 
-        // Push clip if element has clipping
+        // Push clip if element has clipping (use offset bounds for clipping)
         bool hasClip = World.Has<UIClipChildrenTag>(entity);
         if (hasClip)
         {
             renderer2D.PushClip(bounds);
         }
 
-        // Get scroll offset for scrollable containers
+        // Get scroll offset for scrollable containers - accumulate for children
         Vector2 scrollOffset = World.Has<UIScrollable>(entity)
             ? World.Get<UIScrollable>(entity).ScrollPosition
             : Vector2.Zero;
+        Vector2 childScrollOffset = accumulatedScrollOffset + scrollOffset;
 
-        // Render this element's visuals
+        // Render this element visuals with offset bounds
         RenderElementVisuals(entity, bounds);
 
         // Render children - using IWorld.GetChildren
@@ -174,28 +184,8 @@ public sealed class UIRenderSystem : SystemBase
                 continue;
             }
 
-            // Apply scroll offset to child's computed bounds for rendering
-            if (scrollOffset != Vector2.Zero)
-            {
-                ref var childRect = ref World.Get<UIRect>(child);
-                var originalBounds = childRect.ComputedBounds;
-
-                // Offset the computed bounds by the scroll position
-                childRect.ComputedBounds = new Rectangle(
-                    originalBounds.X - scrollOffset.X,
-                    originalBounds.Y - scrollOffset.Y,
-                    originalBounds.Width,
-                    originalBounds.Height);
-
-                RenderElement(child, depth + 1);
-
-                // Restore original bounds
-                childRect.ComputedBounds = originalBounds;
-            }
-            else
-            {
-                RenderElement(child, depth + 1);
-            }
+            // Pass accumulated scroll offset to children
+            RenderElement(child, depth + 1, childScrollOffset);
         }
 
         // Pop clip
