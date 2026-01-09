@@ -115,6 +115,7 @@ try
             Console.WriteLine("UI system initialized!");
 
             var ui = world.GetExtension<UIContext>();
+            var graphics = world.GetExtension<IGraphicsContext>();
 
             // Load the font
             FontHandle font = default;
@@ -139,11 +140,30 @@ try
             nodeTypeRegistry.Register<AddNode>();
             nodeTypeRegistry.Register<MultiplyNode>();
 
+            // Load the 9-slice dialog texture
+            TextureHandle dialogTexture = default;
+            var dialogTexturePath = Path.Combine(AppContext.BaseDirectory, "Assets", "dialog-texture.png");
+            if (File.Exists(dialogTexturePath))
+            {
+                try
+                {
+                    dialogTexture = graphics.LoadTexture(dialogTexturePath);
+                    Console.WriteLine($"Dialog texture loaded: {dialogTexture.Width}x{dialogTexture.Height}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed to load dialog texture: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Dialog texture not found at: {dialogTexturePath}");
+            }
+
             // Create the widget gallery
-            CreateWidgetGallery(world, ui, font);
+            CreateWidgetGallery(world, ui, font, dialogTexture);
 
             // Set initial screen size from graphics context
-            var graphics = world.GetExtension<IGraphicsContext>();
             if (graphics is not null)
             {
                 var layoutSystem = world.GetSystem<UILayoutSystem>();
@@ -209,7 +229,7 @@ Console.WriteLine("Sample complete!");
 // Widget Gallery Creation
 // ============================================================================
 
-static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
+static void CreateWidgetGallery(World world, UIContext ui, FontHandle font, TextureHandle dialogTexture)
 {
     // Create root canvas
     var canvas = ui.CreateCanvas("WidgetGallery");
@@ -292,7 +312,7 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
     PopulateInputsTab(world, contentPanels[1], font);
 
     // Populate Tab 3: Layout
-    PopulateLayoutTab(world, contentPanels[2], font);
+    PopulateLayoutTab(world, contentPanels[2], font, dialogTexture);
 
     // Populate Tab 4: Splitter & Toolbar
     PopulateSplitterTab(world, contentPanels[3], font);
@@ -647,12 +667,42 @@ static void PopulateInputsTab(World world, Entity panel, FontHandle font)
 // Tab 3: Layout (ScrollView, Dividers, Nested Panels)
 // ============================================================================
 
-static void PopulateLayoutTab(World world, Entity panel, FontHandle font)
+static void PopulateLayoutTab(World world, Entity panel, FontHandle font, TextureHandle dialogTexture)
 {
     ref var layout = ref world.Get<UILayout>(panel);
     layout.Spacing = 20;
     layout.CrossAxisAlign = LayoutAlign.Center;
     world.Add(panel, new UIStyle { Padding = UIEdges.All(20) });
+
+    // --- 9-Slice Section ---
+    if (dialogTexture.IsValid)
+    {
+        var nineSliceSection = CreateSection(world, panel, "9-Slice Rendering", font);
+
+        WidgetFactory.CreateLabel(world, nineSliceSection, "NineSliceDesc",
+            "Same texture at different sizes - corners stay sharp, edges stretch", font,
+            new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+        var nineSliceRow = WidgetFactory.CreatePanel(world, nineSliceSection, "NineSliceRow", new PanelConfig(
+            Height: 180,
+            Direction: LayoutDirection.Horizontal,
+            MainAxisAlign: LayoutAlign.Center,
+            CrossAxisAlign: LayoutAlign.Center,
+            Spacing: 30
+        ));
+
+        // Small 9-slice panel
+        Create9SliceDemo(world, nineSliceRow, "Small", dialogTexture, 100, 80, font);
+
+        // Medium 9-slice panel
+        Create9SliceDemo(world, nineSliceRow, "Medium", dialogTexture, 200, 120, font);
+
+        // Large 9-slice panel
+        Create9SliceDemo(world, nineSliceRow, "Large", dialogTexture, 350, 160, font);
+
+        // Wide 9-slice panel
+        Create9SliceDemo(world, nineSliceRow, "Wide", dialogTexture, 250, 60, font);
+    }
 
     // --- Dividers Section ---
     var dividerSection = CreateSection(world, panel, "Dividers", font);
@@ -984,6 +1034,53 @@ static void CreateColoredPanel(World world, Entity parent, string label, Vector4
     WidgetFactory.CreateLabel(world, colorPanel, $"ColorPanelLabel{label}", label, font, new LabelConfig(
         FontSize: 12,
         TextColor: Colors.TextWhite,
+        HorizontalAlign: TextAlignH.Center
+    ));
+}
+
+static void Create9SliceDemo(World world, Entity parent, string label, TextureHandle texture, float width, float height, FontHandle font)
+{
+    var container = WidgetFactory.CreatePanel(world, parent, $"NineSlice{label}Container", new PanelConfig(
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 8
+    ));
+
+    // Create the 9-slice panel with image background
+    var nineSlicePanel = world.Spawn()
+        .With(new UIElement { Visible = true, RaycastTarget = false })
+        .With(new UIRect
+        {
+            AnchorMin = Vector2.Zero,
+            AnchorMax = Vector2.One,
+            Pivot = new Vector2(0.5f, 0.5f),
+            Size = new Vector2(width, height),
+            WidthMode = UISizeMode.Fixed,
+            HeightMode = UISizeMode.Fixed
+        })
+        .With(UIImage.NineSlice(texture, new UIEdges(16, 16, 16, 16)))
+        .With(new UILayout
+        {
+            Direction = LayoutDirection.Vertical,
+            MainAxisAlign = LayoutAlign.Center,
+            CrossAxisAlign = LayoutAlign.Center
+        })
+        .Build();
+
+    world.SetParent(nineSlicePanel, container);
+
+    // Add a label inside the 9-slice panel
+    WidgetFactory.CreateLabel(world, nineSlicePanel, $"NineSlice{label}Label", $"{width}x{height}", font, new LabelConfig(
+        FontSize: 12,
+        TextColor: Colors.TextWhite,
+        HorizontalAlign: TextAlignH.Center
+    ));
+
+    // Add size label below
+    WidgetFactory.CreateLabel(world, container, $"NineSlice{label}SizeLabel", label, font, new LabelConfig(
+        FontSize: 11,
+        TextColor: Colors.TextMuted,
         HorizontalAlign: TextAlignH.Center
     ));
 }
