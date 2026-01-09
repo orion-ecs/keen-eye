@@ -660,12 +660,31 @@ public sealed class GraphInputSystem : SystemBase
         return isDownNow && !wasDownLastFrame;
     }
 
+    // Keys that the graph system actually cares about
+    private static readonly Key[] trackedKeys =
+    [
+        // Modifier keys for multi-select
+        Key.LeftControl,
+        Key.RightControl,
+        Key.LeftShift,
+        Key.RightShift,
+        // Action keys
+        Key.Delete,
+        Key.Escape,
+        Key.A,  // For Ctrl+A select all
+        Key.C,  // For Ctrl+C copy
+        Key.V,  // For Ctrl+V paste
+        Key.X,  // For Ctrl+X cut
+        Key.Z,  // For Ctrl+Z undo
+        Key.Y,  // For Ctrl+Y redo
+    ];
+
     private void UpdateKeyState(IKeyboard keyboard)
     {
         keysDownLastFrame.Clear();
 
-        // Track all keys that are currently down
-        for (var key = Key.Unknown; key <= Key.Slash; key++)
+        // Only track keys that are relevant to graph editing
+        foreach (var key in trackedKeys)
         {
             if (keyboard.IsKeyDown(key))
             {
