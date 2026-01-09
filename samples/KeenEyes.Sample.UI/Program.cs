@@ -23,6 +23,8 @@
 
 using System.Numerics;
 using KeenEyes;
+using KeenEyes.Graph;
+using KeenEyes.Graph.Abstractions;
 using KeenEyes.Graphics;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk;
@@ -30,6 +32,7 @@ using KeenEyes.Input.Abstractions;
 using KeenEyes.Input.Silk;
 using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
+using KeenEyes.Sample.UI.Nodes;
 using KeenEyes.TestBridge;
 using KeenEyes.TestBridge.Ipc;
 using KeenEyes.UI;
@@ -97,6 +100,7 @@ world.InstallPlugin(new SilkWindowPlugin(windowConfig));
 world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
 world.InstallPlugin(new SilkInputPlugin(inputConfig));
 world.InstallPlugin(new UIPlugin());
+world.InstallPlugin(new GraphPlugin());
 
 // Subscribe to UI events
 SubscribeToUIEvents(world);
@@ -128,6 +132,12 @@ try
                     Console.WriteLine($"Failed to load font: {ex.Message}");
                 }
             }
+
+            // Register custom graph node types
+            var nodeTypeRegistry = world.GetExtension<NodeTypeRegistry>();
+            nodeTypeRegistry.Register<NumberNode>();
+            nodeTypeRegistry.Register<AddNode>();
+            nodeTypeRegistry.Register<MultiplyNode>();
 
             // Create the widget gallery
             CreateWidgetGallery(world, ui, font);
@@ -246,18 +256,21 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
     // Spacing
     CreateSpacer(world, mainPanel, 8);
 
-    // Create TabView with 9 tabs covering all widgets
+    // Create TabView with 12 tabs covering all widgets
     var tabs = new TabConfig[]
     {
-        new("Controls", MinWidth: 80),
-        new("Inputs", MinWidth: 80),
-        new("Layout", MinWidth: 80),
-        new("Splitter", MinWidth: 80),
-        new("TreeView", MinWidth: 80),
-        new("Inspector", MinWidth: 80),
-        new("Windows", MinWidth: 80),
-        new("Pickers", MinWidth: 80),
-        new("Advanced", MinWidth: 80)
+        new("Controls", MinWidth: 70),
+        new("Inputs", MinWidth: 70),
+        new("Layout", MinWidth: 70),
+        new("Splitter", MinWidth: 70),
+        new("TreeView", MinWidth: 70),
+        new("Inspector", MinWidth: 70),
+        new("Windows", MinWidth: 70),
+        new("Pickers", MinWidth: 70),
+        new("Advanced", MinWidth: 70),
+        new("Display", MinWidth: 70),
+        new("Docking", MinWidth: 70),
+        new("Graph", MinWidth: 70)
     };
 
     var (_, contentPanels) = WidgetFactory.CreateTabView(
@@ -296,8 +309,17 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
     // Populate Tab 8: Pickers
     PopulatePickersTab(world, contentPanels[7], font);
 
-    // Populate Tab 9: Advanced (Spinner, DataGrid, Toast, RadialMenu)
+    // Populate Tab 9: Advanced (Spinner, DataGrid, Toast, RadialMenu, ContextMenu)
     PopulateAdvancedTab(world, contentPanels[8], font, canvas);
+
+    // Populate Tab 10: Display (Popover)
+    PopulateDisplayTab(world, contentPanels[9], font);
+
+    // Populate Tab 11: Docking (DockContainer, DockPanel)
+    PopulateDockingTab(world, contentPanels[10], font);
+
+    // Populate Tab 12: Graph (Node Graph Editor)
+    PopulateGraphTab(world, contentPanels[11], font);
 
     Console.WriteLine("Created widget gallery with TabView and all widget types");
 }
@@ -1835,6 +1857,47 @@ static void PopulateAdvancedTab(World world, Entity panel, FontHandle font, Enti
         }
     });
 
+    // --- Context Menu Section ---
+    var contextSection = CreateSection(world, panel, "Context Menu (Right-click demo area)", font);
+
+    // Create a demo area for context menu
+    var contextDemoArea = WidgetFactory.CreatePanel(world, contextSection, "ContextDemoArea", new PanelConfig(
+        Width: 700,
+        Height: 100,
+        BackgroundColor: Colors.DarkPanel,
+        CornerRadius: 8,
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center
+    ));
+    world.Add(contextDemoArea, new UIInteractable { CanClick = true });
+
+    WidgetFactory.CreateLabel(world, contextDemoArea, "ContextDemoLabel",
+        "Right-click anywhere in this area to open the context menu", font,
+        new LabelConfig(FontSize: 13, TextColor: Colors.TextLight, HorizontalAlign: TextAlignH.Center));
+
+    WidgetFactory.CreateLabel(world, contextDemoArea, "ContextDemoDesc",
+        "Context menus provide quick access to common actions", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Create context menu (hidden by default)
+    var contextMenuItems = new MenuItemDef[]
+    {
+        new("Cut", "cut", Shortcut: "Ctrl+X"),
+        new("Copy", "copy", Shortcut: "Ctrl+C"),
+        new("Paste", "paste", Shortcut: "Ctrl+V"),
+        new("---", "sep1", IsSeparator: true),
+        new("Select All", "select_all", Shortcut: "Ctrl+A"),
+        new("---", "sep2", IsSeparator: true),
+        new("Delete", "delete", Shortcut: "Del")
+    };
+
+    var contextMenu = WidgetFactory.CreateContextMenu(world, font, contextMenuItems, new MenuConfig(
+        MinWidth: 180,
+        ItemHeight: 28
+    ));
+    world.SetParent(contextMenu, canvas);
+
     // --- Radial Menu Section ---
     var radialSection = CreateSection(world, panel, "Radial Menu (Right-click demo area)", font);
 
@@ -1875,6 +1938,420 @@ static void PopulateAdvancedTab(World world, Entity panel, FontHandle font, Enti
         FontSize: 12
     ));
     world.SetParent(radialMenu, canvas);
+}
+
+// ============================================================================
+// Tab 10: Display (Popover)
+// ============================================================================
+
+static void PopulateDisplayTab(World world, Entity panel, FontHandle font)
+{
+    ref var layout = ref world.Get<UILayout>(panel);
+    layout.Spacing = 20;
+    layout.CrossAxisAlign = LayoutAlign.Center;
+    world.Add(panel, new UIStyle { Padding = UIEdges.All(20) });
+
+    // --- Popover Section ---
+    var popoverSection = CreateSection(world, panel, "Popovers", font);
+
+    WidgetFactory.CreateLabel(world, popoverSection, "PopoverDesc",
+        "Popovers are contextual overlays triggered by click or hover", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    var popoverRow = WidgetFactory.CreatePanel(world, popoverSection, "PopoverRow", new PanelConfig(
+        Height: 80,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Start,
+        Spacing: 40
+    ));
+
+    // Click-triggered popover
+    var clickTrigger = WidgetFactory.CreateButton(world, popoverRow, "ClickPopoverBtn", "Click Me", font, new ButtonConfig(
+        Width: 120, Height: 40,
+        BackgroundColor: Colors.Primary,
+        CornerRadius: 6
+    ));
+
+    var clickPopover = WidgetFactory.CreatePopover(world, "ClickPopover", clickTrigger, new PopoverConfig(
+        Width: 200,
+        Height: 100,
+        Trigger: PopoverTrigger.Click,
+        Position: TooltipPosition.Below
+    ));
+
+    WidgetFactory.CreateLabel(world, clickPopover, "ClickPopoverTitle", "Click Popover", font,
+        new LabelConfig(FontSize: 14, TextColor: Colors.TextWhite));
+    WidgetFactory.CreateLabel(world, clickPopover, "ClickPopoverContent", "This popover was triggered by clicking the button.", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextLight));
+
+    // Hover-triggered popover
+    var hoverTrigger = WidgetFactory.CreateButton(world, popoverRow, "HoverPopoverBtn", "Hover Me", font, new ButtonConfig(
+        Width: 120, Height: 40,
+        BackgroundColor: Colors.Success,
+        CornerRadius: 6
+    ));
+
+    var hoverPopover = WidgetFactory.CreatePopover(world, "HoverPopover", hoverTrigger, new PopoverConfig(
+        Width: 220,
+        Height: 80,
+        Trigger: PopoverTrigger.Hover,
+        Position: TooltipPosition.Above
+    ));
+
+    WidgetFactory.CreateLabel(world, hoverPopover, "HoverPopoverTitle", "Hover Popover", font,
+        new LabelConfig(FontSize: 14, TextColor: Colors.TextWhite));
+    WidgetFactory.CreateLabel(world, hoverPopover, "HoverPopoverContent", "This popover appears on hover.", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextLight));
+
+    // Popover with interactive content
+    var interactiveTrigger = WidgetFactory.CreateButton(world, popoverRow, "InteractivePopoverBtn", "Interactive", font, new ButtonConfig(
+        Width: 120, Height: 40,
+        BackgroundColor: Colors.Warning,
+        TextColor: Colors.TextDark,
+        CornerRadius: 6
+    ));
+
+    var interactivePopover = WidgetFactory.CreatePopover(world, "InteractivePopover", interactiveTrigger, new PopoverConfig(
+        Width: 250,
+        Height: 150,
+        Trigger: PopoverTrigger.Click,
+        Position: TooltipPosition.Below,
+        CloseOnClickOutside: true
+    ));
+
+    WidgetFactory.CreateLabel(world, interactivePopover, "InteractivePopoverTitle", "Interactive Popover", font,
+        new LabelConfig(FontSize: 14, TextColor: Colors.TextWhite));
+    WidgetFactory.CreateCheckbox(world, interactivePopover, "PopoverCheck", "Enable feature", font, new CheckboxConfig(
+        IsChecked: true, CheckColor: Colors.Success
+    ));
+    WidgetFactory.CreateSlider(world, interactivePopover, "PopoverSlider", new SliderConfig(
+        Width: 200, Height: 20, Value: 50, FillColor: Colors.AccentBlue
+    ));
+
+    // --- Image Widget Info Section ---
+    var imageSection = CreateSection(world, panel, "Image Widget", font);
+
+    WidgetFactory.CreateLabel(world, imageSection, "ImageInfo1",
+        "The Image widget displays textures loaded via the TextureManager.", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight, HorizontalAlign: TextAlignH.Center));
+
+    WidgetFactory.CreateLabel(world, imageSection, "ImageInfo2",
+        "Usage: WidgetFactory.CreateImage(world, parent, textureHandle, config)", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    var imageExample = WidgetFactory.CreatePanel(world, imageSection, "ImageExample", new PanelConfig(
+        Width: 600,
+        Height: 80,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        BackgroundColor: Colors.DarkPanel,
+        CornerRadius: 8,
+        Spacing: 20
+    ));
+
+    // Placeholder boxes representing where images would appear
+    for (int i = 0; i < 3; i++)
+    {
+        var placeholder = WidgetFactory.CreatePanel(world, imageExample, $"ImagePlaceholder{i}", new PanelConfig(
+            Width: 60,
+            Height: 60,
+            BackgroundColor: new Vector4(0.3f, 0.3f, 0.35f, 1f),
+            CornerRadius: 4
+        ));
+
+        WidgetFactory.CreateLabel(world, placeholder, $"ImagePlaceholderLabel{i}", "IMG", font,
+            new LabelConfig(FontSize: 10, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+    }
+
+    WidgetFactory.CreateLabel(world, imageSection, "ImageNote",
+        "(Texture loading requires a running graphics context with loaded assets)", font,
+        new LabelConfig(FontSize: 10, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+}
+
+// ============================================================================
+// Tab 11: Docking (DockContainer, DockPanel)
+// ============================================================================
+
+static void PopulateDockingTab(World world, Entity panel, FontHandle font)
+{
+    ref var layout = ref world.Get<UILayout>(panel);
+    layout.Spacing = 15;
+    layout.CrossAxisAlign = LayoutAlign.Center;
+    world.Add(panel, new UIStyle { Padding = UIEdges.All(15) });
+
+    // --- Dock Container Section ---
+    var dockSection = CreateSection(world, panel, "Dock Container", font);
+
+    WidgetFactory.CreateLabel(world, dockSection, "DockDesc",
+        "DockContainer manages dockable panels in Left, Right, Top, Bottom, and Center zones", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Create a container for the dock demo
+    var dockDemoContainer = WidgetFactory.CreatePanel(world, dockSection, "DockDemoContainer", new PanelConfig(
+        Width: 900,
+        Height: 350,
+        BackgroundColor: Colors.DarkPanel,
+        CornerRadius: 8
+    ));
+
+    // Create dock container
+    var dockContainer = WidgetFactory.CreateDockContainer(world, dockDemoContainer, "DemoDockContainer", new DockContainerConfig(
+        ShowLeftZone: true,
+        ShowRightZone: true,
+        ShowTopZone: false,
+        ShowBottomZone: false,
+        LeftZoneSize: 180,
+        RightZoneSize: 180
+    ));
+
+    // Create left dock panel
+    var (leftPanel, leftContent) = WidgetFactory.CreateDockPanel(
+        world, Entity.Null, "LeftDockPanel", "Properties", font,
+        new DockPanelConfig(Width: 180, Height: 300, CanClose: false, CanFloat: false));
+
+    WidgetFactory.CreateLabel(world, leftContent, "LeftPanelLabel1", "Object Properties:", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
+    WidgetFactory.CreateLabel(world, leftContent, "LeftPanelLabel2", "Position: (100, 200)", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+    WidgetFactory.CreateLabel(world, leftContent, "LeftPanelLabel3", "Rotation: 45", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+    WidgetFactory.CreateLabel(world, leftContent, "LeftPanelLabel4", "Scale: 1.0", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted));
+
+    // Dock the left panel
+    WidgetFactory.DockPanel(world, leftPanel, dockContainer, DockZone.Left);
+
+    // Create right dock panel
+    var (rightPanel, rightContent) = WidgetFactory.CreateDockPanel(
+        world, Entity.Null, "RightDockPanel", "Inspector", font,
+        new DockPanelConfig(Width: 180, Height: 300, CanClose: false, CanFloat: false));
+
+    WidgetFactory.CreateLabel(world, rightContent, "RightPanelLabel1", "Component List:", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight));
+    WidgetFactory.CreateCheckbox(world, rightContent, "RightCheck1", "Renderer", font, new CheckboxConfig(
+        IsChecked: true, CheckColor: Colors.Success
+    ));
+    WidgetFactory.CreateCheckbox(world, rightContent, "RightCheck2", "Collider", font, new CheckboxConfig(
+        IsChecked: true, CheckColor: Colors.Success
+    ));
+    WidgetFactory.CreateCheckbox(world, rightContent, "RightCheck3", "Script", font, new CheckboxConfig(
+        IsChecked: false, CheckColor: Colors.Success
+    ));
+
+    // Dock the right panel
+    WidgetFactory.DockPanel(world, rightPanel, dockContainer, DockZone.Right);
+
+    // Create center dock panel (viewport)
+    var (centerPanel, centerContent) = WidgetFactory.CreateDockPanel(
+        world, Entity.Null, "CenterDockPanel", "Viewport", font,
+        new DockPanelConfig(Width: 500, Height: 300, CanClose: false, CanFloat: false));
+
+    ref var centerLayout = ref world.Get<UILayout>(centerContent);
+    centerLayout.MainAxisAlign = LayoutAlign.Center;
+    centerLayout.CrossAxisAlign = LayoutAlign.Center;
+
+    WidgetFactory.CreateLabel(world, centerContent, "ViewportLabel", "Main Content Area", font,
+        new LabelConfig(FontSize: 16, TextColor: Colors.TextWhite, HorizontalAlign: TextAlignH.Center));
+    WidgetFactory.CreateLabel(world, centerContent, "ViewportDesc", "This is the center zone", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Dock the center panel
+    WidgetFactory.DockPanel(world, centerPanel, dockContainer, DockZone.Center);
+
+    // --- Dock Panel Features ---
+    var featuresSection = CreateSection(world, panel, "DockPanel Features", font);
+
+    var featuresRow = WidgetFactory.CreatePanel(world, featuresSection, "FeaturesRow", new PanelConfig(
+        Height: 100,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Start,
+        Spacing: 30
+    ));
+
+    // Feature cards
+    var features = new[] {
+        ("Draggable", "Drag title bar to reposition"),
+        ("Dockable", "Dock to any zone"),
+        ("Closable", "Optional close button"),
+        ("Tabbed", "Multiple panels per zone")
+    };
+
+    foreach (var (title, desc) in features)
+    {
+        var card = WidgetFactory.CreatePanel(world, featuresRow, $"Feature{title}", new PanelConfig(
+            Width: 150,
+            Height: 80,
+            Direction: LayoutDirection.Vertical,
+            MainAxisAlign: LayoutAlign.Center,
+            CrossAxisAlign: LayoutAlign.Center,
+            BackgroundColor: Colors.LightPanel,
+            CornerRadius: 6,
+            Spacing: 5
+        ));
+
+        WidgetFactory.CreateLabel(world, card, $"Feature{title}Title", title, font,
+            new LabelConfig(FontSize: 13, TextColor: Colors.TextWhite, HorizontalAlign: TextAlignH.Center));
+        WidgetFactory.CreateLabel(world, card, $"Feature{title}Desc", desc, font,
+            new LabelConfig(FontSize: 10, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+    }
+}
+
+// ============================================================================
+// Tab 12: Graph (Node Graph Editor)
+// ============================================================================
+
+static void PopulateGraphTab(World world, Entity panel, FontHandle font)
+{
+    ref var layout = ref world.Get<UILayout>(panel);
+    layout.Spacing = 15;
+    layout.CrossAxisAlign = LayoutAlign.Center;
+    world.Add(panel, new UIStyle { Padding = UIEdges.All(15) });
+
+    // --- Graph Editor Section ---
+    var graphSection = CreateSection(world, panel, "Node Graph Editor", font);
+
+    WidgetFactory.CreateLabel(world, graphSection, "GraphDesc",
+        "Visual node-based graph editor for shader graphs, behavior trees, and data flow", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Note: GraphCanvas is rendered by GraphRenderSystem, not the UI system.
+    // In a real application, the graph would be shown in a dedicated viewport.
+    // Here we show a placeholder demonstrating what the graph system provides.
+
+    var graphContainer = WidgetFactory.CreatePanel(world, graphSection, "GraphContainer", new PanelConfig(
+        Width: 900,
+        Height: 300,
+        BackgroundColor: new Vector4(0.1f, 0.1f, 0.12f, 1f),
+        CornerRadius: 8,
+        Direction: LayoutDirection.Vertical,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 15
+    ));
+
+    WidgetFactory.CreateLabel(world, graphContainer, "GraphPlaceholder",
+        "Node Graph Canvas Area", font,
+        new LabelConfig(FontSize: 18, TextColor: Colors.TextWhite, HorizontalAlign: TextAlignH.Center));
+
+    WidgetFactory.CreateLabel(world, graphContainer, "GraphInfo1",
+        "The KeenEyes Graph system provides a visual node-based editor", font,
+        new LabelConfig(FontSize: 12, TextColor: Colors.TextLight, HorizontalAlign: TextAlignH.Center));
+
+    WidgetFactory.CreateLabel(world, graphContainer, "GraphInfo2",
+        "Use GraphContext.CreateCanvas() to create a graph canvas", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    WidgetFactory.CreateLabel(world, graphContainer, "GraphInfo3",
+        "GraphContext.CreateNode() adds nodes, Connect() creates wire connections", font,
+        new LabelConfig(FontSize: 11, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+
+    // Show the registered node types
+    var nodeTypesPanel = WidgetFactory.CreatePanel(world, graphContainer, "RegisteredNodes", new PanelConfig(
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 20
+    ));
+
+    // Display the custom node types we registered
+    var nodeRegistry = world.GetExtension<NodeTypeRegistry>();
+    var registeredNodes = new[] { ("Number", 101), ("Add", 102), ("Multiply", 103) };
+
+    foreach (var (name, id) in registeredNodes)
+    {
+        var nodeDef = nodeRegistry.GetDefinition(id);
+        if (nodeDef is not null)
+        {
+            var nodeCard = WidgetFactory.CreatePanel(world, nodeTypesPanel, $"NodeCard{name}", new PanelConfig(
+                Width: 120,
+                Height: 50,
+                BackgroundColor: new Vector4(0.2f, 0.2f, 0.25f, 1f),
+                CornerRadius: 4,
+                Direction: LayoutDirection.Vertical,
+                MainAxisAlign: LayoutAlign.Center,
+                CrossAxisAlign: LayoutAlign.Center
+            ));
+
+            WidgetFactory.CreateLabel(world, nodeCard, $"NodeCard{name}Name", nodeDef.Name, font,
+                new LabelConfig(FontSize: 12, TextColor: Colors.AccentBlue, HorizontalAlign: TextAlignH.Center));
+            WidgetFactory.CreateLabel(world, nodeCard, $"NodeCard{name}Ports",
+                $"In: {nodeDef.InputPorts.Count} | Out: {nodeDef.OutputPorts.Count}", font,
+                new LabelConfig(FontSize: 9, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+        }
+    }
+
+    // --- Controls Info ---
+    var controlsSection = CreateSection(world, panel, "Graph Controls", font);
+
+    var controlsRow = WidgetFactory.CreatePanel(world, controlsSection, "ControlsRow", new PanelConfig(
+        Height: 60,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 40
+    ));
+
+    var controls = new[] {
+        ("Pan", "Middle Mouse Drag"),
+        ("Zoom", "Scroll Wheel"),
+        ("Select", "Left Click"),
+        ("Connect", "Drag Port to Port"),
+        ("Multi-Select", "Ctrl + Click")
+    };
+
+    foreach (var (action, key) in controls)
+    {
+        var controlItem = WidgetFactory.CreatePanel(world, controlsRow, $"Control{action}", new PanelConfig(
+            Direction: LayoutDirection.Vertical,
+            MainAxisAlign: LayoutAlign.Center,
+            CrossAxisAlign: LayoutAlign.Center,
+            Spacing: 2
+        ));
+
+        WidgetFactory.CreateLabel(world, controlItem, $"Control{action}Key", key, font,
+            new LabelConfig(FontSize: 11, TextColor: Colors.AccentBlue, HorizontalAlign: TextAlignH.Center));
+        WidgetFactory.CreateLabel(world, controlItem, $"Control{action}Action", action, font,
+            new LabelConfig(FontSize: 10, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+    }
+
+    // --- Node Types Info ---
+    var nodeTypesSection = CreateSection(world, panel, "Custom Node Types (Math)", font);
+
+    var nodeTypesRow = WidgetFactory.CreatePanel(world, nodeTypesSection, "NodeTypesRow", new PanelConfig(
+        Height: 80,
+        Direction: LayoutDirection.Horizontal,
+        MainAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Center,
+        Spacing: 30
+    ));
+
+    var nodeTypes = new[] {
+        ("Number", "Outputs a float constant", Colors.AccentBlue),
+        ("Add", "Adds two float inputs", Colors.AccentGreen),
+        ("Multiply", "Multiplies two float inputs", Colors.AccentOrange)
+    };
+
+    foreach (var (name, desc, color) in nodeTypes)
+    {
+        var typeCard = WidgetFactory.CreatePanel(world, nodeTypesRow, $"NodeType{name}", new PanelConfig(
+            Width: 180,
+            Height: 70,
+            Direction: LayoutDirection.Vertical,
+            MainAxisAlign: LayoutAlign.Center,
+            CrossAxisAlign: LayoutAlign.Center,
+            BackgroundColor: Colors.DarkPanel,
+            CornerRadius: 6,
+            Spacing: 4
+        ));
+
+        WidgetFactory.CreateLabel(world, typeCard, $"NodeType{name}Name", name, font,
+            new LabelConfig(FontSize: 14, TextColor: color, HorizontalAlign: TextAlignH.Center));
+        WidgetFactory.CreateLabel(world, typeCard, $"NodeType{name}Desc", desc, font,
+            new LabelConfig(FontSize: 10, TextColor: Colors.TextMuted, HorizontalAlign: TextAlignH.Center));
+    }
 }
 
 // ============================================================================

@@ -280,12 +280,23 @@ public sealed class GraphContextMenuSystem : SystemBase
         return isDownNow && !wasDownLastFrame;
     }
 
+    // Keys that the context menu system cares about
+    private static readonly Key[] trackedKeys =
+    [
+        Key.Escape,  // Close menu
+        Key.Enter,   // Confirm selection
+        Key.Up,      // Navigate up
+        Key.Down,    // Navigate down
+        Key.Left,    // Navigate left/collapse
+        Key.Right,   // Navigate right/expand
+    ];
+
     private void UpdateKeyState(IKeyboard keyboard)
     {
         keysDownLastFrame.Clear();
 
-        // Track all keys that are currently down
-        for (var key = Key.Unknown; key <= Key.Slash; key++)
+        // Only track keys relevant to context menu navigation
+        foreach (var key in trackedKeys)
         {
             if (keyboard.IsKeyDown(key))
             {

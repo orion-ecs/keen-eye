@@ -139,6 +139,32 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
+      "keeneyes.editor.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.graph": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Editor.Abstractions": "[1.0.0, )",
+          "KeenEyes.Graph.Abstractions": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.graph.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.graphics": {
         "type": "Project",
         "dependencies": {
