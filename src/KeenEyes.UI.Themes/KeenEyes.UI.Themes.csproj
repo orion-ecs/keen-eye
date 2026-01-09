@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>KeenEyes.UI.Themes</PackageId>
+    <Description>UI theming system with OS theme detection for KeenEyes (Windows, macOS, Linux)</Description>
+    <PackageTags>ecs;ui;themes;darkmode;windows;macos;linux</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.UI.Themes.Abstractions\KeenEyes.UI.Themes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\KeenEyes.UI\KeenEyes.UI.csproj" />
+  </ItemGroup>
+</Project>

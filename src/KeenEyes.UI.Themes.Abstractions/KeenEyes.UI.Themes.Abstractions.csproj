@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>KeenEyes.UI.Themes.Abstractions</PackageId>
+    <Description>UI theming system abstractions with OS theme detection for KeenEyes</Description>
+    <PackageTags>ecs;ui;themes;darkmode;abstractions</PackageTags>
+    <IsAotCompatible>true</IsAotCompatible>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
+    <ProjectReference Include="..\KeenEyes.UI.Abstractions\KeenEyes.UI.Abstractions.csproj" />
+  </ItemGroup>
+</Project>
