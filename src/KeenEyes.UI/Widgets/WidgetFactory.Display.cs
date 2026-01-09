@@ -864,9 +864,12 @@ public static partial class WidgetFactory
         var contentWidth = config.ContentWidth ?? 0;
         var contentHeight = config.ContentHeight ?? 0;
 
-        // Use stretching anchors when Fill mode is needed, otherwise point anchors for fixed size
+        // Use stretching anchors when Fill mode is needed, otherwise point anchors for fixed/FitContent size
+        // Important: For FitContent height, we must NOT stretch vertically - the layout system needs
+        // matching Y anchors to use the measured content height instead of stretching to parent bounds
         var useHorizontalStretch = !config.ContentWidth.HasValue;
-        var useVerticalStretch = !config.ContentHeight.HasValue;
+        // Don't stretch vertically - FitContent needs point anchors to work correctly
+        var useVerticalStretch = false;
 
         var contentPanel = world.Spawn()
             .With(new UIElement { Visible = true, RaycastTarget = false })
@@ -1022,6 +1025,7 @@ public static partial class WidgetFactory
                 HorizontalScroll = config.ShowHorizontalScrollbar,
                 VerticalScroll = config.ShowVerticalScrollbar
             })
+            .WithTag<UIClipChildrenTag>()
             .Build();
 
         if (parent.IsValid)
@@ -1032,9 +1036,12 @@ public static partial class WidgetFactory
         var contentWidth = config.ContentWidth ?? 0;
         var contentHeight = config.ContentHeight ?? 0;
 
-        // Use stretching anchors when Fill mode is needed, otherwise point anchors for fixed size
+        // Use stretching anchors when Fill mode is needed, otherwise point anchors for fixed/FitContent size
+        // Important: For FitContent height, we must NOT stretch vertically - the layout system needs
+        // matching Y anchors to use the measured content height instead of stretching to parent bounds
         var useHorizontalStretch = !config.ContentWidth.HasValue;
-        var useVerticalStretch = !config.ContentHeight.HasValue;
+        // Don't stretch vertically - FitContent needs point anchors to work correctly
+        var useVerticalStretch = false;
 
         var contentPanel = world.Spawn($"{name}_Content")
             .With(new UIElement { Visible = true, RaycastTarget = false })

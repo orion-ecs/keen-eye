@@ -132,6 +132,15 @@ try
             // Create the widget gallery
             CreateWidgetGallery(world, ui, font);
 
+            // Set initial screen size from graphics context
+            var graphics = world.GetExtension<IGraphicsContext>();
+            if (graphics is not null)
+            {
+                var layoutSystem = world.GetSystem<UILayoutSystem>();
+                layoutSystem?.SetScreenSize(graphics.Width, graphics.Height);
+                Console.WriteLine($"Initial screen size: {graphics.Width}x{graphics.Height}");
+            }
+
             // Initialize TestBridge for MCP integration (hybrid input mode)
             var input = world.GetExtension<IInputContext>();
             var testBridge = new TestBridgePlugin(new TestBridgeOptions
@@ -195,31 +204,31 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
     // Create root canvas
     var canvas = ui.CreateCanvas("WidgetGallery");
 
-    // Create main container panel (centered, fixed size)
+    // Create main container panel (fills canvas with margins)
     var mainPanel = WidgetFactory.CreatePanel(world, canvas, "MainPanel", new PanelConfig(
-        Width: 1100,
-        Height: 750,
         Direction: LayoutDirection.Vertical,
         MainAxisAlign: LayoutAlign.Start,
-        CrossAxisAlign: LayoutAlign.Center,
+        CrossAxisAlign: LayoutAlign.Start,
         Spacing: 0,
         BackgroundColor: Colors.DarkPanel,
         CornerRadius: 12,
         Padding: UIEdges.All(10)
     ));
 
-    // Center the main panel
+    // Fill canvas with margins
     ref var mainRect = ref world.Get<UIRect>(mainPanel);
-    mainRect.AnchorMin = new Vector2(0.5f, 0.5f);
-    mainRect.AnchorMax = new Vector2(0.5f, 0.5f);
-    mainRect.Pivot = new Vector2(0.5f, 0.5f);
+    mainRect.AnchorMin = Vector2.Zero;
+    mainRect.AnchorMax = Vector2.One;
+    mainRect.Pivot = Vector2.Zero;
+    mainRect.Offset = new UIEdges(20, 20, 20, 20);
+    mainRect.WidthMode = UISizeMode.Fill;
+    mainRect.HeightMode = UISizeMode.Fill;
 
     // Create MenuBar at the top
     CreateMenuBar(world, mainPanel, font);
 
     // Title
     WidgetFactory.CreateLabel(world, mainPanel, "Title", "KeenEyes UI Widget Gallery", font, new LabelConfig(
-        Width: 1060,
         Height: 35,
         FontSize: 24,
         TextColor: Colors.TextWhite,
@@ -228,7 +237,6 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
 
     // Subtitle
     WidgetFactory.CreateLabel(world, mainPanel, "Subtitle", "Showcasing all WidgetFactory widgets including advanced controls", font, new LabelConfig(
-        Width: 1060,
         Height: 20,
         FontSize: 12,
         TextColor: Colors.TextMuted,
@@ -255,8 +263,6 @@ static void CreateWidgetGallery(World world, UIContext ui, FontHandle font)
     var (_, contentPanels) = WidgetFactory.CreateTabView(
         world, mainPanel, "MainTabs", tabs, font,
         new TabViewConfig(
-            Width: 1060,
-            Height: 600,
             TabBarHeight: 40,
             TabSpacing: 4,
             TabBarColor: new Vector4(0.10f, 0.10f, 0.13f, 1f),
