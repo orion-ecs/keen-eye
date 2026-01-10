@@ -10,6 +10,7 @@ namespace KeenEyes.Editor.Tests.Application;
 /// These tests validate that the viewport-related shortcut actions correctly
 /// interact with EditorSettings and viewport state.
 /// </summary>
+[Collection("EditorSettings")]
 public sealed class EditorApplicationViewportTests : IDisposable
 {
     public EditorApplicationViewportTests()
