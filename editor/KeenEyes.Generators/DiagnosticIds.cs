@@ -69,6 +69,10 @@ namespace KeenEyes.Generators;
 /// <term>KEEN110-KEEN119</term>
 /// <description>Component migration validation (ComponentMigrationAnalyzer)</description>
 /// </item>
+/// <item>
+/// <term>KEEN120-KEEN129</term>
+/// <description>Asset path validation (AssetPathAnalyzer)</description>
+/// </item>
 /// </list>
 /// <para>
 /// When adding new diagnostics:
