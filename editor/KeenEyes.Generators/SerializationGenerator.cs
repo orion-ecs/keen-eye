@@ -374,7 +374,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             sb.AppendLine($"            value => Serialize_{component.Name}(({component.FullName})value),");
             sb.AppendLine($"            DeserializeBinary_{component.Name},");
             sb.AppendLine($"            (value, writer) => SerializeBinary_{component.Name}(({component.FullName})value, writer),");
-            sb.AppendLine($"            (serialization, isTag) => serialization.Components.Register<{component.FullName}>(isTag),");
+            sb.AppendLine($"            (serialization, isTag) => (ComponentInfo)serialization.Components.Register<{component.FullName}>(isTag),");
             sb.AppendLine($"            (serialization, value) => serialization.SetSingleton(({component.FullName})value),");
             sb.AppendLine($"            static () => new {component.FullName}(),");
             sb.AppendLine($"            {component.Version});");

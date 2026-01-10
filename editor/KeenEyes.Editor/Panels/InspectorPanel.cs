@@ -1,6 +1,7 @@
 using System.Numerics;
 using System.Reflection;
 
+using KeenEyes.Capabilities;
 using KeenEyes.Editor.Abstractions.Inspector;
 using KeenEyes.Editor.Application;
 using KeenEyes.Editor.Common.Inspector;
@@ -144,11 +145,12 @@ public static class InspectorPanel
         IWorld sceneWorld,
         Entity entity)
     {
-        var components = sceneWorld.GetComponents(entity);
-
-        foreach (var (componentType, componentValue) in components)
+        if (sceneWorld is ISnapshotCapability snapshot)
         {
-            CreateComponentSection(editorWorld, contentArea, font, componentType, componentValue);
+            foreach (var (componentType, componentValue) in snapshot.GetComponents(entity))
+            {
+                CreateComponentSection(editorWorld, contentArea, font, componentType, componentValue);
+            }
         }
     }
 

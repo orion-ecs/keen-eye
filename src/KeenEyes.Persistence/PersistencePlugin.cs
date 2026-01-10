@@ -1,8 +1,5 @@
 using KeenEyes.Capabilities;
 
-// TODO: Remove this suppression after refactoring to use IWorld interface
-#pragma warning disable KEEN050 // IWorld to World cast - legacy code pending refactoring
-
 namespace KeenEyes.Persistence;
 
 /// <summary>
@@ -19,9 +16,9 @@ namespace KeenEyes.Persistence;
 /// provides encrypted save/load operations.
 /// </para>
 /// <para>
-/// <b>Note:</b> This plugin currently requires a concrete World instance because
-/// the snapshot serialization APIs are deeply integrated with World internals.
-/// Future versions may support custom IWorld implementations.
+/// <b>Note:</b> When using a custom IWorld implementation (not the standard World class),
+/// the <see cref="PersistenceConfig.SaveDirectory"/> must be explicitly set since
+/// custom implementations may not provide a default save directory.
 /// </para>
 /// </remarks>
 /// <example>
@@ -57,17 +54,8 @@ public sealed class PersistencePlugin(PersistenceConfig? config = null) : IWorld
             persistenceCapability.SaveDirectory = config.SaveDirectory;
         }
 
-        // EncryptedPersistenceApi requires concrete World for snapshot operations
-        // TODO: Abstract snapshot functionality to support custom IWorld implementations
-        if (context.World is not World world)
-        {
-            throw new InvalidOperationException(
-                "PersistencePlugin currently requires a concrete World instance. " +
-                "Custom IWorld implementations are not yet supported for persistence.");
-        }
-
         // Create and register the encrypted persistence API
-        var api = new EncryptedPersistenceApi(world, config);
+        var api = new EncryptedPersistenceApi(context.World, config);
         context.SetExtension(api);
     }
 

@@ -1,6 +1,7 @@
 // Copyright (c) Keen Eye, LLC. All rights reserved.
 // Licensed under the MIT License.
 
+using KeenEyes.Capabilities;
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Abstractions.Capabilities;
 using KeenEyes.Editor.Application;
@@ -332,11 +333,12 @@ internal sealed class InspectorPanelImpl : IEditorPanel
             return;
         }
 
-        var components = sceneWorld.GetComponents(entity);
-
-        foreach (var (componentType, componentValue) in components)
+        if (sceneWorld is ISnapshotCapability snapshot)
         {
-            CreateComponentSection(componentType, componentValue);
+            foreach (var (componentType, componentValue) in snapshot.GetComponents(entity))
+            {
+                CreateComponentSection(componentType, componentValue);
+            }
         }
     }
 

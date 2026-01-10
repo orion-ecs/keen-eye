@@ -1,4 +1,5 @@
 using KeenEyes;
+using KeenEyes.Capabilities;
 using KeenEyes.Network.Serialization;
 
 namespace KeenEyes.Network.Protocol;
@@ -136,12 +137,15 @@ public ref struct NetworkMessageReader(ReadOnlySpan<byte> data)
 
         // Look up current component value as baseline
         object? baseline = null;
-        foreach (var (type, value) in world.GetComponents(entity))
+        if (world is ISnapshotCapability snapshot)
         {
-            if (type == componentType)
+            foreach (var (type, value) in snapshot.GetComponents(entity))
             {
-                baseline = value;
-                break;
+                if (type == componentType)
+                {
+                    baseline = value;
+                    break;
+                }
             }
         }
 

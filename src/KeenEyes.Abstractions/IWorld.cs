@@ -10,8 +10,9 @@ namespace KeenEyes;
 /// the abstractions package rather than the full Core implementation.
 /// </para>
 /// <para>
-/// For advanced operations not covered by this interface, systems can cast to
-/// the concrete <c>World</c> type when necessary.
+/// For advanced serialization and introspection capabilities, check if the world
+/// implements <see cref="KeenEyes.Capabilities.ISnapshotCapability"/> (for entity
+/// component introspection) or ISerializationCapability (for component registry access).
 /// </para>
 /// </remarks>
 public interface IWorld : IDisposable
@@ -58,6 +59,17 @@ public interface IWorld : IDisposable
     /// <param name="entity">The entity to despawn.</param>
     /// <returns>True if the entity was despawned; false if it wasn't alive.</returns>
     bool Despawn(Entity entity);
+
+    /// <summary>
+    /// Gets the name of an entity.
+    /// </summary>
+    /// <param name="entity">The entity to get the name of.</param>
+    /// <returns>The entity's name, or null if unnamed.</returns>
+    /// <remarks>
+    /// Entity names are optional and must be unique within the world.
+    /// Names can be assigned when spawning via <see cref="Spawn(string?)"/>.
+    /// </remarks>
+    string? GetName(Entity entity);
 
     /// <summary>
     /// Creates an entity builder for constructing a new entity.
@@ -395,6 +407,67 @@ public interface IWorld : IDisposable
 
     #endregion
 
+    #region Singleton Operations
+
+    /// <summary>
+    /// Gets a singleton value by reference, allowing direct modification.
+    /// </summary>
+    /// <typeparam name="T">The singleton type to retrieve.</typeparam>
+    /// <returns>A reference to the singleton data for zero-copy access.</returns>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when no singleton of type <typeparamref name="T"/> exists.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// This method returns a reference to the boxed singleton value, enabling zero-copy
+    /// access and direct modification. Changes made through the returned reference
+    /// are immediately reflected in the stored singleton.
+    /// </para>
+    /// </remarks>
+    ref T GetSingleton<T>() where T : struct;
+
+    /// <summary>
+    /// Attempts to get a singleton value.
+    /// </summary>
+    /// <typeparam name="T">The singleton type to retrieve.</typeparam>
+    /// <param name="value">
+    /// When this method returns <c>true</c>, contains the singleton value.
+    /// When this method returns <c>false</c>, contains the default value.
+    /// </param>
+    /// <returns><c>true</c> if the singleton exists; <c>false</c> otherwise.</returns>
+    /// <remarks>
+    /// This method returns a copy of the value rather than a reference.
+    /// Use <see cref="GetSingleton{T}"/> when you need zero-copy access.
+    /// </remarks>
+    bool TryGetSingleton<T>(out T value) where T : struct;
+
+    /// <summary>
+    /// Checks if a singleton of the specified type exists.
+    /// </summary>
+    /// <typeparam name="T">The singleton type to check for.</typeparam>
+    /// <returns><c>true</c> if the singleton exists; <c>false</c> otherwise.</returns>
+    bool HasSingleton<T>() where T : struct;
+
+    /// <summary>
+    /// Removes a singleton from the world.
+    /// </summary>
+    /// <typeparam name="T">The singleton type to remove.</typeparam>
+    /// <returns><c>true</c> if the singleton was removed; <c>false</c> if it didn't exist.</returns>
+    bool RemoveSingleton<T>() where T : struct;
+
+    /// <summary>
+    /// Sets a singleton value in the world, creating it if it doesn't exist.
+    /// </summary>
+    /// <typeparam name="T">The singleton type to set.</typeparam>
+    /// <param name="value">The value to set.</param>
+    /// <remarks>
+    /// Singletons are world-wide values that are not attached to any entity.
+    /// They are useful for global game state like configuration, time, or shared resources.
+    /// </remarks>
+    void SetSingleton<T>(in T value) where T : struct;
+
+    #endregion
+
     #region Additional Entity Operations
 
     /// <summary>
@@ -404,17 +477,18 @@ public interface IWorld : IDisposable
     IEnumerable<Entity> GetAllEntities();
 
     /// <summary>
-    /// Gets all components on an entity as type/value pairs.
+    /// Clears all entities, components, and singletons from the world.
     /// </summary>
-    /// <param name="entity">The entity to get components from.</param>
-    /// <returns>An enumerable of (Type, object) tuples for each component.</returns>
     /// <remarks>
     /// <para>
-    /// This is primarily used for serialization, debugging, and network replication
-    /// where component types are not known at compile time. Values are boxed.
+    /// This method removes all entities and their components, as well as all singletons.
+    /// The world can still be used after clearing - it is reset to an empty state.
+    /// </para>
+    /// <para>
+    /// Systems and plugins remain installed after clearing. Only entity/component data is removed.
     /// </para>
     /// </remarks>
-    IEnumerable<(Type Type, object Value)> GetComponents(Entity entity);
+    void Clear();
 
     /// <summary>
     /// Sets or adds a component value on an entity using a boxed value and type.

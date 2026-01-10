@@ -1566,7 +1566,7 @@ internal sealed class WorkingAotSerializer : IComponentSerializer
     {
         if (typeName.Contains("SerializablePosition"))
         {
-            return serialization.Components.Register<SerializablePosition>(isTag);
+            return (ComponentInfo)serialization.Components.Register<SerializablePosition>(isTag);
         }
         return null;
     }
@@ -1626,7 +1626,7 @@ internal sealed class DeserializingAotSerializer : IComponentSerializer
     {
         if (typeName.Contains("SerializablePosition"))
         {
-            return serialization.Components.Register<SerializablePosition>(isTag);
+            return (ComponentInfo)serialization.Components.Register<SerializablePosition>(isTag);
         }
         return null;
     }

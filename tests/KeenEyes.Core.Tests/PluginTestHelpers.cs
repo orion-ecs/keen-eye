@@ -1,6 +1,3 @@
-// TODO: Remove this suppression after refactoring to use IWorld interface
-#pragma warning disable KEEN050 // IWorld to World cast - test code pending refactoring
-
 namespace KeenEyes.Tests;
 
 /// <summary>
@@ -241,8 +238,7 @@ public class TestWorldAccessPlugin : IWorldPlugin
 
     public void Install(IPluginContext context)
     {
-        var world = (World)context.World;
-        world.SetSingleton(new TestGameConfig { Difficulty = 5 });
+        context.World.SetSingleton(new TestGameConfig { Difficulty = 5 });
     }
 
     public void Uninstall(IPluginContext context)

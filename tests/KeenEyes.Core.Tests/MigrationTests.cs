@@ -547,7 +547,7 @@ internal sealed class VersionedSerializer(int currentVersion) : IComponentSerial
     {
         if (typeName.Contains("SerializablePosition"))
         {
-            return serialization.Components.Register<SerializablePosition>(isTag);
+            return (KeenEyes.ComponentInfo)serialization.Components.Register<SerializablePosition>(isTag);
         }
         return null;
     }

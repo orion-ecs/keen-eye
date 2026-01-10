@@ -1,3 +1,4 @@
+using KeenEyes.Capabilities;
 using KeenEyes.Network.Components;
 using KeenEyes.Network.Protocol;
 using KeenEyes.Network.Replication;
@@ -256,11 +257,14 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
 
             // Write all replicated components
             var toSend = new List<(Type, object)>();
-            foreach (var (type, value) in context.World.GetComponents(entity))
+            if (context.World is ISnapshotCapability snapshot)
             {
-                if (serializer.IsNetworkSerializable(type))
+                foreach (var (type, value) in snapshot.GetComponents(entity))
                 {
-                    toSend.Add((type, value));
+                    if (serializer.IsNetworkSerializable(type))
+                    {
+                        toSend.Add((type, value));
+                    }
                 }
             }
 

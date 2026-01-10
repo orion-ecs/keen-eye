@@ -10,7 +10,7 @@ namespace KeenEyes.Capabilities;
 /// and singleton setting during deserialization.
 /// </para>
 /// <para>
-/// The <see cref="World"/> class implements this capability. Serialization code
+/// The World class implements this capability. Serialization code
 /// should use this interface instead of the base <see cref="ISnapshotCapability"/>
 /// when component registration is needed.
 /// </para>
@@ -29,7 +29,7 @@ public interface ISerializationCapability : ISnapshotCapability
 /// <remarks>
 /// <para>
 /// This interface allows snapshot and serialization code to work with component registries
-/// without depending on the concrete <see cref="ComponentRegistry"/> type.
+/// without depending on the concrete ComponentRegistry type.
 /// </para>
 /// </remarks>
 public interface IComponentRegistry
@@ -37,7 +37,7 @@ public interface IComponentRegistry
     /// <summary>
     /// Gets all registered component types.
     /// </summary>
-    IReadOnlyList<ComponentInfo> All { get; }
+    IReadOnlyList<IComponentInfo> All { get; }
 
     /// <summary>
     /// Gets the number of registered component types.
@@ -49,7 +49,7 @@ public interface IComponentRegistry
     /// </summary>
     /// <param name="type">The component type.</param>
     /// <returns>The component info, or null if not registered.</returns>
-    ComponentInfo? Get(Type type);
+    IComponentInfo? Get(Type type);
 
     /// <summary>
     /// Registers a component type.
@@ -57,5 +57,5 @@ public interface IComponentRegistry
     /// <typeparam name="T">The component type.</typeparam>
     /// <param name="isTag">Whether the component is a tag component.</param>
     /// <returns>The component info.</returns>
-    ComponentInfo Register<T>(bool isTag = false) where T : struct, IComponent;
+    IComponentInfo Register<T>(bool isTag = false) where T : struct, IComponent;
 }

@@ -367,32 +367,32 @@ internal sealed class BenchmarkComponentSerializer : IComponentSerializer, IBina
     {
         if (typeName.Contains(nameof(Position)))
         {
-            return serialization.Components.Register<Position>();
+            return (ComponentInfo)serialization.Components.Register<Position>();
         }
 
         if (typeName.Contains(nameof(Velocity)))
         {
-            return serialization.Components.Register<Velocity>();
+            return (ComponentInfo)serialization.Components.Register<Velocity>();
         }
 
         if (typeName.Contains(nameof(Health)))
         {
-            return serialization.Components.Register<Health>();
+            return (ComponentInfo)serialization.Components.Register<Health>();
         }
 
         if (typeName.Contains(nameof(Rotation)))
         {
-            return serialization.Components.Register<Rotation>();
+            return (ComponentInfo)serialization.Components.Register<Rotation>();
         }
 
         if (typeName.Contains(nameof(ActiveTag)))
         {
-            return serialization.Components.Register<ActiveTag>(isTag: true);
+            return (ComponentInfo)serialization.Components.Register<ActiveTag>(isTag: true);
         }
 
         if (typeName.Contains(nameof(FrozenTag)))
         {
-            return serialization.Components.Register<FrozenTag>(isTag: true);
+            return (ComponentInfo)serialization.Components.Register<FrozenTag>(isTag: true);
         }
 
         return null;

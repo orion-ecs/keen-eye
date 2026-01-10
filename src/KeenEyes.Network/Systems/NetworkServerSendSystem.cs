@@ -1,3 +1,4 @@
+using KeenEyes.Capabilities;
 using KeenEyes.Network.Components;
 using KeenEyes.Network.Protocol;
 using KeenEyes.Network.Serialization;
@@ -129,30 +130,33 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         }
 
         // Compare current state to last sent state using delta masks for efficiency
-        foreach (var (type, value) in World.GetComponents(entity))
+        if (World is ISnapshotCapability snapshot)
         {
-            if (!serializer.IsNetworkSerializable(type))
+            foreach (var (type, value) in snapshot.GetComponents(entity))
             {
-                continue;
-            }
+                if (!serializer.IsNetworkSerializable(type))
+                {
+                    continue;
+                }
 
-            if (!entityState.TryGetValue(type, out var lastValue))
-            {
-                // New component - needs update
-                return true;
-            }
+                if (!entityState.TryGetValue(type, out var lastValue))
+                {
+                    // New component - needs update
+                    return true;
+                }
 
-            // Use dirty mask for delta-supported types, fallback to Equals for others
-            if (serializer.SupportsDelta(type))
-            {
-                if (serializer.GetDirtyMask(type, value, lastValue) != 0)
+                // Use dirty mask for delta-supported types, fallback to Equals for others
+                if (serializer.SupportsDelta(type))
+                {
+                    if (serializer.GetDirtyMask(type, value, lastValue) != 0)
+                    {
+                        return true;
+                    }
+                }
+                else if (!Equals(lastValue, value))
                 {
                     return true;
                 }
-            }
-            else if (!Equals(lastValue, value))
-            {
-                return true;
             }
         }
 
@@ -208,11 +212,14 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 
         // Collect all replicated components
         var toSend = new List<(Type, object)>();
-        foreach (var (type, value) in World.GetComponents(entity))
+        if (World is ISnapshotCapability snapshot)
         {
-            if (serializer.IsNetworkSerializable(type))
+            foreach (var (type, value) in snapshot.GetComponents(entity))
             {
-                toSend.Add((type, value));
+                if (serializer.IsNetworkSerializable(type))
+                {
+                    toSend.Add((type, value));
+                }
             }
         }
 
@@ -236,37 +243,40 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 
         // Collect components that have changed
         var toSend = new List<(Type type, object current, object? baseline)>();
-        foreach (var (type, value) in World.GetComponents(entity))
+        if (World is ISnapshotCapability snapshot)
         {
-            if (!serializer.IsNetworkSerializable(type))
+            foreach (var (type, value) in snapshot.GetComponents(entity))
             {
-                continue;
-            }
+                if (!serializer.IsNetworkSerializable(type))
+                {
+                    continue;
+                }
 
-            object? lastValue = null;
-            if (entityLastState is not null)
-            {
-                entityLastState.TryGetValue(type, out lastValue);
-            }
+                object? lastValue = null;
+                if (entityLastState is not null)
+                {
+                    entityLastState.TryGetValue(type, out lastValue);
+                }
 
-            // Check if changed using delta mask or equality
-            bool hasChanged;
-            if (lastValue is null)
-            {
-                hasChanged = true; // New component
-            }
-            else if (serializer.SupportsDelta(type))
-            {
-                hasChanged = serializer.GetDirtyMask(type, value, lastValue) != 0;
-            }
-            else
-            {
-                hasChanged = !Equals(lastValue, value);
-            }
+                // Check if changed using delta mask or equality
+                bool hasChanged;
+                if (lastValue is null)
+                {
+                    hasChanged = true; // New component
+                }
+                else if (serializer.SupportsDelta(type))
+                {
+                    hasChanged = serializer.GetDirtyMask(type, value, lastValue) != 0;
+                }
+                else
+                {
+                    hasChanged = !Equals(lastValue, value);
+                }
 
-            if (hasChanged)
-            {
-                toSend.Add((type, value, lastValue));
+                if (hasChanged)
+                {
+                    toSend.Add((type, value, lastValue));
+                }
             }
         }
 
@@ -302,12 +312,15 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         }
 
         // Save current state of all replicated components
-        foreach (var (type, value) in World.GetComponents(entity))
+        if (World is ISnapshotCapability snapshot)
         {
-            if (serializer.IsNetworkSerializable(type))
+            foreach (var (type, value) in snapshot.GetComponents(entity))
             {
-                // Store a copy of the value (boxing creates a copy for value types)
-                entityState[type] = value;
+                if (serializer.IsNetworkSerializable(type))
+                {
+                    // Store a copy of the value (boxing creates a copy for value types)
+                    entityState[type] = value;
+                }
             }
         }
     }
