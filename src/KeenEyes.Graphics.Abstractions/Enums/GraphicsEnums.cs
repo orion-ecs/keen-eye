@@ -485,3 +485,72 @@ public enum PixelStoreParameter
     /// </summary>
     UnpackAlignment
 }
+
+/// <summary>
+/// GPU-compressed texture formats (Block Compression / S3TC).
+/// </summary>
+/// <remarks>
+/// <para>
+/// Block compression formats store 4x4 pixel blocks in fixed-size compressed data.
+/// These formats are GPU-native and remain compressed in VRAM, reducing memory
+/// bandwidth and improving performance.
+/// </para>
+/// <para>
+/// Common uses:
+/// <list type="bullet">
+/// <item><description>BC1 (DXT1): RGB, 4 bpp - opaque textures, cutout alpha</description></item>
+/// <item><description>BC3 (DXT5): RGBA, 8 bpp - textures with smooth alpha</description></item>
+/// <item><description>BC5: RG, 8 bpp - normal maps (two-channel)</description></item>
+/// <item><description>BC7: RGBA, 8 bpp - high-quality textures</description></item>
+/// </list>
+/// </para>
+/// </remarks>
+public enum CompressedTextureFormat
+{
+    /// <summary>
+    /// BC1/DXT1 - RGB with optional 1-bit alpha. 4 bits per pixel.
+    /// Best for opaque textures or textures with cutout (on/off) alpha.
+    /// </summary>
+    Bc1,
+
+    /// <summary>
+    /// BC1/DXT1 with explicit alpha support. 4 bits per pixel.
+    /// </summary>
+    Bc1Alpha,
+
+    /// <summary>
+    /// BC2/DXT3 - RGB with explicit 4-bit alpha. 8 bits per pixel.
+    /// Best for textures with sharp alpha transitions.
+    /// </summary>
+    Bc2,
+
+    /// <summary>
+    /// BC3/DXT5 - RGB with interpolated 8-bit alpha. 8 bits per pixel.
+    /// Best for textures with smooth alpha gradients.
+    /// </summary>
+    Bc3,
+
+    /// <summary>
+    /// BC4 - Single red channel. 4 bits per pixel.
+    /// Best for grayscale textures or height maps.
+    /// </summary>
+    Bc4,
+
+    /// <summary>
+    /// BC5 - Two channels (RG). 8 bits per pixel.
+    /// Best for normal maps stored as RG.
+    /// </summary>
+    Bc5,
+
+    /// <summary>
+    /// BC6H - HDR RGB without alpha. 8 bits per pixel.
+    /// Best for HDR environment maps.
+    /// </summary>
+    Bc6h,
+
+    /// <summary>
+    /// BC7 - High-quality RGBA. 8 bits per pixel.
+    /// Best quality for textures requiring both RGB and alpha.
+    /// </summary>
+    Bc7
+}

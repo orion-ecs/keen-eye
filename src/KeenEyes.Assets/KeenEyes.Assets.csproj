@@ -27,6 +27,7 @@
 		<PackageReference Include="NVorbis" />
 		<PackageReference Include="NLayer" />
 		<PackageReference Include="SixLabors.ImageSharp" />
+		<PackageReference Include="Pfim" />
 	</ItemGroup>
 
 </Project>

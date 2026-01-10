@@ -194,6 +194,31 @@ public interface IGraphicsContext : IDisposable
     TextureHandle LoadTexture(string path);
 
     /// <summary>
+    /// Creates a GPU-compressed texture from pre-compressed data (e.g., DDS with BC/DXT formats).
+    /// </summary>
+    /// <param name="width">The texture width in pixels.</param>
+    /// <param name="height">The texture height in pixels.</param>
+    /// <param name="format">The compressed texture format.</param>
+    /// <param name="mipmaps">The mipmap chain data, from largest (level 0) to smallest.</param>
+    /// <returns>The texture handle.</returns>
+    /// <remarks>
+    /// <para>
+    /// Compressed textures remain compressed in GPU memory, reducing VRAM usage
+    /// and memory bandwidth compared to uncompressed textures.
+    /// </para>
+    /// <para>
+    /// Each mipmap level should contain the compressed block data for that level.
+    /// The first element is the base texture (level 0), and subsequent elements
+    /// are progressively smaller mipmap levels.
+    /// </para>
+    /// </remarks>
+    TextureHandle CreateCompressedTexture(
+        int width,
+        int height,
+        CompressedTextureFormat format,
+        ReadOnlySpan<ReadOnlyMemory<byte>> mipmaps);
+
+    /// <summary>
     /// Deletes a texture resource.
     /// </summary>
     /// <param name="handle">The texture handle.</param>

@@ -310,6 +310,7 @@ file sealed class MockGraphicsContext : IGraphicsContext
 
     // Texture operations
     public TextureHandle CreateTexture(int width, int height, ReadOnlySpan<byte> pixels) => new(1);
+    public TextureHandle CreateCompressedTexture(int width, int height, CompressedTextureFormat format, ReadOnlySpan<ReadOnlyMemory<byte>> mipmaps) => new(1, width, height);
     public TextureHandle LoadTexture(string path) => new(1);
     public void DeleteTexture(TextureHandle handle) => DisposedTextures.Add(handle);
     public void BindTexture(TextureHandle handle, int unit = 0) { }

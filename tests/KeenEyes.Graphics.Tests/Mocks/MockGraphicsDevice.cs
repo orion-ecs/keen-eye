@@ -187,6 +187,11 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Calls.Add($"GenerateMipmap({target})");
     }
 
+    public void CompressedTexImage2D(TextureTarget target, int level, int width, int height, CompressedTextureFormat format, ReadOnlySpan<byte> data)
+    {
+        Calls.Add($"CompressedTexImage2D({target}, {level}, {width}x{height}, {format}, {data.Length} bytes)");
+    }
+
     public void DeleteTexture(uint texture)
     {
         DeletedTextures.Add(texture);

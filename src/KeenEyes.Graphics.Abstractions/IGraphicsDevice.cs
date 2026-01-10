@@ -141,6 +141,23 @@ public interface IGraphicsDevice : IDisposable
     void GenerateMipmap(TextureTarget target);
 
     /// <summary>
+    /// Uploads compressed 2D texture data (e.g., DXT/BC formats).
+    /// </summary>
+    /// <param name="target">The texture target.</param>
+    /// <param name="level">The mipmap level.</param>
+    /// <param name="width">The texture width (must be multiple of 4 for BC formats).</param>
+    /// <param name="height">The texture height (must be multiple of 4 for BC formats).</param>
+    /// <param name="format">The compressed texture format.</param>
+    /// <param name="data">The compressed texture data.</param>
+    void CompressedTexImage2D(
+        TextureTarget target,
+        int level,
+        int width,
+        int height,
+        CompressedTextureFormat format,
+        ReadOnlySpan<byte> data);
+
+    /// <summary>
     /// Deletes a texture object.
     /// </summary>
     /// <param name="texture">The texture handle.</param>
