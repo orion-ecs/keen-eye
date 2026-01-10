@@ -2,6 +2,7 @@ using KeenEyes.Editor.Settings;
 
 namespace KeenEyes.Editor.Tests.Settings;
 
+[Collection("EditorSettings")]
 public class EditorSettingsTests
 {
     #region General Settings Tests
