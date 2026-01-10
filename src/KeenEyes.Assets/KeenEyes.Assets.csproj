@@ -26,6 +26,7 @@
 		<PackageReference Include="SharpGLTF.Core" />
 		<PackageReference Include="NVorbis" />
 		<PackageReference Include="NLayer" />
+		<PackageReference Include="SixLabors.ImageSharp" />
 	</ItemGroup>
 
 </Project>
