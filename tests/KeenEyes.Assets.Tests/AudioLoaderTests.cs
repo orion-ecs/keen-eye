@@ -36,12 +36,21 @@ public class AudioLoaderTests
     }
 
     [Fact]
-    public void AudioClipLoader_Extensions_HasThreeFormats()
+    public void AudioClipLoader_Extensions_ContainsFlac()
     {
         var audio = new MockAudioContext();
         var loader = new AudioClipLoader(audio);
 
-        Assert.Equal(3, loader.Extensions.Count);
+        Assert.Contains(".flac", loader.Extensions);
+    }
+
+    [Fact]
+    public void AudioClipLoader_Extensions_HasFourFormats()
+    {
+        var audio = new MockAudioContext();
+        var loader = new AudioClipLoader(audio);
+
+        Assert.Equal(4, loader.Extensions.Count);
     }
 
     [Fact]

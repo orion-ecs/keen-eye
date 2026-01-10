@@ -5,12 +5,17 @@ using NVorbis;
 namespace KeenEyes.Assets;
 
 /// <summary>
-/// Loader for audio clip assets supporting WAV and OGG formats.
+/// Loader for audio clip assets supporting WAV, OGG, MP3, and FLAC formats.
 /// </summary>
 /// <remarks>
 /// <para>
-/// <see cref="AudioClipLoader"/> loads audio files in WAV and OGG Vorbis formats.
-/// WAV files are parsed directly, while OGG files are decoded using NVorbis.
+/// <see cref="AudioClipLoader"/> loads audio files in WAV, OGG Vorbis, MP3, and FLAC formats.
+/// WAV files are parsed directly, OGG files are decoded using NVorbis, MP3 files are
+/// decoded using NLayer, and FLAC files use a built-in pure C# decoder.
+/// </para>
+/// <para>
+/// FLAC support includes 16-bit and 24-bit files, with 24-bit automatically downsampled
+/// to 16-bit for playback. FLAC provides lossless audio compression.
 /// </para>
 /// <para>
 /// Loaded audio data is submitted to the audio context and wrapped in an
@@ -22,7 +27,7 @@ public sealed class AudioClipLoader : IAssetLoader<AudioClipAsset>
     private readonly IAudioContext audio;
 
     /// <inheritdoc />
-    public IReadOnlyList<string> Extensions => [".wav", ".ogg", ".mp3"];
+    public IReadOnlyList<string> Extensions => [".wav", ".ogg", ".mp3", ".flac"];
 
     /// <summary>
     /// Creates a new audio clip loader.
@@ -45,6 +50,7 @@ public sealed class AudioClipLoader : IAssetLoader<AudioClipAsset>
             ".ogg" => LoadOgg(stream, context.Path),
             ".wav" => LoadWav(stream, context.Path),
             ".mp3" => LoadMp3(stream, context.Path),
+            ".flac" => LoadFlac(stream, context.Path),
             _ => throw new NotSupportedException($"Audio format not supported: {extension}")
         };
     }
@@ -203,6 +209,84 @@ public sealed class AudioClipLoader : IAssetLoader<AudioClipAsset>
         var duration = TimeSpan.FromSeconds((double)totalSamples / sampleRate);
 
         return new AudioClipAsset(handle, duration, channels, sampleRate, 16, audio);
+    }
+
+    private AudioClipAsset LoadFlac(Stream stream, string path)
+    {
+        // Use SimpleFlac decoder with byte output enabled
+        var options = new FlacDecoder.Options { ConvertOutputToBytes = true };
+        using var decoder = new FlacDecoder(stream, options);
+
+        var sampleRate = decoder.SampleRate;
+        var channels = decoder.ChannelCount;
+        var bitsPerSample = decoder.BitsPerSample;
+
+        // Collect all decoded bytes
+        using var output = new MemoryStream();
+        while (decoder.DecodeFrame())
+        {
+            output.Write(decoder.BufferBytes, 0, decoder.BufferByteCount);
+        }
+
+        var pcmData = output.ToArray();
+
+        // Determine audio format based on bits per sample and channels
+        var format = (channels, bitsPerSample) switch
+        {
+            (1, 8) => AudioFormat.Mono8,
+            (1, 16) => AudioFormat.Mono16,
+            (2, 8) => AudioFormat.Stereo8,
+            (2, 16) => AudioFormat.Stereo16,
+            // For 24-bit FLAC, we need to convert to 16-bit
+            (1, 24) => AudioFormat.Mono16,
+            (2, 24) => AudioFormat.Stereo16,
+            _ => throw new InvalidDataException(
+                $"Unsupported FLAC format: {channels} channels, {bitsPerSample} bits in {path}")
+        };
+
+        // Convert 24-bit to 16-bit if needed
+        if (bitsPerSample == 24)
+        {
+            pcmData = Convert24BitTo16Bit(pcmData);
+        }
+
+        var handle = audio.CreateClip(pcmData, format, sampleRate);
+        var bytesPerSample = bitsPerSample == 24 ? 2 : bitsPerSample / 8; // After conversion
+        var totalSamples = pcmData.Length / (channels * bytesPerSample);
+        var duration = TimeSpan.FromSeconds((double)totalSamples / sampleRate);
+
+        return new AudioClipAsset(handle, duration, channels, sampleRate, bitsPerSample == 24 ? 16 : bitsPerSample, audio);
+    }
+
+    private static byte[] Convert24BitTo16Bit(byte[] data24)
+    {
+        // 24-bit samples are 3 bytes each, convert to 16-bit (2 bytes)
+        var sampleCount = data24.Length / 3;
+        var data16 = new byte[sampleCount * 2];
+
+        for (var i = 0; i < sampleCount; i++)
+        {
+            // Read 24-bit sample (little-endian, signed)
+            var b0 = data24[(i * 3) + 0];
+            var b1 = data24[(i * 3) + 1];
+            var b2 = data24[(i * 3) + 2];
+
+            // Convert to 32-bit signed integer and shift to get upper 16 bits
+            var sample24 = (b2 << 16) | (b1 << 8) | b0;
+            if ((sample24 & 0x800000) != 0)
+            {
+                sample24 |= unchecked((int)0xFF000000); // Sign extend
+            }
+
+            // Take upper 16 bits of 24-bit sample
+            var sample16 = (short)(sample24 >> 8);
+
+            // Write 16-bit sample (little-endian)
+            data16[(i * 2) + 0] = (byte)(sample16 & 0xFF);
+            data16[(i * 2) + 1] = (byte)((sample16 >> 8) & 0xFF);
+        }
+
+        return data16;
     }
 
     private static byte[] ConvertToInt16(float[] samples)
