@@ -3,6 +3,8 @@
 
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Abstractions.Capabilities;
+using KeenEyes.Editor.Logging;
+using KeenEyes.Editor.Panels;
 
 namespace KeenEyes.Editor.Plugins.BuiltIn;
 
@@ -81,7 +83,8 @@ internal sealed class ConsolePlugin : EditorPluginBase
                 "Ctrl+L",
                 () =>
                 {
-                    // TODO: Clear console output
+                    // Clear console output via the log queryable
+                    context.Log?.Clear();
                 });
         }
     }
@@ -102,15 +105,30 @@ internal sealed class ConsolePanelImpl : IEditorPanel
     public void Initialize(PanelContext context)
     {
         editorWorld = context.EditorWorld;
-        rootEntity = context.Parent;
 
-        // TODO: Create console UI with log list and filter buttons
+        // Get the log provider (must be EditorLogProvider for UI creation)
+        if (context.EditorContext.Log is EditorLogProvider logProvider)
+        {
+            // Create console UI using the existing ConsolePanel helper
+            // This creates the full UI with log list, filter buttons, and subscribes to log events
+            rootEntity = ConsolePanel.Create(
+                context.EditorWorld,
+                context.Parent,
+                context.Font,
+                logProvider);
+        }
+        else
+        {
+            // Fallback: just use parent if no log provider available
+            rootEntity = context.Parent;
+        }
     }
 
     /// <inheritdoc />
     public void Update(float deltaTime)
     {
-        // TODO: Update console with new log messages
+        // Log updates are handled via event subscriptions set up in ConsolePanel.Create()
+        // No per-frame polling needed
     }
 
     /// <inheritdoc />

@@ -3,6 +3,7 @@
 
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Plugins.Security;
+using KeenEyes.Logging;
 
 namespace KeenEyes.Editor.Plugins;
 
@@ -40,6 +41,10 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
     private SecurityConfiguration securityConfig = SecurityConfiguration.Default;
     private PermissionManager? permissionManager;
 
+    // Logging infrastructure
+    private readonly ILogProvider? logProvider;
+    private const string LogCategory = "Plugin";
+
     private bool disposed;
 
     /// <summary>
@@ -68,6 +73,11 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
     internal IWorld EditorWorld { get; }
 
     /// <summary>
+    /// Gets the log queryable for accessing editor logs.
+    /// </summary>
+    internal ILogQueryable? Log => logProvider as ILogQueryable;
+
+    /// <summary>
     /// Creates a new plugin manager with the specified services.
     /// </summary>
     /// <param name="worlds">The editor world manager.</param>
@@ -75,18 +85,21 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
     /// <param name="undoRedo">The undo/redo manager.</param>
     /// <param name="assets">The asset database.</param>
     /// <param name="editorWorld">The editor UI world.</param>
+    /// <param name="logProvider">Optional log provider for plugin diagnostics.</param>
     internal EditorPluginManager(
         IEditorWorldManager worlds,
         ISelectionManager selection,
         IUndoRedoManager undoRedo,
         IAssetDatabase assets,
-        IWorld editorWorld)
+        IWorld editorWorld,
+        ILogProvider? logProvider = null)
     {
         Worlds = worlds;
         Selection = selection;
         UndoRedo = undoRedo;
         Assets = assets;
         EditorWorld = editorWorld;
+        this.logProvider = logProvider;
 
         // Initialize dynamic loading infrastructure
         repository = new PluginRepository(this);
@@ -879,22 +892,40 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
         LogError(message);
     }
 
-    private static void LogInfo(string message)
+    private void LogInfo(string message)
     {
-        // TODO: Integrate with editor logging system
-        Console.WriteLine($"[Plugin] INFO: {message}");
+        if (logProvider is not null)
+        {
+            logProvider.Log(LogLevel.Info, LogCategory, message, null);
+        }
+        else
+        {
+            Console.WriteLine($"[Plugin] INFO: {message}");
+        }
     }
 
-    private static void LogWarning(string message)
+    private void LogWarning(string message)
     {
-        // TODO: Integrate with editor logging system
-        Console.WriteLine($"[Plugin] WARN: {message}");
+        if (logProvider is not null)
+        {
+            logProvider.Log(LogLevel.Warning, LogCategory, message, null);
+        }
+        else
+        {
+            Console.WriteLine($"[Plugin] WARN: {message}");
+        }
     }
 
-    private static void LogError(string message)
+    private void LogError(string message)
     {
-        // TODO: Integrate with editor logging system
-        Console.WriteLine($"[Plugin] ERROR: {message}");
+        if (logProvider is not null)
+        {
+            logProvider.Log(LogLevel.Error, LogCategory, message, null);
+        }
+        else
+        {
+            Console.WriteLine($"[Plugin] ERROR: {message}");
+        }
     }
 
     #endregion

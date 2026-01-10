@@ -1,9 +1,14 @@
 // Copyright (c) Keen Eye, LLC. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Numerics;
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Abstractions.Capabilities;
+using KeenEyes.Editor.Application;
 using KeenEyes.Editor.Panels;
+using KeenEyes.Graphics.Abstractions;
+using KeenEyes.UI.Abstractions;
+using KeenEyes.UI.Widgets;
 
 namespace KeenEyes.Editor.Plugins.BuiltIn;
 
@@ -89,8 +94,10 @@ internal sealed class HierarchyPlugin : EditorPluginBase
 internal sealed class HierarchyPanelImpl : IEditorPanel
 {
     private Entity rootEntity;
-    private IEditorContext? context;
+    private Entity treeView;
+    private IEditorContext? editorContext;
     private IWorld? editorWorld;
+    private FontHandle font;
     private EventSubscription? sceneOpenedSubscription;
     private EventSubscription? sceneClosedSubscription;
     private EventSubscription? selectionChangedSubscription;
@@ -101,18 +108,23 @@ internal sealed class HierarchyPanelImpl : IEditorPanel
     /// <inheritdoc />
     public void Initialize(PanelContext context)
     {
-        this.context = context.EditorContext;
+        editorContext = context.EditorContext;
         editorWorld = context.EditorWorld;
+        font = context.Font;
 
-        // Create the hierarchy panel UI using the existing static method
-        // The existing HierarchyPanel.Create expects specific dependencies
-        // For now, we'll create a placeholder and refactor later
+        // Create the hierarchy panel UI
         rootEntity = CreatePanelUI(context);
 
         // Subscribe to editor events
-        sceneOpenedSubscription = this.context.OnSceneOpened(OnSceneOpened);
-        sceneClosedSubscription = this.context.OnSceneClosed(OnSceneClosed);
-        selectionChangedSubscription = this.context.OnSelectionChanged(OnSelectionChanged);
+        sceneOpenedSubscription = editorContext.OnSceneOpened(OnSceneOpened);
+        sceneClosedSubscription = editorContext.OnSceneClosed(OnSceneClosed);
+        selectionChangedSubscription = editorContext.OnSelectionChanged(OnSelectionChanged);
+
+        // Initial population if scene is already open
+        if (editorContext.Worlds.CurrentSceneWorld is not null)
+        {
+            RefreshHierarchy();
+        }
     }
 
     /// <inheritdoc />
@@ -135,15 +147,70 @@ internal sealed class HierarchyPanelImpl : IEditorPanel
         }
     }
 
-    private static Entity CreatePanelUI(PanelContext panelContext)
+    private Entity CreatePanelUI(PanelContext context)
     {
-        // TODO: Refactor HierarchyPanel.Create to work without static dependencies
-        // For now, return a placeholder entity
-        // The full refactoring would involve moving the UI creation logic here
-        // and getting dependencies from the IEditorContext
+        var world = context.EditorWorld;
 
-        // Create a simple container for now
-        return panelContext.Parent;
+        // Create the main panel container
+        var panel = WidgetFactory.CreatePanel(world, context.Parent, "HierarchyPluginPanel", new PanelConfig(
+            Direction: LayoutDirection.Vertical,
+            BackgroundColor: EditorColors.DarkPanel
+        ));
+
+        ref var panelRect = ref world.Get<UIRect>(panel);
+        panelRect.WidthMode = UISizeMode.Fill;
+        panelRect.HeightMode = UISizeMode.Fill;
+
+        // Create header
+        var header = WidgetFactory.CreatePanel(world, panel, "HierarchyPluginHeader", new PanelConfig(
+            Height: 28,
+            Direction: LayoutDirection.Horizontal,
+            MainAxisAlign: LayoutAlign.SpaceBetween,
+            CrossAxisAlign: LayoutAlign.Center,
+            BackgroundColor: EditorColors.MediumPanel,
+            Padding: UIEdges.All(8)
+        ));
+
+        ref var headerRect = ref world.Get<UIRect>(header);
+        headerRect.WidthMode = UISizeMode.Fill;
+
+        WidgetFactory.CreateLabel(world, header, "HierarchyPluginTitle", "Hierarchy", font, new LabelConfig(
+            FontSize: 13,
+            TextColor: EditorColors.TextWhite,
+            HorizontalAlign: TextAlignH.Left
+        ));
+
+        // Create tree view container
+        var treeContainer = WidgetFactory.CreatePanel(world, panel, "HierarchyPluginTreeContainer", new PanelConfig(
+            Direction: LayoutDirection.Vertical,
+            BackgroundColor: new Vector4(0.10f, 0.10f, 0.13f, 1f)
+        ));
+
+        ref var treeContainerRect = ref world.Get<UIRect>(treeContainer);
+        treeContainerRect.WidthMode = UISizeMode.Fill;
+        treeContainerRect.HeightMode = UISizeMode.Fill;
+
+        // Create the tree view
+        treeView = WidgetFactory.CreateTreeView(world, "HierarchyPluginTreeView", treeContainer, new TreeViewConfig(
+            IndentSize: 16,
+            RowHeight: 22,
+            BackgroundColor: new Vector4(0.10f, 0.10f, 0.13f, 1f),
+            TextColor: EditorColors.TextLight,
+            FontSize: 13
+        ));
+
+        // Subscribe to tree node selection
+        world.Subscribe<UITreeNodeSelectedEvent>(e =>
+        {
+            // When a tree node is selected, select the corresponding entity
+            if (world.Has<HierarchyNodeData>(e.Node))
+            {
+                ref readonly var nodeData = ref world.Get<HierarchyNodeData>(e.Node);
+                editorContext?.Selection.Select(nodeData.Entity);
+            }
+        });
+
+        return panel;
     }
 
     private void OnSceneOpened(IWorld sceneWorld)
@@ -169,19 +236,119 @@ internal sealed class HierarchyPanelImpl : IEditorPanel
 
     private void RefreshHierarchy()
     {
-        // TODO: Implement hierarchy refresh
-        // This would rebuild the tree view from the current scene
+        if (editorWorld is null || editorContext is null || !treeView.IsValid)
+        {
+            return;
+        }
+
+        var worlds = editorContext.Worlds;
+        if (worlds.CurrentSceneWorld is null)
+        {
+            ClearHierarchy();
+            return;
+        }
+
+        // Clear existing nodes
+        ClearTreeNodes();
+
+        // Add root entities
+        foreach (var entity in worlds.GetRootEntities())
+        {
+            AddEntityNode(Entity.Null, entity);
+        }
     }
 
     private void ClearHierarchy()
     {
-        // TODO: Implement hierarchy clear
-        // This would remove all tree nodes
+        ClearTreeNodes();
     }
 
-    private void HighlightEntity(Entity entity)
+    private void ClearTreeNodes()
     {
-        // TODO: Implement entity highlighting
-        // This would select the corresponding tree node
+        if (editorWorld is null || !treeView.IsValid || !editorWorld.Has<UITreeView>(treeView))
+        {
+            return;
+        }
+
+        ref readonly var treeViewData = ref editorWorld.Get<UITreeView>(treeView);
+
+        // Remove all child nodes from the node container
+        if (treeViewData.NodeContainer.IsValid)
+        {
+            var children = editorWorld.GetChildren(treeViewData.NodeContainer).ToList();
+            foreach (var child in children)
+            {
+                DespawnRecursive(child);
+            }
+        }
+
+        // Reset the tree view state
+        ref var treeViewDataMut = ref editorWorld.Get<UITreeView>(treeView);
+        treeViewDataMut.VisibleNodeCount = 0;
+        treeViewDataMut.SelectedItem = Entity.Null;
+    }
+
+    private void AddEntityNode(Entity parentNode, Entity entity)
+    {
+        if (editorWorld is null || editorContext is null)
+        {
+            return;
+        }
+
+        var entityName = editorContext.Worlds.GetEntityName(entity);
+
+        var node = WidgetFactory.CreateTreeNode(
+            editorWorld,
+            treeView,
+            parentNode,
+            entityName,
+            font,
+            new TreeNodeConfig(IsExpanded: true));
+
+        // Store reference to the scene entity
+        editorWorld.Add(node, new HierarchyNodeData { Entity = entity });
+
+        // Add children recursively
+        foreach (var child in editorContext.Worlds.GetChildren(entity))
+        {
+            AddEntityNode(node, child);
+        }
+
+        // Update the node to show expand arrow if it has children
+        WidgetFactory.UpdateTreeNodeHasChildren(editorWorld, node);
+    }
+
+    private void DespawnRecursive(Entity entity)
+    {
+        if (editorWorld is null)
+        {
+            return;
+        }
+
+        var children = editorWorld.GetChildren(entity).ToList();
+        foreach (var child in children)
+        {
+            DespawnRecursive(child);
+        }
+        editorWorld.Despawn(entity);
+    }
+
+    private void HighlightEntity(Entity sceneEntity)
+    {
+        if (editorWorld is null || !treeView.IsValid)
+        {
+            return;
+        }
+
+        // Find the tree node corresponding to this entity
+        foreach (var nodeEntity in editorWorld.Query<HierarchyNodeData>())
+        {
+            ref readonly var nodeData = ref editorWorld.Get<HierarchyNodeData>(nodeEntity);
+            if (nodeData.Entity == sceneEntity)
+            {
+                WidgetFactory.SelectTreeNode(editorWorld, nodeEntity);
+                break;
+            }
+        }
     }
 }
