@@ -492,4 +492,140 @@ internal static class DefaultShaders
             FragColor = vec4(color, baseColor.a);
         }
         """;
+
+    #region Instanced Shaders
+
+    /// <summary>
+    /// Instanced unlit vertex shader - reads model matrix from per-instance attributes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Per-instance data layout:
+    /// <list type="bullet">
+    ///   <item><description>Locations 4-7: ModelMatrix (mat4 = 4 vec4 columns)</description></item>
+    ///   <item><description>Location 8: ColorTint (vec4)</description></item>
+    /// </list>
+    /// </para>
+    /// </remarks>
+    public const string InstancedUnlitVertexShader = """
+        #version 330 core
+
+        // Per-vertex attributes
+        layout (location = 0) in vec3 aPosition;
+        layout (location = 1) in vec3 aNormal;
+        layout (location = 2) in vec2 aTexCoord;
+        layout (location = 3) in vec4 aColor;
+
+        // Per-instance attributes
+        layout (location = 4) in vec4 aModelCol0;
+        layout (location = 5) in vec4 aModelCol1;
+        layout (location = 6) in vec4 aModelCol2;
+        layout (location = 7) in vec4 aModelCol3;
+        layout (location = 8) in vec4 aColorTint;
+
+        uniform mat4 uView;
+        uniform mat4 uProjection;
+
+        out vec2 vTexCoord;
+        out vec4 vColor;
+
+        void main()
+        {
+            mat4 model = mat4(aModelCol0, aModelCol1, aModelCol2, aModelCol3);
+            gl_Position = uProjection * uView * model * vec4(aPosition, 1.0);
+            vTexCoord = aTexCoord;
+            vColor = aColor * aColorTint;
+        }
+        """;
+
+    /// <summary>
+    /// Instanced lit vertex shader - reads model matrix from per-instance attributes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Per-instance data layout:
+    /// <list type="bullet">
+    ///   <item><description>Locations 4-7: ModelMatrix (mat4 = 4 vec4 columns)</description></item>
+    ///   <item><description>Location 8: ColorTint (vec4)</description></item>
+    /// </list>
+    /// </para>
+    /// </remarks>
+    public const string InstancedLitVertexShader = """
+        #version 330 core
+
+        // Per-vertex attributes
+        layout (location = 0) in vec3 aPosition;
+        layout (location = 1) in vec3 aNormal;
+        layout (location = 2) in vec2 aTexCoord;
+        layout (location = 3) in vec4 aColor;
+
+        // Per-instance attributes
+        layout (location = 4) in vec4 aModelCol0;
+        layout (location = 5) in vec4 aModelCol1;
+        layout (location = 6) in vec4 aModelCol2;
+        layout (location = 7) in vec4 aModelCol3;
+        layout (location = 8) in vec4 aColorTint;
+
+        uniform mat4 uView;
+        uniform mat4 uProjection;
+
+        out vec3 vWorldPos;
+        out vec3 vNormal;
+        out vec2 vTexCoord;
+        out vec4 vColor;
+
+        void main()
+        {
+            mat4 model = mat4(aModelCol0, aModelCol1, aModelCol2, aModelCol3);
+            vec4 worldPos = model * vec4(aPosition, 1.0);
+            vWorldPos = worldPos.xyz;
+            vNormal = mat3(transpose(inverse(model))) * aNormal;
+            vTexCoord = aTexCoord;
+            vColor = aColor * aColorTint;
+            gl_Position = uProjection * uView * worldPos;
+        }
+        """;
+
+    /// <summary>
+    /// Instanced solid color vertex shader - reads model matrix from per-instance attributes.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Per-instance data layout:
+    /// <list type="bullet">
+    ///   <item><description>Locations 4-7: ModelMatrix (mat4 = 4 vec4 columns)</description></item>
+    ///   <item><description>Location 8: ColorTint (vec4)</description></item>
+    /// </list>
+    /// </para>
+    /// </remarks>
+    public const string InstancedSolidVertexShader = """
+        #version 330 core
+
+        // Per-vertex attributes
+        layout (location = 0) in vec3 aPosition;
+        layout (location = 1) in vec3 aNormal;
+        layout (location = 2) in vec2 aTexCoord;
+        layout (location = 3) in vec4 aColor;
+
+        // Per-instance attributes
+        layout (location = 4) in vec4 aModelCol0;
+        layout (location = 5) in vec4 aModelCol1;
+        layout (location = 6) in vec4 aModelCol2;
+        layout (location = 7) in vec4 aModelCol3;
+        layout (location = 8) in vec4 aColorTint;
+
+        uniform mat4 uView;
+        uniform mat4 uProjection;
+
+        out vec4 vColor;
+
+        void main()
+        {
+            mat4 model = mat4(aModelCol0, aModelCol1, aModelCol2, aModelCol3);
+            gl_Position = uProjection * uView * model * vec4(aPosition, 1.0);
+            vColor = aColor * aColorTint;
+        }
+        """;
+
+    #endregion
 }

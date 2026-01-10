@@ -62,6 +62,22 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         }
     }
 
+    /// <inheritdoc />
+    public void VertexAttribDivisor(uint index, uint divisor)
+        => gl.VertexAttribDivisor(index, divisor);
+
+    /// <inheritdoc />
+    public void BufferSubData(BufferTarget target, nint offset, ReadOnlySpan<byte> data)
+    {
+        unsafe
+        {
+            fixed (byte* ptr = data)
+            {
+                gl.BufferSubData(ToGL(target), offset, (nuint)data.Length, ptr);
+            }
+        }
+    }
+
     #endregion
 
     #region Texture Operations
@@ -314,6 +330,19 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     /// <inheritdoc />
     public void DrawArrays(Abstractions.PrimitiveType mode, int first, uint count)
         => gl.DrawArrays(ToGL(mode), first, count);
+
+    /// <inheritdoc />
+    public void DrawElementsInstanced(Abstractions.PrimitiveType mode, uint count, Abstractions.IndexType type, uint instanceCount)
+    {
+        unsafe
+        {
+            gl.DrawElementsInstanced(ToGL(mode), count, ToGL(type), null, instanceCount);
+        }
+    }
+
+    /// <inheritdoc />
+    public void DrawArraysInstanced(Abstractions.PrimitiveType mode, int first, uint count, uint instanceCount)
+        => gl.DrawArraysInstanced(ToGL(mode), first, count, instanceCount);
 
     /// <inheritdoc />
     public void LineWidth(float width) => gl.LineWidth(width);

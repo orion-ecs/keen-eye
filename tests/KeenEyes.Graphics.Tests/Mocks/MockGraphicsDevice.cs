@@ -150,6 +150,16 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Calls.Add($"VertexAttribPointer({index}, {size}, {type}, {normalized}, {stride}, {offset})");
     }
 
+    public void VertexAttribDivisor(uint index, uint divisor)
+    {
+        Calls.Add($"VertexAttribDivisor({index}, {divisor})");
+    }
+
+    public void BufferSubData(BufferTarget target, nint offset, ReadOnlySpan<byte> data)
+    {
+        Calls.Add($"BufferSubData({target}, {offset}, {data.Length} bytes)");
+    }
+
     #endregion
 
     #region Texture Operations
@@ -394,6 +404,16 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     public void DrawArrays(PrimitiveType mode, int first, uint count)
     {
         Calls.Add($"DrawArrays({mode}, {first}, {count})");
+    }
+
+    public void DrawElementsInstanced(PrimitiveType mode, uint count, IndexType type, uint instanceCount)
+    {
+        Calls.Add($"DrawElementsInstanced({mode}, {count}, {type}, {instanceCount})");
+    }
+
+    public void DrawArraysInstanced(PrimitiveType mode, int first, uint count, uint instanceCount)
+    {
+        Calls.Add($"DrawArraysInstanced({mode}, {first}, {count}, {instanceCount})");
     }
 
     public void LineWidth(float width)

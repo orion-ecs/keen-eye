@@ -62,6 +62,15 @@ public sealed class MockGraphicsContext : IGraphicsContext
         PbrShader = AllocateShaderHandle();
         Shaders[PbrShader] = new MockShaderInfo("pbr_vertex", "pbr_fragment");
 
+        InstancedLitShader = AllocateShaderHandle();
+        Shaders[InstancedLitShader] = new MockShaderInfo("instanced_lit_vertex", "lit_fragment");
+
+        InstancedUnlitShader = AllocateShaderHandle();
+        Shaders[InstancedUnlitShader] = new MockShaderInfo("instanced_unlit_vertex", "unlit_fragment");
+
+        InstancedSolidShader = AllocateShaderHandle();
+        Shaders[InstancedSolidShader] = new MockShaderInfo("instanced_solid_vertex", "solid_fragment");
+
         WhiteTexture = AllocateTextureHandle(1, 1);
         Textures[WhiteTexture] = new MockTextureInfo(1, 1, null);
     }
@@ -84,9 +93,19 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public Dictionary<ShaderHandle, MockShaderInfo> Shaders { get; } = [];
 
     /// <summary>
+    /// Gets the dictionary of created instance buffers by handle.
+    /// </summary>
+    public Dictionary<InstanceBufferHandle, MockInstanceBufferInfo> InstanceBuffers { get; } = [];
+
+    /// <summary>
     /// Gets the list of all mesh draw calls.
     /// </summary>
     public List<MeshDrawCall> MeshDrawCalls { get; } = [];
+
+    /// <summary>
+    /// Gets the list of all instanced mesh draw calls.
+    /// </summary>
+    public List<InstancedMeshDrawCall> InstancedMeshDrawCalls { get; } = [];
 
     /// <summary>
     /// Gets the currently bound shader.
@@ -146,6 +165,15 @@ public sealed class MockGraphicsContext : IGraphicsContext
 
     /// <inheritdoc />
     public TextureHandle WhiteTexture { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle InstancedLitShader { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle InstancedUnlitShader { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle InstancedSolidShader { get; }
 
     #endregion
 
@@ -358,6 +386,51 @@ public sealed class MockGraphicsContext : IGraphicsContext
 
     #endregion
 
+    #region Instance Buffer Operations
+
+    /// <inheritdoc />
+    public InstanceBufferHandle CreateInstanceBuffer(int maxInstances)
+    {
+        var handle = AllocateInstanceBufferHandle();
+        InstanceBuffers[handle] = new MockInstanceBufferInfo(maxInstances);
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void UpdateInstanceBuffer(InstanceBufferHandle buffer, ReadOnlySpan<InstanceData> data)
+    {
+        if (InstanceBuffers.TryGetValue(buffer, out var info))
+        {
+            info.Data = data.ToArray();
+            info.CurrentInstanceCount = data.Length;
+        }
+    }
+
+    /// <inheritdoc />
+    public void DeleteInstanceBuffer(InstanceBufferHandle buffer)
+    {
+        InstanceBuffers.Remove(buffer);
+    }
+
+    /// <inheritdoc />
+    public void DrawMeshInstanced(MeshHandle mesh, InstanceBufferHandle instances, int instanceCount)
+    {
+        InstancedMeshDrawCalls.Add(new InstancedMeshDrawCall(
+            mesh,
+            instances,
+            instanceCount,
+            boundShader,
+            new Dictionary<int, TextureHandle>(boundTextures),
+            new Dictionary<string, object>(UniformValues)));
+    }
+
+    private InstanceBufferHandle AllocateInstanceBufferHandle()
+    {
+        return new InstanceBufferHandle(nextHandleId++);
+    }
+
+    #endregion
+
     #region Render State
 
     /// <inheritdoc />
@@ -421,7 +494,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
         }
 
         Meshes.Clear();
+        InstanceBuffers.Clear();
         MeshDrawCalls.Clear();
+        InstancedMeshDrawCalls.Clear();
         UniformValues.Clear();
         boundTextures.Clear();
         boundShader = default;
@@ -435,6 +510,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public void ClearDrawCalls()
     {
         MeshDrawCalls.Clear();
+        InstancedMeshDrawCalls.Clear();
     }
 
     private MeshHandle AllocateMeshHandle()
@@ -580,6 +656,45 @@ public sealed record MeshDrawCall(
     ShaderHandle Shader,
     Dictionary<int, TextureHandle> Textures,
     Dictionary<string, object> Uniforms);
+
+/// <summary>
+/// A recorded instanced mesh draw call.
+/// </summary>
+/// <param name="Mesh">The mesh that was drawn.</param>
+/// <param name="InstanceBuffer">The instance buffer used.</param>
+/// <param name="InstanceCount">The number of instances drawn.</param>
+/// <param name="Shader">The shader that was bound.</param>
+/// <param name="Textures">The textures that were bound.</param>
+/// <param name="Uniforms">The uniform values that were set.</param>
+public sealed record InstancedMeshDrawCall(
+    MeshHandle Mesh,
+    InstanceBufferHandle InstanceBuffer,
+    int InstanceCount,
+    ShaderHandle Shader,
+    Dictionary<int, TextureHandle> Textures,
+    Dictionary<string, object> Uniforms);
+
+/// <summary>
+/// Information about a created instance buffer.
+/// </summary>
+/// <param name="MaxInstances">The maximum number of instances the buffer can hold.</param>
+public sealed class MockInstanceBufferInfo(int MaxInstances)
+{
+    /// <summary>
+    /// Gets the maximum number of instances.
+    /// </summary>
+    public int MaxInstances { get; } = MaxInstances;
+
+    /// <summary>
+    /// Gets or sets the current number of instances stored.
+    /// </summary>
+    public int CurrentInstanceCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the instance data.
+    /// </summary>
+    public InstanceData[]? Data { get; set; }
+}
 
 /// <summary>
 /// Tracks render state for the mock context.

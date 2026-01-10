@@ -58,6 +58,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     private readonly MeshManager meshManager = new();
     private readonly TextureManager textureManager = new();
     private readonly ShaderManager shaderManager = new();
+    private readonly InstanceBufferManager instanceBufferManager = new();
 
     private SilkWindow? window;
     private IGraphicsDevice? device;
@@ -135,6 +136,21 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     public TextureHandle WhiteTexture { get; private set; }
 
     /// <summary>
+    /// The built-in instanced lit shader handle.
+    /// </summary>
+    public ShaderHandle InstancedLitShader { get; private set; }
+
+    /// <summary>
+    /// The built-in instanced unlit shader handle.
+    /// </summary>
+    public ShaderHandle InstancedUnlitShader { get; private set; }
+
+    /// <summary>
+    /// The built-in instanced solid color shader handle.
+    /// </summary>
+    public ShaderHandle InstancedSolidShader { get; private set; }
+
+    /// <summary>
     /// Gets the 2D renderer for UI and sprite rendering.
     /// </summary>
     /// <remarks>
@@ -196,6 +212,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         meshManager.Device = device;
         textureManager.Device = device;
         shaderManager.Device = device;
+        instanceBufferManager.Device = device;
 
         // Apply default settings
         if (config.EnableDepthTest)
@@ -253,6 +270,22 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
             DefaultShaders.PbrVertexShader,
             DefaultShaders.PbrFragmentShader);
         PbrShader = new ShaderHandle(pbrId);
+
+        // Create instanced shaders (use same fragment shaders)
+        var instancedUnlitId = shaderManager.CreateShader(
+            DefaultShaders.InstancedUnlitVertexShader,
+            DefaultShaders.UnlitFragmentShader);
+        InstancedUnlitShader = new ShaderHandle(instancedUnlitId);
+
+        var instancedLitId = shaderManager.CreateShader(
+            DefaultShaders.InstancedLitVertexShader,
+            DefaultShaders.LitFragmentShader);
+        InstancedLitShader = new ShaderHandle(instancedLitId);
+
+        var instancedSolidId = shaderManager.CreateShader(
+            DefaultShaders.InstancedSolidVertexShader,
+            DefaultShaders.SolidFragmentShader);
+        InstancedSolidShader = new ShaderHandle(instancedSolidId);
 
         // Create default white texture (1x1 pixel)
         var whiteId = textureManager.CreateSolidColorTexture(255, 255, 255, 255);
@@ -549,6 +582,55 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
     #endregion
 
+    #region Instance Buffer Operations
+
+    /// <inheritdoc />
+    public InstanceBufferHandle CreateInstanceBuffer(int maxInstances)
+    {
+        var id = instanceBufferManager.CreateInstanceBuffer(maxInstances);
+        return new InstanceBufferHandle(id);
+    }
+
+    /// <inheritdoc />
+    public void UpdateInstanceBuffer(InstanceBufferHandle buffer, ReadOnlySpan<InstanceData> data)
+    {
+        instanceBufferManager.UpdateInstanceBuffer(buffer.Id, data);
+    }
+
+    /// <inheritdoc />
+    public void DeleteInstanceBuffer(InstanceBufferHandle buffer)
+    {
+        instanceBufferManager.DeleteBuffer(buffer.Id);
+    }
+
+    /// <inheritdoc />
+    public void DrawMeshInstanced(MeshHandle mesh, InstanceBufferHandle instances, int instanceCount)
+    {
+        if (device is null)
+        {
+            return;
+        }
+
+        var meshData = meshManager.GetMesh(mesh.Id);
+        var instanceBufferData = instanceBufferManager.GetBuffer(instances.Id);
+
+        if (meshData is null || instanceBufferData is null)
+        {
+            return;
+        }
+
+        // Bind the mesh VAO
+        device.BindVertexArray(meshData.Vao);
+
+        // Bind instance buffer and set up per-instance vertex attributes
+        instanceBufferManager.BindInstanceBufferToVao(instances.Id);
+
+        // Draw all instances with a single call
+        device.DrawElementsInstanced(PrimitiveType.Triangles, (uint)meshData.IndexCount, IndexType.UnsignedInt, (uint)instanceCount);
+    }
+
+    #endregion
+
     #region Render State
 
     /// <inheritdoc />
@@ -626,6 +708,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         meshManager.Dispose();
         textureManager.Dispose();
         shaderManager.Dispose();
+        instanceBufferManager.Dispose();
     }
 
     /// <inheritdoc />
