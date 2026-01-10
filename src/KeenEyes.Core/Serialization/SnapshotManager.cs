@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using KeenEyes;
 using KeenEyes.Capabilities;
 
 namespace KeenEyes.Serialization;
@@ -70,13 +71,23 @@ public static class SnapshotManager
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="world"/> or <paramref name="serializer"/> is null.
     /// </exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the world doesn't implement <see cref="ISerializationCapability"/>.
+    /// </exception>
     public static WorldSnapshot CreateSnapshot(
-        World world,
+        IWorld world,
         IComponentSerializer serializer,
         IReadOnlyDictionary<string, object>? metadata = null)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(serializer);
+
+        // Get serialization capability for component registry access
+        if (world is not ISerializationCapability serialization)
+        {
+            throw new InvalidOperationException(
+                "The provided world must implement ISerializationCapability for snapshot operations.");
+        }
 
         var entities = new List<SerializedEntity>();
 
@@ -85,9 +96,10 @@ public static class SnapshotManager
         {
             var components = new List<SerializedComponent>();
 
-            foreach (var (type, value) in world.GetComponents(entity))
+            // Use ISnapshotCapability (via ISerializationCapability) for component introspection
+            foreach (var (type, value) in serialization.GetComponents(entity))
             {
-                var info = world.Components.Get(type);
+                var info = serialization.Components.Get(type);
                 var typeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
                 var isTag = info?.IsTag ?? false;
 
@@ -117,9 +129,9 @@ public static class SnapshotManager
             });
         }
 
-        // Collect singletons
+        // Collect singletons using ISnapshotCapability (via ISerializationCapability)
         var singletons = new List<SerializedSingleton>();
-        foreach (var (type, value) in world.GetAllSingletons())
+        foreach (var (type, value) in serialization.GetAllSingletons())
         {
             var typeName = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
 
@@ -176,13 +188,20 @@ public static class SnapshotManager
     /// Thrown when <paramref name="world"/>, <paramref name="snapshot"/>, or <paramref name="serializer"/> is null.
     /// </exception>
     public static Dictionary<int, Entity> RestoreSnapshot(
-        World world,
+        IWorld world,
         WorldSnapshot snapshot,
         IComponentSerializer serializer)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(serializer);
+
+        // Get serialization capability for component registry access
+        if (world is not ISerializationCapability serialization)
+        {
+            throw new InvalidOperationException(
+                "The provided world must implement ISerializationCapability for snapshot operations.");
+        }
 
         // Use serializer's type resolver
         Func<string, Type?> resolveType = typeName =>
@@ -199,7 +218,14 @@ public static class SnapshotManager
         // First pass: Create all entities with their components
         foreach (var serializedEntity in snapshot.Entities)
         {
-            var builder = world.Spawn(serializedEntity.Name);
+            var interfaceBuilder = world.Spawn(serializedEntity.Name);
+
+            // Cast to EntityBuilder for WithBoxed support (guaranteed since ISerializationCapability is only on World)
+            if (interfaceBuilder is not EntityBuilder builder)
+            {
+                throw new InvalidOperationException(
+                    "Entity builder must be an EntityBuilder instance for snapshot restoration.");
+            }
 
             foreach (var component in serializedEntity.Components)
             {
@@ -260,8 +286,9 @@ public static class SnapshotManager
                 }
 
                 // Ensure type is registered
-                var info = world.Components.Get(type)
-                    ?? RegisterComponent(world, type, component.TypeName, component.IsTag, serializer);
+                // Cast to ComponentInfo since WithBoxed requires the concrete type
+                var info = (ComponentInfo?)serialization.Components.Get(type)
+                    ?? RegisterComponent(serialization, type, component.TypeName, component.IsTag, serializer);
 
                 // Convert the data to the correct type if needed
                 var value = ConvertComponentData(componentData, type, serializer);
@@ -301,7 +328,7 @@ public static class SnapshotManager
 
             if (value is not null)
             {
-                SetSingleton(world, type, singleton.TypeName, value, serializer);
+                SetSingleton(serialization, type, singleton.TypeName, value, serializer);
             }
         }
 

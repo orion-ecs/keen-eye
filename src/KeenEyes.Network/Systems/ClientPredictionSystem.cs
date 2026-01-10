@@ -1,3 +1,4 @@
+using KeenEyes.Capabilities;
 using KeenEyes.Network.Components;
 using KeenEyes.Network.Prediction;
 using KeenEyes.Network.Serialization;
@@ -120,12 +121,15 @@ public sealed class ClientPredictionSystem(
             return;
         }
 
-        foreach (var (type, value) in World.GetComponents(entity))
+        if (World is ISnapshotCapability snapshot)
         {
-            if (serializer.IsNetworkSerializable(type))
+            foreach (var (type, value) in snapshot.GetComponents(entity))
             {
-                // Clone the value to avoid storing a reference
-                buffer.SaveState(tick, type, CloneValue(type, value));
+                if (serializer.IsNetworkSerializable(type))
+                {
+                    // Clone the value to avoid storing a reference
+                    buffer.SaveState(tick, type, CloneValue(type, value));
+                }
             }
         }
 

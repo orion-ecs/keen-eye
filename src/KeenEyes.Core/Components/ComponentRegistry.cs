@@ -38,6 +38,20 @@ public sealed class ComponentRegistry : IComponentRegistry
     }
 
     /// <summary>
+    /// Gets all registered component types as <see cref="IComponentInfo"/>.
+    /// </summary>
+    IReadOnlyList<IComponentInfo> IComponentRegistry.All
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return all.Cast<IComponentInfo>().ToList();
+            }
+        }
+    }
+
+    /// <summary>
     /// Number of registered component types.
     /// </summary>
     public int Count
@@ -117,6 +131,11 @@ public sealed class ComponentRegistry : IComponentRegistry
     }
 
     /// <summary>
+    /// Registers a component type as <see cref="IComponentInfo"/>.
+    /// </summary>
+    IComponentInfo IComponentRegistry.Register<T>(bool isTag) => Register<T>(isTag);
+
+    /// <summary>
     /// Gets the component info for a type, or null if not registered.
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -138,6 +157,11 @@ public sealed class ComponentRegistry : IComponentRegistry
             return byType.TryGetValue(type, out var info) ? info : null;
         }
     }
+
+    /// <summary>
+    /// Gets the component info for a type as <see cref="IComponentInfo"/>, or null if not registered.
+    /// </summary>
+    IComponentInfo? IComponentRegistry.Get(Type type) => Get(type);
 
     /// <summary>
     /// Gets or registers a component type.

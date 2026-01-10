@@ -1,5 +1,5 @@
-// TODO: Remove this suppression after refactoring to use IWorld interface
-#pragma warning disable KEEN050 // IWorld to World cast - test code pending refactoring
+// Suppression required: AddSystemHook is a World-specific feature not exposed on IWorld
+#pragma warning disable KEEN050 // IWorld to World cast - intentional for testing World-specific features
 
 namespace KeenEyes.Tests;
 

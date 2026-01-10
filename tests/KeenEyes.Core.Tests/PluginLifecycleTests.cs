@@ -1,6 +1,3 @@
-// TODO: Remove this suppression after refactoring to use IWorld interface
-#pragma warning disable KEEN050 // IWorld to World cast - test code pending refactoring
-
 namespace KeenEyes.Tests;
 
 /// <summary>

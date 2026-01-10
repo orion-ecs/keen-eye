@@ -79,19 +79,22 @@ public static class EntitySerializer
                 .ToDictionary(c => c.Type, c => c.IsTag);
         }
 
-        // Capture all components
+        // Capture all components using snapshot capability
         var components = new List<ComponentSnapshot>();
-        foreach (var (type, value) in world.GetComponents(entity))
+        if (world is ISnapshotCapability snapshotCapability)
         {
-            // Determine if it's a tag component
-            var isTag = tagLookup?.TryGetValue(type, out var tag) == true && tag;
-
-            components.Add(new ComponentSnapshot
+            foreach (var (type, value) in snapshotCapability.GetComponents(entity))
             {
-                ComponentType = type,
-                Value = isTag ? null : CloneValue(value),
-                IsTag = isTag
-            });
+                // Determine if it's a tag component
+                var isTag = tagLookup?.TryGetValue(type, out var tag) == true && tag;
+
+                components.Add(new ComponentSnapshot
+                {
+                    ComponentType = type,
+                    Value = isTag ? null : CloneValue(value),
+                    IsTag = isTag
+                });
+            }
         }
 
         // Capture children recursively if requested

@@ -22,7 +22,7 @@ namespace KeenEyes.Persistence;
 /// </remarks>
 public sealed class EncryptedPersistenceApi
 {
-    private readonly World world;
+    private readonly IWorld world;
     private readonly IEncryptionProvider encryptionProvider;
     private readonly string saveDirectory;
 
@@ -31,14 +31,29 @@ public sealed class EncryptedPersistenceApi
     /// </summary>
     /// <param name="world">The world to save/load.</param>
     /// <param name="config">The persistence configuration.</param>
-    internal EncryptedPersistenceApi(World world, PersistenceConfig config)
+    internal EncryptedPersistenceApi(IWorld world, PersistenceConfig config)
     {
         ArgumentNullException.ThrowIfNull(world);
         ArgumentNullException.ThrowIfNull(config);
 
         this.world = world;
         encryptionProvider = config.EncryptionProvider;
-        saveDirectory = config.SaveDirectory ?? world.SaveDirectory;
+
+        // Use configured directory, or fall back to World's default if available
+        if (config.SaveDirectory is not null)
+        {
+            saveDirectory = config.SaveDirectory;
+        }
+        else if (world is World concreteWorld)
+        {
+            saveDirectory = concreteWorld.SaveDirectory;
+        }
+        else
+        {
+            throw new ArgumentException(
+                "SaveDirectory must be specified in PersistenceConfig when using an IWorld implementation that doesn't provide a default save directory.",
+                nameof(config));
+        }
     }
 
     /// <summary>

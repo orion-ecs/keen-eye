@@ -747,7 +747,7 @@ internal sealed class TestPersistenceSerializer : IComponentSerializer, IBinaryC
             using var doc = JsonDocument.Parse(jsonStr);
             return doc.RootElement.Clone();
         };
-        registrars[type] = (serialization, isTag) => serialization.Components.Register<T>(isTag);
+        registrars[type] = (serialization, isTag) => (ComponentInfo)serialization.Components.Register<T>(isTag);
         singletonSetters[type] = (serialization, value) => serialization.SetSingleton((T)value);
 
         binaryDeserializers[name] = reader =>

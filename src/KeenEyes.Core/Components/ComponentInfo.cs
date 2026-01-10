@@ -1,11 +1,12 @@
 using System.Runtime.CompilerServices;
+using KeenEyes.Capabilities;
 
 namespace KeenEyes;
 
 /// <summary>
 /// Runtime metadata for a registered component type within a specific World.
 /// </summary>
-public sealed class ComponentInfo
+public sealed class ComponentInfo : IComponentInfo
 {
     /// <summary>Unique identifier for this component type within the owning World.</summary>
     public ComponentId Id { get; }
