@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\editor\KeenEyes.Generators\KeenEyes.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\KeenEyes.Assets\KeenEyes.Assets.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics.Silk\KeenEyes.Graphics.Silk.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Graphics\KeenEyes.Graphics.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Input.Abstractions\KeenEyes.Input.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Input.Silk\KeenEyes.Input.Silk.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Platform.Silk\KeenEyes.Platform.Silk.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Runtime\KeenEyes.Runtime.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Spatial\KeenEyes.Spatial.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Assets\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
