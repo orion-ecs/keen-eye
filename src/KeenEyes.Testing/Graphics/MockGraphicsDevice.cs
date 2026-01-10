@@ -300,6 +300,28 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         }
     }
 
+    /// <inheritdoc />
+    public void VertexAttribDivisor(uint index, uint divisor)
+    {
+        if (BoundVAO.HasValue && VAOs.TryGetValue(BoundVAO.Value, out var vao))
+        {
+            vao.AttributeDivisors[index] = divisor;
+        }
+    }
+
+    /// <inheritdoc />
+    public void BufferSubData(BufferTarget target, nint offset, ReadOnlySpan<byte> data)
+    {
+        if (BoundBuffers.TryGetValue(target, out var handle) &&
+            Buffers.TryGetValue(handle, out var buffer) &&
+            buffer.Data is not null &&
+            offset >= 0 &&
+            offset + data.Length <= buffer.Data.Length)
+        {
+            data.CopyTo(buffer.Data.AsSpan((int)offset));
+        }
+    }
+
     #endregion
 
     #region Texture Operations
@@ -649,7 +671,8 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
             IsIndexed: true,
             BoundProgram,
             BoundVAO,
-            BoundTextures.Values.ToList()));
+            BoundTextures.Values.ToList(),
+            InstanceCount: 1));
     }
 
     /// <inheritdoc />
@@ -661,7 +684,34 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
             IsIndexed: false,
             BoundProgram,
             BoundVAO,
-            BoundTextures.Values.ToList()));
+            BoundTextures.Values.ToList(),
+            InstanceCount: 1));
+    }
+
+    /// <inheritdoc />
+    public void DrawElementsInstanced(PrimitiveType mode, uint count, IndexType type, uint instanceCount)
+    {
+        DrawCalls.Add(new DrawCall(
+            mode,
+            (int)count,
+            IsIndexed: true,
+            BoundProgram,
+            BoundVAO,
+            BoundTextures.Values.ToList(),
+            instanceCount));
+    }
+
+    /// <inheritdoc />
+    public void DrawArraysInstanced(PrimitiveType mode, int first, uint count, uint instanceCount)
+    {
+        DrawCalls.Add(new DrawCall(
+            mode,
+            (int)count,
+            IsIndexed: false,
+            BoundProgram,
+            BoundVAO,
+            BoundTextures.Values.ToList(),
+            instanceCount));
     }
 
     /// <inheritdoc />
@@ -780,13 +830,15 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
 /// <param name="Program">The shader program used, if any.</param>
 /// <param name="VAO">The VAO used, if any.</param>
 /// <param name="Textures">The textures bound during the draw.</param>
+/// <param name="InstanceCount">The number of instances drawn (1 for non-instanced).</param>
 public sealed record DrawCall(
     PrimitiveType PrimitiveType,
     int VertexCount,
     bool IsIndexed,
     uint? Program,
     uint? VAO,
-    List<uint> Textures);
+    List<uint> Textures,
+    uint InstanceCount = 1);
 
 /// <summary>
 /// Tracks buffer state.
@@ -946,6 +998,16 @@ public sealed class MockVao(uint handle)
     /// Gets the vertex attribute configurations.
     /// </summary>
     public Dictionary<uint, VertexAttribute> Attributes { get; } = [];
+
+    /// <summary>
+    /// Gets the vertex attribute divisors for instanced rendering.
+    /// </summary>
+    /// <remarks>
+    /// A divisor of 0 means per-vertex data (default).
+    /// A divisor of 1 means per-instance data.
+    /// A divisor of N means the attribute advances every N instances.
+    /// </remarks>
+    public Dictionary<uint, uint> AttributeDivisors { get; } = [];
 }
 
 /// <summary>

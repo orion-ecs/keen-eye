@@ -85,6 +85,21 @@ public interface IGraphicsDevice : IDisposable
     /// <param name="offset">Byte offset to the first component.</param>
     void VertexAttribPointer(uint index, int size, VertexAttribType type, bool normalized, uint stride, nuint offset);
 
+    /// <summary>
+    /// Sets the rate at which generic vertex attributes advance during instanced rendering.
+    /// </summary>
+    /// <param name="index">The attribute index.</param>
+    /// <param name="divisor">The divisor value. 0 = per-vertex (default), 1 = per-instance, N = every N instances.</param>
+    void VertexAttribDivisor(uint index, uint divisor);
+
+    /// <summary>
+    /// Updates a subset of a buffer object's data store.
+    /// </summary>
+    /// <param name="target">The buffer target.</param>
+    /// <param name="offset">The byte offset into the buffer.</param>
+    /// <param name="data">The data to upload.</param>
+    void BufferSubData(BufferTarget target, nint offset, ReadOnlySpan<byte> data);
+
     #endregion
 
     #region Texture Operations
@@ -394,6 +409,24 @@ public interface IGraphicsDevice : IDisposable
     /// <param name="first">The starting vertex index.</param>
     /// <param name="count">The number of vertices.</param>
     void DrawArrays(PrimitiveType mode, int first, uint count);
+
+    /// <summary>
+    /// Draws multiple instances of indexed primitives.
+    /// </summary>
+    /// <param name="mode">The primitive type.</param>
+    /// <param name="count">The number of indices per instance.</param>
+    /// <param name="type">The index data type.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    void DrawElementsInstanced(PrimitiveType mode, uint count, IndexType type, uint instanceCount);
+
+    /// <summary>
+    /// Draws multiple instances of non-indexed primitives.
+    /// </summary>
+    /// <param name="mode">The primitive type.</param>
+    /// <param name="first">The starting vertex index.</param>
+    /// <param name="count">The number of vertices per instance.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    void DrawArraysInstanced(PrimitiveType mode, int first, uint count, uint instanceCount);
 
     /// <summary>
     /// Sets the line width for line primitives.

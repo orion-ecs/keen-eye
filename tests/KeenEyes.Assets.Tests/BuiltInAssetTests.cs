@@ -295,6 +295,9 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public ShaderHandle SolidShader => new(3);
     public ShaderHandle PbrShader => new(4);
     public TextureHandle WhiteTexture => new(1);
+    public ShaderHandle InstancedLitShader => new(5);
+    public ShaderHandle InstancedUnlitShader => new(6);
+    public ShaderHandle InstancedSolidShader => new(7);
 
     // Lifecycle
     public void ProcessEvents() { }
@@ -324,6 +327,12 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public void SetUniform(string name, Vector3 value) { }
     public void SetUniform(string name, Vector4 value) { }
     public void SetUniform(string name, in Matrix4x4 value) { }
+
+    // Instance buffer operations
+    public InstanceBufferHandle CreateInstanceBuffer(int maxInstances) => new(1);
+    public void UpdateInstanceBuffer(InstanceBufferHandle buffer, ReadOnlySpan<InstanceData> data) { }
+    public void DeleteInstanceBuffer(InstanceBufferHandle buffer) { }
+    public void DrawMeshInstanced(MeshHandle mesh, InstanceBufferHandle instances, int instanceCount) { }
 
     // Render state
     public void SetClearColor(Vector4 color) { }

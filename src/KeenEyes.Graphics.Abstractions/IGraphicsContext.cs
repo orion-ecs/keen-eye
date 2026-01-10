@@ -113,6 +113,33 @@ public interface IGraphicsContext : IDisposable
     /// </summary>
     TextureHandle WhiteTexture { get; }
 
+    /// <summary>
+    /// Gets the instanced lit shader handle.
+    /// </summary>
+    /// <remarks>
+    /// Use this shader for instanced rendering with lighting. The model matrix is read
+    /// from per-instance vertex attributes instead of a uniform.
+    /// </remarks>
+    ShaderHandle InstancedLitShader { get; }
+
+    /// <summary>
+    /// Gets the instanced unlit shader handle.
+    /// </summary>
+    /// <remarks>
+    /// Use this shader for instanced rendering without lighting. The model matrix is read
+    /// from per-instance vertex attributes instead of a uniform.
+    /// </remarks>
+    ShaderHandle InstancedUnlitShader { get; }
+
+    /// <summary>
+    /// Gets the instanced solid color shader handle.
+    /// </summary>
+    /// <remarks>
+    /// Use this shader for instanced solid color rendering. The model matrix is read
+    /// from per-instance vertex attributes instead of a uniform.
+    /// </remarks>
+    ShaderHandle InstancedSolidShader { get; }
+
     #endregion
 
     #region Lifecycle Control
@@ -271,6 +298,69 @@ public interface IGraphicsContext : IDisposable
     /// <param name="name">The uniform name.</param>
     /// <param name="value">The Matrix4x4 value.</param>
     void SetUniform(string name, in Matrix4x4 value);
+
+    #endregion
+
+    #region Instance Buffer Operations
+
+    /// <summary>
+    /// Creates an instance buffer for GPU instanced rendering.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Instance buffers store per-instance data (model matrices, color tints) for rendering
+    /// multiple instances of the same mesh with a single draw call. This dramatically reduces
+    /// CPU overhead when rendering many similar objects.
+    /// </para>
+    /// <para>
+    /// The buffer is allocated on the GPU with space for <paramref name="maxInstances"/> instances.
+    /// Use <see cref="UpdateInstanceBuffer"/> to upload instance data before drawing.
+    /// </para>
+    /// </remarks>
+    /// <param name="maxInstances">The maximum number of instances this buffer can hold.</param>
+    /// <returns>The instance buffer handle.</returns>
+    InstanceBufferHandle CreateInstanceBuffer(int maxInstances);
+
+    /// <summary>
+    /// Updates the instance data in an instance buffer.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This uploads instance data to the GPU. Call this before drawing to update
+    /// the positions, rotations, and color tints of instances.
+    /// </para>
+    /// <para>
+    /// For best performance, try to batch updates and minimize calls per frame.
+    /// The data span length must not exceed the buffer's maximum capacity.
+    /// </para>
+    /// </remarks>
+    /// <param name="buffer">The instance buffer handle.</param>
+    /// <param name="data">The instance data to upload.</param>
+    void UpdateInstanceBuffer(InstanceBufferHandle buffer, ReadOnlySpan<InstanceData> data);
+
+    /// <summary>
+    /// Deletes an instance buffer and releases its GPU resources.
+    /// </summary>
+    /// <param name="buffer">The instance buffer handle.</param>
+    void DeleteInstanceBuffer(InstanceBufferHandle buffer);
+
+    /// <summary>
+    /// Draws multiple instances of a mesh using instanced rendering.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This performs a single GPU draw call for all instances, where each instance
+    /// uses data from the instance buffer (model matrix, color tint).
+    /// </para>
+    /// <para>
+    /// The mesh must be bound before calling this method. The instance buffer must have
+    /// been updated with at least <paramref name="instanceCount"/> instances of data.
+    /// </para>
+    /// </remarks>
+    /// <param name="mesh">The mesh to draw.</param>
+    /// <param name="instances">The instance buffer containing per-instance data.</param>
+    /// <param name="instanceCount">The number of instances to draw.</param>
+    void DrawMeshInstanced(MeshHandle mesh, InstanceBufferHandle instances, int instanceCount);
 
     #endregion
 

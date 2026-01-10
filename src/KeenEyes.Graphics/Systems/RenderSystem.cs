@@ -121,10 +121,16 @@ public sealed class RenderSystem : ISystem
         // Collect all lights (up to MaxLights)
         int lightCount = CollectLights();
 
-        // Build render queue
+        // Build render queue (skip entities with InstanceBatch - they're handled separately)
         renderQueue.Clear();
         foreach (var entity in world.Query<Transform3D, Renderable>())
         {
+            // Skip instanced entities - they're rendered via InstanceBatchingSystem
+            if (world.Has<InstanceBatch>(entity))
+            {
+                continue;
+            }
+
             ref readonly var renderable = ref world.Get<Renderable>(entity);
             renderQueue.Add((entity, renderable.Layer));
         }

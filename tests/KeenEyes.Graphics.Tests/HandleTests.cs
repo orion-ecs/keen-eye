@@ -196,4 +196,64 @@ public class HandleTests
     }
 
     #endregion
+
+    #region InstanceBufferHandle Tests
+
+    [Fact]
+    public void InstanceBufferHandle_WithPositiveId_IsValid()
+    {
+        var handle = new InstanceBufferHandle(0);
+        Assert.True(handle.IsValid);
+
+        handle = new InstanceBufferHandle(42);
+        Assert.True(handle.IsValid);
+    }
+
+    [Fact]
+    public void InstanceBufferHandle_WithNegativeId_IsInvalid()
+    {
+        var handle = new InstanceBufferHandle(-1);
+        Assert.False(handle.IsValid);
+
+        handle = new InstanceBufferHandle(-100);
+        Assert.False(handle.IsValid);
+    }
+
+    [Fact]
+    public void InstanceBufferHandle_Invalid_HasNegativeOneId()
+    {
+        Assert.Equal(-1, InstanceBufferHandle.Invalid.Id);
+        Assert.False(InstanceBufferHandle.Invalid.IsValid);
+    }
+
+    [Fact]
+    public void InstanceBufferHandle_ToString_ValidHandle_ShowsId()
+    {
+        var handle = new InstanceBufferHandle(42);
+        Assert.Equal("InstanceBuffer(42)", handle.ToString());
+    }
+
+    [Fact]
+    public void InstanceBufferHandle_ToString_InvalidHandle_ShowsInvalid()
+    {
+        Assert.Equal("InstanceBuffer(Invalid)", InstanceBufferHandle.Invalid.ToString());
+    }
+
+    [Fact]
+    public void InstanceBufferHandle_Equality_SameId_AreEqual()
+    {
+        var handle1 = new InstanceBufferHandle(5);
+        var handle2 = new InstanceBufferHandle(5);
+        Assert.Equal(handle1, handle2);
+    }
+
+    [Fact]
+    public void InstanceBufferHandle_Equality_DifferentId_AreNotEqual()
+    {
+        var handle1 = new InstanceBufferHandle(5);
+        var handle2 = new InstanceBufferHandle(6);
+        Assert.NotEqual(handle1, handle2);
+    }
+
+    #endregion
 }
