@@ -137,10 +137,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle cubeM
     var groundMaterial = new Material
     {
         ShaderId = graphics.LitShader.Id,
-        TextureId = graphics.WhiteTexture.Id,
-        Color = new Vector4(0.3f, 0.5f, 0.3f, 1f), // Green
-        Metallic = 0f,
-        Roughness = 0.9f
+        BaseColorTextureId = graphics.WhiteTexture.Id,
+        BaseColorFactor = new Vector4(0.3f, 0.5f, 0.3f, 1f), // Green
+        MetallicFactor = 0f,
+        RoughnessFactor = 0.9f
     };
 
     world.Spawn()
@@ -174,10 +174,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle cubeM
         var cubeMaterial = new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = colors[i],
-            Metallic = 0.2f,
-            Roughness = 0.5f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = colors[i],
+            MetallicFactor = 0.2f,
+            RoughnessFactor = 0.5f
         };
 
         world.Spawn()
@@ -195,10 +195,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle cubeM
     var centerMaterial = new Material
     {
         ShaderId = graphics.LitShader.Id,
-        TextureId = graphics.WhiteTexture.Id,
-        Color = new Vector4(1f, 1f, 1f, 1f), // White
-        Metallic = 0.8f,
-        Roughness = 0.2f
+        BaseColorTextureId = graphics.WhiteTexture.Id,
+        BaseColorFactor = new Vector4(1f, 1f, 1f, 1f), // White
+        MetallicFactor = 0.8f,
+        RoughnessFactor = 0.2f
     };
 
     world.Spawn()

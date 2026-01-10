@@ -199,11 +199,11 @@ public class ComponentTests
     #region Material Tests
 
     [Fact]
-    public void Material_Default_HasWhiteColor()
+    public void Material_Default_HasWhiteBaseColorFactor()
     {
         var material = Material.Default;
 
-        Assert.Equal(Vector4.One, material.Color);
+        Assert.Equal(Vector4.One, material.BaseColorFactor);
     }
 
     [Fact]
@@ -212,57 +212,57 @@ public class ComponentTests
         var material = Material.Default;
 
         Assert.Equal(0, material.ShaderId);
-        Assert.Equal(0, material.TextureId);
+        Assert.Equal(0, material.BaseColorTextureId);
         Assert.Equal(0, material.NormalMapId);
     }
 
     [Fact]
-    public void Material_Default_HasZeroEmissiveColor()
+    public void Material_Default_HasZeroEmissiveFactor()
     {
         var material = Material.Default;
 
-        Assert.Equal(Vector3.Zero, material.EmissiveColor);
+        Assert.Equal(Vector3.Zero, material.EmissiveFactor);
     }
 
     [Fact]
-    public void Material_Default_HasZeroMetallic()
+    public void Material_Default_HasZeroMetallicFactor()
     {
         var material = Material.Default;
 
-        Assert.Equal(0f, material.Metallic);
+        Assert.Equal(0f, material.MetallicFactor);
     }
 
     [Fact]
-    public void Material_Default_HasMidRoughness()
+    public void Material_Default_HasMidRoughnessFactor()
     {
         var material = Material.Default;
 
-        Assert.Equal(0.5f, material.Roughness);
+        Assert.Equal(0.5f, material.RoughnessFactor);
     }
 
     [Fact]
-    public void Material_Unlit_SetsColor()
+    public void Material_Unlit_SetsBaseColorFactor()
     {
         var color = new Vector4(0.5f, 0.25f, 0.75f, 1f);
         var material = Material.Unlit(color);
 
-        Assert.Equal(color, material.Color);
+        Assert.Equal(color, material.BaseColorFactor);
     }
 
     [Fact]
-    public void Material_Unlit_HasZeroMetallic()
+    public void Material_Unlit_HasZeroMetallicFactor()
     {
         var material = Material.Unlit(Vector4.One);
 
-        Assert.Equal(0f, material.Metallic);
+        Assert.Equal(0f, material.MetallicFactor);
     }
 
     [Fact]
-    public void Material_Unlit_HasFullRoughness()
+    public void Material_Unlit_HasFullRoughnessFactor()
     {
         var material = Material.Unlit(Vector4.One);
 
-        Assert.Equal(1f, material.Roughness);
+        Assert.Equal(1f, material.RoughnessFactor);
     }
 
     [Fact]
@@ -275,12 +275,12 @@ public class ComponentTests
     }
 
     [Fact]
-    public void Material_CanSetTextureId()
+    public void Material_CanSetBaseColorTextureId()
     {
         var material = Material.Default;
-        material.TextureId = 100;
+        material.BaseColorTextureId = 100;
 
-        Assert.Equal(100, material.TextureId);
+        Assert.Equal(100, material.BaseColorTextureId);
     }
 
     [Fact]
@@ -293,31 +293,31 @@ public class ComponentTests
     }
 
     [Fact]
-    public void Material_CanSetEmissiveColor()
+    public void Material_CanSetEmissiveFactor()
     {
         var material = Material.Default;
         var emissive = new Vector3(1f, 0.5f, 0f);
-        material.EmissiveColor = emissive;
+        material.EmissiveFactor = emissive;
 
-        Assert.Equal(emissive, material.EmissiveColor);
+        Assert.Equal(emissive, material.EmissiveFactor);
     }
 
     [Fact]
-    public void Material_CanSetMetallic()
+    public void Material_CanSetMetallicFactor()
     {
         var material = Material.Default;
-        material.Metallic = 1f;
+        material.MetallicFactor = 1f;
 
-        Assert.Equal(1f, material.Metallic);
+        Assert.Equal(1f, material.MetallicFactor);
     }
 
     [Fact]
-    public void Material_CanSetRoughness()
+    public void Material_CanSetRoughnessFactor()
     {
         var material = Material.Default;
-        material.Roughness = 0.8f;
+        material.RoughnessFactor = 0.8f;
 
-        Assert.Equal(0.8f, material.Roughness);
+        Assert.Equal(0.8f, material.RoughnessFactor);
     }
 
     [Fact]
@@ -326,16 +326,16 @@ public class ComponentTests
         var material = Material.Unlit(Vector4.One);
 
         Assert.Equal(0, material.ShaderId);
-        Assert.Equal(0, material.TextureId);
+        Assert.Equal(0, material.BaseColorTextureId);
         Assert.Equal(0, material.NormalMapId);
     }
 
     [Fact]
-    public void Material_Unlit_HasZeroEmissive()
+    public void Material_Unlit_HasZeroEmissiveFactor()
     {
         var material = Material.Unlit(Vector4.One);
 
-        Assert.Equal(Vector3.Zero, material.EmissiveColor);
+        Assert.Equal(Vector3.Zero, material.EmissiveFactor);
     }
 
     #endregion

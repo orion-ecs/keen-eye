@@ -262,10 +262,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle groun
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.3f, 0.4f, 0.35f, 1f),
-            Metallic = 0.1f,
-            Roughness = 0.8f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.3f, 0.4f, 0.35f, 1f),
+            MetallicFactor = 0.1f,
+            RoughnessFactor = 0.8f
         })
         .WithTag<GroundTag>()
         .Build();
@@ -284,10 +284,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle groun
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = wallColor,
-            Metallic = 0.2f,
-            Roughness = 0.7f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = wallColor,
+            MetallicFactor = 0.2f,
+            RoughnessFactor = 0.7f
         })
         .WithTag<WallTag>()
         .Build();
@@ -303,10 +303,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle groun
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = wallColor,
-            Metallic = 0.2f,
-            Roughness = 0.7f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = wallColor,
+            MetallicFactor = 0.2f,
+            RoughnessFactor = 0.7f
         })
         .WithTag<WallTag>()
         .Build();
@@ -322,10 +322,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle groun
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = wallColor,
-            Metallic = 0.2f,
-            Roughness = 0.7f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = wallColor,
+            MetallicFactor = 0.2f,
+            RoughnessFactor = 0.7f
         })
         .WithTag<WallTag>()
         .Build();
@@ -341,10 +341,10 @@ static void CreateScene(World world, IGraphicsContext graphics, MeshHandle groun
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = wallColor,
-            Metallic = 0.2f,
-            Roughness = 0.7f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = wallColor,
+            MetallicFactor = 0.2f,
+            RoughnessFactor = 0.7f
         })
         .WithTag<WallTag>()
         .Build();
@@ -622,10 +622,10 @@ static void SpawnBalls(World world, ref BallSpawner spawner, IGraphicsContext gr
             .With(new Material
             {
                 ShaderId = spawner.ShaderId,
-                TextureId = spawner.TextureId,
-                Color = new Vector4(r, g, b, 1f),
-                Metallic = 0.4f,
-                Roughness = 0.4f
+                BaseColorTextureId = spawner.TextureId,
+                BaseColorFactor = new Vector4(r, g, b, 1f),
+                MetallicFactor = 0.4f,
+                RoughnessFactor = 0.4f
             })
             .With(new BallPhysics
             {

@@ -1,5 +1,7 @@
 using System.Numerics;
 
+using KeenEyes.Graphics.Abstractions;
+
 namespace KeenEyes.Assets;
 
 /// <summary>
