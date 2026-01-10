@@ -172,6 +172,100 @@ public class EditorSettingsTests
         Assert.Equal(90f, EditorSettings.CameraFieldOfView);
     }
 
+    [Fact]
+    public void WireframeMode_DefaultValue_IsFalse()
+    {
+        ResetSettingsForTest();
+
+        Assert.False(EditorSettings.WireframeMode);
+    }
+
+    [Fact]
+    public void WireframeMode_SetTrue_UpdatesValue()
+    {
+        ResetSettingsForTest();
+
+        EditorSettings.WireframeMode = true;
+
+        Assert.True(EditorSettings.WireframeMode);
+    }
+
+    [Fact]
+    public void WireframeMode_SetFalse_UpdatesValue()
+    {
+        ResetSettingsForTest();
+        EditorSettings.WireframeMode = true;
+
+        EditorSettings.WireframeMode = false;
+
+        Assert.False(EditorSettings.WireframeMode);
+    }
+
+    [Fact]
+    public void WireframeMode_SettingChanged_RaisesEvent()
+    {
+        ResetSettingsForTest();
+        EditorSettings.Load(GetTestSettingsPath());
+
+        SettingChangedEventArgs? eventArgs = null;
+        EditorSettings.SettingChanged += (_, e) => eventArgs = e;
+
+        EditorSettings.WireframeMode = true;
+
+        Assert.NotNull(eventArgs);
+        Assert.Equal("WireframeMode", eventArgs.SettingName);
+        Assert.Equal("Viewport", eventArgs.Category);
+        Assert.Equal(false, eventArgs.OldValue);
+        Assert.Equal(true, eventArgs.NewValue);
+    }
+
+    [Fact]
+    public void WireframeMode_SameValue_DoesNotRaiseEvent()
+    {
+        ResetSettingsForTest();
+        EditorSettings.Load(GetTestSettingsPath());
+
+        var eventCount = 0;
+        EditorSettings.SettingChanged += (_, _) => eventCount++;
+
+        // Set to same value (default is false)
+        EditorSettings.WireframeMode = false;
+
+        Assert.Equal(0, eventCount);
+    }
+
+    [Fact]
+    public void WireframeMode_Persists_AfterSaveAndLoad()
+    {
+        var path = GetTestSettingsPath();
+        var path2 = GetTestSettingsPath();
+
+        try
+        {
+            EditorSettings.Load(path);
+            EditorSettings.WireframeMode = true;
+            EditorSettings.Save();
+
+            File.Copy(path, path2);
+
+            ResetSettingsForTest();
+            EditorSettings.Load(path2);
+
+            Assert.True(EditorSettings.WireframeMode);
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+            if (File.Exists(path2))
+            {
+                File.Delete(path2);
+            }
+        }
+    }
+
     #endregion
 
     #region Play Mode Settings Tests
