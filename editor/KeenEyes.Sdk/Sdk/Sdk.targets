@@ -149,6 +149,43 @@
   </Target>
 
   <!--
+    Asset Constants Generator Support
+
+    When enabled, asset files are passed to the source generator as AdditionalFiles.
+    The generator creates type-safe constants for compile-time validated asset paths.
+  -->
+  <ItemGroup Condition="'$(GenerateAssetConstants)' == 'true'">
+    <!-- Pass asset folder files to the generator -->
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.png" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.jpg" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.jpeg" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.bmp" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.tga" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.gif" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.webp" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.dds" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.wav" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.ogg" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.mp3" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.flac" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.ttf" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.otf" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.json" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.atlas" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.keanim" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.glb" />
+    <AdditionalFiles Include="$(AssetConstantsRootPath)/**/*.gltf" />
+  </ItemGroup>
+
+  <!-- Expose MSBuild properties to the source generator -->
+  <ItemGroup Condition="'$(GenerateAssetConstants)' == 'true'">
+    <CompilerVisibleProperty Include="GenerateAssetConstants" />
+    <CompilerVisibleProperty Include="AssetConstantsNamespace" />
+    <CompilerVisibleProperty Include="AssetConstantsClassName" />
+    <CompilerVisibleProperty Include="AssetConstantsRootPath" />
+  </ItemGroup>
+
+  <!--
     Project Info Target
 
     Generates project metadata that the editor can read to understand
