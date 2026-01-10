@@ -171,7 +171,7 @@ public static class HierarchyPanel
         WidgetFactory.UpdateTreeNodeHasChildren(editorWorld, node);
     }
 
-    private static void ClearHierarchy(IWorld editorWorld, Entity panel)
+    internal static void ClearHierarchy(IWorld editorWorld, Entity panel)
     {
         if (!editorWorld.Has<HierarchyPanelState>(panel))
         {
@@ -217,7 +217,7 @@ public static class HierarchyPanel
         world.Despawn(entity);
     }
 
-    private static void HighlightEntity(IWorld editorWorld, Entity panel, Entity sceneEntity)
+    internal static void HighlightEntity(IWorld editorWorld, Entity panel, Entity sceneEntity)
     {
         if (!editorWorld.Has<HierarchyPanelState>(panel))
         {

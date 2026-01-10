@@ -1,6 +1,8 @@
 // Copyright (c) Keen Eye, LLC. All rights reserved.
 // Licensed under the MIT License.
 
+using KeenEyes.Logging;
+
 namespace KeenEyes.Editor.Abstractions;
 
 /// <summary>
@@ -74,6 +76,20 @@ public interface IEditorContext
     /// This is the world used for the editor's own UI, not the scene being edited.
     /// </remarks>
     IWorld EditorWorld { get; }
+
+    /// <summary>
+    /// Gets the log queryable for accessing and managing editor logs.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Returns null if no queryable log provider is configured.
+    /// </para>
+    /// <para>
+    /// Use this to query log entries, subscribe to log events, or clear logs
+    /// from plugins like the Console panel.
+    /// </para>
+    /// </remarks>
+    ILogQueryable? Log { get; }
 
     #endregion
 

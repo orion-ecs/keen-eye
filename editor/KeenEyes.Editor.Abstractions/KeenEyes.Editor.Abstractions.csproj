@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Logging\KeenEyes.Logging.csproj" />
   </ItemGroup>
 
 </Project>

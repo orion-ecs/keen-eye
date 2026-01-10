@@ -3,6 +3,7 @@
 
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Abstractions.Capabilities;
+using KeenEyes.Logging;
 
 namespace KeenEyes.Editor.Plugins.Security;
 
@@ -122,6 +123,16 @@ internal sealed class SecurePluginContext : IEditorContext
         {
             // Editor world access doesn't require special permissions
             return inner.EditorWorld;
+        }
+    }
+
+    /// <inheritdoc />
+    public ILogQueryable? Log
+    {
+        get
+        {
+            // Log access doesn't require special permissions
+            return inner.Log;
         }
     }
 

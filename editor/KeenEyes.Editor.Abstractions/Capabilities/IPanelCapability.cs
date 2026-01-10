@@ -1,3 +1,5 @@
+using KeenEyes.Graphics.Abstractions;
+
 namespace KeenEyes.Editor.Abstractions.Capabilities;
 
 /// <summary>
@@ -222,4 +224,9 @@ public sealed class PanelContext
     /// Gets the panel descriptor.
     /// </summary>
     public required PanelDescriptor Descriptor { get; init; }
+
+    /// <summary>
+    /// Gets the default font handle for creating UI text.
+    /// </summary>
+    public required FontHandle Font { get; init; }
 }

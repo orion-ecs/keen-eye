@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using KeenEyes.Editor.Abstractions;
+using KeenEyes.Logging;
 
 namespace KeenEyes.Editor.Plugins;
 
@@ -68,6 +69,9 @@ internal sealed class EditorPluginContext : IEditorContext
 
     /// <inheritdoc />
     public IWorld EditorWorld => manager.EditorWorld;
+
+    /// <inheritdoc />
+    public ILogQueryable? Log => manager.Log;
 
     #endregion
 
