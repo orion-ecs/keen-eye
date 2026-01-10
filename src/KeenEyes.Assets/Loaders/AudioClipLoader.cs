@@ -1,4 +1,5 @@
 using KeenEyes.Audio.Abstractions;
+using NLayer;
 using NVorbis;
 
 namespace KeenEyes.Assets;
@@ -21,7 +22,7 @@ public sealed class AudioClipLoader : IAssetLoader<AudioClipAsset>
     private readonly IAudioContext audio;
 
     /// <inheritdoc />
-    public IReadOnlyList<string> Extensions => [".wav", ".ogg"];
+    public IReadOnlyList<string> Extensions => [".wav", ".ogg", ".mp3"];
 
     /// <summary>
     /// Creates a new audio clip loader.
@@ -43,6 +44,7 @@ public sealed class AudioClipLoader : IAssetLoader<AudioClipAsset>
         {
             ".ogg" => LoadOgg(stream, context.Path),
             ".wav" => LoadWav(stream, context.Path),
+            ".mp3" => LoadMp3(stream, context.Path),
             _ => throw new NotSupportedException($"Audio format not supported: {extension}")
         };
     }
@@ -172,6 +174,35 @@ public sealed class AudioClipLoader : IAssetLoader<AudioClipAsset>
         }
 
         throw new InvalidDataException($"Invalid WAV file: missing data chunk in {path}");
+    }
+
+    private AudioClipAsset LoadMp3(Stream stream, string path)
+    {
+        using var mpegFile = new MpegFile(stream);
+        var sampleRate = mpegFile.SampleRate;
+        var channels = mpegFile.Channels;
+
+        // Decode all samples to float buffer
+        var samples = new List<float>();
+        var buffer = new float[4096];
+        int read;
+        while ((read = mpegFile.ReadSamples(buffer, 0, buffer.Length)) > 0)
+        {
+            for (var i = 0; i < read; i++)
+            {
+                samples.Add(buffer[i]);
+            }
+        }
+
+        // Convert to 16-bit PCM
+        var pcmData = ConvertToInt16(samples.ToArray());
+        var format = channels == 1 ? AudioFormat.Mono16 : AudioFormat.Stereo16;
+
+        var handle = audio.CreateClip(pcmData, format, sampleRate);
+        var totalSamples = samples.Count / channels;
+        var duration = TimeSpan.FromSeconds((double)totalSamples / sampleRate);
+
+        return new AudioClipAsset(handle, duration, channels, sampleRate, 16, audio);
     }
 
     private static byte[] ConvertToInt16(float[] samples)
