@@ -1,5 +1,9 @@
 using System.Numerics;
+
+using KeenEyes.Graphics.Abstractions;
+
 using SharpGLTF.Schema2;
+
 using StbImageSharp;
 
 namespace KeenEyes.Assets;
@@ -151,7 +155,7 @@ public sealed class ModelLoader : IAssetLoader<ModelAsset>
     /// <summary>
     /// Extracts PBR properties from a single glTF material.
     /// </summary>
-    private static MaterialData ExtractMaterial(Material material, ModelRoot model)
+    private static MaterialData ExtractMaterial(SharpGLTF.Schema2.Material material, ModelRoot model)
     {
         var name = material.Name ?? $"Material_{material.LogicalIndex}";
 
@@ -218,10 +222,10 @@ public sealed class ModelLoader : IAssetLoader<ModelAsset>
         // Alpha mode
         var alphaMode = material.Alpha switch
         {
-            SharpGLTF.Schema2.AlphaMode.OPAQUE => AlphaMode.Opaque,
-            SharpGLTF.Schema2.AlphaMode.MASK => AlphaMode.Mask,
-            SharpGLTF.Schema2.AlphaMode.BLEND => AlphaMode.Blend,
-            _ => AlphaMode.Opaque
+            SharpGLTF.Schema2.AlphaMode.OPAQUE => Graphics.Abstractions.AlphaMode.Opaque,
+            SharpGLTF.Schema2.AlphaMode.MASK => Graphics.Abstractions.AlphaMode.Mask,
+            SharpGLTF.Schema2.AlphaMode.BLEND => Graphics.Abstractions.AlphaMode.Blend,
+            _ => Graphics.Abstractions.AlphaMode.Opaque
         };
 
         var alphaCutoff = material.AlphaCutoff;

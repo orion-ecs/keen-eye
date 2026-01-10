@@ -22,11 +22,11 @@ public class MaterialTests
     }
 
     [Fact]
-    public void Default_TextureId_IsZero()
+    public void Default_BaseColorTextureId_IsZero()
     {
         var material = Material.Default;
 
-        Assert.Equal(0, material.TextureId);
+        Assert.Equal(0, material.BaseColorTextureId);
     }
 
     [Fact]
@@ -38,35 +38,99 @@ public class MaterialTests
     }
 
     [Fact]
-    public void Default_Color_IsWhite()
+    public void Default_BaseColorFactor_IsWhite()
     {
         var material = Material.Default;
 
-        Assert.Equal(Vector4.One, material.Color);
+        Assert.Equal(Vector4.One, material.BaseColorFactor);
     }
 
     [Fact]
-    public void Default_EmissiveColor_IsBlack()
+    public void Default_EmissiveFactor_IsBlack()
     {
         var material = Material.Default;
 
-        Assert.Equal(Vector3.Zero, material.EmissiveColor);
+        Assert.Equal(Vector3.Zero, material.EmissiveFactor);
     }
 
     [Fact]
-    public void Default_Metallic_IsZero()
+    public void Default_MetallicFactor_IsZero()
     {
         var material = Material.Default;
 
-        Assert.Equal(0f, material.Metallic, Epsilon);
+        Assert.Equal(0f, material.MetallicFactor, Epsilon);
     }
 
     [Fact]
-    public void Default_Roughness_IsHalf()
+    public void Default_RoughnessFactor_IsHalf()
     {
         var material = Material.Default;
 
-        Assert.Equal(0.5f, material.Roughness, Epsilon);
+        Assert.Equal(0.5f, material.RoughnessFactor, Epsilon);
+    }
+
+    [Fact]
+    public void Default_MetallicRoughnessTextureId_IsZero()
+    {
+        var material = Material.Default;
+
+        Assert.Equal(0, material.MetallicRoughnessTextureId);
+    }
+
+    [Fact]
+    public void Default_OcclusionTextureId_IsZero()
+    {
+        var material = Material.Default;
+
+        Assert.Equal(0, material.OcclusionTextureId);
+    }
+
+    [Fact]
+    public void Default_EmissiveTextureId_IsZero()
+    {
+        var material = Material.Default;
+
+        Assert.Equal(0, material.EmissiveTextureId);
+    }
+
+    [Fact]
+    public void Default_NormalScale_IsOne()
+    {
+        var material = Material.Default;
+
+        Assert.Equal(1f, material.NormalScale, Epsilon);
+    }
+
+    [Fact]
+    public void Default_OcclusionStrength_IsOne()
+    {
+        var material = Material.Default;
+
+        Assert.Equal(1f, material.OcclusionStrength, Epsilon);
+    }
+
+    [Fact]
+    public void Default_AlphaCutoff_IsHalf()
+    {
+        var material = Material.Default;
+
+        Assert.Equal(0.5f, material.AlphaCutoff, Epsilon);
+    }
+
+    [Fact]
+    public void Default_AlphaMode_IsOpaque()
+    {
+        var material = Material.Default;
+
+        Assert.Equal(AlphaMode.Opaque, material.AlphaMode);
+    }
+
+    [Fact]
+    public void Default_DoubleSided_IsFalse()
+    {
+        var material = Material.Default;
+
+        Assert.False(material.DoubleSided);
     }
 
     #endregion
@@ -74,29 +138,29 @@ public class MaterialTests
     #region Unlit Factory Tests
 
     [Fact]
-    public void Unlit_SetsColor()
+    public void Unlit_SetsBaseColorFactor()
     {
         var color = new Vector4(1f, 0f, 0f, 1f);
 
         var material = Material.Unlit(color);
 
-        Assert.Equal(color, material.Color);
+        Assert.Equal(color, material.BaseColorFactor);
     }
 
     [Fact]
-    public void Unlit_Metallic_IsZero()
+    public void Unlit_MetallicFactor_IsZero()
     {
         var material = Material.Unlit(Vector4.One);
 
-        Assert.Equal(0f, material.Metallic, Epsilon);
+        Assert.Equal(0f, material.MetallicFactor, Epsilon);
     }
 
     [Fact]
-    public void Unlit_Roughness_IsOne()
+    public void Unlit_RoughnessFactor_IsOne()
     {
         var material = Material.Unlit(Vector4.One);
 
-        Assert.Equal(1f, material.Roughness, Epsilon);
+        Assert.Equal(1f, material.RoughnessFactor, Epsilon);
     }
 
     [Fact]
@@ -105,7 +169,7 @@ public class MaterialTests
         var material = Material.Unlit(Vector4.One);
 
         Assert.Equal(0, material.ShaderId);
-        Assert.Equal(0, material.TextureId);
+        Assert.Equal(0, material.BaseColorTextureId);
         Assert.Equal(0, material.NormalMapId);
     }
 
@@ -116,7 +180,7 @@ public class MaterialTests
 
         var material = Material.Unlit(color);
 
-        Assert.Equal(0.5f, material.Color.W, Epsilon);
+        Assert.Equal(0.5f, material.BaseColorFactor.W, Epsilon);
     }
 
     #endregion
@@ -129,11 +193,11 @@ public class MaterialTests
         var material1 = Material.Default;
         var material2 = material1;
 
-        material2.Metallic = 1f;
+        material2.MetallicFactor = 1f;
 
         // Changes to material2 should not affect material1
-        Assert.Equal(0f, material1.Metallic);
-        Assert.Equal(1f, material2.Metallic);
+        Assert.Equal(0f, material1.MetallicFactor);
+        Assert.Equal(1f, material2.MetallicFactor);
     }
 
     [Fact]
@@ -142,10 +206,10 @@ public class MaterialTests
         var material = new Material();
 
         Assert.Equal(0, material.ShaderId);
-        Assert.Equal(0, material.TextureId);
-        Assert.Equal(Vector4.Zero, material.Color);
-        Assert.Equal(0f, material.Metallic);
-        Assert.Equal(0f, material.Roughness);
+        Assert.Equal(0, material.BaseColorTextureId);
+        Assert.Equal(Vector4.Zero, material.BaseColorFactor);
+        Assert.Equal(0f, material.MetallicFactor);
+        Assert.Equal(0f, material.RoughnessFactor);
     }
 
     #endregion

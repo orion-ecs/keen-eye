@@ -240,10 +240,10 @@ static void CreateScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.3f, 0.4f, 0.3f, 1f),
-            Metallic = 0f,
-            Roughness = 0.9f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.3f, 0.4f, 0.3f, 1f),
+            MetallicFactor = 0f,
+            RoughnessFactor = 0.9f
         })
         .Build();
 
@@ -257,10 +257,10 @@ static void CreateScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.2f, 0.6f, 1f, 1f),
-            Metallic = 0.3f,
-            Roughness = 0.5f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.2f, 0.6f, 1f, 1f),
+            MetallicFactor = 0.3f,
+            RoughnessFactor = 0.5f
         })
         .WithTag<PlayerTag>()
         .With(new PlayerVelocity())

@@ -158,9 +158,9 @@ public sealed class RenderSystem : ISystem
             {
                 ref readonly var material = ref world.Get<Material>(entity);
                 shader = material.ShaderId > 0 ? new ShaderHandle(material.ShaderId) : graphics.LitShader;
-                texture = material.TextureId > 0 ? new TextureHandle(material.TextureId) : graphics.WhiteTexture;
-                color = material.Color;
-                emissive = material.EmissiveColor;
+                texture = material.BaseColorTextureId > 0 ? new TextureHandle(material.BaseColorTextureId) : graphics.WhiteTexture;
+                color = material.BaseColorFactor;
+                emissive = material.EmissiveFactor;
             }
 
             // Bind shader
