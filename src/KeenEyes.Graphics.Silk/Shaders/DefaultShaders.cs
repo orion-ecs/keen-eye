@@ -189,7 +189,6 @@ internal static class DefaultShaders
         uniform mat4 uModel;
         uniform mat4 uView;
         uniform mat4 uProjection;
-        uniform mat3 uNormalMatrix;
 
         out vec3 vWorldPos;
         out vec3 vNormal;
@@ -202,12 +201,15 @@ internal static class DefaultShaders
             vec4 worldPos = uModel * vec4(aPosition, 1.0);
             vWorldPos = worldPos.xyz;
 
+            // Calculate normal matrix (inverse transpose of model matrix upper 3x3)
+            mat3 normalMatrix = mat3(transpose(inverse(uModel)));
+
             // Transform normal to world space
-            vec3 N = normalize(uNormalMatrix * aNormal);
+            vec3 N = normalize(normalMatrix * aNormal);
             vNormal = N;
 
             // Transform tangent to world space and compute TBN matrix
-            vec3 T = normalize(uNormalMatrix * aTangent.xyz);
+            vec3 T = normalize(normalMatrix * aTangent.xyz);
             // Re-orthogonalize T with respect to N
             T = normalize(T - dot(T, N) * N);
             // Compute bitangent using tangent handedness
