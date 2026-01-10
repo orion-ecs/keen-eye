@@ -190,7 +190,7 @@ public static partial class WidgetFactory
             .With(new UIStyle())
             .With(new UIText
             {
-                Content = isExpanded ? "v" : ">",
+                Content = isExpanded ? "▼" : "▶",
                 Font = font,
                 FontSize = 12,
                 Color = config.GetArrowColor(),
@@ -322,7 +322,7 @@ public static partial class WidgetFactory
             contentElement.Visible = isExpanded;
         }
 
-        // Update arrow visual (uses ASCII for better font compatibility)
+        // Update arrow visual
         if (section.Header.IsValid)
         {
             foreach (var child in world.GetChildren(section.Header))
@@ -330,7 +330,7 @@ public static partial class WidgetFactory
                 if (world.Has<UIAccordionArrowTag>(child) && world.Has<UIText>(child))
                 {
                     ref var text = ref world.Get<UIText>(child);
-                    text.Content = isExpanded ? "v" : ">";
+                    text.Content = isExpanded ? "▼" : "▶";
                     break;
                 }
             }

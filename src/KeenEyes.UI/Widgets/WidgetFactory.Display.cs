@@ -557,7 +557,7 @@ public static partial class WidgetFactory
                 ScrollbarWidth = 8f
             });
 
-            // Configure scroll view visibility and add tab panel component
+            // Configure scroll view visibility
             ref var scrollElement = ref world.Get<UIElement>(scrollView);
             scrollElement.Visible = isActive;
 
@@ -570,13 +570,19 @@ public static partial class WidgetFactory
             scrollRect.WidthMode = UISizeMode.Fill;
             scrollRect.HeightMode = UISizeMode.Fill;
 
-            // Add tab panel component to scroll view
+            // Add tab panel component to both scroll view and content panel
             world.Add(scrollView, new UITabPanel(i, container));
+            world.Add(scrollContent, new UITabPanel(i, container));
+
+            // Configure content panel visibility to match scroll view
+            ref var contentElement = ref world.Get<UIElement>(scrollContent);
+            contentElement.Visible = isActive;
 
             // Add UIHiddenTag to non-selected panels so layout system skips them
             if (!isActive)
             {
                 world.Add(scrollView, new UIHiddenTag());
+                world.Add(scrollContent, new UIHiddenTag());
             }
 
             world.SetParent(scrollView, contentArea);
@@ -743,13 +749,19 @@ public static partial class WidgetFactory
             scrollRect.WidthMode = UISizeMode.Fill;
             scrollRect.HeightMode = UISizeMode.Fill;
 
-            // Add tab panel component to scroll view
+            // Add tab panel component to both scroll view and content panel
             world.Add(scrollView, new UITabPanel(i, container));
+            world.Add(scrollContent, new UITabPanel(i, container));
+
+            // Configure content panel visibility to match scroll view
+            ref var contentElement = ref world.Get<UIElement>(scrollContent);
+            contentElement.Visible = isActive;
 
             // Add UIHiddenTag to non-selected panels so layout system skips them
             if (!isActive)
             {
                 world.Add(scrollView, new UIHiddenTag());
+                world.Add(scrollContent, new UIHiddenTag());
             }
 
             world.SetParent(scrollView, contentArea);

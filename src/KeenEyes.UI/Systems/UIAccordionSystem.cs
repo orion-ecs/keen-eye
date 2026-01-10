@@ -133,13 +133,12 @@ public sealed class UIAccordionSystem : SystemBase
     private void UpdateArrowVisual(Entity headerEntity, bool isExpanded)
     {
         // Find the arrow element within the header
-        // Uses ASCII for better font compatibility than Unicode arrows
         foreach (var child in World.GetChildren(headerEntity))
         {
             if (World.Has<UIAccordionArrowTag>(child) && World.Has<UIText>(child))
             {
                 ref var text = ref World.Get<UIText>(child);
-                text.Content = isExpanded ? "v" : ">";
+                text.Content = isExpanded ? "▼" : "▶";
                 break;
             }
         }

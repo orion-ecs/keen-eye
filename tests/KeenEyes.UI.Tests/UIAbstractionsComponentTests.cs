@@ -300,7 +300,7 @@ public class UIAbstractionsComponentTests
         Assert.Equal(0, input.MaxLength);
         Assert.False(input.Multiline);
         Assert.Equal("", input.PlaceholderText);
-        Assert.True(input.ShowingPlaceholder);
+        Assert.False(input.ShowingPlaceholder); // No placeholder text = not showing placeholder
     }
 
     [Fact]
@@ -333,7 +333,7 @@ public class UIAbstractionsComponentTests
         Assert.Equal(0, input.MaxLength);
         Assert.True(input.Multiline);
         Assert.Equal("", input.PlaceholderText);
-        Assert.True(input.ShowingPlaceholder);
+        Assert.False(input.ShowingPlaceholder); // No placeholder text = not showing placeholder
     }
 
     [Fact]
