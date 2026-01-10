@@ -144,16 +144,18 @@ public class BuiltInAssetTests
     {
         var vertices = new MeshVertex[]
         {
-            new(new Vector3(0, 0, 0), Vector3.UnitY, Vector2.Zero),
-            new(new Vector3(1, 1, 1), Vector3.UnitY, Vector2.One)
+            MeshVertex.CreateBasic(new Vector3(0, 0, 0), Vector3.UnitY, Vector2.Zero),
+            MeshVertex.CreateBasic(new Vector3(1, 1, 1), Vector3.UnitY, Vector2.One)
         };
         var indices = new uint[] { 0, 1, 0 };
+        var submeshes = new[] { new Submesh(0, 3, -1) };
 
-        using var asset = new MeshAsset("test", vertices, indices, Vector3.Zero, Vector3.One);
+        using var asset = new MeshAsset("test", vertices, indices, submeshes, Vector3.Zero, Vector3.One);
 
         Assert.Equal("test", asset.Name);
         Assert.Equal(vertices, asset.Vertices);
         Assert.Equal(indices, asset.Indices);
+        Assert.Equal(submeshes, asset.Submeshes);
         Assert.Equal(Vector3.Zero, asset.BoundsMin);
         Assert.Equal(Vector3.One, asset.BoundsMax);
     }
@@ -163,8 +165,8 @@ public class BuiltInAssetTests
     {
         var vertices = new MeshVertex[]
         {
-            new(new Vector3(-1, 0, 0), Vector3.UnitY, Vector2.Zero),
-            new(new Vector3(1, 2, 3), Vector3.UnitY, Vector2.One)
+            MeshVertex.CreateBasic(new Vector3(-1, 0, 0), Vector3.UnitY, Vector2.Zero),
+            MeshVertex.CreateBasic(new Vector3(1, 2, 3), Vector3.UnitY, Vector2.One)
         };
         var indices = new uint[] { 0, 1 };
 
@@ -179,21 +181,27 @@ public class BuiltInAssetTests
     {
         var vertices = new MeshVertex[]
         {
-            new(Vector3.Zero, Vector3.UnitY, Vector2.Zero),
-            new(Vector3.One, Vector3.UnitY, Vector2.One)
+            MeshVertex.CreateBasic(Vector3.Zero, Vector3.UnitY, Vector2.Zero),
+            MeshVertex.CreateBasic(Vector3.One, Vector3.UnitY, Vector2.One)
         };
         var indices = new uint[] { 0, 1, 0 };
+        var submeshes = new[] { new Submesh(0, 3, -1) };
 
-        using var asset = new MeshAsset("test", vertices, indices, Vector3.Zero, Vector3.One);
+        using var asset = new MeshAsset("test", vertices, indices, submeshes, Vector3.Zero, Vector3.One);
 
-        // 2 vertices * (3+3+2) floats * 4 bytes + 3 indices * 4 bytes
-        Assert.Equal(2 * 8 * 4 + 3 * 4, asset.SizeBytes);
+        // Each vertex: (3+3+2+4+4+4) floats = 20 floats * 4 bytes = 80 bytes
+        // Plus joints: 4 ushorts * 2 bytes = 8 bytes per vertex
+        // 2 vertices = (80 + 8) * 2 = 176 bytes
+        // 3 indices * 4 bytes = 12 bytes
+        // 1 submesh * 3 ints * 4 bytes = 12 bytes
+        // Total = 176 + 12 + 12 = 200 bytes
+        Assert.Equal(200, asset.SizeBytes);
     }
 
     [Fact]
     public void MeshAsset_Dispose_IsIdempotent()
     {
-        var asset = new MeshAsset("test", [], [], Vector3.Zero, Vector3.Zero);
+        var asset = new MeshAsset("test", [], [], [], Vector3.Zero, Vector3.Zero);
         asset.Dispose();
         asset.Dispose(); // Should not throw
     }
