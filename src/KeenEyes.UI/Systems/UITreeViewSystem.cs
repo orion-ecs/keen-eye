@@ -159,11 +159,10 @@ public sealed class UITreeViewSystem : SystemBase
     private void UpdateExpandArrowVisual(Entity arrowEntity, bool isExpanded)
     {
         // Update arrow text based on expansion state
-        // Uses "v" and ">" for better font compatibility than Unicode arrows
         if (World.Has<UIText>(arrowEntity))
         {
             ref var text = ref World.Get<UIText>(arrowEntity);
-            text.Content = isExpanded ? "v" : ">";
+            text.Content = isExpanded ? "▼" : "▶";
         }
     }
 

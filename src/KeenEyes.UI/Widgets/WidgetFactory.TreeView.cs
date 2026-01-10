@@ -249,8 +249,7 @@ public static partial class WidgetFactory
             .With(new UIStyle())
             .With(new UIText
             {
-                // Use ">" and "v" for better font compatibility than Unicode arrows
-                Content = config.IsExpanded ? "v" : ">",
+                Content = config.IsExpanded ? "▼" : "▶",
                 Font = font,
                 FontSize = 12,
                 // Start with transparent color - UpdateTreeNodeHasChildren will make it visible
