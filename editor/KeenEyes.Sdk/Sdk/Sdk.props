@@ -54,6 +54,18 @@
     <KeenEyesFeatures>ECS;SourceGenerators;AOT</KeenEyesFeatures>
   </PropertyGroup>
 
+  <!-- Asset Constants Generator Settings -->
+  <PropertyGroup>
+    <!-- Set to true to generate type-safe asset path constants -->
+    <GenerateAssetConstants Condition="'$(GenerateAssetConstants)' == ''">false</GenerateAssetConstants>
+    <!-- Namespace for generated Assets class (defaults to project root namespace) -->
+    <AssetConstantsNamespace Condition="'$(AssetConstantsNamespace)' == ''">$(RootNamespace)</AssetConstantsNamespace>
+    <!-- Class name for generated constants (default: Assets) -->
+    <AssetConstantsClassName Condition="'$(AssetConstantsClassName)' == ''">Assets</AssetConstantsClassName>
+    <!-- Root path for computing relative asset paths (defaults to Assets folder) -->
+    <AssetConstantsRootPath Condition="'$(AssetConstantsRootPath)' == ''">$(MSBuildProjectDirectory)/Assets</AssetConstantsRootPath>
+  </PropertyGroup>
+
   <!--
     Custom ItemGroup Definitions for Editor Integration
 
