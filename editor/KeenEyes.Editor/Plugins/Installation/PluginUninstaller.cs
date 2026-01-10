@@ -253,16 +253,37 @@ public sealed class PluginUninstaller
         order.Add(packageId);
     }
 
-    private static List<string> FindOrphanedDependencies(List<string> dependencies, string excludePackageId)
+    /// <summary>
+    /// Finds dependencies that are no longer needed by any other installed plugins.
+    /// </summary>
+    /// <param name="dependencies">The dependencies of the plugin being uninstalled.</param>
+    /// <param name="excludePackageId">The package ID being uninstalled (to exclude from dependency checks).</param>
+    /// <returns>List of orphaned dependency package IDs that can be safely removed.</returns>
+    private List<string> FindOrphanedDependencies(List<string> dependencies, string excludePackageId)
     {
-        // TODO: Implement orphan detection
-        // To fully implement orphan detection, we would need to:
-        // 1. Check if each dependency is still needed by other plugins
-        // 2. Check if it's a user-installed plugin vs transitive dependency
-        // For now, we consider all registered plugins as user-installed
-        // unless we add a flag to distinguish them.
-        _ = dependencies;
-        _ = excludePackageId;
-        return [];
+        var orphaned = new List<string>();
+
+        foreach (var dependency in dependencies)
+        {
+            // Skip if the dependency isn't installed (might have been manually removed)
+            if (!registry.IsInstalled(dependency))
+            {
+                continue;
+            }
+
+            // Check if any other installed plugin still needs this dependency
+            var dependents = registry.GetDependentPlugins(dependency);
+            var otherDependents = dependents
+                .Where(d => !d.PackageId.Equals(excludePackageId, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // If no other plugins depend on this, it's orphaned
+            if (otherDependents.Count == 0)
+            {
+                orphaned.Add(dependency);
+            }
+        }
+
+        return orphaned;
     }
 }
