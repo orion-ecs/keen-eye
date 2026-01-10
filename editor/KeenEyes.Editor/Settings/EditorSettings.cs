@@ -281,6 +281,21 @@ public static class EditorSettings
         }
     }
 
+    /// <summary>
+    /// Gets or sets whether wireframe rendering is enabled in the viewport.
+    /// </summary>
+    public static bool WireframeMode
+    {
+        get => _data.Viewport.WireframeMode;
+        set
+        {
+            if (_data.Viewport.WireframeMode == value) return;
+            var oldValue = _data.Viewport.WireframeMode;
+            _data.Viewport.WireframeMode = value;
+            OnSettingChanged(nameof(WireframeMode), "Viewport", oldValue, value);
+        }
+    }
+
     #endregion
 
     #region Play Mode Settings
@@ -729,6 +744,7 @@ internal sealed class AppearanceSettings
 internal sealed class ViewportSettings
 {
     public bool GridVisible { get; set; } = true;
+    public bool WireframeMode { get; set; } = false;
     public float GridSize { get; set; } = 1.0f;
     public float GizmoSize { get; set; } = 1.0f;
     public float CameraSpeed { get; set; } = 10.0f;

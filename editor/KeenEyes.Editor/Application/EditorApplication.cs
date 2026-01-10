@@ -1977,22 +1977,31 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.FocusSelection()
     {
-        // TODO: Implement focus selection in viewport
-        Console.WriteLine("Focus Selection (not yet implemented)");
+        var selected = _selection.SelectedEntities;
+        if (selected.Count == 0)
+        {
+            Console.WriteLine("Focus Selection: No entity selected");
+            return;
+        }
+
+        // Focus on the primary selected entity
+        var entity = selected.First();
+        ViewportPanel.FocusOnEntity(_editorWorld, _viewportPanel, entity);
+        Console.WriteLine($"Focused on entity: {_worldManager.GetEntityName(entity)}");
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.ToggleGrid()
     {
-        // TODO: Implement toggle grid
-        Console.WriteLine("Toggle Grid (not yet implemented)");
+        EditorSettings.GridVisible = !EditorSettings.GridVisible;
+        Console.WriteLine($"Grid visibility: {(EditorSettings.GridVisible ? "On" : "Off")}");
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.ToggleWireframe()
     {
-        // TODO: Implement toggle wireframe
-        Console.WriteLine("Toggle Wireframe (not yet implemented)");
+        EditorSettings.WireframeMode = !EditorSettings.WireframeMode;
+        Console.WriteLine($"Wireframe mode: {(EditorSettings.WireframeMode ? "On" : "Off")}");
     }
 
     /// <inheritdoc/>
