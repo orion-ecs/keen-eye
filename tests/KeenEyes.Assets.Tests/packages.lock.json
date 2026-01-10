@@ -212,6 +212,7 @@
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "NLayer": "[1.16.0, )",
           "NVorbis": "[0.10.5, )",
+          "Pfim": "[0.11.3, )",
           "SharpGLTF.Core": "[1.0.6, )",
           "SixLabors.ImageSharp": "[3.1.12, )",
           "StbImageSharp": "[2.30.15, )"
@@ -298,6 +299,12 @@
         "requested": "[0.10.5, )",
         "resolved": "0.10.5",
         "contentHash": "o+IptCG4Avze39HrGeztC+xIp6fOOwGVAwkoa1J++4Ji1WmZ+KIKlFl5wsgxsXqBkmdpfs/vFSUproiLKYa2bw=="
+      },
+      "Pfim": {
+        "type": "CentralTransitive",
+        "requested": "[0.11.3, )",
+        "resolved": "0.11.3",
+        "contentHash": "UNVStuGHVIGyBlQaLX8VY6KpzZm/pG2zpV8ewNSXNFKFVPn8dLQKJITfps3lwUMzwTL+Do7RrMUvgQ1ZsPTu4w=="
       },
       "SharpGLTF.Core": {
         "type": "CentralTransitive",

@@ -142,6 +142,32 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         => gl.GenerateMipmap(ToGL(target));
 
     /// <inheritdoc />
+    public void CompressedTexImage2D(
+        Abstractions.TextureTarget target,
+        int level,
+        int width,
+        int height,
+        Abstractions.CompressedTextureFormat format,
+        ReadOnlySpan<byte> data)
+    {
+        unsafe
+        {
+            fixed (byte* ptr = data)
+            {
+                gl.CompressedTexImage2D(
+                    ToGL(target),
+                    level,
+                    ToGLCompressed(format),
+                    (uint)width,
+                    (uint)height,
+                    0, // border must be 0
+                    (uint)data.Length,
+                    ptr);
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public void DeleteTexture(uint texture) => gl.DeleteTexture(texture);
 
     /// <inheritdoc />
@@ -470,6 +496,19 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         Abstractions.PixelStoreParameter.UnpackSkipPixels => global::Silk.NET.OpenGL.PixelStoreParameter.UnpackSkipPixels,
         Abstractions.PixelStoreParameter.UnpackAlignment => global::Silk.NET.OpenGL.PixelStoreParameter.UnpackAlignment,
         _ => throw new ArgumentOutOfRangeException(nameof(param))
+    };
+
+    private static InternalFormat ToGLCompressed(Abstractions.CompressedTextureFormat format) => format switch
+    {
+        Abstractions.CompressedTextureFormat.Bc1 => InternalFormat.CompressedRgbS3TCDxt1Ext,
+        Abstractions.CompressedTextureFormat.Bc1Alpha => InternalFormat.CompressedRgbaS3TCDxt1Ext,
+        Abstractions.CompressedTextureFormat.Bc2 => InternalFormat.CompressedRgbaS3TCDxt3Ext,
+        Abstractions.CompressedTextureFormat.Bc3 => InternalFormat.CompressedRgbaS3TCDxt5Ext,
+        Abstractions.CompressedTextureFormat.Bc4 => InternalFormat.CompressedRedRgtc1,
+        Abstractions.CompressedTextureFormat.Bc5 => InternalFormat.CompressedRGRgtc2,
+        Abstractions.CompressedTextureFormat.Bc6h => InternalFormat.CompressedRgbBptcUnsignedFloat,
+        Abstractions.CompressedTextureFormat.Bc7 => InternalFormat.CompressedRgbaBptcUnorm,
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
     };
 
     #endregion

@@ -16,6 +16,7 @@ namespace KeenEyes.Assets;
 /// Built-in loaders are registered automatically if their dependencies are available:
 /// <list type="bullet">
 /// <item><see cref="TextureLoader"/> - requires <see cref="IGraphicsContext"/></item>
+/// <item><see cref="DdsTextureLoader"/> - requires <see cref="IGraphicsContext"/> (GPU-compressed textures)</item>
 /// <item><see cref="SpriteAtlasLoader"/> - requires <see cref="IGraphicsContext"/></item>
 /// <item><see cref="AnimationLoader"/> - requires <see cref="IGraphicsContext"/></item>
 /// <item><see cref="FontLoader"/> - requires <see cref="IFontManagerProvider"/></item>
@@ -64,10 +65,11 @@ public sealed class AssetsPlugin(AssetsConfig? config = null) : IWorldPlugin
 
         // Register built-in loaders based on available dependencies
 
-        // TextureLoader, SpriteAtlasLoader, and AnimationLoader require IGraphicsContext
+        // TextureLoader, SpriteAtlasLoader, AnimationLoader, and DdsTextureLoader require IGraphicsContext
         if (context.TryGetExtension<IGraphicsContext>(out var graphics) && graphics != null)
         {
             assetManager.RegisterLoader(new TextureLoader(graphics));
+            assetManager.RegisterLoader(new DdsTextureLoader(graphics));
             assetManager.RegisterLoader(new SpriteAtlasLoader());
             assetManager.RegisterLoader(new AnimationLoader());
 

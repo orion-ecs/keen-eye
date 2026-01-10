@@ -424,6 +424,17 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         throw new NotImplementedException("Texture loading from file not yet implemented.");
     }
 
+    /// <inheritdoc />
+    public TextureHandle CreateCompressedTexture(
+        int width,
+        int height,
+        CompressedTextureFormat format,
+        ReadOnlySpan<ReadOnlyMemory<byte>> mipmaps)
+    {
+        var id = textureManager.CreateCompressedTexture(width, height, format, mipmaps);
+        return new TextureHandle(id, width, height);
+    }
+
     /// <summary>
     /// Creates a solid color texture (1x1 pixel).
     /// </summary>

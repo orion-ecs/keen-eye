@@ -377,6 +377,31 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     }
 
     /// <inheritdoc />
+    public void CompressedTexImage2D(
+        TextureTarget target,
+        int level,
+        int width,
+        int height,
+        CompressedTextureFormat format,
+        ReadOnlySpan<byte> data)
+    {
+        if (ShouldFailTextureLoad)
+        {
+            SimulatedErrorCode = 1;
+            return;
+        }
+
+        if (BoundTextures.TryGetValue(ActiveTextureUnit, out var handle) && Textures.TryGetValue(handle, out var texture))
+        {
+            texture.Width = width;
+            texture.Height = height;
+            texture.CompressedFormat = format;
+            texture.Data = data.ToArray();
+            texture.MipLevels[level] = true;
+        }
+    }
+
+    /// <inheritdoc />
     public void DeleteTexture(uint texture)
     {
         Textures.Remove(texture);
@@ -838,6 +863,11 @@ public sealed class MockTexture(uint handle)
     /// Gets or sets the pixel format.
     /// </summary>
     public PixelFormat Format { get; set; }
+
+    /// <summary>
+    /// Gets or sets the compressed texture format, if this is a compressed texture.
+    /// </summary>
+    public CompressedTextureFormat? CompressedFormat { get; set; }
 
     /// <summary>
     /// Gets or sets the texture data.

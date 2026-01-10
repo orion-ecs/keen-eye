@@ -261,6 +261,30 @@ public sealed class MockGraphicsContext : IGraphicsContext
         }
     }
 
+    /// <inheritdoc />
+    public TextureHandle CreateCompressedTexture(
+        int width,
+        int height,
+        CompressedTextureFormat format,
+        ReadOnlySpan<ReadOnlyMemory<byte>> mipmaps)
+    {
+        var handle = AllocateTextureHandle(width, height);
+        var textureInfo = new MockTextureInfo(width, height, null)
+        {
+            CompressedFormat = format,
+            MipmapCount = mipmaps.Length
+        };
+
+        // Store the base level data if provided
+        if (mipmaps.Length > 0)
+        {
+            textureInfo.Data = mipmaps[0].ToArray();
+        }
+
+        Textures[handle] = textureInfo;
+        return handle;
+    }
+
     #endregion
 
     #region Shader Operations
@@ -525,6 +549,16 @@ public sealed class MockTextureInfo(int Width, int Height, string? SourcePath)
     /// Gets or sets the raw pixel data.
     /// </summary>
     public byte[]? Data { get; set; }
+
+    /// <summary>
+    /// Gets or sets the compressed texture format, if this is a compressed texture.
+    /// </summary>
+    public CompressedTextureFormat? CompressedFormat { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of mipmap levels.
+    /// </summary>
+    public int MipmapCount { get; set; }
 }
 
 /// <summary>

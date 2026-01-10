@@ -210,7 +210,8 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )",
-          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )"
         }
       },
       "keeneyes.graph": {
@@ -240,6 +241,12 @@
         }
       },
       "keeneyes.input.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.logging": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"

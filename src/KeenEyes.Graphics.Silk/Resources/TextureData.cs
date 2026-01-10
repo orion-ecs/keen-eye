@@ -197,6 +197,112 @@ internal sealed class TextureManager : IDisposable
     }
 
     /// <summary>
+    /// Creates a GPU-compressed texture from pre-compressed data with mipmaps.
+    /// </summary>
+    /// <param name="width">The base texture width.</param>
+    /// <param name="height">The base texture height.</param>
+    /// <param name="format">The compressed texture format.</param>
+    /// <param name="mipmaps">The mipmap chain data, from largest (level 0) to smallest.</param>
+    /// <param name="filter">The texture filtering mode.</param>
+    /// <param name="wrap">The texture wrapping mode.</param>
+    /// <returns>The texture resource handle.</returns>
+    public int CreateCompressedTexture(
+        int width,
+        int height,
+        CompressedTextureFormat format,
+        ReadOnlySpan<ReadOnlyMemory<byte>> mipmaps,
+        TextureFilter filter = TextureFilter.Linear,
+        TextureWrap wrap = TextureWrap.Repeat)
+    {
+        if (Device is null)
+        {
+            throw new InvalidOperationException("TextureManager not initialized with graphics device");
+        }
+
+        if (mipmaps.IsEmpty)
+        {
+            throw new ArgumentException("At least one mipmap level is required", nameof(mipmaps));
+        }
+
+        uint handle = Device.GenTexture();
+        Device.BindTexture(TextureTarget.Texture2D, handle);
+
+        // Upload each mipmap level
+        int mipWidth = width;
+        int mipHeight = height;
+        for (int level = 0; level < mipmaps.Length; level++)
+        {
+            Device.CompressedTexImage2D(
+                TextureTarget.Texture2D,
+                level,
+                mipWidth,
+                mipHeight,
+                format,
+                mipmaps[level].Span);
+
+            // Next mipmap is half the size (min 1)
+            mipWidth = Math.Max(1, mipWidth / 2);
+            mipHeight = Math.Max(1, mipHeight / 2);
+        }
+
+        // Set filtering based on whether we have mipmaps
+        var hasMipmaps = mipmaps.Length > 1;
+        var (minFilter, magFilter) = filter switch
+        {
+            TextureFilter.Nearest when hasMipmaps => (TextureMinFilter.NearestMipmapNearest, TextureMagFilter.Nearest),
+            TextureFilter.Nearest => (TextureMinFilter.Nearest, TextureMagFilter.Nearest),
+            TextureFilter.Linear when hasMipmaps => (TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear),
+            TextureFilter.Linear => (TextureMinFilter.Linear, TextureMagFilter.Linear),
+            TextureFilter.Trilinear => (TextureMinFilter.LinearMipmapLinear, TextureMagFilter.Linear),
+            _ => (TextureMinFilter.Linear, TextureMagFilter.Linear)
+        };
+
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.MinFilter, (int)minFilter);
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.MagFilter, (int)magFilter);
+
+        // Set wrapping
+        var wrapMode = wrap switch
+        {
+            TextureWrap.Repeat => TextureWrapMode.Repeat,
+            TextureWrap.MirroredRepeat => TextureWrapMode.MirroredRepeat,
+            TextureWrap.ClampToEdge => TextureWrapMode.ClampToEdge,
+            TextureWrap.ClampToBorder => TextureWrapMode.ClampToBorder,
+            _ => TextureWrapMode.Repeat
+        };
+
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapS, (int)wrapMode);
+        Device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapT, (int)wrapMode);
+
+        Device.BindTexture(TextureTarget.Texture2D, 0);
+
+        var textureData = new TextureData
+        {
+            Handle = handle,
+            Width = width,
+            Height = height,
+            HasAlpha = HasAlphaChannel(format),
+            DeleteAction = DeleteTextureData
+        };
+
+        int id = nextTextureId++;
+        textures[id] = textureData;
+        return id;
+    }
+
+    private static bool HasAlphaChannel(CompressedTextureFormat format) => format switch
+    {
+        CompressedTextureFormat.Bc1 => false,
+        CompressedTextureFormat.Bc1Alpha => true,
+        CompressedTextureFormat.Bc2 => true,
+        CompressedTextureFormat.Bc3 => true,
+        CompressedTextureFormat.Bc4 => false,
+        CompressedTextureFormat.Bc5 => false,
+        CompressedTextureFormat.Bc6h => false,
+        CompressedTextureFormat.Bc7 => true,
+        _ => false
+    };
+
+    /// <summary>
     /// Gets the texture data for the specified handle.
     /// </summary>
     /// <param name="textureId">The texture resource handle.</param>
