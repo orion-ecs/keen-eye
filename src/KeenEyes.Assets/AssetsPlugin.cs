@@ -18,6 +18,7 @@ namespace KeenEyes.Assets;
 /// <item><see cref="TextureLoader"/> - requires <see cref="IGraphicsContext"/></item>
 /// <item><see cref="SpriteAtlasLoader"/> - requires <see cref="IGraphicsContext"/></item>
 /// <item><see cref="AnimationLoader"/> - requires <see cref="IGraphicsContext"/></item>
+/// <item><see cref="FontLoader"/> - requires <see cref="IFontManagerProvider"/></item>
 /// <item><see cref="AudioClipLoader"/> - requires <see cref="IAudioContext"/></item>
 /// <item><see cref="MeshLoader"/> - no dependencies</item>
 /// <item><see cref="RawLoader"/> - no dependencies</item>
@@ -69,6 +70,16 @@ public sealed class AssetsPlugin(AssetsConfig? config = null) : IWorldPlugin
             assetManager.RegisterLoader(new TextureLoader(graphics));
             assetManager.RegisterLoader(new SpriteAtlasLoader());
             assetManager.RegisterLoader(new AnimationLoader());
+
+            // FontLoader requires IFontManager (provided by IFontManagerProvider)
+            if (graphics is IFontManagerProvider fontProvider)
+            {
+                var fontManager = fontProvider.GetFontManager();
+                if (fontManager != null)
+                {
+                    assetManager.RegisterLoader(new FontLoader(fontManager));
+                }
+            }
         }
 
         // AudioClipLoader requires IAudioContext
