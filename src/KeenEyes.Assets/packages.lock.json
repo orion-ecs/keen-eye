@@ -8,6 +8,12 @@
         "resolved": "10.0.1",
         "contentHash": "ISahzLHsHY7vrwqr2p1YWZ+gsxoBRtH7gWRDK8fDUst9pp2He0GiesaqEfeX0V8QMCJM3eNEHGGpnIcPjFo2NQ=="
       },
+      "NLayer": {
+        "type": "Direct",
+        "requested": "[1.16.0, )",
+        "resolved": "1.16.0",
+        "contentHash": "G/AexTjdl6cm0wYlkCkQgtpPLBc5vOWyOTIQpeC6p8V8fb7kbCYA+fEHFPJiU+KeRHH4Q1RGqTFyf9uqVALnkQ=="
+      },
       "NVorbis": {
         "type": "Direct",
         "requested": "[0.10.5, )",
@@ -34,6 +40,13 @@
       },
       "keeneyes.abstractions": {
         "type": "Project"
+      },
+      "keeneyes.animation": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+        }
       },
       "keeneyes.audio.abstractions": {
         "type": "Project",

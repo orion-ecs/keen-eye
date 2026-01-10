@@ -38,6 +38,7 @@
     <PackageVersion Include="StbImageWriteSharp" Version="1.16.7" />
     <PackageVersion Include="SharpGLTF.Core" Version="1.0.6" />
     <PackageVersion Include="NVorbis" Version="0.10.5" />
+    <PackageVersion Include="NLayer" Version="1.16.0" />
   </ItemGroup>
   <ItemGroup Label="Editor">
     <PackageVersion Include="NuGet.Configuration" Version="7.0.1" />

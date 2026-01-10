@@ -16,6 +16,8 @@ namespace KeenEyes.Assets;
 /// Built-in loaders are registered automatically if their dependencies are available:
 /// <list type="bullet">
 /// <item><see cref="TextureLoader"/> - requires <see cref="IGraphicsContext"/></item>
+/// <item><see cref="SpriteAtlasLoader"/> - requires <see cref="IGraphicsContext"/></item>
+/// <item><see cref="AnimationLoader"/> - requires <see cref="IGraphicsContext"/></item>
 /// <item><see cref="AudioClipLoader"/> - requires <see cref="IAudioContext"/></item>
 /// <item><see cref="MeshLoader"/> - no dependencies</item>
 /// <item><see cref="RawLoader"/> - no dependencies</item>
@@ -61,10 +63,12 @@ public sealed class AssetsPlugin(AssetsConfig? config = null) : IWorldPlugin
 
         // Register built-in loaders based on available dependencies
 
-        // TextureLoader requires IGraphicsContext
+        // TextureLoader, SpriteAtlasLoader, and AnimationLoader require IGraphicsContext
         if (context.TryGetExtension<IGraphicsContext>(out var graphics) && graphics != null)
         {
             assetManager.RegisterLoader(new TextureLoader(graphics));
+            assetManager.RegisterLoader(new SpriteAtlasLoader());
+            assetManager.RegisterLoader(new AnimationLoader());
         }
 
         // AudioClipLoader requires IAudioContext

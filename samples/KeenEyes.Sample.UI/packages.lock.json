@@ -108,14 +108,23 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
+      "keeneyes.animation": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.assets": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Animation": "[1.0.0, )",
           "KeenEyes.Audio.Abstractions": "[1.0.0, )",
           "KeenEyes.Common": "[1.0.0, )",
           "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "NLayer": "[1.16.0, )",
           "NVorbis": "[0.10.5, )",
           "SharpGLTF.Core": "[1.0.6, )",
           "StbImageSharp": "[2.30.15, )"
@@ -345,6 +354,12 @@
         "dependencies": {
           "Microsoft.Extensions.ObjectPool": "8.0.10"
         }
+      },
+      "NLayer": {
+        "type": "CentralTransitive",
+        "requested": "[1.16.0, )",
+        "resolved": "1.16.0",
+        "contentHash": "G/AexTjdl6cm0wYlkCkQgtpPLBc5vOWyOTIQpeC6p8V8fb7kbCYA+fEHFPJiU+KeRHH4Q1RGqTFyf9uqVALnkQ=="
       },
       "NVorbis": {
         "type": "CentralTransitive",
