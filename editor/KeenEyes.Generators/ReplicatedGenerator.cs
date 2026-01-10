@@ -182,7 +182,8 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
 
     private static FieldSerializationType GetFieldSerializationType(ITypeSymbol type)
     {
-        return type.SpecialType switch
+        // Check special types first (primitives)
+        var result = type.SpecialType switch
         {
             SpecialType.System_Boolean => FieldSerializationType.Bool,
             SpecialType.System_Byte => FieldSerializationType.Byte,
@@ -195,18 +196,51 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
             SpecialType.System_UInt64 => FieldSerializationType.UInt64,
             SpecialType.System_Single => FieldSerializationType.Float,
             SpecialType.System_Double => FieldSerializationType.Double,
-            _ => type.TypeKind == TypeKind.Enum ? FieldSerializationType.Enum : FieldSerializationType.Custom
+            _ => (FieldSerializationType?)null
+        };
+
+        if (result.HasValue)
+        {
+            return result.Value;
+        }
+
+        // Check enums
+        if (type.TypeKind == TypeKind.Enum)
+        {
+            return FieldSerializationType.Enum;
+        }
+
+        // Check System.Numerics types by full name
+        var fullName = type.ToDisplayString();
+        return fullName switch
+        {
+            "System.Numerics.Vector2" => FieldSerializationType.Vector2,
+            "System.Numerics.Vector3" => FieldSerializationType.Vector3,
+            "System.Numerics.Vector4" => FieldSerializationType.Vector4,
+            "System.Numerics.Quaternion" => FieldSerializationType.Quaternion,
+            _ => FieldSerializationType.Unsupported
         };
     }
 
     private static bool IsInterpolatable(ITypeSymbol type)
     {
-        // Common interpolatable types
-        return type.SpecialType is
+        // Common interpolatable types (primitives)
+        if (type.SpecialType is
             SpecialType.System_Single or
             SpecialType.System_Double or
             SpecialType.System_Int32 or
-            SpecialType.System_Int64;
+            SpecialType.System_Int64)
+        {
+            return true;
+        }
+
+        // System.Numerics types are interpolatable
+        var fullName = type.ToDisplayString();
+        return fullName is
+            "System.Numerics.Vector2" or
+            "System.Numerics.Vector3" or
+            "System.Numerics.Vector4" or
+            "System.Numerics.Quaternion";
     }
 
     private static string GenerateNetworkSerializable(ReplicatedComponentInfo info)
@@ -292,21 +326,62 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
         }
         else
         {
-            var writeMethod = field.SerializationType switch
+            switch (field.SerializationType)
             {
-                FieldSerializationType.Bool => $"writer.WriteBool({field.Name});",
-                FieldSerializationType.Byte => $"writer.WriteByte({field.Name});",
-                FieldSerializationType.SByte => $"writer.WriteSignedBits({field.Name}, 8);",
-                FieldSerializationType.Int16 => $"writer.WriteSignedBits({field.Name}, 16);",
-                FieldSerializationType.UInt16 => $"writer.WriteUInt16({field.Name});",
-                FieldSerializationType.Int32 => $"writer.WriteSignedBits({field.Name}, 32);",
-                FieldSerializationType.UInt32 => $"writer.WriteUInt32({field.Name});",
-                FieldSerializationType.Float => $"writer.WriteFloat({field.Name});",
-                FieldSerializationType.Double => $"writer.WriteFloat((float){field.Name});", // Lossy for network
-                FieldSerializationType.Enum => $"writer.WriteBits((uint){field.Name}, 8);", // Assume 8-bit enum
-                _ => $"// TODO: Custom serialization for {field.TypeName}"
-            };
-            sb.AppendLine($"        {writeMethod}");
+                case FieldSerializationType.Bool:
+                    sb.AppendLine($"        writer.WriteBool({field.Name});");
+                    break;
+                case FieldSerializationType.Byte:
+                    sb.AppendLine($"        writer.WriteByte({field.Name});");
+                    break;
+                case FieldSerializationType.SByte:
+                    sb.AppendLine($"        writer.WriteSignedBits({field.Name}, 8);");
+                    break;
+                case FieldSerializationType.Int16:
+                    sb.AppendLine($"        writer.WriteSignedBits({field.Name}, 16);");
+                    break;
+                case FieldSerializationType.UInt16:
+                    sb.AppendLine($"        writer.WriteUInt16({field.Name});");
+                    break;
+                case FieldSerializationType.Int32:
+                    sb.AppendLine($"        writer.WriteSignedBits({field.Name}, 32);");
+                    break;
+                case FieldSerializationType.UInt32:
+                    sb.AppendLine($"        writer.WriteUInt32({field.Name});");
+                    break;
+                case FieldSerializationType.Float:
+                    sb.AppendLine($"        writer.WriteFloat({field.Name});");
+                    break;
+                case FieldSerializationType.Double:
+                    // Lossy for network - converts to float
+                    sb.AppendLine($"        writer.WriteFloat((float){field.Name});");
+                    break;
+                case FieldSerializationType.Enum:
+                    // Assume 8-bit enum
+                    sb.AppendLine($"        writer.WriteBits((uint){field.Name}, 8);");
+                    break;
+                case FieldSerializationType.Vector2:
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.X);");
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.Y);");
+                    break;
+                case FieldSerializationType.Vector3:
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.X);");
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.Y);");
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.Z);");
+                    break;
+                case FieldSerializationType.Vector4:
+                case FieldSerializationType.Quaternion:
+                    // Both Vector4 and Quaternion have X, Y, Z, W components
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.X);");
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.Y);");
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.Z);");
+                    sb.AppendLine($"        writer.WriteFloat({field.Name}.W);");
+                    break;
+                default:
+                    // Generate compile error for unsupported types
+                    sb.AppendLine($"#error Unsupported network serialization type '{field.TypeName}' for field '{field.Name}'. Add a custom serializer or use a supported type.");
+                    break;
+            }
         }
     }
 
@@ -319,21 +394,55 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
         }
         else
         {
-            var readMethod = field.SerializationType switch
+            switch (field.SerializationType)
             {
-                FieldSerializationType.Bool => $"{field.Name} = reader.ReadBool();",
-                FieldSerializationType.Byte => $"{field.Name} = reader.ReadByte();",
-                FieldSerializationType.SByte => $"{field.Name} = (sbyte)reader.ReadSignedBits(8);",
-                FieldSerializationType.Int16 => $"{field.Name} = (short)reader.ReadSignedBits(16);",
-                FieldSerializationType.UInt16 => $"{field.Name} = reader.ReadUInt16();",
-                FieldSerializationType.Int32 => $"{field.Name} = reader.ReadSignedBits(32);",
-                FieldSerializationType.UInt32 => $"{field.Name} = reader.ReadUInt32();",
-                FieldSerializationType.Float => $"{field.Name} = reader.ReadFloat();",
-                FieldSerializationType.Double => $"{field.Name} = reader.ReadFloat();",
-                FieldSerializationType.Enum => $"{field.Name} = ({field.TypeName})reader.ReadBits(8);",
-                _ => $"// TODO: Custom deserialization for {field.TypeName}"
-            };
-            sb.AppendLine($"        {readMethod}");
+                case FieldSerializationType.Bool:
+                    sb.AppendLine($"        {field.Name} = reader.ReadBool();");
+                    break;
+                case FieldSerializationType.Byte:
+                    sb.AppendLine($"        {field.Name} = reader.ReadByte();");
+                    break;
+                case FieldSerializationType.SByte:
+                    sb.AppendLine($"        {field.Name} = (sbyte)reader.ReadSignedBits(8);");
+                    break;
+                case FieldSerializationType.Int16:
+                    sb.AppendLine($"        {field.Name} = (short)reader.ReadSignedBits(16);");
+                    break;
+                case FieldSerializationType.UInt16:
+                    sb.AppendLine($"        {field.Name} = reader.ReadUInt16();");
+                    break;
+                case FieldSerializationType.Int32:
+                    sb.AppendLine($"        {field.Name} = reader.ReadSignedBits(32);");
+                    break;
+                case FieldSerializationType.UInt32:
+                    sb.AppendLine($"        {field.Name} = reader.ReadUInt32();");
+                    break;
+                case FieldSerializationType.Float:
+                    sb.AppendLine($"        {field.Name} = reader.ReadFloat();");
+                    break;
+                case FieldSerializationType.Double:
+                    sb.AppendLine($"        {field.Name} = reader.ReadFloat();");
+                    break;
+                case FieldSerializationType.Enum:
+                    sb.AppendLine($"        {field.Name} = ({field.TypeName})reader.ReadBits(8);");
+                    break;
+                case FieldSerializationType.Vector2:
+                    sb.AppendLine($"        {field.Name} = new System.Numerics.Vector2(reader.ReadFloat(), reader.ReadFloat());");
+                    break;
+                case FieldSerializationType.Vector3:
+                    sb.AppendLine($"        {field.Name} = new System.Numerics.Vector3(reader.ReadFloat(), reader.ReadFloat(), reader.ReadFloat());");
+                    break;
+                case FieldSerializationType.Vector4:
+                    sb.AppendLine($"        {field.Name} = new System.Numerics.Vector4(reader.ReadFloat(), reader.ReadFloat(), reader.ReadFloat(), reader.ReadFloat());");
+                    break;
+                case FieldSerializationType.Quaternion:
+                    sb.AppendLine($"        {field.Name} = new System.Numerics.Quaternion(reader.ReadFloat(), reader.ReadFloat(), reader.ReadFloat(), reader.ReadFloat());");
+                    break;
+                default:
+                    // Generate compile error for unsupported types
+                    sb.AppendLine($"#error Unsupported network deserialization type '{field.TypeName}' for field '{field.Name}'. Add a custom serializer or use a supported type.");
+                    break;
+            }
         }
     }
 
@@ -349,9 +458,14 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
         for (int i = 0; i < info.Fields.Length && i < 32; i++)
         {
             var field = info.Fields[i];
-            var comparison = field.SerializationType == FieldSerializationType.Float
-                ? $"!{field.Name}.ApproximatelyEquals(baseline.{field.Name}, 0.0001f)"
-                : $"{field.Name} != baseline.{field.Name}";
+            var comparison = field.SerializationType switch
+            {
+                // Use approximate equality for floating-point types
+                FieldSerializationType.Float => $"!{field.Name}.ApproximatelyEquals(baseline.{field.Name}, 0.0001f)",
+                FieldSerializationType.Double => $"!((float){field.Name}).ApproximatelyEquals((float)baseline.{field.Name}, 0.0001f)",
+                // Vectors and Quaternions use != operator (exact comparison)
+                _ => $"{field.Name} != baseline.{field.Name}"
+            };
             sb.AppendLine($"        if ({comparison}) mask |= {1u << i};");
         }
         sb.AppendLine("        return mask;");
@@ -403,13 +517,27 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
         sb.AppendLine("        {");
         foreach (var field in info.Fields)
         {
-            if (field.IsInterpolatable && field.SerializationType is FieldSerializationType.Float or FieldSerializationType.Double)
+            if (field.IsInterpolatable)
             {
-                sb.AppendLine($"            {field.Name} = from.{field.Name} + (to.{field.Name} - from.{field.Name}) * t,");
-            }
-            else if (field.IsInterpolatable && field.SerializationType is FieldSerializationType.Int32 or FieldSerializationType.Int64)
-            {
-                sb.AppendLine($"            {field.Name} = (int)(from.{field.Name} + (to.{field.Name} - from.{field.Name}) * t),");
+                var interpolation = field.SerializationType switch
+                {
+                    FieldSerializationType.Float or FieldSerializationType.Double =>
+                        $"from.{field.Name} + (to.{field.Name} - from.{field.Name}) * t",
+                    FieldSerializationType.Int32 =>
+                        $"(int)(from.{field.Name} + (to.{field.Name} - from.{field.Name}) * t)",
+                    FieldSerializationType.Int64 =>
+                        $"(long)(from.{field.Name} + (to.{field.Name} - from.{field.Name}) * t)",
+                    FieldSerializationType.Vector2 =>
+                        $"System.Numerics.Vector2.Lerp(from.{field.Name}, to.{field.Name}, t)",
+                    FieldSerializationType.Vector3 =>
+                        $"System.Numerics.Vector3.Lerp(from.{field.Name}, to.{field.Name}, t)",
+                    FieldSerializationType.Vector4 =>
+                        $"System.Numerics.Vector4.Lerp(from.{field.Name}, to.{field.Name}, t)",
+                    FieldSerializationType.Quaternion =>
+                        $"System.Numerics.Quaternion.Slerp(from.{field.Name}, to.{field.Name}, t)",
+                    _ => $"t >= 0.5f ? to.{field.Name} : from.{field.Name}"
+                };
+                sb.AppendLine($"            {field.Name} = {interpolation},");
             }
             else
             {
@@ -719,5 +847,9 @@ internal enum FieldSerializationType
     Float,
     Double,
     Enum,
-    Custom
+    Vector2,
+    Vector3,
+    Vector4,
+    Quaternion,
+    Unsupported
 }

@@ -151,8 +151,8 @@ internal sealed class PluginManagerPanelImpl : IEditorPanel
         settings = new GlobalPluginSettings();
         settings.Load();
 
-        // TODO: Get font from panel context or resource manager
-        font = default;
+        // Get font from panel context
+        font = context.Font;
 
         CreatePanelUI();
         SubscribeToEvents();
