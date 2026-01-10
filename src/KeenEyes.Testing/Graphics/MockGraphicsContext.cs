@@ -59,6 +59,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
         SolidShader = AllocateShaderHandle();
         Shaders[SolidShader] = new MockShaderInfo("solid_vertex", "solid_fragment");
 
+        PbrShader = AllocateShaderHandle();
+        Shaders[PbrShader] = new MockShaderInfo("pbr_vertex", "pbr_fragment");
+
         WhiteTexture = AllocateTextureHandle(1, 1);
         Textures[WhiteTexture] = new MockTextureInfo(1, 1, null);
     }
@@ -137,6 +140,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
 
     /// <inheritdoc />
     public ShaderHandle SolidShader { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle PbrShader { get; }
 
     /// <inheritdoc />
     public TextureHandle WhiteTexture { get; }
@@ -271,7 +277,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public void DeleteShader(ShaderHandle handle)
     {
         // Don't delete default shaders
-        if (handle == LitShader || handle == UnlitShader || handle == SolidShader)
+        if (handle == LitShader || handle == UnlitShader || handle == SolidShader || handle == PbrShader)
         {
             return;
         }
@@ -378,7 +384,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public void Reset()
     {
         // Clear non-default resources
-        var defaultShaders = new[] { LitShader, UnlitShader, SolidShader };
+        var defaultShaders = new[] { LitShader, UnlitShader, SolidShader, PbrShader };
         foreach (var shader in Shaders.Keys.Except(defaultShaders).ToList())
         {
             Shaders.Remove(shader);

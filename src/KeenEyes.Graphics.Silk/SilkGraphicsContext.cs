@@ -125,6 +125,11 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     public ShaderHandle SolidShader { get; private set; }
 
     /// <summary>
+    /// The built-in PBR (Physically Based Rendering) shader handle.
+    /// </summary>
+    public ShaderHandle PbrShader { get; private set; }
+
+    /// <summary>
     /// The built-in white texture handle (1x1 white pixel).
     /// </summary>
     public TextureHandle WhiteTexture { get; private set; }
@@ -243,6 +248,11 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
             DefaultShaders.SolidVertexShader,
             DefaultShaders.SolidFragmentShader);
         SolidShader = new ShaderHandle(solidId);
+
+        var pbrId = shaderManager.CreateShader(
+            DefaultShaders.PbrVertexShader,
+            DefaultShaders.PbrFragmentShader);
+        PbrShader = new ShaderHandle(pbrId);
 
         // Create default white texture (1x1 pixel)
         var whiteId = textureManager.CreateSolidColorTexture(255, 255, 255, 255);

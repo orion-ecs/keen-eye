@@ -293,6 +293,7 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public ShaderHandle LitShader => new(1);
     public ShaderHandle UnlitShader => new(2);
     public ShaderHandle SolidShader => new(3);
+    public ShaderHandle PbrShader => new(4);
     public TextureHandle WhiteTexture => new(1);
 
     // Lifecycle
