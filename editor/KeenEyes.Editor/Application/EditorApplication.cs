@@ -65,6 +65,10 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private FontHandle _defaultFont;
     private Entity _unsavedChangesDialog;
     private Entity _saveAsDialog;
+    private Entity _saveLayoutDialog;
+    private Entity _renameEntityDialog;
+    private Entity _settingsDialog;
+    private Entity _pendingRenameEntity;
     private Action? _pendingActionAfterDialog;
     private string? _pendingOpenScenePath;
     private bool _isDisposed;
@@ -715,8 +719,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                     Console.WriteLine("Applied 4-column layout");
                     break;
                 case "save_layout":
-                    // TODO: Show dialog to save custom layout
-                    Console.WriteLine("Save Layout (dialog not yet implemented)");
+                    ShowSaveLayoutDialog();
                     break;
                 case "reset_layout":
                     _layoutManager.ResetToDefault();
@@ -737,6 +740,17 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
         // Subscribe to modal result events for dialog handling
         _editorWorld.Subscribe<UIModalResultEvent>(OnModalResult);
+
+        // Handle click events for settings dialog reset button
+        _editorWorld.Subscribe<UIClickEvent>(e =>
+        {
+            if (_editorWorld.Has<SettingsResetButtonTag>(e.Element))
+            {
+                EditorSettings.ResetToDefaults();
+                UpdateSettingsDialogValues();
+                Console.WriteLine("Settings reset to defaults");
+            }
+        });
     }
 
     #region Scene File Operations
@@ -980,6 +994,405 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         }
     }
 
+    private void ShowSaveLayoutDialog()
+    {
+        // Find the canvas for dialog parenting
+        var canvas = FindCanvas();
+        if (!canvas.IsValid)
+        {
+            Console.WriteLine("Save Layout: Cannot show dialog (no canvas)");
+            return;
+        }
+
+        // Create the prompt dialog if it doesn't exist
+        if (!_saveLayoutDialog.IsValid)
+        {
+            var config = new PromptConfig(
+                Title: "Save Layout",
+                Width: 400,
+                Placeholder: "Enter layout name...",
+                InitialValue: "My Layout",
+                OkButtonText: "Save",
+                CancelButtonText: "Cancel"
+            );
+
+            var result = WidgetFactory.CreatePrompt(
+                _editorWorld,
+                canvas,
+                "Enter a name for this layout:",
+                _defaultFont,
+                config);
+
+            _saveLayoutDialog = result.Modal;
+        }
+
+        // Show the dialog
+        var modalSystem = _editorWorld.GetSystem<UIModalSystem>();
+        modalSystem?.OpenModal(_saveLayoutDialog);
+    }
+
+    private string GetSaveLayoutDialogText()
+    {
+        if (!_saveLayoutDialog.IsValid || !_editorWorld.Has<UIModal>(_saveLayoutDialog))
+        {
+            return string.Empty;
+        }
+
+        ref readonly var modal = ref _editorWorld.Get<UIModal>(_saveLayoutDialog);
+        if (!modal.ContentContainer.IsValid)
+        {
+            return string.Empty;
+        }
+
+        // Find the text input in children
+        foreach (var child in _editorWorld.GetChildren(modal.ContentContainer))
+        {
+            if (_editorWorld.Has<UITextInput>(child) && _editorWorld.Has<UIText>(child))
+            {
+                ref readonly var textComponent = ref _editorWorld.Get<UIText>(child);
+                ref readonly var inputComponent = ref _editorWorld.Get<UITextInput>(child);
+                return inputComponent.ShowingPlaceholder ? string.Empty : textComponent.Content;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private void ShowRenameEntityDialog(Entity entity)
+    {
+        // Find the canvas for dialog parenting
+        var canvas = FindCanvas();
+        if (!canvas.IsValid)
+        {
+            Console.WriteLine("Rename: Cannot show dialog (no canvas)");
+            return;
+        }
+
+        var sceneWorld = _worldManager.CurrentSceneWorld;
+        if (sceneWorld is null)
+        {
+            Console.WriteLine("Rename: No scene world available");
+            return;
+        }
+
+        // Store the entity to rename
+        _pendingRenameEntity = entity;
+        var currentName = sceneWorld.GetName(entity) ?? "Entity";
+
+        // Create or update the dialog
+        if (!_renameEntityDialog.IsValid)
+        {
+            var config = new PromptConfig(
+                Title: "Rename Entity",
+                Width: 400,
+                Placeholder: "Enter entity name...",
+                InitialValue: currentName,
+                OkButtonText: "Rename",
+                CancelButtonText: "Cancel"
+            );
+
+            var result = WidgetFactory.CreatePrompt(
+                _editorWorld,
+                canvas,
+                "Enter a new name for the entity:",
+                _defaultFont,
+                config);
+
+            _renameEntityDialog = result.Modal;
+        }
+        else
+        {
+            // Update the initial value with current entity name
+            UpdateRenameDialogText(currentName);
+        }
+
+        // Show the dialog
+        var modalSystem = _editorWorld.GetSystem<UIModalSystem>();
+        modalSystem?.OpenModal(_renameEntityDialog);
+    }
+
+    private void UpdateRenameDialogText(string text)
+    {
+        if (!_renameEntityDialog.IsValid)
+        {
+            return;
+        }
+
+        // Find the content container
+        if (_editorWorld.Has<UIModal>(_renameEntityDialog))
+        {
+            ref readonly var modal = ref _editorWorld.Get<UIModal>(_renameEntityDialog);
+            if (modal.ContentContainer.IsValid)
+            {
+                // Find the text input in children
+                foreach (var child in _editorWorld.GetChildren(modal.ContentContainer))
+                {
+                    if (_editorWorld.Has<UITextInput>(child) && _editorWorld.Has<UIText>(child))
+                    {
+                        ref var textComponent = ref _editorWorld.Get<UIText>(child);
+                        ref var inputComponent = ref _editorWorld.Get<UITextInput>(child);
+                        textComponent.Content = text;
+                        inputComponent.CursorPosition = text.Length;
+                        inputComponent.ShowingPlaceholder = string.IsNullOrEmpty(text);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    private string GetRenameDialogText()
+    {
+        if (!_renameEntityDialog.IsValid || !_editorWorld.Has<UIModal>(_renameEntityDialog))
+        {
+            return string.Empty;
+        }
+
+        ref readonly var modal = ref _editorWorld.Get<UIModal>(_renameEntityDialog);
+        if (!modal.ContentContainer.IsValid)
+        {
+            return string.Empty;
+        }
+
+        // Find the text input in children
+        foreach (var child in _editorWorld.GetChildren(modal.ContentContainer))
+        {
+            if (_editorWorld.Has<UITextInput>(child) && _editorWorld.Has<UIText>(child))
+            {
+                ref readonly var textComponent = ref _editorWorld.Get<UIText>(child);
+                ref readonly var inputComponent = ref _editorWorld.Get<UITextInput>(child);
+                return inputComponent.ShowingPlaceholder ? string.Empty : textComponent.Content;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private void ShowSettingsDialog()
+    {
+        // Find the canvas for dialog parenting
+        var canvas = FindCanvas();
+        if (!canvas.IsValid)
+        {
+            Console.WriteLine("Settings: Cannot show dialog (no canvas)");
+            return;
+        }
+
+        // Create the settings dialog if it doesn't exist
+        if (!_settingsDialog.IsValid)
+        {
+            _settingsDialog = CreateSettingsDialog(canvas);
+        }
+        else
+        {
+            // Update settings values in the dialog before showing
+            UpdateSettingsDialogValues();
+        }
+
+        // Show the dialog
+        var modalSystem = _editorWorld.GetSystem<UIModalSystem>();
+        modalSystem?.OpenModal(_settingsDialog);
+    }
+
+    private Entity CreateSettingsDialog(Entity canvas)
+    {
+        var modalConfig = new ModalConfig(
+            Title: "Editor Settings",
+            Width: 500,
+            Height: 450,
+            ShowCloseButton: true,
+            CloseOnBackdropClick: true
+        );
+
+        var modal = WidgetFactory.CreateModal(_editorWorld, canvas, _defaultFont, modalConfig);
+
+        // Create content container
+        var contentContainer = modal.ContentPanel;
+        if (!contentContainer.IsValid)
+        {
+            return modal.Modal;
+        }
+
+        // Create settings content
+        CreateSettingsContent(contentContainer);
+
+        return modal.Modal;
+    }
+
+    private void CreateSettingsContent(Entity container)
+    {
+        var darkBg = new System.Numerics.Vector4(0.12f, 0.12f, 0.15f, 1f);
+        var textColor = new System.Numerics.Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+        // Create scrollable content area
+        var scrollViewResult = WidgetFactory.CreateScrollView(_editorWorld, container, "SettingsScrollView", new ScrollViewConfig(
+            BackgroundColor: darkBg,
+            ScrollbarWidth: 8,
+            ShowVerticalScrollbar: true,
+            ShowHorizontalScrollbar: false
+        ));
+
+        var scrollView = scrollViewResult.ScrollView;
+        var scrollContent = scrollViewResult.ContentPanel;
+
+        ref var scrollRect = ref _editorWorld.Get<UIRect>(scrollView);
+        scrollRect.WidthMode = UISizeMode.Fill;
+        scrollRect.HeightMode = UISizeMode.Fill;
+
+        // Set content to fit content vertically
+        if (scrollContent.IsValid)
+        {
+            ref var contentRect = ref _editorWorld.Get<UIRect>(scrollContent);
+            contentRect.WidthMode = UISizeMode.Fill;
+            contentRect.HeightMode = UISizeMode.FitContent;
+        }
+
+        // Create settings sections
+        CreateSettingsSection(scrollContent, "General", [
+            ($"Auto-save enabled: {EditorSettings.AutoSaveEnabled}", "AutoSaveEnabled"),
+            ($"Auto-save interval: {EditorSettings.AutoSaveIntervalSeconds}s", "AutoSaveIntervalSeconds"),
+            ($"Undo history limit: {EditorSettings.UndoHistoryLimit}", "UndoHistoryLimit"),
+            ($"Recent files count: {EditorSettings.RecentFilesCount}", "RecentFilesCount")
+        ]);
+
+        CreateSettingsSection(scrollContent, "Appearance", [
+            ($"Theme: {EditorSettings.Theme}", "Theme"),
+            ($"Font size: {EditorSettings.FontSize}", "FontSize"),
+            ($"UI scale: {EditorSettings.UiScale:F1}x", "UiScale"),
+            ($"High contrast: {EditorSettings.HighContrastMode}", "HighContrastMode")
+        ]);
+
+        CreateSettingsSection(scrollContent, "Viewport", [
+            ($"Grid visible: {EditorSettings.GridVisible}", "GridVisible"),
+            ($"Grid size: {EditorSettings.GridSize:F1}", "GridSize"),
+            ($"Gizmo size: {EditorSettings.GizmoSize:F1}x", "GizmoSize"),
+            ($"Camera speed: {EditorSettings.CameraSpeed:F1}", "CameraSpeed")
+        ]);
+
+        CreateSettingsSection(scrollContent, "Play Mode", [
+            ($"Maximize on play: {EditorSettings.MaximizeOnPlay}", "MaximizeOnPlay"),
+            ($"Mute audio: {EditorSettings.MuteAudioOnPlay}", "MuteAudioOnPlay"),
+            ($"Pause on error: {EditorSettings.PauseOnScriptError}", "PauseOnScriptError")
+        ]);
+
+        // Add reset button at the bottom
+        var buttonRow = WidgetFactory.CreatePanel(_editorWorld, scrollContent, "SettingsButtonRow", new PanelConfig(
+            Height: 40,
+            Direction: LayoutDirection.Horizontal,
+            MainAxisAlign: LayoutAlign.End,
+            CrossAxisAlign: LayoutAlign.Center,
+            Padding: UIEdges.All(8)
+        ));
+
+        ref var buttonRowRect = ref _editorWorld.Get<UIRect>(buttonRow);
+        buttonRowRect.WidthMode = UISizeMode.Fill;
+
+        // Create reset button (handler subscribes to UIClickEvent for this entity)
+        var resetButton = WidgetFactory.CreateButton(_editorWorld, buttonRow, "ResetSettingsButton", "Reset to Defaults", _defaultFont, new ButtonConfig(
+            Width: 140,
+            Height: 28,
+            TextColor: textColor,
+            BackgroundColor: new System.Numerics.Vector4(0.6f, 0.2f, 0.2f, 1f),
+            CornerRadius: 4
+        ));
+        _editorWorld.Add(resetButton, new SettingsResetButtonTag());
+    }
+
+    private void CreateSettingsSection(Entity parent, string title, (string label, string settingName)[] settings)
+    {
+        var headerBg = new System.Numerics.Vector4(0.18f, 0.18f, 0.22f, 1f);
+        var textColor = new System.Numerics.Vector4(0.9f, 0.9f, 0.9f, 1f);
+
+        // Section container
+        var section = WidgetFactory.CreatePanel(_editorWorld, parent, $"Settings_{title}Section", new PanelConfig(
+            Direction: LayoutDirection.Vertical,
+            BackgroundColor: new System.Numerics.Vector4(0.14f, 0.14f, 0.17f, 1f),
+            Spacing: 0
+        ));
+
+        ref var sectionRect = ref _editorWorld.Get<UIRect>(section);
+        sectionRect.WidthMode = UISizeMode.Fill;
+        sectionRect.HeightMode = UISizeMode.FitContent;
+
+        // Section header
+        var header = WidgetFactory.CreatePanel(_editorWorld, section, $"Settings_{title}Header", new PanelConfig(
+            Height: 28,
+            Direction: LayoutDirection.Horizontal,
+            CrossAxisAlign: LayoutAlign.Center,
+            BackgroundColor: headerBg,
+            Padding: UIEdges.Symmetric(8, 0)
+        ));
+
+        ref var headerRect = ref _editorWorld.Get<UIRect>(header);
+        headerRect.WidthMode = UISizeMode.Fill;
+
+        WidgetFactory.CreateLabel(_editorWorld, header, $"Settings_{title}Title", title, _defaultFont, new LabelConfig(
+            FontSize: 13,
+            TextColor: textColor,
+            HorizontalAlign: TextAlignH.Left
+        ));
+
+        // Settings items
+        foreach (var (label, settingName) in settings)
+        {
+            CreateSettingRow(section, settingName, label);
+        }
+    }
+
+    private void CreateSettingRow(Entity parent, string settingName, string label)
+    {
+        var textColor = new System.Numerics.Vector4(0.85f, 0.85f, 0.85f, 1f);
+
+        var row = WidgetFactory.CreatePanel(_editorWorld, parent, $"SettingRow_{settingName}", new PanelConfig(
+            Height: 24,
+            Direction: LayoutDirection.Horizontal,
+            CrossAxisAlign: LayoutAlign.Center,
+            Padding: UIEdges.Symmetric(12, 4)
+        ));
+
+        ref var rowRect = ref _editorWorld.Get<UIRect>(row);
+        rowRect.WidthMode = UISizeMode.Fill;
+
+        WidgetFactory.CreateLabel(_editorWorld, row, $"SettingLabel_{settingName}", label, _defaultFont, new LabelConfig(
+            FontSize: 12,
+            TextColor: textColor,
+            HorizontalAlign: TextAlignH.Left
+        ));
+    }
+
+    private void UpdateSettingsDialogValues()
+    {
+        // Re-create the settings dialog with updated values
+        // For simplicity, we just close and re-create it next time
+        // A more sophisticated approach would update individual labels
+        if (_settingsDialog.IsValid && _editorWorld.Has<UIModal>(_settingsDialog))
+        {
+            ref readonly var modal = ref _editorWorld.Get<UIModal>(_settingsDialog);
+            if (modal.ContentContainer.IsValid)
+            {
+                // Despawn all children of content container
+                var children = _editorWorld.GetChildren(modal.ContentContainer).ToList();
+                foreach (var child in children)
+                {
+                    DespawnRecursive(child);
+                }
+
+                // Re-create content
+                CreateSettingsContent(modal.ContentContainer);
+            }
+        }
+    }
+
+    private void DespawnRecursive(Entity entity)
+    {
+        var children = _editorWorld.GetChildren(entity).ToList();
+        foreach (var child in children)
+        {
+            DespawnRecursive(child);
+        }
+        _editorWorld.Despawn(entity);
+    }
+
     private void OnModalResult(UIModalResultEvent e)
     {
         if (e.Modal == _unsavedChangesDialog)
@@ -990,6 +1403,39 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                 _pendingActionAfterDialog?.Invoke();
             }
             _pendingActionAfterDialog = null;
+        }
+        else if (e.Modal == _saveLayoutDialog && e.Result == ModalResult.OK)
+        {
+            // Get the text from the input
+            var layoutName = GetSaveLayoutDialogText();
+            if (!string.IsNullOrWhiteSpace(layoutName))
+            {
+                _layoutManager.SaveCustomLayout(layoutName);
+                Console.WriteLine($"Layout saved as: {layoutName}");
+            }
+            else
+            {
+                Console.WriteLine("Save Layout: No name provided");
+            }
+        }
+        else if (e.Modal == _renameEntityDialog && e.Result == ModalResult.OK)
+        {
+            // Get the new name from the input
+            var newName = GetRenameDialogText();
+            var sceneWorld = _worldManager.CurrentSceneWorld;
+
+            if (!string.IsNullOrWhiteSpace(newName) && sceneWorld is not null && _pendingRenameEntity.IsValid)
+            {
+                var command = new RenameEntityCommand(sceneWorld, _pendingRenameEntity, newName);
+                _undoRedo.Execute(command);
+                Console.WriteLine($"Entity renamed to: {newName}");
+            }
+            else
+            {
+                Console.WriteLine("Rename: Invalid name or no entity to rename");
+            }
+
+            _pendingRenameEntity = Entity.Null;
         }
         else if (e.Modal == _saveAsDialog && e.Result == ModalResult.OK)
         {
@@ -1489,21 +1935,20 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     /// <inheritdoc/>
     void IEditorShortcutActions.Rename()
     {
-        // TODO: Implement rename (show rename dialog)
-        Console.WriteLine("Rename (not yet implemented)");
+        var selectedEntity = _selection.PrimarySelection;
+        if (!selectedEntity.IsValid)
+        {
+            Console.WriteLine("Rename: No entity selected");
+            return;
+        }
+
+        ShowRenameEntityDialog(selectedEntity);
     }
 
     /// <inheritdoc/>
     void IEditorShortcutActions.Settings()
     {
-        // TODO: Open settings window
-        Console.WriteLine("Settings (Ctrl+,)");
-        Console.WriteLine($"  - Auto-save enabled: {EditorSettings.AutoSaveEnabled}");
-        Console.WriteLine($"  - Auto-save interval: {EditorSettings.AutoSaveIntervalSeconds}s");
-        Console.WriteLine($"  - Undo history limit: {EditorSettings.UndoHistoryLimit}");
-        Console.WriteLine($"  - Theme: {EditorSettings.Theme}");
-        Console.WriteLine($"  - Font size: {EditorSettings.FontSize}");
-        Console.WriteLine($"  - Grid visible: {EditorSettings.GridVisible}");
+        ShowSettingsDialog();
     }
 
     /// <inheritdoc/>
@@ -1792,3 +2237,8 @@ internal static class EditorColors
     public static Vector4 Selection => new(0.3f, 0.5f, 0.8f, 0.5f);
     public static Vector4 Hover => new(0.25f, 0.25f, 0.30f, 1f);
 }
+
+/// <summary>
+/// Tag component for the settings reset button.
+/// </summary>
+internal struct SettingsResetButtonTag : IComponent;
