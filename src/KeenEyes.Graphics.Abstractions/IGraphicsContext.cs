@@ -88,6 +88,27 @@ public interface IGraphicsContext : IDisposable
     ShaderHandle SolidShader { get; }
 
     /// <summary>
+    /// Gets the PBR (Physically Based Rendering) shader handle.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The PBR shader implements the metallic-roughness workflow with Cook-Torrance BRDF:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>GGX/Trowbridge-Reitz normal distribution</description></item>
+    /// <item><description>Schlick-GGX geometry function</description></item>
+    /// <item><description>Fresnel-Schlick approximation</description></item>
+    /// <item><description>Support for up to 8 lights (directional, point, spot)</description></item>
+    /// </list>
+    /// <para>
+    /// Required texture slots (bind to corresponding units):
+    /// 0 = Base Color, 1 = Normal, 2 = MetallicRoughness (G=roughness, B=metallic),
+    /// 3 = Occlusion (R channel), 4 = Emissive
+    /// </para>
+    /// </remarks>
+    ShaderHandle PbrShader { get; }
+
+    /// <summary>
     /// Gets a 1x1 white texture for solid color rendering.
     /// </summary>
     TextureHandle WhiteTexture { get; }
