@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Animation\KeenEyes.Animation.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Assets\KeenEyes.Assets.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
