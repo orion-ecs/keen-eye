@@ -140,6 +140,40 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
+    /// Generates shader code using the specified backend.
+    /// </summary>
+    /// <param name="vertex">The vertex shader AST.</param>
+    /// <param name="backend">The target shader backend.</param>
+    /// <returns>The generated shader code.</returns>
+    public static string GenerateShader(VertexDeclaration vertex, ShaderBackend backend)
+    {
+        IShaderGenerator generator = backend switch
+        {
+            ShaderBackend.GLSL => new GlslGenerator(),
+            ShaderBackend.HLSL => new HlslGenerator(),
+            _ => throw new NotSupportedException($"Shader backend {backend} is not supported")
+        };
+        return generator.Generate(vertex);
+    }
+
+    /// <summary>
+    /// Generates shader code using the specified backend.
+    /// </summary>
+    /// <param name="fragment">The fragment shader AST.</param>
+    /// <param name="backend">The target shader backend.</param>
+    /// <returns>The generated shader code.</returns>
+    public static string GenerateShader(FragmentDeclaration fragment, ShaderBackend backend)
+    {
+        IShaderGenerator generator = backend switch
+        {
+            ShaderBackend.GLSL => new GlslGenerator(),
+            ShaderBackend.HLSL => new HlslGenerator(),
+            _ => throw new NotSupportedException($"Shader backend {backend} is not supported")
+        };
+        return generator.Generate(fragment);
+    }
+
+    /// <summary>
     /// Generates C# binding code for a compute shader.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
@@ -182,11 +216,14 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
-    /// Compiles KESL source and generates all outputs for each compute shader.
+    /// Compiles KESL source and generates all outputs for each shader.
     /// </summary>
     /// <param name="source">The KESL source code.</param>
     /// <param name="filePath">The file path for error reporting.</param>
     /// <returns>The compilation outputs or errors.</returns>
+    /// <remarks>
+    /// Handles compute, vertex, and fragment shader declarations.
+    /// </remarks>
     public CompilationOutput CompileAndGenerate(string source, string filePath = "<input>")
     {
         var result = Compile(source, filePath);
@@ -200,21 +237,43 @@ public sealed class KeslCompiler
 
         foreach (var decl in result.SourceFile!.Declarations)
         {
-            if (decl is ComputeDeclaration compute)
+            switch (decl)
             {
-                var glsl = GenerateGlsl(compute);
-                var hlsl = GenerateHlsl(compute);
-                var csharp = GenerateCSharp(compute);
+                case ComputeDeclaration compute:
+                    outputs.Add(new ShaderOutput(
+                        compute.Name,
+                        $"{compute.Name}.comp.glsl",
+                        GenerateGlsl(compute),
+                        $"{compute.Name}.comp.hlsl",
+                        GenerateHlsl(compute),
+                        $"{compute.Name}Shader.g.cs",
+                        GenerateCSharp(compute)
+                    ));
+                    break;
 
-                outputs.Add(new ShaderOutput(
-                    compute.Name,
-                    $"{compute.Name}.comp.glsl",
-                    glsl,
-                    $"{compute.Name}.comp.hlsl",
-                    hlsl,
-                    $"{compute.Name}Shader.g.cs",
-                    csharp
-                ));
+                case VertexDeclaration vertex:
+                    outputs.Add(new ShaderOutput(
+                        vertex.Name,
+                        $"{vertex.Name}.vert.glsl",
+                        GenerateGlsl(vertex),
+                        $"{vertex.Name}.vert.hlsl",
+                        GenerateHlsl(vertex),
+                        $"{vertex.Name}Shader.g.cs",
+                        GenerateCSharp(vertex)
+                    ));
+                    break;
+
+                case FragmentDeclaration fragment:
+                    outputs.Add(new ShaderOutput(
+                        fragment.Name,
+                        $"{fragment.Name}.frag.glsl",
+                        GenerateGlsl(fragment),
+                        $"{fragment.Name}.frag.hlsl",
+                        GenerateHlsl(fragment),
+                        $"{fragment.Name}Shader.g.cs",
+                        GenerateCSharp(fragment)
+                    ));
+                    break;
             }
         }
 
