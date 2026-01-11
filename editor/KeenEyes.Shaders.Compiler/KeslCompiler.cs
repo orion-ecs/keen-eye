@@ -68,6 +68,34 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
+    /// Generates HLSL code for a compute shader.
+    /// </summary>
+    /// <param name="compute">The compute shader AST.</param>
+    /// <returns>The generated HLSL code.</returns>
+    public static string GenerateHlsl(ComputeDeclaration compute)
+    {
+        var generator = new HlslGenerator();
+        return generator.Generate(compute);
+    }
+
+    /// <summary>
+    /// Generates shader code using the specified backend.
+    /// </summary>
+    /// <param name="compute">The compute shader AST.</param>
+    /// <param name="backend">The target shader backend.</param>
+    /// <returns>The generated shader code.</returns>
+    public static string GenerateShader(ComputeDeclaration compute, ShaderBackend backend)
+    {
+        IShaderGenerator generator = backend switch
+        {
+            ShaderBackend.GLSL => new GlslGenerator(),
+            ShaderBackend.HLSL => new HlslGenerator(),
+            _ => throw new NotSupportedException($"Shader backend {backend} is not supported")
+        };
+        return generator.Generate(compute);
+    }
+
+    /// <summary>
     /// Generates C# binding code for a compute shader.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
@@ -103,12 +131,15 @@ public sealed class KeslCompiler
             if (decl is ComputeDeclaration compute)
             {
                 var glsl = GenerateGlsl(compute);
+                var hlsl = GenerateHlsl(compute);
                 var csharp = GenerateCSharp(compute);
 
                 outputs.Add(new ShaderOutput(
                     compute.Name,
                     $"{compute.Name}.comp.glsl",
                     glsl,
+                    $"{compute.Name}.comp.hlsl",
+                    hlsl,
                     $"{compute.Name}Shader.g.cs",
                     csharp
                 ));
@@ -117,6 +148,12 @@ public sealed class KeslCompiler
 
         return new CompilationOutput(outputs, []);
     }
+
+    /// <summary>
+    /// Gets or sets the shader backends to generate.
+    /// Default is both GLSL and HLSL.
+    /// </summary>
+    public ShaderBackend[] Backends { get; set; } = [ShaderBackend.GLSL, ShaderBackend.HLSL];
 }
 
 /// <summary>
@@ -157,12 +194,16 @@ public record CompilationOutput(
 /// <param name="ShaderName">The shader name.</param>
 /// <param name="GlslFileName">The GLSL file name.</param>
 /// <param name="GlslCode">The generated GLSL code.</param>
+/// <param name="HlslFileName">The HLSL file name.</param>
+/// <param name="HlslCode">The generated HLSL code.</param>
 /// <param name="CSharpFileName">The C# file name.</param>
 /// <param name="CSharpCode">The generated C# code.</param>
 public record ShaderOutput(
     string ShaderName,
     string GlslFileName,
     string GlslCode,
+    string HlslFileName,
+    string HlslCode,
     string CSharpFileName,
     string CSharpCode
 );

@@ -1,0 +1,59 @@
+{
+    "name": "keeneyes-kesl",
+    "displayName": "KESL - KeenEyes Shader Language",
+    "description": "Syntax highlighting and snippets for the KeenEyes Shader Language (.kesl files)",
+    "version": "0.1.0",
+    "publisher": "keeneyes",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/orion-ecs/keen-eye"
+    },
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "categories": [
+        "Programming Languages",
+        "Snippets"
+    ],
+    "keywords": [
+        "shader",
+        "glsl",
+        "hlsl",
+        "ecs",
+        "compute shader",
+        "kesl"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "languages": [
+            {
+                "id": "kesl",
+                "aliases": [
+                    "KESL",
+                    "KeenEyes Shader Language"
+                ],
+                "extensions": [
+                    ".kesl"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "kesl",
+                "scopeName": "source.kesl",
+                "path": "./syntaxes/kesl.tmLanguage.json"
+            }
+        ],
+        "snippets": [
+            {
+                "language": "kesl",
+                "path": "./snippets/kesl.json"
+            }
+        ]
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.60.0",
+        "typescript": "^5.0.0"
+    }
+}
