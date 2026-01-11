@@ -158,7 +158,347 @@ public class HlslGeneratorTests
 
     #endregion
 
-    #region Helper Methods
+    #region Vertex Shader - Basic Structure
+
+    [Fact]
+    public void GenerateVertexShader_ContainsVsInputStruct()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("struct VS_INPUT", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_ContainsVsOutputStruct()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("struct VS_OUTPUT", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_ContainsMainFunction()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("VS_OUTPUT VSMain(VS_INPUT input)", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_ContainsSvPositionInOutput()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("float4 position : SV_POSITION;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_ContainsReturnOutput()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("return output;", hlsl);
+    }
+
+    #endregion
+
+    #region Vertex Shader - Input Semantics
+
+    [Fact]
+    public void GenerateVertexShader_PositionInput_HasPositionSemantic()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("float3 position : POSITION;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_NormalInput_HasNormalSemantic()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithMultipleInputs);
+
+        Assert.Contains("float3 normal : NORMAL;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_TexCoordInput_HasTexCoordSemantic()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithMultipleInputs);
+
+        Assert.Contains("float2 texCoord : TEXCOORD0;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_CustomInput_UsesLocationAsSemantic()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithCustomInput);
+
+        Assert.Contains("float3 customData : TEXCOORD5;", hlsl);
+    }
+
+    #endregion
+
+    #region Vertex Shader - Output Semantics
+
+    [Fact]
+    public void GenerateVertexShader_OutputsHaveTexcoordSemantics()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithMultipleOutputs);
+
+        Assert.Contains("float3 worldPos : TEXCOORD0;", hlsl);
+        Assert.Contains("float3 worldNormal : TEXCOORD1;", hlsl);
+        Assert.Contains("float2 uv : TEXCOORD2;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_OutputAssignment_TransformsToOutputPrefix()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("output.outPos = input.position;", hlsl);
+    }
+
+    #endregion
+
+    #region Vertex Shader - Uniforms (cbuffer)
+
+    [Fact]
+    public void GenerateVertexShader_WithParams_GeneratesCbuffer()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithParams);
+
+        Assert.Contains("cbuffer VertexParams : register(b0)", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_WithParams_ContainsMatrixParams()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithParams);
+
+        Assert.Contains("float4x4 model;", hlsl);
+        Assert.Contains("float4x4 view;", hlsl);
+        Assert.Contains("float4x4 projection;", hlsl);
+    }
+
+    #endregion
+
+    #region Vertex Shader - Type Mappings
+
+    [Fact]
+    public void GenerateVertexShader_Float3Type_MapsToFloat3()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("float3 position", hlsl);
+        Assert.Contains("float3 outPos", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_Float2Type_MapsToFloat2()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithMultipleInputs);
+
+        Assert.Contains("float2 texCoord", hlsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_Mat4Type_MapsToFloat4x4()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithParams);
+
+        Assert.Contains("float4x4 model;", hlsl);
+    }
+
+    #endregion
+
+    #region Fragment Shader - Basic Structure
+
+    [Fact]
+    public void GenerateFragmentShader_ContainsPsInputStruct()
+    {
+        var hlsl = GenerateFragmentHlsl(SimpleFragmentShader);
+
+        Assert.Contains("struct PS_INPUT", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_PsInput_ContainsSvPosition()
+    {
+        var hlsl = GenerateFragmentHlsl(SimpleFragmentShader);
+
+        Assert.Contains("float4 position : SV_POSITION;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_SingleOutput_UsesDirectReturnType()
+    {
+        var hlsl = GenerateFragmentHlsl(SimpleFragmentShader);
+
+        Assert.Contains("float4 PSMain(PS_INPUT input) : SV_TARGET", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_SingleOutput_DeclaresLocalVariable()
+    {
+        var hlsl = GenerateFragmentHlsl(SimpleFragmentShader);
+
+        Assert.Contains("float4 fragColor = (float4)0;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_SingleOutput_ReturnsVariable()
+    {
+        var hlsl = GenerateFragmentHlsl(SimpleFragmentShader);
+
+        Assert.Contains("return fragColor;", hlsl);
+    }
+
+    #endregion
+
+    #region Fragment Shader - Multiple Outputs
+
+    [Fact]
+    public void GenerateFragmentShader_MultipleOutputs_GeneratesPsOutputStruct()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithMultipleOutputs);
+
+        Assert.Contains("struct PS_OUTPUT", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_MultipleOutputs_UsesSvTargetSemantics()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithMultipleOutputs);
+
+        Assert.Contains("float4 fragColor : SV_TARGET0;", hlsl);
+        Assert.Contains("float4 brightColor : SV_TARGET1;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_MultipleOutputs_UsesStructReturnType()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithMultipleOutputs);
+
+        Assert.Contains("PS_OUTPUT PSMain(PS_INPUT input)", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_MultipleOutputs_ReturnsOutputStruct()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithMultipleOutputs);
+
+        Assert.Contains("PS_OUTPUT output = (PS_OUTPUT)0;", hlsl);
+        Assert.Contains("return output;", hlsl);
+    }
+
+    #endregion
+
+    #region Fragment Shader - Inputs
+
+    [Fact]
+    public void GenerateFragmentShader_InputsHaveTexcoordSemantics()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithMultipleInputs);
+
+        Assert.Contains("float3 worldPos : TEXCOORD0;", hlsl);
+        Assert.Contains("float3 worldNormal : TEXCOORD1;", hlsl);
+        Assert.Contains("float2 uv : TEXCOORD2;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_InputAccess_TransformsToInputPrefix()
+    {
+        var hlsl = GenerateFragmentHlsl(SimpleFragmentShader);
+
+        Assert.Contains("input.color", hlsl);
+    }
+
+    #endregion
+
+    #region Fragment Shader - Uniforms (cbuffer)
+
+    [Fact]
+    public void GenerateFragmentShader_WithParams_GeneratesCbuffer()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithParams);
+
+        Assert.Contains("cbuffer PixelParams : register(b0)", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_WithParams_ContainsParams()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithParams);
+
+        Assert.Contains("float3 lightDir;", hlsl);
+        Assert.Contains("float3 lightColor;", hlsl);
+    }
+
+    #endregion
+
+    #region Vertex/Fragment Expression Generation
+
+    [Fact]
+    public void GenerateVertexShader_BinaryExpression_GeneratesCorrectly()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithBinaryExpression);
+
+        Assert.Contains("output.outPos = (input.position + offset);", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_FunctionCall_GeneratesCorrectly()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithFunctionCalls);
+
+        Assert.Contains("normalize(input.worldNormal)", hlsl);
+        Assert.Contains("max(dot(", hlsl);
+    }
+
+    #endregion
+
+    #region Vertex/Fragment Control Flow
+
+    [Fact]
+    public void GenerateVertexShader_IfStatement_GeneratesCorrectly()
+    {
+        var hlsl = GenerateVertexHlsl(VertexShaderWithIfStatement);
+
+        Assert.Contains("if ((input.position.x > 0.0f))", hlsl);
+        Assert.Contains("else", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_ForLoop_GeneratesCorrectly()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithForLoop);
+
+        Assert.Contains("for (int i = 0; i < 4; i++)", hlsl);
+    }
+
+    #endregion
+
+    #region HLSL-Specific Features
+
+    [Fact]
+    public void GenerateVertexShader_OutputInitialization_UsesHlslCastSyntax()
+    {
+        var hlsl = GenerateVertexHlsl(SimpleVertexShader);
+
+        Assert.Contains("VS_OUTPUT output = (VS_OUTPUT)0;", hlsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_FloatLiterals_HaveFloatSuffix()
+    {
+        var hlsl = GenerateFragmentHlsl(FragmentShaderWithFunctionCalls);
+
+        Assert.Contains("0.0f", hlsl);
+    }
+
+    #endregion
+
+    #region Compute Shader Test Sources
 
     private const string SimplePhysicsShader = @"
         compute Physics {
@@ -200,6 +540,234 @@ public class HlslGeneratorTests
         }
         ";
 
+    #endregion
+
+    #region Vertex Shader Test Sources
+
+    private const string SimpleVertexShader = @"
+        vertex SimpleVertex {
+            in {
+                position: float3 @ 0
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string VertexShaderWithMultipleInputs = @"
+        vertex TransformVertex {
+            in {
+                position: float3 @ 0
+                normal: float3 @ 1
+                texCoord: float2 @ 2
+            }
+            out {
+                worldPos: float3
+            }
+            execute() {
+                worldPos = position;
+            }
+        }
+    ";
+
+    private const string VertexShaderWithCustomInput = @"
+        vertex CustomVertex {
+            in {
+                position: float3 @ 0
+                customData: float3 @ 5
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position + customData;
+            }
+        }
+    ";
+
+    private const string VertexShaderWithMultipleOutputs = @"
+        vertex MultiOutputVertex {
+            in {
+                position: float3 @ 0
+                normal: float3 @ 1
+                texCoord: float2 @ 2
+            }
+            out {
+                worldPos: float3
+                worldNormal: float3
+                uv: float2
+            }
+            execute() {
+                worldPos = position;
+                worldNormal = normal;
+                uv = texCoord;
+            }
+        }
+    ";
+
+    private const string VertexShaderWithParams = @"
+        vertex ParamVertex {
+            in {
+                position: float3 @ 0
+            }
+            out {
+                outPos: float3
+            }
+            params {
+                model: mat4
+                view: mat4
+                projection: mat4
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string VertexShaderWithBinaryExpression = @"
+        vertex BinaryVertex {
+            in {
+                position: float3 @ 0
+            }
+            out {
+                outPos: float3
+            }
+            params {
+                offset: float3
+            }
+            execute() {
+                outPos = position + offset;
+            }
+        }
+    ";
+
+    private const string VertexShaderWithIfStatement = @"
+        vertex IfVertex {
+            in {
+                position: float3 @ 0
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                if (position.x > 0.0) {
+                    outPos = position;
+                } else {
+                    outPos = position;
+                }
+            }
+        }
+    ";
+
+    #endregion
+
+    #region Fragment Shader Test Sources
+
+    private const string SimpleFragmentShader = @"
+        fragment SimpleFragment {
+            in {
+                color: float4
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            execute() {
+                fragColor = color;
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithMultipleInputs = @"
+        fragment MultiInputFragment {
+            in {
+                worldPos: float3
+                worldNormal: float3
+                uv: float2
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            execute() {
+                fragColor = worldNormal;
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithParams = @"
+        fragment ParamFragment {
+            in {
+                worldNormal: float3
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            params {
+                lightDir: float3
+                lightColor: float3
+            }
+            execute() {
+                fragColor = lightColor;
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithMultipleOutputs = @"
+        fragment MultiOutputFragment {
+            in {
+                color: float4
+            }
+            out {
+                fragColor: float4 @ 0
+                brightColor: float4 @ 1
+            }
+            execute() {
+                fragColor = color;
+                brightColor = color;
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithFunctionCalls = @"
+        fragment FunctionFragment {
+            in {
+                worldNormal: float3
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            params {
+                lightDir: float3
+            }
+            execute() {
+                fragColor = max(dot(normalize(worldNormal), lightDir), 0.0);
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithForLoop = @"
+        fragment ForLoopFragment {
+            in {
+                color: float4
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            execute() {
+                for (i: 0..4) {
+                    fragColor = color;
+                }
+            }
+        }
+    ";
+
+    #endregion
+
+    #region Helper Methods
+
     private static string GenerateHlsl(string source)
     {
         var result = KeslCompiler.Compile(source);
@@ -216,6 +784,24 @@ public class HlslGeneratorTests
 
         var compute = result.SourceFile!.Declarations.OfType<ComputeDeclaration>().First();
         return KeslCompiler.GenerateGlsl(compute);
+    }
+
+    private static string GenerateVertexHlsl(string source)
+    {
+        var result = KeslCompiler.Compile(source);
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+
+        var vertex = result.SourceFile!.Declarations.OfType<VertexDeclaration>().First();
+        return KeslCompiler.GenerateHlsl(vertex);
+    }
+
+    private static string GenerateFragmentHlsl(string source)
+    {
+        var result = KeslCompiler.Compile(source);
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+
+        var fragment = result.SourceFile!.Declarations.OfType<FragmentDeclaration>().First();
+        return KeslCompiler.GenerateHlsl(fragment);
     }
 
     #endregion
