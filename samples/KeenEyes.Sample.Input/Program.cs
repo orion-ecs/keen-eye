@@ -138,7 +138,7 @@ static void SetupInputEvents(IInputContext input)
             Console.WriteLine("Escape pressed - closing...");
             // Note: Calling Environment.Exit() bypasses proper cleanup.
             // In a real application, use window.Close() instead.
-            Environment.Exit(0);
+            System.Environment.Exit(0);
         }
 
         if (!args.IsRepeat)

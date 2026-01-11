@@ -45,6 +45,18 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     }
 
     /// <inheritdoc />
+    public void BufferData(BufferTarget target, ReadOnlySpan<float> data, BufferUsage usage)
+    {
+        unsafe
+        {
+            fixed (float* ptr = data)
+            {
+                gl.BufferData(ToGL(target), (nuint)(data.Length * sizeof(float)), ptr, ToGL(usage));
+            }
+        }
+    }
+
+    /// <inheritdoc />
     public void DeleteVertexArray(uint vao) => gl.DeleteVertexArray(vao);
 
     /// <inheritdoc />
@@ -123,6 +135,44 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
                         0,
                         ToGL(format),
                         pixelType,
+                        ptr);
+                }
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public void TexImage2D(Abstractions.TextureTarget target, int level, int width, int height, Abstractions.PixelFormat format, ReadOnlySpan<float> data)
+    {
+        unsafe
+        {
+            if (data.IsEmpty)
+            {
+                // Allocate GPU memory without initializing (null pointer)
+                gl.TexImage2D(
+                    ToGL(target),
+                    level,
+                    ToGLInternalFormat(format),
+                    (uint)width,
+                    (uint)height,
+                    0,
+                    ToGL(format),
+                    PixelType.Float,
+                    null);
+            }
+            else
+            {
+                fixed (float* ptr = data)
+                {
+                    gl.TexImage2D(
+                        ToGL(target),
+                        level,
+                        ToGLInternalFormat(format),
+                        (uint)width,
+                        (uint)height,
+                        0,
+                        ToGL(format),
+                        PixelType.Float,
                         ptr);
                 }
             }

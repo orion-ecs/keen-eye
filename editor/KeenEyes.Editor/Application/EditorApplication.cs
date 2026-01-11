@@ -143,7 +143,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         _clipboard = new EntityClipboard();
         _layoutManager = LayoutManager.Instance;
         _logProvider = new EditorLogProvider();
-        _assetDatabase = new AssetDatabase(Environment.CurrentDirectory);
+        _assetDatabase = new AssetDatabase(System.Environment.CurrentDirectory);
         _serializer = new EditorComponentSerializer();
 
         // Scan for known asset types
@@ -1658,7 +1658,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     {
         // Save layout before exiting
         _layoutManager.Save();
-        Environment.Exit(0);
+        System.Environment.Exit(0);
     }
 
     private void SetupInputHandling()
@@ -1677,7 +1677,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             if (args.Key == Key.Escape)
             {
                 Console.WriteLine("Escape pressed - closing editor...");
-                Environment.Exit(0);
+                System.Environment.Exit(0);
             }
         };
 

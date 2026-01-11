@@ -128,6 +128,11 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Calls.Add($"BufferData({target}, {data.Length} bytes, {usage})");
     }
 
+    public void BufferData(BufferTarget target, ReadOnlySpan<float> data, BufferUsage usage)
+    {
+        Calls.Add($"BufferData({target}, {data.Length * sizeof(float)} bytes (float), {usage})");
+    }
+
     public void DeleteVertexArray(uint vao)
     {
         DeletedVAOs.Add(vao);
@@ -180,6 +185,11 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     public void TexImage2D(TextureTarget target, int level, int width, int height, PixelFormat format, ReadOnlySpan<byte> data)
     {
         Calls.Add($"TexImage2D({target}, {level}, {width}x{height}, {format}, {data.Length} bytes)");
+    }
+
+    public void TexImage2D(TextureTarget target, int level, int width, int height, PixelFormat format, ReadOnlySpan<float> data)
+    {
+        Calls.Add($"TexImage2D({target}, {level}, {width}x{height}, {format}, {data.Length * sizeof(float)} bytes (float))");
     }
 
     public void TexSubImage2D(TextureTarget target, int level, int xOffset, int yOffset, int width, int height, PixelFormat format, ReadOnlySpan<byte> data)

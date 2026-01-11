@@ -493,6 +493,327 @@ internal static class DefaultShaders
         }
         """;
 
+    /// <summary>
+    /// PBR fragment shader with Image-Based Lighting (IBL) support.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This shader extends the standard PBR shader with IBL for realistic
+    /// ambient lighting from environment maps. Includes:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Diffuse IBL from irradiance map</description></item>
+    /// <item><description>Specular IBL from pre-filtered environment map</description></item>
+    /// <item><description>BRDF lookup table for split-sum approximation</description></item>
+    /// </list>
+    /// <para>
+    /// IBL texture slots:
+    /// 5 = Irradiance Map (cubemap), 6 = Specular Map (cubemap with mips), 7 = BRDF LUT (2D)
+    /// </para>
+    /// </remarks>
+    public const string PbrIblFragmentShader = """
+        #version 330 core
+
+        const float PI = 3.14159265359;
+        const int MAX_LIGHTS = 8;
+
+        // Light types
+        const int LIGHT_DIRECTIONAL = 0;
+        const int LIGHT_POINT = 1;
+        const int LIGHT_SPOT = 2;
+
+        in vec3 vWorldPos;
+        in vec3 vNormal;
+        in vec2 vTexCoord;
+        in vec4 vColor;
+        in mat3 vTBN;
+
+        // PBR textures
+        uniform sampler2D uBaseColorMap;
+        uniform sampler2D uNormalMap;
+        uniform sampler2D uMetallicRoughnessMap;
+        uniform sampler2D uOcclusionMap;
+        uniform sampler2D uEmissiveMap;
+
+        // IBL textures
+        uniform samplerCube uIrradianceMap;
+        uniform samplerCube uSpecularMap;
+        uniform sampler2D uBrdfLut;
+
+        // Material factors
+        uniform vec4 uBaseColorFactor;
+        uniform float uMetallicFactor;
+        uniform float uRoughnessFactor;
+        uniform vec3 uEmissiveFactor;
+        uniform float uOcclusionStrength;
+        uniform float uNormalScale;
+        uniform float uAlphaCutoff;
+
+        // Texture presence flags (1 = has texture, 0 = no texture)
+        uniform int uHasBaseColorMap;
+        uniform int uHasNormalMap;
+        uniform int uHasMetallicRoughnessMap;
+        uniform int uHasOcclusionMap;
+        uniform int uHasEmissiveMap;
+
+        // IBL settings
+        uniform float uIblIntensity;
+        uniform float uIblRotation;
+        uniform int uIblMaxMipLevel;
+        uniform int uHasIbl;
+
+        // Camera
+        uniform vec3 uCameraPosition;
+
+        // Lights
+        uniform int uLightCount;
+        uniform vec3 uLightPositions[MAX_LIGHTS];
+        uniform vec3 uLightDirections[MAX_LIGHTS];
+        uniform vec3 uLightColors[MAX_LIGHTS];
+        uniform float uLightIntensities[MAX_LIGHTS];
+        uniform int uLightTypes[MAX_LIGHTS];
+        uniform float uLightRanges[MAX_LIGHTS];
+        uniform float uLightInnerCones[MAX_LIGHTS];
+        uniform float uLightOuterCones[MAX_LIGHTS];
+
+        out vec4 FragColor;
+
+        // GGX/Trowbridge-Reitz normal distribution function
+        float DistributionGGX(vec3 N, vec3 H, float roughness)
+        {
+            float a = roughness * roughness;
+            float a2 = a * a;
+            float NdotH = max(dot(N, H), 0.0);
+            float NdotH2 = NdotH * NdotH;
+
+            float nom = a2;
+            float denom = (NdotH2 * (a2 - 1.0) + 1.0);
+            denom = PI * denom * denom;
+
+            return nom / max(denom, 0.0001);
+        }
+
+        // Schlick-GGX geometry function for direct lighting
+        float GeometrySchlickGGX(float NdotV, float roughness)
+        {
+            float r = roughness + 1.0;
+            float k = (r * r) / 8.0;
+
+            float nom = NdotV;
+            float denom = NdotV * (1.0 - k) + k;
+
+            return nom / max(denom, 0.0001);
+        }
+
+        // Smith's method combining geometry obstruction and shadowing
+        float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
+        {
+            float NdotV = max(dot(N, V), 0.0);
+            float NdotL = max(dot(N, L), 0.0);
+            float ggx2 = GeometrySchlickGGX(NdotV, roughness);
+            float ggx1 = GeometrySchlickGGX(NdotL, roughness);
+
+            return ggx1 * ggx2;
+        }
+
+        // Fresnel-Schlick approximation
+        vec3 FresnelSchlick(float cosTheta, vec3 F0)
+        {
+            return F0 + (1.0 - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+        }
+
+        // Fresnel-Schlick with roughness for IBL
+        vec3 FresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
+        {
+            return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(clamp(1.0 - cosTheta, 0.0, 1.0), 5.0);
+        }
+
+        // Rotate direction around Y axis
+        vec3 rotateY(vec3 dir, float angle)
+        {
+            float c = cos(angle);
+            float s = sin(angle);
+            return vec3(
+                dir.x * c + dir.z * s,
+                dir.y,
+                -dir.x * s + dir.z * c
+            );
+        }
+
+        // Get normal from normal map or vertex normal
+        vec3 getNormal()
+        {
+            if (uHasNormalMap == 1)
+            {
+                vec3 tangentNormal = texture(uNormalMap, vTexCoord).rgb * 2.0 - 1.0;
+                tangentNormal.xy *= uNormalScale;
+                return normalize(vTBN * tangentNormal);
+            }
+            return normalize(vNormal);
+        }
+
+        // Calculate light attenuation for point/spot lights
+        float getAttenuation(vec3 lightPos, float range)
+        {
+            float distance = length(lightPos - vWorldPos);
+            float attenuation = 1.0 / (distance * distance + 1.0);
+            float rangeFactor = clamp(1.0 - pow(distance / range, 4.0), 0.0, 1.0);
+            return attenuation * rangeFactor * rangeFactor;
+        }
+
+        // Calculate spotlight intensity
+        float getSpotIntensity(vec3 L, vec3 spotDir, float innerCone, float outerCone)
+        {
+            float theta = dot(L, normalize(-spotDir));
+            float epsilon = innerCone - outerCone;
+            return clamp((theta - outerCone) / epsilon, 0.0, 1.0);
+        }
+
+        void main()
+        {
+            // Sample base color
+            vec4 baseColor = uBaseColorFactor * vColor;
+            if (uHasBaseColorMap == 1)
+            {
+                baseColor *= texture(uBaseColorMap, vTexCoord);
+            }
+
+            // Alpha cutoff for masked materials
+            if (baseColor.a < uAlphaCutoff)
+            {
+                discard;
+            }
+
+            // Sample metallic-roughness
+            float metallic = uMetallicFactor;
+            float roughness = uRoughnessFactor;
+            if (uHasMetallicRoughnessMap == 1)
+            {
+                vec4 mrSample = texture(uMetallicRoughnessMap, vTexCoord);
+                roughness *= mrSample.g;
+                metallic *= mrSample.b;
+            }
+            roughness = clamp(roughness, 0.04, 1.0);
+
+            // Get surface normal
+            vec3 N = getNormal();
+            vec3 V = normalize(uCameraPosition - vWorldPos);
+            vec3 R = reflect(-V, N);
+
+            // Apply IBL rotation to reflection
+            vec3 rotatedR = rotateY(R, uIblRotation);
+            vec3 rotatedN = rotateY(N, uIblRotation);
+
+            // Calculate F0
+            vec3 F0 = vec3(0.04);
+            F0 = mix(F0, baseColor.rgb, metallic);
+
+            // Accumulate direct light contribution
+            vec3 Lo = vec3(0.0);
+
+            for (int i = 0; i < uLightCount && i < MAX_LIGHTS; i++)
+            {
+                vec3 L;
+                vec3 radiance;
+
+                if (uLightTypes[i] == LIGHT_DIRECTIONAL)
+                {
+                    L = normalize(-uLightDirections[i]);
+                    radiance = uLightColors[i] * uLightIntensities[i];
+                }
+                else if (uLightTypes[i] == LIGHT_POINT)
+                {
+                    L = normalize(uLightPositions[i] - vWorldPos);
+                    float attenuation = getAttenuation(uLightPositions[i], uLightRanges[i]);
+                    radiance = uLightColors[i] * uLightIntensities[i] * attenuation;
+                }
+                else
+                {
+                    L = normalize(uLightPositions[i] - vWorldPos);
+                    float attenuation = getAttenuation(uLightPositions[i], uLightRanges[i]);
+                    float spotIntensity = getSpotIntensity(L, uLightDirections[i],
+                                                          uLightInnerCones[i], uLightOuterCones[i]);
+                    radiance = uLightColors[i] * uLightIntensities[i] * attenuation * spotIntensity;
+                }
+
+                vec3 H = normalize(V + L);
+
+                // Cook-Torrance BRDF
+                float NDF = DistributionGGX(N, H, roughness);
+                float G = GeometrySmith(N, V, L, roughness);
+                vec3 F = FresnelSchlick(max(dot(H, V), 0.0), F0);
+
+                vec3 numerator = NDF * G * F;
+                float denominator = 4.0 * max(dot(N, V), 0.0) * max(dot(N, L), 0.0) + 0.0001;
+                vec3 specular = numerator / denominator;
+
+                vec3 kS = F;
+                vec3 kD = vec3(1.0) - kS;
+                kD *= 1.0 - metallic;
+
+                float NdotL = max(dot(N, L), 0.0);
+                Lo += (kD * baseColor.rgb / PI + specular) * radiance * NdotL;
+            }
+
+            // IBL ambient lighting
+            vec3 ambient;
+            if (uHasIbl == 1)
+            {
+                // IBL Fresnel
+                float NdotV = max(dot(N, V), 0.0);
+                vec3 F = FresnelSchlickRoughness(NdotV, F0, roughness);
+
+                vec3 kS = F;
+                vec3 kD = 1.0 - kS;
+                kD *= 1.0 - metallic;
+
+                // Diffuse IBL from irradiance map
+                vec3 irradiance = texture(uIrradianceMap, rotatedN).rgb;
+                vec3 diffuse = irradiance * baseColor.rgb;
+
+                // Specular IBL from pre-filtered environment map
+                float mipLevel = roughness * float(uIblMaxMipLevel);
+                vec3 prefilteredColor = textureLod(uSpecularMap, rotatedR, mipLevel).rgb;
+
+                // Sample BRDF LUT
+                vec2 brdf = texture(uBrdfLut, vec2(NdotV, roughness)).rg;
+                vec3 specular = prefilteredColor * (F * brdf.x + brdf.y);
+
+                ambient = (kD * diffuse + specular) * uIblIntensity;
+            }
+            else
+            {
+                // Fallback to simple ambient
+                ambient = vec3(0.03) * baseColor.rgb;
+            }
+
+            // Apply ambient occlusion
+            if (uHasOcclusionMap == 1)
+            {
+                float ao = texture(uOcclusionMap, vTexCoord).r;
+                ambient *= mix(1.0, ao, uOcclusionStrength);
+            }
+
+            vec3 color = ambient + Lo;
+
+            // Add emissive
+            vec3 emissive = uEmissiveFactor;
+            if (uHasEmissiveMap == 1)
+            {
+                emissive *= texture(uEmissiveMap, vTexCoord).rgb;
+            }
+            color += emissive;
+
+            // HDR tonemapping (Reinhard)
+            color = color / (color + vec3(1.0));
+
+            // Gamma correction
+            color = pow(color, vec3(1.0 / 2.2));
+
+            FragColor = vec4(color, baseColor.a);
+        }
+        """;
+
     #region Instanced Shaders
 
     /// <summary>

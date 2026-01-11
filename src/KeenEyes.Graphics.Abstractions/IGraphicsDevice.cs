@@ -57,6 +57,14 @@ public interface IGraphicsDevice : IDisposable
     void BufferData(BufferTarget target, ReadOnlySpan<byte> data, BufferUsage usage);
 
     /// <summary>
+    /// Uploads floating-point data to a buffer.
+    /// </summary>
+    /// <param name="target">The buffer target.</param>
+    /// <param name="data">The floating-point data to upload.</param>
+    /// <param name="usage">The usage hint.</param>
+    void BufferData(BufferTarget target, ReadOnlySpan<float> data, BufferUsage usage);
+
+    /// <summary>
     /// Deletes a vertex array object.
     /// </summary>
     /// <param name="vao">The VAO handle.</param>
@@ -127,6 +135,17 @@ public interface IGraphicsDevice : IDisposable
     /// <param name="format">The pixel format.</param>
     /// <param name="data">The pixel data.</param>
     void TexImage2D(TextureTarget target, int level, int width, int height, PixelFormat format, ReadOnlySpan<byte> data);
+
+    /// <summary>
+    /// Uploads 2D HDR texture data (floating-point).
+    /// </summary>
+    /// <param name="target">The texture target.</param>
+    /// <param name="level">The mipmap level.</param>
+    /// <param name="width">The texture width.</param>
+    /// <param name="height">The texture height.</param>
+    /// <param name="format">The pixel format (should be RGB32F or RGBA32F).</param>
+    /// <param name="data">The floating-point pixel data.</param>
+    void TexImage2D(TextureTarget target, int level, int width, int height, PixelFormat format, ReadOnlySpan<float> data);
 
     /// <summary>
     /// Sets a texture parameter (integer value).
