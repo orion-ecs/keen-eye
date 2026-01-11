@@ -469,6 +469,109 @@ public interface IGraphicsDevice : IDisposable
 
     #endregion
 
+    #region Framebuffer Operations
+
+    /// <summary>
+    /// Generates a new framebuffer object.
+    /// </summary>
+    /// <returns>The framebuffer handle.</returns>
+    uint GenFramebuffer();
+
+    /// <summary>
+    /// Binds a framebuffer object.
+    /// </summary>
+    /// <param name="target">The framebuffer target.</param>
+    /// <param name="framebuffer">The framebuffer handle (0 to bind the default framebuffer).</param>
+    void BindFramebuffer(FramebufferTarget target, uint framebuffer);
+
+    /// <summary>
+    /// Deletes a framebuffer object.
+    /// </summary>
+    /// <param name="framebuffer">The framebuffer handle.</param>
+    void DeleteFramebuffer(uint framebuffer);
+
+    /// <summary>
+    /// Attaches a 2D texture to a framebuffer.
+    /// </summary>
+    /// <param name="target">The framebuffer target.</param>
+    /// <param name="attachment">The attachment point.</param>
+    /// <param name="texTarget">The texture target.</param>
+    /// <param name="texture">The texture handle.</param>
+    /// <param name="level">The mipmap level to attach.</param>
+    void FramebufferTexture2D(FramebufferTarget target, FramebufferAttachment attachment,
+                              TextureTarget texTarget, uint texture, int level);
+
+    /// <summary>
+    /// Checks the completeness status of a framebuffer.
+    /// </summary>
+    /// <param name="target">The framebuffer target.</param>
+    /// <returns>The framebuffer status.</returns>
+    FramebufferStatus CheckFramebufferStatus(FramebufferTarget target);
+
+    /// <summary>
+    /// Generates a new renderbuffer object.
+    /// </summary>
+    /// <returns>The renderbuffer handle.</returns>
+    uint GenRenderbuffer();
+
+    /// <summary>
+    /// Binds a renderbuffer object.
+    /// </summary>
+    /// <param name="renderbuffer">The renderbuffer handle (0 to unbind).</param>
+    void BindRenderbuffer(uint renderbuffer);
+
+    /// <summary>
+    /// Deletes a renderbuffer object.
+    /// </summary>
+    /// <param name="renderbuffer">The renderbuffer handle.</param>
+    void DeleteRenderbuffer(uint renderbuffer);
+
+    /// <summary>
+    /// Allocates storage for a renderbuffer.
+    /// </summary>
+    /// <param name="format">The internal format.</param>
+    /// <param name="width">The width in pixels.</param>
+    /// <param name="height">The height in pixels.</param>
+    void RenderbufferStorage(RenderbufferFormat format, uint width, uint height);
+
+    /// <summary>
+    /// Attaches a renderbuffer to a framebuffer.
+    /// </summary>
+    /// <param name="target">The framebuffer target.</param>
+    /// <param name="attachment">The attachment point.</param>
+    /// <param name="renderbuffer">The renderbuffer handle.</param>
+    void FramebufferRenderbuffer(FramebufferTarget target, FramebufferAttachment attachment,
+                                 uint renderbuffer);
+
+    /// <summary>
+    /// Specifies the color buffer to draw to.
+    /// </summary>
+    /// <param name="mode">The draw buffer mode.</param>
+    void DrawBuffer(DrawBufferMode mode);
+
+    /// <summary>
+    /// Specifies the color buffer to read from.
+    /// </summary>
+    /// <param name="mode">The read buffer mode.</param>
+    void ReadBuffer(DrawBufferMode mode);
+
+    /// <summary>
+    /// Enables or disables writing to the depth buffer.
+    /// </summary>
+    /// <param name="flag">True to enable writing, false to disable.</param>
+    void DepthMask(bool flag);
+
+    /// <summary>
+    /// Enables or disables writing to color buffer components.
+    /// </summary>
+    /// <param name="red">Enable writing to red channel.</param>
+    /// <param name="green">Enable writing to green channel.</param>
+    /// <param name="blue">Enable writing to blue channel.</param>
+    /// <param name="alpha">Enable writing to alpha channel.</param>
+    void ColorMask(bool red, bool green, bool blue, bool alpha);
+
+    #endregion
+
     #region Debug
 
     /// <summary>

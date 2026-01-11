@@ -121,14 +121,29 @@ public enum TextureParam
     MagFilter,
 
     /// <summary>
-    /// Horizontal wrapping mode.
+    /// Horizontal wrapping mode (S coordinate).
     /// </summary>
     WrapS,
 
     /// <summary>
-    /// Vertical wrapping mode.
+    /// Vertical wrapping mode (T coordinate).
     /// </summary>
-    WrapT
+    WrapT,
+
+    /// <summary>
+    /// Depth wrapping mode (R coordinate) for 3D textures and cubemaps.
+    /// </summary>
+    WrapR,
+
+    /// <summary>
+    /// Texture comparison mode for depth textures.
+    /// </summary>
+    CompareMode,
+
+    /// <summary>
+    /// Texture comparison function for depth textures.
+    /// </summary>
+    CompareFunc
 }
 
 /// <summary>
@@ -232,7 +247,23 @@ public enum TextureUnit
     /// <summary>Texture unit 6.</summary>
     Texture6,
     /// <summary>Texture unit 7.</summary>
-    Texture7
+    Texture7,
+    /// <summary>Texture unit 8.</summary>
+    Texture8,
+    /// <summary>Texture unit 9.</summary>
+    Texture9,
+    /// <summary>Texture unit 10.</summary>
+    Texture10,
+    /// <summary>Texture unit 11.</summary>
+    Texture11,
+    /// <summary>Texture unit 12.</summary>
+    Texture12,
+    /// <summary>Texture unit 13.</summary>
+    Texture13,
+    /// <summary>Texture unit 14.</summary>
+    Texture14,
+    /// <summary>Texture unit 15.</summary>
+    Texture15
 }
 
 /// <summary>
@@ -457,7 +488,31 @@ public enum PixelFormat
     RGB,
 
     /// <summary>Red, green, blue, and alpha channels.</summary>
-    RGBA
+    RGBA,
+
+    /// <summary>16-bit depth buffer.</summary>
+    Depth16,
+
+    /// <summary>24-bit depth buffer.</summary>
+    Depth24,
+
+    /// <summary>32-bit floating point depth buffer.</summary>
+    Depth32F,
+
+    /// <summary>Combined 24-bit depth and 8-bit stencil.</summary>
+    Depth24Stencil8,
+
+    /// <summary>16-bit floating point per channel RGB.</summary>
+    RGB16F,
+
+    /// <summary>32-bit floating point per channel RGB.</summary>
+    RGB32F,
+
+    /// <summary>16-bit floating point per channel RGBA.</summary>
+    RGBA16F,
+
+    /// <summary>32-bit floating point per channel RGBA.</summary>
+    RGBA32F
 }
 
 /// <summary>

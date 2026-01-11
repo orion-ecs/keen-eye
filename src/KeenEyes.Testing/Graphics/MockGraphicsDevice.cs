@@ -188,10 +188,14 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         Shaders.Clear();
         Programs.Clear();
         VAOs.Clear();
+        Framebuffers.Clear();
+        Renderbuffers.Clear();
         BoundBuffers.Clear();
         BoundTextures.Clear();
         BoundVAO = null;
         BoundProgram = null;
+        BoundFramebuffer = null;
+        BoundRenderbuffer = null;
         ActiveTextureUnit = TextureUnit.Texture0;
         RenderState.Reset();
         nextHandle = 1;
@@ -202,6 +206,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         SimulatedFramebufferData = null;
         SimulatedFramebufferWidth = 0;
         SimulatedFramebufferHeight = 0;
+        SimulatedFramebufferStatus = FramebufferStatus.Complete;
     }
 
     /// <summary>
@@ -765,6 +770,142 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
 
     #endregion
 
+    #region Framebuffer Operations
+
+    /// <summary>
+    /// Gets the dictionary of created framebuffers by handle.
+    /// </summary>
+    public Dictionary<uint, MockFramebuffer> Framebuffers { get; } = [];
+
+    /// <summary>
+    /// Gets the dictionary of created renderbuffers by handle.
+    /// </summary>
+    public Dictionary<uint, MockRenderbuffer> Renderbuffers { get; } = [];
+
+    /// <summary>
+    /// Gets or sets the currently bound framebuffer.
+    /// </summary>
+    public uint? BoundFramebuffer { get; private set; }
+
+    /// <summary>
+    /// Gets or sets the currently bound renderbuffer.
+    /// </summary>
+    public uint? BoundRenderbuffer { get; private set; }
+
+    /// <summary>
+    /// Gets or sets the simulated framebuffer status.
+    /// </summary>
+    public FramebufferStatus SimulatedFramebufferStatus { get; set; } = FramebufferStatus.Complete;
+
+    /// <inheritdoc />
+    public uint GenFramebuffer()
+    {
+        var handle = nextHandle++;
+        Framebuffers[handle] = new MockFramebuffer(handle);
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void BindFramebuffer(FramebufferTarget target, uint framebuffer)
+    {
+        BoundFramebuffer = framebuffer == 0 ? null : framebuffer;
+    }
+
+    /// <inheritdoc />
+    public void DeleteFramebuffer(uint framebuffer)
+    {
+        Framebuffers.Remove(framebuffer);
+        if (BoundFramebuffer == framebuffer)
+        {
+            BoundFramebuffer = null;
+        }
+    }
+
+    /// <inheritdoc />
+    public void FramebufferTexture2D(FramebufferTarget target, FramebufferAttachment attachment, TextureTarget texTarget, uint texture, int level)
+    {
+        if (BoundFramebuffer.HasValue && Framebuffers.TryGetValue(BoundFramebuffer.Value, out var fbo))
+        {
+            fbo.Attachments[attachment] = new FramebufferTextureAttachment(texture, texTarget, level);
+        }
+    }
+
+    /// <inheritdoc />
+    public FramebufferStatus CheckFramebufferStatus(FramebufferTarget target)
+    {
+        return SimulatedFramebufferStatus;
+    }
+
+    /// <inheritdoc />
+    public uint GenRenderbuffer()
+    {
+        var handle = nextHandle++;
+        Renderbuffers[handle] = new MockRenderbuffer(handle);
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void BindRenderbuffer(uint renderbuffer)
+    {
+        BoundRenderbuffer = renderbuffer == 0 ? null : renderbuffer;
+    }
+
+    /// <inheritdoc />
+    public void DeleteRenderbuffer(uint renderbuffer)
+    {
+        Renderbuffers.Remove(renderbuffer);
+        if (BoundRenderbuffer == renderbuffer)
+        {
+            BoundRenderbuffer = null;
+        }
+    }
+
+    /// <inheritdoc />
+    public void RenderbufferStorage(RenderbufferFormat format, uint width, uint height)
+    {
+        if (BoundRenderbuffer.HasValue && Renderbuffers.TryGetValue(BoundRenderbuffer.Value, out var rbo))
+        {
+            rbo.Format = format;
+            rbo.Width = (int)width;
+            rbo.Height = (int)height;
+        }
+    }
+
+    /// <inheritdoc />
+    public void FramebufferRenderbuffer(FramebufferTarget target, FramebufferAttachment attachment, uint renderbuffer)
+    {
+        if (BoundFramebuffer.HasValue && Framebuffers.TryGetValue(BoundFramebuffer.Value, out var fbo))
+        {
+            fbo.RenderbufferAttachments[attachment] = renderbuffer;
+        }
+    }
+
+    /// <inheritdoc />
+    public void DrawBuffer(DrawBufferMode mode)
+    {
+        RenderState.DrawBufferMode = mode;
+    }
+
+    /// <inheritdoc />
+    public void ReadBuffer(DrawBufferMode mode)
+    {
+        RenderState.ReadBufferMode = mode;
+    }
+
+    /// <inheritdoc />
+    public void DepthMask(bool flag)
+    {
+        RenderState.DepthMaskEnabled = flag;
+    }
+
+    /// <inheritdoc />
+    public void ColorMask(bool red, bool green, bool blue, bool alpha)
+    {
+        RenderState.ColorMask = (red, green, blue, alpha);
+    }
+
+    #endregion
+
     #region Debug
 
     /// <inheritdoc />
@@ -1128,6 +1269,26 @@ public sealed class MockRenderState
     public Dictionary<PixelStoreParameter, int> PixelStoreParameters { get; } = [];
 
     /// <summary>
+    /// Gets or sets the draw buffer mode.
+    /// </summary>
+    public DrawBufferMode DrawBufferMode { get; set; }
+
+    /// <summary>
+    /// Gets or sets the read buffer mode.
+    /// </summary>
+    public DrawBufferMode ReadBufferMode { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether depth writes are enabled.
+    /// </summary>
+    public bool DepthMaskEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the color mask (red, green, blue, alpha).
+    /// </summary>
+    public (bool Red, bool Green, bool Blue, bool Alpha) ColorMask { get; set; } = (true, true, true, true);
+
+    /// <summary>
     /// Resets the render state to defaults.
     /// </summary>
     public void Reset()
@@ -1145,7 +1306,66 @@ public sealed class MockRenderState
         LineWidth = 1f;
         PointSize = 1f;
         PixelStoreParameters.Clear();
+        DrawBufferMode = default;
+        ReadBufferMode = default;
+        DepthMaskEnabled = true;
+        ColorMask = (true, true, true, true);
     }
+}
+
+/// <summary>
+/// Tracks framebuffer state.
+/// </summary>
+public sealed class MockFramebuffer(uint handle)
+{
+    /// <summary>
+    /// Gets the framebuffer handle.
+    /// </summary>
+    public uint Handle { get; } = handle;
+
+    /// <summary>
+    /// Gets the texture attachments by attachment point.
+    /// </summary>
+    public Dictionary<FramebufferAttachment, FramebufferTextureAttachment> Attachments { get; } = [];
+
+    /// <summary>
+    /// Gets the renderbuffer attachments by attachment point.
+    /// </summary>
+    public Dictionary<FramebufferAttachment, uint> RenderbufferAttachments { get; } = [];
+}
+
+/// <summary>
+/// Represents a texture attached to a framebuffer.
+/// </summary>
+/// <param name="Texture">The texture handle.</param>
+/// <param name="Target">The texture target.</param>
+/// <param name="Level">The mip level.</param>
+public sealed record FramebufferTextureAttachment(uint Texture, TextureTarget Target, int Level);
+
+/// <summary>
+/// Tracks renderbuffer state.
+/// </summary>
+public sealed class MockRenderbuffer(uint handle)
+{
+    /// <summary>
+    /// Gets the renderbuffer handle.
+    /// </summary>
+    public uint Handle { get; } = handle;
+
+    /// <summary>
+    /// Gets or sets the renderbuffer format.
+    /// </summary>
+    public RenderbufferFormat Format { get; set; }
+
+    /// <summary>
+    /// Gets or sets the width.
+    /// </summary>
+    public int Width { get; set; }
+
+    /// <summary>
+    /// Gets or sets the height.
+    /// </summary>
+    public int Height { get; set; }
 }
 
 #endregion
