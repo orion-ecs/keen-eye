@@ -231,8 +231,6 @@ public sealed class NavMeshVisualizer : IGizmoRenderer
             // Triangulate the polygon (fan triangulation for convex polygons)
             for (int i = 1; i < offsetVertices.Length - 1; i++)
             {
-                // In actual implementation, these would be added to a render batch
-                // TODO: Integrate with actual gizmo rendering API when available
                 context.DrawTriangle(offsetVertices[0], offsetVertices[i], offsetVertices[i + 1], color);
             }
         }
@@ -247,7 +245,6 @@ public sealed class NavMeshVisualizer : IGizmoRenderer
                 var v0 = polygon.Vertices[i] + new Vector3(0, HeightOffset * 2, 0);
                 var v1 = polygon.Vertices[(i + 1) % polygon.Vertices.Length] + new Vector3(0, HeightOffset * 2, 0);
 
-                // TODO: Integrate with actual gizmo rendering API when available
                 context.DrawLine(v0, v1, EdgeColor, EdgeWidth);
             }
         }
@@ -266,7 +263,6 @@ public sealed class NavMeshVisualizer : IGizmoRenderer
                 // Avoid rendering the same vertex multiple times
                 if (renderedVertices.Add(offsetVertex))
                 {
-                    // TODO: Integrate with actual gizmo rendering API when available
                     context.DrawPoint(offsetVertex, VertexColor, VertexSize);
                 }
             }
