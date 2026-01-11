@@ -154,6 +154,34 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
+    /// Generates C# binding code for a vertex shader.
+    /// </summary>
+    /// <param name="vertex">The vertex shader AST.</param>
+    /// <returns>The generated C# code.</returns>
+    public string GenerateCSharp(VertexDeclaration vertex)
+    {
+        var generator = new CSharpBindingGenerator
+        {
+            Namespace = Namespace
+        };
+        return generator.Generate(vertex);
+    }
+
+    /// <summary>
+    /// Generates C# binding code for a fragment shader.
+    /// </summary>
+    /// <param name="fragment">The fragment shader AST.</param>
+    /// <returns>The generated C# code.</returns>
+    public string GenerateCSharp(FragmentDeclaration fragment)
+    {
+        var generator = new CSharpBindingGenerator
+        {
+            Namespace = Namespace
+        };
+        return generator.Generate(fragment);
+    }
+
+    /// <summary>
     /// Compiles KESL source and generates all outputs for each compute shader.
     /// </summary>
     /// <param name="source">The KESL source code.</param>
