@@ -52,6 +52,40 @@ public record ComputeDeclaration(
 ) : Declaration(Location);
 
 /// <summary>
+/// A vertex shader declaration.
+/// </summary>
+/// <param name="Name">The shader name.</param>
+/// <param name="Inputs">The input attributes block.</param>
+/// <param name="Outputs">The output attributes block.</param>
+/// <param name="Params">Optional parameters block.</param>
+/// <param name="Execute">The execute block containing shader logic.</param>
+public record VertexDeclaration(
+    string Name,
+    InputBlock Inputs,
+    OutputBlock Outputs,
+    ParamsBlock? Params,
+    ExecuteBlock Execute,
+    SourceLocation Location
+) : Declaration(Location);
+
+/// <summary>
+/// A fragment shader declaration.
+/// </summary>
+/// <param name="Name">The shader name.</param>
+/// <param name="Inputs">The input attributes block.</param>
+/// <param name="Outputs">The output attributes block.</param>
+/// <param name="Params">Optional parameters block.</param>
+/// <param name="Execute">The execute block containing shader logic.</param>
+public record FragmentDeclaration(
+    string Name,
+    InputBlock Inputs,
+    OutputBlock Outputs,
+    ParamsBlock? Params,
+    ExecuteBlock Execute,
+    SourceLocation Location
+) : Declaration(Location);
+
+/// <summary>
 /// Represents the query block of a compute shader.
 /// </summary>
 /// <param name="Bindings">The component bindings.</param>
@@ -91,6 +125,31 @@ public record ParamsBlock(IReadOnlyList<ParamDeclaration> Parameters, SourceLoca
 /// <param name="Name">The parameter name.</param>
 /// <param name="Type">The parameter type.</param>
 public record ParamDeclaration(string Name, TypeRef Type, SourceLocation Location) : AstNode(Location);
+
+/// <summary>
+/// Represents the input attributes block of a vertex or fragment shader.
+/// </summary>
+/// <param name="Attributes">The input attribute declarations.</param>
+public record InputBlock(IReadOnlyList<AttributeDeclaration> Attributes, SourceLocation Location) : AstNode(Location);
+
+/// <summary>
+/// Represents the output attributes block of a vertex or fragment shader.
+/// </summary>
+/// <param name="Attributes">The output attribute declarations.</param>
+public record OutputBlock(IReadOnlyList<AttributeDeclaration> Attributes, SourceLocation Location) : AstNode(Location);
+
+/// <summary>
+/// A single attribute declaration with optional location binding.
+/// </summary>
+/// <param name="Name">The attribute name.</param>
+/// <param name="Type">The attribute type.</param>
+/// <param name="LocationIndex">Optional layout location index (e.g., @ 0).</param>
+public record AttributeDeclaration(
+    string Name,
+    TypeRef Type,
+    int? LocationIndex,
+    SourceLocation Location
+) : AstNode(Location);
 
 /// <summary>
 /// Represents the execute block of a compute shader.

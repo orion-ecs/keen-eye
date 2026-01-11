@@ -73,8 +73,18 @@ public sealed class Parser
             return ParseComputeDeclaration();
         }
 
+        if (Check(TokenKind.Vertex))
+        {
+            return ParseVertexDeclaration();
+        }
+
+        if (Check(TokenKind.Fragment))
+        {
+            return ParseFragmentDeclaration();
+        }
+
         // Throw to trigger synchronization - otherwise we'd loop infinitely
-        throw Error(Current, "Expected 'component' or 'compute' declaration", KeslErrorCodes.ExpectedDeclaration);
+        throw Error(Current, "Expected 'component', 'compute', 'vertex', or 'fragment' declaration", KeslErrorCodes.ExpectedDeclaration);
     }
 
     private ComponentDeclaration ParseComponentDeclaration()
@@ -131,6 +141,116 @@ public sealed class Parser
         Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
 
         return new ComputeDeclaration(name, query, paramsBlock, execute, location);
+    }
+
+    private VertexDeclaration ParseVertexDeclaration()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Vertex, "Expected 'vertex'", KeslErrorCodes.MissingToken);
+        var name = Consume(TokenKind.Identifier, "Expected shader name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.LeftBrace, "Expected '{' after shader name", KeslErrorCodes.ExpectedOpenBrace);
+
+        // Parse input block (required)
+        var inputs = ParseInputBlock();
+
+        // Parse output block (required)
+        var outputs = ParseOutputBlock();
+
+        // Parse optional params block
+        ParamsBlock? paramsBlock = null;
+        if (Check(TokenKind.Params))
+        {
+            paramsBlock = ParseParamsBlock();
+        }
+
+        // Parse execute block (required)
+        var execute = ParseExecuteBlock();
+
+        Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new VertexDeclaration(name, inputs, outputs, paramsBlock, execute, location);
+    }
+
+    private FragmentDeclaration ParseFragmentDeclaration()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Fragment, "Expected 'fragment'", KeslErrorCodes.MissingToken);
+        var name = Consume(TokenKind.Identifier, "Expected shader name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.LeftBrace, "Expected '{' after shader name", KeslErrorCodes.ExpectedOpenBrace);
+
+        // Parse input block (required)
+        var inputs = ParseInputBlock();
+
+        // Parse output block (required)
+        var outputs = ParseOutputBlock();
+
+        // Parse optional params block
+        ParamsBlock? paramsBlock = null;
+        if (Check(TokenKind.Params))
+        {
+            paramsBlock = ParseParamsBlock();
+        }
+
+        // Parse execute block (required)
+        var execute = ParseExecuteBlock();
+
+        Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new FragmentDeclaration(name, inputs, outputs, paramsBlock, execute, location);
+    }
+
+    private InputBlock ParseInputBlock()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.In, "Expected 'in'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftBrace, "Expected '{' after 'in'", KeslErrorCodes.ExpectedOpenBrace);
+
+        var attributes = new List<AttributeDeclaration>();
+        while (!Check(TokenKind.RightBrace) && !IsAtEnd())
+        {
+            attributes.Add(ParseAttributeDeclaration());
+            Match(TokenKind.Comma);
+        }
+
+        Consume(TokenKind.RightBrace, "Expected '}' after input attributes", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new InputBlock(attributes, location);
+    }
+
+    private OutputBlock ParseOutputBlock()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Out, "Expected 'out'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftBrace, "Expected '{' after 'out'", KeslErrorCodes.ExpectedOpenBrace);
+
+        var attributes = new List<AttributeDeclaration>();
+        while (!Check(TokenKind.RightBrace) && !IsAtEnd())
+        {
+            attributes.Add(ParseAttributeDeclaration());
+            Match(TokenKind.Comma);
+        }
+
+        Consume(TokenKind.RightBrace, "Expected '}' after output attributes", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new OutputBlock(attributes, location);
+    }
+
+    private AttributeDeclaration ParseAttributeDeclaration()
+    {
+        var location = Current.Location;
+        var name = Consume(TokenKind.Identifier, "Expected attribute name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.Colon, "Expected ':' after attribute name", KeslErrorCodes.MissingToken);
+        var type = ParseType();
+
+        // Optional location binding (@ 0)
+        int? locationIndex = null;
+        if (Match(TokenKind.At))
+        {
+            var locToken = Consume(TokenKind.IntLiteral, "Expected location index after '@'", KeslErrorCodes.MissingToken);
+            locationIndex = locToken.IntValue;
+        }
+
+        return new AttributeDeclaration(name, type, locationIndex, location);
     }
 
     private QueryBlock ParseQueryBlock()
@@ -625,6 +745,8 @@ public sealed class Parser
             {
                 case TokenKind.Component:
                 case TokenKind.Compute:
+                case TokenKind.Vertex:
+                case TokenKind.Fragment:
                     return;
             }
 

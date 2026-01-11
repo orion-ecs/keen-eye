@@ -266,4 +266,293 @@ public class ParserTests
         var value = Assert.IsType<MemberAccessExpression>(assignStmt.Value);
         Assert.Equal("y", value.MemberName);
     }
+
+    #region Vertex Shader Tests
+
+    [Fact]
+    public void Parse_VertexShader_ParsesInputBlock()
+    {
+        var source = @"
+            vertex TransformVertex {
+                in {
+                    position: float3 @ 0
+                    normal: float3 @ 1
+                    texCoord: float2 @ 2
+                }
+                out {
+                    worldPos: float3
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        Assert.Single(result.Declarations);
+        var vertex = Assert.IsType<VertexDeclaration>(result.Declarations[0]);
+        Assert.Equal("TransformVertex", vertex.Name);
+
+        Assert.Equal(3, vertex.Inputs.Attributes.Count);
+        Assert.Equal("position", vertex.Inputs.Attributes[0].Name);
+        Assert.Equal(0, vertex.Inputs.Attributes[0].LocationIndex);
+        Assert.Equal("normal", vertex.Inputs.Attributes[1].Name);
+        Assert.Equal(1, vertex.Inputs.Attributes[1].LocationIndex);
+        Assert.Equal("texCoord", vertex.Inputs.Attributes[2].Name);
+        Assert.Equal(2, vertex.Inputs.Attributes[2].LocationIndex);
+    }
+
+    [Fact]
+    public void Parse_VertexShader_ParsesOutputBlock()
+    {
+        var source = @"
+            vertex TransformVertex {
+                in {
+                    position: float3 @ 0
+                }
+                out {
+                    worldPos: float3
+                    worldNormal: float3
+                    uv: float2
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var vertex = Assert.IsType<VertexDeclaration>(result.Declarations[0]);
+
+        Assert.Equal(3, vertex.Outputs.Attributes.Count);
+        Assert.Equal("worldPos", vertex.Outputs.Attributes[0].Name);
+        Assert.Equal("worldNormal", vertex.Outputs.Attributes[1].Name);
+        Assert.Equal("uv", vertex.Outputs.Attributes[2].Name);
+        // Output attributes without location binding
+        Assert.Null(vertex.Outputs.Attributes[0].LocationIndex);
+    }
+
+    [Fact]
+    public void Parse_VertexShader_ParsesParamsBlock()
+    {
+        var source = @"
+            vertex TransformVertex {
+                in {
+                    position: float3 @ 0
+                }
+                out {
+                    clipPos: float4
+                }
+                params {
+                    model: mat4
+                    view: mat4
+                    projection: mat4
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var vertex = Assert.IsType<VertexDeclaration>(result.Declarations[0]);
+
+        Assert.NotNull(vertex.Params);
+        Assert.Equal(3, vertex.Params.Parameters.Count);
+        Assert.Equal("model", vertex.Params.Parameters[0].Name);
+        Assert.Equal("view", vertex.Params.Parameters[1].Name);
+        Assert.Equal("projection", vertex.Params.Parameters[2].Name);
+    }
+
+    [Fact]
+    public void Parse_VertexShader_ParsesExecuteBlock()
+    {
+        var source = @"
+            vertex TransformVertex {
+                in {
+                    position: float3 @ 0
+                }
+                out {
+                    outPos: float3
+                }
+                execute() {
+                    outPos = position;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var vertex = Assert.IsType<VertexDeclaration>(result.Declarations[0]);
+        Assert.Single(vertex.Execute.Body);
+
+        var stmt = Assert.IsType<AssignmentStatement>(vertex.Execute.Body[0]);
+        var target = Assert.IsType<IdentifierExpression>(stmt.Target);
+        Assert.Equal("outPos", target.Name);
+    }
+
+    [Fact]
+    public void Parse_VertexShader_AttributeWithoutLocation()
+    {
+        var source = @"
+            vertex SimpleVertex {
+                in {
+                    position: float3
+                }
+                out {
+                    outColor: float4 @ 0
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var vertex = Assert.IsType<VertexDeclaration>(result.Declarations[0]);
+
+        // Input without location
+        Assert.Null(vertex.Inputs.Attributes[0].LocationIndex);
+        // Output with location
+        Assert.Equal(0, vertex.Outputs.Attributes[0].LocationIndex);
+    }
+
+    #endregion
+
+    #region Fragment Shader Tests
+
+    [Fact]
+    public void Parse_FragmentShader_ParsesCorrectly()
+    {
+        var source = @"
+            fragment LitSurface {
+                in {
+                    worldPos: float3
+                    worldNormal: float3
+                    uv: float2
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        Assert.Single(result.Declarations);
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        Assert.Equal("LitSurface", fragment.Name);
+
+        Assert.Equal(3, fragment.Inputs.Attributes.Count);
+        Assert.Single(fragment.Outputs.Attributes);
+        Assert.Equal("fragColor", fragment.Outputs.Attributes[0].Name);
+        Assert.Equal(0, fragment.Outputs.Attributes[0].LocationIndex);
+    }
+
+    [Fact]
+    public void Parse_FragmentShader_WithParams()
+    {
+        var source = @"
+            fragment LitSurface {
+                in {
+                    worldNormal: float3
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                params {
+                    lightDir: float3
+                    lightColor: float3
+                    ambientColor: float3
+                }
+                execute() {
+                    fragColor = lightColor;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+
+        Assert.NotNull(fragment.Params);
+        Assert.Equal(3, fragment.Params.Parameters.Count);
+        Assert.Equal("lightDir", fragment.Params.Parameters[0].Name);
+    }
+
+    [Fact]
+    public void Parse_FragmentShader_WithExecuteLogic()
+    {
+        var source = @"
+            fragment SimpleColor {
+                in {
+                    color: float4
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                execute() {
+                    fragColor = color;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        Assert.Single(fragment.Execute.Body);
+
+        var stmt = Assert.IsType<AssignmentStatement>(fragment.Execute.Body[0]);
+        var target = Assert.IsType<IdentifierExpression>(stmt.Target);
+        Assert.Equal("fragColor", target.Name);
+    }
+
+    #endregion
+
+    #region Mixed Declarations Tests
+
+    [Fact]
+    public void Parse_MultipleDeclarationTypes_ParsesCorrectly()
+    {
+        var source = @"
+            component Position {
+                x: float
+                y: float
+                z: float
+            }
+
+            vertex TransformVertex {
+                in {
+                    pos: float3 @ 0
+                }
+                out {
+                    outPos: float3
+                }
+                execute() {
+                }
+            }
+
+            fragment ColorOutput {
+                in {
+                    color: float4
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                execute() {
+                }
+            }
+
+            compute UpdatePhysics {
+                query {
+                    write Position
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        Assert.Equal(4, result.Declarations.Count);
+        Assert.IsType<ComponentDeclaration>(result.Declarations[0]);
+        Assert.IsType<VertexDeclaration>(result.Declarations[1]);
+        Assert.IsType<FragmentDeclaration>(result.Declarations[2]);
+        Assert.IsType<ComputeDeclaration>(result.Declarations[3]);
+    }
+
+    #endregion
 }

@@ -68,6 +68,28 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
+    /// Generates GLSL code for a vertex shader.
+    /// </summary>
+    /// <param name="vertex">The vertex shader AST.</param>
+    /// <returns>The generated GLSL code.</returns>
+    public static string GenerateGlsl(VertexDeclaration vertex)
+    {
+        var generator = new GlslGenerator();
+        return generator.Generate(vertex);
+    }
+
+    /// <summary>
+    /// Generates GLSL code for a fragment shader.
+    /// </summary>
+    /// <param name="fragment">The fragment shader AST.</param>
+    /// <returns>The generated GLSL code.</returns>
+    public static string GenerateGlsl(FragmentDeclaration fragment)
+    {
+        var generator = new GlslGenerator();
+        return generator.Generate(fragment);
+    }
+
+    /// <summary>
     /// Generates HLSL code for a compute shader.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
@@ -76,6 +98,28 @@ public sealed class KeslCompiler
     {
         var generator = new HlslGenerator();
         return generator.Generate(compute);
+    }
+
+    /// <summary>
+    /// Generates HLSL code for a vertex shader.
+    /// </summary>
+    /// <param name="vertex">The vertex shader AST.</param>
+    /// <returns>The generated HLSL code.</returns>
+    public static string GenerateHlsl(VertexDeclaration vertex)
+    {
+        var generator = new HlslGenerator();
+        return generator.Generate(vertex);
+    }
+
+    /// <summary>
+    /// Generates HLSL code for a fragment shader.
+    /// </summary>
+    /// <param name="fragment">The fragment shader AST.</param>
+    /// <returns>The generated HLSL code.</returns>
+    public static string GenerateHlsl(FragmentDeclaration fragment)
+    {
+        var generator = new HlslGenerator();
+        return generator.Generate(fragment);
     }
 
     /// <summary>
