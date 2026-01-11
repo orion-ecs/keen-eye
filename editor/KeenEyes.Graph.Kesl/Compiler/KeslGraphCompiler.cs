@@ -3,6 +3,8 @@ using KeenEyes.Graph.Kesl.Components;
 using KeenEyes.Shaders.Compiler.Lexing;
 using KeenEyes.Shaders.Compiler.Parsing.Ast;
 
+#pragma warning disable CS8509 // The switch expression does not handle all possible values
+
 namespace KeenEyes.Graph.Kesl.Compiler;
 
 /// <summary>
@@ -14,8 +16,9 @@ namespace KeenEyes.Graph.Kesl.Compiler;
 /// that can then be converted to GLSL or other shader formats. The compilation process:
 /// </para>
 /// <list type="number">
-/// <item>Finds the root ComputeShader node</item>
-/// <item>Collects QueryBinding nodes to build the query block</item>
+/// <item>Finds the root shader node (ComputeShader, VertexShader, or FragmentShader)</item>
+/// <item>Collects inputs: QueryBinding for compute, InputAttribute for vertex/fragment</item>
+/// <item>Collects outputs: OutputAttribute for vertex/fragment</item>
 /// <item>Collects Parameter nodes to build the params block</item>
 /// <item>Topologically sorts remaining nodes by dependency</item>
 /// <item>Builds the execute block from sorted expressions</item>
@@ -37,16 +40,28 @@ public sealed class KeslGraphCompiler
     {
         context.Clear();
 
-        // Find root ComputeShader node
-        var rootNode = GraphTraverser.FindRootNode(canvas, world);
-        if (rootNode is null)
+        // Find root shader node and determine its type
+        var rootResult = GraphTraverser.FindRootNodeWithType(canvas, world);
+        if (rootResult is null)
         {
-            return CompilationResult.Error("No ComputeShader node found in graph");
+            return CompilationResult.Error("No shader node found in graph (ComputeShader, VertexShader, or FragmentShader)");
         }
 
+        var (rootNode, rootTypeId) = rootResult.Value;
+
+        return rootTypeId switch
+        {
+            KeslNodeIds.ComputeShader => CompileComputeShader(rootNode, canvas, world),
+            KeslNodeIds.VertexShader => CompileVertexShader(rootNode, canvas, world),
+            KeslNodeIds.FragmentShader => CompileFragmentShader(rootNode, canvas, world)
+        };
+    }
+
+    private CompilationResult CompileComputeShader(Entity rootNode, Entity canvas, IWorld world)
+    {
         // Get shader name
-        var shaderData = world.Has<ComputeShaderNodeData>(rootNode.Value)
-            ? world.Get<ComputeShaderNodeData>(rootNode.Value)
+        var shaderData = world.Has<ComputeShaderNodeData>(rootNode)
+            ? world.Get<ComputeShaderNodeData>(rootNode)
             : ComputeShaderNodeData.Default;
 
         // Collect query bindings
@@ -56,7 +71,7 @@ public sealed class KeslGraphCompiler
         var parameters = CollectParameters(canvas, world);
 
         // Build the execute block from connected nodes
-        var executeStatements = BuildExecuteBlock(rootNode.Value, canvas, world);
+        var executeStatements = BuildExecuteBlock(rootNode, canvas, world);
 
         // Check for compilation errors
         if (context.Errors.Count > 0)
@@ -79,6 +94,94 @@ public sealed class KeslGraphCompiler
             GeneratedLocation);
 
         return CompilationResult.Success(declaration);
+    }
+
+    private CompilationResult CompileVertexShader(Entity rootNode, Entity canvas, IWorld world)
+    {
+        // Get shader name
+        var shaderData = world.Has<VertexShaderNodeData>(rootNode)
+            ? world.Get<VertexShaderNodeData>(rootNode)
+            : VertexShaderNodeData.Default;
+
+        // Collect input attributes
+        var inputAttributes = CollectInputAttributes(canvas, world);
+
+        // Collect output attributes
+        var outputAttributes = CollectOutputAttributes(canvas, world);
+
+        // Collect parameters
+        var parameters = CollectParameters(canvas, world);
+
+        // Build the execute block from connected nodes
+        var executeStatements = BuildExecuteBlock(rootNode, canvas, world);
+
+        // Check for compilation errors
+        if (context.Errors.Count > 0)
+        {
+            return CompilationResult.Failure([.. context.Errors]);
+        }
+
+        // Build the AST
+        var inputBlock = new InputBlock(inputAttributes, GeneratedLocation);
+        var outputBlock = new OutputBlock(outputAttributes, GeneratedLocation);
+        var paramsBlock = parameters.Count > 0
+            ? new ParamsBlock(parameters, GeneratedLocation)
+            : null;
+        var executeBlock = new ExecuteBlock(executeStatements, GeneratedLocation);
+
+        var declaration = new VertexDeclaration(
+            shaderData.ShaderName,
+            inputBlock,
+            outputBlock,
+            paramsBlock,
+            executeBlock,
+            GeneratedLocation);
+
+        return CompilationResult.SuccessVertex(declaration);
+    }
+
+    private CompilationResult CompileFragmentShader(Entity rootNode, Entity canvas, IWorld world)
+    {
+        // Get shader name
+        var shaderData = world.Has<FragmentShaderNodeData>(rootNode)
+            ? world.Get<FragmentShaderNodeData>(rootNode)
+            : FragmentShaderNodeData.Default;
+
+        // Collect input attributes
+        var inputAttributes = CollectInputAttributes(canvas, world);
+
+        // Collect output attributes
+        var outputAttributes = CollectOutputAttributes(canvas, world);
+
+        // Collect parameters
+        var parameters = CollectParameters(canvas, world);
+
+        // Build the execute block from connected nodes
+        var executeStatements = BuildExecuteBlock(rootNode, canvas, world);
+
+        // Check for compilation errors
+        if (context.Errors.Count > 0)
+        {
+            return CompilationResult.Failure([.. context.Errors]);
+        }
+
+        // Build the AST
+        var inputBlock = new InputBlock(inputAttributes, GeneratedLocation);
+        var outputBlock = new OutputBlock(outputAttributes, GeneratedLocation);
+        var paramsBlock = parameters.Count > 0
+            ? new ParamsBlock(parameters, GeneratedLocation)
+            : null;
+        var executeBlock = new ExecuteBlock(executeStatements, GeneratedLocation);
+
+        var declaration = new FragmentDeclaration(
+            shaderData.ShaderName,
+            inputBlock,
+            outputBlock,
+            paramsBlock,
+            executeBlock,
+            GeneratedLocation);
+
+        return CompilationResult.SuccessFragment(declaration);
     }
 
     private static List<QueryBinding> CollectQueryBindings(Entity canvas, IWorld world)
@@ -127,6 +230,80 @@ public sealed class KeslGraphCompiler
         }
 
         return parameters;
+    }
+
+    private static List<AttributeDeclaration> CollectInputAttributes(Entity canvas, IWorld world)
+    {
+        var attributes = new List<AttributeDeclaration>();
+
+        foreach (var entity in world.Query<GraphNode, InputAttributeNodeData>())
+        {
+            var nodeData = world.Get<GraphNode>(entity);
+            if (nodeData.Canvas != canvas)
+            {
+                continue;
+            }
+
+            var attrData = world.Get<InputAttributeNodeData>(entity);
+            var typeRef = PortTypeToTypeRef(attrData.AttributeType);
+
+            attributes.Add(new AttributeDeclaration(
+                attrData.AttributeName,
+                typeRef,
+                attrData.Location,
+                GeneratedLocation));
+        }
+
+        // Sort by location for consistent output
+        attributes.Sort((a, b) => (a.LocationIndex ?? 0).CompareTo(b.LocationIndex ?? 0));
+
+        return attributes;
+    }
+
+    private static List<AttributeDeclaration> CollectOutputAttributes(Entity canvas, IWorld world)
+    {
+        var attributes = new List<AttributeDeclaration>();
+
+        foreach (var entity in world.Query<GraphNode, OutputAttributeNodeData>())
+        {
+            var nodeData = world.Get<GraphNode>(entity);
+            if (nodeData.Canvas != canvas)
+            {
+                continue;
+            }
+
+            var attrData = world.Get<OutputAttributeNodeData>(entity);
+            var typeRef = PortTypeToTypeRef(attrData.AttributeType);
+
+            // Location of -1 means no explicit location
+            int? location = attrData.Location >= 0 ? attrData.Location : null;
+
+            attributes.Add(new AttributeDeclaration(
+                attrData.AttributeName,
+                typeRef,
+                location,
+                GeneratedLocation));
+        }
+
+        // Sort by location for consistent output (null locations last)
+        attributes.Sort((a, b) =>
+        {
+            if (a.LocationIndex is null && b.LocationIndex is null)
+            {
+                return 0;
+            }
+            if (a.LocationIndex is null)
+            {
+                return 1;
+            }
+            if (b.LocationIndex is null)
+            {
+                return -1;
+            }
+            return a.LocationIndex.Value.CompareTo(b.LocationIndex.Value);
+        });
+
+        return attributes;
     }
 
     private List<Statement> BuildExecuteBlock(Entity rootNode, Entity canvas, IWorld world)
@@ -367,8 +544,12 @@ public sealed class KeslGraphCompiler
         return nodeTypeId switch
         {
             KeslNodeIds.ComputeShader => true,
+            KeslNodeIds.VertexShader => true,
+            KeslNodeIds.FragmentShader => true,
             KeslNodeIds.QueryBinding => true,
             KeslNodeIds.Parameter => true,
+            KeslNodeIds.InputAttribute => true,
+            KeslNodeIds.OutputAttribute => true,
             _ => false
         };
     }

@@ -100,7 +100,7 @@ public static class GraphTraverser
     }
 
     /// <summary>
-    /// Finds the root ComputeShader node in a graph.
+    /// Finds the root shader node in a graph (ComputeShader, VertexShader, or FragmentShader).
     /// </summary>
     /// <param name="canvas">The graph canvas entity.</param>
     /// <param name="world">The world containing the graph.</param>
@@ -115,13 +115,52 @@ public static class GraphTraverser
                 continue;
             }
 
-            if (nodeData.NodeTypeId == KeslNodeIds.ComputeShader)
+            if (IsRootShaderNode(nodeData.NodeTypeId))
             {
                 return entity;
             }
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Finds the root shader node and returns its type.
+    /// </summary>
+    /// <param name="canvas">The graph canvas entity.</param>
+    /// <param name="world">The world containing the graph.</param>
+    /// <returns>The root node and its type, or null if not found.</returns>
+    public static (Entity Node, int TypeId)? FindRootNodeWithType(Entity canvas, IWorld world)
+    {
+        foreach (var entity in world.Query<GraphNode>())
+        {
+            var nodeData = world.Get<GraphNode>(entity);
+            if (nodeData.Canvas != canvas)
+            {
+                continue;
+            }
+
+            if (IsRootShaderNode(nodeData.NodeTypeId))
+            {
+                return (entity, nodeData.NodeTypeId);
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Determines if a node type ID represents a root shader node.
+    /// </summary>
+    private static bool IsRootShaderNode(int nodeTypeId)
+    {
+        return nodeTypeId switch
+        {
+            KeslNodeIds.ComputeShader => true,
+            KeslNodeIds.VertexShader => true,
+            KeslNodeIds.FragmentShader => true,
+            _ => false
+        };
     }
 
     /// <summary>

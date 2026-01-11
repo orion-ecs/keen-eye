@@ -46,6 +46,56 @@ internal sealed class TestGraphBuilder : IDisposable
     }
 
     /// <summary>
+    /// Creates a VertexShader root node.
+    /// </summary>
+    public Entity CreateVertexShader(string name = "TestVertexShader")
+    {
+        var node = CreateNode(KeslNodeIds.VertexShader);
+        world.Add(node, new VertexShaderNodeData { ShaderName = name });
+        return node;
+    }
+
+    /// <summary>
+    /// Creates a FragmentShader root node.
+    /// </summary>
+    public Entity CreateFragmentShader(string name = "TestFragmentShader")
+    {
+        var node = CreateNode(KeslNodeIds.FragmentShader);
+        world.Add(node, new FragmentShaderNodeData { ShaderName = name });
+        return node;
+    }
+
+    /// <summary>
+    /// Creates an InputAttribute node for vertex/fragment shaders.
+    /// </summary>
+    public Entity CreateInputAttribute(string name, PortTypeId type, int location = 0)
+    {
+        var node = CreateNode(KeslNodeIds.InputAttribute);
+        world.Add(node, new InputAttributeNodeData
+        {
+            AttributeName = name,
+            AttributeType = type,
+            Location = location
+        });
+        return node;
+    }
+
+    /// <summary>
+    /// Creates an OutputAttribute node for vertex/fragment shaders.
+    /// </summary>
+    public Entity CreateOutputAttribute(string name, PortTypeId type, int location = -1)
+    {
+        var node = CreateNode(KeslNodeIds.OutputAttribute);
+        world.Add(node, new OutputAttributeNodeData
+        {
+            AttributeName = name,
+            AttributeType = type,
+            Location = location
+        });
+        return node;
+    }
+
+    /// <summary>
     /// Creates a QueryBinding node.
     /// </summary>
     public Entity CreateQueryBinding(string componentName, AccessMode accessMode = AccessMode.Read)
