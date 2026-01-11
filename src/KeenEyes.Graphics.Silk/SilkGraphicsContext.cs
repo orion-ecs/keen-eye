@@ -62,6 +62,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
     private SilkWindow? window;
     private IGraphicsDevice? device;
+    private RenderTargetManager? renderTargetManager;
     private Silk2DRenderer? renderer2D;
     private SilkFontManager? fontManager;
     private SilkTextRenderer? textRenderer;
@@ -213,6 +214,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         textureManager.Device = device;
         shaderManager.Device = device;
         instanceBufferManager.Device = device;
+        renderTargetManager = new RenderTargetManager(device);
 
         // Apply default settings
         if (config.EnableDepthTest)
@@ -711,6 +713,140 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
     #endregion
 
+    #region Render Target Operations
+
+    /// <inheritdoc />
+    public RenderTargetHandle CreateRenderTarget(int width, int height, RenderTargetFormat format)
+    {
+        if (renderTargetManager is null)
+        {
+            throw new InvalidOperationException("Graphics context is not initialized.");
+        }
+
+        return renderTargetManager.CreateRenderTarget(width, height, format);
+    }
+
+    /// <inheritdoc />
+    public RenderTargetHandle CreateDepthOnlyRenderTarget(int width, int height)
+    {
+        if (renderTargetManager is null)
+        {
+            throw new InvalidOperationException("Graphics context is not initialized.");
+        }
+
+        return renderTargetManager.CreateDepthOnlyRenderTarget(width, height);
+    }
+
+    /// <inheritdoc />
+    public CubemapRenderTargetHandle CreateCubemapRenderTarget(int size, bool withDepth, int mipLevels = 1)
+    {
+        if (renderTargetManager is null)
+        {
+            throw new InvalidOperationException("Graphics context is not initialized.");
+        }
+
+        return renderTargetManager.CreateCubemapRenderTarget(size, withDepth, mipLevels);
+    }
+
+    /// <inheritdoc />
+    public void BindRenderTarget(RenderTargetHandle target)
+    {
+        if (renderTargetManager is null)
+        {
+            throw new InvalidOperationException("Graphics context is not initialized.");
+        }
+
+        renderTargetManager.BindRenderTarget(target);
+    }
+
+    /// <inheritdoc />
+    public void BindCubemapRenderTarget(CubemapRenderTargetHandle target, CubemapFace face, int mipLevel = 0)
+    {
+        if (renderTargetManager is null)
+        {
+            throw new InvalidOperationException("Graphics context is not initialized.");
+        }
+
+        renderTargetManager.BindCubemapRenderTarget(target, face, mipLevel);
+    }
+
+    /// <inheritdoc />
+    public void UnbindRenderTarget()
+    {
+        renderTargetManager?.UnbindRenderTarget();
+
+        // Restore the default viewport
+        if (window is not null)
+        {
+            device?.Viewport(0, 0, (uint)window.Width, (uint)window.Height);
+        }
+    }
+
+    /// <inheritdoc />
+    public TextureHandle GetRenderTargetColorTexture(RenderTargetHandle target)
+    {
+        if (renderTargetManager is null)
+        {
+            return TextureHandle.Invalid;
+        }
+
+        var textureId = renderTargetManager.GetColorTextureId(target);
+        if (textureId == 0)
+        {
+            return TextureHandle.Invalid;
+        }
+
+        return new TextureHandle((int)textureId, target.Width, target.Height);
+    }
+
+    /// <inheritdoc />
+    public TextureHandle GetRenderTargetDepthTexture(RenderTargetHandle target)
+    {
+        if (renderTargetManager is null)
+        {
+            return TextureHandle.Invalid;
+        }
+
+        var textureId = renderTargetManager.GetDepthTextureId(target);
+        if (textureId == 0)
+        {
+            return TextureHandle.Invalid;
+        }
+
+        return new TextureHandle((int)textureId, target.Width, target.Height);
+    }
+
+    /// <inheritdoc />
+    public TextureHandle GetCubemapRenderTargetTexture(CubemapRenderTargetHandle target)
+    {
+        if (renderTargetManager is null)
+        {
+            return TextureHandle.Invalid;
+        }
+
+        var textureId = renderTargetManager.GetCubemapTextureId(target);
+        if (textureId == 0)
+        {
+            return TextureHandle.Invalid;
+        }
+
+        return new TextureHandle((int)textureId, target.Size, target.Size);
+    }
+
+    /// <inheritdoc />
+    public void DeleteRenderTarget(RenderTargetHandle target)
+    {
+        renderTargetManager?.DeleteRenderTarget(target);
+    }
+
+    /// <inheritdoc />
+    public void DeleteCubemapRenderTarget(CubemapRenderTargetHandle target)
+    {
+        renderTargetManager?.DeleteCubemapRenderTarget(target);
+    }
+
+    #endregion
+
     private void DisposeGpuResources()
     {
         if (gpuResourcesDisposed)
@@ -720,6 +856,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
         gpuResourcesDisposed = true;
 
+        renderTargetManager?.Dispose();
         renderer2D?.Dispose();
         textRenderer?.Dispose();
         fontManager?.Dispose();

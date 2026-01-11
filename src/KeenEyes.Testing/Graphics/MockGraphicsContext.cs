@@ -473,6 +473,128 @@ public sealed class MockGraphicsContext : IGraphicsContext
 
     #endregion
 
+    #region Render Target Operations
+
+    /// <summary>
+    /// Gets the dictionary of created render targets by handle.
+    /// </summary>
+    public Dictionary<RenderTargetHandle, MockRenderTargetInfo> RenderTargets { get; } = [];
+
+    /// <summary>
+    /// Gets the dictionary of created cubemap render targets by handle.
+    /// </summary>
+    public Dictionary<CubemapRenderTargetHandle, MockCubemapRenderTargetInfo> CubemapRenderTargets { get; } = [];
+
+    /// <summary>
+    /// Gets the currently bound render target, or null if rendering to default framebuffer.
+    /// </summary>
+    public RenderTargetHandle? BoundRenderTarget { get; private set; }
+
+    /// <summary>
+    /// Gets the currently bound cubemap render target info, or null if not bound.
+    /// </summary>
+    public (CubemapRenderTargetHandle Handle, CubemapFace Face, int MipLevel)? BoundCubemapRenderTarget { get; private set; }
+
+    /// <inheritdoc />
+    public RenderTargetHandle CreateRenderTarget(int width, int height, RenderTargetFormat format)
+    {
+        var handle = new RenderTargetHandle(nextHandleId++, width, height, format);
+        RenderTargets[handle] = new MockRenderTargetInfo(width, height, format);
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public RenderTargetHandle CreateDepthOnlyRenderTarget(int width, int height)
+    {
+        var handle = new RenderTargetHandle(nextHandleId++, width, height, RenderTargetFormat.Depth32F);
+        RenderTargets[handle] = new MockRenderTargetInfo(width, height, RenderTargetFormat.Depth32F) { IsDepthOnly = true };
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public CubemapRenderTargetHandle CreateCubemapRenderTarget(int size, bool withDepth, int mipLevels = 1)
+    {
+        var handle = new CubemapRenderTargetHandle(nextHandleId++, size, withDepth, mipLevels);
+        CubemapRenderTargets[handle] = new MockCubemapRenderTargetInfo(size, withDepth, mipLevels);
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void BindRenderTarget(RenderTargetHandle target)
+    {
+        BoundRenderTarget = target.IsValid ? target : null;
+        BoundCubemapRenderTarget = null;
+    }
+
+    /// <inheritdoc />
+    public void BindCubemapRenderTarget(CubemapRenderTargetHandle target, CubemapFace face, int mipLevel = 0)
+    {
+        BoundCubemapRenderTarget = target.IsValid ? (target, face, mipLevel) : null;
+        BoundRenderTarget = null;
+    }
+
+    /// <inheritdoc />
+    public void UnbindRenderTarget()
+    {
+        BoundRenderTarget = null;
+        BoundCubemapRenderTarget = null;
+    }
+
+    /// <inheritdoc />
+    public TextureHandle GetRenderTargetColorTexture(RenderTargetHandle target)
+    {
+        if (RenderTargets.TryGetValue(target, out var info) && !info.IsDepthOnly)
+        {
+            return info.ColorTexture;
+        }
+
+        return TextureHandle.Invalid;
+    }
+
+    /// <inheritdoc />
+    public TextureHandle GetRenderTargetDepthTexture(RenderTargetHandle target)
+    {
+        if (RenderTargets.TryGetValue(target, out var info))
+        {
+            return info.DepthTexture;
+        }
+
+        return TextureHandle.Invalid;
+    }
+
+    /// <inheritdoc />
+    public TextureHandle GetCubemapRenderTargetTexture(CubemapRenderTargetHandle target)
+    {
+        if (CubemapRenderTargets.TryGetValue(target, out var info))
+        {
+            return info.CubemapTexture;
+        }
+
+        return TextureHandle.Invalid;
+    }
+
+    /// <inheritdoc />
+    public void DeleteRenderTarget(RenderTargetHandle target)
+    {
+        RenderTargets.Remove(target);
+        if (BoundRenderTarget == target)
+        {
+            BoundRenderTarget = null;
+        }
+    }
+
+    /// <inheritdoc />
+    public void DeleteCubemapRenderTarget(CubemapRenderTargetHandle target)
+    {
+        CubemapRenderTargets.Remove(target);
+        if (BoundCubemapRenderTarget?.Handle == target)
+        {
+            BoundCubemapRenderTarget = null;
+        }
+    }
+
+    #endregion
+
     #region Test Control
 
     /// <summary>
@@ -498,9 +620,13 @@ public sealed class MockGraphicsContext : IGraphicsContext
         MeshDrawCalls.Clear();
         InstancedMeshDrawCalls.Clear();
         UniformValues.Clear();
+        RenderTargets.Clear();
+        CubemapRenderTargets.Clear();
         boundTextures.Clear();
         boundShader = default;
         boundMesh = default;
+        BoundRenderTarget = null;
+        BoundCubemapRenderTarget = null;
         RenderState.Reset();
     }
 
@@ -767,6 +893,78 @@ public sealed class MockContextRenderState
         ProcessEventsCount = 0;
         SwapBuffersCount = 0;
     }
+}
+
+/// <summary>
+/// Information about a created render target.
+/// </summary>
+/// <param name="Width">The width in pixels.</param>
+/// <param name="Height">The height in pixels.</param>
+/// <param name="Format">The render target format.</param>
+public sealed class MockRenderTargetInfo(int Width, int Height, RenderTargetFormat Format)
+{
+    private static int nextTextureId = 10000;
+
+    /// <summary>
+    /// Gets the width in pixels.
+    /// </summary>
+    public int Width { get; } = Width;
+
+    /// <summary>
+    /// Gets the height in pixels.
+    /// </summary>
+    public int Height { get; } = Height;
+
+    /// <summary>
+    /// Gets the render target format.
+    /// </summary>
+    public RenderTargetFormat Format { get; } = Format;
+
+    /// <summary>
+    /// Gets or sets whether this is a depth-only render target.
+    /// </summary>
+    public bool IsDepthOnly { get; set; }
+
+    /// <summary>
+    /// Gets the color texture handle.
+    /// </summary>
+    public TextureHandle ColorTexture { get; } = new TextureHandle(System.Threading.Interlocked.Increment(ref nextTextureId), Width, Height);
+
+    /// <summary>
+    /// Gets the depth texture handle.
+    /// </summary>
+    public TextureHandle DepthTexture { get; } = new TextureHandle(System.Threading.Interlocked.Increment(ref nextTextureId), Width, Height);
+}
+
+/// <summary>
+/// Information about a created cubemap render target.
+/// </summary>
+/// <param name="Size">The size of each face in pixels.</param>
+/// <param name="HasDepth">Whether the target has a depth buffer.</param>
+/// <param name="MipLevels">The number of mip levels.</param>
+public sealed class MockCubemapRenderTargetInfo(int Size, bool HasDepth, int MipLevels)
+{
+    private static int nextTextureId = 20000;
+
+    /// <summary>
+    /// Gets the size of each face in pixels.
+    /// </summary>
+    public int Size { get; } = Size;
+
+    /// <summary>
+    /// Gets whether the target has a depth buffer.
+    /// </summary>
+    public bool HasDepth { get; } = HasDepth;
+
+    /// <summary>
+    /// Gets the number of mip levels.
+    /// </summary>
+    public int MipLevels { get; } = MipLevels;
+
+    /// <summary>
+    /// Gets the cubemap texture handle.
+    /// </summary>
+    public TextureHandle CubemapTexture { get; } = new TextureHandle(System.Threading.Interlocked.Increment(ref nextTextureId), Size, Size);
 }
 
 #endregion

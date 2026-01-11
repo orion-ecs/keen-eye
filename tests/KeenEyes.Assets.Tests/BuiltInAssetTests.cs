@@ -343,5 +343,18 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public void SetBlending(bool enabled) { }
     public void SetCulling(bool enabled, CullFaceMode mode = CullFaceMode.Back) { }
 
+    // Render target operations
+    public RenderTargetHandle CreateRenderTarget(int width, int height, RenderTargetFormat format) => new(1, width, height, format);
+    public RenderTargetHandle CreateDepthOnlyRenderTarget(int width, int height) => new(1, width, height, RenderTargetFormat.Depth32F);
+    public CubemapRenderTargetHandle CreateCubemapRenderTarget(int size, bool withDepth, int mipLevels = 1) => new(1, size, withDepth, mipLevels);
+    public void BindRenderTarget(RenderTargetHandle target) { }
+    public void BindCubemapRenderTarget(CubemapRenderTargetHandle target, CubemapFace face, int mipLevel = 0) { }
+    public void UnbindRenderTarget() { }
+    public TextureHandle GetRenderTargetColorTexture(RenderTargetHandle target) => new(100, target.Width, target.Height);
+    public TextureHandle GetRenderTargetDepthTexture(RenderTargetHandle target) => new(101, target.Width, target.Height);
+    public TextureHandle GetCubemapRenderTargetTexture(CubemapRenderTargetHandle target) => new(102, target.Size, target.Size);
+    public void DeleteRenderTarget(RenderTargetHandle target) { }
+    public void DeleteCubemapRenderTarget(CubemapRenderTargetHandle target) { }
+
     public void Dispose() { }
 }

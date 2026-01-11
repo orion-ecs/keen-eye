@@ -460,6 +460,85 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
 
     #endregion
 
+    #region Framebuffer Operations
+
+    public uint GenFramebuffer()
+    {
+        uint handle = nextHandle++;
+        Calls.Add($"GenFramebuffer() => {handle}");
+        return handle;
+    }
+
+    public void BindFramebuffer(FramebufferTarget target, uint framebuffer)
+    {
+        Calls.Add($"BindFramebuffer({target}, {framebuffer})");
+    }
+
+    public void DeleteFramebuffer(uint framebuffer)
+    {
+        Calls.Add($"DeleteFramebuffer({framebuffer})");
+    }
+
+    public void FramebufferTexture2D(FramebufferTarget target, FramebufferAttachment attachment, TextureTarget texTarget, uint texture, int level)
+    {
+        Calls.Add($"FramebufferTexture2D({target}, {attachment}, {texTarget}, {texture}, {level})");
+    }
+
+    public FramebufferStatus CheckFramebufferStatus(FramebufferTarget target)
+    {
+        Calls.Add($"CheckFramebufferStatus({target})");
+        return FramebufferStatus.Complete;
+    }
+
+    public uint GenRenderbuffer()
+    {
+        uint handle = nextHandle++;
+        Calls.Add($"GenRenderbuffer() => {handle}");
+        return handle;
+    }
+
+    public void BindRenderbuffer(uint renderbuffer)
+    {
+        Calls.Add($"BindRenderbuffer({renderbuffer})");
+    }
+
+    public void DeleteRenderbuffer(uint renderbuffer)
+    {
+        Calls.Add($"DeleteRenderbuffer({renderbuffer})");
+    }
+
+    public void RenderbufferStorage(RenderbufferFormat format, uint width, uint height)
+    {
+        Calls.Add($"RenderbufferStorage({format}, {width}, {height})");
+    }
+
+    public void FramebufferRenderbuffer(FramebufferTarget target, FramebufferAttachment attachment, uint renderbuffer)
+    {
+        Calls.Add($"FramebufferRenderbuffer({target}, {attachment}, {renderbuffer})");
+    }
+
+    public void DrawBuffer(DrawBufferMode mode)
+    {
+        Calls.Add($"DrawBuffer({mode})");
+    }
+
+    public void ReadBuffer(DrawBufferMode mode)
+    {
+        Calls.Add($"ReadBuffer({mode})");
+    }
+
+    public void DepthMask(bool flag)
+    {
+        Calls.Add($"DepthMask({flag})");
+    }
+
+    public void ColorMask(bool red, bool green, bool blue, bool alpha)
+    {
+        Calls.Add($"ColorMask({red}, {green}, {blue}, {alpha})");
+    }
+
+    #endregion
+
     /// <summary>
     /// Clears all recorded calls and resets state.
     /// </summary>

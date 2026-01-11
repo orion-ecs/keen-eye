@@ -94,6 +94,7 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     {
         unsafe
         {
+            var pixelType = ToGLPixelType(format);
 
             if (data.IsEmpty)
             {
@@ -106,7 +107,7 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
                     (uint)height,
                     0,
                     ToGL(format),
-                    PixelType.UnsignedByte,
+                    pixelType,
                     null);
             }
             else
@@ -121,7 +122,7 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
                         (uint)height,
                         0,
                         ToGL(format),
-                        PixelType.UnsignedByte,
+                        pixelType,
                         ptr);
                 }
             }
@@ -352,6 +353,66 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
 
     #endregion
 
+    #region Framebuffer Operations
+
+    /// <inheritdoc />
+    public uint GenFramebuffer() => gl.GenFramebuffer();
+
+    /// <inheritdoc />
+    public void BindFramebuffer(Abstractions.FramebufferTarget target, uint framebuffer)
+        => gl.BindFramebuffer(ToGL(target), framebuffer);
+
+    /// <inheritdoc />
+    public void DeleteFramebuffer(uint framebuffer) => gl.DeleteFramebuffer(framebuffer);
+
+    /// <inheritdoc />
+    public void FramebufferTexture2D(Abstractions.FramebufferTarget target, Abstractions.FramebufferAttachment attachment,
+                                     Abstractions.TextureTarget texTarget, uint texture, int level)
+        => gl.FramebufferTexture2D(ToGL(target), ToGL(attachment), ToGL(texTarget), texture, level);
+
+    /// <inheritdoc />
+    public Abstractions.FramebufferStatus CheckFramebufferStatus(Abstractions.FramebufferTarget target)
+    {
+        var status = gl.CheckFramebufferStatus(ToGL(target));
+        return FromGL(status);
+    }
+
+    /// <inheritdoc />
+    public uint GenRenderbuffer() => gl.GenRenderbuffer();
+
+    /// <inheritdoc />
+    public void BindRenderbuffer(uint renderbuffer)
+        => gl.BindRenderbuffer(RenderbufferTarget.Renderbuffer, renderbuffer);
+
+    /// <inheritdoc />
+    public void DeleteRenderbuffer(uint renderbuffer) => gl.DeleteRenderbuffer(renderbuffer);
+
+    /// <inheritdoc />
+    public void RenderbufferStorage(Abstractions.RenderbufferFormat format, uint width, uint height)
+        => gl.RenderbufferStorage(RenderbufferTarget.Renderbuffer, ToGL(format), width, height);
+
+    /// <inheritdoc />
+    public void FramebufferRenderbuffer(Abstractions.FramebufferTarget target, Abstractions.FramebufferAttachment attachment,
+                                        uint renderbuffer)
+        => gl.FramebufferRenderbuffer(ToGL(target), ToGL(attachment), RenderbufferTarget.Renderbuffer, renderbuffer);
+
+    /// <inheritdoc />
+    public void DrawBuffer(Abstractions.DrawBufferMode mode)
+        => gl.DrawBuffer(ToGL(mode));
+
+    /// <inheritdoc />
+    public void ReadBuffer(Abstractions.DrawBufferMode mode)
+        => gl.ReadBuffer(ToGLReadBuffer(mode));
+
+    /// <inheritdoc />
+    public void DepthMask(bool flag) => gl.DepthMask(flag);
+
+    /// <inheritdoc />
+    public void ColorMask(bool red, bool green, bool blue, bool alpha)
+        => gl.ColorMask(red, green, blue, alpha);
+
+    #endregion
+
     #region Enum Conversions
 
     private static BufferTargetARB ToGL(BufferTarget target) => target switch
@@ -391,6 +452,9 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         TextureParam.MagFilter => TextureParameterName.TextureMagFilter,
         TextureParam.WrapS => TextureParameterName.TextureWrapS,
         TextureParam.WrapT => TextureParameterName.TextureWrapT,
+        TextureParam.WrapR => TextureParameterName.TextureWrapR,
+        TextureParam.CompareMode => TextureParameterName.TextureCompareMode,
+        TextureParam.CompareFunc => TextureParameterName.TextureCompareFunc,
         _ => throw new ArgumentOutOfRangeException(nameof(param))
     };
 
@@ -404,6 +468,14 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         Abstractions.TextureUnit.Texture5 => global::Silk.NET.OpenGL.TextureUnit.Texture5,
         Abstractions.TextureUnit.Texture6 => global::Silk.NET.OpenGL.TextureUnit.Texture6,
         Abstractions.TextureUnit.Texture7 => global::Silk.NET.OpenGL.TextureUnit.Texture7,
+        Abstractions.TextureUnit.Texture8 => global::Silk.NET.OpenGL.TextureUnit.Texture8,
+        Abstractions.TextureUnit.Texture9 => global::Silk.NET.OpenGL.TextureUnit.Texture9,
+        Abstractions.TextureUnit.Texture10 => global::Silk.NET.OpenGL.TextureUnit.Texture10,
+        Abstractions.TextureUnit.Texture11 => global::Silk.NET.OpenGL.TextureUnit.Texture11,
+        Abstractions.TextureUnit.Texture12 => global::Silk.NET.OpenGL.TextureUnit.Texture12,
+        Abstractions.TextureUnit.Texture13 => global::Silk.NET.OpenGL.TextureUnit.Texture13,
+        Abstractions.TextureUnit.Texture14 => global::Silk.NET.OpenGL.TextureUnit.Texture14,
+        Abstractions.TextureUnit.Texture15 => global::Silk.NET.OpenGL.TextureUnit.Texture15,
         _ => throw new ArgumentOutOfRangeException(nameof(unit))
     };
 
@@ -506,6 +578,14 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         Abstractions.PixelFormat.RG => global::Silk.NET.OpenGL.PixelFormat.RG,
         Abstractions.PixelFormat.RGB => global::Silk.NET.OpenGL.PixelFormat.Rgb,
         Abstractions.PixelFormat.RGBA => global::Silk.NET.OpenGL.PixelFormat.Rgba,
+        Abstractions.PixelFormat.Depth16 or Abstractions.PixelFormat.Depth24 or Abstractions.PixelFormat.Depth32F
+            => global::Silk.NET.OpenGL.PixelFormat.DepthComponent,
+        Abstractions.PixelFormat.Depth24Stencil8
+            => global::Silk.NET.OpenGL.PixelFormat.DepthStencil,
+        Abstractions.PixelFormat.RGB16F or Abstractions.PixelFormat.RGB32F
+            => global::Silk.NET.OpenGL.PixelFormat.Rgb,
+        Abstractions.PixelFormat.RGBA16F or Abstractions.PixelFormat.RGBA32F
+            => global::Silk.NET.OpenGL.PixelFormat.Rgba,
         _ => throw new ArgumentOutOfRangeException(nameof(format))
     };
 
@@ -515,7 +595,24 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         Abstractions.PixelFormat.RG => InternalFormat.RG8,
         Abstractions.PixelFormat.RGB => InternalFormat.Rgb8,
         Abstractions.PixelFormat.RGBA => InternalFormat.Rgba8,
+        Abstractions.PixelFormat.Depth16 => InternalFormat.DepthComponent16,
+        Abstractions.PixelFormat.Depth24 => InternalFormat.DepthComponent24,
+        Abstractions.PixelFormat.Depth32F => InternalFormat.DepthComponent32f,
+        Abstractions.PixelFormat.Depth24Stencil8 => InternalFormat.Depth24Stencil8,
+        Abstractions.PixelFormat.RGB16F => InternalFormat.Rgb16f,
+        Abstractions.PixelFormat.RGB32F => InternalFormat.Rgb32f,
+        Abstractions.PixelFormat.RGBA16F => InternalFormat.Rgba16f,
+        Abstractions.PixelFormat.RGBA32F => InternalFormat.Rgba32f,
         _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
+    private static PixelType ToGLPixelType(Abstractions.PixelFormat format) => format switch
+    {
+        Abstractions.PixelFormat.Depth32F or Abstractions.PixelFormat.RGB16F or
+        Abstractions.PixelFormat.RGB32F or Abstractions.PixelFormat.RGBA16F or
+        Abstractions.PixelFormat.RGBA32F => PixelType.Float,
+        Abstractions.PixelFormat.Depth24Stencil8 => PixelType.UnsignedInt248,
+        _ => PixelType.UnsignedByte
     };
 
     private static global::Silk.NET.OpenGL.PixelStoreParameter ToGL(Abstractions.PixelStoreParameter param) => param switch
@@ -540,6 +637,75 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
         _ => throw new ArgumentOutOfRangeException(nameof(format))
     };
 
+    private static global::Silk.NET.OpenGL.FramebufferTarget ToGL(Abstractions.FramebufferTarget target) => target switch
+    {
+        Abstractions.FramebufferTarget.Framebuffer => global::Silk.NET.OpenGL.FramebufferTarget.Framebuffer,
+        Abstractions.FramebufferTarget.DrawFramebuffer => global::Silk.NET.OpenGL.FramebufferTarget.DrawFramebuffer,
+        Abstractions.FramebufferTarget.ReadFramebuffer => global::Silk.NET.OpenGL.FramebufferTarget.ReadFramebuffer,
+        _ => throw new ArgumentOutOfRangeException(nameof(target))
+    };
+
+    private static global::Silk.NET.OpenGL.FramebufferAttachment ToGL(Abstractions.FramebufferAttachment attachment) => attachment switch
+    {
+        Abstractions.FramebufferAttachment.ColorAttachment0 => global::Silk.NET.OpenGL.FramebufferAttachment.ColorAttachment0,
+        Abstractions.FramebufferAttachment.ColorAttachment1 => global::Silk.NET.OpenGL.FramebufferAttachment.ColorAttachment1,
+        Abstractions.FramebufferAttachment.ColorAttachment2 => global::Silk.NET.OpenGL.FramebufferAttachment.ColorAttachment2,
+        Abstractions.FramebufferAttachment.ColorAttachment3 => global::Silk.NET.OpenGL.FramebufferAttachment.ColorAttachment3,
+        Abstractions.FramebufferAttachment.DepthAttachment => global::Silk.NET.OpenGL.FramebufferAttachment.DepthAttachment,
+        Abstractions.FramebufferAttachment.StencilAttachment => global::Silk.NET.OpenGL.FramebufferAttachment.StencilAttachment,
+        Abstractions.FramebufferAttachment.DepthStencilAttachment => global::Silk.NET.OpenGL.FramebufferAttachment.DepthStencilAttachment,
+        _ => throw new ArgumentOutOfRangeException(nameof(attachment))
+    };
+
+    private static InternalFormat ToGL(Abstractions.RenderbufferFormat format) => format switch
+    {
+        Abstractions.RenderbufferFormat.DepthComponent16 => InternalFormat.DepthComponent16,
+        Abstractions.RenderbufferFormat.DepthComponent24 => InternalFormat.DepthComponent24,
+        Abstractions.RenderbufferFormat.DepthComponent32F => InternalFormat.DepthComponent32f,
+        Abstractions.RenderbufferFormat.Depth24Stencil8 => InternalFormat.Depth24Stencil8,
+        Abstractions.RenderbufferFormat.StencilIndex8 => InternalFormat.StencilIndex8,
+        Abstractions.RenderbufferFormat.RGBA8 => InternalFormat.Rgba8,
+        Abstractions.RenderbufferFormat.RGBA16F => InternalFormat.Rgba16f,
+        Abstractions.RenderbufferFormat.RGBA32F => InternalFormat.Rgba32f,
+        _ => throw new ArgumentOutOfRangeException(nameof(format))
+    };
+
+    private static global::Silk.NET.OpenGL.DrawBufferMode ToGL(Abstractions.DrawBufferMode mode) => mode switch
+    {
+        Abstractions.DrawBufferMode.None => global::Silk.NET.OpenGL.DrawBufferMode.None,
+        Abstractions.DrawBufferMode.Front => global::Silk.NET.OpenGL.DrawBufferMode.Front,
+        Abstractions.DrawBufferMode.Back => global::Silk.NET.OpenGL.DrawBufferMode.Back,
+        Abstractions.DrawBufferMode.ColorAttachment0 => global::Silk.NET.OpenGL.DrawBufferMode.ColorAttachment0,
+        Abstractions.DrawBufferMode.ColorAttachment1 => global::Silk.NET.OpenGL.DrawBufferMode.ColorAttachment1,
+        Abstractions.DrawBufferMode.ColorAttachment2 => global::Silk.NET.OpenGL.DrawBufferMode.ColorAttachment2,
+        Abstractions.DrawBufferMode.ColorAttachment3 => global::Silk.NET.OpenGL.DrawBufferMode.ColorAttachment3,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
+
+    private static ReadBufferMode ToGLReadBuffer(Abstractions.DrawBufferMode mode) => mode switch
+    {
+        Abstractions.DrawBufferMode.None => ReadBufferMode.None,
+        Abstractions.DrawBufferMode.Front => ReadBufferMode.Front,
+        Abstractions.DrawBufferMode.Back => ReadBufferMode.Back,
+        Abstractions.DrawBufferMode.ColorAttachment0 => ReadBufferMode.ColorAttachment0,
+        Abstractions.DrawBufferMode.ColorAttachment1 => ReadBufferMode.ColorAttachment1,
+        Abstractions.DrawBufferMode.ColorAttachment2 => ReadBufferMode.ColorAttachment2,
+        Abstractions.DrawBufferMode.ColorAttachment3 => ReadBufferMode.ColorAttachment3,
+        _ => throw new ArgumentOutOfRangeException(nameof(mode))
+    };
+
+    private static Abstractions.FramebufferStatus FromGL(GLEnum status) => status switch
+    {
+        GLEnum.FramebufferComplete => Abstractions.FramebufferStatus.Complete,
+        GLEnum.FramebufferIncompleteAttachment => Abstractions.FramebufferStatus.IncompleteAttachment,
+        GLEnum.FramebufferIncompleteMissingAttachment => Abstractions.FramebufferStatus.IncompleteMissingAttachment,
+        GLEnum.FramebufferIncompleteDrawBuffer => Abstractions.FramebufferStatus.IncompleteDrawBuffer,
+        GLEnum.FramebufferIncompleteReadBuffer => Abstractions.FramebufferStatus.IncompleteReadBuffer,
+        GLEnum.FramebufferUnsupported => Abstractions.FramebufferStatus.Unsupported,
+        GLEnum.FramebufferIncompleteMultisample => Abstractions.FramebufferStatus.IncompleteMultisample,
+        GLEnum.FramebufferIncompleteLayerTargets => Abstractions.FramebufferStatus.IncompleteLayerTargets,
+        _ => Abstractions.FramebufferStatus.Unknown
+    };
     #endregion
 
     #region Debug

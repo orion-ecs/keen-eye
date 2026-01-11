@@ -432,4 +432,122 @@ public interface IGraphicsContext : IDisposable
     void SetCulling(bool enabled, CullFaceMode mode = CullFaceMode.Back);
 
     #endregion
+
+    #region Render Target Operations
+
+    /// <summary>
+    /// Creates a render target (off-screen framebuffer) for rendering.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Render targets allow rendering to off-screen textures for effects like:
+    /// shadow mapping, post-processing, environment map generation, and more.
+    /// </para>
+    /// <para>
+    /// The returned handle can be used to bind the render target for rendering
+    /// and to retrieve the color/depth textures for use in subsequent passes.
+    /// </para>
+    /// </remarks>
+    /// <param name="width">The render target width in pixels.</param>
+    /// <param name="height">The render target height in pixels.</param>
+    /// <param name="format">The render target format.</param>
+    /// <returns>A handle to the created render target.</returns>
+    RenderTargetHandle CreateRenderTarget(int width, int height, RenderTargetFormat format);
+
+    /// <summary>
+    /// Creates a depth-only render target for shadow mapping.
+    /// </summary>
+    /// <remarks>
+    /// Depth-only render targets have no color attachment, making them optimal
+    /// for shadow map generation where only depth values are needed.
+    /// </remarks>
+    /// <param name="width">The render target width in pixels.</param>
+    /// <param name="height">The render target height in pixels.</param>
+    /// <returns>A handle to the created depth-only render target.</returns>
+    RenderTargetHandle CreateDepthOnlyRenderTarget(int width, int height);
+
+    /// <summary>
+    /// Creates a cubemap render target for omnidirectional rendering.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Cubemap render targets are used for:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Point light shadow maps (omnidirectional shadows)</description></item>
+    /// <item><description>Environment map generation</description></item>
+    /// <item><description>IBL irradiance and specular convolution</description></item>
+    /// </list>
+    /// </remarks>
+    /// <param name="size">The size of each cubemap face in pixels (faces are square).</param>
+    /// <param name="withDepth">Whether to include a depth buffer.</param>
+    /// <param name="mipLevels">The number of mip levels (1 for shadow maps, more for IBL).</param>
+    /// <returns>A handle to the created cubemap render target.</returns>
+    CubemapRenderTargetHandle CreateCubemapRenderTarget(int size, bool withDepth, int mipLevels = 1);
+
+    /// <summary>
+    /// Binds a render target for rendering.
+    /// </summary>
+    /// <remarks>
+    /// All subsequent draw calls will render to this target until
+    /// <see cref="UnbindRenderTarget"/> is called or another target is bound.
+    /// </remarks>
+    /// <param name="target">The render target to bind.</param>
+    void BindRenderTarget(RenderTargetHandle target);
+
+    /// <summary>
+    /// Binds a specific face of a cubemap render target for rendering.
+    /// </summary>
+    /// <param name="target">The cubemap render target to bind.</param>
+    /// <param name="face">The cubemap face to render to.</param>
+    /// <param name="mipLevel">The mip level to render to (default: 0).</param>
+    void BindCubemapRenderTarget(CubemapRenderTargetHandle target, CubemapFace face, int mipLevel = 0);
+
+    /// <summary>
+    /// Unbinds the current render target and restores rendering to the default framebuffer.
+    /// </summary>
+    void UnbindRenderTarget();
+
+    /// <summary>
+    /// Gets the color texture from a render target.
+    /// </summary>
+    /// <remarks>
+    /// The returned texture handle can be bound to a shader for sampling
+    /// the render target's color output in subsequent passes.
+    /// </remarks>
+    /// <param name="target">The render target.</param>
+    /// <returns>A texture handle for the color attachment, or Invalid if depth-only.</returns>
+    TextureHandle GetRenderTargetColorTexture(RenderTargetHandle target);
+
+    /// <summary>
+    /// Gets the depth texture from a render target.
+    /// </summary>
+    /// <remarks>
+    /// The returned texture handle can be bound to a shader for sampling
+    /// the render target's depth output in subsequent passes (e.g., shadow mapping).
+    /// </remarks>
+    /// <param name="target">The render target.</param>
+    /// <returns>A texture handle for the depth attachment.</returns>
+    TextureHandle GetRenderTargetDepthTexture(RenderTargetHandle target);
+
+    /// <summary>
+    /// Gets the cubemap texture from a cubemap render target.
+    /// </summary>
+    /// <param name="target">The cubemap render target.</param>
+    /// <returns>A texture handle for the cubemap.</returns>
+    TextureHandle GetCubemapRenderTargetTexture(CubemapRenderTargetHandle target);
+
+    /// <summary>
+    /// Deletes a render target and its associated resources.
+    /// </summary>
+    /// <param name="target">The render target to delete.</param>
+    void DeleteRenderTarget(RenderTargetHandle target);
+
+    /// <summary>
+    /// Deletes a cubemap render target and its associated resources.
+    /// </summary>
+    /// <param name="target">The cubemap render target to delete.</param>
+    void DeleteCubemapRenderTarget(CubemapRenderTargetHandle target);
+
+    #endregion
 }
