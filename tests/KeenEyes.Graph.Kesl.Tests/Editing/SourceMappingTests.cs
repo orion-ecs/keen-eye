@@ -1,5 +1,6 @@
 using KeenEyes.Graph.Kesl.Editing;
 using KeenEyes.Shaders.Compiler.Lexing;
+using SourceSpan = KeenEyes.Graph.Kesl.Editing.SourceSpan;
 
 namespace KeenEyes.Graph.Kesl.Tests.Editing;
 

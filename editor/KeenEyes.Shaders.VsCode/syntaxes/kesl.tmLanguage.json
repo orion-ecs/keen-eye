@@ -1,0 +1,163 @@
+{
+    "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+    "name": "KESL",
+    "scopeName": "source.kesl",
+    "patterns": [
+        { "include": "#comments" },
+        { "include": "#declarations" },
+        { "include": "#keywords" },
+        { "include": "#types" },
+        { "include": "#constants" },
+        { "include": "#numbers" },
+        { "include": "#operators" },
+        { "include": "#functions" },
+        { "include": "#identifiers" }
+    ],
+    "repository": {
+        "comments": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash.kesl",
+                    "match": "//.*$"
+                },
+                {
+                    "name": "comment.block.kesl",
+                    "begin": "/\\*",
+                    "end": "\\*/"
+                }
+            ]
+        },
+        "declarations": {
+            "patterns": [
+                {
+                    "name": "meta.declaration.component.kesl",
+                    "match": "\\b(component)\\s+([A-Z][a-zA-Z0-9_]*)\\b",
+                    "captures": {
+                        "1": { "name": "keyword.declaration.component.kesl" },
+                        "2": { "name": "entity.name.type.component.kesl" }
+                    }
+                },
+                {
+                    "name": "meta.declaration.compute.kesl",
+                    "match": "\\b(compute)\\s+([A-Z][a-zA-Z0-9_]*)\\b",
+                    "captures": {
+                        "1": { "name": "keyword.declaration.compute.kesl" },
+                        "2": { "name": "entity.name.function.compute.kesl" }
+                    }
+                }
+            ]
+        },
+        "keywords": {
+            "patterns": [
+                {
+                    "name": "keyword.declaration.kesl",
+                    "match": "\\b(component|compute|query|params|execute)\\b"
+                },
+                {
+                    "name": "keyword.control.kesl",
+                    "match": "\\b(if|else|for)\\b"
+                },
+                {
+                    "name": "keyword.modifier.access.kesl",
+                    "match": "\\b(read|write|optional|without)\\b"
+                },
+                {
+                    "name": "keyword.other.has.kesl",
+                    "match": "\\b(has)\\b"
+                }
+            ]
+        },
+        "types": {
+            "patterns": [
+                {
+                    "name": "storage.type.primitive.kesl",
+                    "match": "\\b(float|float2|float3|float4|int|int2|int3|int4|uint|bool|mat4)\\b"
+                }
+            ]
+        },
+        "constants": {
+            "patterns": [
+                {
+                    "name": "constant.language.boolean.kesl",
+                    "match": "\\b(true|false)\\b"
+                }
+            ]
+        },
+        "numbers": {
+            "patterns": [
+                {
+                    "name": "constant.numeric.float.kesl",
+                    "match": "\\b\\d+\\.\\d+([eE][+-]?\\d+)?[fF]?\\b"
+                },
+                {
+                    "name": "constant.numeric.float.scientific.kesl",
+                    "match": "\\b\\d+[eE][+-]?\\d+[fF]?\\b"
+                },
+                {
+                    "name": "constant.numeric.integer.kesl",
+                    "match": "\\b\\d+\\b"
+                }
+            ]
+        },
+        "operators": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.assignment.compound.kesl",
+                    "match": "\\+=|-=|\\*=|/="
+                },
+                {
+                    "name": "keyword.operator.comparison.kesl",
+                    "match": "==|!=|<=|>=|<|>"
+                },
+                {
+                    "name": "keyword.operator.logical.kesl",
+                    "match": "&&|\\|\\||!"
+                },
+                {
+                    "name": "keyword.operator.arithmetic.kesl",
+                    "match": "\\+|-|\\*|/"
+                },
+                {
+                    "name": "keyword.operator.assignment.kesl",
+                    "match": "="
+                },
+                {
+                    "name": "keyword.operator.range.kesl",
+                    "match": "\\.\\."
+                },
+                {
+                    "name": "keyword.operator.accessor.kesl",
+                    "match": "\\."
+                }
+            ]
+        },
+        "functions": {
+            "patterns": [
+                {
+                    "name": "support.function.builtin.math.kesl",
+                    "match": "\\b(sqrt|abs|min|max|clamp|sin|cos|tan|asin|acos|atan|atan2|pow|exp|log|floor|ceil|round|fract|mod|mix|step|smoothstep)\\b"
+                },
+                {
+                    "name": "support.function.builtin.vector.kesl",
+                    "match": "\\b(length|distance|dot|cross|normalize|reflect|refract)\\b"
+                },
+                {
+                    "name": "entity.name.function.call.kesl",
+                    "match": "\\b([a-z][a-zA-Z0-9_]*)\\s*(?=\\()"
+                }
+            ]
+        },
+        "identifiers": {
+            "patterns": [
+                {
+                    "name": "variable.other.component.kesl",
+                    "match": "\\b([A-Z][a-zA-Z0-9_]*)\\b"
+                },
+                {
+                    "name": "variable.other.kesl",
+                    "match": "\\b([a-z_][a-zA-Z0-9_]*)\\b"
+                }
+            ]
+        }
+    }
+}

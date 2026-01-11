@@ -1,0 +1,165 @@
+{
+    "Compute Shader": {
+        "prefix": "compute",
+        "body": [
+            "compute ${1:ShaderName} {",
+            "\tquery {",
+            "\t\twrite ${2:Position}",
+            "\t\tread ${3:Velocity}",
+            "\t}",
+            "\tparams {",
+            "\t\t${4:deltaTime}: float",
+            "\t}",
+            "\texecute() {",
+            "\t\t${0}",
+            "\t}",
+            "}"
+        ],
+        "description": "Create a new compute shader"
+    },
+    "Component Definition": {
+        "prefix": "component",
+        "body": [
+            "component ${1:ComponentName} {",
+            "\t${2:x}: ${3:float}",
+            "\t${4:y}: ${5:float}",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Create a new component definition"
+    },
+    "Query Block": {
+        "prefix": "query",
+        "body": [
+            "query {",
+            "\t${1|write,read,optional|} ${2:ComponentName}",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Create a query block"
+    },
+    "Params Block": {
+        "prefix": "params",
+        "body": [
+            "params {",
+            "\t${1:paramName}: ${2|float,float2,float3,float4,int,uint,bool|}",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Create a params block"
+    },
+    "Execute Block": {
+        "prefix": "execute",
+        "body": [
+            "execute() {",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Create an execute block"
+    },
+    "For Loop": {
+        "prefix": "for",
+        "body": [
+            "for (${1:i}: ${2:0}..${3:10}) {",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Create a for loop with range"
+    },
+    "If Statement": {
+        "prefix": "if",
+        "body": [
+            "if (${1:condition}) {",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Create an if statement"
+    },
+    "If-Else Statement": {
+        "prefix": "ifelse",
+        "body": [
+            "if (${1:condition}) {",
+            "\t${2}",
+            "} else {",
+            "\t${0}",
+            "}"
+        ],
+        "description": "Create an if-else statement"
+    },
+    "Write Binding": {
+        "prefix": "write",
+        "body": "write ${1:ComponentName}",
+        "description": "Add a write component binding"
+    },
+    "Read Binding": {
+        "prefix": "read",
+        "body": "read ${1:ComponentName}",
+        "description": "Add a read component binding"
+    },
+    "Optional Binding": {
+        "prefix": "optional",
+        "body": "optional ${1:ComponentName}",
+        "description": "Add an optional component binding"
+    },
+    "Without Binding": {
+        "prefix": "without",
+        "body": "without ${1:ComponentName}",
+        "description": "Add a without component exclusion"
+    },
+    "Clamp Function": {
+        "prefix": "clamp",
+        "body": "clamp(${1:value}, ${2:min}, ${3:max})",
+        "description": "Clamp a value between min and max"
+    },
+    "Normalize Vector": {
+        "prefix": "normalize",
+        "body": "normalize(${1:vector})",
+        "description": "Normalize a vector"
+    },
+    "Dot Product": {
+        "prefix": "dot",
+        "body": "dot(${1:a}, ${2:b})",
+        "description": "Compute dot product of two vectors"
+    },
+    "Cross Product": {
+        "prefix": "cross",
+        "body": "cross(${1:a}, ${2:b})",
+        "description": "Compute cross product of two vectors"
+    },
+    "Length": {
+        "prefix": "length",
+        "body": "length(${1:vector})",
+        "description": "Compute length of a vector"
+    },
+    "Mix/Lerp": {
+        "prefix": "mix",
+        "body": "mix(${1:a}, ${2:b}, ${3:t})",
+        "description": "Linear interpolation between a and b"
+    },
+    "Smoothstep": {
+        "prefix": "smoothstep",
+        "body": "smoothstep(${1:edge0}, ${2:edge1}, ${3:x})",
+        "description": "Smooth Hermite interpolation"
+    },
+    "Physics Update Template": {
+        "prefix": "physics",
+        "body": [
+            "compute ${1:PhysicsUpdate} {",
+            "\tquery {",
+            "\t\twrite Position",
+            "\t\tread Velocity",
+            "\t\twithout Frozen",
+            "\t}",
+            "\tparams {",
+            "\t\tdeltaTime: float",
+            "\t}",
+            "\texecute() {",
+            "\t\tPosition.x += Velocity.x * deltaTime;",
+            "\t\tPosition.y += Velocity.y * deltaTime;",
+            "\t\tPosition.z += Velocity.z * deltaTime;",
+            "\t}",
+            "}"
+        ],
+        "description": "Create a physics update compute shader template"
+    }
+}

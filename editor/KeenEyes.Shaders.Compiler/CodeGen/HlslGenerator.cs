@@ -4,71 +4,80 @@ using KeenEyes.Shaders.Compiler.Parsing.Ast;
 namespace KeenEyes.Shaders.Compiler.CodeGen;
 
 /// <summary>
-/// Generates GLSL compute shader code from KESL AST.
+/// Generates HLSL compute shader code from KESL AST.
 /// </summary>
-public sealed class GlslGenerator : IShaderGenerator
+/// <remarks>
+/// <para>
+/// HLSL (High-Level Shader Language) is used for DirectX platforms including Windows.
+/// Key differences from GLSL include:
+/// </para>
+/// <list type="bullet">
+/// <item><description>vec2/3/4 → float2/3/4</description></item>
+/// <item><description>mat4 → float4x4</description></item>
+/// <item><description>StructuredBuffer/RWStructuredBuffer instead of std430 layout</description></item>
+/// <item><description>register(t#) for read-only, register(u#) for read-write</description></item>
+/// <item><description>[numthreads(x,y,z)] attribute instead of layout(local_size_x = n)</description></item>
+/// </list>
+/// </remarks>
+public sealed class HlslGenerator : IShaderGenerator
 {
-    /// <inheritdoc />
-    public ShaderBackend Backend => ShaderBackend.GLSL;
+    private readonly StringBuilder sb = new();
+    private int indent;
+    private int srvIndex; // Shader Resource View (read-only buffers)
+    private int uavIndex; // Unordered Access View (read-write buffers)
 
     /// <inheritdoc />
-    public string FileExtension => "glsl";
+    public ShaderBackend Backend => ShaderBackend.HLSL;
 
-    private readonly StringBuilder _sb = new();
-    private int _indent;
-    private int _bindingIndex;
+    /// <inheritdoc />
+    public string FileExtension => "hlsl";
 
     /// <summary>
-    /// Generates GLSL code for a compute shader declaration.
+    /// Generates HLSL code for a compute shader declaration.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
-    /// <returns>The generated GLSL code.</returns>
+    /// <returns>The generated HLSL code.</returns>
     public string Generate(ComputeDeclaration compute)
     {
-        _sb.Clear();
-        _indent = 0;
-        _bindingIndex = 0;
+        sb.Clear();
+        indent = 0;
+        srvIndex = 0;
+        uavIndex = 0;
 
-        // Header
-        AppendLine("#version 450");
-        AppendLine();
-
-        // Generate buffer declarations for each component binding
+        // Generate struct definitions for component data
         foreach (var binding in compute.Query.Bindings)
         {
             if (binding.AccessMode == AccessMode.Without)
             {
-                continue; // 'without' doesn't need a buffer
+                continue;
             }
+            GenerateStructDefinition(binding);
+        }
+        AppendLine();
 
+        // Generate buffer declarations
+        foreach (var binding in compute.Query.Bindings)
+        {
+            if (binding.AccessMode == AccessMode.Without)
+            {
+                continue;
+            }
             GenerateBufferDeclaration(binding);
         }
         AppendLine();
 
-        // Generate uniform declarations for params
-        if (compute.Params != null)
-        {
-            foreach (var param in compute.Params.Parameters)
-            {
-                AppendLine($"uniform {ToGlslType(param.Type)} {param.Name};");
-            }
-            AppendLine();
-        }
-
-        // Entity count uniform (always needed)
-        AppendLine("uniform uint entityCount;");
+        // Generate constant buffer for params and entity count
+        GenerateConstantBuffer(compute);
         AppendLine();
 
-        // Workgroup size
-        AppendLine("layout(local_size_x = 64) in;");
-        AppendLine();
-
-        // Main function
-        AppendLine("void main() {");
-        _indent++;
+        // Main compute shader function
+        AppendLine("[numthreads(64, 1, 1)]");
+        AppendLine("void CSMain(uint3 DTid : SV_DispatchThreadID)");
+        AppendLine("{");
+        indent++;
 
         // Entity index with bounds check
-        AppendLine("uint idx = gl_GlobalInvocationID.x;");
+        AppendLine("uint idx = DTid.x;");
         AppendLine("if (idx >= entityCount) return;");
         AppendLine();
 
@@ -78,29 +87,65 @@ public sealed class GlslGenerator : IShaderGenerator
             GenerateStatement(stmt, compute.Query.Bindings);
         }
 
-        _indent--;
+        indent--;
         AppendLine("}");
 
-        return _sb.ToString();
+        return sb.ToString();
+    }
+
+    private void GenerateStructDefinition(QueryBinding binding)
+    {
+        AppendLine($"struct {binding.ComponentName}Data");
+        AppendLine("{");
+        indent++;
+
+        // Placeholder - actual fields would come from component metadata
+        // Generate float X, Y, Z as common case for Position/Velocity
+        AppendLine("float X;");
+        AppendLine("float Y;");
+        AppendLine("float Z;");
+
+        indent--;
+        AppendLine("};");
+        AppendLine();
     }
 
     private void GenerateBufferDeclaration(QueryBinding binding)
     {
-        var qualifier = binding.AccessMode == AccessMode.Read ? "readonly " : "";
-        var bufferName = $"{binding.ComponentName}Buffer";
+        if (binding.AccessMode == AccessMode.Read || binding.AccessMode == AccessMode.Optional)
+        {
+            // Read-only buffer uses StructuredBuffer and t# register
+            AppendLine($"StructuredBuffer<{binding.ComponentName}Data> {binding.ComponentName} : register(t{srvIndex});");
+            srvIndex++;
+        }
+        else // Write
+        {
+            // Read-write buffer uses RWStructuredBuffer and u# register
+            AppendLine($"RWStructuredBuffer<{binding.ComponentName}Data> {binding.ComponentName} : register(u{uavIndex});");
+            uavIndex++;
+        }
+    }
 
-        AppendLine($"layout(std430, binding = {_bindingIndex}) {qualifier}buffer {bufferName} {{");
-        _indent++;
+    private void GenerateConstantBuffer(ComputeDeclaration compute)
+    {
+        AppendLine("cbuffer Params : register(b0)");
+        AppendLine("{");
+        indent++;
 
-        // Generate as a struct array - actual fields would come from component metadata
-        // For now, generate a placeholder struct
-        AppendLine($"{binding.ComponentName}Data {binding.ComponentName}[];");
+        // Generate params
+        if (compute.Params != null)
+        {
+            foreach (var param in compute.Params.Parameters)
+            {
+                AppendLine($"{ToHlslType(param.Type)} {param.Name};");
+            }
+        }
 
-        _indent--;
+        // Entity count is always needed
+        AppendLine("uint entityCount;");
+
+        indent--;
         AppendLine("};");
-        AppendLine();
-
-        _bindingIndex++;
     }
 
     private void GenerateStatement(Statement stmt, IReadOnlyList<QueryBinding> bindings)
@@ -109,23 +154,23 @@ public sealed class GlslGenerator : IShaderGenerator
         {
             case ExpressionStatement exprStmt:
                 Append(GenerateIndent());
-                _sb.Append(GenerateExpression(exprStmt.Expression, bindings));
-                _sb.AppendLine(";");
+                sb.Append(GenerateExpression(exprStmt.Expression, bindings));
+                sb.AppendLine(";");
                 break;
 
             case AssignmentStatement assignStmt:
                 Append(GenerateIndent());
-                _sb.Append(GenerateExpression(assignStmt.Target, bindings));
-                _sb.Append(" = ");
-                _sb.Append(GenerateExpression(assignStmt.Value, bindings));
-                _sb.AppendLine(";");
+                sb.Append(GenerateExpression(assignStmt.Target, bindings));
+                sb.Append(" = ");
+                sb.Append(GenerateExpression(assignStmt.Value, bindings));
+                sb.AppendLine(";");
                 break;
 
             case CompoundAssignmentStatement compoundStmt:
                 Append(GenerateIndent());
-                _sb.Append(GenerateExpression(compoundStmt.Target, bindings));
-                _sb.Append(' ');
-                _sb.Append(compoundStmt.Operator switch
+                sb.Append(GenerateExpression(compoundStmt.Target, bindings));
+                sb.Append(' ');
+                sb.Append(compoundStmt.Operator switch
                 {
                     CompoundOperator.PlusEquals => "+=",
                     CompoundOperator.MinusEquals => "-=",
@@ -133,9 +178,9 @@ public sealed class GlslGenerator : IShaderGenerator
                     CompoundOperator.SlashEquals => "/=",
                     _ => throw new InvalidOperationException()
                 });
-                _sb.Append(' ');
-                _sb.Append(GenerateExpression(compoundStmt.Value, bindings));
-                _sb.AppendLine(";");
+                sb.Append(' ');
+                sb.Append(GenerateExpression(compoundStmt.Value, bindings));
+                sb.AppendLine(";");
                 break;
 
             case IfStatement ifStmt:
@@ -148,12 +193,12 @@ public sealed class GlslGenerator : IShaderGenerator
 
             case BlockStatement blockStmt:
                 AppendLine("{");
-                _indent++;
+                indent++;
                 foreach (var s in blockStmt.Statements)
                 {
                     GenerateStatement(s, bindings);
                 }
-                _indent--;
+                indent--;
                 AppendLine("}");
                 break;
         }
@@ -162,26 +207,29 @@ public sealed class GlslGenerator : IShaderGenerator
     private void GenerateIfStatement(IfStatement stmt, IReadOnlyList<QueryBinding> bindings)
     {
         Append(GenerateIndent());
-        _sb.Append("if (");
-        _sb.Append(GenerateExpression(stmt.Condition, bindings));
-        _sb.AppendLine(") {");
+        sb.Append("if (");
+        sb.Append(GenerateExpression(stmt.Condition, bindings));
+        sb.AppendLine(")");
+        AppendLine("{");
 
-        _indent++;
+        indent++;
         foreach (var s in stmt.ThenBranch)
         {
             GenerateStatement(s, bindings);
         }
-        _indent--;
+        indent--;
 
         if (stmt.ElseBranch != null)
         {
-            AppendLine("} else {");
-            _indent++;
+            AppendLine("}");
+            AppendLine("else");
+            AppendLine("{");
+            indent++;
             foreach (var s in stmt.ElseBranch)
             {
                 GenerateStatement(s, bindings);
             }
-            _indent--;
+            indent--;
         }
 
         AppendLine("}");
@@ -190,18 +238,19 @@ public sealed class GlslGenerator : IShaderGenerator
     private void GenerateForStatement(ForStatement stmt, IReadOnlyList<QueryBinding> bindings)
     {
         Append(GenerateIndent());
-        _sb.Append($"for (int {stmt.VariableName} = ");
-        _sb.Append(GenerateExpression(stmt.Start, bindings));
-        _sb.Append($"; {stmt.VariableName} < ");
-        _sb.Append(GenerateExpression(stmt.End, bindings));
-        _sb.AppendLine($"; {stmt.VariableName}++) {{");
+        sb.Append($"for (int {stmt.VariableName} = ");
+        sb.Append(GenerateExpression(stmt.Start, bindings));
+        sb.Append($"; {stmt.VariableName} < ");
+        sb.Append(GenerateExpression(stmt.End, bindings));
+        sb.AppendLine($"; {stmt.VariableName}++)");
+        AppendLine("{");
 
-        _indent++;
+        indent++;
         foreach (var s in stmt.Body)
         {
             GenerateStatement(s, bindings);
         }
-        _indent--;
+        indent--;
 
         AppendLine("}");
     }
@@ -226,7 +275,7 @@ public sealed class GlslGenerator : IShaderGenerator
 
             CallExpression call => GenerateCall(call, bindings),
 
-            HasExpression has => $"has_{has.ComponentName}", // Placeholder - would need runtime support
+            HasExpression has => $"has_{has.ComponentName}", // Placeholder
 
             ParenthesizedExpression paren => $"({GenerateExpression(paren.Inner, bindings)})",
 
@@ -236,20 +285,15 @@ public sealed class GlslGenerator : IShaderGenerator
 
     private string GenerateMemberAccess(MemberAccessExpression member, IReadOnlyList<QueryBinding> bindings)
     {
-        // Check if the base is a component name
         if (member.Object is IdentifierExpression id && IsComponentName(id.Name, bindings))
         {
-            // Component.field -> Component[idx].field
             return $"{id.Name}[idx].{member.MemberName}";
         }
-
-        // Regular member access
         return $"{GenerateExpression(member.Object, bindings)}.{member.MemberName}";
     }
 
     private string GenerateCall(CallExpression call, IReadOnlyList<QueryBinding> bindings)
     {
-        // Map common math functions to GLSL equivalents
         var funcName = MapFunctionName(call.FunctionName);
         var args = string.Join(", ", call.Arguments.Select(a => GenerateExpression(a, bindings)));
         return $"{funcName}({args})";
@@ -257,9 +301,10 @@ public sealed class GlslGenerator : IShaderGenerator
 
     private static string MapFunctionName(string name)
     {
-        // Most math functions have the same name in GLSL
+        // HLSL function mapping - most are the same, some differ
         return name switch
         {
+            // Math functions - same in HLSL
             "sqrt" => "sqrt",
             "abs" => "abs",
             "min" => "min",
@@ -277,9 +322,6 @@ public sealed class GlslGenerator : IShaderGenerator
             "floor" => "floor",
             "ceil" => "ceil",
             "round" => "round",
-            "fract" => "fract",
-            "mod" => "mod",
-            "mix" => "mix",
             "step" => "step",
             "smoothstep" => "smoothstep",
             "length" => "length",
@@ -289,6 +331,13 @@ public sealed class GlslGenerator : IShaderGenerator
             "normalize" => "normalize",
             "reflect" => "reflect",
             "refract" => "refract",
+
+            // GLSL to HLSL differences
+            "fract" => "frac", // fract() in GLSL is frac() in HLSL
+            "mod" => "fmod",   // mod() in GLSL is fmod() in HLSL
+            "mix" => "lerp",   // mix() in GLSL is lerp() in HLSL
+            "atan2" => "atan2",
+
             _ => name
         };
     }
@@ -322,23 +371,23 @@ public sealed class GlslGenerator : IShaderGenerator
         _ => throw new ArgumentOutOfRangeException(nameof(op))
     };
 
-    private static string ToGlslType(TypeRef type)
+    private static string ToHlslType(TypeRef type)
     {
         if (type is PrimitiveType pt)
         {
             return pt.Kind switch
             {
                 PrimitiveTypeKind.Float => "float",
-                PrimitiveTypeKind.Float2 => "vec2",
-                PrimitiveTypeKind.Float3 => "vec3",
-                PrimitiveTypeKind.Float4 => "vec4",
+                PrimitiveTypeKind.Float2 => "float2",
+                PrimitiveTypeKind.Float3 => "float3",
+                PrimitiveTypeKind.Float4 => "float4",
                 PrimitiveTypeKind.Int => "int",
-                PrimitiveTypeKind.Int2 => "ivec2",
-                PrimitiveTypeKind.Int3 => "ivec3",
-                PrimitiveTypeKind.Int4 => "ivec4",
+                PrimitiveTypeKind.Int2 => "int2",
+                PrimitiveTypeKind.Int3 => "int3",
+                PrimitiveTypeKind.Int4 => "int4",
                 PrimitiveTypeKind.Uint => "uint",
                 PrimitiveTypeKind.Bool => "bool",
-                PrimitiveTypeKind.Mat4 => "mat4",
+                PrimitiveTypeKind.Mat4 => "float4x4",
                 _ => throw new ArgumentOutOfRangeException(nameof(type), pt.Kind, "Unsupported primitive type")
             };
         }
@@ -353,6 +402,8 @@ public sealed class GlslGenerator : IShaderGenerator
         {
             str += ".0";
         }
+        // HLSL uses 'f' suffix for float literals
+        str += "f";
         return str;
     }
 
@@ -360,22 +411,22 @@ public sealed class GlslGenerator : IShaderGenerator
     {
         if (text != null)
         {
-            _sb.Append(GenerateIndent());
-            _sb.AppendLine(text);
+            sb.Append(GenerateIndent());
+            sb.AppendLine(text);
         }
         else
         {
-            _sb.AppendLine();
+            sb.AppendLine();
         }
     }
 
     private void Append(string text)
     {
-        _sb.Append(text);
+        sb.Append(text);
     }
 
     private string GenerateIndent()
     {
-        return new string(' ', _indent * 4);
+        return new string(' ', indent * 4);
     }
 }
