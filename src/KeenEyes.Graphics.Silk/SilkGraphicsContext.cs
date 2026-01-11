@@ -132,6 +132,11 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     public ShaderHandle PbrShader { get; private set; }
 
     /// <summary>
+    /// The built-in PBR shader with Cascaded Shadow Maps support.
+    /// </summary>
+    public ShaderHandle PbrShadowShader { get; private set; }
+
+    /// <summary>
     /// The built-in white texture handle (1x1 white pixel).
     /// </summary>
     public TextureHandle WhiteTexture { get; private set; }
@@ -272,6 +277,11 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
             DefaultShaders.PbrVertexShader,
             DefaultShaders.PbrFragmentShader);
         PbrShader = new ShaderHandle(pbrId);
+
+        var pbrShadowId = shaderManager.CreateShader(
+            PbrShadowShaders.PbrShadowVertexShader,
+            PbrShadowShaders.PbrShadowFragmentShader);
+        PbrShadowShader = new ShaderHandle(pbrShadowId);
 
         // Create instanced shaders (use same fragment shaders)
         var instancedUnlitId = shaderManager.CreateShader(

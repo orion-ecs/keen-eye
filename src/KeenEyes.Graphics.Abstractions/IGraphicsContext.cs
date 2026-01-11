@@ -109,6 +109,25 @@ public interface IGraphicsContext : IDisposable
     ShaderHandle PbrShader { get; }
 
     /// <summary>
+    /// Gets the PBR shader with Cascaded Shadow Maps support.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This shader extends the standard PBR shader with shadow mapping capabilities:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Up to 4 cascade shadow maps for directional lights</description></item>
+    /// <item><description>PCF 3x3 soft shadow filtering</description></item>
+    /// <item><description>Normal and depth bias for shadow acne prevention</description></item>
+    /// </list>
+    /// <para>
+    /// Additional texture slots for shadow maps:
+    /// 8 = Cascade 0, 9 = Cascade 1, 10 = Cascade 2, 11 = Cascade 3
+    /// </para>
+    /// </remarks>
+    ShaderHandle PbrShadowShader { get; }
+
+    /// <summary>
     /// Gets a 1x1 white texture for solid color rendering.
     /// </summary>
     TextureHandle WhiteTexture { get; }
