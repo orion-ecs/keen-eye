@@ -1,5 +1,7 @@
 using System.Text.Json;
 using KeenEyes.TestBridge.Ipc.Handlers;
+using KeenEyes.TestBridge.Ipc.Protocol;
+using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge.Tests.Ipc;
 
@@ -241,5 +243,102 @@ public class CaptureCommandHandlerTests : IDisposable
 
         result.ShouldNotBeNull();
         ((int)result!).ShouldBe(0);
+    }
+}
+
+public class WindowCommandHandlerTests : IDisposable
+{
+    private readonly World world;
+    private readonly InProcessBridge bridge;
+    private readonly WindowCommandHandler handler;
+
+    public WindowCommandHandlerTests()
+    {
+        world = new World();
+        bridge = new InProcessBridge(world);
+        handler = new WindowCommandHandler(bridge.Window);
+    }
+
+    public void Dispose()
+    {
+        bridge.Dispose();
+        world.Dispose();
+    }
+
+    [Fact]
+    public void Prefix_ReturnsWindow()
+    {
+        handler.Prefix.ShouldBe("window");
+    }
+
+    [Fact]
+    public async Task HandleAsync_IsAvailable_ReturnsBool()
+    {
+        var result = await handler.HandleAsync("isAvailable", null, TestContext.Current.CancellationToken);
+
+        result.ShouldNotBeNull();
+        // Without window, should be false
+        ((bool)result!).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task HandleAsync_GetState_ReturnsSnapshot()
+    {
+        var result = await handler.HandleAsync("getState", null, TestContext.Current.CancellationToken);
+
+        result.ShouldNotBeNull();
+        result.ShouldBeOfType<WindowStateSnapshot>();
+    }
+
+    [Fact]
+    public async Task HandleAsync_GetSize_ReturnsSizeResult()
+    {
+        var result = await handler.HandleAsync("getSize", null, TestContext.Current.CancellationToken);
+
+        result.ShouldNotBeNull();
+        result.ShouldBeOfType<WindowSizeResult>();
+    }
+
+    [Fact]
+    public async Task HandleAsync_GetTitle_ReturnsString()
+    {
+        var result = await handler.HandleAsync("getTitle", null, TestContext.Current.CancellationToken);
+
+        result.ShouldNotBeNull();
+        result.ShouldBeOfType<string>();
+    }
+
+    [Fact]
+    public async Task HandleAsync_IsClosing_ReturnsBool()
+    {
+        var result = await handler.HandleAsync("isClosing", null, TestContext.Current.CancellationToken);
+
+        result.ShouldNotBeNull();
+        ((bool)result!).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task HandleAsync_IsFocused_ReturnsBool()
+    {
+        var result = await handler.HandleAsync("isFocused", null, TestContext.Current.CancellationToken);
+
+        result.ShouldNotBeNull();
+        ((bool)result!).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task HandleAsync_GetAspectRatio_ReturnsFloat()
+    {
+        var result = await handler.HandleAsync("getAspectRatio", null, TestContext.Current.CancellationToken);
+
+        result.ShouldNotBeNull();
+        ((float)result!).ShouldBe(0f);
+    }
+
+    [Fact]
+    public async Task HandleAsync_UnknownCommand_Throws()
+    {
+        await Should.ThrowAsync<InvalidOperationException>(async () =>
+            await handler.HandleAsync("unknownCommand", null, TestContext.Current.CancellationToken));
     }
 }

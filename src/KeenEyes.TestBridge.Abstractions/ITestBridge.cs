@@ -5,6 +5,7 @@ using KeenEyes.TestBridge.Input;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge;
 
@@ -70,6 +71,11 @@ public interface ITestBridge : IDisposable
     /// Gets the log controller for querying application logs.
     /// </summary>
     ILogController Logs { get; }
+
+    /// <summary>
+    /// Gets the window controller for querying window state.
+    /// </summary>
+    IWindowController Window { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.

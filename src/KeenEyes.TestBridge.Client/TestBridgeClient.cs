@@ -10,6 +10,7 @@ using KeenEyes.TestBridge.Ipc.Transport;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge.Client;
 
@@ -67,6 +68,7 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         State = new RemoteStateController(this);
         Capture = new RemoteCaptureController(this);
         Logs = new RemoteLogController(this);
+        Window = new RemoteWindowController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -94,6 +96,9 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public ILogController Logs { get; }
+
+    /// <inheritdoc />
+    public IWindowController Window { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -381,6 +386,17 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         if (type == typeof(LogStatsSnapshot))
         {
             return (T?)(object?)element.Deserialize(IpcJsonContext.Default.LogStatsSnapshot);
+        }
+
+        // Window types
+        if (type == typeof(WindowStateSnapshot))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.WindowStateSnapshot);
+        }
+
+        if (type == typeof(WindowSizeResult))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.WindowSizeResult);
         }
 
         // Fallback for unknown types - let the exception surface during development
