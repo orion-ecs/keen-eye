@@ -29,6 +29,9 @@ public sealed class RenderSystem : ISystem
     private const int MaxLights = 8;
     private const int MaxCascades = 4;
     private const int ShadowMapBaseTextureUnit = 8;
+    private const int IblIrradianceTextureUnit = 5;
+    private const int IblSpecularTextureUnit = 6;
+    private const int IblBrdfLutTextureUnit = 7;
 
     private IWorld? world;
     private IGraphicsContext? graphics;
@@ -48,6 +51,11 @@ public sealed class RenderSystem : ISystem
     private int shadowLightEntityId = -1;
     private bool hasShadowLight;
 
+    // IBL tracking
+    private IblData activeIblData;
+    private Abstractions.Environment activeEnvironment;
+    private bool hasActiveIbl;
+
     /// <inheritdoc />
     public bool Enabled { get; set; } = true;
 
@@ -59,6 +67,23 @@ public sealed class RenderSystem : ISystem
     /// bind shadow map textures for rendering with shadows.
     /// </remarks>
     public ShadowRenderingSystem? ShadowSystem { get; set; }
+
+    /// <summary>
+    /// Gets or sets the IBL data provider function.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This delegate is called to retrieve IBL data by ID when an active
+    /// Environment component is found. If not set, IBL lighting will not be used.
+    /// </para>
+    /// <para>
+    /// Example usage with IblManager:
+    /// <code>
+    /// renderSystem.IblDataProvider = iblManager.GetIblData;
+    /// </code>
+    /// </para>
+    /// </remarks>
+    public Func<int, IblData>? IblDataProvider { get; set; }
 
     /// <inheritdoc />
     public void Initialize(IWorld world)
@@ -137,6 +162,9 @@ public sealed class RenderSystem : ISystem
         // Collect all lights (up to MaxLights)
         int lightCount = CollectLights();
 
+        // Collect active environment for IBL
+        CollectActiveEnvironment();
+
         // Build render queue (skip entities with InstanceBatch - they're handled separately)
         renderQueue.Clear();
         foreach (var entity in world.Query<Transform3D, Renderable>())
@@ -168,6 +196,7 @@ public sealed class RenderSystem : ISystem
         ShaderHandle currentShader = default;
         bool isPbrShader = false;
         bool isPbrShadowShader = false;
+        bool isPbrIblShader = false;
 
         foreach (var (entity, _) in renderQueue)
         {
@@ -188,14 +217,20 @@ public sealed class RenderSystem : ISystem
             {
                 material = world.Get<Material>(entity);
 
-                // Use shadow-enabled PBR shader when shadows are available
-                if (material.ShaderId <= 0 && useShadows)
-                {
-                    shader = graphics.PbrShadowShader;
-                }
-                else if (material.ShaderId > 0)
+                // Shader priority: Custom > Shadows > IBL > Lit
+                if (material.ShaderId > 0)
                 {
                     shader = new ShaderHandle(material.ShaderId);
+                }
+                else if (useShadows)
+                {
+                    // Use shadow-enabled PBR shader when shadows are available
+                    shader = graphics.PbrShadowShader;
+                }
+                else if (hasActiveIbl)
+                {
+                    // Use PBR+IBL shader when environment lighting is available
+                    shader = graphics.PbrIblShader;
                 }
                 else
                 {
@@ -230,6 +265,7 @@ public sealed class RenderSystem : ISystem
                 currentShader = shader;
                 isPbrShader = shader.Id == graphics.PbrShader.Id;
                 isPbrShadowShader = shader.Id == graphics.PbrShadowShader.Id;
+                isPbrIblShader = shader.Id == graphics.PbrIblShader.Id;
 
                 // Set per-frame uniforms
                 graphics.SetUniform("uView", viewMatrix);
@@ -241,6 +277,12 @@ public sealed class RenderSystem : ISystem
                     // Set PBR light uniforms and shadow uniforms
                     SetPbrLightUniforms(lightCount);
                     BindShadowMaps(shadowData!.Value);
+                }
+                else if (isPbrIblShader)
+                {
+                    // Set PBR light uniforms and IBL textures
+                    SetPbrLightUniforms(lightCount);
+                    BindIblTextures();
                 }
                 else if (isPbrShader)
                 {
@@ -260,7 +302,7 @@ public sealed class RenderSystem : ISystem
             // Set per-object uniforms
             graphics.SetUniform("uModel", modelMatrix);
 
-            if (isPbrShader)
+            if (isPbrShader || isPbrShadowShader || isPbrIblShader)
             {
                 // Bind PBR textures and set material uniforms
                 BindPbrMaterial(material);
@@ -319,6 +361,46 @@ public sealed class RenderSystem : ISystem
         }
 
         return lightCount;
+    }
+
+    /// <summary>
+    /// Finds and collects the active environment's IBL data.
+    /// </summary>
+    private void CollectActiveEnvironment()
+    {
+        hasActiveIbl = false;
+        activeIblData = IblData.Invalid;
+        activeEnvironment = default;
+
+        // No IBL provider, skip
+        if (IblDataProvider is null)
+        {
+            return;
+        }
+
+        // Find the active environment entity
+        foreach (var entity in world!.Query<Abstractions.Environment, ActiveEnvironmentTag>())
+        {
+            ref readonly var environment = ref world.Get<Abstractions.Environment>(entity);
+
+            // Check if this environment should affect lighting
+            if (!environment.AffectsLighting || environment.IBLDataId <= 0)
+            {
+                continue;
+            }
+
+            // Get the IBL data
+            var iblData = IblDataProvider(environment.IBLDataId);
+            if (!iblData.IsValid)
+            {
+                continue;
+            }
+
+            activeIblData = iblData;
+            activeEnvironment = environment;
+            hasActiveIbl = true;
+            break; // Only one active environment
+        }
     }
 
     /// <summary>
@@ -415,6 +497,36 @@ public sealed class RenderSystem : ISystem
                 graphics.SetUniform($"uCascadeSplit{i}", 0f);
             }
         }
+    }
+
+    /// <summary>
+    /// Binds IBL textures and sets IBL-related uniforms for the PBR+IBL shader.
+    /// </summary>
+    private void BindIblTextures()
+    {
+        if (!hasActiveIbl)
+        {
+            // No IBL available
+            graphics!.SetUniform("uHasIbl", 0);
+            return;
+        }
+
+        graphics!.SetUniform("uHasIbl", 1);
+        graphics.SetUniform("uIblIntensity", activeEnvironment.Intensity);
+        graphics.SetUniform("uIblRotation", activeEnvironment.Rotation * MathF.PI / 180f); // Convert to radians
+        graphics.SetUniform("uIblMaxMipLevel", activeIblData.SpecularMipLevels - 1);
+
+        // Bind irradiance map to slot 5
+        graphics.BindCubemapTexture(activeIblData.IrradianceMap, IblIrradianceTextureUnit);
+        graphics.SetUniform("uIrradianceMap", IblIrradianceTextureUnit);
+
+        // Bind specular map to slot 6
+        graphics.BindCubemapTexture(activeIblData.SpecularMap, IblSpecularTextureUnit);
+        graphics.SetUniform("uSpecularMap", IblSpecularTextureUnit);
+
+        // Bind BRDF LUT to slot 7
+        graphics.BindTexture(activeIblData.BrdfLut, IblBrdfLutTextureUnit);
+        graphics.SetUniform("uBrdfLut", IblBrdfLutTextureUnit);
     }
 
     /// <summary>

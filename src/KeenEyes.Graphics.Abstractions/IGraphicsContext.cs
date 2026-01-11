@@ -128,6 +128,25 @@ public interface IGraphicsContext : IDisposable
     ShaderHandle PbrShadowShader { get; }
 
     /// <summary>
+    /// Gets the PBR shader with Image-Based Lighting (IBL) support.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This shader extends the standard PBR shader with IBL ambient lighting:
+    /// </para>
+    /// <list type="bullet">
+    /// <item><description>Diffuse IBL from irradiance cubemap</description></item>
+    /// <item><description>Specular IBL from pre-filtered environment map</description></item>
+    /// <item><description>Environment rotation and intensity controls</description></item>
+    /// </list>
+    /// <para>
+    /// Additional texture slots for IBL:
+    /// 5 = Irradiance map (cubemap), 6 = Specular map (cubemap), 7 = BRDF LUT (2D)
+    /// </para>
+    /// </remarks>
+    ShaderHandle PbrIblShader { get; }
+
+    /// <summary>
     /// Gets a 1x1 white texture for solid color rendering.
     /// </summary>
     TextureHandle WhiteTexture { get; }
@@ -276,6 +295,32 @@ public interface IGraphicsContext : IDisposable
     /// <param name="handle">The texture handle.</param>
     /// <param name="unit">The texture unit (default: 0).</param>
     void BindTexture(TextureHandle handle, int unit = 0);
+
+    /// <summary>
+    /// Creates an HDR texture from floating-point pixel data.
+    /// </summary>
+    /// <remarks>
+    /// HDR textures store high dynamic range values and are used for
+    /// environment maps, IBL processing, and post-processing effects.
+    /// </remarks>
+    /// <param name="width">The texture width in pixels.</param>
+    /// <param name="height">The texture height in pixels.</param>
+    /// <param name="pixels">The floating-point pixel data (RGB format, 3 floats per pixel).</param>
+    /// <returns>The texture handle.</returns>
+    TextureHandle CreateHdrTexture(int width, int height, ReadOnlySpan<float> pixels);
+
+    /// <summary>
+    /// Binds a cubemap texture to a texture unit.
+    /// </summary>
+    /// <param name="handle">The cubemap texture handle.</param>
+    /// <param name="unit">The texture unit (default: 0).</param>
+    void BindCubemapTexture(TextureHandle handle, int unit = 0);
+
+    /// <summary>
+    /// Deletes a cubemap texture resource.
+    /// </summary>
+    /// <param name="handle">The cubemap texture handle.</param>
+    void DeleteCubemapTexture(TextureHandle handle);
 
     #endregion
 
@@ -563,10 +608,32 @@ public interface IGraphicsContext : IDisposable
     void DeleteRenderTarget(RenderTargetHandle target);
 
     /// <summary>
+    /// Deletes a render target but keeps the color texture for continued use.
+    /// </summary>
+    /// <remarks>
+    /// Use this when you need to use the render target's output as a texture
+    /// but no longer need the framebuffer for rendering. The caller is
+    /// responsible for deleting the texture when done.
+    /// </remarks>
+    /// <param name="target">The render target to delete.</param>
+    void DeleteRenderTargetKeepTexture(RenderTargetHandle target);
+
+    /// <summary>
     /// Deletes a cubemap render target and its associated resources.
     /// </summary>
     /// <param name="target">The cubemap render target to delete.</param>
     void DeleteCubemapRenderTarget(CubemapRenderTargetHandle target);
+
+    /// <summary>
+    /// Deletes a cubemap render target but keeps the cubemap texture for continued use.
+    /// </summary>
+    /// <remarks>
+    /// Use this when you need to use the render target's cubemap as a texture
+    /// but no longer need the framebuffer for rendering. The caller is
+    /// responsible for deleting the texture when done.
+    /// </remarks>
+    /// <param name="target">The cubemap render target to delete.</param>
+    void DeleteCubemapRenderTargetKeepTexture(CubemapRenderTargetHandle target);
 
     #endregion
 }

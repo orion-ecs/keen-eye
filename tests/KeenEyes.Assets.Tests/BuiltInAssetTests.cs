@@ -295,6 +295,7 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public ShaderHandle SolidShader => new(3);
     public ShaderHandle PbrShader => new(4);
     public ShaderHandle PbrShadowShader => new(8);
+    public ShaderHandle PbrIblShader => new(9);
     public TextureHandle WhiteTexture => new(1);
     public ShaderHandle InstancedLitShader => new(5);
     public ShaderHandle InstancedUnlitShader => new(6);
@@ -314,10 +315,13 @@ file sealed class MockGraphicsContext : IGraphicsContext
 
     // Texture operations
     public TextureHandle CreateTexture(int width, int height, ReadOnlySpan<byte> pixels) => new(1);
+    public TextureHandle CreateHdrTexture(int width, int height, ReadOnlySpan<float> pixels) => new(1, width, height);
     public TextureHandle CreateCompressedTexture(int width, int height, CompressedTextureFormat format, ReadOnlySpan<ReadOnlyMemory<byte>> mipmaps) => new(1, width, height);
     public TextureHandle LoadTexture(string path) => new(1);
     public void DeleteTexture(TextureHandle handle) => DisposedTextures.Add(handle);
     public void BindTexture(TextureHandle handle, int unit = 0) { }
+    public void BindCubemapTexture(TextureHandle handle, int unit) { }
+    public void DeleteCubemapTexture(TextureHandle handle) { }
 
     // Shader operations
     public ShaderHandle CreateShader(string vertexSource, string fragmentSource) => new(1);
@@ -355,7 +359,9 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public TextureHandle GetRenderTargetDepthTexture(RenderTargetHandle target) => new(101, target.Width, target.Height);
     public TextureHandle GetCubemapRenderTargetTexture(CubemapRenderTargetHandle target) => new(102, target.Size, target.Size);
     public void DeleteRenderTarget(RenderTargetHandle target) { }
+    public void DeleteRenderTargetKeepTexture(RenderTargetHandle target) { }
     public void DeleteCubemapRenderTarget(CubemapRenderTargetHandle target) { }
+    public void DeleteCubemapRenderTargetKeepTexture(CubemapRenderTargetHandle target) { }
 
     public void Dispose() { }
 }

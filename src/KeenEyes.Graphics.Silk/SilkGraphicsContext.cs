@@ -137,6 +137,11 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     public ShaderHandle PbrShadowShader { get; private set; }
 
     /// <summary>
+    /// The built-in PBR shader with Image-Based Lighting support.
+    /// </summary>
+    public ShaderHandle PbrIblShader { get; private set; }
+
+    /// <summary>
     /// The built-in white texture handle (1x1 white pixel).
     /// </summary>
     public TextureHandle WhiteTexture { get; private set; }
@@ -282,6 +287,11 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
             PbrShadowShaders.PbrShadowVertexShader,
             PbrShadowShaders.PbrShadowFragmentShader);
         PbrShadowShader = new ShaderHandle(pbrShadowId);
+
+        var pbrIblId = shaderManager.CreateShader(
+            DefaultShaders.PbrVertexShader,
+            DefaultShaders.PbrIblFragmentShader);
+        PbrIblShader = new ShaderHandle(pbrIblId);
 
         // Create instanced shaders (use same fragment shaders)
         var instancedUnlitId = shaderManager.CreateShader(
@@ -526,6 +536,51 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         {
             device.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0 + unit));
             device.BindTexture(TextureTarget.Texture2D, data.Handle);
+        }
+    }
+
+    /// <inheritdoc />
+    public TextureHandle CreateHdrTexture(int width, int height, ReadOnlySpan<float> pixels)
+    {
+        if (device is null)
+        {
+            throw new InvalidOperationException("Graphics device not initialized");
+        }
+
+        uint textureId = device.GenTexture();
+        device.BindTexture(TextureTarget.Texture2D, textureId);
+
+        // Upload HDR (RGB32F) data
+        device.TexImage2D(TextureTarget.Texture2D, 0, width, height, PixelFormat.RGB32F, pixels);
+
+        device.TexParameter(TextureTarget.Texture2D, TextureParam.MinFilter, (int)TextureMinFilter.Linear);
+        device.TexParameter(TextureTarget.Texture2D, TextureParam.MagFilter, (int)TextureMagFilter.Linear);
+        device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapS, (int)TextureWrapMode.ClampToEdge);
+        device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapT, (int)TextureWrapMode.ClampToEdge);
+
+        device.BindTexture(TextureTarget.Texture2D, 0);
+
+        // Register with texture manager and return handle
+        int handleId = textureManager.RegisterExternalTexture(textureId, width, height);
+        return new TextureHandle(handleId, width, height);
+    }
+
+    /// <inheritdoc />
+    public void BindCubemapTexture(TextureHandle handle, int unit = 0)
+    {
+        if (device is not null)
+        {
+            device.ActiveTexture((TextureUnit)((int)TextureUnit.Texture0 + unit));
+            device.BindTexture(TextureTarget.TextureCubeMap, (uint)handle.Id);
+        }
+    }
+
+    /// <inheritdoc />
+    public void DeleteCubemapTexture(TextureHandle handle)
+    {
+        if (device is not null && handle.IsValid)
+        {
+            device.DeleteTexture((uint)handle.Id);
         }
     }
 
@@ -850,9 +905,21 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     }
 
     /// <inheritdoc />
+    public void DeleteRenderTargetKeepTexture(RenderTargetHandle target)
+    {
+        renderTargetManager?.DeleteRenderTargetKeepTexture(target);
+    }
+
+    /// <inheritdoc />
     public void DeleteCubemapRenderTarget(CubemapRenderTargetHandle target)
     {
         renderTargetManager?.DeleteCubemapRenderTarget(target);
+    }
+
+    /// <inheritdoc />
+    public void DeleteCubemapRenderTargetKeepTexture(CubemapRenderTargetHandle target)
+    {
+        renderTargetManager?.DeleteCubemapRenderTargetKeepTexture(target);
     }
 
     #endregion

@@ -376,6 +376,42 @@ internal sealed class RenderTargetManager(IGraphicsDevice device) : IDisposable
         cubemapRenderTargets.Remove(target.Id);
     }
 
+    /// <summary>
+    /// Deletes a render target but keeps the color texture for continued use.
+    /// </summary>
+    public void DeleteRenderTargetKeepTexture(RenderTargetHandle target)
+    {
+        if (!target.IsValid || !renderTargets.TryGetValue(target.Id, out var data))
+        {
+            return;
+        }
+
+        device.DeleteFramebuffer(data.FramebufferId);
+        // Keep the color texture, but delete the depth texture
+        device.DeleteTexture(data.DepthTextureId);
+        renderTargets.Remove(target.Id);
+    }
+
+    /// <summary>
+    /// Deletes a cubemap render target but keeps the cubemap texture for continued use.
+    /// </summary>
+    public void DeleteCubemapRenderTargetKeepTexture(CubemapRenderTargetHandle target)
+    {
+        if (!target.IsValid || !cubemapRenderTargets.TryGetValue(target.Id, out var data))
+        {
+            return;
+        }
+
+        device.DeleteFramebuffer(data.FramebufferId);
+        // Keep the cubemap texture
+        if (data.DepthRenderbufferId != 0)
+        {
+            device.DeleteRenderbuffer(data.DepthRenderbufferId);
+        }
+
+        cubemapRenderTargets.Remove(target.Id);
+    }
+
     private uint CreateColorTexture(int width, int height, RenderTargetFormat format)
     {
         var texture = device.GenTexture();

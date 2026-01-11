@@ -268,6 +268,18 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     }
 
     /// <inheritdoc />
+    public void BufferData(BufferTarget target, ReadOnlySpan<float> data, BufferUsage usage)
+    {
+        if (BoundBuffers.TryGetValue(target, out var handle) && Buffers.TryGetValue(handle, out var buffer))
+        {
+            // Convert float array to byte array for storage
+            buffer.Data = System.Runtime.InteropServices.MemoryMarshal.AsBytes(data).ToArray();
+            buffer.Usage = usage;
+            buffer.Target = target;
+        }
+    }
+
+    /// <inheritdoc />
     public void DeleteVertexArray(uint vao)
     {
         VAOs.Remove(vao);
@@ -372,6 +384,27 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
             texture.Format = format;
             texture.Data = data.ToArray();
             texture.MipLevels[level] = true;
+        }
+    }
+
+    /// <inheritdoc />
+    public void TexImage2D(TextureTarget target, int level, int width, int height, PixelFormat format, ReadOnlySpan<float> data)
+    {
+        if (ShouldFailTextureLoad)
+        {
+            SimulatedErrorCode = 1;
+            return;
+        }
+
+        if (BoundTextures.TryGetValue(ActiveTextureUnit, out var handle) && Textures.TryGetValue(handle, out var texture))
+        {
+            texture.Width = width;
+            texture.Height = height;
+            texture.Format = format;
+            // Store float data as bytes
+            texture.Data = System.Runtime.InteropServices.MemoryMarshal.AsBytes(data).ToArray();
+            texture.MipLevels[level] = true;
+            texture.IsHdr = true;
         }
     }
 
@@ -1091,6 +1124,11 @@ public sealed class MockTexture(uint handle)
     /// Gets or sets the count of sub-image updates.
     /// </summary>
     public int SubImageUpdateCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this is an HDR texture.
+    /// </summary>
+    public bool IsHdr { get; set; }
 }
 
 /// <summary>

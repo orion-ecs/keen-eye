@@ -327,6 +327,34 @@ internal sealed class TextureManager : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// Registers an externally created GPU texture for management.
+    /// </summary>
+    /// <remarks>
+    /// Use this to register textures created outside the TextureManager
+    /// (e.g., HDR textures, render target textures) so they can be
+    /// tracked and disposed properly.
+    /// </remarks>
+    /// <param name="gpuHandle">The GPU texture handle.</param>
+    /// <param name="width">The texture width.</param>
+    /// <param name="height">The texture height.</param>
+    /// <returns>The texture resource handle.</returns>
+    public int RegisterExternalTexture(uint gpuHandle, int width, int height)
+    {
+        var textureData = new TextureData
+        {
+            Handle = gpuHandle,
+            Width = width,
+            Height = height,
+            HasAlpha = true,
+            DeleteAction = DeleteTextureData
+        };
+
+        int id = nextTextureId++;
+        textures[id] = textureData;
+        return id;
+    }
+
     private void DeleteTextureData(TextureData data)
     {
         Device?.DeleteTexture(data.Handle);

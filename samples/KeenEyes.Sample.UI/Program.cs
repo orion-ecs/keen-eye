@@ -202,7 +202,7 @@ try
                 if (args.Key == Key.Escape)
                 {
                     Console.WriteLine("Escape pressed - closing...");
-                    Environment.Exit(0);
+                    System.Environment.Exit(0);
                 }
             };
 

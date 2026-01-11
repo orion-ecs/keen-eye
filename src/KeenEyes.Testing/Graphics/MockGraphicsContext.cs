@@ -65,6 +65,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
         PbrShadowShader = AllocateShaderHandle();
         Shaders[PbrShadowShader] = new MockShaderInfo("pbr_shadow_vertex", "pbr_shadow_fragment");
 
+        PbrIblShader = AllocateShaderHandle();
+        Shaders[PbrIblShader] = new MockShaderInfo("pbr_vertex", "pbr_ibl_fragment");
+
         InstancedLitShader = AllocateShaderHandle();
         Shaders[InstancedLitShader] = new MockShaderInfo("instanced_lit_vertex", "lit_fragment");
 
@@ -168,6 +171,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
 
     /// <inheritdoc />
     public ShaderHandle PbrShadowShader { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle PbrIblShader { get; }
 
     /// <inheritdoc />
     public TextureHandle WhiteTexture { get; }
@@ -319,6 +325,28 @@ public sealed class MockGraphicsContext : IGraphicsContext
         return handle;
     }
 
+    /// <inheritdoc />
+    public TextureHandle CreateHdrTexture(int width, int height, ReadOnlySpan<float> pixels)
+    {
+        var handle = AllocateTextureHandle(width, height);
+        Textures[handle] = new MockTextureInfo(width, height, null) { IsHdr = true };
+        return handle;
+    }
+
+    /// <inheritdoc />
+    public void BindCubemapTexture(TextureHandle handle, int unit = 0)
+    {
+        // Same behavior as regular texture binding
+        BindTexture(handle, unit);
+    }
+
+    /// <inheritdoc />
+    public void DeleteCubemapTexture(TextureHandle handle)
+    {
+        // Same behavior as regular texture deletion
+        DeleteTexture(handle);
+    }
+
     #endregion
 
     #region Shader Operations
@@ -336,7 +364,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     {
         // Don't delete default shaders
         if (handle == LitShader || handle == UnlitShader || handle == SolidShader ||
-            handle == PbrShader || handle == PbrShadowShader)
+            handle == PbrShader || handle == PbrShadowShader || handle == PbrIblShader)
         {
             return;
         }
@@ -600,6 +628,20 @@ public sealed class MockGraphicsContext : IGraphicsContext
         }
     }
 
+    /// <inheritdoc />
+    public void DeleteRenderTargetKeepTexture(RenderTargetHandle target)
+    {
+        // In mock, delegate to DeleteRenderTarget (textures are tracked separately)
+        DeleteRenderTarget(target);
+    }
+
+    /// <inheritdoc />
+    public void DeleteCubemapRenderTargetKeepTexture(CubemapRenderTargetHandle target)
+    {
+        // In mock, delegate to DeleteCubemapRenderTarget (textures are tracked separately)
+        DeleteCubemapRenderTarget(target);
+    }
+
     #endregion
 
     #region Test Control
@@ -610,7 +652,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public void Reset()
     {
         // Clear non-default resources
-        var defaultShaders = new[] { LitShader, UnlitShader, SolidShader, PbrShader, PbrShadowShader };
+        var defaultShaders = new[] { LitShader, UnlitShader, SolidShader, PbrShader, PbrShadowShader, PbrIblShader };
         foreach (var shader in Shaders.Keys.Except(defaultShaders).ToList())
         {
             Shaders.Remove(shader);
@@ -768,6 +810,11 @@ public sealed class MockTextureInfo(int Width, int Height, string? SourcePath)
     /// Gets or sets the number of mipmap levels.
     /// </summary>
     public int MipmapCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether this is an HDR texture.
+    /// </summary>
+    public bool IsHdr { get; set; }
 }
 
 /// <summary>
