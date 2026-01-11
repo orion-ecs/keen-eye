@@ -294,6 +294,7 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public ShaderHandle UnlitShader => new(2);
     public ShaderHandle SolidShader => new(3);
     public ShaderHandle PbrShader => new(4);
+    public ShaderHandle PbrShadowShader => new(8);
     public TextureHandle WhiteTexture => new(1);
     public ShaderHandle InstancedLitShader => new(5);
     public ShaderHandle InstancedUnlitShader => new(6);

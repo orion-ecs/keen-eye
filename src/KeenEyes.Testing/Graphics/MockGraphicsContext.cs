@@ -62,6 +62,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
         PbrShader = AllocateShaderHandle();
         Shaders[PbrShader] = new MockShaderInfo("pbr_vertex", "pbr_fragment");
 
+        PbrShadowShader = AllocateShaderHandle();
+        Shaders[PbrShadowShader] = new MockShaderInfo("pbr_shadow_vertex", "pbr_shadow_fragment");
+
         InstancedLitShader = AllocateShaderHandle();
         Shaders[InstancedLitShader] = new MockShaderInfo("instanced_lit_vertex", "lit_fragment");
 
@@ -162,6 +165,9 @@ public sealed class MockGraphicsContext : IGraphicsContext
 
     /// <inheritdoc />
     public ShaderHandle PbrShader { get; }
+
+    /// <inheritdoc />
+    public ShaderHandle PbrShadowShader { get; }
 
     /// <inheritdoc />
     public TextureHandle WhiteTexture { get; }
@@ -329,7 +335,8 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public void DeleteShader(ShaderHandle handle)
     {
         // Don't delete default shaders
-        if (handle == LitShader || handle == UnlitShader || handle == SolidShader || handle == PbrShader)
+        if (handle == LitShader || handle == UnlitShader || handle == SolidShader ||
+            handle == PbrShader || handle == PbrShadowShader)
         {
             return;
         }
@@ -603,7 +610,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public void Reset()
     {
         // Clear non-default resources
-        var defaultShaders = new[] { LitShader, UnlitShader, SolidShader, PbrShader };
+        var defaultShaders = new[] { LitShader, UnlitShader, SolidShader, PbrShader, PbrShadowShader };
         foreach (var shader in Shaders.Keys.Except(defaultShaders).ToList())
         {
             Shaders.Remove(shader);

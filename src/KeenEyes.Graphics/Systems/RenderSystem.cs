@@ -2,6 +2,7 @@ using System.Numerics;
 
 using KeenEyes.Common;
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Shadows;
 
 namespace KeenEyes.Graphics;
 
@@ -26,6 +27,8 @@ namespace KeenEyes.Graphics;
 public sealed class RenderSystem : ISystem
 {
     private const int MaxLights = 8;
+    private const int MaxCascades = 4;
+    private const int ShadowMapBaseTextureUnit = 8;
 
     private IWorld? world;
     private IGraphicsContext? graphics;
@@ -41,8 +44,21 @@ public sealed class RenderSystem : ISystem
     private readonly float[] lightInnerCones = new float[MaxLights];
     private readonly float[] lightOuterCones = new float[MaxLights];
 
+    // Shadow light tracking
+    private int shadowLightEntityId = -1;
+    private bool hasShadowLight;
+
     /// <inheritdoc />
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets the shadow rendering system for shadow map access.
+    /// </summary>
+    /// <remarks>
+    /// When set, the render system will use shadow-enabled PBR shaders and
+    /// bind shadow map textures for rendering with shadows.
+    /// </remarks>
+    public ShadowRenderingSystem? ShadowSystem { get; set; }
 
     /// <inheritdoc />
     public void Initialize(IWorld world)
@@ -138,9 +154,20 @@ public sealed class RenderSystem : ISystem
         // Sort by layer (stable sort preserves order within same layer)
         renderQueue.Sort((a, b) => a.Layer.CompareTo(b.Layer));
 
+        // Determine if shadows should be used
+        bool useShadows = hasShadowLight && ShadowSystem?.ShadowManager != null;
+        DirectionalShadowData? shadowData = null;
+
+        if (useShadows && shadowLightEntityId >= 0)
+        {
+            shadowData = ShadowSystem!.ShadowManager!.GetDirectionalShadowData(shadowLightEntityId);
+            useShadows = shadowData.HasValue;
+        }
+
         // Render each entity
         ShaderHandle currentShader = default;
         bool isPbrShader = false;
+        bool isPbrShadowShader = false;
 
         foreach (var (entity, _) in renderQueue)
         {
@@ -160,7 +187,20 @@ public sealed class RenderSystem : ISystem
             if (world.Has<Material>(entity))
             {
                 material = world.Get<Material>(entity);
-                shader = material.ShaderId > 0 ? new ShaderHandle(material.ShaderId) : graphics.LitShader;
+
+                // Use shadow-enabled PBR shader when shadows are available
+                if (material.ShaderId <= 0 && useShadows)
+                {
+                    shader = graphics.PbrShadowShader;
+                }
+                else if (material.ShaderId > 0)
+                {
+                    shader = new ShaderHandle(material.ShaderId);
+                }
+                else
+                {
+                    shader = graphics.LitShader;
+                }
             }
 
             // Handle culling based on material double-sided flag
@@ -189,13 +229,20 @@ public sealed class RenderSystem : ISystem
                 graphics.BindShader(shader);
                 currentShader = shader;
                 isPbrShader = shader.Id == graphics.PbrShader.Id;
+                isPbrShadowShader = shader.Id == graphics.PbrShadowShader.Id;
 
                 // Set per-frame uniforms
                 graphics.SetUniform("uView", viewMatrix);
                 graphics.SetUniform("uProjection", projectionMatrix);
                 graphics.SetUniform("uCameraPosition", cameraTransform.Position);
 
-                if (isPbrShader)
+                if (isPbrShadowShader)
+                {
+                    // Set PBR light uniforms and shadow uniforms
+                    SetPbrLightUniforms(lightCount);
+                    BindShadowMaps(shadowData!.Value);
+                }
+                else if (isPbrShader)
                 {
                     // Set PBR light uniforms
                     SetPbrLightUniforms(lightCount);
@@ -238,6 +285,8 @@ public sealed class RenderSystem : ISystem
     private int CollectLights()
     {
         int lightCount = 0;
+        hasShadowLight = false;
+        shadowLightEntityId = -1;
 
         foreach (var entity in world!.Query<Light, Transform3D>())
         {
@@ -258,6 +307,13 @@ public sealed class RenderSystem : ISystem
             // Convert cone angles from degrees to cosine values for efficient shader comparison
             lightInnerCones[lightCount] = MathF.Cos(light.InnerConeAngle * MathF.PI / 180f);
             lightOuterCones[lightCount] = MathF.Cos(light.OuterConeAngle * MathF.PI / 180f);
+
+            // Track the first shadow-casting directional light
+            if (!hasShadowLight && light.CastShadows && light.Type == LightType.Directional)
+            {
+                shadowLightEntityId = entity.Id;
+                hasShadowLight = true;
+            }
 
             lightCount++;
         }
@@ -315,6 +371,49 @@ public sealed class RenderSystem : ISystem
             graphics!.SetUniform("uLightDirection", -Vector3.UnitY);
             graphics.SetUniform("uLightColor", Vector3.One);
             graphics.SetUniform("uLightIntensity", 1f);
+        }
+    }
+
+    /// <summary>
+    /// Binds shadow map textures and sets shadow-related uniforms for the PBR shadow shader.
+    /// </summary>
+    /// <param name="shadowData">The directional light shadow data.</param>
+    private void BindShadowMaps(in DirectionalShadowData shadowData)
+    {
+        var settings = shadowData.Settings;
+        int cascadeCount = settings.ClampedCascadeCount;
+
+        // Enable shadows
+        graphics!.SetUniform("uShadowEnabled", 1);
+        graphics.SetUniform("uCascadeCount", cascadeCount);
+        graphics.SetUniform("uShadowBias", settings.DepthBias);
+        graphics.SetUniform("uShadowNormalBias", settings.NormalBias);
+
+        // Bind shadow map textures to slots 8-11
+        for (int i = 0; i < MaxCascades; i++)
+        {
+            int textureUnit = ShadowMapBaseTextureUnit + i;
+
+            if (i < cascadeCount)
+            {
+                var renderTarget = shadowData.GetCascadeRenderTarget(i);
+                var shadowMapTexture = graphics.GetRenderTargetDepthTexture(renderTarget);
+                graphics.BindTexture(shadowMapTexture, textureUnit);
+                graphics.SetUniform($"uShadowMap{i}", textureUnit);
+
+                // Set light-space matrix and cascade split for this cascade
+                var lightSpaceMatrix = shadowData.GetLightSpaceMatrix(i);
+                graphics.SetUniform($"uLightSpaceMatrix{i}", lightSpaceMatrix);
+                graphics.SetUniform($"uCascadeSplit{i}", shadowData.GetCascadeSplit(i));
+            }
+            else
+            {
+                // Bind white texture as fallback for unused cascade slots
+                graphics.BindTexture(graphics.WhiteTexture, textureUnit);
+                graphics.SetUniform($"uShadowMap{i}", textureUnit);
+                graphics.SetUniform($"uLightSpaceMatrix{i}", Matrix4x4.Identity);
+                graphics.SetUniform($"uCascadeSplit{i}", 0f);
+            }
         }
     }
 
