@@ -9,6 +9,8 @@ using KeenEyes.TestBridge.LoggingImpl;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.ProcessImpl;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.Window;
+using KeenEyes.TestBridge.WindowImpl;
 using KeenEyes.Testing.Input;
 
 namespace KeenEyes.TestBridge;
@@ -36,6 +38,7 @@ public sealed class InProcessBridge : ITestBridge
     private readonly CaptureControllerImpl captureController;
     private readonly ProcessControllerImpl processController;
     private readonly LogControllerImpl logController;
+    private readonly WindowControllerImpl windowController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -46,7 +49,8 @@ public sealed class InProcessBridge : ITestBridge
     /// <param name="options">Configuration options.</param>
     /// <param name="graphicsContext">Optional graphics context for screenshot capture.</param>
     /// <param name="loopProvider">Optional loop provider for render thread marshalling.</param>
-    public InProcessBridge(World world, TestBridgeOptions? options = null, IGraphicsContext? graphicsContext = null, ILoopProvider? loopProvider = null)
+    /// <param name="window">Optional window for window state queries.</param>
+    public InProcessBridge(World world, TestBridgeOptions? options = null, IGraphicsContext? graphicsContext = null, ILoopProvider? loopProvider = null, IWindow? window = null)
     {
         this.world = world;
         this.options = options ?? new TestBridgeOptions();
@@ -66,6 +70,7 @@ public sealed class InProcessBridge : ITestBridge
         captureController = new CaptureControllerImpl(graphicsContext, loopProvider);
         processController = new ProcessControllerImpl();
         logController = new LogControllerImpl(this.options.LogQueryable);
+        windowController = new WindowControllerImpl(window);
 
         // Wire up log controller to state controller for WorldStats
         stateController.SetLogController(logController);
@@ -88,6 +93,9 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public ILogController Logs => logController;
+
+    /// <inheritdoc />
+    public IWindowController Window => windowController;
 
     /// <inheritdoc />
     public IInputContext InputContext => compositeInputContext is not null

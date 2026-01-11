@@ -4,6 +4,7 @@ using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge.Ipc.Protocol;
 
@@ -89,6 +90,9 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 // Result types (serializable alternatives to tuples)
 [JsonSerializable(typeof(FrameSizeResult))]
 [JsonSerializable(typeof(MousePositionResult))]
+[JsonSerializable(typeof(WindowSizeResult))]
+// Window types
+[JsonSerializable(typeof(WindowStateSnapshot))]
 // Input command arguments
 [JsonSerializable(typeof(KeyActionArgs))]
 [JsonSerializable(typeof(KeyPressArgs))]
@@ -156,4 +160,20 @@ public sealed record MousePositionResult
     /// Gets the Y coordinate.
     /// </summary>
     public float Y { get; init; }
+}
+
+/// <summary>
+/// Result type for window size queries (serializable alternative to tuple).
+/// </summary>
+public sealed record WindowSizeResult
+{
+    /// <summary>
+    /// Gets the window width in pixels.
+    /// </summary>
+    public required int Width { get; init; }
+
+    /// <summary>
+    /// Gets the window height in pixels.
+    /// </summary>
+    public required int Height { get; init; }
 }
