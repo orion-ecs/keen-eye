@@ -189,4 +189,162 @@ public sealed class Shaders2DTests
     }
 
     #endregion
+
+    #region Rounded Rect Vertex Shader
+
+    [Fact]
+    public void RoundedRectVertexShader_IsNotNullOrEmpty()
+    {
+        Assert.False(string.IsNullOrEmpty(Shaders2D.RoundedRectVertexShader));
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_ContainsVersion330()
+    {
+        Assert.Contains("#version 330", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_ContainsPositionAttribute()
+    {
+        Assert.Contains("layout (location = 0) in vec2 aPosition", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_ContainsLocalPosAttribute()
+    {
+        Assert.Contains("layout (location = 1) in vec2 aLocalPos", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_ContainsHalfSizeAttribute()
+    {
+        Assert.Contains("layout (location = 2) in vec2 aHalfSize", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_ContainsRadiusAttribute()
+    {
+        Assert.Contains("layout (location = 3) in float aRadius", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_ContainsColorAttribute()
+    {
+        Assert.Contains("layout (location = 4) in vec4 aColor", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_OutputsLocalPos()
+    {
+        Assert.Contains("out vec2 vLocalPos", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_OutputsHalfSize()
+    {
+        Assert.Contains("out vec2 vHalfSize", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_OutputsRadius()
+    {
+        Assert.Contains("out float vRadius", Shaders2D.RoundedRectVertexShader);
+    }
+
+    [Fact]
+    public void RoundedRectVertexShader_OutputsColor()
+    {
+        Assert.Contains("out vec4 vColor", Shaders2D.RoundedRectVertexShader);
+    }
+
+    #endregion
+
+    #region Rounded Rect Fragment Shader
+
+    [Fact]
+    public void RoundedRectFragmentShader_IsNotNullOrEmpty()
+    {
+        Assert.False(string.IsNullOrEmpty(Shaders2D.RoundedRectFragmentShader));
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_ContainsVersion330()
+    {
+        Assert.Contains("#version 330", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_InputsLocalPos()
+    {
+        Assert.Contains("in vec2 vLocalPos", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_InputsHalfSize()
+    {
+        Assert.Contains("in vec2 vHalfSize", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_InputsRadius()
+    {
+        Assert.Contains("in float vRadius", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_InputsColor()
+    {
+        Assert.Contains("in vec4 vColor", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_OutputsFragColor()
+    {
+        Assert.Contains("out vec4 FragColor", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_ContainsSdfFunction()
+    {
+        Assert.Contains("roundedRectSDF", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_UsesSmoothstepForAntiAliasing()
+    {
+        Assert.Contains("smoothstep", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    [Fact]
+    public void RoundedRectFragmentShader_AppliesAlpha()
+    {
+        Assert.Contains("vColor.a * alpha", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    #endregion
+
+    #region Rounded Rect Shader Compatibility
+
+    [Fact]
+    public void RoundedRectShaders_HaveMatchingVaryings()
+    {
+        // vLocalPos should be output from vertex and input to fragment
+        Assert.Contains("out vec2 vLocalPos", Shaders2D.RoundedRectVertexShader);
+        Assert.Contains("in vec2 vLocalPos", Shaders2D.RoundedRectFragmentShader);
+
+        // vHalfSize should be output from vertex and input to fragment
+        Assert.Contains("out vec2 vHalfSize", Shaders2D.RoundedRectVertexShader);
+        Assert.Contains("in vec2 vHalfSize", Shaders2D.RoundedRectFragmentShader);
+
+        // vRadius should be output from vertex and input to fragment
+        Assert.Contains("out float vRadius", Shaders2D.RoundedRectVertexShader);
+        Assert.Contains("in float vRadius", Shaders2D.RoundedRectFragmentShader);
+
+        // vColor should be output from vertex and input to fragment
+        Assert.Contains("out vec4 vColor", Shaders2D.RoundedRectVertexShader);
+        Assert.Contains("in vec4 vColor", Shaders2D.RoundedRectFragmentShader);
+    }
+
+    #endregion
 }
