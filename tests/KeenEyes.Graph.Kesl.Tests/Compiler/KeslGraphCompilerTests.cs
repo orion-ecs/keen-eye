@@ -44,8 +44,8 @@ public class KeslGraphCompilerTests
         var result = compiler.Compile(builder.Canvas, builder.World);
 
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Declaration);
-        Assert.Equal("TestShader", result.Declaration.Name);
+        Assert.NotNull(result.ComputeDeclaration);
+        Assert.Equal("TestShader", result.ComputeDeclaration.Name);
     }
 
     #endregion
@@ -63,9 +63,9 @@ public class KeslGraphCompilerTests
         var result = compiler.Compile(builder.Canvas, builder.World);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(2, result.Declaration!.Query.Bindings.Count);
-        Assert.Contains(result.Declaration.Query.Bindings, b => b.ComponentName == "Position");
-        Assert.Contains(result.Declaration.Query.Bindings, b => b.ComponentName == "Velocity");
+        Assert.Equal(2, result.ComputeDeclaration!.Query.Bindings.Count);
+        Assert.Contains(result.ComputeDeclaration.Query.Bindings, b => b.ComponentName == "Position");
+        Assert.Contains(result.ComputeDeclaration.Query.Bindings, b => b.ComponentName == "Velocity");
     }
 
     [Fact]
@@ -78,8 +78,8 @@ public class KeslGraphCompilerTests
 
         var result = compiler.Compile(builder.Canvas, builder.World);
 
-        var posBinding = result.Declaration!.Query.Bindings.First(b => b.ComponentName == "Position");
-        var velBinding = result.Declaration.Query.Bindings.First(b => b.ComponentName == "Velocity");
+        var posBinding = result.ComputeDeclaration!.Query.Bindings.First(b => b.ComponentName == "Position");
+        var velBinding = result.ComputeDeclaration.Query.Bindings.First(b => b.ComponentName == "Velocity");
 
         Assert.Equal(AccessMode.Read, posBinding.AccessMode);
         Assert.Equal(AccessMode.Write, velBinding.AccessMode);
@@ -101,10 +101,10 @@ public class KeslGraphCompilerTests
         var result = compiler.Compile(builder.Canvas, builder.World);
 
         Assert.True(result.IsSuccess);
-        Assert.NotNull(result.Declaration!.Params);
-        Assert.Equal(2, result.Declaration.Params.Parameters.Count);
-        Assert.Contains(result.Declaration.Params.Parameters, p => p.Name == "deltaTime");
-        Assert.Contains(result.Declaration.Params.Parameters, p => p.Name == "speed");
+        Assert.NotNull(result.ComputeDeclaration!.Params);
+        Assert.Equal(2, result.ComputeDeclaration.Params.Parameters.Count);
+        Assert.Contains(result.ComputeDeclaration.Params.Parameters, p => p.Name == "deltaTime");
+        Assert.Contains(result.ComputeDeclaration.Params.Parameters, p => p.Name == "speed");
     }
 
     [Fact]
@@ -117,7 +117,7 @@ public class KeslGraphCompilerTests
         var result = compiler.Compile(builder.Canvas, builder.World);
 
         Assert.True(result.IsSuccess);
-        Assert.True(result.Declaration!.Params == null || result.Declaration.Params.Parameters.Count == 0);
+        Assert.True(result.ComputeDeclaration!.Params == null || result.ComputeDeclaration.Params.Parameters.Count == 0);
     }
 
     #endregion
@@ -140,7 +140,7 @@ public class KeslGraphCompilerTests
         var result = compiler.Compile(builder.Canvas, builder.World);
 
         Assert.True(result.IsSuccess);
-        Assert.NotEmpty(result.Declaration!.Execute.Body);
+        Assert.NotEmpty(result.ComputeDeclaration!.Execute.Body);
     }
 
     [Fact]
@@ -182,7 +182,7 @@ public class KeslGraphCompilerTests
 
         // Should succeed using the first shader (Shader1)
         Assert.True(result.IsSuccess);
-        Assert.Equal("Shader1", result.Declaration!.Name);
+        Assert.Equal("Shader1", result.ComputeDeclaration!.Name);
     }
 
     #endregion

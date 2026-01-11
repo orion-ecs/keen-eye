@@ -47,6 +47,10 @@ public sealed class ShaderExecutor
     /// <param name="canvas">The graph canvas entity.</param>
     /// <param name="world">The world containing the graph.</param>
     /// <returns>True if compilation succeeded, false otherwise.</returns>
+    /// <remarks>
+    /// Only compute shaders are supported for preview execution.
+    /// Vertex and fragment shaders require GPU execution.
+    /// </remarks>
     public bool Compile(Entity canvas, IWorld world)
     {
         try
@@ -54,7 +58,7 @@ public sealed class ShaderExecutor
             lastError = "";
             var result = compiler.Compile(canvas, world);
 
-            if (!result.IsSuccess || result.Declaration is null)
+            if (!result.IsSuccess)
             {
                 lastError = result.Errors.Count > 0
                     ? string.Join("\n", result.Errors.Select(e => e.Message))
@@ -64,8 +68,17 @@ public sealed class ShaderExecutor
                 return false;
             }
 
-            currentAst = result.Declaration;
-            currentBindings = result.Declaration.Query.Bindings;
+            // Only compute shaders are supported for preview execution
+            if (result.ShaderType != CompiledShaderType.Compute || result.ComputeDeclaration is null)
+            {
+                lastError = "Only compute shaders are supported for preview execution";
+                currentAst = null;
+                currentBindings = Array.Empty<QueryBinding>();
+                return false;
+            }
+
+            currentAst = result.ComputeDeclaration;
+            currentBindings = result.ComputeDeclaration.Query.Bindings;
             return true;
         }
         catch (Exception ex)

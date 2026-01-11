@@ -17,7 +17,7 @@ namespace KeenEyes.Graph.Kesl;
 /// node types for visual shader programming, including:
 /// </para>
 /// <list type="bullet">
-/// <item><b>Shader nodes</b>: ComputeShader, QueryBinding, Parameter</item>
+/// <item><b>Shader nodes</b>: ComputeShader, VertexShader, FragmentShader, QueryBinding, Parameter, InputAttribute, OutputAttribute</item>
 /// <item><b>Math nodes</b>: Add, Subtract, Multiply, etc.</item>
 /// <item><b>Vector nodes</b>: Construct, Split, Normalize, etc.</item>
 /// <item><b>Logic nodes</b>: And, Or, Not, Compare, Select</item>
@@ -63,8 +63,12 @@ public sealed class KeslGraphPlugin : IWorldPlugin
     {
         // Shader node components
         context.RegisterComponent<ComputeShaderNodeData>();
+        context.RegisterComponent<VertexShaderNodeData>();
+        context.RegisterComponent<FragmentShaderNodeData>();
         context.RegisterComponent<QueryBindingNodeData>();
         context.RegisterComponent<ParameterNodeData>();
+        context.RegisterComponent<InputAttributeNodeData>();
+        context.RegisterComponent<OutputAttributeNodeData>();
 
         // Logic node components
         context.RegisterComponent<CompareNodeData>();
@@ -85,8 +89,12 @@ public sealed class KeslGraphPlugin : IWorldPlugin
     private static void RegisterShaderNodes(NodeTypeRegistry registry)
     {
         registry.Register<ComputeShaderNode>();
+        registry.Register<VertexShaderNode>();
+        registry.Register<FragmentShaderNode>();
         registry.Register<QueryBindingNode>();
         registry.Register<ParameterNode>();
+        registry.Register<InputAttributeNode>();
+        registry.Register<OutputAttributeNode>();
     }
 
     private static void RegisterMathNodes(NodeTypeRegistry registry)

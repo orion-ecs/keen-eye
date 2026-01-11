@@ -34,19 +34,26 @@ public sealed class KeslGraphExporter
     {
         // Compile graph to AST
         var compileResult = compiler.Compile(canvas, world);
-        if (!compileResult.IsSuccess || compileResult.Declaration is null)
+        if (!compileResult.IsSuccess)
         {
             var errors = compileResult.Errors.Select(e =>
                 new ExportError(e.Message, e.Node)).ToList();
             return ExportResult.Failure(errors);
         }
 
-        // Generate source from AST
-        var source = GenerateSource(compileResult.Declaration);
+        // Generate source from AST based on shader type
+        var source = compileResult.ShaderType switch
+        {
+            CompiledShaderType.Compute => GenerateComputeSource(compileResult.ComputeDeclaration!),
+            CompiledShaderType.Vertex => GenerateVertexSource(compileResult.VertexDeclaration!),
+            CompiledShaderType.Fragment => GenerateFragmentSource(compileResult.FragmentDeclaration!),
+            _ => throw new InvalidOperationException("Unknown shader type")
+        };
+
         return ExportResult.Success(source);
     }
 
-    private string GenerateSource(ComputeDeclaration declaration)
+    private string GenerateComputeSource(ComputeDeclaration declaration)
     {
         var sb = new StringBuilder();
         var indent = Options.UseTabs ? "\t" : new string(' ', Options.IndentSize);
@@ -67,6 +74,117 @@ public sealed class KeslGraphExporter
                 _ => "read"
             };
             sb.AppendLine($"{indent}{indent}{accessMod} {binding.ComponentName}");
+        }
+        sb.AppendLine($"{indent}}}");
+
+        // params block (if any)
+        if (declaration.Params is not null && declaration.Params.Parameters.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"{indent}params {{");
+            foreach (var param in declaration.Params.Parameters)
+            {
+                var typeName = TypeRefToString(param.Type);
+                sb.AppendLine($"{indent}{indent}{param.Name}: {typeName}");
+            }
+            sb.AppendLine($"{indent}}}");
+        }
+
+        // execute block
+        sb.AppendLine();
+        sb.AppendLine($"{indent}execute() {{");
+        foreach (var statement in declaration.Execute.Body)
+        {
+            GenerateStatement(sb, statement, 2, indent);
+        }
+        sb.AppendLine($"{indent}}}");
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private string GenerateVertexSource(VertexDeclaration declaration)
+    {
+        var sb = new StringBuilder();
+        var indent = Options.UseTabs ? "\t" : new string(' ', Options.IndentSize);
+
+        // vertex ShaderName {
+        sb.AppendLine($"vertex {declaration.Name} {{");
+
+        // in block
+        sb.AppendLine($"{indent}in {{");
+        foreach (var attr in declaration.Inputs.Attributes)
+        {
+            var typeName = TypeRefToString(attr.Type);
+            var location = attr.LocationIndex.HasValue ? $" @ {attr.LocationIndex.Value}" : "";
+            sb.AppendLine($"{indent}{indent}{attr.Name}: {typeName}{location}");
+        }
+        sb.AppendLine($"{indent}}}");
+
+        // out block
+        sb.AppendLine();
+        sb.AppendLine($"{indent}out {{");
+        foreach (var attr in declaration.Outputs.Attributes)
+        {
+            var typeName = TypeRefToString(attr.Type);
+            var location = attr.LocationIndex.HasValue ? $" @ {attr.LocationIndex.Value}" : "";
+            sb.AppendLine($"{indent}{indent}{attr.Name}: {typeName}{location}");
+        }
+        sb.AppendLine($"{indent}}}");
+
+        // params block (if any)
+        if (declaration.Params is not null && declaration.Params.Parameters.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"{indent}params {{");
+            foreach (var param in declaration.Params.Parameters)
+            {
+                var typeName = TypeRefToString(param.Type);
+                sb.AppendLine($"{indent}{indent}{param.Name}: {typeName}");
+            }
+            sb.AppendLine($"{indent}}}");
+        }
+
+        // execute block
+        sb.AppendLine();
+        sb.AppendLine($"{indent}execute() {{");
+        foreach (var statement in declaration.Execute.Body)
+        {
+            GenerateStatement(sb, statement, 2, indent);
+        }
+        sb.AppendLine($"{indent}}}");
+
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    private string GenerateFragmentSource(FragmentDeclaration declaration)
+    {
+        var sb = new StringBuilder();
+        var indent = Options.UseTabs ? "\t" : new string(' ', Options.IndentSize);
+
+        // fragment ShaderName {
+        sb.AppendLine($"fragment {declaration.Name} {{");
+
+        // in block
+        sb.AppendLine($"{indent}in {{");
+        foreach (var attr in declaration.Inputs.Attributes)
+        {
+            var typeName = TypeRefToString(attr.Type);
+            sb.AppendLine($"{indent}{indent}{attr.Name}: {typeName}");
+        }
+        sb.AppendLine($"{indent}}}");
+
+        // out block
+        sb.AppendLine();
+        sb.AppendLine($"{indent}out {{");
+        foreach (var attr in declaration.Outputs.Attributes)
+        {
+            var typeName = TypeRefToString(attr.Type);
+            var location = attr.LocationIndex.HasValue ? $" @ {attr.LocationIndex.Value}" : "";
+            sb.AppendLine($"{indent}{indent}{attr.Name}: {typeName}{location}");
         }
         sb.AppendLine($"{indent}}}");
 

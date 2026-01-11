@@ -38,6 +38,26 @@ public static class KeslNodeIds
     /// </summary>
     public const int Parameter = 1003;
 
+    /// <summary>
+    /// Root vertex shader node - defines vertex shader with in/out/params/execute blocks.
+    /// </summary>
+    public const int VertexShader = 1004;
+
+    /// <summary>
+    /// Root fragment shader node - defines fragment shader with in/out/params/execute blocks.
+    /// </summary>
+    public const int FragmentShader = 1005;
+
+    /// <summary>
+    /// Input attribute node - defines a vertex shader input attribute with location.
+    /// </summary>
+    public const int InputAttribute = 1006;
+
+    /// <summary>
+    /// Output attribute node - defines shader output with optional location.
+    /// </summary>
+    public const int OutputAttribute = 1007;
+
     #endregion
 
     #region Math Nodes (1100-1199)
