@@ -19,6 +19,12 @@ public enum TokenKind
     Query,
     Params,
     Execute,
+    Vertex,
+    Fragment,
+
+    // Keywords - Shader I/O
+    In,
+    Out,
 
     // Keywords - Query modifiers
     Read,
@@ -63,6 +69,7 @@ public enum TokenKind
     Semicolon,      // ;
     Dot,            // .
     DotDot,         // ..
+    At,             // @
 
     // Operators - Arithmetic
     Plus,           // +

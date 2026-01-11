@@ -16,6 +16,12 @@ public sealed class Lexer
         ["query"] = TokenKind.Query,
         ["params"] = TokenKind.Params,
         ["execute"] = TokenKind.Execute,
+        ["vertex"] = TokenKind.Vertex,
+        ["fragment"] = TokenKind.Fragment,
+
+        // Shader I/O
+        ["in"] = TokenKind.In,
+        ["out"] = TokenKind.Out,
 
         // Query modifiers
         ["read"] = TokenKind.Read,
@@ -126,6 +132,7 @@ public sealed class Lexer
             ':' => MakeToken(TokenKind.Colon, ":", location),
             ';' => MakeToken(TokenKind.Semicolon, ";", location),
             '.' => Match('.') ? MakeToken(TokenKind.DotDot, "..", location) : MakeToken(TokenKind.Dot, ".", location),
+            '@' => MakeToken(TokenKind.At, "@", location),
 
             '+' => Match('=') ? MakeToken(TokenKind.PlusEqual, "+=", location) : MakeToken(TokenKind.Plus, "+", location),
             '-' => Match('=') ? MakeToken(TokenKind.MinusEqual, "-=", location) : MakeToken(TokenKind.Minus, "-", location),

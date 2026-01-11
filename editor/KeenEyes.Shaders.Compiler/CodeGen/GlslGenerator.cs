@@ -84,6 +84,448 @@ public sealed class GlslGenerator : IShaderGenerator
         return _sb.ToString();
     }
 
+    /// <summary>
+    /// Generates GLSL code for a vertex shader declaration.
+    /// </summary>
+    /// <param name="vertex">The vertex shader AST.</param>
+    /// <returns>The generated GLSL code.</returns>
+    public string Generate(VertexDeclaration vertex)
+    {
+        _sb.Clear();
+        _indent = 0;
+
+        // Header
+        AppendLine("#version 450");
+        AppendLine();
+
+        // Generate input attributes (from vertex buffer)
+        foreach (var attr in vertex.Inputs.Attributes)
+        {
+            var location = attr.LocationIndex.HasValue ? $"layout(location = {attr.LocationIndex.Value}) " : "";
+            AppendLine($"{location}in {ToGlslType(attr.Type)} {attr.Name};");
+        }
+        AppendLine();
+
+        // Generate output interface block
+        if (vertex.Outputs.Attributes.Count > 0)
+        {
+            AppendLine("out VS_OUT {");
+            _indent++;
+            foreach (var attr in vertex.Outputs.Attributes)
+            {
+                AppendLine($"{ToGlslType(attr.Type)} {attr.Name};");
+            }
+            _indent--;
+            AppendLine("} vs_out;");
+            AppendLine();
+        }
+
+        // Generate uniform declarations for params
+        if (vertex.Params != null)
+        {
+            foreach (var param in vertex.Params.Parameters)
+            {
+                AppendLine($"uniform {ToGlslType(param.Type)} {param.Name};");
+            }
+            AppendLine();
+        }
+
+        // Main function
+        AppendLine("void main() {");
+        _indent++;
+
+        // Generate execute block statements
+        foreach (var stmt in vertex.Execute.Body)
+        {
+            GenerateVertexStatement(stmt, vertex.Inputs.Attributes, vertex.Outputs.Attributes);
+        }
+
+        _indent--;
+        AppendLine("}");
+
+        return _sb.ToString();
+    }
+
+    /// <summary>
+    /// Generates GLSL code for a fragment shader declaration.
+    /// </summary>
+    /// <param name="fragment">The fragment shader AST.</param>
+    /// <returns>The generated GLSL code.</returns>
+    public string Generate(FragmentDeclaration fragment)
+    {
+        _sb.Clear();
+        _indent = 0;
+
+        // Header
+        AppendLine("#version 450");
+        AppendLine();
+
+        // Generate input interface block (from vertex shader)
+        if (fragment.Inputs.Attributes.Count > 0)
+        {
+            AppendLine("in VS_OUT {");
+            _indent++;
+            foreach (var attr in fragment.Inputs.Attributes)
+            {
+                AppendLine($"{ToGlslType(attr.Type)} {attr.Name};");
+            }
+            _indent--;
+            AppendLine("} fs_in;");
+            AppendLine();
+        }
+
+        // Generate output attributes
+        foreach (var attr in fragment.Outputs.Attributes)
+        {
+            var location = attr.LocationIndex.HasValue ? $"layout(location = {attr.LocationIndex.Value}) " : "";
+            AppendLine($"{location}out {ToGlslType(attr.Type)} {attr.Name};");
+        }
+        AppendLine();
+
+        // Generate uniform declarations for params
+        if (fragment.Params != null)
+        {
+            foreach (var param in fragment.Params.Parameters)
+            {
+                AppendLine($"uniform {ToGlslType(param.Type)} {param.Name};");
+            }
+            AppendLine();
+        }
+
+        // Main function
+        AppendLine("void main() {");
+        _indent++;
+
+        // Generate execute block statements
+        foreach (var stmt in fragment.Execute.Body)
+        {
+            GenerateFragmentStatement(stmt, fragment.Inputs.Attributes, fragment.Outputs.Attributes);
+        }
+
+        _indent--;
+        AppendLine("}");
+
+        return _sb.ToString();
+    }
+
+    private void GenerateVertexStatement(Statement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        switch (stmt)
+        {
+            case ExpressionStatement exprStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateVertexExpression(exprStmt.Expression, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case AssignmentStatement assignStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateVertexExpression(assignStmt.Target, inputs, outputs));
+                _sb.Append(" = ");
+                _sb.Append(GenerateVertexExpression(assignStmt.Value, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case CompoundAssignmentStatement compoundStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateVertexExpression(compoundStmt.Target, inputs, outputs));
+                _sb.Append(' ');
+                _sb.Append(compoundStmt.Operator switch
+                {
+                    CompoundOperator.PlusEquals => "+=",
+                    CompoundOperator.MinusEquals => "-=",
+                    CompoundOperator.StarEquals => "*=",
+                    CompoundOperator.SlashEquals => "/=",
+                    _ => throw new InvalidOperationException()
+                });
+                _sb.Append(' ');
+                _sb.Append(GenerateVertexExpression(compoundStmt.Value, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case IfStatement ifStmt:
+                GenerateVertexIfStatement(ifStmt, inputs, outputs);
+                break;
+
+            case ForStatement forStmt:
+                GenerateVertexForStatement(forStmt, inputs, outputs);
+                break;
+
+            case BlockStatement blockStmt:
+                AppendLine("{");
+                _indent++;
+                foreach (var s in blockStmt.Statements)
+                {
+                    GenerateVertexStatement(s, inputs, outputs);
+                }
+                _indent--;
+                AppendLine("}");
+                break;
+        }
+    }
+
+    private void GenerateFragmentStatement(Statement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        switch (stmt)
+        {
+            case ExpressionStatement exprStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateFragmentExpression(exprStmt.Expression, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case AssignmentStatement assignStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateFragmentExpression(assignStmt.Target, inputs, outputs));
+                _sb.Append(" = ");
+                _sb.Append(GenerateFragmentExpression(assignStmt.Value, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case CompoundAssignmentStatement compoundStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateFragmentExpression(compoundStmt.Target, inputs, outputs));
+                _sb.Append(' ');
+                _sb.Append(compoundStmt.Operator switch
+                {
+                    CompoundOperator.PlusEquals => "+=",
+                    CompoundOperator.MinusEquals => "-=",
+                    CompoundOperator.StarEquals => "*=",
+                    CompoundOperator.SlashEquals => "/=",
+                    _ => throw new InvalidOperationException()
+                });
+                _sb.Append(' ');
+                _sb.Append(GenerateFragmentExpression(compoundStmt.Value, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case IfStatement ifStmt:
+                GenerateFragmentIfStatement(ifStmt, inputs, outputs);
+                break;
+
+            case ForStatement forStmt:
+                GenerateFragmentForStatement(forStmt, inputs, outputs);
+                break;
+
+            case BlockStatement blockStmt:
+                AppendLine("{");
+                _indent++;
+                foreach (var s in blockStmt.Statements)
+                {
+                    GenerateFragmentStatement(s, inputs, outputs);
+                }
+                _indent--;
+                AppendLine("}");
+                break;
+        }
+    }
+
+    private void GenerateVertexIfStatement(IfStatement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        Append(GenerateIndent());
+        _sb.Append("if (");
+        _sb.Append(GenerateVertexExpression(stmt.Condition, inputs, outputs));
+        _sb.AppendLine(") {");
+
+        _indent++;
+        foreach (var s in stmt.ThenBranch)
+        {
+            GenerateVertexStatement(s, inputs, outputs);
+        }
+        _indent--;
+
+        if (stmt.ElseBranch != null)
+        {
+            AppendLine("} else {");
+            _indent++;
+            foreach (var s in stmt.ElseBranch)
+            {
+                GenerateVertexStatement(s, inputs, outputs);
+            }
+            _indent--;
+        }
+
+        AppendLine("}");
+    }
+
+    private void GenerateFragmentIfStatement(IfStatement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        Append(GenerateIndent());
+        _sb.Append("if (");
+        _sb.Append(GenerateFragmentExpression(stmt.Condition, inputs, outputs));
+        _sb.AppendLine(") {");
+
+        _indent++;
+        foreach (var s in stmt.ThenBranch)
+        {
+            GenerateFragmentStatement(s, inputs, outputs);
+        }
+        _indent--;
+
+        if (stmt.ElseBranch != null)
+        {
+            AppendLine("} else {");
+            _indent++;
+            foreach (var s in stmt.ElseBranch)
+            {
+                GenerateFragmentStatement(s, inputs, outputs);
+            }
+            _indent--;
+        }
+
+        AppendLine("}");
+    }
+
+    private void GenerateVertexForStatement(ForStatement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        Append(GenerateIndent());
+        _sb.Append($"for (int {stmt.VariableName} = ");
+        _sb.Append(GenerateVertexExpression(stmt.Start, inputs, outputs));
+        _sb.Append($"; {stmt.VariableName} < ");
+        _sb.Append(GenerateVertexExpression(stmt.End, inputs, outputs));
+        _sb.AppendLine($"; {stmt.VariableName}++) {{");
+
+        _indent++;
+        foreach (var s in stmt.Body)
+        {
+            GenerateVertexStatement(s, inputs, outputs);
+        }
+        _indent--;
+
+        AppendLine("}");
+    }
+
+    private void GenerateFragmentForStatement(ForStatement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        Append(GenerateIndent());
+        _sb.Append($"for (int {stmt.VariableName} = ");
+        _sb.Append(GenerateFragmentExpression(stmt.Start, inputs, outputs));
+        _sb.Append($"; {stmt.VariableName} < ");
+        _sb.Append(GenerateFragmentExpression(stmt.End, inputs, outputs));
+        _sb.AppendLine($"; {stmt.VariableName}++) {{");
+
+        _indent++;
+        foreach (var s in stmt.Body)
+        {
+            GenerateFragmentStatement(s, inputs, outputs);
+        }
+        _indent--;
+
+        AppendLine("}");
+    }
+
+    private string GenerateVertexExpression(Expression expr, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        return expr switch
+        {
+            IntLiteralExpression intLit => intLit.Value.ToString(),
+            FloatLiteralExpression floatLit => FormatFloat(floatLit.Value),
+            BoolLiteralExpression boolLit => boolLit.Value ? "true" : "false",
+
+            IdentifierExpression id => TransformVertexIdentifier(id.Name, inputs, outputs),
+
+            MemberAccessExpression member => GenerateVertexMemberAccess(member, inputs, outputs),
+
+            BinaryExpression binary => $"({GenerateVertexExpression(binary.Left, inputs, outputs)} {GetBinaryOp(binary.Operator)} {GenerateVertexExpression(binary.Right, inputs, outputs)})",
+
+            UnaryExpression unary => $"{GetUnaryOp(unary.Operator)}({GenerateVertexExpression(unary.Operand, inputs, outputs)})",
+
+            CallExpression call => GenerateVertexCall(call, inputs, outputs),
+
+            HasExpression => throw new NotSupportedException("'has' expression not supported in vertex shaders"),
+
+            ParenthesizedExpression paren => $"({GenerateVertexExpression(paren.Inner, inputs, outputs)})",
+
+            _ => throw new NotSupportedException($"Expression type {expr.GetType().Name} not supported")
+        };
+    }
+
+    private string GenerateFragmentExpression(Expression expr, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        return expr switch
+        {
+            IntLiteralExpression intLit => intLit.Value.ToString(),
+            FloatLiteralExpression floatLit => FormatFloat(floatLit.Value),
+            BoolLiteralExpression boolLit => boolLit.Value ? "true" : "false",
+
+            IdentifierExpression id => TransformFragmentIdentifier(id.Name, inputs, outputs),
+
+            MemberAccessExpression member => GenerateFragmentMemberAccess(member, inputs, outputs),
+
+            BinaryExpression binary => $"({GenerateFragmentExpression(binary.Left, inputs, outputs)} {GetBinaryOp(binary.Operator)} {GenerateFragmentExpression(binary.Right, inputs, outputs)})",
+
+            UnaryExpression unary => $"{GetUnaryOp(unary.Operator)}({GenerateFragmentExpression(unary.Operand, inputs, outputs)})",
+
+            CallExpression call => GenerateFragmentCall(call, inputs, outputs),
+
+            HasExpression => throw new NotSupportedException("'has' expression not supported in fragment shaders"),
+
+            ParenthesizedExpression paren => $"({GenerateFragmentExpression(paren.Inner, inputs, outputs)})",
+
+            _ => throw new NotSupportedException($"Expression type {expr.GetType().Name} not supported")
+        };
+    }
+
+    private static string TransformVertexIdentifier(string name, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Check if it's an output variable - transform to vs_out.name
+        if (outputs.Any(o => o.Name == name))
+        {
+            return $"vs_out.{name}";
+        }
+
+        // Input variables and other identifiers remain as-is
+        return name;
+    }
+
+    private static string TransformFragmentIdentifier(string name, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Check if it's an input variable from vertex shader - transform to fs_in.name
+        if (inputs.Any(i => i.Name == name))
+        {
+            return $"fs_in.{name}";
+        }
+
+        // Output variables and other identifiers remain as-is
+        return name;
+    }
+
+    private string GenerateVertexMemberAccess(MemberAccessExpression member, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Check if the base is an output variable
+        if (member.Object is IdentifierExpression id && outputs.Any(o => o.Name == id.Name))
+        {
+            return $"vs_out.{id.Name}.{member.MemberName}";
+        }
+
+        return $"{GenerateVertexExpression(member.Object, inputs, outputs)}.{member.MemberName}";
+    }
+
+    private string GenerateFragmentMemberAccess(MemberAccessExpression member, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Check if the base is an input variable from vertex shader
+        if (member.Object is IdentifierExpression id && inputs.Any(i => i.Name == id.Name))
+        {
+            return $"fs_in.{id.Name}.{member.MemberName}";
+        }
+
+        return $"{GenerateFragmentExpression(member.Object, inputs, outputs)}.{member.MemberName}";
+    }
+
+    private string GenerateVertexCall(CallExpression call, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        var funcName = MapFunctionName(call.FunctionName);
+        var args = string.Join(", ", call.Arguments.Select(a => GenerateVertexExpression(a, inputs, outputs)));
+        return $"{funcName}({args})";
+    }
+
+    private string GenerateFragmentCall(CallExpression call, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        var funcName = MapFunctionName(call.FunctionName);
+        var args = string.Join(", ", call.Arguments.Select(a => GenerateFragmentExpression(a, inputs, outputs)));
+        return $"{funcName}({args})";
+    }
+
     private void GenerateBufferDeclaration(QueryBinding binding)
     {
         var qualifier = binding.AccessMode == AccessMode.Read ? "readonly " : "";

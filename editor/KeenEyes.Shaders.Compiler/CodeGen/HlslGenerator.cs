@@ -93,6 +93,40 @@ public sealed class HlslGenerator : IShaderGenerator
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Generates HLSL code for a vertex shader declaration.
+    /// </summary>
+    /// <param name="vertex">The vertex shader AST.</param>
+    /// <returns>The generated HLSL code.</returns>
+    /// <remarks>
+    /// HLSL vertex shaders use:
+    /// - Semantic annotations (POSITION, NORMAL, TEXCOORD, etc.)
+    /// - struct VS_INPUT/VS_OUTPUT for input/output data
+    /// - cbuffer for uniform parameters
+    /// </remarks>
+    public string Generate(VertexDeclaration vertex)
+    {
+        // TODO: Implement HLSL vertex shader generation in Phase 3
+        throw new NotImplementedException("HLSL vertex shader generation not yet implemented. Use GLSL backend for now.");
+    }
+
+    /// <summary>
+    /// Generates HLSL code for a fragment shader declaration.
+    /// </summary>
+    /// <param name="fragment">The fragment shader AST.</param>
+    /// <returns>The generated HLSL code.</returns>
+    /// <remarks>
+    /// HLSL pixel shaders (fragment shaders) use:
+    /// - struct PS_INPUT for input data from vertex shader
+    /// - SV_Target semantic for output color
+    /// - cbuffer for uniform parameters
+    /// </remarks>
+    public string Generate(FragmentDeclaration fragment)
+    {
+        // TODO: Implement HLSL fragment shader generation in Phase 3
+        throw new NotImplementedException("HLSL fragment shader generation not yet implemented. Use GLSL backend for now.");
+    }
+
     private void GenerateStructDefinition(QueryBinding binding)
     {
         AppendLine($"struct {binding.ComponentName}Data");

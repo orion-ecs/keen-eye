@@ -20,6 +20,20 @@ public interface IShaderGenerator
     string Generate(ComputeDeclaration compute);
 
     /// <summary>
+    /// Generates shader code for a vertex shader declaration.
+    /// </summary>
+    /// <param name="vertex">The vertex shader AST.</param>
+    /// <returns>The generated shader source code.</returns>
+    string Generate(VertexDeclaration vertex);
+
+    /// <summary>
+    /// Generates shader code for a fragment shader declaration.
+    /// </summary>
+    /// <param name="fragment">The fragment shader AST.</param>
+    /// <returns>The generated shader source code.</returns>
+    string Generate(FragmentDeclaration fragment);
+
+    /// <summary>
     /// Gets the file extension for this shader language (without the dot).
     /// </summary>
     string FileExtension { get; }
