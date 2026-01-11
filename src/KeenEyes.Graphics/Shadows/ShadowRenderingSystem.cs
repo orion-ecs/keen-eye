@@ -133,13 +133,19 @@ public sealed class ShadowRenderingSystem : ISystem
                     break;
 
                 case LightType.Point:
-                    // Point light shadows would render to cubemap
-                    // TODO: Implement point light shadows
+                    RenderPointLightShadow(
+                        lightEntity.Id,
+                        lightTransform.Position,
+                        light.Range);
                     break;
 
                 case LightType.Spot:
-                    // Spot light shadows render to 2D texture
-                    // TODO: Implement spot light shadows
+                    RenderSpotLightShadow(
+                        lightEntity.Id,
+                        lightTransform.Position,
+                        lightTransform.Forward(),
+                        light.OuterConeAngle,
+                        light.Range);
                     break;
             }
         }
@@ -257,6 +263,128 @@ public sealed class ShadowRenderingSystem : ISystem
         // Unbind render target and restore state
         graphics.UnbindRenderTarget();
         graphics.SetCulling(true, CullFaceMode.Back); // Restore normal culling
+    }
+
+    private void RenderSpotLightShadow(
+        int lightEntityId,
+        Vector3 lightPosition,
+        Vector3 lightDirection,
+        float outerConeAngle,
+        float range)
+    {
+        // Ensure shadow map exists
+        shadowManager!.CreateSpotShadowMap(lightEntityId);
+
+        // Update light-space matrix
+        shadowManager.UpdateSpotLightMatrix(
+            lightEntityId,
+            lightPosition,
+            lightDirection,
+            outerConeAngle,
+            range);
+
+        var shadowData = shadowManager.GetSpotShadowData(lightEntityId);
+        if (!shadowData.HasValue)
+        {
+            return;
+        }
+
+        var data = shadowData.Value;
+        int resolution = Settings.ResolutionPixels;
+
+        // Bind depth shader (reuse the same shader as directional)
+        graphics!.BindShader(depthShader);
+
+        // Configure render state
+        graphics.SetDepthTest(true);
+        graphics.SetCulling(true, CullFaceMode.Front); // Render back faces to reduce peter-panning
+
+        // Bind render target
+        graphics.BindRenderTarget(data.RenderTarget);
+        graphics.SetViewport(0, 0, resolution, resolution);
+        graphics.Clear(ClearMask.DepthBuffer);
+
+        // Set light-space matrix uniform
+        graphics.SetUniform("uLightSpaceMatrix", data.LightSpaceMatrix);
+
+        // Render all shadow casters
+        foreach (var (_, transform, renderable) in shadowCasters)
+        {
+            Matrix4x4 modelMatrix = transform.Matrix();
+            graphics.SetUniform("uModel", modelMatrix);
+
+            var meshHandle = new MeshHandle(renderable.MeshId);
+            graphics.DrawMesh(meshHandle);
+        }
+
+        // Unbind render target and restore state
+        graphics.UnbindRenderTarget();
+        graphics.SetCulling(true, CullFaceMode.Back);
+    }
+
+    private void RenderPointLightShadow(
+        int lightEntityId,
+        Vector3 lightPosition,
+        float range)
+    {
+        // Ensure shadow map exists
+        shadowManager!.CreatePointShadowMap(lightEntityId);
+
+        // Update light data
+        shadowManager.UpdatePointLightData(lightEntityId, lightPosition, range);
+
+        var shadowData = shadowManager.GetPointShadowData(lightEntityId);
+        if (!shadowData.HasValue)
+        {
+            return;
+        }
+
+        var data = shadowData.Value;
+        int resolution = data.RenderTarget.Size;
+
+        // Bind depth shader
+        graphics!.BindShader(depthShader);
+
+        // Configure render state
+        graphics.SetDepthTest(true);
+        graphics.SetCulling(true, CullFaceMode.Front); // Render back faces to reduce peter-panning
+
+        // Render each cubemap face
+        CubemapFace[] faces =
+        [
+            CubemapFace.PositiveX,
+            CubemapFace.NegativeX,
+            CubemapFace.PositiveY,
+            CubemapFace.NegativeY,
+            CubemapFace.PositiveZ,
+            CubemapFace.NegativeZ
+        ];
+
+        for (int faceIndex = 0; faceIndex < 6; faceIndex++)
+        {
+            // Bind the cubemap face as render target
+            graphics.BindCubemapRenderTarget(data.RenderTarget, faces[faceIndex]);
+            graphics.SetViewport(0, 0, resolution, resolution);
+            graphics.Clear(ClearMask.DepthBuffer);
+
+            // Get the light-space matrix for this face
+            var lightSpaceMatrix = CascadeUtils.GetPointLightShadowMatrix(lightPosition, range, faceIndex);
+            graphics.SetUniform("uLightSpaceMatrix", lightSpaceMatrix);
+
+            // Render all shadow casters
+            foreach (var (_, transform, renderable) in shadowCasters)
+            {
+                Matrix4x4 modelMatrix = transform.Matrix();
+                graphics.SetUniform("uModel", modelMatrix);
+
+                var meshHandle = new MeshHandle(renderable.MeshId);
+                graphics.DrawMesh(meshHandle);
+            }
+        }
+
+        // Unbind render target and restore state
+        graphics.UnbindRenderTarget();
+        graphics.SetCulling(true, CullFaceMode.Back);
     }
 
     /// <inheritdoc />

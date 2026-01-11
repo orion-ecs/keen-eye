@@ -28,10 +28,14 @@ public sealed class RenderSystem : ISystem
 {
     private const int MaxLights = 8;
     private const int MaxCascades = 4;
+    private const int MaxSpotShadows = 4;
+    private const int MaxPointShadows = 4;
     private const int ShadowMapBaseTextureUnit = 8;
     private const int IblIrradianceTextureUnit = 5;
     private const int IblSpecularTextureUnit = 6;
     private const int IblBrdfLutTextureUnit = 7;
+    private const int PointShadowMapBaseTextureUnit = 12;
+    private const int SpotShadowMapBaseTextureUnit = 16;
 
     private IWorld? world;
     private IGraphicsContext? graphics;
@@ -55,6 +59,16 @@ public sealed class RenderSystem : ISystem
     private IblData activeIblData;
     private Abstractions.Environment activeEnvironment;
     private bool hasActiveIbl;
+
+    // Spot shadow tracking - maps shadow slot to light index
+    private readonly int[] spotShadowEntityIds = new int[MaxSpotShadows];
+    private readonly int[] spotShadowLightIndices = new int[MaxSpotShadows];
+    private int spotShadowCount;
+
+    // Point shadow tracking - maps shadow slot to light index
+    private readonly int[] pointShadowEntityIds = new int[MaxPointShadows];
+    private readonly int[] pointShadowLightIndices = new int[MaxPointShadows];
+    private int pointShadowCount;
 
     /// <inheritdoc />
     public bool Enabled { get; set; } = true;
@@ -277,6 +291,8 @@ public sealed class RenderSystem : ISystem
                     // Set PBR light uniforms and shadow uniforms
                     SetPbrLightUniforms(lightCount);
                     BindShadowMaps(shadowData!.Value);
+                    BindSpotShadowMaps();
+                    BindPointShadowMaps();
                 }
                 else if (isPbrIblShader)
                 {
@@ -329,6 +345,8 @@ public sealed class RenderSystem : ISystem
         int lightCount = 0;
         hasShadowLight = false;
         shadowLightEntityId = -1;
+        spotShadowCount = 0;
+        pointShadowCount = 0;
 
         foreach (var entity in world!.Query<Light, Transform3D>())
         {
@@ -355,6 +373,22 @@ public sealed class RenderSystem : ISystem
             {
                 shadowLightEntityId = entity.Id;
                 hasShadowLight = true;
+            }
+
+            // Track spot lights with shadows (up to MaxSpotShadows)
+            if (light.CastShadows && light.Type == LightType.Spot && spotShadowCount < MaxSpotShadows)
+            {
+                spotShadowEntityIds[spotShadowCount] = entity.Id;
+                spotShadowLightIndices[spotShadowCount] = lightCount;
+                spotShadowCount++;
+            }
+
+            // Track point lights with shadows (up to MaxPointShadows)
+            if (light.CastShadows && light.Type == LightType.Point && pointShadowCount < MaxPointShadows)
+            {
+                pointShadowEntityIds[pointShadowCount] = entity.Id;
+                pointShadowLightIndices[pointShadowCount] = lightCount;
+                pointShadowCount++;
             }
 
             lightCount++;
@@ -527,6 +561,115 @@ public sealed class RenderSystem : ISystem
         // Bind BRDF LUT to slot 7
         graphics.BindTexture(activeIblData.BrdfLut, IblBrdfLutTextureUnit);
         graphics.SetUniform("uBrdfLut", IblBrdfLutTextureUnit);
+    }
+
+    /// <summary>
+    /// Binds spot light shadow map textures and sets shadow-related uniforms.
+    /// </summary>
+    private void BindSpotShadowMaps()
+    {
+        var shadowManager = ShadowSystem?.ShadowManager;
+        if (shadowManager == null)
+        {
+            graphics!.SetUniform("uSpotShadowCount", 0);
+            return;
+        }
+
+        graphics!.SetUniform("uSpotShadowCount", spotShadowCount);
+
+        // Bind spot shadow map textures to slots 16-19
+        for (int i = 0; i < MaxSpotShadows; i++)
+        {
+            int textureUnit = SpotShadowMapBaseTextureUnit + i;
+
+            if (i < spotShadowCount)
+            {
+                int entityId = spotShadowEntityIds[i];
+                var spotShadowData = shadowManager.GetSpotShadowData(entityId);
+
+                if (spotShadowData.HasValue)
+                {
+                    var data = spotShadowData.Value;
+                    var shadowMapTexture = graphics.GetRenderTargetDepthTexture(data.RenderTarget);
+                    graphics.BindTexture(shadowMapTexture, textureUnit);
+                    graphics.SetUniform($"uSpotShadowMap{i}", textureUnit);
+                    graphics.SetUniform($"uSpotLightSpaceMatrix{i}", data.LightSpaceMatrix);
+                    graphics.SetUniform($"uSpotShadowLightIndices[{i}]", spotShadowLightIndices[i]);
+                }
+                else
+                {
+                    // Shadow data not available yet, bind fallback
+                    graphics.BindTexture(graphics.WhiteTexture, textureUnit);
+                    graphics.SetUniform($"uSpotShadowMap{i}", textureUnit);
+                    graphics.SetUniform($"uSpotLightSpaceMatrix{i}", Matrix4x4.Identity);
+                    graphics.SetUniform($"uSpotShadowLightIndices[{i}]", -1);
+                }
+            }
+            else
+            {
+                // Bind white texture as fallback for unused slots
+                graphics.BindTexture(graphics.WhiteTexture, textureUnit);
+                graphics.SetUniform($"uSpotShadowMap{i}", textureUnit);
+                graphics.SetUniform($"uSpotLightSpaceMatrix{i}", Matrix4x4.Identity);
+                graphics.SetUniform($"uSpotShadowLightIndices[{i}]", -1);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Binds point light shadow map textures (cubemaps) and sets shadow-related uniforms.
+    /// </summary>
+    private void BindPointShadowMaps()
+    {
+        var shadowManager = ShadowSystem?.ShadowManager;
+        if (shadowManager == null)
+        {
+            graphics!.SetUniform("uPointShadowCount", 0);
+            return;
+        }
+
+        graphics!.SetUniform("uPointShadowCount", pointShadowCount);
+
+        // Bind point shadow map cubemap textures to slots 12-15
+        for (int i = 0; i < MaxPointShadows; i++)
+        {
+            int textureUnit = PointShadowMapBaseTextureUnit + i;
+
+            if (i < pointShadowCount)
+            {
+                int entityId = pointShadowEntityIds[i];
+                var pointShadowData = shadowManager.GetPointShadowData(entityId);
+
+                if (pointShadowData.HasValue)
+                {
+                    var data = pointShadowData.Value;
+                    var shadowMapTexture = graphics.GetCubemapRenderTargetTexture(data.RenderTarget);
+                    graphics.BindTexture(shadowMapTexture, textureUnit);
+                    graphics.SetUniform($"uPointShadowMap{i}", textureUnit);
+                    graphics.SetUniform($"uPointLightPositions[{i}]", data.LightPosition);
+                    graphics.SetUniform($"uPointLightFarPlanes[{i}]", data.FarPlane);
+                    graphics.SetUniform($"uPointShadowLightIndices[{i}]", pointShadowLightIndices[i]);
+                }
+                else
+                {
+                    // Shadow data not available yet, bind fallback
+                    graphics.BindTexture(graphics.WhiteTexture, textureUnit);
+                    graphics.SetUniform($"uPointShadowMap{i}", textureUnit);
+                    graphics.SetUniform($"uPointLightPositions[{i}]", Vector3.Zero);
+                    graphics.SetUniform($"uPointLightFarPlanes[{i}]", 1f);
+                    graphics.SetUniform($"uPointShadowLightIndices[{i}]", -1);
+                }
+            }
+            else
+            {
+                // Bind white texture as fallback for unused slots
+                graphics.BindTexture(graphics.WhiteTexture, textureUnit);
+                graphics.SetUniform($"uPointShadowMap{i}", textureUnit);
+                graphics.SetUniform($"uPointLightPositions[{i}]", Vector3.Zero);
+                graphics.SetUniform($"uPointLightFarPlanes[{i}]", 1f);
+                graphics.SetUniform($"uPointShadowLightIndices[{i}]", -1);
+            }
+        }
     }
 
     /// <summary>

@@ -180,6 +180,66 @@ public static class CascadeUtils
     }
 
     /// <summary>
+    /// Creates the 6 view-projection matrices for point light cubemap shadow mapping.
+    /// </summary>
+    /// <param name="lightPosition">The world-space position of the point light.</param>
+    /// <param name="farPlane">The far plane distance (typically the light's range).</param>
+    /// <param name="nearPlane">The near plane distance. Default is 0.1.</param>
+    /// <returns>Array of 6 matrices in order: +X, -X, +Y, -Y, +Z, -Z.</returns>
+    public static Matrix4x4[] CreatePointLightShadowMatrices(Vector3 lightPosition, float farPlane, float nearPlane = 0.1f)
+    {
+        var matrices = new Matrix4x4[6];
+
+        // Perspective projection with 90 degree FOV and 1:1 aspect ratio
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(
+            MathF.PI / 2f, // 90 degrees
+            1f,            // 1:1 aspect ratio
+            nearPlane,
+            farPlane);
+
+        // Create view matrices for each cubemap face
+        // OpenGL cubemap face order: +X, -X, +Y, -Y, +Z, -Z
+        matrices[0] = Matrix4x4.CreateLookAt(lightPosition, lightPosition + Vector3.UnitX, -Vector3.UnitY) * projection;   // +X
+        matrices[1] = Matrix4x4.CreateLookAt(lightPosition, lightPosition - Vector3.UnitX, -Vector3.UnitY) * projection;   // -X
+        matrices[2] = Matrix4x4.CreateLookAt(lightPosition, lightPosition + Vector3.UnitY, Vector3.UnitZ) * projection;    // +Y
+        matrices[3] = Matrix4x4.CreateLookAt(lightPosition, lightPosition - Vector3.UnitY, -Vector3.UnitZ) * projection;   // -Y
+        matrices[4] = Matrix4x4.CreateLookAt(lightPosition, lightPosition + Vector3.UnitZ, -Vector3.UnitY) * projection;   // +Z
+        matrices[5] = Matrix4x4.CreateLookAt(lightPosition, lightPosition - Vector3.UnitZ, -Vector3.UnitY) * projection;   // -Z
+
+        return matrices;
+    }
+
+    /// <summary>
+    /// Gets the view-projection matrix for a specific cubemap face.
+    /// </summary>
+    /// <param name="lightPosition">The world-space position of the point light.</param>
+    /// <param name="farPlane">The far plane distance.</param>
+    /// <param name="face">The cubemap face (0-5: +X, -X, +Y, -Y, +Z, -Z).</param>
+    /// <param name="nearPlane">The near plane distance. Default is 0.1.</param>
+    /// <returns>The view-projection matrix for the specified face.</returns>
+    public static Matrix4x4 GetPointLightShadowMatrix(Vector3 lightPosition, float farPlane, int face, float nearPlane = 0.1f)
+    {
+        var projection = Matrix4x4.CreatePerspectiveFieldOfView(
+            MathF.PI / 2f,
+            1f,
+            nearPlane,
+            farPlane);
+
+        var view = face switch
+        {
+            0 => Matrix4x4.CreateLookAt(lightPosition, lightPosition + Vector3.UnitX, -Vector3.UnitY),   // +X
+            1 => Matrix4x4.CreateLookAt(lightPosition, lightPosition - Vector3.UnitX, -Vector3.UnitY),   // -X
+            2 => Matrix4x4.CreateLookAt(lightPosition, lightPosition + Vector3.UnitY, Vector3.UnitZ),    // +Y
+            3 => Matrix4x4.CreateLookAt(lightPosition, lightPosition - Vector3.UnitY, -Vector3.UnitZ),   // -Y
+            4 => Matrix4x4.CreateLookAt(lightPosition, lightPosition + Vector3.UnitZ, -Vector3.UnitY),   // +Z
+            5 => Matrix4x4.CreateLookAt(lightPosition, lightPosition - Vector3.UnitZ, -Vector3.UnitY),   // -Z
+            _ => throw new ArgumentOutOfRangeException(nameof(face), "Face must be 0-5")
+        };
+
+        return view * projection;
+    }
+
+    /// <summary>
     /// Stabilizes a light-space matrix to reduce shadow swimming/shimmering.
     /// </summary>
     /// <param name="lightSpaceMatrix">The light-space matrix to stabilize.</param>
