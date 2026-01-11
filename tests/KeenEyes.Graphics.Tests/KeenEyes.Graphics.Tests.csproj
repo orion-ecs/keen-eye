@@ -14,4 +14,9 @@
     <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="StbImageSharp" />
+    <PackageReference Include="StbImageWriteSharp" />
+  </ItemGroup>
+
 </Project>

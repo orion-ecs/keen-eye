@@ -1,8 +1,10 @@
 // Copyright (c) Keen Eye, LLC. All rights reserved.
 // Licensed under the MIT License.
 
+using System.Linq;
 using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Abstractions.Capabilities;
+using KeenEyes.Editor.Tools;
 
 namespace KeenEyes.Editor.Plugins.BuiltIn;
 
@@ -62,11 +64,10 @@ internal sealed class ViewportPlugin : EditorPluginBase
             return;
         }
 
-        // TODO: Register transform tools (move, rotate, scale)
-        // tools.RegisterTool("transform.select", new SelectTool());
-        // tools.RegisterTool("transform.move", new MoveTool());
-        // tools.RegisterTool("transform.rotate", new RotateTool());
-        // tools.RegisterTool("transform.scale", new ScaleTool());
+        tools.RegisterTool("transform.select", new SelectTool());
+        tools.RegisterTool("transform.move", new MoveTool());
+        tools.RegisterTool("transform.rotate", new RotateTool());
+        tools.RegisterTool("transform.scale", new ScaleTool());
 
         // Register shortcuts for tool activation
         if (context.TryGetCapability<IShortcutCapability>(out var shortcuts) && shortcuts is not null)
@@ -110,10 +111,18 @@ internal sealed class ViewportPanelImpl : IEditorPanel
     private Entity rootEntity;
     private IEditorContext? context;
     private IWorld? editorWorld;
+    private IWorld? sceneWorld;
+    private IToolCapability? toolCapability;
     private EventSubscription? sceneOpenedSubscription;
+    private EventSubscription? sceneClosedSubscription;
 
     /// <inheritdoc />
     public Entity RootEntity => rootEntity;
+
+    /// <summary>
+    /// Gets the currently loaded scene world, or null if no scene is open.
+    /// </summary>
+    public IWorld? SceneWorld => sceneWorld;
 
     /// <inheritdoc />
     public void Initialize(PanelContext context)
@@ -122,20 +131,32 @@ internal sealed class ViewportPanelImpl : IEditorPanel
         editorWorld = context.EditorWorld;
         rootEntity = context.Parent;
 
+        // Cache capabilities for use in Update
+        this.context.TryGetCapability(out toolCapability);
+
         // Subscribe to scene changes
         sceneOpenedSubscription = this.context.OnSceneOpened(OnSceneOpened);
+        sceneClosedSubscription = this.context.OnSceneClosed(OnSceneClosed);
     }
 
     /// <inheritdoc />
     public void Update(float deltaTime)
     {
-        // TODO: Update viewport rendering, gizmos, etc.
+        // Update the active tool if one is active
+        if (toolCapability?.ActiveTool is not null && sceneWorld is not null && context is not null)
+        {
+            var selectedEntities = context.Selection.SelectedEntities.ToArray();
+            var toolContext = CreateToolContext(selectedEntities);
+            toolCapability.ActiveTool.Update(toolContext, deltaTime);
+        }
     }
 
     /// <inheritdoc />
     public void Shutdown()
     {
         sceneOpenedSubscription?.Dispose();
+        sceneClosedSubscription?.Dispose();
+        sceneWorld = null;
 
         if (editorWorld is not null && rootEntity.IsValid && editorWorld.IsAlive(rootEntity))
         {
@@ -143,8 +164,38 @@ internal sealed class ViewportPanelImpl : IEditorPanel
         }
     }
 
-    private void OnSceneOpened(IWorld sceneWorld)
+    private void OnSceneOpened(IWorld world)
     {
-        // TODO: Setup viewport for the new scene
+        // Store reference to the new scene world
+        sceneWorld = world;
+
+        // Deactivate any active tool when scene changes
+        toolCapability?.DeactivateTool();
+    }
+
+    private void OnSceneClosed()
+    {
+        // Clear scene reference
+        sceneWorld = null;
+
+        // Deactivate any active tool
+        toolCapability?.DeactivateTool();
+    }
+
+    private ToolContext CreateToolContext(IReadOnlyList<Entity> selectedEntities)
+    {
+        // Create a tool context with default values
+        // In a full implementation, these would come from the camera system
+        return new ToolContext
+        {
+            EditorContext = context!,
+            SceneWorld = sceneWorld,
+            SelectedEntities = selectedEntities,
+            ViewportBounds = new ViewportBounds { X = 0, Y = 0, Width = 800, Height = 600 },
+            ViewMatrix = System.Numerics.Matrix4x4.Identity,
+            ProjectionMatrix = System.Numerics.Matrix4x4.Identity,
+            CameraPosition = System.Numerics.Vector3.Zero,
+            CameraForward = -System.Numerics.Vector3.UnitZ
+        };
     }
 }

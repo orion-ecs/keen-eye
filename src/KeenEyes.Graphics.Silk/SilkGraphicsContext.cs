@@ -1,11 +1,11 @@
 using System.Numerics;
-
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk.Rendering2D;
 using KeenEyes.Graphics.Silk.Resources;
 using KeenEyes.Graphics.Silk.Shaders;
 using KeenEyes.Graphics.Silk.Text;
 using KeenEyes.Platform.Silk;
+using StbImageSharp;
 
 namespace KeenEyes.Graphics.Silk;
 
@@ -453,8 +453,26 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     /// <inheritdoc />
     public TextureHandle LoadTexture(string path)
     {
-        // TODO: Implement texture loading from file
-        throw new NotImplementedException("Texture loading from file not yet implemented.");
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+
+        if (!File.Exists(path))
+        {
+            throw new FileNotFoundException("Texture file not found.", path);
+        }
+
+        using var stream = File.OpenRead(path);
+        ImageResult image;
+
+        try
+        {
+            image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            throw new ArgumentException($"Failed to load texture from '{path}'. The file may be corrupted or in an unsupported format.", nameof(path), ex);
+        }
+
+        return CreateTexture(image.Width, image.Height, image.Data);
     }
 
     /// <inheritdoc />
