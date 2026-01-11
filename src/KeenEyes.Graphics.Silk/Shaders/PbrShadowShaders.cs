@@ -99,6 +99,28 @@ internal static class PbrShadowShaders
         uniform sampler2D uShadowMap2;
         uniform sampler2D uShadowMap3;
 
+        // Spot light shadow maps
+        uniform sampler2D uSpotShadowMap0;
+        uniform sampler2D uSpotShadowMap1;
+        uniform sampler2D uSpotShadowMap2;
+        uniform sampler2D uSpotShadowMap3;
+        uniform mat4 uSpotLightSpaceMatrix0;
+        uniform mat4 uSpotLightSpaceMatrix1;
+        uniform mat4 uSpotLightSpaceMatrix2;
+        uniform mat4 uSpotLightSpaceMatrix3;
+        uniform int uSpotShadowCount;
+        uniform int uSpotShadowLightIndices[4];
+
+        // Point light shadow maps (cubemaps)
+        uniform samplerCube uPointShadowMap0;
+        uniform samplerCube uPointShadowMap1;
+        uniform samplerCube uPointShadowMap2;
+        uniform samplerCube uPointShadowMap3;
+        uniform vec3 uPointLightPositions[4];
+        uniform float uPointLightFarPlanes[4];
+        uniform int uPointShadowCount;
+        uniform int uPointShadowLightIndices[4];
+
         // Material factors
         uniform vec4 uBaseColorFactor;
         uniform float uMetallicFactor;
@@ -294,6 +316,162 @@ internal static class PbrShadowShaders
             return shadow;
         }
 
+        // Get spot light shadow light-space matrix by index
+        mat4 getSpotLightSpaceMatrix(int shadowIndex)
+        {
+            if (shadowIndex == 0) return uSpotLightSpaceMatrix0;
+            if (shadowIndex == 1) return uSpotLightSpaceMatrix1;
+            if (shadowIndex == 2) return uSpotLightSpaceMatrix2;
+            return uSpotLightSpaceMatrix3;
+        }
+
+        // Sample spot shadow map by index
+        float sampleSpotShadowMap(int shadowIndex, vec2 coords)
+        {
+            if (shadowIndex == 0) return texture(uSpotShadowMap0, coords).r;
+            if (shadowIndex == 1) return texture(uSpotShadowMap1, coords).r;
+            if (shadowIndex == 2) return texture(uSpotShadowMap2, coords).r;
+            return texture(uSpotShadowMap3, coords).r;
+        }
+
+        // Get spot shadow map texel size by index
+        vec2 getSpotShadowMapTexelSize(int shadowIndex)
+        {
+            if (shadowIndex == 0) return 1.0 / textureSize(uSpotShadowMap0, 0);
+            if (shadowIndex == 1) return 1.0 / textureSize(uSpotShadowMap1, 0);
+            if (shadowIndex == 2) return 1.0 / textureSize(uSpotShadowMap2, 0);
+            return 1.0 / textureSize(uSpotShadowMap3, 0);
+        }
+
+        // Find the shadow map index for a given light index
+        int findSpotShadowIndex(int lightIndex)
+        {
+            for (int s = 0; s < uSpotShadowCount && s < 4; ++s)
+            {
+                if (uSpotShadowLightIndices[s] == lightIndex) return s;
+            }
+            return -1;
+        }
+
+        // Calculate shadow for spot lights with PCF
+        float calculateSpotShadow(int shadowIndex, vec3 N, vec3 L)
+        {
+            if (shadowIndex < 0 || shadowIndex >= uSpotShadowCount) return 1.0;
+
+            mat4 lightSpaceMatrix = getSpotLightSpaceMatrix(shadowIndex);
+
+            // Apply normal bias to world position
+            vec3 biasedPos = vWorldPos + N * uShadowNormalBias;
+
+            // Transform to light space
+            vec4 fragPosLightSpace = lightSpaceMatrix * vec4(biasedPos, 1.0);
+            vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+
+            // Transform to [0, 1] range
+            projCoords = projCoords * 0.5 + 0.5;
+
+            // Check if outside shadow map
+            if (projCoords.z > 1.0 || projCoords.x < 0.0 || projCoords.x > 1.0 ||
+                projCoords.y < 0.0 || projCoords.y > 1.0)
+            {
+                return 1.0;
+            }
+
+            // Apply depth bias based on surface angle
+            float bias = max(uShadowBias * (1.0 - dot(N, L)), uShadowBias * 0.1);
+            float currentDepth = projCoords.z - bias;
+
+            // PCF 3x3 filtering
+            float shadow = 0.0;
+            vec2 texelSize = getSpotShadowMapTexelSize(shadowIndex);
+
+            for (int x = -1; x <= 1; ++x)
+            {
+                for (int y = -1; y <= 1; ++y)
+                {
+                    vec2 offset = vec2(x, y) * texelSize;
+                    float pcfDepth = sampleSpotShadowMap(shadowIndex, projCoords.xy + offset);
+                    shadow += currentDepth > pcfDepth ? 0.0 : 1.0;
+                }
+            }
+            shadow /= 9.0;
+
+            return shadow;
+        }
+
+        // ==================== Point Light Shadow Functions ====================
+
+        // Sample point shadow cubemap by index
+        float samplePointShadowMap(int shadowIndex, vec3 direction)
+        {
+            if (shadowIndex == 0) return texture(uPointShadowMap0, direction).r;
+            if (shadowIndex == 1) return texture(uPointShadowMap1, direction).r;
+            if (shadowIndex == 2) return texture(uPointShadowMap2, direction).r;
+            return texture(uPointShadowMap3, direction).r;
+        }
+
+        // Find the shadow map index for a given point light index
+        int findPointShadowIndex(int lightIndex)
+        {
+            for (int s = 0; s < uPointShadowCount && s < 4; ++s)
+            {
+                if (uPointShadowLightIndices[s] == lightIndex) return s;
+            }
+            return -1;
+        }
+
+        // Calculate shadow for point lights with PCF
+        float calculatePointShadow(int shadowIndex, vec3 fragPos, vec3 N)
+        {
+            if (shadowIndex < 0 || shadowIndex >= uPointShadowCount) return 1.0;
+
+            vec3 lightPos = uPointLightPositions[shadowIndex];
+            float farPlane = uPointLightFarPlanes[shadowIndex];
+
+            // Direction from light to fragment
+            vec3 fragToLight = fragPos - lightPos;
+            float currentDistance = length(fragToLight);
+
+            // Normalize the direction for cubemap sampling
+            vec3 sampleDir = normalize(fragToLight);
+
+            // Apply normal bias
+            vec3 biasedDir = normalize(fragToLight + N * uShadowNormalBias);
+
+            // Sample shadow cubemap - depth is stored as linear distance / farPlane
+            float closestDepth = samplePointShadowMap(shadowIndex, biasedDir);
+
+            // Reconstruct the actual distance
+            closestDepth *= farPlane;
+
+            // Apply bias based on distance (further fragments need more bias)
+            float bias = uShadowBias * (1.0 + currentDistance * 0.01);
+
+            // PCF for point lights (sample neighboring directions)
+            float shadow = 0.0;
+            float diskRadius = (1.0 + (currentDistance / farPlane)) / 25.0;
+
+            // Sample offsets for soft shadows
+            vec3 sampleOffsets[20] = vec3[](
+                vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1),
+                vec3( 1,  1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1,  1, -1),
+                vec3( 1,  1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1,  1,  0),
+                vec3( 1,  0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1,  0, -1),
+                vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
+            );
+
+            int samples = 20;
+            for (int i = 0; i < samples; ++i)
+            {
+                float sampleDepth = samplePointShadowMap(shadowIndex, biasedDir + sampleOffsets[i] * diskRadius);
+                sampleDepth *= farPlane;
+                shadow += (currentDistance - bias) > sampleDepth ? 0.0 : 1.0;
+            }
+            shadow /= float(samples);
+
+            return shadow;
+        }
+
         // ==================== Main ====================
 
         void main()
@@ -355,7 +533,16 @@ internal static class PbrShadowShaders
                     L = normalize(uLightPositions[i] - vWorldPos);
                     float attenuation = getAttenuation(uLightPositions[i], uLightRanges[i]);
                     radiance = uLightColors[i] * uLightIntensities[i] * attenuation;
-                    // TODO: Point light shadows with cubemap
+
+                    // Apply point light shadows
+                    if (uPointShadowCount > 0)
+                    {
+                        int shadowIdx = findPointShadowIndex(i);
+                        if (shadowIdx >= 0)
+                        {
+                            shadow = calculatePointShadow(shadowIdx, vWorldPos, N);
+                        }
+                    }
                 }
                 else // LIGHT_SPOT
                 {
@@ -364,7 +551,16 @@ internal static class PbrShadowShaders
                     float spotIntensity = getSpotIntensity(L, uLightDirections[i],
                                                           uLightInnerCones[i], uLightOuterCones[i]);
                     radiance = uLightColors[i] * uLightIntensities[i] * attenuation * spotIntensity;
-                    // TODO: Spot light shadows
+
+                    // Apply spot light shadows
+                    if (uSpotShadowCount > 0)
+                    {
+                        int shadowIdx = findSpotShadowIndex(i);
+                        if (shadowIdx >= 0)
+                        {
+                            shadow = calculateSpotShadow(shadowIdx, N, L);
+                        }
+                    }
                 }
 
                 vec3 H = normalize(V + L);
