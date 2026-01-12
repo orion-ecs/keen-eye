@@ -40,7 +40,7 @@
     <PackageVersion Include="NVorbis" Version="0.10.5" />
     <PackageVersion Include="NLayer" Version="1.16.0" />
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
-    <PackageVersion Include="Pfim" Version="0.11.3" />
+    <PackageVersion Include="Pfim" Version="0.11.4" />
   </ItemGroup>
   <ItemGroup Label="Editor">
     <PackageVersion Include="NuGet.Configuration" Version="7.0.1" />
