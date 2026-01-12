@@ -10,9 +10,9 @@
       },
       "Microsoft.Testing.Extensions.CodeCoverage": {
         "type": "Direct",
-        "requested": "[18.3.1, )",
-        "resolved": "18.3.1",
-        "contentHash": "kjIVTE93IKEK6ZPZCD95Ahq9mWBmQBB0C1RJzO1eFQDx8bsKLsl6U3EdXjqkiMX/CSGQLC45un/lqtWIicgkwQ==",
+        "requested": "[18.3.2, )",
+        "resolved": "18.3.2",
+        "contentHash": "EQ/Xt/zJzbFUfY9XFYjdPcKIPcSmE7xUS57CiiBK8tQ4LO1l2zs37ZXqCTYukBQbaGN0yT/OT5HIE+hJnNwkcw==",
         "dependencies": {
           "Microsoft.DiaSymReader": "2.0.0",
           "Microsoft.Extensions.DependencyModel": "6.0.2",
@@ -432,7 +432,8 @@
           "KeenEyes.Platform.Silk": "[1.0.0, )",
           "KeenEyes.Platform.Silk.Abstractions": "[1.0.0, )",
           "Silk.NET.Maths": "[2.22.0, )",
-          "Silk.NET.OpenGL": "[2.22.0, )"
+          "Silk.NET.OpenGL": "[2.22.0, )",
+          "StbImageSharp": "[2.30.15, )"
         }
       },
       "keeneyes.input": {

@@ -10,9 +10,9 @@
       },
       "Microsoft.Testing.Extensions.CodeCoverage": {
         "type": "Direct",
-        "requested": "[18.3.1, )",
-        "resolved": "18.3.1",
-        "contentHash": "kjIVTE93IKEK6ZPZCD95Ahq9mWBmQBB0C1RJzO1eFQDx8bsKLsl6U3EdXjqkiMX/CSGQLC45un/lqtWIicgkwQ==",
+        "requested": "[18.3.2, )",
+        "resolved": "18.3.2",
+        "contentHash": "EQ/Xt/zJzbFUfY9XFYjdPcKIPcSmE7xUS57CiiBK8tQ4LO1l2zs37ZXqCTYukBQbaGN0yT/OT5HIE+hJnNwkcw==",
         "dependencies": {
           "Microsoft.DiaSymReader": "2.0.0",
           "Microsoft.Extensions.DependencyModel": "6.0.2",
@@ -53,6 +53,18 @@
           "DiffEngine": "11.3.0",
           "EmptyFiles": "4.4.0"
         }
+      },
+      "StbImageSharp": {
+        "type": "Direct",
+        "requested": "[2.30.15, )",
+        "resolved": "2.30.15",
+        "contentHash": "7QqbupVhz2kcFUPTgMw4iHR9rYDHGundzzee19Mwmd1typ2Lnv8EVJcLJxlkeBM2+4ex0NwsMtdbGSJctp1XCQ=="
+      },
+      "StbImageWriteSharp": {
+        "type": "Direct",
+        "requested": "[1.16.7, )",
+        "resolved": "1.16.7",
+        "contentHash": "NF9kOxi0iS9VunklnRKgOpAWC2knCGKRjdy7RT6XAqYNyb7LQfyPHPdl4l1fJw7TFYKrGQzQOmK1XpBONC2MoA=="
       },
       "xunit.v3.mtp-v2": {
         "type": "Direct",
@@ -317,7 +329,8 @@
           "KeenEyes.Platform.Silk": "[1.0.0, )",
           "KeenEyes.Platform.Silk.Abstractions": "[1.0.0, )",
           "Silk.NET.Maths": "[2.22.0, )",
-          "Silk.NET.OpenGL": "[2.22.0, )"
+          "Silk.NET.OpenGL": "[2.22.0, )",
+          "StbImageSharp": "[2.30.15, )"
         }
       },
       "keeneyes.input.abstractions": {
@@ -428,12 +441,6 @@
           "Silk.NET.Windowing.Common": "2.22.0",
           "Silk.NET.Windowing.Glfw": "2.22.0"
         }
-      },
-      "StbImageSharp": {
-        "type": "CentralTransitive",
-        "requested": "[2.30.15, )",
-        "resolved": "2.30.15",
-        "contentHash": "7QqbupVhz2kcFUPTgMw4iHR9rYDHGundzzee19Mwmd1typ2Lnv8EVJcLJxlkeBM2+4ex0NwsMtdbGSJctp1XCQ=="
       }
     }
   }
