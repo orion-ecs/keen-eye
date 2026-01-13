@@ -9,30 +9,33 @@ namespace KeenEyes.Shaders.Compiler.Parsing;
 /// </summary>
 public sealed class Parser
 {
-    private readonly List<Token> _tokens;
-    private readonly List<CompilerError> _errors;
-    private int _current;
+    private readonly List<Token> tokens;
+    private readonly List<Diagnostic> diagnostics;
+    private readonly string filePath;
+    private int current;
 
     /// <summary>
     /// Creates a new parser for the given tokens.
     /// </summary>
     /// <param name="tokens">The tokens to parse.</param>
-    public Parser(List<Token> tokens)
+    /// <param name="filePath">The file path for error reporting.</param>
+    public Parser(List<Token> tokens, string filePath = "<input>")
     {
-        _tokens = tokens;
-        _errors = [];
-        _current = 0;
+        this.tokens = tokens;
+        this.filePath = filePath;
+        diagnostics = [];
+        current = 0;
     }
 
     /// <summary>
-    /// Gets the parse errors encountered during parsing.
+    /// Gets the parse diagnostics encountered during parsing.
     /// </summary>
-    public IReadOnlyList<CompilerError> Errors => _errors;
+    public IReadOnlyList<Diagnostic> Diagnostics => diagnostics;
 
     /// <summary>
     /// Gets whether the parser encountered any errors.
     /// </summary>
-    public bool HasErrors => _errors.Count > 0;
+    public bool HasErrors => diagnostics.Count > 0;
 
     /// <summary>
     /// Parses the token stream into a source file AST.
@@ -94,7 +97,7 @@ public sealed class Parser
         }
 
         // Throw to trigger synchronization - otherwise we'd loop infinitely
-        throw Error(Current, "Expected 'component', 'compute', 'vertex', 'fragment', 'geometry', or 'pipeline' declaration", KeslErrorCodes.ExpectedDeclaration);
+        throw ErrorExpectedDeclaration(Current);
     }
 
     private ComponentDeclaration ParseComponentDeclaration()
@@ -311,27 +314,27 @@ public sealed class Parser
 
     private GeometryInputTopology ParseInputTopology()
     {
-        var topologyName = Consume(TokenKind.Identifier, "Expected topology name", KeslErrorCodes.ExpectedTopology).Text;
-        return topologyName.ToLowerInvariant() switch
+        var topologyToken = Consume(TokenKind.Identifier, "Expected topology name", KeslErrorCodes.ExpectedTopology);
+        return topologyToken.Text.ToLowerInvariant() switch
         {
             "points" => GeometryInputTopology.Points,
             "lines" => GeometryInputTopology.Lines,
             "lines_adjacency" => GeometryInputTopology.LinesAdjacency,
             "triangles" => GeometryInputTopology.Triangles,
             "triangles_adjacency" => GeometryInputTopology.TrianglesAdjacency,
-            _ => throw Error(Previous, $"Unknown input topology '{topologyName}'. Expected 'points', 'lines', 'lines_adjacency', 'triangles', or 'triangles_adjacency'", KeslErrorCodes.ExpectedTopology)
+            _ => throw ErrorExpectedInputTopology(topologyToken)
         };
     }
 
     private GeometryOutputTopology ParseOutputTopology()
     {
-        var topologyName = Consume(TokenKind.Identifier, "Expected topology name", KeslErrorCodes.ExpectedTopology).Text;
-        return topologyName.ToLowerInvariant() switch
+        var topologyToken = Consume(TokenKind.Identifier, "Expected topology name", KeslErrorCodes.ExpectedTopology);
+        return topologyToken.Text.ToLowerInvariant() switch
         {
             "points" => GeometryOutputTopology.Points,
             "line_strip" => GeometryOutputTopology.LineStrip,
             "triangle_strip" => GeometryOutputTopology.TriangleStrip,
-            _ => throw Error(Previous, $"Unknown output topology '{topologyName}'. Expected 'points', 'line_strip', or 'triangle_strip'", KeslErrorCodes.ExpectedTopology)
+            _ => throw ErrorExpectedOutputTopology(topologyToken)
         };
     }
 
@@ -363,7 +366,7 @@ public sealed class Parser
             }
             else
             {
-                throw Error(Current, "Expected 'vertex', 'geometry', or 'fragment' stage in pipeline", KeslErrorCodes.ExpectedDeclaration);
+                throw ErrorExpectedPipelineStage(Current);
             }
         }
 
@@ -591,7 +594,7 @@ public sealed class Parser
             TokenKind.Write => AccessMode.Write,
             TokenKind.Optional => AccessMode.Optional,
             TokenKind.Without => AccessMode.Without,
-            _ => throw Error(Current, "Expected 'read', 'write', 'optional', or 'without'", KeslErrorCodes.ExpectedBindingMode)
+            _ => throw ErrorExpectedBindingMode(Current)
         };
         Advance();
 
@@ -657,7 +660,7 @@ public sealed class Parser
             TokenKind.Texture2D => TextureKind.Texture2D,
             TokenKind.TextureCube => TextureKind.TextureCube,
             TokenKind.Texture3D => TextureKind.Texture3D,
-            _ => throw Error(Current, "Expected texture type (texture2D, textureCube, or texture3D)", KeslErrorCodes.ExpectedTypeName)
+            _ => throw ErrorExpectedTextureType(Current)
         };
         Advance();
 
@@ -869,7 +872,7 @@ public sealed class Parser
             TokenKind.Uint => PrimitiveTypeKind.Uint,
             TokenKind.Bool => PrimitiveTypeKind.Bool,
             TokenKind.Mat4 => PrimitiveTypeKind.Mat4,
-            _ => throw Error(Current, "Expected type name", KeslErrorCodes.ExpectedTypeName)
+            _ => throw ErrorExpectedTypeName(Current)
         };
         Advance();
 
@@ -1108,8 +1111,8 @@ public sealed class Parser
 
     #region Helper Methods
 
-    private Token Current => _tokens[_current];
-    private Token Previous => _tokens[_current - 1];
+    private Token Current => tokens[current];
+    private Token Previous => tokens[current - 1];
     private bool IsAtEnd() => Current.Kind == TokenKind.EndOfFile;
 
     private bool Check(TokenKind kind)
@@ -1134,7 +1137,7 @@ public sealed class Parser
     {
         if (!IsAtEnd())
         {
-            _current++;
+            current++;
         }
         return Previous;
     }
@@ -1148,11 +1151,108 @@ public sealed class Parser
         throw Error(Current, message, code);
     }
 
-    private ParseException Error(Token token, string message, string? code = null)
+    private ParseException Error(Token token, string message, string? code = null, IReadOnlyList<string>? suggestions = null)
     {
-        _errors.Add(new CompilerError(message, token.Location, code));
+        var span = SourceSpan.FromToken(token);
+        diagnostics.Add(Diagnostic.Error(
+            code ?? KeslErrorCodes.UnexpectedToken,
+            message,
+            span,
+            filePath,
+            suggestions));
         return new ParseException(message);
     }
+
+    #region Suggestion-Generating Error Methods
+
+    private static readonly string[] DeclarationKeywords =
+        ["component", "compute", "vertex", "fragment", "geometry", "pipeline"];
+
+    private static readonly string[] BindingModes = ["read", "write", "optional", "without"];
+
+    private static readonly string[] TypeNames =
+        ["float", "float2", "float3", "float4", "int", "int2", "int3", "int4", "uint", "bool", "mat4"];
+
+    private static readonly string[] InputTopologies =
+        ["points", "lines", "lines_adjacency", "triangles", "triangles_adjacency"];
+
+    private static readonly string[] OutputTopologies = ["points", "line_strip", "triangle_strip"];
+
+    private static readonly string[] TextureTypes = ["texture2D", "textureCube", "texture3D"];
+
+    private static readonly string[] PipelineStages = ["vertex", "geometry", "fragment"];
+
+    private ParseException ErrorExpectedDeclaration(Token token)
+    {
+        var suggestions = SuggestionEngine.GetSuggestions(token.Text, DeclarationKeywords);
+        return Error(
+            token,
+            "Expected 'component', 'compute', 'vertex', 'fragment', 'geometry', or 'pipeline' declaration",
+            KeslErrorCodes.ExpectedDeclaration,
+            suggestions.Count > 0 ? suggestions : null);
+    }
+
+    private ParseException ErrorExpectedBindingMode(Token token)
+    {
+        var suggestions = SuggestionEngine.GetSuggestions(token.Text, BindingModes);
+        return Error(
+            token,
+            "Expected 'read', 'write', 'optional', or 'without'",
+            KeslErrorCodes.ExpectedBindingMode,
+            suggestions.Count > 0 ? suggestions : null);
+    }
+
+    private ParseException ErrorExpectedTypeName(Token token)
+    {
+        var suggestions = SuggestionEngine.GetSuggestions(token.Text, TypeNames);
+        return Error(
+            token,
+            "Expected type name",
+            KeslErrorCodes.ExpectedTypeName,
+            suggestions.Count > 0 ? suggestions : null);
+    }
+
+    private ParseException ErrorExpectedInputTopology(Token token)
+    {
+        var suggestions = SuggestionEngine.GetSuggestions(token.Text.ToLowerInvariant(), InputTopologies);
+        return Error(
+            token,
+            $"Unknown input topology '{token.Text}'. Expected 'points', 'lines', 'lines_adjacency', 'triangles', or 'triangles_adjacency'",
+            KeslErrorCodes.ExpectedTopology,
+            suggestions.Count > 0 ? suggestions : null);
+    }
+
+    private ParseException ErrorExpectedOutputTopology(Token token)
+    {
+        var suggestions = SuggestionEngine.GetSuggestions(token.Text.ToLowerInvariant(), OutputTopologies);
+        return Error(
+            token,
+            $"Unknown output topology '{token.Text}'. Expected 'points', 'line_strip', or 'triangle_strip'",
+            KeslErrorCodes.ExpectedTopology,
+            suggestions.Count > 0 ? suggestions : null);
+    }
+
+    private ParseException ErrorExpectedTextureType(Token token)
+    {
+        var suggestions = SuggestionEngine.GetSuggestions(token.Text.ToLowerInvariant(), TextureTypes);
+        return Error(
+            token,
+            "Expected texture type (texture2D, textureCube, or texture3D)",
+            KeslErrorCodes.ExpectedTypeName,
+            suggestions.Count > 0 ? suggestions : null);
+    }
+
+    private ParseException ErrorExpectedPipelineStage(Token token)
+    {
+        var suggestions = SuggestionEngine.GetSuggestions(token.Text.ToLowerInvariant(), PipelineStages);
+        return Error(
+            token,
+            "Expected 'vertex', 'geometry', or 'fragment' stage in pipeline",
+            KeslErrorCodes.ExpectedDeclaration,
+            suggestions.Count > 0 ? suggestions : null);
+    }
+
+    #endregion
 
     private void Synchronize()
     {

@@ -399,7 +399,7 @@ public class CSharpBindingGeneratorTests
     private static string GenerateVertexCSharp(string source)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var vertex = result.SourceFile!.Declarations.OfType<VertexDeclaration>().First();
         var compiler = new KeslCompiler();
@@ -409,7 +409,7 @@ public class CSharpBindingGeneratorTests
     private static string GenerateFragmentCSharp(string source)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var fragment = result.SourceFile!.Declarations.OfType<FragmentDeclaration>().First();
         var compiler = new KeslCompiler();
@@ -419,7 +419,7 @@ public class CSharpBindingGeneratorTests
     private static string GenerateVertexCSharpWithNamespace(string source, string ns)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var vertex = result.SourceFile!.Declarations.OfType<VertexDeclaration>().First();
         var compiler = new KeslCompiler { Namespace = ns };
@@ -429,7 +429,7 @@ public class CSharpBindingGeneratorTests
     private static string GenerateFragmentCSharpWithNamespace(string source, string ns)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var fragment = result.SourceFile!.Declarations.OfType<FragmentDeclaration>().First();
         var compiler = new KeslCompiler { Namespace = ns };
@@ -439,7 +439,7 @@ public class CSharpBindingGeneratorTests
     private static string GeneratePipelineCSharp(string source)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var pipeline = result.SourceFile!.Declarations.OfType<PipelineDeclaration>().First();
         var compiler = new KeslCompiler();
@@ -449,7 +449,7 @@ public class CSharpBindingGeneratorTests
     private static string GeneratePipelineCSharpWithNamespace(string source, string ns)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var pipeline = result.SourceFile!.Declarations.OfType<PipelineDeclaration>().First();
         var compiler = new KeslCompiler { Namespace = ns };

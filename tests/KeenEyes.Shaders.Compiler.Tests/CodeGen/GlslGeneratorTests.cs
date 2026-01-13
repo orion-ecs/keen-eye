@@ -1045,7 +1045,7 @@ public class GlslGeneratorTests
     private static string GenerateVertexGlsl(string source)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var vertex = result.SourceFile!.Declarations.OfType<VertexDeclaration>().First();
         return KeslCompiler.GenerateGlsl(vertex);
@@ -1054,7 +1054,7 @@ public class GlslGeneratorTests
     private static string GenerateFragmentGlsl(string source)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var fragment = result.SourceFile!.Declarations.OfType<FragmentDeclaration>().First();
         return KeslCompiler.GenerateGlsl(fragment);
@@ -1063,7 +1063,7 @@ public class GlslGeneratorTests
     private static string GenerateGeometryGlsl(string source)
     {
         var result = KeslCompiler.Compile(source);
-        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Diagnostics.Select(d => d.Message))}");
 
         var geometry = result.SourceFile!.Declarations.OfType<GeometryDeclaration>().First();
         return KeslCompiler.GenerateGlsl(geometry);
