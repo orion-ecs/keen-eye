@@ -333,6 +333,141 @@ internal sealed class SystemManager
     }
 
     /// <summary>
+    /// Gets a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <returns>The system if found, null otherwise.</returns>
+    /// <remarks>
+    /// Matching is done first by simple type name, then by full type name.
+    /// This enables MCP tools to reference systems by their short names.
+    /// </remarks>
+    internal ISystem? GetSystemByName(string name)
+    {
+        lock (syncRoot)
+        {
+            // First try exact simple name match
+            foreach (var entry in systems)
+            {
+                if (entry.System.GetType().Name == name)
+                {
+                    return entry.System;
+                }
+            }
+
+            // Then try full type name match
+            foreach (var entry in systems)
+            {
+                if (entry.System.GetType().FullName == name)
+                {
+                    return entry.System;
+                }
+            }
+
+            // Also search within groups
+            foreach (var entry in systems)
+            {
+                if (entry.System is SystemGroup group)
+                {
+                    var found = FindSystemByNameInGroup(group, name);
+                    if (found is not null)
+                    {
+                        return found;
+                    }
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Tries to get a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <param name="system">The system if found.</param>
+    /// <returns>True if the system was found, false otherwise.</returns>
+    internal bool TryGetSystemByName(string name, out ISystem? system)
+    {
+        system = GetSystemByName(name);
+        return system is not null;
+    }
+
+    /// <summary>
+    /// Enables a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <returns>True if the system was found and enabled, false otherwise.</returns>
+    internal bool EnableSystemByName(string name)
+    {
+        var system = GetSystemByName(name);
+        if (system is null)
+        {
+            return false;
+        }
+        system.Enabled = true;
+        return true;
+    }
+
+    /// <summary>
+    /// Disables a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <returns>True if the system was found and disabled, false otherwise.</returns>
+    internal bool DisableSystemByName(string name)
+    {
+        var system = GetSystemByName(name);
+        if (system is null)
+        {
+            return false;
+        }
+        system.Enabled = false;
+        return true;
+    }
+
+    /// <summary>
+    /// Gets all system entries with their metadata.
+    /// </summary>
+    /// <returns>An enumerable of tuples containing system, phase, order, runsBefore, and runsAfter.</returns>
+    /// <remarks>
+    /// This method is used by TestBridge controllers to get complete system information
+    /// for the MCP tools.
+    /// </remarks>
+    internal IEnumerable<(ISystem System, SystemPhase Phase, int Order, Type[] RunsBefore, Type[] RunsAfter)> GetAllSystemEntries()
+    {
+        lock (syncRoot)
+        {
+            EnsureSystemsSortedNoLock();
+            // Return a copy to avoid holding the lock during iteration
+            return systems.Select(entry =>
+                (entry.System, entry.Phase, entry.Order, entry.RunsBefore, entry.RunsAfter)).ToList();
+        }
+    }
+
+    /// <summary>
+    /// Recursively searches for a system by name within a group.
+    /// </summary>
+    private static ISystem? FindSystemByNameInGroup(SystemGroup group, string name)
+    {
+        foreach (var child in group.Systems)
+        {
+            if (child.GetType().Name == name || child.GetType().FullName == name)
+            {
+                return child;
+            }
+
+            if (child is SystemGroup childGroup)
+            {
+                var found = FindSystemByNameInGroup(childGroup, name);
+                if (found is not null)
+                {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Ensures systems are sorted by phase and order before iteration.
     /// Uses topological sorting when RunBefore/RunAfter constraints exist.
     /// Must be called while holding syncRoot.

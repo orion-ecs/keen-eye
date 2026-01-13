@@ -4,6 +4,8 @@ using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.Systems;
+using KeenEyes.TestBridge.Time;
 using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge.Ipc.Protocol;
@@ -93,6 +95,13 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(WindowSizeResult))]
 // Window types
 [JsonSerializable(typeof(WindowStateSnapshot))]
+// Time types
+[JsonSerializable(typeof(TimeStateSnapshot))]
+// System types
+[JsonSerializable(typeof(SystemSnapshot))]
+[JsonSerializable(typeof(SystemSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<SystemSnapshot>))]
+[JsonSerializable(typeof(List<SystemSnapshot>))]
 // Input command arguments
 [JsonSerializable(typeof(KeyActionArgs))]
 [JsonSerializable(typeof(KeyPressArgs))]

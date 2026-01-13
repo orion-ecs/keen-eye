@@ -332,5 +332,77 @@ public sealed partial class World
         return system != null && RemoveSystem(system);
     }
 
+    /// <summary>
+    /// Gets a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <returns>The system if found, null otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// Matching is done first by simple type name (e.g., "PhysicsSystem"),
+    /// then by full type name (e.g., "MyGame.Systems.PhysicsSystem").
+    /// </para>
+    /// <para>
+    /// This method is primarily used by the TestBridge MCP tools to
+    /// enable/disable systems by name at runtime.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var system = world.GetSystemByName("PhysicsSystem");
+    /// if (system is not null)
+    /// {
+    ///     system.Enabled = false;
+    /// }
+    /// </code>
+    /// </example>
+    public ISystem? GetSystemByName(string name)
+        => systemManager.GetSystemByName(name);
+
+    /// <summary>
+    /// Tries to get a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <param name="system">The system if found.</param>
+    /// <returns>True if the system was found, false otherwise.</returns>
+    public bool TryGetSystemByName(string name, out ISystem? system)
+        => systemManager.TryGetSystemByName(name, out system);
+
+    /// <summary>
+    /// Enables a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <returns>True if the system was found and enabled, false otherwise.</returns>
+    /// <remarks>
+    /// This method is primarily used by the TestBridge MCP tools.
+    /// </remarks>
+    public bool EnableSystemByName(string name)
+        => systemManager.EnableSystemByName(name);
+
+    /// <summary>
+    /// Disables a system by its type name.
+    /// </summary>
+    /// <param name="name">The simple or full type name of the system.</param>
+    /// <returns>True if the system was found and disabled, false otherwise.</returns>
+    /// <remarks>
+    /// This method is primarily used by the TestBridge MCP tools.
+    /// </remarks>
+    public bool DisableSystemByName(string name)
+        => systemManager.DisableSystemByName(name);
+
+    /// <summary>
+    /// Gets all system entries with their metadata.
+    /// </summary>
+    /// <returns>An enumerable of tuples containing system, phase, order, runsBefore, and runsAfter.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method is primarily used by TestBridge controllers to get complete system information
+    /// for the MCP debugging tools. It provides access to system metadata including execution
+    /// phase, order, and dependency constraints.
+    /// </para>
+    /// </remarks>
+    public IEnumerable<(ISystem System, SystemPhase Phase, int Order, Type[] RunsBefore, Type[] RunsAfter)> GetAllSystemEntries()
+        => systemManager.GetAllSystemEntries();
+
     #endregion
 }

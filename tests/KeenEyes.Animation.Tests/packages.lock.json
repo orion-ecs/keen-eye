@@ -198,6 +198,7 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
         }
       },

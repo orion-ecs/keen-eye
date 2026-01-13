@@ -9,6 +9,10 @@ using KeenEyes.TestBridge.LoggingImpl;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.ProcessImpl;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.SystemImpl;
+using KeenEyes.TestBridge.Systems;
+using KeenEyes.TestBridge.Time;
+using KeenEyes.TestBridge.TimeImpl;
 using KeenEyes.TestBridge.Window;
 using KeenEyes.TestBridge.WindowImpl;
 using KeenEyes.Testing.Input;
@@ -39,6 +43,8 @@ public sealed class InProcessBridge : ITestBridge
     private readonly ProcessControllerImpl processController;
     private readonly LogControllerImpl logController;
     private readonly WindowControllerImpl windowController;
+    private readonly TimeControllerImpl timeController;
+    private readonly SystemControllerImpl systemController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -71,6 +77,8 @@ public sealed class InProcessBridge : ITestBridge
         processController = new ProcessControllerImpl();
         logController = new LogControllerImpl(this.options.LogQueryable);
         windowController = new WindowControllerImpl(window);
+        timeController = new TimeControllerImpl(world);
+        systemController = new SystemControllerImpl(world);
 
         // Wire up log controller to state controller for WorldStats
         stateController.SetLogController(logController);
@@ -96,6 +104,12 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public IWindowController Window => windowController;
+
+    /// <inheritdoc />
+    public ITimeController Time => timeController;
+
+    /// <inheritdoc />
+    public ISystemController Systems => systemController;
 
     /// <inheritdoc />
     public IInputContext InputContext => compositeInputContext is not null

@@ -67,7 +67,9 @@ public sealed class IpcBridgeServer : IDisposable
             ["state"] = new StateCommandHandler(bridge.State),
             ["capture"] = new CaptureCommandHandler(bridge.Capture),
             ["log"] = new LogCommandHandler(bridge.Logs),
-            ["window"] = new WindowCommandHandler(bridge.Window)
+            ["window"] = new WindowCommandHandler(bridge.Window),
+            ["time"] = new TimeCommandHandler(bridge.Time),
+            ["system"] = new SystemCommandHandler(bridge.Systems)
         };
 
         transport.MessageReceived += OnMessageReceived;
