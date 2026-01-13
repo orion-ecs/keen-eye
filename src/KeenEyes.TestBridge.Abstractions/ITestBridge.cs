@@ -5,6 +5,8 @@ using KeenEyes.TestBridge.Input;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.Systems;
+using KeenEyes.TestBridge.Time;
 using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge;
@@ -76,6 +78,16 @@ public interface ITestBridge : IDisposable
     /// Gets the window controller for querying window state.
     /// </summary>
     IWindowController Window { get; }
+
+    /// <summary>
+    /// Gets the time controller for managing game time and pause state.
+    /// </summary>
+    ITimeController Time { get; }
+
+    /// <summary>
+    /// Gets the system controller for managing ECS systems.
+    /// </summary>
+    ISystemController Systems { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.

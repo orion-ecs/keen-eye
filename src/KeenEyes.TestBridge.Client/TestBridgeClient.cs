@@ -10,6 +10,8 @@ using KeenEyes.TestBridge.Ipc.Transport;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
+using KeenEyes.TestBridge.Systems;
+using KeenEyes.TestBridge.Time;
 using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge.Client;
@@ -69,6 +71,8 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Capture = new RemoteCaptureController(this);
         Logs = new RemoteLogController(this);
         Window = new RemoteWindowController(this);
+        Time = new RemoteTimeController(this);
+        Systems = new RemoteSystemController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -99,6 +103,12 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public IWindowController Window { get; }
+
+    /// <inheritdoc />
+    public ITimeController Time { get; }
+
+    /// <inheritdoc />
+    public ISystemController Systems { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -397,6 +407,23 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         if (type == typeof(WindowSizeResult))
         {
             return (T?)(object?)element.Deserialize(IpcJsonContext.Default.WindowSizeResult);
+        }
+
+        // Time types
+        if (type == typeof(TimeStateSnapshot))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.TimeStateSnapshot);
+        }
+
+        // System types
+        if (type == typeof(SystemSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.SystemSnapshot);
+        }
+
+        if (type == typeof(SystemSnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.SystemSnapshotArray);
         }
 
         // Fallback for unknown types - let the exception surface during development

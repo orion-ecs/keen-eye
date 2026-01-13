@@ -40,6 +40,15 @@ public class SystemGroup(string name) : ISystem
     public bool Enabled { get; set; } = true;
 
     /// <summary>
+    /// Gets the systems in this group.
+    /// </summary>
+    /// <remarks>
+    /// Systems are returned in their current order (may not be sorted if
+    /// modifications have been made since last Update call).
+    /// </remarks>
+    public IReadOnlyList<ISystem> Systems => systems.Select(e => e.System).ToList();
+
+    /// <summary>
     /// Adds a system to this group with specified execution order.
     /// </summary>
     /// <typeparam name="T">The system type to add.</typeparam>

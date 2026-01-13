@@ -13,9 +13,9 @@
       },
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "kICGrGYEzCNI3wPzfEXcwNHgTvlvVn9yJDhSdRK+oZQy4jvYH529u7O0xf5ocQKzOMjfS07+3z9PKRIjrFMJDA=="
+        "requested": "[10.0.1, )",
+        "resolved": "10.0.1",
+        "contentHash": "ISahzLHsHY7vrwqr2p1YWZ+gsxoBRtH7gWRDK8fDUst9pp2He0GiesaqEfeX0V8QMCJM3eNEHGGpnIcPjFo2NQ=="
       },
       "SonarAnalyzer.CSharp": {
         "type": "Direct",
@@ -35,6 +35,7 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
         }
       },
@@ -49,7 +50,7 @@
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "NLayer": "[1.16.0, )",
           "NVorbis": "[0.10.5, )",
-          "Pfim": "[0.11.3, )",
+          "Pfim": "[0.11.4, )",
           "SharpGLTF.Core": "[1.0.6, )",
           "SixLabors.ImageSharp": "[3.1.12, )",
           "StbImageSharp": "[2.30.15, )"
@@ -108,9 +109,9 @@
       },
       "Pfim": {
         "type": "CentralTransitive",
-        "requested": "[0.11.3, )",
-        "resolved": "0.11.3",
-        "contentHash": "UNVStuGHVIGyBlQaLX8VY6KpzZm/pG2zpV8ewNSXNFKFVPn8dLQKJITfps3lwUMzwTL+Do7RrMUvgQ1ZsPTu4w=="
+        "requested": "[0.11.4, )",
+        "resolved": "0.11.4",
+        "contentHash": "B3KDFyxY1NTqbeqGEaOM9uE+G71GG2TxWqVSs57e1pWYPf2vNLMIxk+x55MXdkon0iGeaekolFTlLS2CkgktYg=="
       },
       "SharpGLTF.Core": {
         "type": "CentralTransitive",
