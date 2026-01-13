@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Text.Json;
 using KeenEyes.Mcp.TestBridge.Connection;
 using KeenEyes.TestBridge.State;
 using ModelContextProtocol.Server;
@@ -81,20 +82,48 @@ public sealed class StateTools(BridgeConnectionManager connection)
 
     #region Components
 
-    // TODO: Issue #853 - state_get_component fails with MCP serialization error
-    // The MCP framework cannot serialize JsonElement? return types.
-    // Use state_get_entity instead which returns full component data.
-    // [McpServerTool(Name = "state_get_component")]
-    // [Description("Get component data from an entity. Returns field names and values as a dictionary.")]
-    // public async Task<JsonElement?> StateGetComponent(
-    //     [Description("The entity ID")]
-    //     int entityId,
-    //     [Description("The component type name (e.g., 'Position', 'Health')")]
-    //     string componentType)
-    // {
-    //     var bridge = connection.GetBridge();
-    //     return await bridge.State.GetComponentAsync(entityId, componentType);
-    // }
+    [McpServerTool(Name = "state_get_component")]
+    [Description("Get component data from an entity. Returns field names and values.")]
+    public async Task<ComponentDataResult> StateGetComponent(
+        [Description("The entity ID")]
+        int entityId,
+        [Description("The component type name (e.g., 'Position', 'Health')")]
+        string componentType)
+    {
+        var bridge = connection.GetBridge();
+        var componentData = await bridge.State.GetComponentAsync(entityId, componentType);
+
+        if (componentData == null)
+        {
+            return new ComponentDataResult
+            {
+                EntityId = entityId,
+                ComponentType = componentType,
+                Found = false,
+                Data = null,
+                Error = $"Component '{componentType}' not found on entity {entityId}"
+            };
+        }
+
+        // Convert JsonElement to Dictionary<string, JsonElement>
+        var data = new Dictionary<string, JsonElement>();
+        if (componentData.Value.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var property in componentData.Value.EnumerateObject())
+            {
+                data[property.Name] = property.Value.Clone();
+            }
+        }
+
+        return new ComponentDataResult
+        {
+            EntityId = entityId,
+            ComponentType = componentType,
+            Found = true,
+            Data = data,
+            Error = null
+        };
+    }
 
     #endregion
 
@@ -222,6 +251,38 @@ public sealed record TagQueryResult
     public required string Tag { get; init; }
     public required int[] EntityIds { get; init; }
     public required int Count { get; init; }
+}
+
+/// <summary>
+/// Result of a component data query.
+/// </summary>
+public sealed record ComponentDataResult
+{
+    /// <summary>
+    /// Gets the entity ID that was queried.
+    /// </summary>
+    public required int EntityId { get; init; }
+
+    /// <summary>
+    /// Gets the component type name that was queried.
+    /// </summary>
+    public required string ComponentType { get; init; }
+
+    /// <summary>
+    /// Gets whether the component was found on the entity.
+    /// </summary>
+    public required bool Found { get; init; }
+
+    /// <summary>
+    /// Gets the component field data as key-value pairs.
+    /// Null when Found is false.
+    /// </summary>
+    public IReadOnlyDictionary<string, JsonElement>? Data { get; init; }
+
+    /// <summary>
+    /// Gets an error message if the query failed.
+    /// </summary>
+    public string? Error { get; init; }
 }
 
 #endregion
