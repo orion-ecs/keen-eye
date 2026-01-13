@@ -15,7 +15,7 @@ public class ParserTests
 
         if (parser.HasErrors)
         {
-            throw new Exception($"Parse errors: {string.Join(", ", parser.Errors)}");
+            throw new Exception($"Parse errors: {string.Join(", ", parser.Diagnostics.Select(d => d.Message))}");
         }
 
         return result;

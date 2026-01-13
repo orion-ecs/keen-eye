@@ -70,14 +70,14 @@ public sealed class KeslSourceGenerator : IIncrementalGenerator
         var output = compiler.CompileAndGenerate(source, filePath);
 
         // Report any compilation errors as diagnostics
-        foreach (var error in output.Errors)
+        foreach (var diagnostic in output.Diagnostics)
         {
             var location = Location.Create(
                 filePath,
                 TextSpan.FromBounds(0, 0),
                 new LinePositionSpan(
-                    new LinePosition(error.Location.Line - 1, error.Location.Column - 1),
-                    new LinePosition(error.Location.Line - 1, error.Location.Column)));
+                    new LinePosition(diagnostic.Span.Start.Line - 1, diagnostic.Span.Start.Column - 1),
+                    new LinePosition(diagnostic.Span.Start.Line - 1, diagnostic.Span.Start.Column)));
 
             context.ReportDiagnostic(Diagnostic.Create(
                 new DiagnosticDescriptor(
@@ -88,7 +88,7 @@ public sealed class KeslSourceGenerator : IIncrementalGenerator
                     DiagnosticSeverity.Error,
                     isEnabledByDefault: true),
                 location,
-                error.Message));
+                diagnostic.Message));
         }
 
         if (output.HasErrors)

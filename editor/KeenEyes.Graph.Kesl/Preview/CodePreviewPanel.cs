@@ -137,9 +137,9 @@ public sealed class CodePreviewPanel
             }
             else
             {
-                foreach (var error in compileResult.Errors)
+                foreach (var diagnostic in compileResult.Diagnostics)
                 {
-                    errors.Add($"[{error.Location.Line}:{error.Location.Column}] {error.Message}");
+                    errors.Add($"[{diagnostic.Span.Start.Line}:{diagnostic.Span.Start.Column}] {diagnostic.Message}");
                 }
                 cachedGlslSource = "// Compilation errors - see KESL tab";
             }

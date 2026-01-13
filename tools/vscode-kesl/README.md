@@ -1,10 +1,11 @@
 # KESL - KeenEyes Shader Language
 
-Syntax highlighting support for KeenEyes Shader Language (KESL) files in Visual Studio Code.
+Language support for KeenEyes Shader Language (KESL) files in Visual Studio Code.
 
 ## Features
 
-- Syntax highlighting for `.kesl` files
+### Syntax Highlighting
+- Full syntax highlighting for `.kesl` files
 - Support for all KESL constructs:
   - Shader types: `compute`, `vertex`, `fragment`, `geometry`
   - Pipeline declarations
@@ -17,19 +18,50 @@ Syntax highlighting support for KeenEyes Shader Language (KESL) files in Visual 
 - Comment support (line and block comments)
 - Bracket matching and auto-closing
 
+### Language Server Features
+When the KESL language server is installed:
+
+- **Diagnostics**: Real-time error checking with "Did you mean?" suggestions for typos
+- **Completions**: Context-aware code completion for keywords, types, and functions
+- **Hover**: Documentation on hover for KESL keywords and built-in functions
+
 ## Installation
 
 ### From VSIX (Recommended)
 
-1. Package the extension: `vsce package`
-2. Install in VS Code: `code --install-extension kesl-language-0.1.0.vsix`
+1. Install dependencies: `npm install`
+2. Compile: `npm run compile`
+3. Package the extension: `vsce package`
+4. Install in VS Code: `code --install-extension kesl-language-0.2.0.vsix`
 
 ### Development Installation
 
 1. Copy this folder to your VS Code extensions directory:
-   - Windows: `%USERPROFILE%\.vscode\extensions\kesl-language-0.1.0`
-   - macOS/Linux: `~/.vscode/extensions/kesl-language-0.1.0`
-2. Restart VS Code
+   - Windows: `%USERPROFILE%\.vscode\extensions\kesl-language-0.2.0`
+   - macOS/Linux: `~/.vscode/extensions/kesl-language-0.2.0`
+2. Run `npm install` and `npm run compile` in the extension folder
+3. Restart VS Code
+
+## Language Server Setup
+
+The language server provides diagnostics, completions, and hover information. To enable:
+
+1. Build and publish the KESL language server:
+   ```bash
+   dotnet publish tools/KeenEyes.Lsp.Kesl -c Release -o .lsp
+   ```
+
+2. The extension will automatically find the server in:
+   - `.lsp/` folder in your workspace
+   - `tools/KeenEyes.Lsp.Kesl/bin/` in development builds
+   - Any location specified in `kesl.lsp.path` setting
+
+### Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `kesl.lsp.enabled` | `true` | Enable/disable the language server |
+| `kesl.lsp.path` | `""` | Custom path to the language server executable |
 
 ## Example
 

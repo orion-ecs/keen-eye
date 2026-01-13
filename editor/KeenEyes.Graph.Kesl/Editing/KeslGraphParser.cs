@@ -42,10 +42,10 @@ public sealed class KeslGraphParser
 
         // Use existing compiler to parse to AST
         var compileResult = KeslCompiler.Compile(source);
-        if (compileResult.Errors.Count > 0)
+        if (compileResult.Diagnostics.Count > 0)
         {
-            var errors = compileResult.Errors.Select(e =>
-                new ParseError(e.Message, e.Location)).ToList();
+            var errors = compileResult.Diagnostics.Select(d =>
+                new ParseError(d.Message, d.Span.Start)).ToList();
             return ParseResult.Failure(errors);
         }
 

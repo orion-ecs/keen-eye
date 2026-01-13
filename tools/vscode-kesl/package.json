@@ -1,8 +1,8 @@
 {
   "name": "kesl-language",
   "displayName": "KESL - KeenEyes Shader Language",
-  "description": "Syntax highlighting for KeenEyes Shader Language (.kesl) files",
-  "version": "0.1.0",
+  "description": "Language support for KeenEyes Shader Language (.kesl) files",
+  "version": "0.2.0",
   "publisher": "keeneyes",
   "engines": {
     "vscode": "^1.75.0"
@@ -10,6 +10,10 @@
   "categories": [
     "Programming Languages"
   ],
+  "activationEvents": [
+    "onLanguage:kesl"
+  ],
+  "main": "./out/extension.js",
   "contributes": {
     "languages": [
       {
@@ -30,7 +34,39 @@
         "scopeName": "source.kesl",
         "path": "./syntaxes/kesl.tmLanguage.json"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "KESL",
+      "properties": {
+        "kesl.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the KESL language server for diagnostics, completions, and hover."
+        },
+        "kesl.lsp.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the KESL language server executable. If empty, looks for 'keeneyes-lsp-kesl' in PATH."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0"
   },
   "repository": {
     "type": "git",

@@ -25,7 +25,7 @@ public class CompilerTests
         var compiler = new KeslCompiler { Namespace = "MyGame.Shaders" };
         var output = compiler.CompileAndGenerate(source);
 
-        Assert.False(output.HasErrors, $"Compilation errors: {string.Join(", ", output.Errors)}");
+        Assert.False(output.HasErrors, $"Compilation errors: {string.Join(", ", output.Diagnostics.Select(d => d.Message))}");
         Assert.Single(output.Shaders);
 
         var shader = output.Shaders[0];
@@ -203,7 +203,7 @@ public class CompilerTests
         var result = KeslCompiler.Compile(source);
 
         Assert.True(result.HasErrors);
-        Assert.NotEmpty(result.Errors);
+        Assert.NotEmpty(result.Diagnostics);
     }
 
     [Fact]
