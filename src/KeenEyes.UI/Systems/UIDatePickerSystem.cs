@@ -20,13 +20,24 @@ namespace KeenEyes.UI;
 /// </remarks>
 public sealed class UIDatePickerSystem : SystemBase
 {
-    /// <inheritdoc />
-    public override void Initialize(IWorld world)
-    {
-        base.Initialize(world);
+    private EventSubscription? clickSubscription;
 
+    /// <inheritdoc />
+    protected override void OnInitialize()
+    {
         // Subscribe to click events for calendar days and navigation
-        world.Subscribe<UIClickEvent>(OnClick);
+        clickSubscription = World.Subscribe<UIClickEvent>(OnClick);
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            clickSubscription?.Dispose();
+            clickSubscription = null;
+        }
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

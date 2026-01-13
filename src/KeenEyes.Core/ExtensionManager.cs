@@ -30,11 +30,19 @@ internal sealed class ExtensionManager
     /// </summary>
     /// <typeparam name="T">The extension type. Must be a reference type.</typeparam>
     /// <param name="extension">The extension instance to store.</param>
+    /// <remarks>
+    /// If an extension of the same type already exists and implements <see cref="IDisposable"/>,
+    /// it will be disposed before being replaced.
+    /// </remarks>
     internal void SetExtension<T>(T extension) where T : class
     {
         ArgumentNullException.ThrowIfNull(extension);
         lock (syncRoot)
         {
+            if (extensions.TryGetValue(typeof(T), out var existing))
+            {
+                (existing as IDisposable)?.Dispose();
+            }
             extensions[typeof(T)] = extension;
         }
     }
@@ -98,21 +106,36 @@ internal sealed class ExtensionManager
     /// </summary>
     /// <typeparam name="T">The extension type to remove.</typeparam>
     /// <returns>True if the extension was found and removed; false otherwise.</returns>
+    /// <remarks>
+    /// If the extension implements <see cref="IDisposable"/>, it will be disposed.
+    /// </remarks>
     internal bool RemoveExtension<T>() where T : class
     {
         lock (syncRoot)
         {
-            return extensions.Remove(typeof(T));
+            if (extensions.TryGetValue(typeof(T), out var existing))
+            {
+                (existing as IDisposable)?.Dispose();
+                return extensions.Remove(typeof(T));
+            }
+            return false;
         }
     }
 
     /// <summary>
     /// Clears all extensions.
     /// </summary>
+    /// <remarks>
+    /// All extensions implementing <see cref="IDisposable"/> will be disposed.
+    /// </remarks>
     internal void Clear()
     {
         lock (syncRoot)
         {
+            foreach (var extension in extensions.Values)
+            {
+                (extension as IDisposable)?.Dispose();
+            }
             extensions.Clear();
         }
     }

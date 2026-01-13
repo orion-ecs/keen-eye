@@ -18,22 +18,48 @@ namespace KeenEyes.UI;
 /// </remarks>
 public sealed class UIDataGridSystem : SystemBase
 {
-    /// <inheritdoc />
-    public override void Initialize(IWorld world)
-    {
-        base.Initialize(world);
+    private EventSubscription? clickSubscription;
+    private EventSubscription? dragStartSubscription;
+    private EventSubscription? dragSubscription;
+    private EventSubscription? dragEndSubscription;
+    private EventSubscription? pointerEnterSubscription;
+    private EventSubscription? pointerExitSubscription;
 
+    /// <inheritdoc />
+    protected override void OnInitialize()
+    {
         // Subscribe to click events for header and row clicks
-        world.Subscribe<UIClickEvent>(OnClick);
+        clickSubscription = World.Subscribe<UIClickEvent>(OnClick);
 
         // Subscribe to drag events for column resizing
-        world.Subscribe<UIDragStartEvent>(OnDragStart);
-        world.Subscribe<UIDragEvent>(OnDrag);
-        world.Subscribe<UIDragEndEvent>(OnDragEnd);
+        dragStartSubscription = World.Subscribe<UIDragStartEvent>(OnDragStart);
+        dragSubscription = World.Subscribe<UIDragEvent>(OnDrag);
+        dragEndSubscription = World.Subscribe<UIDragEndEvent>(OnDragEnd);
 
         // Subscribe to hover events for row highlighting
-        world.Subscribe<UIPointerEnterEvent>(OnPointerEnter);
-        world.Subscribe<UIPointerExitEvent>(OnPointerExit);
+        pointerEnterSubscription = World.Subscribe<UIPointerEnterEvent>(OnPointerEnter);
+        pointerExitSubscription = World.Subscribe<UIPointerExitEvent>(OnPointerExit);
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            clickSubscription?.Dispose();
+            dragStartSubscription?.Dispose();
+            dragSubscription?.Dispose();
+            dragEndSubscription?.Dispose();
+            pointerEnterSubscription?.Dispose();
+            pointerExitSubscription?.Dispose();
+            clickSubscription = null;
+            dragStartSubscription = null;
+            dragSubscription = null;
+            dragEndSubscription = null;
+            pointerEnterSubscription = null;
+            pointerExitSubscription = null;
+        }
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

@@ -49,7 +49,21 @@ public sealed class QueryDescription
         {
             if (allRequiredCache is null)
             {
-                allRequiredCache = read.Concat(write).Concat(with).Distinct().ToImmutableArray();
+                // Avoid LINQ allocations by using HashSet directly
+                var hashSet = new HashSet<Type>();
+                foreach (var t in read)
+                {
+                    hashSet.Add(t);
+                }
+                foreach (var t in write)
+                {
+                    hashSet.Add(t);
+                }
+                foreach (var t in with)
+                {
+                    hashSet.Add(t);
+                }
+                allRequiredCache = [.. hashSet];
             }
             return allRequiredCache.Value;
         }

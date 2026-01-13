@@ -31,20 +31,28 @@ namespace KeenEyes;
 /// }
 /// </code>
 /// </example>
-/// <summary>
-/// Creates a new ComponentDependencies with the specified read and write types.
-/// </summary>
-/// <param name="reads">Component types that are read.</param>
-/// <param name="writes">Component types that are written.</param>
-public sealed class ComponentDependencies(IEnumerable<Type> reads, IEnumerable<Type> writes)
+public sealed class ComponentDependencies
 {
     /// <summary>
     /// Empty dependencies - no component access.
     /// </summary>
     public static readonly ComponentDependencies Empty = new([], []);
 
-    private readonly ImmutableHashSet<Type> readsSet = reads.ToImmutableHashSet();
-    private readonly ImmutableHashSet<Type> writesSet = writes.ToImmutableHashSet();
+    private readonly ImmutableHashSet<Type> readsSet;
+    private readonly ImmutableHashSet<Type> writesSet;
+    private readonly ImmutableHashSet<Type> allAccessedSet;
+
+    /// <summary>
+    /// Creates a new ComponentDependencies with the specified read and write types.
+    /// </summary>
+    /// <param name="reads">Component types that are read.</param>
+    /// <param name="writes">Component types that are written.</param>
+    public ComponentDependencies(IEnumerable<Type> reads, IEnumerable<Type> writes)
+    {
+        readsSet = reads.ToImmutableHashSet();
+        writesSet = writes.ToImmutableHashSet();
+        allAccessedSet = readsSet.Union(writesSet);
+    }
 
     /// <summary>
     /// Gets the component types that are read by this system.
@@ -59,7 +67,7 @@ public sealed class ComponentDependencies(IEnumerable<Type> reads, IEnumerable<T
     /// <summary>
     /// Gets all component types accessed by this system (reads + writes).
     /// </summary>
-    public IReadOnlyCollection<Type> AllAccessed => readsSet.Union(writesSet);
+    public IReadOnlyCollection<Type> AllAccessed => allAccessedSet;
 
     /// <summary>
     /// Creates dependencies from a query description.
@@ -143,22 +151,40 @@ public sealed class ComponentDependencies(IEnumerable<Type> reads, IEnumerable<T
     {
         var conflicts = new HashSet<Type>();
 
-        // Write-write conflicts
-        foreach (var type in writesSet.Intersect(other.writesSet))
+        // Write-write conflicts (iterate smaller set, check against larger)
+        if (writesSet.Overlaps(other.writesSet))
         {
-            conflicts.Add(type);
+            foreach (var type in writesSet)
+            {
+                if (other.writesSet.Contains(type))
+                {
+                    conflicts.Add(type);
+                }
+            }
         }
 
         // Read-write conflicts (this writes, other reads)
-        foreach (var type in writesSet.Intersect(other.readsSet))
+        if (writesSet.Overlaps(other.readsSet))
         {
-            conflicts.Add(type);
+            foreach (var type in writesSet)
+            {
+                if (other.readsSet.Contains(type))
+                {
+                    conflicts.Add(type);
+                }
+            }
         }
 
         // Write-read conflicts (this reads, other writes)
-        foreach (var type in readsSet.Intersect(other.writesSet))
+        if (readsSet.Overlaps(other.writesSet))
         {
-            conflicts.Add(type);
+            foreach (var type in readsSet)
+            {
+                if (other.writesSet.Contains(type))
+                {
+                    conflicts.Add(type);
+                }
+            }
         }
 
         return conflicts;

@@ -21,14 +21,28 @@ namespace KeenEyes.UI;
 /// </remarks>
 public sealed class UIColorPickerSystem : SystemBase
 {
-    /// <inheritdoc />
-    public override void Initialize(IWorld world)
-    {
-        base.Initialize(world);
+    private EventSubscription? dragSubscription;
+    private EventSubscription? clickSubscription;
 
+    /// <inheritdoc />
+    protected override void OnInitialize()
+    {
         // Subscribe to drag events for saturation-value area
-        world.Subscribe<UIDragEvent>(OnDrag);
-        world.Subscribe<UIClickEvent>(OnClick);
+        dragSubscription = World.Subscribe<UIDragEvent>(OnDrag);
+        clickSubscription = World.Subscribe<UIClickEvent>(OnClick);
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            dragSubscription?.Dispose();
+            clickSubscription?.Dispose();
+            dragSubscription = null;
+            clickSubscription = null;
+        }
+        base.Dispose(disposing);
     }
 
     /// <inheritdoc />

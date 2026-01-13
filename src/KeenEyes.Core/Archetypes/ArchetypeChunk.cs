@@ -155,17 +155,17 @@ public sealed class ArchetypeChunk : IDisposable
             swappedEntity = lastEntity;
 
             // Swap all component arrays
-            foreach (var array in componentArrays.Values)
+            foreach (var kvp in componentArrays)
             {
-                array.RemoveAtSwapBack(index);
+                kvp.Value.RemoveAtSwapBack(index);
             }
         }
         else
         {
             // Just remove the last element
-            foreach (var array in componentArrays.Values)
+            foreach (var kvp in componentArrays)
             {
-                array.RemoveAtSwapBack(index);
+                kvp.Value.RemoveAtSwapBack(index);
             }
         }
 
@@ -319,9 +319,9 @@ public sealed class ArchetypeChunk : IDisposable
         Array.Clear(entities, 0, count);
         entityIdToIndex.Clear();
 
-        foreach (var array in componentArrays.Values)
+        foreach (var kvp in componentArrays)
         {
-            array.Clear();
+            kvp.Value.Clear();
         }
 
         count = 0;
@@ -341,9 +341,9 @@ public sealed class ArchetypeChunk : IDisposable
             return;
         }
 
-        foreach (var array in componentArrays.Values)
+        foreach (var kvp in componentArrays)
         {
-            if (array is IDisposable disposable)
+            if (kvp.Value is IDisposable disposable)
             {
                 disposable.Dispose();
             }
