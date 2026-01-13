@@ -18,6 +18,12 @@ public sealed class Lexer
         ["execute"] = TokenKind.Execute,
         ["vertex"] = TokenKind.Vertex,
         ["fragment"] = TokenKind.Fragment,
+        ["geometry"] = TokenKind.Geometry,
+        ["pipeline"] = TokenKind.Pipeline,
+
+        // Texture/Sampler blocks
+        ["textures"] = TokenKind.Textures,
+        ["samplers"] = TokenKind.Samplers,
 
         // Shader I/O
         ["in"] = TokenKind.In,
@@ -46,6 +52,10 @@ public sealed class Lexer
         ["uint"] = TokenKind.Uint,
         ["bool"] = TokenKind.Bool,
         ["mat4"] = TokenKind.Mat4,
+        ["texture2D"] = TokenKind.Texture2D,
+        ["textureCube"] = TokenKind.TextureCube,
+        ["texture3D"] = TokenKind.Texture3D,
+        ["sampler"] = TokenKind.Sampler,
 
         // Literals
         ["true"] = TokenKind.True,
