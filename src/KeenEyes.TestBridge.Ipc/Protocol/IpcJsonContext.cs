@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
+using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
@@ -102,6 +103,14 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(SystemSnapshot[]))]
 [JsonSerializable(typeof(IReadOnlyList<SystemSnapshot>))]
 [JsonSerializable(typeof(List<SystemSnapshot>))]
+// Mutation types
+[JsonSerializable(typeof(EntityResult))]
+[JsonSerializable(typeof(ComponentData))]
+[JsonSerializable(typeof(ComponentData[]))]
+[JsonSerializable(typeof(IReadOnlyList<ComponentData>))]
+[JsonSerializable(typeof(List<ComponentData>))]
+[JsonSerializable(typeof(IReadOnlyList<string>))]
+[JsonSerializable(typeof(List<string>))]
 // Input command arguments
 [JsonSerializable(typeof(KeyActionArgs))]
 [JsonSerializable(typeof(KeyPressArgs))]
