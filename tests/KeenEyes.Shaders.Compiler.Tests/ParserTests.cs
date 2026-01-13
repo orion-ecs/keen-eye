@@ -1122,4 +1122,287 @@ public class ParserTests
     }
 
     #endregion
+
+    #region Pipeline Tests
+
+    [Fact]
+    public void Parse_Pipeline_WithReferenceStages()
+    {
+        var source = @"
+            pipeline SimplePipeline {
+                vertex: MyVertexShader
+                fragment: MyFragmentShader
+            }
+        ";
+        var result = Parse(source);
+
+        Assert.Single(result.Declarations);
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        Assert.Equal("SimplePipeline", pipeline.Name);
+        Assert.NotNull(pipeline.Vertex);
+        Assert.Equal("MyVertexShader", pipeline.Vertex.ReferenceName);
+        Assert.Null(pipeline.Vertex.InlineShader);
+        Assert.NotNull(pipeline.Fragment);
+        Assert.Equal("MyFragmentShader", pipeline.Fragment.ReferenceName);
+        Assert.Null(pipeline.Fragment.InlineShader);
+        Assert.Null(pipeline.Geometry);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_WithGeometryStage()
+    {
+        var source = @"
+            pipeline GeomPipeline {
+                vertex: TransformVertex
+                geometry: WireframeExpander
+                fragment: LitSurface
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        Assert.NotNull(pipeline.Vertex);
+        Assert.NotNull(pipeline.Geometry);
+        Assert.NotNull(pipeline.Fragment);
+        Assert.Equal("TransformVertex", pipeline.Vertex.ReferenceName);
+        Assert.Equal("WireframeExpander", pipeline.Geometry.ReferenceName);
+        Assert.Equal("LitSurface", pipeline.Fragment.ReferenceName);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_WithInlineVertexShader()
+    {
+        var source = @"
+            pipeline InlineVertex {
+                vertex {
+                    in {
+                        position: float3 @ 0
+                    }
+                    out {
+                        worldPos: float3
+                    }
+                    execute() {
+                        worldPos = position;
+                    }
+                }
+                fragment: DefaultFragment
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        Assert.NotNull(pipeline.Vertex);
+        Assert.Null(pipeline.Vertex.ReferenceName);
+        Assert.NotNull(pipeline.Vertex.InlineShader);
+
+        var inlineVertex = Assert.IsType<VertexDeclaration>(pipeline.Vertex.InlineShader);
+        Assert.Equal("InlineVertex_vertex", inlineVertex.Name);
+        Assert.Single(inlineVertex.Inputs.Attributes);
+        Assert.Single(inlineVertex.Outputs.Attributes);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_WithInlineFragmentShader()
+    {
+        var source = @"
+            pipeline InlineFragment {
+                vertex: PassThrough
+                fragment {
+                    in {
+                        color: float4
+                    }
+                    out {
+                        fragColor: float4 @ 0
+                    }
+                    execute() {
+                        fragColor = color;
+                    }
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        Assert.NotNull(pipeline.Fragment);
+        Assert.Null(pipeline.Fragment.ReferenceName);
+        Assert.NotNull(pipeline.Fragment.InlineShader);
+
+        var inlineFragment = Assert.IsType<FragmentDeclaration>(pipeline.Fragment.InlineShader);
+        Assert.Equal("InlineFragment_fragment", inlineFragment.Name);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_WithInlineGeometryShader()
+    {
+        var source = @"
+            pipeline InlineGeom {
+                vertex: BaseVertex
+                geometry {
+                    layout {
+                        input: triangles
+                        output: line_strip
+                        max_vertices: 6
+                    }
+                    in {
+                        position: float3
+                        inColor: float4
+                    }
+                    out {
+                        color: float4
+                    }
+                    execute() {
+                        color = inColor;
+                    }
+                }
+                fragment: WireframeFragment
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        Assert.NotNull(pipeline.Geometry);
+        Assert.Null(pipeline.Geometry.ReferenceName);
+        Assert.NotNull(pipeline.Geometry.InlineShader);
+
+        var inlineGeometry = Assert.IsType<GeometryDeclaration>(pipeline.Geometry.InlineShader);
+        Assert.Equal("InlineGeom_geometry", inlineGeometry.Name);
+        Assert.Equal(GeometryInputTopology.Triangles, inlineGeometry.Layout.InputTopology);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_AllInlineShaders()
+    {
+        var source = @"
+            pipeline FullInline {
+                vertex {
+                    in {
+                        pos: float3 @ 0
+                    }
+                    out {
+                        outPos: float3
+                    }
+                    execute() {
+                        outPos = pos;
+                    }
+                }
+                fragment {
+                    in {
+                        inColor: float4
+                    }
+                    out {
+                        color: float4 @ 0
+                    }
+                    execute() {
+                        color = inColor;
+                    }
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        Assert.NotNull(pipeline.Vertex);
+        Assert.NotNull(pipeline.Fragment);
+        Assert.Null(pipeline.Geometry);
+
+        Assert.IsType<VertexDeclaration>(pipeline.Vertex.InlineShader);
+        Assert.IsType<FragmentDeclaration>(pipeline.Fragment.InlineShader);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_MixedReferenceAndInline()
+    {
+        var source = @"
+            pipeline MixedPipeline {
+                vertex: ExistingVertex
+                fragment {
+                    in {
+                        inColor: float4
+                    }
+                    out {
+                        fragColor: float4 @ 0
+                    }
+                    execute() {
+                        fragColor = inColor;
+                    }
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        Assert.NotNull(pipeline.Vertex);
+        Assert.Equal("ExistingVertex", pipeline.Vertex.ReferenceName);
+        Assert.NotNull(pipeline.Fragment);
+        Assert.Null(pipeline.Fragment.ReferenceName);
+        Assert.NotNull(pipeline.Fragment.InlineShader);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_WithTexturesAndSamplers()
+    {
+        var source = @"
+            pipeline TexturedPipeline {
+                vertex: SimpleVertex
+                fragment {
+                    in {
+                        inColor: float4
+                    }
+                    out {
+                        fragColor: float4 @ 0
+                    }
+                    textures {
+                        diffuse: texture2D @ 0
+                    }
+                    samplers {
+                        linearSampler: sampler @ 0
+                    }
+                    execute() {
+                        fragColor = inColor;
+                    }
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        var fragment = Assert.IsType<FragmentDeclaration>(pipeline.Fragment!.InlineShader);
+        Assert.NotNull(fragment.Textures);
+        Assert.NotNull(fragment.Samplers);
+        Assert.Single(fragment.Textures.Textures);
+        Assert.Single(fragment.Samplers.Samplers);
+    }
+
+    [Fact]
+    public void Parse_Pipeline_WithParams()
+    {
+        var source = @"
+            pipeline ParamsPipeline {
+                vertex {
+                    in {
+                        position: float3 @ 0
+                    }
+                    out {
+                        outPos: float3
+                    }
+                    params {
+                        mvp: mat4
+                    }
+                    execute() {
+                        outPos = position;
+                    }
+                }
+                fragment: DefaultFrag
+            }
+        ";
+        var result = Parse(source);
+
+        var pipeline = Assert.IsType<PipelineDeclaration>(result.Declarations[0]);
+        var vertex = Assert.IsType<VertexDeclaration>(pipeline.Vertex!.InlineShader);
+        Assert.NotNull(vertex.Params);
+        Assert.Single(vertex.Params.Parameters);
+        Assert.Equal("mvp", vertex.Params.Parameters[0].Name);
+    }
+
+    #endregion
 }

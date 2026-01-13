@@ -269,13 +269,28 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
+    /// Generates C# binding code for a pipeline.
+    /// </summary>
+    /// <param name="pipeline">The pipeline AST.</param>
+    /// <returns>The generated C# code.</returns>
+    public string GenerateCSharp(PipelineDeclaration pipeline)
+    {
+        var generator = new CSharpBindingGenerator
+        {
+            Namespace = Namespace
+        };
+        return generator.Generate(pipeline);
+    }
+
+    /// <summary>
     /// Compiles KESL source and generates all outputs for each shader.
     /// </summary>
     /// <param name="source">The KESL source code.</param>
     /// <param name="filePath">The file path for error reporting.</param>
     /// <returns>The compilation outputs or errors.</returns>
     /// <remarks>
-    /// Handles compute, vertex, and fragment shader declarations.
+    /// Handles compute, vertex, fragment, geometry, and pipeline declarations.
+    /// For pipelines, generates C# bindings and outputs for any inline shaders.
     /// </remarks>
     public CompilationOutput CompileAndGenerate(string source, string filePath = "<input>")
     {
@@ -339,10 +354,78 @@ public sealed class KeslCompiler
                         GenerateCSharp(geometry)
                     ));
                     break;
+
+                case PipelineDeclaration pipeline:
+                    // Pipeline generates only C# bindings (no GLSL/HLSL)
+                    outputs.Add(new ShaderOutput(
+                        pipeline.Name,
+                        string.Empty, // No GLSL file for pipeline
+                        string.Empty, // No GLSL code for pipeline
+                        string.Empty, // No HLSL file for pipeline
+                        string.Empty, // No HLSL code for pipeline
+                        $"{pipeline.Name}Pipeline.g.cs",
+                        GenerateCSharp(pipeline)
+                    ));
+
+                    // Generate outputs for inline shaders
+                    GenerateInlineShaderOutputs(pipeline.Vertex, outputs);
+                    GenerateInlineShaderOutputs(pipeline.Geometry, outputs);
+                    GenerateInlineShaderOutputs(pipeline.Fragment, outputs);
+                    break;
             }
         }
 
         return new CompilationOutput(outputs, []);
+    }
+
+    /// <summary>
+    /// Generates outputs for inline shaders within a pipeline stage.
+    /// </summary>
+    private void GenerateInlineShaderOutputs(PipelineStage? stage, List<ShaderOutput> outputs)
+    {
+        if (stage?.InlineShader == null)
+        {
+            return;
+        }
+
+        switch (stage.InlineShader)
+        {
+            case VertexDeclaration vertex:
+                outputs.Add(new ShaderOutput(
+                    vertex.Name,
+                    $"{vertex.Name}.vert.glsl",
+                    GenerateGlsl(vertex),
+                    $"{vertex.Name}.vert.hlsl",
+                    GenerateHlsl(vertex),
+                    $"{vertex.Name}Shader.g.cs",
+                    GenerateCSharp(vertex)
+                ));
+                break;
+
+            case GeometryDeclaration geometry:
+                outputs.Add(new ShaderOutput(
+                    geometry.Name,
+                    $"{geometry.Name}.geom.glsl",
+                    GenerateGlsl(geometry),
+                    $"{geometry.Name}.geom.hlsl",
+                    GenerateHlsl(geometry),
+                    $"{geometry.Name}Shader.g.cs",
+                    GenerateCSharp(geometry)
+                ));
+                break;
+
+            case FragmentDeclaration fragment:
+                outputs.Add(new ShaderOutput(
+                    fragment.Name,
+                    $"{fragment.Name}.frag.glsl",
+                    GenerateGlsl(fragment),
+                    $"{fragment.Name}.frag.hlsl",
+                    GenerateHlsl(fragment),
+                    $"{fragment.Name}Shader.g.cs",
+                    GenerateCSharp(fragment)
+                ));
+                break;
+        }
     }
 
     /// <summary>
