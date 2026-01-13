@@ -1086,6 +1086,8 @@ public class ProfilingPlugin : IWorldPlugin
 
 The TestBridge enables external tools (like Claude Code) to inspect and control running KeenEyes applications via the Model Context Protocol (MCP).
 
+For comprehensive documentation including the full IPC protocol specification and complete command reference, see [TestBridge Architecture Guide](docs/testbridge.md).
+
 ### Architecture Overview
 
 ```
