@@ -32,3 +32,29 @@ public readonly record struct Vector3Keyframe(float Time, Vector3 Value);
 /// <param name="Time">The time of this keyframe in seconds.</param>
 /// <param name="Value">The rotation value at this keyframe.</param>
 public readonly record struct QuaternionKeyframe(float Time, Quaternion Value);
+
+/// <summary>
+/// A Vector3 keyframe with tangent information for cubic spline interpolation.
+/// </summary>
+/// <param name="Time">The time of this keyframe in seconds.</param>
+/// <param name="Value">The value at this keyframe.</param>
+/// <param name="InTangent">The incoming tangent vector.</param>
+/// <param name="OutTangent">The outgoing tangent vector.</param>
+public readonly record struct CubicSplineVector3Keyframe(
+    float Time,
+    Vector3 Value,
+    Vector3 InTangent,
+    Vector3 OutTangent);
+
+/// <summary>
+/// A Quaternion keyframe with tangent information for cubic spline interpolation.
+/// </summary>
+/// <param name="Time">The time of this keyframe in seconds.</param>
+/// <param name="Value">The rotation value at this keyframe.</param>
+/// <param name="InTangent">The incoming tangent quaternion.</param>
+/// <param name="OutTangent">The outgoing tangent quaternion.</param>
+public readonly record struct CubicSplineQuaternionKeyframe(
+    float Time,
+    Quaternion Value,
+    Quaternion InTangent,
+    Quaternion OutTangent);

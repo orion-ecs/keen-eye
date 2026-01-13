@@ -21,6 +21,7 @@ namespace KeenEyes.Assets;
 /// <item><description>All materials with PBR properties (metallic-roughness workflow)</description></item>
 /// <item><description>Embedded textures (base64 decoded from glTF)</description></item>
 /// <item><description>External texture references (paths resolved relative to model)</description></item>
+/// <item><description>Skeleton data for skinned mesh animation (from glTF skins)</description></item>
 /// </list>
 /// <para>
 /// Use <see cref="ModelLoader"/> when you need access to materials and textures.
@@ -47,11 +48,12 @@ public sealed class ModelLoader : IAssetLoader<ModelAsset>
         var textures = ExtractTextures(model, context);
         var materials = ExtractMaterials(model, textures);
         var meshes = ExtractMeshes(model);
+        var skeleton = ExtractSkeleton(model);
 
         // Get model name from context path
         var name = Path.GetFileNameWithoutExtension(context.Path) ?? "Model";
 
-        return new ModelAsset(name, meshes, materials, textures);
+        return new ModelAsset(name, meshes, materials, textures, skeleton);
     }
 
     /// <inheritdoc />
@@ -382,6 +384,78 @@ public sealed class ModelLoader : IAssetLoader<ModelAsset>
 
     private static T GetValueOrDefault<T>(IList<T>? array, int index, T defaultValue)
         => array != null && index < array.Count ? array[index] : defaultValue;
+
+    /// <summary>
+    /// Extracts skeleton data from the first glTF skin, if present.
+    /// </summary>
+    /// <remarks>
+    /// glTF supports multiple skins, but most models only have one. This implementation
+    /// extracts the first skin found. The skeleton contains bone hierarchy, bind poses,
+    /// and inverse bind matrices needed for GPU skinning.
+    /// </remarks>
+    private static SkeletonAsset? ExtractSkeleton(ModelRoot model)
+    {
+        // Check if model has any skins
+        if (model.LogicalSkins.Count == 0)
+        {
+            return null;
+        }
+
+        // Extract the first skin (most models only have one)
+        var skin = model.LogicalSkins[0];
+        var jointCount = skin.JointsCount;
+
+        if (jointCount == 0)
+        {
+            return null;
+        }
+
+        // Build mapping from glTF node to bone index
+        var nodeToJointIndex = new Dictionary<int, int>();
+        for (var i = 0; i < jointCount; i++)
+        {
+            var (node, _) = skin.GetJoint(i);
+            nodeToJointIndex[node.LogicalIndex] = i;
+        }
+
+        // Extract bone data and inverse bind matrices
+        var bones = new BoneData[jointCount];
+        var inverseBindMatrices = new Matrix4x4[jointCount];
+        var rootBoneIndex = 0;
+
+        for (var i = 0; i < jointCount; i++)
+        {
+            var (node, inverseBindMatrix) = skin.GetJoint(i);
+
+            // Get bone name (use node name or generate one)
+            var boneName = node.Name ?? $"Bone_{i}";
+
+            // Find parent index (-1 for root bones)
+            var parentIndex = -1;
+            var parentNode = node.VisualParent;
+            if (parentNode is not null && nodeToJointIndex.TryGetValue(parentNode.LogicalIndex, out var parentJointIndex))
+            {
+                parentIndex = parentJointIndex;
+            }
+
+            // Track first root bone (bone with no parent in skeleton)
+            if (parentIndex < 0 && i > 0 && bones[rootBoneIndex].ParentIndex >= 0)
+            {
+                rootBoneIndex = i;
+            }
+
+            // Get local bind pose from node's local transform
+            var localBindPose = node.LocalMatrix;
+
+            bones[i] = new BoneData(boneName, parentIndex, localBindPose);
+            inverseBindMatrices[i] = inverseBindMatrix;
+        }
+
+        // Use skin name or model name for skeleton
+        var skeletonName = skin.Name ?? model.LogicalMeshes.FirstOrDefault()?.Name ?? "Skeleton";
+
+        return new SkeletonAsset(skeletonName, bones, inverseBindMatrices, rootBoneIndex);
+    }
 
     /// <summary>
     /// Checks if the mesh has valid tangents (not all default values).
