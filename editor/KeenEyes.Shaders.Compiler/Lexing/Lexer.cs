@@ -21,6 +21,14 @@ public sealed class Lexer
         ["geometry"] = TokenKind.Geometry,
         ["pipeline"] = TokenKind.Pipeline,
 
+        // Geometry shader
+        ["layout"] = TokenKind.Layout,
+        ["input"] = TokenKind.Input,
+        ["output"] = TokenKind.Output,
+        ["max_vertices"] = TokenKind.MaxVertices,
+        ["emit"] = TokenKind.Emit,
+        ["endPrimitive"] = TokenKind.EndPrimitive,
+
         // Texture/Sampler blocks
         ["textures"] = TokenKind.Textures,
         ["samplers"] = TokenKind.Samplers,

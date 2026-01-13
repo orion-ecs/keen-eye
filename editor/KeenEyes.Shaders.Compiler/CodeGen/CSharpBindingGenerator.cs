@@ -49,6 +49,22 @@ public sealed class CSharpBindingGenerator
     }
 
     /// <summary>
+    /// Generates C# binding code for a geometry shader declaration.
+    /// </summary>
+    /// <param name="geometry">The geometry shader AST.</param>
+    /// <returns>The generated C# code.</returns>
+    public string Generate(GeometryDeclaration geometry)
+    {
+        _sb.Clear();
+        _indent = 0;
+
+        GenerateFileHeader();
+        GenerateGeometryShaderClass(geometry);
+
+        return _sb.ToString();
+    }
+
+    /// <summary>
     /// Generates C# binding code for a compute shader declaration.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
@@ -496,6 +512,76 @@ public sealed class CSharpBindingGenerator
 
         // Embedded shader sources (placeholders for now)
         GenerateShaderSourceConstants(fragment.Name);
+
+        _indent--;
+        AppendLine("}");
+    }
+
+    private void GenerateGeometryShaderClass(GeometryDeclaration geometry)
+    {
+        var className = $"{geometry.Name}Shader";
+
+        AppendLine("/// <summary>");
+        AppendLine($"/// GPU geometry shader for {geometry.Name}.");
+        AppendLine("/// </summary>");
+        AppendLine($"public sealed partial class {className} : IGpuGeometryShader");
+        AppendLine("{");
+        _indent++;
+
+        // Name property
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public string Name => \"{geometry.Name}\";");
+        AppendLine();
+
+        // InputTopology property
+        var inputTopology = geometry.Layout.InputTopology switch
+        {
+            GeometryInputTopology.Points => "Points",
+            GeometryInputTopology.Lines => "Lines",
+            GeometryInputTopology.LinesAdjacency => "LinesAdjacency",
+            GeometryInputTopology.Triangles => "Triangles",
+            GeometryInputTopology.TrianglesAdjacency => "TrianglesAdjacency",
+            _ => throw new ArgumentOutOfRangeException(nameof(geometry), geometry.Layout.InputTopology, "Unsupported input topology")
+        };
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public GeometryInputTopology InputTopology => GeometryInputTopology.{inputTopology};");
+        AppendLine();
+
+        // OutputTopology property
+        var outputTopology = geometry.Layout.OutputTopology switch
+        {
+            GeometryOutputTopology.Points => "Points",
+            GeometryOutputTopology.LineStrip => "LineStrip",
+            GeometryOutputTopology.TriangleStrip => "TriangleStrip",
+            _ => throw new ArgumentOutOfRangeException(nameof(geometry), geometry.Layout.OutputTopology, "Unsupported output topology")
+        };
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public GeometryOutputTopology OutputTopology => GeometryOutputTopology.{outputTopology};");
+        AppendLine();
+
+        // MaxVertices property
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public int MaxVertices => {geometry.Layout.MaxVertices};");
+        AppendLine();
+
+        // Inputs property
+        GenerateFragmentInputsProperty(geometry.Inputs.Attributes);
+        AppendLine();
+
+        // Outputs property
+        GenerateVertexOutputsProperty(geometry.Outputs.Attributes);
+        AppendLine();
+
+        // Uniforms property
+        GenerateUniformsProperty(geometry.Params);
+        AppendLine();
+
+        // GetShaderSource method
+        GenerateGetShaderSourceMethod(geometry.Name);
+        AppendLine();
+
+        // Embedded shader sources (placeholders for now)
+        GenerateShaderSourceConstants(geometry.Name);
 
         _indent--;
         AppendLine("}");

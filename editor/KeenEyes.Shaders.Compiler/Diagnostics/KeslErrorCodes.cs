@@ -107,6 +107,21 @@ public static class KeslErrorCodes
     /// </summary>
     public const string ExpectedCloseParen = "KESL211";
 
+    /// <summary>
+    /// Expected an opening bracket for array access.
+    /// </summary>
+    public const string ExpectedOpenBracket = "KESL212";
+
+    /// <summary>
+    /// Expected a closing bracket to end array access.
+    /// </summary>
+    public const string ExpectedCloseBracket = "KESL213";
+
+    /// <summary>
+    /// Expected a geometry input or output topology.
+    /// </summary>
+    public const string ExpectedTopology = "KESL214";
+
     #endregion
 
     #region Semantic Errors (300-399)
@@ -189,6 +204,9 @@ public static class KeslErrorCodes
             ExpectedCloseBrace => "Expected closing brace",
             ExpectedOpenParen => "Expected opening parenthesis",
             ExpectedCloseParen => "Expected closing parenthesis",
+            ExpectedOpenBracket => "Expected opening bracket",
+            ExpectedCloseBracket => "Expected closing bracket",
+            ExpectedTopology => "Expected geometry topology",
 
             // Semantic
             UndefinedComponent => "Component not found",

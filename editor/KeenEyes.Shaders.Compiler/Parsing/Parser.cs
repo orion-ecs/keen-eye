@@ -83,8 +83,13 @@ public sealed class Parser
             return ParseFragmentDeclaration();
         }
 
+        if (Check(TokenKind.Geometry))
+        {
+            return ParseGeometryDeclaration();
+        }
+
         // Throw to trigger synchronization - otherwise we'd loop infinitely
-        throw Error(Current, "Expected 'component', 'compute', 'vertex', or 'fragment' declaration", KeslErrorCodes.ExpectedDeclaration);
+        throw Error(Current, "Expected 'component', 'compute', 'vertex', 'fragment', or 'geometry' declaration", KeslErrorCodes.ExpectedDeclaration);
     }
 
     private ComponentDeclaration ParseComponentDeclaration()
@@ -225,6 +230,104 @@ public sealed class Parser
         Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
 
         return new FragmentDeclaration(name, inputs, outputs, texturesBlock, samplersBlock, paramsBlock, execute, location);
+    }
+
+    private GeometryDeclaration ParseGeometryDeclaration()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Geometry, "Expected 'geometry'", KeslErrorCodes.MissingToken);
+        var name = Consume(TokenKind.Identifier, "Expected shader name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.LeftBrace, "Expected '{' after shader name", KeslErrorCodes.ExpectedOpenBrace);
+
+        // Parse layout block (required for geometry shaders)
+        var layout = ParseGeometryLayoutBlock();
+
+        // Parse input block (required)
+        var inputs = ParseInputBlock();
+
+        // Parse output block (required)
+        var outputs = ParseOutputBlock();
+
+        // Parse optional textures block
+        TexturesBlock? texturesBlock = null;
+        if (Check(TokenKind.Textures))
+        {
+            texturesBlock = ParseTexturesBlock();
+        }
+
+        // Parse optional samplers block
+        SamplersBlock? samplersBlock = null;
+        if (Check(TokenKind.Samplers))
+        {
+            samplersBlock = ParseSamplersBlock();
+        }
+
+        // Parse optional params block
+        ParamsBlock? paramsBlock = null;
+        if (Check(TokenKind.Params))
+        {
+            paramsBlock = ParseParamsBlock();
+        }
+
+        // Parse execute block (required)
+        var execute = ParseExecuteBlock();
+
+        Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new GeometryDeclaration(name, layout, inputs, outputs, texturesBlock, samplersBlock, paramsBlock, execute, location);
+    }
+
+    private GeometryLayoutBlock ParseGeometryLayoutBlock()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Layout, "Expected 'layout'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftBrace, "Expected '{' after 'layout'", KeslErrorCodes.ExpectedOpenBrace);
+
+        // Parse input topology
+        Consume(TokenKind.Input, "Expected 'input' in layout block", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.Colon, "Expected ':' after 'input'", KeslErrorCodes.MissingToken);
+        var inputTopology = ParseInputTopology();
+
+        // Parse output topology
+        Consume(TokenKind.Output, "Expected 'output' in layout block", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.Colon, "Expected ':' after 'output'", KeslErrorCodes.MissingToken);
+        var outputTopology = ParseOutputTopology();
+
+        // Parse max_vertices
+        Consume(TokenKind.MaxVertices, "Expected 'max_vertices' in layout block", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.Colon, "Expected ':' after 'max_vertices'", KeslErrorCodes.MissingToken);
+        var maxVerticesToken = Consume(TokenKind.IntLiteral, "Expected integer for max_vertices", KeslErrorCodes.MissingToken);
+        var maxVertices = maxVerticesToken.IntValue;
+
+        Consume(TokenKind.RightBrace, "Expected '}' after layout block", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new GeometryLayoutBlock(inputTopology, outputTopology, maxVertices, location);
+    }
+
+    private GeometryInputTopology ParseInputTopology()
+    {
+        var topologyName = Consume(TokenKind.Identifier, "Expected topology name", KeslErrorCodes.ExpectedTopology).Text;
+        return topologyName.ToLowerInvariant() switch
+        {
+            "points" => GeometryInputTopology.Points,
+            "lines" => GeometryInputTopology.Lines,
+            "lines_adjacency" => GeometryInputTopology.LinesAdjacency,
+            "triangles" => GeometryInputTopology.Triangles,
+            "triangles_adjacency" => GeometryInputTopology.TrianglesAdjacency,
+            _ => throw Error(Previous, $"Unknown input topology '{topologyName}'. Expected 'points', 'lines', 'lines_adjacency', 'triangles', or 'triangles_adjacency'", KeslErrorCodes.ExpectedTopology)
+        };
+    }
+
+    private GeometryOutputTopology ParseOutputTopology()
+    {
+        var topologyName = Consume(TokenKind.Identifier, "Expected topology name", KeslErrorCodes.ExpectedTopology).Text;
+        return topologyName.ToLowerInvariant() switch
+        {
+            "points" => GeometryOutputTopology.Points,
+            "line_strip" => GeometryOutputTopology.LineStrip,
+            "triangle_strip" => GeometryOutputTopology.TriangleStrip,
+            _ => throw Error(Previous, $"Unknown output topology '{topologyName}'. Expected 'points', 'line_strip', or 'triangle_strip'", KeslErrorCodes.ExpectedTopology)
+        };
     }
 
     private InputBlock ParseInputBlock()
@@ -462,8 +565,41 @@ public sealed class Parser
             return ParseForStatement();
         }
 
+        if (Check(TokenKind.Emit))
+        {
+            return ParseEmitStatement();
+        }
+
+        if (Check(TokenKind.EndPrimitive))
+        {
+            return ParseEndPrimitiveStatement();
+        }
+
         // Expression or assignment statement
         return ParseExpressionStatement();
+    }
+
+    private EmitStatement ParseEmitStatement()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Emit, "Expected 'emit'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftParen, "Expected '(' after 'emit'", KeslErrorCodes.ExpectedOpenParen);
+        var position = ParseExpression();
+        Consume(TokenKind.RightParen, "Expected ')' after emit position", KeslErrorCodes.ExpectedCloseParen);
+        Consume(TokenKind.Semicolon, "Expected ';' after emit statement", KeslErrorCodes.ExpectedSemicolon);
+
+        return new EmitStatement(position, location);
+    }
+
+    private EndPrimitiveStatement ParseEndPrimitiveStatement()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.EndPrimitive, "Expected 'endPrimitive'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftParen, "Expected '(' after 'endPrimitive'", KeslErrorCodes.ExpectedOpenParen);
+        Consume(TokenKind.RightParen, "Expected ')' after 'endPrimitive('", KeslErrorCodes.ExpectedCloseParen);
+        Consume(TokenKind.Semicolon, "Expected ';' after endPrimitive statement", KeslErrorCodes.ExpectedSemicolon);
+
+        return new EndPrimitiveStatement(location);
     }
 
     private IfStatement ParseIfStatement()
@@ -708,6 +844,13 @@ public sealed class Parser
                     throw Error(Previous, "Can only call functions by name", KeslErrorCodes.InvalidExpression);
                 }
             }
+            else if (Match(TokenKind.LeftBracket))
+            {
+                // Array index access
+                var index = ParseExpression();
+                Consume(TokenKind.RightBracket, "Expected ']' after array index", KeslErrorCodes.ExpectedCloseBracket);
+                expr = new IndexExpression(expr, index, Previous.Location);
+            }
             else
             {
                 break;
@@ -849,6 +992,7 @@ public sealed class Parser
                 case TokenKind.Compute:
                 case TokenKind.Vertex:
                 case TokenKind.Fragment:
+                case TokenKind.Geometry:
                     return;
             }
 

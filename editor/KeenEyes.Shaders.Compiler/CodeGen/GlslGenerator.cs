@@ -228,6 +228,316 @@ public sealed class GlslGenerator : IShaderGenerator
         return _sb.ToString();
     }
 
+    /// <summary>
+    /// Generates GLSL code for a geometry shader declaration.
+    /// </summary>
+    /// <param name="geometry">The geometry shader AST.</param>
+    /// <returns>The generated GLSL code.</returns>
+    public string Generate(GeometryDeclaration geometry)
+    {
+        _sb.Clear();
+        _indent = 0;
+
+        // Header
+        AppendLine("#version 450");
+        AppendLine();
+
+        // Input topology layout
+        var inputTopology = geometry.Layout.InputTopology switch
+        {
+            GeometryInputTopology.Points => "points",
+            GeometryInputTopology.Lines => "lines",
+            GeometryInputTopology.LinesAdjacency => "lines_adjacency",
+            GeometryInputTopology.Triangles => "triangles",
+            GeometryInputTopology.TrianglesAdjacency => "triangles_adjacency",
+            _ => throw new NotSupportedException($"Unsupported input topology: {geometry.Layout.InputTopology}")
+        };
+        AppendLine($"layout({inputTopology}) in;");
+
+        // Output topology layout with max vertices
+        var outputTopology = geometry.Layout.OutputTopology switch
+        {
+            GeometryOutputTopology.Points => "points",
+            GeometryOutputTopology.LineStrip => "line_strip",
+            GeometryOutputTopology.TriangleStrip => "triangle_strip",
+            _ => throw new NotSupportedException($"Unsupported output topology: {geometry.Layout.OutputTopology}")
+        };
+        AppendLine($"layout({outputTopology}, max_vertices = {geometry.Layout.MaxVertices}) out;");
+        AppendLine();
+
+        // Generate input interface block (from vertex shader) as array
+        if (geometry.Inputs.Attributes.Count > 0)
+        {
+            AppendLine("in VS_OUT {");
+            _indent++;
+            foreach (var attr in geometry.Inputs.Attributes)
+            {
+                AppendLine($"{ToGlslType(attr.Type)} {attr.Name};");
+            }
+            _indent--;
+            AppendLine("} gs_in[];");
+            AppendLine();
+        }
+
+        // Generate output interface block (to fragment shader)
+        if (geometry.Outputs.Attributes.Count > 0)
+        {
+            AppendLine("out GS_OUT {");
+            _indent++;
+            foreach (var attr in geometry.Outputs.Attributes)
+            {
+                AppendLine($"{ToGlslType(attr.Type)} {attr.Name};");
+            }
+            _indent--;
+            AppendLine("} gs_out;");
+            AppendLine();
+        }
+
+        // Generate texture sampler uniforms
+        if (geometry.Textures != null && geometry.Textures.Textures.Count > 0)
+        {
+            foreach (var tex in geometry.Textures.Textures)
+            {
+                AppendLine($"layout(binding = {tex.BindingSlot}) uniform {ToGlslTextureType(tex.TextureKind)} {tex.Name};");
+            }
+            AppendLine();
+        }
+
+        // Generate uniform declarations for params
+        if (geometry.Params != null)
+        {
+            foreach (var param in geometry.Params.Parameters)
+            {
+                AppendLine($"uniform {ToGlslType(param.Type)} {param.Name};");
+            }
+            AppendLine();
+        }
+
+        // Main function
+        AppendLine("void main() {");
+        _indent++;
+
+        // Generate execute block statements
+        foreach (var stmt in geometry.Execute.Body)
+        {
+            GenerateGeometryStatement(stmt, geometry.Inputs.Attributes, geometry.Outputs.Attributes);
+        }
+
+        _indent--;
+        AppendLine("}");
+
+        return _sb.ToString();
+    }
+
+    private void GenerateGeometryStatement(Statement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        switch (stmt)
+        {
+            case ExpressionStatement exprStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateGeometryExpression(exprStmt.Expression, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case AssignmentStatement assignStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateGeometryExpression(assignStmt.Target, inputs, outputs));
+                _sb.Append(" = ");
+                _sb.Append(GenerateGeometryExpression(assignStmt.Value, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case CompoundAssignmentStatement compoundStmt:
+                Append(GenerateIndent());
+                _sb.Append(GenerateGeometryExpression(compoundStmt.Target, inputs, outputs));
+                _sb.Append(' ');
+                _sb.Append(compoundStmt.Operator switch
+                {
+                    CompoundOperator.PlusEquals => "+=",
+                    CompoundOperator.MinusEquals => "-=",
+                    CompoundOperator.StarEquals => "*=",
+                    CompoundOperator.SlashEquals => "/=",
+                    _ => throw new InvalidOperationException()
+                });
+                _sb.Append(' ');
+                _sb.Append(GenerateGeometryExpression(compoundStmt.Value, inputs, outputs));
+                _sb.AppendLine(";");
+                break;
+
+            case IfStatement ifStmt:
+                GenerateGeometryIfStatement(ifStmt, inputs, outputs);
+                break;
+
+            case ForStatement forStmt:
+                GenerateGeometryForStatement(forStmt, inputs, outputs);
+                break;
+
+            case BlockStatement blockStmt:
+                AppendLine("{");
+                _indent++;
+                foreach (var s in blockStmt.Statements)
+                {
+                    GenerateGeometryStatement(s, inputs, outputs);
+                }
+                _indent--;
+                AppendLine("}");
+                break;
+
+            case EmitStatement emitStmt:
+                // Set gl_Position from the emit expression
+                Append(GenerateIndent());
+                _sb.Append("gl_Position = ");
+                _sb.Append(GenerateGeometryExpression(emitStmt.Position, inputs, outputs));
+                _sb.AppendLine(";");
+                AppendLine("EmitVertex();");
+                break;
+
+            case EndPrimitiveStatement:
+                AppendLine("EndPrimitive();");
+                break;
+        }
+    }
+
+    private void GenerateGeometryIfStatement(IfStatement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        Append(GenerateIndent());
+        _sb.Append("if (");
+        _sb.Append(GenerateGeometryExpression(stmt.Condition, inputs, outputs));
+        _sb.AppendLine(") {");
+
+        _indent++;
+        foreach (var s in stmt.ThenBranch)
+        {
+            GenerateGeometryStatement(s, inputs, outputs);
+        }
+        _indent--;
+
+        if (stmt.ElseBranch != null)
+        {
+            AppendLine("} else {");
+            _indent++;
+            foreach (var s in stmt.ElseBranch)
+            {
+                GenerateGeometryStatement(s, inputs, outputs);
+            }
+            _indent--;
+        }
+
+        AppendLine("}");
+    }
+
+    private void GenerateGeometryForStatement(ForStatement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        Append(GenerateIndent());
+        _sb.Append($"for (int {stmt.VariableName} = ");
+        _sb.Append(GenerateGeometryExpression(stmt.Start, inputs, outputs));
+        _sb.Append($"; {stmt.VariableName} < ");
+        _sb.Append(GenerateGeometryExpression(stmt.End, inputs, outputs));
+        _sb.AppendLine($"; {stmt.VariableName}++) {{");
+
+        _indent++;
+        foreach (var s in stmt.Body)
+        {
+            GenerateGeometryStatement(s, inputs, outputs);
+        }
+        _indent--;
+
+        AppendLine("}");
+    }
+
+    private string GenerateGeometryExpression(Expression expr, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        return expr switch
+        {
+            IntLiteralExpression intLit => intLit.Value.ToString(),
+            FloatLiteralExpression floatLit => FormatFloat(floatLit.Value),
+            BoolLiteralExpression boolLit => boolLit.Value ? "true" : "false",
+
+            IdentifierExpression id => TransformGeometryIdentifier(id.Name, inputs, outputs),
+
+            MemberAccessExpression member => GenerateGeometryMemberAccess(member, inputs, outputs),
+
+            IndexExpression index => GenerateGeometryIndexExpression(index, inputs, outputs),
+
+            BinaryExpression binary => $"({GenerateGeometryExpression(binary.Left, inputs, outputs)} {GetBinaryOp(binary.Operator)} {GenerateGeometryExpression(binary.Right, inputs, outputs)})",
+
+            UnaryExpression unary => $"{GetUnaryOp(unary.Operator)}({GenerateGeometryExpression(unary.Operand, inputs, outputs)})",
+
+            CallExpression call => GenerateGeometryCall(call, inputs, outputs),
+
+            HasExpression => throw new NotSupportedException("'has' expression not supported in geometry shaders"),
+
+            ParenthesizedExpression paren => $"({GenerateGeometryExpression(paren.Inner, inputs, outputs)})",
+
+            _ => throw new NotSupportedException($"Expression type {expr.GetType().Name} not supported")
+        };
+    }
+
+    private static string TransformGeometryIdentifier(string name, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Check if it's an output variable - transform to gs_out.name
+        if (outputs.Any(o => o.Name == name))
+        {
+            return $"gs_out.{name}";
+        }
+
+        // Other identifiers remain as-is (inputs are accessed via array index)
+        return name;
+    }
+
+    private string GenerateGeometryMemberAccess(MemberAccessExpression member, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Check if the base is an output variable
+        if (member.Object is IdentifierExpression id && outputs.Any(o => o.Name == id.Name))
+        {
+            return $"gs_out.{id.Name}.{member.MemberName}";
+        }
+
+        return $"{GenerateGeometryExpression(member.Object, inputs, outputs)}.{member.MemberName}";
+    }
+
+    private string GenerateGeometryIndexExpression(IndexExpression index, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Handle special case: input array access like gs_in[i]
+        if (index.Array is IdentifierExpression id)
+        {
+            // Check if this is accessing an input attribute by name
+            if (inputs.Any(i => i.Name == id.Name))
+            {
+                // Transform input[i] -> gs_in[i].input
+                var indexStr = GenerateGeometryExpression(index.Index, inputs, outputs);
+                return $"gs_in[{indexStr}].{id.Name}";
+            }
+
+            // Check if accessing the special "vertices" identifier (alias for gs_in)
+            if (id.Name == "vertices")
+            {
+                var indexStr = GenerateGeometryExpression(index.Index, inputs, outputs);
+                return $"gs_in[{indexStr}]";
+            }
+        }
+
+        // Regular array access
+        var array = GenerateGeometryExpression(index.Array, inputs, outputs);
+        var idx = GenerateGeometryExpression(index.Index, inputs, outputs);
+        return $"{array}[{idx}]";
+    }
+
+    private string GenerateGeometryCall(CallExpression call, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
+    {
+        // Handle sample() specially for GLSL
+        if (call.FunctionName == "sample" && call.Arguments.Count >= 3)
+        {
+            var texture = GenerateGeometryExpression(call.Arguments[0], inputs, outputs);
+            var uv = GenerateGeometryExpression(call.Arguments[2], inputs, outputs);
+            return $"texture({texture}, {uv})";
+        }
+
+        var funcName = MapFunctionName(call.FunctionName);
+        var args = string.Join(", ", call.Arguments.Select(a => GenerateGeometryExpression(a, inputs, outputs)));
+        return $"{funcName}({args})";
+    }
+
     private void GenerateVertexStatement(Statement stmt, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
     {
         switch (stmt)

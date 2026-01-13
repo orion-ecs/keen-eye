@@ -770,4 +770,356 @@ public class ParserTests
     }
 
     #endregion
+
+    #region Geometry Shader Tests
+
+    [Fact]
+    public void Parse_GeometryShader_ParsesLayoutBlock()
+    {
+        var source = @"
+            geometry WireframeExpander {
+                layout {
+                    input: triangles
+                    output: line_strip
+                    max_vertices: 6
+                }
+                in {
+                    position: float3
+                }
+                out {
+                    color: float4
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        Assert.Single(result.Declarations);
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.Equal("WireframeExpander", geometry.Name);
+
+        Assert.Equal(GeometryInputTopology.Triangles, geometry.Layout.InputTopology);
+        Assert.Equal(GeometryOutputTopology.LineStrip, geometry.Layout.OutputTopology);
+        Assert.Equal(6, geometry.Layout.MaxVertices);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_ParsesInputBlock()
+    {
+        var source = @"
+            geometry SimpleGeom {
+                layout {
+                    input: points
+                    output: triangle_strip
+                    max_vertices: 4
+                }
+                in {
+                    position: float3
+                    normal: float3
+                    texCoord: float2
+                }
+                out {
+                    color: float4
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.Equal(3, geometry.Inputs.Attributes.Count);
+        Assert.Equal("position", geometry.Inputs.Attributes[0].Name);
+        Assert.Equal("normal", geometry.Inputs.Attributes[1].Name);
+        Assert.Equal("texCoord", geometry.Inputs.Attributes[2].Name);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_ParsesOutputBlock()
+    {
+        var source = @"
+            geometry MultiOutput {
+                layout {
+                    input: lines
+                    output: line_strip
+                    max_vertices: 2
+                }
+                in {
+                    position: float3
+                }
+                out {
+                    worldPos: float3
+                    worldNormal: float3
+                    color: float4
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.Equal(3, geometry.Outputs.Attributes.Count);
+        Assert.Equal("worldPos", geometry.Outputs.Attributes[0].Name);
+        Assert.Equal("worldNormal", geometry.Outputs.Attributes[1].Name);
+        Assert.Equal("color", geometry.Outputs.Attributes[2].Name);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_ParsesParamsBlock()
+    {
+        var source = @"
+            geometry ParamGeom {
+                layout {
+                    input: triangles
+                    output: triangle_strip
+                    max_vertices: 3
+                }
+                in {
+                    position: float3
+                }
+                out {
+                    outPos: float3
+                }
+                params {
+                    wireColor: float4
+                    wireWidth: float
+                }
+                execute() {
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.NotNull(geometry.Params);
+        Assert.Equal(2, geometry.Params.Parameters.Count);
+        Assert.Equal("wireColor", geometry.Params.Parameters[0].Name);
+        Assert.Equal("wireWidth", geometry.Params.Parameters[1].Name);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_AllInputTopologies()
+    {
+        var topologies = new[]
+        {
+            ("points", GeometryInputTopology.Points),
+            ("lines", GeometryInputTopology.Lines),
+            ("lines_adjacency", GeometryInputTopology.LinesAdjacency),
+            ("triangles", GeometryInputTopology.Triangles),
+            ("triangles_adjacency", GeometryInputTopology.TrianglesAdjacency)
+        };
+
+        foreach (var (name, expected) in topologies)
+        {
+            var source = $@"
+                geometry Test {{
+                    layout {{
+                        input: {name}
+                        output: points
+                        max_vertices: 1
+                    }}
+                    in {{ position: float3 }}
+                    out {{ color: float4 }}
+                    execute() {{}}
+                }}
+            ";
+            var result = Parse(source);
+            var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+            Assert.Equal(expected, geometry.Layout.InputTopology);
+        }
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_AllOutputTopologies()
+    {
+        var topologies = new[]
+        {
+            ("points", GeometryOutputTopology.Points),
+            ("line_strip", GeometryOutputTopology.LineStrip),
+            ("triangle_strip", GeometryOutputTopology.TriangleStrip)
+        };
+
+        foreach (var (name, expected) in topologies)
+        {
+            var source = $@"
+                geometry Test {{
+                    layout {{
+                        input: triangles
+                        output: {name}
+                        max_vertices: 1
+                    }}
+                    in {{ position: float3 }}
+                    out {{ color: float4 }}
+                    execute() {{}}
+                }}
+            ";
+            var result = Parse(source);
+            var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+            Assert.Equal(expected, geometry.Layout.OutputTopology);
+        }
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_EmitStatement()
+    {
+        var source = @"
+            geometry EmitTest {
+                layout {
+                    input: triangles
+                    output: triangle_strip
+                    max_vertices: 3
+                }
+                in {
+                    position: float3
+                }
+                out {
+                    outPos: float3
+                }
+                execute() {
+                    emit(position);
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.Single(geometry.Execute.Body);
+        var emitStmt = Assert.IsType<EmitStatement>(geometry.Execute.Body[0]);
+        Assert.IsType<IdentifierExpression>(emitStmt.Position);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_EndPrimitiveStatement()
+    {
+        var source = @"
+            geometry EndPrimTest {
+                layout {
+                    input: triangles
+                    output: line_strip
+                    max_vertices: 6
+                }
+                in {
+                    position: float3
+                }
+                out {
+                    outPos: float3
+                }
+                execute() {
+                    emit(position);
+                    endPrimitive();
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.Equal(2, geometry.Execute.Body.Count);
+        Assert.IsType<EmitStatement>(geometry.Execute.Body[0]);
+        Assert.IsType<EndPrimitiveStatement>(geometry.Execute.Body[1]);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_ArrayIndexExpression()
+    {
+        var source = @"
+            geometry IndexTest {
+                layout {
+                    input: triangles
+                    output: triangle_strip
+                    max_vertices: 3
+                }
+                in {
+                    position: float3
+                }
+                out {
+                    outPos: float3
+                }
+                execute() {
+                    outPos = vertices[0].position;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        var assignStmt = Assert.IsType<AssignmentStatement>(geometry.Execute.Body[0]);
+        var memberAccess = Assert.IsType<MemberAccessExpression>(assignStmt.Value);
+        var indexExpr = Assert.IsType<IndexExpression>(memberAccess.Object);
+        Assert.IsType<IdentifierExpression>(indexExpr.Array);
+        Assert.IsType<IntLiteralExpression>(indexExpr.Index);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_ForLoopWithArrayAccess()
+    {
+        var source = @"
+            geometry LoopTest {
+                layout {
+                    input: triangles
+                    output: line_strip
+                    max_vertices: 6
+                }
+                in {
+                    position: float3
+                }
+                out {
+                    outPos: float3
+                }
+                execute() {
+                    for (i: 0..3) {
+                        emit(vertices[i].position);
+                    }
+                    endPrimitive();
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.Equal(2, geometry.Execute.Body.Count);
+        var forStmt = Assert.IsType<ForStatement>(geometry.Execute.Body[0]);
+        Assert.Equal("i", forStmt.VariableName);
+        Assert.Single(forStmt.Body);
+    }
+
+    [Fact]
+    public void Parse_GeometryShader_WithTexturesAndSamplers()
+    {
+        var source = @"
+            geometry TexturedGeom {
+                layout {
+                    input: triangles
+                    output: triangle_strip
+                    max_vertices: 3
+                }
+                in {
+                    position: float3
+                    uv: float2
+                }
+                out {
+                    outPos: float3
+                }
+                textures {
+                    heightMap: texture2D @ 0
+                }
+                samplers {
+                    linearSampler: sampler @ 0
+                }
+                execute() {
+                    outPos = position;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var geometry = Assert.IsType<GeometryDeclaration>(result.Declarations[0]);
+        Assert.NotNull(geometry.Textures);
+        Assert.NotNull(geometry.Samplers);
+        Assert.Single(geometry.Textures.Textures);
+        Assert.Single(geometry.Samplers.Samplers);
+    }
+
+    #endregion
 }
