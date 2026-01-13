@@ -353,6 +353,8 @@ public void Update_WhenDisabled_SkipsExecution() { }
 
 ## Next Steps
 
+- [TestBridge Architecture Guide](testbridge.md) - TestBridge for external tool integration and automated testing
+- [MCP Server Quick Start](mcp-server.md) - MCP server for AI tool integration
 - [Plugins Guide](plugins.md) - Plugin architecture and capabilities
 - [Systems Guide](systems.md) - System design patterns
 - [Events Guide](events.md) - Testing event handlers

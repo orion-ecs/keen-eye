@@ -176,6 +176,11 @@ using var world = new WorldBuilder()
 - [Logging](logging.md) - Pluggable logging system
 - [AI System](ai.md) - Finite State Machines, Behavior Trees, and Utility AI
 
+### Testing & Tooling
+- [Testing Guide](testing.md) - Unit testing with mocks
+- [TestBridge Architecture](testbridge.md) - External tool integration, IPC protocol, command reference
+- [MCP Server](mcp-server.md) - AI tool integration via Model Context Protocol
+
 ### UI Features
 - [UI System](ui.md) - Retained-mode UI with ECS entities
 - Widget Factory - Pre-built widgets (buttons, panels, sliders, etc.)

@@ -2,6 +2,8 @@
 
 Bridge LLM clients to running KeenEyes games via the Model Context Protocol (MCP).
 
+> **Full Documentation:** For complete architecture details, IPC protocol specification, and command reference, see [TestBridge Architecture Guide](testbridge.md).
+
 ## What is This?
 
 The MCP TestBridge Server enables AI assistants (Claude, GPT, etc.) to:
@@ -400,10 +402,11 @@ world.InstallPlugin(new TestBridgePlugin(new TestBridgeOptions
 }));
 ```
 
-See [TestBridge Guide](testing.md) for detailed setup instructions.
+See [TestBridge Architecture Guide](testbridge.md) for detailed setup instructions.
 
 ## Related Documentation
 
-- [TestBridge Guide](testing.md) - Setting up TestBridge in your game
+- [TestBridge Architecture Guide](testbridge.md) - Complete architecture, IPC protocol, command reference
+- [Testing Guide](testing.md) - Unit testing with mocks
 - [ECS Fundamentals](getting-started.md) - Understanding entities and components
 - [Plugin Development](plugins.md) - Creating custom game plugins
