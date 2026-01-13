@@ -19,11 +19,11 @@ namespace KeenEyes.Generators;
 /// </listheader>
 /// <item>
 /// <term>KEEN001-KEEN009</term>
-/// <description>System ordering and execution (SystemOrderingAnalyzer, PluginExtensionGenerator)</description>
+/// <description>System ordering and execution (SystemOrderingAnalyzer, PluginExtensionGenerator, AttributeUsageAnalyzer)</description>
 /// </item>
 /// <item>
 /// <term>KEEN010-KEEN019</term>
-/// <description>Component validation constraints (ComponentValidationAnalyzer)</description>
+/// <description>Component validation constraints (ComponentValidationAnalyzer, AttributeUsageAnalyzer)</description>
 /// </item>
 /// <item>
 /// <term>KEEN020-KEEN025</term>
@@ -43,7 +43,7 @@ namespace KeenEyes.Generators;
 /// </item>
 /// <item>
 /// <term>KEEN050-KEEN059</term>
-/// <description>Query validation (IWorldCastAnalyzer, QueryGenerator)</description>
+/// <description>Query validation (IWorldCastAnalyzer, QueryGenerator, AttributeUsageAnalyzer)</description>
 /// </item>
 /// <item>
 /// <term>KEEN060-KEEN069</term>

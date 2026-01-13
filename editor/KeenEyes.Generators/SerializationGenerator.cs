@@ -101,7 +101,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 continue;
             }
 
-            var isNullable = field.Type.NullableAnnotation == NullableAnnotation.Annotated;
+            var isNullable = IsNullableType(field.Type);
 
             // Extract [DefaultValue] attribute if present
             string? defaultValueLiteral = null;
@@ -182,6 +182,27 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "string" or "System.String" => "String",
             _ => "Object" // For complex types, use generic deserialization
         };
+    }
+
+    /// <summary>
+    /// Checks if a type is nullable (either nullable reference type or Nullable&lt;T&gt; value type).
+    /// </summary>
+    private static bool IsNullableType(ITypeSymbol type)
+    {
+        // Check for nullable reference types (string?)
+        if (type.NullableAnnotation == NullableAnnotation.Annotated)
+        {
+            return true;
+        }
+
+        // Check for Nullable<T> value types (int?)
+        if (type is INamedTypeSymbol namedType &&
+            namedType.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static string? GetCSharpLiteral(object? value, ITypeSymbol targetType)
