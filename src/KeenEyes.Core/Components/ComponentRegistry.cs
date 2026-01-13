@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using KeenEyes.Capabilities;
 
@@ -202,5 +203,52 @@ public sealed class ComponentRegistry : IComponentRegistry
             }
             return all[index];
         }
+    }
+
+    /// <summary>
+    /// Gets the component info by type name (short name or full name).
+    /// </summary>
+    /// <param name="name">The component type name (e.g., "Position" or "MyGame.Components.Position").</param>
+    /// <returns>The component info, or null if no component with that name is registered.</returns>
+    /// <remarks>
+    /// <para>
+    /// This method performs a case-insensitive search, first matching against the type's
+    /// short name (e.g., "Position"), then against the full name (e.g., "MyGame.Components.Position").
+    /// </para>
+    /// <para>
+    /// This is useful for runtime tooling, debugging, and MCP tools where component types
+    /// are specified by name rather than by generic type parameter.
+    /// </para>
+    /// </remarks>
+    public ComponentInfo? GetByName(string name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+
+        lock (syncRoot)
+        {
+            // Try exact match on short name first, then full name
+            foreach (var info in all)
+            {
+                if (string.Equals(info.Type.Name, name, StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(info.Type.FullName, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    return info;
+                }
+            }
+
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Tries to get the component info by type name.
+    /// </summary>
+    /// <param name="name">The component type name to look up.</param>
+    /// <param name="info">When this method returns, contains the component info if found; otherwise, null.</param>
+    /// <returns><c>true</c> if a component with the specified name was found; otherwise, <c>false</c>.</returns>
+    public bool TryGetByName(string name, [NotNullWhen(true)] out ComponentInfo? info)
+    {
+        info = GetByName(name);
+        return info != null;
     }
 }

@@ -8,6 +8,7 @@ using KeenEyes.TestBridge.Ipc;
 using KeenEyes.TestBridge.Ipc.Protocol;
 using KeenEyes.TestBridge.Ipc.Transport;
 using KeenEyes.TestBridge.Logging;
+using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
@@ -73,6 +74,7 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Window = new RemoteWindowController(this);
         Time = new RemoteTimeController(this);
         Systems = new RemoteSystemController(this);
+        Mutation = new RemoteMutationController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -109,6 +111,9 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public ISystemController Systems { get; }
+
+    /// <inheritdoc />
+    public IMutationController Mutation { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -424,6 +429,12 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         if (type == typeof(SystemSnapshot[]))
         {
             return (T?)(object?)element.Deserialize(IpcJsonContext.Default.SystemSnapshotArray);
+        }
+
+        // Mutation types
+        if (type == typeof(EntityResult))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.EntityResult);
         }
 
         // Fallback for unknown types - let the exception surface during development
