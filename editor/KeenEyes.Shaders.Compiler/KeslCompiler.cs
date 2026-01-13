@@ -1,4 +1,5 @@
 using KeenEyes.Shaders.Compiler.CodeGen;
+using KeenEyes.Shaders.Compiler.Diagnostics;
 using KeenEyes.Shaders.Compiler.Lexing;
 using KeenEyes.Shaders.Compiler.Parsing;
 using KeenEyes.Shaders.Compiler.Parsing.Ast;
@@ -23,7 +24,7 @@ public sealed class KeslCompiler
     /// <returns>The compilation result.</returns>
     public static CompilationResult Compile(string source, string filePath = "<input>")
     {
-        var errors = new List<CompilerError>();
+        var diagnostics = new List<Diagnostic>();
 
         // Lexing
         var lexer = new Lexer(source, filePath);
@@ -34,26 +35,31 @@ public sealed class KeslCompiler
         {
             if (token.Kind == TokenKind.Error)
             {
-                errors.Add(new CompilerError(token.Text, token.Location));
+                var span = SourceSpan.FromToken(token);
+                diagnostics.Add(Diagnostic.Error(
+                    KeslErrorCodes.UnexpectedCharacter,
+                    token.Text,
+                    span,
+                    filePath));
             }
         }
 
-        if (errors.Count > 0)
+        if (diagnostics.Count > 0)
         {
-            return new CompilationResult(null, errors);
+            return new CompilationResult(null, diagnostics);
         }
 
         // Parsing
-        var parser = new Parser(tokens);
+        var parser = new Parser(tokens, filePath);
         var sourceFile = parser.Parse();
-        errors.AddRange(parser.Errors);
+        diagnostics.AddRange(parser.Diagnostics);
 
-        if (errors.Count > 0)
+        if (diagnostics.Count > 0)
         {
-            return new CompilationResult(sourceFile, errors);
+            return new CompilationResult(sourceFile, diagnostics);
         }
 
-        return new CompilationResult(sourceFile, errors);
+        return new CompilationResult(sourceFile, diagnostics);
     }
 
     /// <summary>
@@ -298,7 +304,7 @@ public sealed class KeslCompiler
 
         if (result.HasErrors)
         {
-            return new CompilationOutput([], result.Errors);
+            return new CompilationOutput([], result.Diagnostics);
         }
 
         var outputs = new List<ShaderOutput>();
@@ -439,32 +445,32 @@ public sealed class KeslCompiler
 /// Result of parsing KESL source code.
 /// </summary>
 /// <param name="SourceFile">The parsed AST, or null if parsing failed.</param>
-/// <param name="Errors">Any errors encountered during compilation.</param>
+/// <param name="Diagnostics">Any diagnostics encountered during compilation.</param>
 public record CompilationResult(
     SourceFile? SourceFile,
-    IReadOnlyList<CompilerError> Errors
+    IReadOnlyList<Diagnostic> Diagnostics
 )
 {
     /// <summary>
     /// Gets whether the compilation had any errors.
     /// </summary>
-    public bool HasErrors => Errors.Count > 0;
+    public bool HasErrors => Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
 }
 
 /// <summary>
 /// Output from compiling and generating KESL code.
 /// </summary>
 /// <param name="Shaders">The generated shader outputs.</param>
-/// <param name="Errors">Any errors encountered during compilation.</param>
+/// <param name="Diagnostics">Any diagnostics encountered during compilation.</param>
 public record CompilationOutput(
     IReadOnlyList<ShaderOutput> Shaders,
-    IReadOnlyList<CompilerError> Errors
+    IReadOnlyList<Diagnostic> Diagnostics
 )
 {
     /// <summary>
     /// Gets whether the compilation had any errors.
     /// </summary>
-    public bool HasErrors => Errors.Count > 0;
+    public bool HasErrors => Diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error);
 }
 
 /// <summary>

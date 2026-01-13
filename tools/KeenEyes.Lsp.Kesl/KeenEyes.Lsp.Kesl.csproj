@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishAot>true</PublishAot>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>KeenEyes.Lsp.Kesl</AssemblyName>
+    <RootNamespace>KeenEyes.Lsp.Kesl</RootNamespace>
+    <Description>Language Server Protocol implementation for KESL (KeenEyes Shader Language)</Description>
+    <!-- LSP protocol types don't need XML documentation -->
+    <NoWarn>$(NoWarn);CS1591;S2094</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\editor\KeenEyes.Shaders.Compiler\KeenEyes.Shaders.Compiler.csproj" />
+  </ItemGroup>
+
+</Project>
