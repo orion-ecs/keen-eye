@@ -18,6 +18,7 @@ namespace KeenEyes.Assets;
 /// <item><description><see cref="Meshes"/> - All mesh geometry with submeshes</description></item>
 /// <item><description><see cref="Materials"/> - PBR material properties</description></item>
 /// <item><description><see cref="Textures"/> - Embedded or referenced texture data</description></item>
+/// <item><description><see cref="Skeleton"/> - Bone hierarchy for skinned mesh animation (optional)</description></item>
 /// </list>
 /// <para>
 /// Each <see cref="Submesh"/> in a mesh references a material by index into the
@@ -29,11 +30,13 @@ namespace KeenEyes.Assets;
 /// <param name="meshes">All meshes in the model.</param>
 /// <param name="materials">All materials in the model.</param>
 /// <param name="textures">All embedded/external texture data.</param>
+/// <param name="skeleton">Optional skeleton for skinned meshes.</param>
 public sealed class ModelAsset(
     string name,
     MeshAsset[] meshes,
     MaterialData[] materials,
-    TextureData[] textures) : IDisposable
+    TextureData[] textures,
+    SkeletonAsset? skeleton = null) : IDisposable
 {
     private bool disposed;
 
@@ -71,6 +74,27 @@ public sealed class ModelAsset(
     public TextureData[] Textures { get; } = textures;
 
     /// <summary>
+    /// Gets the skeleton for skinned mesh animation, if this model has one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The skeleton contains the bone hierarchy and inverse bind matrices needed
+    /// for GPU skinning. Models with skinned meshes (glTF meshes with joint/weight
+    /// attributes) will have a skeleton extracted from the glTF skin data.
+    /// </para>
+    /// <para>
+    /// Use <see cref="HasSkeleton"/> to check if a skeleton is available before
+    /// accessing animation features.
+    /// </para>
+    /// </remarks>
+    public SkeletonAsset? Skeleton { get; } = skeleton;
+
+    /// <summary>
+    /// Gets a value indicating whether this model has a skeleton for animation.
+    /// </summary>
+    public bool HasSkeleton => Skeleton is not null;
+
+    /// <summary>
     /// Gets the total size of all model data in bytes.
     /// </summary>
     /// <remarks>
@@ -95,6 +119,12 @@ public sealed class ModelAsset(
 
             // Materials are small records, estimate ~100 bytes each
             size += Materials.Length * 100;
+
+            // Include skeleton size if present
+            if (Skeleton is not null)
+            {
+                size += Skeleton.SizeBytes;
+            }
 
             return size;
         }
@@ -195,5 +225,7 @@ public sealed class ModelAsset(
         {
             texture.Dispose();
         }
+
+        Skeleton?.Dispose();
     }
 }
