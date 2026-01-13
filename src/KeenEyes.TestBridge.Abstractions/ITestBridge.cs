@@ -3,6 +3,7 @@ using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
 using KeenEyes.TestBridge.Logging;
+using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
@@ -88,6 +89,18 @@ public interface ITestBridge : IDisposable
     /// Gets the system controller for managing ECS systems.
     /// </summary>
     ISystemController Systems { get; }
+
+    /// <summary>
+    /// Gets the mutation controller for modifying world state at runtime.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The mutation controller enables runtime entity and component manipulation
+    /// for debugging, testing, and tooling scenarios. Use with caution as mutations
+    /// can affect game state.
+    /// </para>
+    /// </remarks>
+    IMutationController Mutation { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.
