@@ -123,6 +123,28 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
+    /// Generates GLSL code for a geometry shader.
+    /// </summary>
+    /// <param name="geometry">The geometry shader AST.</param>
+    /// <returns>The generated GLSL code.</returns>
+    public static string GenerateGlsl(GeometryDeclaration geometry)
+    {
+        var generator = new GlslGenerator();
+        return generator.Generate(geometry);
+    }
+
+    /// <summary>
+    /// Generates HLSL code for a geometry shader.
+    /// </summary>
+    /// <param name="geometry">The geometry shader AST.</param>
+    /// <returns>The generated HLSL code.</returns>
+    public static string GenerateHlsl(GeometryDeclaration geometry)
+    {
+        var generator = new HlslGenerator();
+        return generator.Generate(geometry);
+    }
+
+    /// <summary>
     /// Generates shader code using the specified backend.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
@@ -174,6 +196,23 @@ public sealed class KeslCompiler
     }
 
     /// <summary>
+    /// Generates shader code using the specified backend.
+    /// </summary>
+    /// <param name="geometry">The geometry shader AST.</param>
+    /// <param name="backend">The target shader backend.</param>
+    /// <returns>The generated shader code.</returns>
+    public static string GenerateShader(GeometryDeclaration geometry, ShaderBackend backend)
+    {
+        IShaderGenerator generator = backend switch
+        {
+            ShaderBackend.GLSL => new GlslGenerator(),
+            ShaderBackend.HLSL => new HlslGenerator(),
+            _ => throw new NotSupportedException($"Shader backend {backend} is not supported")
+        };
+        return generator.Generate(geometry);
+    }
+
+    /// <summary>
     /// Generates C# binding code for a compute shader.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
@@ -213,6 +252,20 @@ public sealed class KeslCompiler
             Namespace = Namespace
         };
         return generator.Generate(fragment);
+    }
+
+    /// <summary>
+    /// Generates C# binding code for a geometry shader.
+    /// </summary>
+    /// <param name="geometry">The geometry shader AST.</param>
+    /// <returns>The generated C# code.</returns>
+    public string GenerateCSharp(GeometryDeclaration geometry)
+    {
+        var generator = new CSharpBindingGenerator
+        {
+            Namespace = Namespace
+        };
+        return generator.Generate(geometry);
     }
 
     /// <summary>
@@ -272,6 +325,18 @@ public sealed class KeslCompiler
                         GenerateHlsl(fragment),
                         $"{fragment.Name}Shader.g.cs",
                         GenerateCSharp(fragment)
+                    ));
+                    break;
+
+                case GeometryDeclaration geometry:
+                    outputs.Add(new ShaderOutput(
+                        geometry.Name,
+                        $"{geometry.Name}.geom.glsl",
+                        GenerateGlsl(geometry),
+                        $"{geometry.Name}.geom.hlsl",
+                        GenerateHlsl(geometry),
+                        $"{geometry.Name}Shader.g.cs",
+                        GenerateCSharp(geometry)
                     ));
                     break;
             }

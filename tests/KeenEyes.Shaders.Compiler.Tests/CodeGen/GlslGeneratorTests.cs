@@ -651,6 +651,395 @@ public class GlslGeneratorTests
 
     #endregion
 
+    #region Geometry Shader Support
+
+    [Fact]
+    public void GenerateGeometryShader_ContainsVersionDirective()
+    {
+        var glsl = GenerateGeometryGlsl(SimpleGeometryShader);
+
+        Assert.Contains("#version 450", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_ContainsMainFunction()
+    {
+        var glsl = GenerateGeometryGlsl(SimpleGeometryShader);
+
+        Assert.Contains("void main()", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_ContainsInputLayout()
+    {
+        var glsl = GenerateGeometryGlsl(SimpleGeometryShader);
+
+        Assert.Contains("layout(triangles) in;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_ContainsOutputLayout()
+    {
+        var glsl = GenerateGeometryGlsl(SimpleGeometryShader);
+
+        Assert.Contains("layout(line_strip, max_vertices = 6) out;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_ContainsInputInterfaceBlock()
+    {
+        var glsl = GenerateGeometryGlsl(SimpleGeometryShader);
+
+        Assert.Contains("in VS_OUT {", glsl);
+        Assert.Contains("} gs_in[];", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_ContainsOutputInterfaceBlock()
+    {
+        var glsl = GenerateGeometryGlsl(SimpleGeometryShader);
+
+        Assert.Contains("out GS_OUT {", glsl);
+        Assert.Contains("} gs_out;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_EmitVertex_GeneratesEmitVertex()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderWithEmit);
+
+        Assert.Contains("EmitVertex();", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_EndPrimitive_GeneratesEndPrimitive()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderWithEndPrimitive);
+
+        Assert.Contains("EndPrimitive();", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_InputArrayAccess_TransformsToGsIn()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderWithArrayAccess);
+
+        Assert.Contains("gs_in[0].position", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_OutputAssignment_TransformsToGsOut()
+    {
+        var glsl = GenerateGeometryGlsl(SimpleGeometryShader);
+
+        Assert.Contains("gs_out.color", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_PointsInput_GeneratesCorrectLayout()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderPointsInput);
+
+        Assert.Contains("layout(points) in;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_LinesInput_GeneratesCorrectLayout()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderLinesInput);
+
+        Assert.Contains("layout(lines) in;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_LinesAdjacencyInput_GeneratesCorrectLayout()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderLinesAdjacencyInput);
+
+        Assert.Contains("layout(lines_adjacency) in;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_TrianglesAdjacencyInput_GeneratesCorrectLayout()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderTrianglesAdjacencyInput);
+
+        Assert.Contains("layout(triangles_adjacency) in;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_PointsOutput_GeneratesCorrectLayout()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderPointsOutput);
+
+        Assert.Contains("layout(points, max_vertices = 1) out;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_TriangleStripOutput_GeneratesCorrectLayout()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderTriangleStripOutput);
+
+        Assert.Contains("layout(triangle_strip, max_vertices = 3) out;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_WithParams_GeneratesUniforms()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderWithParams);
+
+        Assert.Contains("uniform vec4 wireColor;", glsl);
+    }
+
+    [Fact]
+    public void GenerateGeometryShader_ForLoop_GeneratesCorrectly()
+    {
+        var glsl = GenerateGeometryGlsl(GeometryShaderWithForLoop);
+
+        Assert.Contains("for (int i = 0; i < 3; i++)", glsl);
+    }
+
+    #endregion
+
+    #region Geometry Shader Test Sources
+
+    private const string SimpleGeometryShader = @"
+        geometry WireframeExpander {
+            layout {
+                input: triangles
+                output: line_strip
+                max_vertices: 6
+            }
+            in {
+                position: float3
+            }
+            out {
+                color: float4
+            }
+            execute() {
+                color = position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderWithEmit = @"
+        geometry EmitTest {
+            layout {
+                input: triangles
+                output: triangle_strip
+                max_vertices: 3
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                emit(position);
+            }
+        }
+    ";
+
+    private const string GeometryShaderWithEndPrimitive = @"
+        geometry EndPrimTest {
+            layout {
+                input: triangles
+                output: line_strip
+                max_vertices: 6
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                emit(position);
+                endPrimitive();
+            }
+        }
+    ";
+
+    private const string GeometryShaderWithArrayAccess = @"
+        geometry ArrayAccessTest {
+            layout {
+                input: triangles
+                output: triangle_strip
+                max_vertices: 3
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = vertices[0].position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderPointsInput = @"
+        geometry PointsInputTest {
+            layout {
+                input: points
+                output: points
+                max_vertices: 1
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderLinesInput = @"
+        geometry LinesInputTest {
+            layout {
+                input: lines
+                output: line_strip
+                max_vertices: 2
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderLinesAdjacencyInput = @"
+        geometry LinesAdjInputTest {
+            layout {
+                input: lines_adjacency
+                output: line_strip
+                max_vertices: 4
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderTrianglesAdjacencyInput = @"
+        geometry TrianglesAdjInputTest {
+            layout {
+                input: triangles_adjacency
+                output: triangle_strip
+                max_vertices: 6
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderPointsOutput = @"
+        geometry PointsOutputTest {
+            layout {
+                input: triangles
+                output: points
+                max_vertices: 1
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderTriangleStripOutput = @"
+        geometry TriangleStripOutputTest {
+            layout {
+                input: triangles
+                output: triangle_strip
+                max_vertices: 3
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
+
+    private const string GeometryShaderWithParams = @"
+        geometry ParamsTest {
+            layout {
+                input: triangles
+                output: line_strip
+                max_vertices: 6
+            }
+            in {
+                position: float3
+            }
+            out {
+                color: float4
+            }
+            params {
+                wireColor: float4
+            }
+            execute() {
+                color = wireColor;
+            }
+        }
+    ";
+
+    private const string GeometryShaderWithForLoop = @"
+        geometry ForLoopTest {
+            layout {
+                input: triangles
+                output: line_strip
+                max_vertices: 6
+            }
+            in {
+                position: float3
+            }
+            out {
+                outPos: float3
+            }
+            execute() {
+                for (i: 0..3) {
+                    emit(vertices[i].position);
+                }
+                endPrimitive();
+            }
+        }
+    ";
+
+    #endregion
+
     #region Helper Methods
 
     private static string GenerateVertexGlsl(string source)
@@ -669,6 +1058,15 @@ public class GlslGeneratorTests
 
         var fragment = result.SourceFile!.Declarations.OfType<FragmentDeclaration>().First();
         return KeslCompiler.GenerateGlsl(fragment);
+    }
+
+    private static string GenerateGeometryGlsl(string source)
+    {
+        var result = KeslCompiler.Compile(source);
+        Assert.False(result.HasErrors, $"Compilation errors: {string.Join(", ", result.Errors.Select(e => e.Message))}");
+
+        var geometry = result.SourceFile!.Declarations.OfType<GeometryDeclaration>().First();
+        return KeslCompiler.GenerateGlsl(geometry);
     }
 
     #endregion

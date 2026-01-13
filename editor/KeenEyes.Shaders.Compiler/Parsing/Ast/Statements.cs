@@ -77,3 +77,14 @@ public record ForStatement(
 /// </summary>
 /// <param name="Statements">The statements in the block.</param>
 public record BlockStatement(IReadOnlyList<Statement> Statements, SourceLocation Location) : Statement(Location);
+
+/// <summary>
+/// An emit statement in a geometry shader that outputs a vertex.
+/// </summary>
+/// <param name="Position">The position expression for the emitted vertex.</param>
+public record EmitStatement(Expression Position, SourceLocation Location) : Statement(Location);
+
+/// <summary>
+/// An end primitive statement in a geometry shader that completes the current primitive.
+/// </summary>
+public record EndPrimitiveStatement(SourceLocation Location) : Statement(Location);

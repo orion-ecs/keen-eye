@@ -24,6 +24,14 @@ public enum TokenKind
     Geometry,
     Pipeline,
 
+    // Keywords - Geometry shader
+    Layout,
+    Input,
+    Output,
+    MaxVertices,
+    Emit,
+    EndPrimitive,
+
     // Keywords - Texture/Sampler blocks
     Textures,
     Samplers,

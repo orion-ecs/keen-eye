@@ -253,3 +253,69 @@ public record TextureType(TextureKind Kind, SourceLocation Location) : TypeRef(L
 /// A sampler type reference.
 /// </summary>
 public record SamplerType(SourceLocation Location) : TypeRef(Location);
+
+/// <summary>
+/// A geometry shader declaration.
+/// </summary>
+/// <param name="Name">The shader name.</param>
+/// <param name="Layout">The layout block specifying input/output topology and max vertices.</param>
+/// <param name="Inputs">The input attributes block.</param>
+/// <param name="Outputs">The output attributes block.</param>
+/// <param name="Textures">Optional textures block.</param>
+/// <param name="Samplers">Optional samplers block.</param>
+/// <param name="Params">Optional parameters block.</param>
+/// <param name="Execute">The execute block containing shader logic.</param>
+public record GeometryDeclaration(
+    string Name,
+    GeometryLayoutBlock Layout,
+    InputBlock Inputs,
+    OutputBlock Outputs,
+    TexturesBlock? Textures,
+    SamplersBlock? Samplers,
+    ParamsBlock? Params,
+    ExecuteBlock Execute,
+    SourceLocation Location
+) : Declaration(Location);
+
+/// <summary>
+/// Represents the layout block of a geometry shader.
+/// </summary>
+/// <param name="InputTopology">The input primitive topology.</param>
+/// <param name="OutputTopology">The output primitive topology.</param>
+/// <param name="MaxVertices">The maximum number of vertices emitted.</param>
+public record GeometryLayoutBlock(
+    GeometryInputTopology InputTopology,
+    GeometryOutputTopology OutputTopology,
+    int MaxVertices,
+    SourceLocation Location
+) : AstNode(Location);
+
+/// <summary>
+/// The input primitive topology types for geometry shaders.
+/// </summary>
+public enum GeometryInputTopology
+{
+    /// <summary>Individual points.</summary>
+    Points,
+    /// <summary>Line segments (2 vertices per primitive).</summary>
+    Lines,
+    /// <summary>Line segments with adjacency (4 vertices per primitive).</summary>
+    LinesAdjacency,
+    /// <summary>Triangles (3 vertices per primitive).</summary>
+    Triangles,
+    /// <summary>Triangles with adjacency (6 vertices per primitive).</summary>
+    TrianglesAdjacency
+}
+
+/// <summary>
+/// The output primitive topology types for geometry shaders.
+/// </summary>
+public enum GeometryOutputTopology
+{
+    /// <summary>Emit individual points.</summary>
+    Points,
+    /// <summary>Emit connected lines.</summary>
+    LineStrip,
+    /// <summary>Emit connected triangles.</summary>
+    TriangleStrip
+}

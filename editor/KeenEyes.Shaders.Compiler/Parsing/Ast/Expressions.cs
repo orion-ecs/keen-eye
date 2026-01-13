@@ -73,6 +73,13 @@ public record HasExpression(string ComponentName, SourceLocation Location) : Exp
 public record ParenthesizedExpression(Expression Inner, SourceLocation Location) : Expression(Location);
 
 /// <summary>
+/// An array index expression (e.g., vertices[i]).
+/// </summary>
+/// <param name="Array">The array expression to index.</param>
+/// <param name="Index">The index expression.</param>
+public record IndexExpression(Expression Array, Expression Index, SourceLocation Location) : Expression(Location);
+
+/// <summary>
 /// The binary operators.
 /// </summary>
 public enum BinaryOperator

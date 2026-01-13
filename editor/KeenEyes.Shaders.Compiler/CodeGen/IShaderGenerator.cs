@@ -34,6 +34,13 @@ public interface IShaderGenerator
     string Generate(FragmentDeclaration fragment);
 
     /// <summary>
+    /// Generates shader code for a geometry shader declaration.
+    /// </summary>
+    /// <param name="geometry">The geometry shader AST.</param>
+    /// <returns>The generated shader source code.</returns>
+    string Generate(GeometryDeclaration geometry);
+
+    /// <summary>
     /// Gets the file extension for this shader language (without the dot).
     /// </summary>
     string FileExtension { get; }
