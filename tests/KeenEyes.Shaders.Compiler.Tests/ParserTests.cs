@@ -503,6 +503,221 @@ public class ParserTests
 
     #endregion
 
+    #region Texture and Sampler Tests
+
+    [Fact]
+    public void Parse_FragmentShader_WithTexturesBlock()
+    {
+        var source = @"
+            fragment TexturedSurface {
+                in {
+                    uv: float2
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                textures {
+                    diffuseMap: texture2D @ 0
+                    normalMap: texture2D @ 1
+                }
+                execute() {
+                    fragColor = uv;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        Assert.NotNull(fragment.Textures);
+        Assert.Equal(2, fragment.Textures.Textures.Count);
+
+        Assert.Equal("diffuseMap", fragment.Textures.Textures[0].Name);
+        Assert.Equal(TextureKind.Texture2D, fragment.Textures.Textures[0].TextureKind);
+        Assert.Equal(0, fragment.Textures.Textures[0].BindingSlot);
+
+        Assert.Equal("normalMap", fragment.Textures.Textures[1].Name);
+        Assert.Equal(TextureKind.Texture2D, fragment.Textures.Textures[1].TextureKind);
+        Assert.Equal(1, fragment.Textures.Textures[1].BindingSlot);
+    }
+
+    [Fact]
+    public void Parse_FragmentShader_WithSamplersBlock()
+    {
+        var source = @"
+            fragment SampledSurface {
+                in {
+                    uv: float2
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                samplers {
+                    linearSampler: sampler @ 0
+                    pointSampler: sampler @ 1
+                }
+                execute() {
+                    fragColor = uv;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        Assert.NotNull(fragment.Samplers);
+        Assert.Equal(2, fragment.Samplers.Samplers.Count);
+
+        Assert.Equal("linearSampler", fragment.Samplers.Samplers[0].Name);
+        Assert.Equal(0, fragment.Samplers.Samplers[0].BindingSlot);
+
+        Assert.Equal("pointSampler", fragment.Samplers.Samplers[1].Name);
+        Assert.Equal(1, fragment.Samplers.Samplers[1].BindingSlot);
+    }
+
+    [Fact]
+    public void Parse_FragmentShader_WithTexturesAndSamplers()
+    {
+        var source = @"
+            fragment FullTexturedSurface {
+                in {
+                    uv: float2
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                textures {
+                    diffuseMap: texture2D @ 0
+                }
+                samplers {
+                    linearSampler: sampler @ 0
+                }
+                execute() {
+                    fragColor = sample(diffuseMap, linearSampler, uv);
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        Assert.NotNull(fragment.Textures);
+        Assert.NotNull(fragment.Samplers);
+        Assert.Single(fragment.Textures.Textures);
+        Assert.Single(fragment.Samplers.Samplers);
+    }
+
+    [Fact]
+    public void Parse_VertexShader_WithTexturesBlock()
+    {
+        var source = @"
+            vertex DisplacementVertex {
+                in {
+                    position: float3 @ 0
+                    uv: float2 @ 1
+                }
+                out {
+                    outPos: float3
+                }
+                textures {
+                    heightMap: texture2D @ 0
+                }
+                execute() {
+                    outPos = position;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var vertex = Assert.IsType<VertexDeclaration>(result.Declarations[0]);
+        Assert.NotNull(vertex.Textures);
+        Assert.Single(vertex.Textures.Textures);
+        Assert.Equal("heightMap", vertex.Textures.Textures[0].Name);
+    }
+
+    [Fact]
+    public void Parse_TextureCubeType_ParsesCorrectly()
+    {
+        var source = @"
+            fragment SkyboxFragment {
+                in {
+                    direction: float3
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                textures {
+                    skybox: textureCube @ 0
+                }
+                execute() {
+                    fragColor = direction;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        Assert.NotNull(fragment.Textures);
+        Assert.Equal(TextureKind.TextureCube, fragment.Textures.Textures[0].TextureKind);
+    }
+
+    [Fact]
+    public void Parse_Texture3DType_ParsesCorrectly()
+    {
+        var source = @"
+            fragment VolumeFragment {
+                in {
+                    uvw: float3
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                textures {
+                    volumeMap: texture3D @ 0
+                }
+                execute() {
+                    fragColor = uvw;
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        Assert.NotNull(fragment.Textures);
+        Assert.Equal(TextureKind.Texture3D, fragment.Textures.Textures[0].TextureKind);
+    }
+
+    [Fact]
+    public void Parse_SampleFunctionCall_ParsesCorrectly()
+    {
+        var source = @"
+            fragment TexturedFragment {
+                in {
+                    uv: float2
+                }
+                out {
+                    fragColor: float4 @ 0
+                }
+                textures {
+                    diffuseMap: texture2D @ 0
+                }
+                samplers {
+                    linearSampler: sampler @ 0
+                }
+                execute() {
+                    fragColor = sample(diffuseMap, linearSampler, uv);
+                }
+            }
+        ";
+        var result = Parse(source);
+
+        var fragment = Assert.IsType<FragmentDeclaration>(result.Declarations[0]);
+        var assignStmt = Assert.IsType<AssignmentStatement>(fragment.Execute.Body[0]);
+        var call = Assert.IsType<CallExpression>(assignStmt.Value);
+
+        Assert.Equal("sample", call.FunctionName);
+        Assert.Equal(3, call.Arguments.Count);
+    }
+
+    #endregion
+
     #region Mixed Declarations Tests
 
     [Fact]

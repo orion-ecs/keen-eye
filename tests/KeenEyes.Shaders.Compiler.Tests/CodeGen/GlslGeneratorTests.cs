@@ -296,7 +296,143 @@ public class GlslGeneratorTests
 
     #endregion
 
+    #region Texture and Sampler Support
+
+    [Fact]
+    public void GenerateFragmentShader_WithTextures_GeneratesSampler2DUniforms()
+    {
+        var glsl = GenerateFragmentGlsl(FragmentShaderWithTextures);
+
+        Assert.Contains("layout(binding = 0) uniform sampler2D diffuseMap;", glsl);
+        Assert.Contains("layout(binding = 1) uniform sampler2D normalMap;", glsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_WithTextureCube_GeneratesSamplerCubeUniform()
+    {
+        var glsl = GenerateFragmentGlsl(FragmentShaderWithTextureCube);
+
+        Assert.Contains("layout(binding = 0) uniform samplerCube skybox;", glsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_WithTexture3D_GeneratesSampler3DUniform()
+    {
+        var glsl = GenerateFragmentGlsl(FragmentShaderWithTexture3D);
+
+        Assert.Contains("layout(binding = 0) uniform sampler3D volumeMap;", glsl);
+    }
+
+    [Fact]
+    public void GenerateFragmentShader_SampleFunction_MapsToTexture()
+    {
+        var glsl = GenerateFragmentGlsl(FragmentShaderWithSample);
+
+        // In GLSL, sample() becomes texture() and only takes (sampler2d, uv) since they're combined
+        Assert.Contains("texture(diffuseMap, fs_in.uv)", glsl);
+    }
+
+    [Fact]
+    public void GenerateVertexShader_WithTextures_GeneratesUniform()
+    {
+        var glsl = GenerateVertexGlsl(VertexShaderWithTextures);
+
+        Assert.Contains("layout(binding = 0) uniform sampler2D heightMap;", glsl);
+    }
+
+    #endregion
+
     #region Test Shader Sources
+
+    private const string FragmentShaderWithTextures = @"
+        fragment TexturedSurface {
+            in {
+                uv: float2
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            textures {
+                diffuseMap: texture2D @ 0
+                normalMap: texture2D @ 1
+            }
+            execute() {
+                fragColor = uv;
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithTextureCube = @"
+        fragment SkyboxSurface {
+            in {
+                direction: float3
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            textures {
+                skybox: textureCube @ 0
+            }
+            execute() {
+                fragColor = direction;
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithTexture3D = @"
+        fragment VolumeSurface {
+            in {
+                uvw: float3
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            textures {
+                volumeMap: texture3D @ 0
+            }
+            execute() {
+                fragColor = uvw;
+            }
+        }
+    ";
+
+    private const string FragmentShaderWithSample = @"
+        fragment SampledSurface {
+            in {
+                uv: float2
+            }
+            out {
+                fragColor: float4 @ 0
+            }
+            textures {
+                diffuseMap: texture2D @ 0
+            }
+            samplers {
+                linearSampler: sampler @ 0
+            }
+            execute() {
+                fragColor = sample(diffuseMap, linearSampler, uv);
+            }
+        }
+    ";
+
+    private const string VertexShaderWithTextures = @"
+        vertex DisplacementVertex {
+            in {
+                position: float3 @ 0
+                uv: float2 @ 1
+            }
+            out {
+                outPos: float3
+            }
+            textures {
+                heightMap: texture2D @ 0
+            }
+            execute() {
+                outPos = position;
+            }
+        }
+    ";
 
     private const string SimpleVertexShader = @"
         vertex SimpleVertex {

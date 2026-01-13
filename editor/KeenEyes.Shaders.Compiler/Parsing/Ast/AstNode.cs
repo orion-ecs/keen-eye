@@ -57,12 +57,16 @@ public record ComputeDeclaration(
 /// <param name="Name">The shader name.</param>
 /// <param name="Inputs">The input attributes block.</param>
 /// <param name="Outputs">The output attributes block.</param>
+/// <param name="Textures">Optional textures block.</param>
+/// <param name="Samplers">Optional samplers block.</param>
 /// <param name="Params">Optional parameters block.</param>
 /// <param name="Execute">The execute block containing shader logic.</param>
 public record VertexDeclaration(
     string Name,
     InputBlock Inputs,
     OutputBlock Outputs,
+    TexturesBlock? Textures,
+    SamplersBlock? Samplers,
     ParamsBlock? Params,
     ExecuteBlock Execute,
     SourceLocation Location
@@ -74,12 +78,16 @@ public record VertexDeclaration(
 /// <param name="Name">The shader name.</param>
 /// <param name="Inputs">The input attributes block.</param>
 /// <param name="Outputs">The output attributes block.</param>
+/// <param name="Textures">Optional textures block.</param>
+/// <param name="Samplers">Optional samplers block.</param>
 /// <param name="Params">Optional parameters block.</param>
 /// <param name="Execute">The execute block containing shader logic.</param>
 public record FragmentDeclaration(
     string Name,
     InputBlock Inputs,
     OutputBlock Outputs,
+    TexturesBlock? Textures,
+    SamplersBlock? Samplers,
     ParamsBlock? Params,
     ExecuteBlock Execute,
     SourceLocation Location
@@ -185,3 +193,63 @@ public enum PrimitiveTypeKind
     Bool,
     Mat4
 }
+
+/// <summary>
+/// Represents the textures block of a vertex or fragment shader.
+/// </summary>
+/// <param name="Textures">The texture declarations.</param>
+public record TexturesBlock(IReadOnlyList<TextureDeclaration> Textures, SourceLocation Location) : AstNode(Location);
+
+/// <summary>
+/// A single texture declaration with binding slot.
+/// </summary>
+/// <param name="Name">The texture name.</param>
+/// <param name="TextureKind">The texture type (2D, Cube, 3D).</param>
+/// <param name="BindingSlot">The binding slot index.</param>
+public record TextureDeclaration(
+    string Name,
+    TextureKind TextureKind,
+    int BindingSlot,
+    SourceLocation Location
+) : AstNode(Location);
+
+/// <summary>
+/// The kinds of texture types in KESL.
+/// </summary>
+public enum TextureKind
+{
+    /// <summary>2D texture.</summary>
+    Texture2D,
+    /// <summary>Cube map texture.</summary>
+    TextureCube,
+    /// <summary>3D volume texture.</summary>
+    Texture3D
+}
+
+/// <summary>
+/// Represents the samplers block of a vertex or fragment shader.
+/// </summary>
+/// <param name="Samplers">The sampler declarations.</param>
+public record SamplersBlock(IReadOnlyList<SamplerDeclaration> Samplers, SourceLocation Location) : AstNode(Location);
+
+/// <summary>
+/// A single sampler declaration with binding slot.
+/// </summary>
+/// <param name="Name">The sampler name.</param>
+/// <param name="BindingSlot">The binding slot index.</param>
+public record SamplerDeclaration(
+    string Name,
+    int BindingSlot,
+    SourceLocation Location
+) : AstNode(Location);
+
+/// <summary>
+/// A texture type reference (texture2D, textureCube, texture3D).
+/// </summary>
+/// <param name="Kind">The texture type kind.</param>
+public record TextureType(TextureKind Kind, SourceLocation Location) : TypeRef(Location);
+
+/// <summary>
+/// A sampler type reference.
+/// </summary>
+public record SamplerType(SourceLocation Location) : TypeRef(Location);

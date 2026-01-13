@@ -156,6 +156,20 @@ public sealed class Parser
         // Parse output block (required)
         var outputs = ParseOutputBlock();
 
+        // Parse optional textures block
+        TexturesBlock? texturesBlock = null;
+        if (Check(TokenKind.Textures))
+        {
+            texturesBlock = ParseTexturesBlock();
+        }
+
+        // Parse optional samplers block
+        SamplersBlock? samplersBlock = null;
+        if (Check(TokenKind.Samplers))
+        {
+            samplersBlock = ParseSamplersBlock();
+        }
+
         // Parse optional params block
         ParamsBlock? paramsBlock = null;
         if (Check(TokenKind.Params))
@@ -168,7 +182,7 @@ public sealed class Parser
 
         Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
 
-        return new VertexDeclaration(name, inputs, outputs, paramsBlock, execute, location);
+        return new VertexDeclaration(name, inputs, outputs, texturesBlock, samplersBlock, paramsBlock, execute, location);
     }
 
     private FragmentDeclaration ParseFragmentDeclaration()
@@ -184,6 +198,20 @@ public sealed class Parser
         // Parse output block (required)
         var outputs = ParseOutputBlock();
 
+        // Parse optional textures block
+        TexturesBlock? texturesBlock = null;
+        if (Check(TokenKind.Textures))
+        {
+            texturesBlock = ParseTexturesBlock();
+        }
+
+        // Parse optional samplers block
+        SamplersBlock? samplersBlock = null;
+        if (Check(TokenKind.Samplers))
+        {
+            samplersBlock = ParseSamplersBlock();
+        }
+
         // Parse optional params block
         ParamsBlock? paramsBlock = null;
         if (Check(TokenKind.Params))
@@ -196,7 +224,7 @@ public sealed class Parser
 
         Consume(TokenKind.RightBrace, "Expected '}' after shader body", KeslErrorCodes.ExpectedCloseBrace);
 
-        return new FragmentDeclaration(name, inputs, outputs, paramsBlock, execute, location);
+        return new FragmentDeclaration(name, inputs, outputs, texturesBlock, samplersBlock, paramsBlock, execute, location);
     }
 
     private InputBlock ParseInputBlock()
@@ -315,6 +343,80 @@ public sealed class Parser
         var type = ParseType();
 
         return new ParamDeclaration(name, type, location);
+    }
+
+    private TexturesBlock ParseTexturesBlock()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Textures, "Expected 'textures'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftBrace, "Expected '{' after 'textures'", KeslErrorCodes.ExpectedOpenBrace);
+
+        var textures = new List<TextureDeclaration>();
+        while (!Check(TokenKind.RightBrace) && !IsAtEnd())
+        {
+            textures.Add(ParseTextureDeclaration());
+            Match(TokenKind.Comma);
+        }
+
+        Consume(TokenKind.RightBrace, "Expected '}' after texture declarations", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new TexturesBlock(textures, location);
+    }
+
+    private TextureDeclaration ParseTextureDeclaration()
+    {
+        var location = Current.Location;
+        var name = Consume(TokenKind.Identifier, "Expected texture name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.Colon, "Expected ':' after texture name", KeslErrorCodes.MissingToken);
+
+        var textureKind = Current.Kind switch
+        {
+            TokenKind.Texture2D => TextureKind.Texture2D,
+            TokenKind.TextureCube => TextureKind.TextureCube,
+            TokenKind.Texture3D => TextureKind.Texture3D,
+            _ => throw Error(Current, "Expected texture type (texture2D, textureCube, or texture3D)", KeslErrorCodes.ExpectedTypeName)
+        };
+        Advance();
+
+        // Binding slot (required for textures): @ 0
+        Consume(TokenKind.At, "Expected '@' for texture binding slot", KeslErrorCodes.MissingToken);
+        var slotToken = Consume(TokenKind.IntLiteral, "Expected binding slot number", KeslErrorCodes.MissingToken);
+        var bindingSlot = slotToken.IntValue;
+
+        return new TextureDeclaration(name, textureKind, bindingSlot, location);
+    }
+
+    private SamplersBlock ParseSamplersBlock()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Samplers, "Expected 'samplers'", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.LeftBrace, "Expected '{' after 'samplers'", KeslErrorCodes.ExpectedOpenBrace);
+
+        var samplers = new List<SamplerDeclaration>();
+        while (!Check(TokenKind.RightBrace) && !IsAtEnd())
+        {
+            samplers.Add(ParseSamplerDeclaration());
+            Match(TokenKind.Comma);
+        }
+
+        Consume(TokenKind.RightBrace, "Expected '}' after sampler declarations", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new SamplersBlock(samplers, location);
+    }
+
+    private SamplerDeclaration ParseSamplerDeclaration()
+    {
+        var location = Current.Location;
+        var name = Consume(TokenKind.Identifier, "Expected sampler name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.Colon, "Expected ':' after sampler name", KeslErrorCodes.MissingToken);
+        Consume(TokenKind.Sampler, "Expected 'sampler' type", KeslErrorCodes.ExpectedTypeName);
+
+        // Binding slot (required for samplers): @ 0
+        Consume(TokenKind.At, "Expected '@' for sampler binding slot", KeslErrorCodes.MissingToken);
+        var slotToken = Consume(TokenKind.IntLiteral, "Expected binding slot number", KeslErrorCodes.MissingToken);
+        var bindingSlot = slotToken.IntValue;
+
+        return new SamplerDeclaration(name, bindingSlot, location);
     }
 
     private ExecuteBlock ParseExecuteBlock()

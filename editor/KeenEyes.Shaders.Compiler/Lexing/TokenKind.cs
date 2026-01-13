@@ -21,6 +21,12 @@ public enum TokenKind
     Execute,
     Vertex,
     Fragment,
+    Geometry,
+    Pipeline,
+
+    // Keywords - Texture/Sampler blocks
+    Textures,
+    Samplers,
 
     // Keywords - Shader I/O
     In,
@@ -49,6 +55,10 @@ public enum TokenKind
     Uint,
     Bool,
     Mat4,
+    Texture2D,
+    TextureCube,
+    Texture3D,
+    Sampler,
 
     // Keywords - Literals
     True,

@@ -109,6 +109,26 @@ public sealed class HlslGenerator : IShaderGenerator
         sb.Clear();
         indent = 0;
 
+        // Generate texture declarations (HLSL uses separate texture and sampler)
+        if (vertex.Textures != null && vertex.Textures.Textures.Count > 0)
+        {
+            foreach (var tex in vertex.Textures.Textures)
+            {
+                AppendLine($"{ToHlslTextureType(tex.TextureKind)} {tex.Name} : register(t{tex.BindingSlot});");
+            }
+            AppendLine();
+        }
+
+        // Generate sampler declarations
+        if (vertex.Samplers != null && vertex.Samplers.Samplers.Count > 0)
+        {
+            foreach (var sampler in vertex.Samplers.Samplers)
+            {
+                AppendLine($"SamplerState {sampler.Name} : register(s{sampler.BindingSlot});");
+            }
+            AppendLine();
+        }
+
         // Generate cbuffer for uniform parameters
         if (vertex.Params != null && vertex.Params.Parameters.Count > 0)
         {
@@ -188,6 +208,26 @@ public sealed class HlslGenerator : IShaderGenerator
     {
         sb.Clear();
         indent = 0;
+
+        // Generate texture declarations (HLSL uses separate texture and sampler)
+        if (fragment.Textures != null && fragment.Textures.Textures.Count > 0)
+        {
+            foreach (var tex in fragment.Textures.Textures)
+            {
+                AppendLine($"{ToHlslTextureType(tex.TextureKind)} {tex.Name} : register(t{tex.BindingSlot});");
+            }
+            AppendLine();
+        }
+
+        // Generate sampler declarations
+        if (fragment.Samplers != null && fragment.Samplers.Samplers.Count > 0)
+        {
+            foreach (var sampler in fragment.Samplers.Samplers)
+            {
+                AppendLine($"SamplerState {sampler.Name} : register(s{sampler.BindingSlot});");
+            }
+            AppendLine();
+        }
 
         // Generate cbuffer for uniform parameters
         if (fragment.Params != null && fragment.Params.Parameters.Count > 0)
@@ -633,6 +673,15 @@ public sealed class HlslGenerator : IShaderGenerator
 
     private string GenerateVertexCall(CallExpression call, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
     {
+        // Handle sample() specially for HLSL: sample(texture, sampler, uv) -> texture.Sample(sampler, uv)
+        if (call.FunctionName == "sample" && call.Arguments.Count >= 3)
+        {
+            var texture = GenerateVertexExpression(call.Arguments[0], inputs, outputs);
+            var sampler = GenerateVertexExpression(call.Arguments[1], inputs, outputs);
+            var uv = GenerateVertexExpression(call.Arguments[2], inputs, outputs);
+            return $"{texture}.Sample({sampler}, {uv})";
+        }
+
         var funcName = MapFunctionName(call.FunctionName);
         var args = string.Join(", ", call.Arguments.Select(a => GenerateVertexExpression(a, inputs, outputs)));
         return $"{funcName}({args})";
@@ -640,6 +689,15 @@ public sealed class HlslGenerator : IShaderGenerator
 
     private string GenerateFragmentCall(CallExpression call, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs, bool useOutputStruct)
     {
+        // Handle sample() specially for HLSL: sample(texture, sampler, uv) -> texture.Sample(sampler, uv)
+        if (call.FunctionName == "sample" && call.Arguments.Count >= 3)
+        {
+            var texture = GenerateFragmentExpression(call.Arguments[0], inputs, outputs, useOutputStruct);
+            var sampler = GenerateFragmentExpression(call.Arguments[1], inputs, outputs, useOutputStruct);
+            var uv = GenerateFragmentExpression(call.Arguments[2], inputs, outputs, useOutputStruct);
+            return $"{texture}.Sample({sampler}, {uv})";
+        }
+
         var funcName = MapFunctionName(call.FunctionName);
         var args = string.Join(", ", call.Arguments.Select(a => GenerateFragmentExpression(a, inputs, outputs, useOutputStruct)));
         return $"{funcName}({args})";
@@ -944,7 +1002,28 @@ public sealed class HlslGenerator : IShaderGenerator
             };
         }
 
+        if (type is TextureType tt)
+        {
+            return ToHlslTextureType(tt.Kind);
+        }
+
+        if (type is SamplerType)
+        {
+            return "SamplerState";
+        }
+
         throw new NotSupportedException($"Type {type.GetType().Name} not supported");
+    }
+
+    private static string ToHlslTextureType(TextureKind kind)
+    {
+        return kind switch
+        {
+            TextureKind.Texture2D => "Texture2D",
+            TextureKind.TextureCube => "TextureCube",
+            TextureKind.Texture3D => "Texture3D",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported texture type")
+        };
     }
 
     private static string FormatFloat(float value)

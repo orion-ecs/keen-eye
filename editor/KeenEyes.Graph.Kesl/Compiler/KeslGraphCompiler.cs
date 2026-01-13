@@ -133,6 +133,8 @@ public sealed class KeslGraphCompiler
             shaderData.ShaderName,
             inputBlock,
             outputBlock,
+            null, // Textures - not yet supported in graph editor
+            null, // Samplers - not yet supported in graph editor
             paramsBlock,
             executeBlock,
             GeneratedLocation);
@@ -177,6 +179,8 @@ public sealed class KeslGraphCompiler
             shaderData.ShaderName,
             inputBlock,
             outputBlock,
+            null, // Textures - not yet supported in graph editor
+            null, // Samplers - not yet supported in graph editor
             paramsBlock,
             executeBlock,
             GeneratedLocation);

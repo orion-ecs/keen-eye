@@ -120,6 +120,16 @@ public sealed class GlslGenerator : IShaderGenerator
             AppendLine();
         }
 
+        // Generate texture sampler uniforms (GLSL combines texture+sampler)
+        if (vertex.Textures != null && vertex.Textures.Textures.Count > 0)
+        {
+            foreach (var tex in vertex.Textures.Textures)
+            {
+                AppendLine($"layout(binding = {tex.BindingSlot}) uniform {ToGlslTextureType(tex.TextureKind)} {tex.Name};");
+            }
+            AppendLine();
+        }
+
         // Generate uniform declarations for params
         if (vertex.Params != null)
         {
@@ -181,6 +191,16 @@ public sealed class GlslGenerator : IShaderGenerator
             AppendLine($"{location}out {ToGlslType(attr.Type)} {attr.Name};");
         }
         AppendLine();
+
+        // Generate texture sampler uniforms (GLSL combines texture+sampler)
+        if (fragment.Textures != null && fragment.Textures.Textures.Count > 0)
+        {
+            foreach (var tex in fragment.Textures.Textures)
+            {
+                AppendLine($"layout(binding = {tex.BindingSlot}) uniform {ToGlslTextureType(tex.TextureKind)} {tex.Name};");
+            }
+            AppendLine();
+        }
 
         // Generate uniform declarations for params
         if (fragment.Params != null)
@@ -514,6 +534,15 @@ public sealed class GlslGenerator : IShaderGenerator
 
     private string GenerateVertexCall(CallExpression call, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
     {
+        // Handle sample() specially for GLSL: sample(texture, sampler, uv) -> texture(combinedSampler, uv)
+        // In GLSL, texture and sampler are combined, so we skip the sampler argument
+        if (call.FunctionName == "sample" && call.Arguments.Count >= 3)
+        {
+            var texture = GenerateVertexExpression(call.Arguments[0], inputs, outputs);
+            var uv = GenerateVertexExpression(call.Arguments[2], inputs, outputs);
+            return $"texture({texture}, {uv})";
+        }
+
         var funcName = MapFunctionName(call.FunctionName);
         var args = string.Join(", ", call.Arguments.Select(a => GenerateVertexExpression(a, inputs, outputs)));
         return $"{funcName}({args})";
@@ -521,6 +550,15 @@ public sealed class GlslGenerator : IShaderGenerator
 
     private string GenerateFragmentCall(CallExpression call, IReadOnlyList<AttributeDeclaration> inputs, IReadOnlyList<AttributeDeclaration> outputs)
     {
+        // Handle sample() specially for GLSL: sample(texture, sampler, uv) -> texture(combinedSampler, uv)
+        // In GLSL, texture and sampler are combined, so we skip the sampler argument
+        if (call.FunctionName == "sample" && call.Arguments.Count >= 3)
+        {
+            var texture = GenerateFragmentExpression(call.Arguments[0], inputs, outputs);
+            var uv = GenerateFragmentExpression(call.Arguments[2], inputs, outputs);
+            return $"texture({texture}, {uv})";
+        }
+
         var funcName = MapFunctionName(call.FunctionName);
         var args = string.Join(", ", call.Arguments.Select(a => GenerateFragmentExpression(a, inputs, outputs)));
         return $"{funcName}({args})";
@@ -700,6 +738,7 @@ public sealed class GlslGenerator : IShaderGenerator
     private static string MapFunctionName(string name)
     {
         // Most math functions have the same name in GLSL
+        // Note: 'sample' is mapped to 'texture' in GLSL
         return name switch
         {
             "sqrt" => "sqrt",
@@ -731,6 +770,9 @@ public sealed class GlslGenerator : IShaderGenerator
             "normalize" => "normalize",
             "reflect" => "reflect",
             "refract" => "refract",
+            "sample" => "texture", // KESL sample() -> GLSL texture()
+            "textureLod" => "textureLod",
+            "textureGrad" => "textureGrad",
             _ => name
         };
     }
@@ -785,7 +827,29 @@ public sealed class GlslGenerator : IShaderGenerator
             };
         }
 
+        if (type is TextureType texType)
+        {
+            return ToGlslTextureType(texType.Kind);
+        }
+
+        if (type is SamplerType)
+        {
+            // In GLSL, samplers are combined with textures
+            return "sampler";
+        }
+
         throw new NotSupportedException($"Type {type.GetType().Name} not supported");
+    }
+
+    private static string ToGlslTextureType(TextureKind kind)
+    {
+        return kind switch
+        {
+            TextureKind.Texture2D => "sampler2D",
+            TextureKind.TextureCube => "samplerCube",
+            TextureKind.Texture3D => "sampler3D",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported texture type")
+        };
     }
 
     private static string FormatFloat(float value)
