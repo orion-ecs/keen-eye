@@ -65,6 +65,22 @@ public sealed class CSharpBindingGenerator
     }
 
     /// <summary>
+    /// Generates C# binding code for a pipeline declaration.
+    /// </summary>
+    /// <param name="pipeline">The pipeline AST.</param>
+    /// <returns>The generated C# code.</returns>
+    public string Generate(PipelineDeclaration pipeline)
+    {
+        _sb.Clear();
+        _indent = 0;
+
+        GenerateFileHeader();
+        GeneratePipelineClass(pipeline);
+
+        return _sb.ToString();
+    }
+
+    /// <summary>
     /// Generates C# binding code for a compute shader declaration.
     /// </summary>
     /// <param name="compute">The compute shader AST.</param>
@@ -582,6 +598,75 @@ public sealed class CSharpBindingGenerator
 
         // Embedded shader sources (placeholders for now)
         GenerateShaderSourceConstants(geometry.Name);
+
+        _indent--;
+        AppendLine("}");
+    }
+
+    private void GeneratePipelineClass(PipelineDeclaration pipeline)
+    {
+        var className = $"{pipeline.Name}Pipeline";
+
+        AppendLine("/// <summary>");
+        AppendLine($"/// Shader pipeline for {pipeline.Name}.");
+        AppendLine("/// </summary>");
+        AppendLine($"public sealed partial class {className} : IShaderPipeline");
+        AppendLine("{");
+        _indent++;
+
+        // Name property
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public string Name => \"{pipeline.Name}\";");
+        AppendLine();
+
+        // Stage references
+        AppendLine("/// <inheritdoc />");
+        if (pipeline.Vertex != null)
+        {
+            var vertexName = pipeline.Vertex.ReferenceName ?? (pipeline.Vertex.InlineShader as VertexDeclaration)?.Name ?? "<inline>";
+            AppendLine($"public string? VertexShaderName => \"{vertexName}\";");
+        }
+        else
+        {
+            AppendLine("public string? VertexShaderName => null;");
+        }
+        AppendLine();
+
+        AppendLine("/// <inheritdoc />");
+        if (pipeline.Geometry != null)
+        {
+            var geometryName = pipeline.Geometry.ReferenceName ?? (pipeline.Geometry.InlineShader as GeometryDeclaration)?.Name ?? "<inline>";
+            AppendLine($"public string? GeometryShaderName => \"{geometryName}\";");
+        }
+        else
+        {
+            AppendLine("public string? GeometryShaderName => null;");
+        }
+        AppendLine();
+
+        AppendLine("/// <inheritdoc />");
+        if (pipeline.Fragment != null)
+        {
+            var fragmentName = pipeline.Fragment.ReferenceName ?? (pipeline.Fragment.InlineShader as FragmentDeclaration)?.Name ?? "<inline>";
+            AppendLine($"public string? FragmentShaderName => \"{fragmentName}\";");
+        }
+        else
+        {
+            AppendLine("public string? FragmentShaderName => null;");
+        }
+        AppendLine();
+
+        // HasStage methods
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public bool HasVertexStage => {(pipeline.Vertex != null ? "true" : "false")};");
+        AppendLine();
+
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public bool HasGeometryStage => {(pipeline.Geometry != null ? "true" : "false")};");
+        AppendLine();
+
+        AppendLine("/// <inheritdoc />");
+        AppendLine($"public bool HasFragmentStage => {(pipeline.Fragment != null ? "true" : "false")};");
 
         _indent--;
         AppendLine("}");

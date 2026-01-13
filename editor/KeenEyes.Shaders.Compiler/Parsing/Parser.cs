@@ -88,8 +88,13 @@ public sealed class Parser
             return ParseGeometryDeclaration();
         }
 
+        if (Check(TokenKind.Pipeline))
+        {
+            return ParsePipelineDeclaration();
+        }
+
         // Throw to trigger synchronization - otherwise we'd loop infinitely
-        throw Error(Current, "Expected 'component', 'compute', 'vertex', 'fragment', or 'geometry' declaration", KeslErrorCodes.ExpectedDeclaration);
+        throw Error(Current, "Expected 'component', 'compute', 'vertex', 'fragment', 'geometry', or 'pipeline' declaration", KeslErrorCodes.ExpectedDeclaration);
     }
 
     private ComponentDeclaration ParseComponentDeclaration()
@@ -328,6 +333,181 @@ public sealed class Parser
             "triangle_strip" => GeometryOutputTopology.TriangleStrip,
             _ => throw Error(Previous, $"Unknown output topology '{topologyName}'. Expected 'points', 'line_strip', or 'triangle_strip'", KeslErrorCodes.ExpectedTopology)
         };
+    }
+
+    private PipelineDeclaration ParsePipelineDeclaration()
+    {
+        var location = Current.Location;
+        Consume(TokenKind.Pipeline, "Expected 'pipeline'", KeslErrorCodes.MissingToken);
+        var name = Consume(TokenKind.Identifier, "Expected pipeline name", KeslErrorCodes.ExpectedIdentifier).Text;
+        Consume(TokenKind.LeftBrace, "Expected '{' after pipeline name", KeslErrorCodes.ExpectedOpenBrace);
+
+        PipelineStage? vertexStage = null;
+        PipelineStage? geometryStage = null;
+        PipelineStage? fragmentStage = null;
+
+        // Parse stages in any order
+        while (!Check(TokenKind.RightBrace) && !IsAtEnd())
+        {
+            if (Check(TokenKind.Vertex))
+            {
+                vertexStage = ParsePipelineStage(name, TokenKind.Vertex);
+            }
+            else if (Check(TokenKind.Geometry))
+            {
+                geometryStage = ParsePipelineStage(name, TokenKind.Geometry);
+            }
+            else if (Check(TokenKind.Fragment))
+            {
+                fragmentStage = ParsePipelineStage(name, TokenKind.Fragment);
+            }
+            else
+            {
+                throw Error(Current, "Expected 'vertex', 'geometry', or 'fragment' stage in pipeline", KeslErrorCodes.ExpectedDeclaration);
+            }
+        }
+
+        Consume(TokenKind.RightBrace, "Expected '}' after pipeline body", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new PipelineDeclaration(name, vertexStage, geometryStage, fragmentStage, location);
+    }
+
+    private PipelineStage ParsePipelineStage(string pipelineName, TokenKind stageKind)
+    {
+        var location = Current.Location;
+        Consume(stageKind, $"Expected '{stageKind.ToString().ToLowerInvariant()}'", KeslErrorCodes.MissingToken);
+
+        // Check if this is a reference (name: SomeShader) or inline definition (block { ... })
+        if (Check(TokenKind.Colon))
+        {
+            // Reference syntax: vertex: ShaderName
+            Consume(TokenKind.Colon, "Expected ':'", KeslErrorCodes.MissingToken);
+            var referenceName = Consume(TokenKind.Identifier, "Expected shader name", KeslErrorCodes.ExpectedIdentifier).Text;
+            return new PipelineStage(referenceName, null, location);
+        }
+        else if (Check(TokenKind.LeftBrace))
+        {
+            // Inline definition syntax: vertex { in { ... } out { ... } execute() { ... } }
+            // Generate inline shader name as PipelineName_stage (e.g., MyPipeline_vertex)
+            var stageName = stageKind.ToString().ToLowerInvariant();
+            var inlineShaderName = $"{pipelineName}_{stageName}";
+
+            Declaration inlineShader = stageKind switch
+            {
+                TokenKind.Vertex => ParseInlineVertexShader(inlineShaderName, location),
+                TokenKind.Geometry => ParseInlineGeometryShader(inlineShaderName, location),
+                TokenKind.Fragment => ParseInlineFragmentShader(inlineShaderName, location),
+                _ => throw Error(Current, $"Unexpected stage kind: {stageKind}", KeslErrorCodes.UnexpectedToken)
+            };
+            return new PipelineStage(null, inlineShader, location);
+        }
+        else
+        {
+            throw Error(Current, "Expected ':' for shader reference or '{' for inline definition", KeslErrorCodes.UnexpectedToken);
+        }
+    }
+
+    private VertexDeclaration ParseInlineVertexShader(string shaderName, SourceLocation location)
+    {
+        Consume(TokenKind.LeftBrace, "Expected '{'", KeslErrorCodes.ExpectedOpenBrace);
+
+        var inputs = ParseInputBlock();
+        var outputs = ParseOutputBlock();
+
+        // Parse optional textures block
+        TexturesBlock? texturesBlock = null;
+        if (Check(TokenKind.Textures))
+        {
+            texturesBlock = ParseTexturesBlock();
+        }
+
+        // Parse optional samplers block
+        SamplersBlock? samplersBlock = null;
+        if (Check(TokenKind.Samplers))
+        {
+            samplersBlock = ParseSamplersBlock();
+        }
+
+        // Parse optional params block
+        ParamsBlock? paramsBlock = null;
+        if (Check(TokenKind.Params))
+        {
+            paramsBlock = ParseParamsBlock();
+        }
+
+        var execute = ParseExecuteBlock();
+        Consume(TokenKind.RightBrace, "Expected '}'", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new VertexDeclaration(shaderName, inputs, outputs, texturesBlock, samplersBlock, paramsBlock, execute, location);
+    }
+
+    private GeometryDeclaration ParseInlineGeometryShader(string shaderName, SourceLocation location)
+    {
+        Consume(TokenKind.LeftBrace, "Expected '{'", KeslErrorCodes.ExpectedOpenBrace);
+
+        var layout = ParseGeometryLayoutBlock();
+        var inputs = ParseInputBlock();
+        var outputs = ParseOutputBlock();
+
+        // Parse optional textures block
+        TexturesBlock? texturesBlock = null;
+        if (Check(TokenKind.Textures))
+        {
+            texturesBlock = ParseTexturesBlock();
+        }
+
+        // Parse optional samplers block
+        SamplersBlock? samplersBlock = null;
+        if (Check(TokenKind.Samplers))
+        {
+            samplersBlock = ParseSamplersBlock();
+        }
+
+        // Parse optional params block
+        ParamsBlock? paramsBlock = null;
+        if (Check(TokenKind.Params))
+        {
+            paramsBlock = ParseParamsBlock();
+        }
+
+        var execute = ParseExecuteBlock();
+        Consume(TokenKind.RightBrace, "Expected '}'", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new GeometryDeclaration(shaderName, layout, inputs, outputs, texturesBlock, samplersBlock, paramsBlock, execute, location);
+    }
+
+    private FragmentDeclaration ParseInlineFragmentShader(string shaderName, SourceLocation location)
+    {
+        Consume(TokenKind.LeftBrace, "Expected '{'", KeslErrorCodes.ExpectedOpenBrace);
+
+        var inputs = ParseInputBlock();
+        var outputs = ParseOutputBlock();
+
+        // Parse optional textures block
+        TexturesBlock? texturesBlock = null;
+        if (Check(TokenKind.Textures))
+        {
+            texturesBlock = ParseTexturesBlock();
+        }
+
+        // Parse optional samplers block
+        SamplersBlock? samplersBlock = null;
+        if (Check(TokenKind.Samplers))
+        {
+            samplersBlock = ParseSamplersBlock();
+        }
+
+        // Parse optional params block
+        ParamsBlock? paramsBlock = null;
+        if (Check(TokenKind.Params))
+        {
+            paramsBlock = ParseParamsBlock();
+        }
+
+        var execute = ParseExecuteBlock();
+        Consume(TokenKind.RightBrace, "Expected '}'", KeslErrorCodes.ExpectedCloseBrace);
+
+        return new FragmentDeclaration(shaderName, inputs, outputs, texturesBlock, samplersBlock, paramsBlock, execute, location);
     }
 
     private InputBlock ParseInputBlock()
@@ -993,6 +1173,7 @@ public sealed class Parser
                 case TokenKind.Vertex:
                 case TokenKind.Fragment:
                 case TokenKind.Geometry:
+                case TokenKind.Pipeline:
                     return;
             }
 

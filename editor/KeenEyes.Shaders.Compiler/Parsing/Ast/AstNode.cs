@@ -319,3 +319,29 @@ public enum GeometryOutputTopology
     /// <summary>Emit connected triangles.</summary>
     TriangleStrip
 }
+
+/// <summary>
+/// Represents a pipeline declaration that bundles shader stages together.
+/// </summary>
+/// <param name="Name">The pipeline name.</param>
+/// <param name="Vertex">The vertex stage (reference or inline).</param>
+/// <param name="Geometry">The optional geometry stage (reference or inline).</param>
+/// <param name="Fragment">The fragment stage (reference or inline).</param>
+public record PipelineDeclaration(
+    string Name,
+    PipelineStage? Vertex,
+    PipelineStage? Geometry,
+    PipelineStage? Fragment,
+    SourceLocation Location
+) : Declaration(Location);
+
+/// <summary>
+/// Represents a single stage in a pipeline, either by reference or inline definition.
+/// </summary>
+/// <param name="ReferenceName">The name of an existing shader to reference, or null for inline.</param>
+/// <param name="InlineShader">An inline shader definition, or null for reference.</param>
+public record PipelineStage(
+    string? ReferenceName,
+    Declaration? InlineShader,
+    SourceLocation Location
+) : AstNode(Location);
