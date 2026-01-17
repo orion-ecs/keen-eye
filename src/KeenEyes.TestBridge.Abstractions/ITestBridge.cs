@@ -7,6 +7,7 @@ using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.Profile;
+using KeenEyes.TestBridge.Replay;
 using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
@@ -140,6 +141,18 @@ public interface ITestBridge : IDisposable
     /// </para>
     /// </remarks>
     IAIController AI { get; }
+
+    /// <summary>
+    /// Gets the replay controller for recording and playback of gameplay sessions.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The replay controller enables recording input events and world state,
+    /// then playing them back for bug reproduction and determinism validation.
+    /// Requires the ReplayPlugin to be installed for full functionality.
+    /// </para>
+    /// </remarks>
+    IReplayController Replay { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.
