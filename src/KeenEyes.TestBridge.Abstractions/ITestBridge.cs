@@ -6,6 +6,7 @@ using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.Profile;
+using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
@@ -114,6 +115,18 @@ public interface ITestBridge : IDisposable
     /// </para>
     /// </remarks>
     IProfileController Profile { get; }
+
+    /// <summary>
+    /// Gets the snapshot controller for world state save/restore.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The snapshot controller enables creating, restoring, and comparing world state
+    /// snapshots for debugging and testing. Snapshots capture the complete state of all
+    /// entities and their components at a point in time.
+    /// </para>
+    /// </remarks>
+    ISnapshotController Snapshot { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.

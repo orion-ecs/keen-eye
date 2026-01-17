@@ -5,6 +5,7 @@ using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Profile;
+using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
@@ -173,6 +174,25 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(CaptureRegionArgs))]
 [JsonSerializable(typeof(GetRegionScreenshotBytesArgs))]
 [JsonSerializable(typeof(SaveRegionScreenshotArgs))]
+// Snapshot types
+[JsonSerializable(typeof(SnapshotResult))]
+[JsonSerializable(typeof(SnapshotInfo))]
+[JsonSerializable(typeof(SnapshotInfo[]))]
+[JsonSerializable(typeof(IReadOnlyList<SnapshotInfo>))]
+[JsonSerializable(typeof(List<SnapshotInfo>))]
+[JsonSerializable(typeof(SnapshotDiff))]
+[JsonSerializable(typeof(EntityDiff))]
+[JsonSerializable(typeof(EntityDiff[]))]
+[JsonSerializable(typeof(IReadOnlyList<EntityDiff>))]
+[JsonSerializable(typeof(List<EntityDiff>))]
+[JsonSerializable(typeof(ComponentDiff))]
+[JsonSerializable(typeof(ComponentDiff[]))]
+[JsonSerializable(typeof(IReadOnlyList<ComponentDiff>))]
+[JsonSerializable(typeof(List<ComponentDiff>))]
+[JsonSerializable(typeof(FieldDiff))]
+[JsonSerializable(typeof(FieldDiff[]))]
+[JsonSerializable(typeof(IReadOnlyList<FieldDiff>))]
+[JsonSerializable(typeof(List<FieldDiff>))]
 internal partial class IpcJsonContext : JsonSerializerContext
 {
 }

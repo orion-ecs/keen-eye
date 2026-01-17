@@ -11,6 +11,7 @@ using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.Profile;
+using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
@@ -77,6 +78,7 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Systems = new RemoteSystemController(this);
         Mutation = new RemoteMutationController(this);
         Profile = new RemoteProfileController(this);
+        Snapshot = new RemoteSnapshotController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -119,6 +121,9 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public IProfileController Profile { get; }
+
+    /// <inheritdoc />
+    public ISnapshotController Snapshot { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -501,6 +506,27 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         if (type == typeof(TimelineSystemStatsSnapshot[]))
         {
             return (T?)(object?)element.Deserialize(IpcJsonContext.Default.TimelineSystemStatsSnapshotArray);
+        }
+
+        // Snapshot types
+        if (type == typeof(SnapshotResult))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.SnapshotResult);
+        }
+
+        if (type == typeof(SnapshotInfo))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.SnapshotInfo);
+        }
+
+        if (type == typeof(List<SnapshotInfo>))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.ListSnapshotInfo);
+        }
+
+        if (type == typeof(SnapshotDiff))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.SnapshotDiff);
         }
 
         // Fallback for unknown types - let the exception surface during development
