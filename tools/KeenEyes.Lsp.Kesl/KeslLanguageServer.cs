@@ -16,6 +16,7 @@ public sealed class KeslLanguageServer
     private readonly InitializeHandler initializeHandler;
     private readonly CompletionHandler completionHandler;
     private readonly HoverHandler hoverHandler;
+    private readonly DefinitionHandler definitionHandler;
 
     private bool shutdown;
 
@@ -27,6 +28,7 @@ public sealed class KeslLanguageServer
         initializeHandler = new InitializeHandler();
         completionHandler = new CompletionHandler(documentManager);
         hoverHandler = new HoverHandler(documentManager);
+        definitionHandler = new DefinitionHandler(documentManager);
     }
 
     /// <summary>
@@ -125,6 +127,7 @@ public sealed class KeslLanguageServer
                 "shutdown" => HandleShutdown(),
                 "textDocument/completion" => HandleCompletion(@params),
                 "textDocument/hover" => HandleHover(@params),
+                "textDocument/definition" => HandleDefinition(@params),
                 _ => throw new NotSupportedException($"Method '{method}' is not supported")
             };
         }
@@ -230,6 +233,22 @@ public sealed class KeslLanguageServer
         }
 
         return hoverHandler.Handle(hoverParams);
+    }
+
+    private Location? HandleDefinition(JsonElement? @params)
+    {
+        if (!@params.HasValue)
+        {
+            return null;
+        }
+
+        var defParams = JsonSerializer.Deserialize(@params.Value, LspJsonContext.Default.DefinitionParams);
+        if (defParams == null)
+        {
+            return null;
+        }
+
+        return definitionHandler.Handle(defParams);
     }
 
     private async Task HandleDidOpenAsync(JsonElement? @params, CancellationToken cancellationToken)
