@@ -126,8 +126,9 @@ public sealed class SystemGenerator : IIncrementalGenerator
         var groupStr = info.Group is not null ? $"\"{info.Group}\"" : "null";
 
         // Generate RunsBefore and RunsAfter arrays using collection expression syntax
-        var runsBeforeStr = GenerateTypeArray(info.RunsBefore, useCollectionExpression: true);
-        var runsAfterStr = GenerateTypeArray(info.RunsAfter, useCollectionExpression: true);
+        // Base indent is "    " (4 spaces) since properties are at that level
+        var runsBeforeStr = GenerateTypeArray(info.RunsBefore, useCollectionExpression: true, baseIndent: "    ");
+        var runsAfterStr = GenerateTypeArray(info.RunsAfter, useCollectionExpression: true, baseIndent: "    ");
 
         // Generate partial with metadata properties
         sb.AppendLine($"partial class {info.Name}");
@@ -165,8 +166,9 @@ public sealed class SystemGenerator : IIncrementalGenerator
         var fullTypeName = StringHelpers.GetFullTypeName(info.Namespace, info.Name);
 
         // Generate RunsBefore and RunsAfter arrays using explicit array syntax
-        var runsBeforeStr = GenerateTypeArray(info.RunsBefore, useCollectionExpression: false);
-        var runsAfterStr = GenerateTypeArray(info.RunsAfter, useCollectionExpression: false);
+        // Base indent is "            " (12 spaces) since arrays are method arguments at that level
+        var runsBeforeStr = GenerateTypeArray(info.RunsBefore, useCollectionExpression: false, baseIndent: "            ");
+        var runsAfterStr = GenerateTypeArray(info.RunsAfter, useCollectionExpression: false, baseIndent: "            ");
 
         sb.AppendLine($"/// <summary>");
         sb.AppendLine($"/// Extension methods for adding <see cref=\"{info.Name}\"/> to worlds and groups.");
@@ -218,22 +220,65 @@ public sealed class SystemGenerator : IIncrementalGenerator
     }
 
     /// <summary>
+    /// Threshold for when to use multi-line array formatting.
+    /// Arrays with this many or more elements will be formatted across multiple lines.
+    /// </summary>
+    private const int MultiLineArrayThreshold = 4;
+
+    /// <summary>
     /// Generates a type array literal from a list of type names.
     /// </summary>
     /// <param name="types">The list of fully qualified type names.</param>
     /// <param name="useCollectionExpression">If true, uses [] syntax; otherwise uses new Type[] { } syntax.</param>
+    /// <param name="baseIndent">Base indentation for multi-line arrays (e.g., "    " for 4 spaces).</param>
     /// <returns>The generated type array literal.</returns>
-    private static string GenerateTypeArray(List<string> types, bool useCollectionExpression)
+    private static string GenerateTypeArray(List<string> types, bool useCollectionExpression, string baseIndent = "    ")
     {
         if (types.Count == 0)
         {
             return useCollectionExpression ? "[]" : "global::System.Array.Empty<global::System.Type>()";
         }
 
-        var typeofs = string.Join(", ", types.Select(t => $"typeof(global::{t})"));
-        return useCollectionExpression
-            ? $"[{typeofs}]"
-            : $"new global::System.Type[] {{ {typeofs} }}";
+        var typeofs = types.Select(t => $"typeof(global::{t})").ToList();
+
+        // Single-line for arrays below the threshold
+        if (types.Count < MultiLineArrayThreshold)
+        {
+            var joined = string.Join(", ", typeofs);
+            return useCollectionExpression
+                ? $"[{joined}]"
+                : $"new global::System.Type[] {{ {joined} }}";
+        }
+
+        // Multi-line for arrays at or above the threshold
+        var sb = new StringBuilder();
+        var elementIndent = baseIndent + "    ";
+
+        if (useCollectionExpression)
+        {
+            sb.AppendLine("[");
+            for (var i = 0; i < typeofs.Count; i++)
+            {
+                var comma = i < typeofs.Count - 1 ? "," : "";
+                sb.AppendLine($"{elementIndent}{typeofs[i]}{comma}");
+            }
+
+            sb.Append($"{baseIndent}]");
+        }
+        else
+        {
+            sb.AppendLine("new global::System.Type[]");
+            sb.AppendLine($"{baseIndent}{{");
+            for (var i = 0; i < typeofs.Count; i++)
+            {
+                var comma = i < typeofs.Count - 1 ? "," : "";
+                sb.AppendLine($"{elementIndent}{typeofs[i]}{comma}");
+            }
+
+            sb.Append($"{baseIndent}}}");
+        }
+
+        return sb.ToString();
     }
 
     private enum SystemPhase
