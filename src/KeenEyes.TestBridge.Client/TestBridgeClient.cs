@@ -8,7 +8,9 @@ using KeenEyes.TestBridge.Ipc;
 using KeenEyes.TestBridge.Ipc.Protocol;
 using KeenEyes.TestBridge.Ipc.Transport;
 using KeenEyes.TestBridge.Logging;
+using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
+using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
@@ -73,6 +75,8 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Window = new RemoteWindowController(this);
         Time = new RemoteTimeController(this);
         Systems = new RemoteSystemController(this);
+        Mutation = new RemoteMutationController(this);
+        Profile = new RemoteProfileController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -109,6 +113,12 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public ISystemController Systems { get; }
+
+    /// <inheritdoc />
+    public IMutationController Mutation { get; }
+
+    /// <inheritdoc />
+    public IProfileController Profile { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -424,6 +434,73 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         if (type == typeof(SystemSnapshot[]))
         {
             return (T?)(object?)element.Deserialize(IpcJsonContext.Default.SystemSnapshotArray);
+        }
+
+        // Mutation types
+        if (type == typeof(EntityResult))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.EntityResult);
+        }
+
+        // Profile types
+        if (type == typeof(SystemProfileSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.SystemProfileSnapshot);
+        }
+
+        if (type == typeof(SystemProfileSnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.SystemProfileSnapshotArray);
+        }
+
+        if (type == typeof(QueryProfileSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.QueryProfileSnapshot);
+        }
+
+        if (type == typeof(QueryProfileSnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.QueryProfileSnapshotArray);
+        }
+
+        if (type == typeof(QueryCacheStatsSnapshot))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.QueryCacheStatsSnapshot);
+        }
+
+        if (type == typeof(AllocationProfileSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.AllocationProfileSnapshot);
+        }
+
+        if (type == typeof(AllocationProfileSnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.AllocationProfileSnapshotArray);
+        }
+
+        if (type == typeof(MemoryStatsSnapshot))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.MemoryStatsSnapshot);
+        }
+
+        if (type == typeof(ArchetypeStatsSnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.ArchetypeStatsSnapshotArray);
+        }
+
+        if (type == typeof(TimelineStatsSnapshot))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.TimelineStatsSnapshot);
+        }
+
+        if (type == typeof(TimelineEntrySnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.TimelineEntrySnapshotArray);
+        }
+
+        if (type == typeof(TimelineSystemStatsSnapshot[]))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.TimelineSystemStatsSnapshotArray);
         }
 
         // Fallback for unknown types - let the exception surface during development
