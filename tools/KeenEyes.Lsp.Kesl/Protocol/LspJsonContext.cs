@@ -35,6 +35,7 @@ namespace KeenEyes.Lsp.Kesl.Protocol;
 [JsonSerializable(typeof(CompletionParams))]
 [JsonSerializable(typeof(CompletionContext))]
 [JsonSerializable(typeof(HoverParams))]
+[JsonSerializable(typeof(DefinitionParams))]
 [JsonSerializable(typeof(PublishDiagnosticsParams))]
 [JsonSerializable(typeof(LspDiagnostic))]
 [JsonSerializable(typeof(DiagnosticRelatedInformation))]
