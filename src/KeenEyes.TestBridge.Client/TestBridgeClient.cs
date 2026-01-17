@@ -12,6 +12,7 @@ using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.Profile;
+using KeenEyes.TestBridge.Replay;
 using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
@@ -81,6 +82,7 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Profile = new RemoteProfileController(this);
         Snapshot = new RemoteSnapshotController(this);
         AI = new RemoteAIController(this);
+        Replay = new RemoteReplayController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -129,6 +131,9 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public IAIController AI { get; }
+
+    /// <inheritdoc />
+    public IReplayController Replay { get; }
 
     /// <inheritdoc />
     /// <remarks>
@@ -532,6 +537,72 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         if (type == typeof(SnapshotDiff))
         {
             return (T?)(object?)element.Deserialize(IpcJsonContext.Default.SnapshotDiff);
+        }
+
+        // Replay types
+        if (type == typeof(ReplayOperationResult))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.ReplayOperationResult);
+        }
+
+        if (type == typeof(RecordingInfoSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.RecordingInfoSnapshot);
+        }
+
+        if (type == typeof(PlaybackStateSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.PlaybackStateSnapshot);
+        }
+
+        if (type == typeof(ReplayFrameSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.ReplayFrameSnapshot);
+        }
+
+        if (type == typeof(List<ReplayFrameSnapshot>))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.ListReplayFrameSnapshot);
+        }
+
+        if (type == typeof(ReplayMetadataSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.ReplayMetadataSnapshot);
+        }
+
+        if (type == typeof(ReplayFileSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.ReplayFileSnapshot);
+        }
+
+        if (type == typeof(List<ReplayFileSnapshot>))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.ListReplayFileSnapshot);
+        }
+
+        if (type == typeof(List<InputEventSnapshot>))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.ListInputEventSnapshot);
+        }
+
+        if (type == typeof(List<ReplayEventSnapshot>))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.ListReplayEventSnapshot);
+        }
+
+        if (type == typeof(List<SnapshotMarkerSnapshot>))
+        {
+            return (T?)(object?)element.Deserialize(IpcJsonContext.Default.ListSnapshotMarkerSnapshot);
+        }
+
+        if (type == typeof(ValidationResultSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.ValidationResultSnapshot);
+        }
+
+        if (type == typeof(DeterminismResultSnapshot))
+        {
+            return element.ValueKind == JsonValueKind.Null ? default : (T?)(object?)element.Deserialize(IpcJsonContext.Default.DeterminismResultSnapshot);
         }
 
         // Fallback for unknown types - let the exception surface during development

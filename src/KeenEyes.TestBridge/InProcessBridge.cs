@@ -14,6 +14,8 @@ using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.ProcessImpl;
 using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.ProfileImpl;
+using KeenEyes.TestBridge.Replay;
+using KeenEyes.TestBridge.ReplayImpl;
 using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.SnapshotImpl;
 using KeenEyes.TestBridge.State;
@@ -57,6 +59,7 @@ public sealed class InProcessBridge : ITestBridge
     private readonly ProfileControllerImpl profileController;
     private readonly SnapshotControllerImpl snapshotController;
     private readonly AIControllerImpl aiController;
+    private readonly ReplayControllerImpl replayController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -95,6 +98,7 @@ public sealed class InProcessBridge : ITestBridge
         profileController = new ProfileControllerImpl(world);
         snapshotController = new SnapshotControllerImpl(world);
         aiController = new AIControllerImpl(world);
+        replayController = new ReplayControllerImpl(world);
 
         // Wire up log controller to state controller for WorldStats
         stateController.SetLogController(logController);
@@ -138,6 +142,9 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public IAIController AI => aiController;
+
+    /// <inheritdoc />
+    public IReplayController Replay => replayController;
 
     /// <inheritdoc />
     public IInputContext InputContext => compositeInputContext is not null

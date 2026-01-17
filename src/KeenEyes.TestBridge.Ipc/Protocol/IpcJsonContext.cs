@@ -6,6 +6,7 @@ using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Profile;
+using KeenEyes.TestBridge.Replay;
 using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
@@ -211,6 +212,33 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(FieldDiff[]))]
 [JsonSerializable(typeof(IReadOnlyList<FieldDiff>))]
 [JsonSerializable(typeof(List<FieldDiff>))]
+// Replay types
+[JsonSerializable(typeof(ReplayOperationResult))]
+[JsonSerializable(typeof(RecordingInfoSnapshot))]
+[JsonSerializable(typeof(PlaybackStateSnapshot))]
+[JsonSerializable(typeof(ReplayFrameSnapshot))]
+[JsonSerializable(typeof(ReplayFrameSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<ReplayFrameSnapshot>))]
+[JsonSerializable(typeof(List<ReplayFrameSnapshot>))]
+[JsonSerializable(typeof(ReplayMetadataSnapshot))]
+[JsonSerializable(typeof(ReplayFileSnapshot))]
+[JsonSerializable(typeof(ReplayFileSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<ReplayFileSnapshot>))]
+[JsonSerializable(typeof(List<ReplayFileSnapshot>))]
+[JsonSerializable(typeof(InputEventSnapshot))]
+[JsonSerializable(typeof(InputEventSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<InputEventSnapshot>))]
+[JsonSerializable(typeof(List<InputEventSnapshot>))]
+[JsonSerializable(typeof(ReplayEventSnapshot))]
+[JsonSerializable(typeof(ReplayEventSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<ReplayEventSnapshot>))]
+[JsonSerializable(typeof(List<ReplayEventSnapshot>))]
+[JsonSerializable(typeof(SnapshotMarkerSnapshot))]
+[JsonSerializable(typeof(SnapshotMarkerSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<SnapshotMarkerSnapshot>))]
+[JsonSerializable(typeof(List<SnapshotMarkerSnapshot>))]
+[JsonSerializable(typeof(ValidationResultSnapshot))]
+[JsonSerializable(typeof(DeterminismResultSnapshot))]
 internal partial class IpcJsonContext : JsonSerializerContext
 {
 }
