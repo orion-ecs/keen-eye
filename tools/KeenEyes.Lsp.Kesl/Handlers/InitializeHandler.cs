@@ -24,7 +24,8 @@ public sealed class InitializeHandler
                     TriggerCharacters = [".", "@", ":"],
                     ResolveProvider = false
                 },
-                HoverProvider = true
+                HoverProvider = true,
+                DefinitionProvider = true
             },
             ServerInfo = new ServerInfo
             {

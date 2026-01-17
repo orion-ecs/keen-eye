@@ -196,6 +196,10 @@ public sealed record ServerCapabilities
     /// <summary>The server provides hover support.</summary>
     [JsonPropertyName("hoverProvider")]
     public bool? HoverProvider { get; init; }
+
+    /// <summary>The server provides go to definition support.</summary>
+    [JsonPropertyName("definitionProvider")]
+    public bool? DefinitionProvider { get; init; }
 }
 
 /// <summary>
@@ -325,3 +329,8 @@ public enum CompletionTriggerKind
 /// Parameters for textDocument/hover request.
 /// </summary>
 public sealed record HoverParams : TextDocumentPositionParams;
+
+/// <summary>
+/// Parameters for textDocument/definition request.
+/// </summary>
+public sealed record DefinitionParams : TextDocumentPositionParams;
