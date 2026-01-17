@@ -736,6 +736,195 @@ public class SystemGeneratorTests
 
     #endregion
 
+    #region Multi-Line Array Formatting Tests
+
+    [Fact]
+    public void SystemGenerator_WithThreeConstraints_GeneratesSingleLineArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Target1 { }
+            public class Target2 { }
+            public class Target3 { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(Target1))]
+            [KeenEyes.RunBefore(typeof(Target2))]
+            [KeenEyes.RunBefore(typeof(Target3))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // With 3 elements, should be single line
+        var partialSource = generatedTrees.First(t => t.Contains("partial class TestSystem"));
+        Assert.Contains("RunsBefore => [typeof(global::TestApp.Target1), typeof(global::TestApp.Target2), typeof(global::TestApp.Target3)]", partialSource);
+    }
+
+    [Fact]
+    public void SystemGenerator_WithFourConstraints_GeneratesMultiLineArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Target1 { }
+            public class Target2 { }
+            public class Target3 { }
+            public class Target4 { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(Target1))]
+            [KeenEyes.RunBefore(typeof(Target2))]
+            [KeenEyes.RunBefore(typeof(Target3))]
+            [KeenEyes.RunBefore(typeof(Target4))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // With 4+ elements, should be multi-line
+        var partialSource = generatedTrees.First(t => t.Contains("partial class TestSystem"));
+
+        // Should contain the opening bracket on its own
+        Assert.Contains("RunsBefore => [", partialSource);
+
+        // Each typeof should be on its own line
+        Assert.Contains("typeof(global::TestApp.Target1),", partialSource);
+        Assert.Contains("typeof(global::TestApp.Target2),", partialSource);
+        Assert.Contains("typeof(global::TestApp.Target3),", partialSource);
+        Assert.Contains("typeof(global::TestApp.Target4)", partialSource);
+    }
+
+    [Fact]
+    public void SystemGenerator_WithFiveConstraints_GeneratesMultiLineArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Target1 { }
+            public class Target2 { }
+            public class Target3 { }
+            public class Target4 { }
+            public class Target5 { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunAfter(typeof(Target1))]
+            [KeenEyes.RunAfter(typeof(Target2))]
+            [KeenEyes.RunAfter(typeof(Target3))]
+            [KeenEyes.RunAfter(typeof(Target4))]
+            [KeenEyes.RunAfter(typeof(Target5))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // With 5 elements, should be multi-line
+        var partialSource = generatedTrees.First(t => t.Contains("partial class TestSystem"));
+
+        // Should contain the opening bracket on its own
+        Assert.Contains("RunsAfter => [", partialSource);
+
+        // All 5 types should be present
+        Assert.Contains("typeof(global::TestApp.Target1)", partialSource);
+        Assert.Contains("typeof(global::TestApp.Target2)", partialSource);
+        Assert.Contains("typeof(global::TestApp.Target3)", partialSource);
+        Assert.Contains("typeof(global::TestApp.Target4)", partialSource);
+        Assert.Contains("typeof(global::TestApp.Target5)", partialSource);
+    }
+
+    [Fact]
+    public void SystemGenerator_ExtensionMethod_WithFourConstraints_GeneratesMultiLineArray()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Target1 { }
+            public class Target2 { }
+            public class Target3 { }
+            public class Target4 { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(Target1))]
+            [KeenEyes.RunBefore(typeof(Target2))]
+            [KeenEyes.RunBefore(typeof(Target3))]
+            [KeenEyes.RunBefore(typeof(Target4))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // Check extension method source (uses explicit array syntax)
+        var extensionSource = generatedTrees.First(t => t.Contains("TestSystemExtensions"));
+
+        // Should contain the new Type[] on its own line
+        Assert.Contains("runsBefore: new global::System.Type[]", extensionSource);
+
+        // Each typeof should be present
+        Assert.Contains("typeof(global::TestApp.Target1)", extensionSource);
+        Assert.Contains("typeof(global::TestApp.Target2)", extensionSource);
+        Assert.Contains("typeof(global::TestApp.Target3)", extensionSource);
+        Assert.Contains("typeof(global::TestApp.Target4)", extensionSource);
+    }
+
+    [Fact]
+    public void SystemGenerator_WithMixedConstraintCounts_GeneratesAppropriateFormatting()
+    {
+        var source = """
+            namespace TestApp;
+
+            public class Before1 { }
+            public class Before2 { }
+            public class After1 { }
+            public class After2 { }
+            public class After3 { }
+            public class After4 { }
+
+            [KeenEyes.System]
+            [KeenEyes.RunBefore(typeof(Before1))]
+            [KeenEyes.RunBefore(typeof(Before2))]
+            [KeenEyes.RunAfter(typeof(After1))]
+            [KeenEyes.RunAfter(typeof(After2))]
+            [KeenEyes.RunAfter(typeof(After3))]
+            [KeenEyes.RunAfter(typeof(After4))]
+            public partial class TestSystem
+            {
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        var partialSource = generatedTrees.First(t => t.Contains("partial class TestSystem"));
+
+        // RunsBefore has 2 elements - should be single line
+        Assert.Contains("RunsBefore => [typeof(global::TestApp.Before1), typeof(global::TestApp.Before2)]", partialSource);
+
+        // RunsAfter has 4 elements - should be multi-line
+        Assert.Contains("RunsAfter => [", partialSource);
+        Assert.Contains("typeof(global::TestApp.After1)", partialSource);
+        Assert.Contains("typeof(global::TestApp.After4)", partialSource);
+    }
+
+    #endregion
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(SystemAttribute).Assembly;
