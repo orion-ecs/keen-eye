@@ -5,6 +5,7 @@ using KeenEyes.TestBridge.Input;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.Process;
+using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
@@ -101,6 +102,18 @@ public interface ITestBridge : IDisposable
     /// </para>
     /// </remarks>
     IMutationController Mutation { get; }
+
+    /// <summary>
+    /// Gets the profile controller for performance profiling and debugging.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The profile controller provides access to system profiling, query statistics,
+    /// memory usage, GC allocations, and timeline recording. Requires the DebugPlugin
+    /// to be installed for full functionality.
+    /// </para>
+    /// </remarks>
+    IProfileController Profile { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.

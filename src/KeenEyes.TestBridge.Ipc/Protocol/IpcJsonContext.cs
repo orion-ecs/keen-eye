@@ -4,6 +4,7 @@ using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
+using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
@@ -111,6 +112,34 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(List<ComponentData>))]
 [JsonSerializable(typeof(IReadOnlyList<string>))]
 [JsonSerializable(typeof(List<string>))]
+// Profile types
+[JsonSerializable(typeof(SystemProfileSnapshot))]
+[JsonSerializable(typeof(SystemProfileSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<SystemProfileSnapshot>))]
+[JsonSerializable(typeof(List<SystemProfileSnapshot>))]
+[JsonSerializable(typeof(QueryProfileSnapshot))]
+[JsonSerializable(typeof(QueryProfileSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<QueryProfileSnapshot>))]
+[JsonSerializable(typeof(List<QueryProfileSnapshot>))]
+[JsonSerializable(typeof(QueryCacheStatsSnapshot))]
+[JsonSerializable(typeof(AllocationProfileSnapshot))]
+[JsonSerializable(typeof(AllocationProfileSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<AllocationProfileSnapshot>))]
+[JsonSerializable(typeof(List<AllocationProfileSnapshot>))]
+[JsonSerializable(typeof(MemoryStatsSnapshot))]
+[JsonSerializable(typeof(ArchetypeStatsSnapshot))]
+[JsonSerializable(typeof(ArchetypeStatsSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<ArchetypeStatsSnapshot>))]
+[JsonSerializable(typeof(List<ArchetypeStatsSnapshot>))]
+[JsonSerializable(typeof(TimelineStatsSnapshot))]
+[JsonSerializable(typeof(TimelineEntrySnapshot))]
+[JsonSerializable(typeof(TimelineEntrySnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<TimelineEntrySnapshot>))]
+[JsonSerializable(typeof(List<TimelineEntrySnapshot>))]
+[JsonSerializable(typeof(TimelineSystemStatsSnapshot))]
+[JsonSerializable(typeof(TimelineSystemStatsSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<TimelineSystemStatsSnapshot>))]
+[JsonSerializable(typeof(List<TimelineSystemStatsSnapshot>))]
 // Input command arguments
 [JsonSerializable(typeof(KeyActionArgs))]
 [JsonSerializable(typeof(KeyPressArgs))]
