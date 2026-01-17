@@ -1,4 +1,5 @@
 using KeenEyes.Input.Abstractions;
+using KeenEyes.TestBridge.AI;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -127,6 +128,18 @@ public interface ITestBridge : IDisposable
     /// </para>
     /// </remarks>
     ISnapshotController Snapshot { get; }
+
+    /// <summary>
+    /// Gets the AI controller for inspecting and debugging AI components.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The AI controller provides access to behavior trees, state machines,
+    /// utility AI, and blackboard data. Requires the AIPlugin to be installed
+    /// for full functionality.
+    /// </para>
+    /// </remarks>
+    IAIController AI { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.

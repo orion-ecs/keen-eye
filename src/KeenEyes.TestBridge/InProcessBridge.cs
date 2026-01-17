@@ -1,6 +1,8 @@
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.Logging;
+using KeenEyes.TestBridge.AI;
+using KeenEyes.TestBridge.AIImpl;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -54,6 +56,7 @@ public sealed class InProcessBridge : ITestBridge
     private readonly MutationControllerImpl mutationController;
     private readonly ProfileControllerImpl profileController;
     private readonly SnapshotControllerImpl snapshotController;
+    private readonly AIControllerImpl aiController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -91,6 +94,7 @@ public sealed class InProcessBridge : ITestBridge
         mutationController = new MutationControllerImpl(world);
         profileController = new ProfileControllerImpl(world);
         snapshotController = new SnapshotControllerImpl(world);
+        aiController = new AIControllerImpl(world);
 
         // Wire up log controller to state controller for WorldStats
         stateController.SetLogController(logController);
@@ -131,6 +135,9 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public ISnapshotController Snapshot => snapshotController;
+
+    /// <inheritdoc />
+    public IAIController AI => aiController;
 
     /// <inheritdoc />
     public IInputContext InputContext => compositeInputContext is not null
