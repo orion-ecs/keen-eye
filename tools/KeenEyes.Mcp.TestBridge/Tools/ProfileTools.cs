@@ -449,22 +449,6 @@ public sealed record AvailabilityResult
 }
 
 /// <summary>
-/// Generic operation result.
-/// </summary>
-public sealed record OperationResult
-{
-    /// <summary>
-    /// Gets whether the operation succeeded.
-    /// </summary>
-    public required bool Success { get; init; }
-
-    /// <summary>
-    /// Gets an optional error message.
-    /// </summary>
-    public string? Error { get; init; }
-}
-
-/// <summary>
 /// Result of a system profiling query.
 /// </summary>
 public sealed record SystemProfilingResult

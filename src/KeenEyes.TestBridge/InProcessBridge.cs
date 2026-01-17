@@ -3,6 +3,8 @@ using KeenEyes.Input.Abstractions;
 using KeenEyes.Logging;
 using KeenEyes.TestBridge.AI;
 using KeenEyes.TestBridge.AIImpl;
+using KeenEyes.TestBridge.Animation;
+using KeenEyes.TestBridge.AnimationImpl;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -10,6 +12,12 @@ using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.LoggingImpl;
 using KeenEyes.TestBridge.Mutation;
 using KeenEyes.TestBridge.MutationImpl;
+using KeenEyes.TestBridge.Navigation;
+using KeenEyes.TestBridge.NavigationImpl;
+using KeenEyes.TestBridge.Network;
+using KeenEyes.TestBridge.NetworkImpl;
+using KeenEyes.TestBridge.Physics;
+using KeenEyes.TestBridge.PhysicsImpl;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.ProcessImpl;
 using KeenEyes.TestBridge.Profile;
@@ -23,6 +31,8 @@ using KeenEyes.TestBridge.SystemImpl;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
 using KeenEyes.TestBridge.TimeImpl;
+using KeenEyes.TestBridge.UI;
+using KeenEyes.TestBridge.UIImpl;
 using KeenEyes.TestBridge.Window;
 using KeenEyes.TestBridge.WindowImpl;
 using KeenEyes.Testing.Input;
@@ -60,6 +70,11 @@ public sealed class InProcessBridge : ITestBridge
     private readonly SnapshotControllerImpl snapshotController;
     private readonly AIControllerImpl aiController;
     private readonly ReplayControllerImpl replayController;
+    private readonly AnimationControllerImpl animationController;
+    private readonly PhysicsControllerImpl physicsController;
+    private readonly NavigationControllerImpl navigationController;
+    private readonly NetworkControllerImpl networkController;
+    private readonly UIControllerImpl uiController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -99,6 +114,11 @@ public sealed class InProcessBridge : ITestBridge
         snapshotController = new SnapshotControllerImpl(world);
         aiController = new AIControllerImpl(world);
         replayController = new ReplayControllerImpl(world);
+        animationController = new AnimationControllerImpl(world);
+        physicsController = new PhysicsControllerImpl(world);
+        navigationController = new NavigationControllerImpl(world);
+        networkController = new NetworkControllerImpl(world);
+        uiController = new UIControllerImpl(world);
 
         // Wire up log controller to state controller for WorldStats
         stateController.SetLogController(logController);
@@ -145,6 +165,21 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public IReplayController Replay => replayController;
+
+    /// <inheritdoc />
+    public IAnimationController Animation => animationController;
+
+    /// <inheritdoc />
+    public IPhysicsController Physics => physicsController;
+
+    /// <inheritdoc />
+    public INavigationController Navigation => navigationController;
+
+    /// <inheritdoc />
+    public INetworkController Network => networkController;
+
+    /// <inheritdoc />
+    public IUIController UI => uiController;
 
     /// <inheritdoc />
     public IInputContext InputContext => compositeInputContext is not null

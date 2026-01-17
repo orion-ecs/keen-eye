@@ -24,6 +24,11 @@
     <ProjectReference Include="..\KeenEyes.Debugging\KeenEyes.Debugging.csproj" />
     <ProjectReference Include="..\KeenEyes.AI\KeenEyes.AI.csproj" />
     <ProjectReference Include="..\KeenEyes.Replay\KeenEyes.Replay.csproj" />
+    <ProjectReference Include="..\KeenEyes.Animation\KeenEyes.Animation.csproj" />
+    <ProjectReference Include="..\KeenEyes.Physics\KeenEyes.Physics.csproj" />
+    <ProjectReference Include="..\KeenEyes.UI\KeenEyes.UI.csproj" />
+    <ProjectReference Include="..\KeenEyes.Network\KeenEyes.Network.csproj" />
+    <ProjectReference Include="..\KeenEyes.Navigation\KeenEyes.Navigation.csproj" />
   </ItemGroup>
 
 </Project>

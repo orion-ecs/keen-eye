@@ -1,10 +1,14 @@
 using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.AI;
+using KeenEyes.TestBridge.Animation;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
+using KeenEyes.TestBridge.Navigation;
+using KeenEyes.TestBridge.Network;
+using KeenEyes.TestBridge.Physics;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.Replay;
@@ -12,6 +16,7 @@ using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
+using KeenEyes.TestBridge.UI;
 using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge;
@@ -153,6 +158,66 @@ public interface ITestBridge : IDisposable
     /// </para>
     /// </remarks>
     IReplayController Replay { get; }
+
+    /// <summary>
+    /// Gets the physics controller for inspecting and debugging physics simulation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The physics controller provides access to raycasting, overlap queries,
+    /// body state inspection, and force application for debugging physics interactions.
+    /// Requires the PhysicsPlugin to be installed for full functionality.
+    /// </para>
+    /// </remarks>
+    IPhysicsController Physics { get; }
+
+    /// <summary>
+    /// Gets the animation controller for inspecting and debugging animation components.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The animation controller provides access to animation players, animators,
+    /// and animation clips. Requires the AnimationPlugin to be installed
+    /// for full functionality.
+    /// </para>
+    /// </remarks>
+    IAnimationController Animation { get; }
+
+    /// <summary>
+    /// Gets the navigation controller for inspecting and debugging navigation agents and paths.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The navigation controller provides access to navigation agents, pathfinding,
+    /// and navmesh queries. Requires the NavigationPlugin to be installed
+    /// for full functionality.
+    /// </para>
+    /// </remarks>
+    INavigationController Navigation { get; }
+
+    /// <summary>
+    /// Gets the network controller for inspecting and debugging network state and replication.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The network controller provides access to connection state, networked entities,
+    /// ownership information, and replication state. Requires either NetworkClientPlugin
+    /// or NetworkServerPlugin to be installed for full functionality.
+    /// </para>
+    /// </remarks>
+    INetworkController Network { get; }
+
+    /// <summary>
+    /// Gets the UI controller for inspecting and debugging UI elements.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The UI controller provides access to UI element hierarchy, focus management,
+    /// hit testing, and interaction simulation. Requires the UIPlugin to be installed
+    /// for full functionality.
+    /// </para>
+    /// </remarks>
+    IUIController UI { get; }
 
     /// <summary>
     /// Gets the input context used by this bridge.

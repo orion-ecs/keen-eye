@@ -80,4 +80,45 @@ internal sealed class MockCaptureController : ICaptureController
         IsRecording = false;
         return Task.FromResult<IReadOnlyList<FrameCapture>>(recordedFrames);
     }
+
+    public Task<FrameCapture> CaptureRegionAsync(int x, int y, int width, int height)
+    {
+        if (!IsAvailable)
+        {
+            throw new InvalidOperationException("Capture is not available");
+        }
+
+        var frame = new FrameCapture
+        {
+            Width = width,
+            Height = height,
+            Pixels = new byte[width * height * 4],
+            FrameNumber = 1,
+            Timestamp = TimeSpan.FromSeconds(1)
+        };
+
+        return Task.FromResult(frame);
+    }
+
+    public Task<byte[]> GetRegionScreenshotBytesAsync(int x, int y, int width, int height, ImageFormat format = ImageFormat.Png)
+    {
+        if (!IsAvailable)
+        {
+            throw new InvalidOperationException("Capture is not available");
+        }
+
+        // Return a minimal PNG stub
+        byte[] pngHeader = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+        return Task.FromResult(pngHeader);
+    }
+
+    public Task<string> SaveRegionScreenshotAsync(int x, int y, int width, int height, string filePath, ImageFormat format = ImageFormat.Png)
+    {
+        if (!IsAvailable)
+        {
+            throw new InvalidOperationException("Capture is not available");
+        }
+
+        return Task.FromResult(filePath);
+    }
 }

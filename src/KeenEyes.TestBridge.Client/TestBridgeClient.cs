@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.AI;
+using KeenEyes.TestBridge.Animation;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -10,6 +11,9 @@ using KeenEyes.TestBridge.Ipc.Protocol;
 using KeenEyes.TestBridge.Ipc.Transport;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
+using KeenEyes.TestBridge.Navigation;
+using KeenEyes.TestBridge.Network;
+using KeenEyes.TestBridge.Physics;
 using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.Replay;
@@ -17,6 +21,7 @@ using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
+using KeenEyes.TestBridge.UI;
 using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge.Client;
@@ -83,6 +88,11 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Snapshot = new RemoteSnapshotController(this);
         AI = new RemoteAIController(this);
         Replay = new RemoteReplayController(this);
+        Animation = new RemoteAnimationController(this);
+        Physics = new RemotePhysicsController(this);
+        Navigation = new RemoteNavigationController(this);
+        Network = new RemoteNetworkController(this);
+        UI = new RemoteUIController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -134,6 +144,21 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public IReplayController Replay { get; }
+
+    /// <inheritdoc />
+    public IAnimationController Animation { get; }
+
+    /// <inheritdoc />
+    public IPhysicsController Physics { get; }
+
+    /// <inheritdoc />
+    public INavigationController Navigation { get; }
+
+    /// <inheritdoc />
+    public INetworkController Network { get; }
+
+    /// <inheritdoc />
+    public IUIController UI { get; }
 
     /// <inheritdoc />
     /// <remarks>

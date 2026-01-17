@@ -74,7 +74,12 @@ public sealed class IpcBridgeServer : IDisposable
             ["profile"] = new ProfileCommandHandler(bridge.Profile),
             ["snapshot"] = new SnapshotCommandHandler(bridge.Snapshot),
             ["ai"] = new AICommandHandler(bridge.AI),
-            ["replay"] = new ReplayCommandHandler(bridge.Replay)
+            ["replay"] = new ReplayCommandHandler(bridge.Replay),
+            ["animation"] = new AnimationCommandHandler(bridge.Animation),
+            ["physics"] = new PhysicsCommandHandler(bridge.Physics),
+            ["navigation"] = new NavigationCommandHandler(bridge.Navigation),
+            ["network"] = new NetworkCommandHandler(bridge.Network),
+            ["ui"] = new UICommandHandler(bridge.UI)
         };
 
         transport.MessageReceived += OnMessageReceived;

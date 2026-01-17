@@ -2,15 +2,20 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.TestBridge.AI;
+using KeenEyes.TestBridge.Animation;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
+using KeenEyes.TestBridge.Navigation;
+using KeenEyes.TestBridge.Network;
+using KeenEyes.TestBridge.Physics;
 using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.Replay;
 using KeenEyes.TestBridge.Snapshot;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.Systems;
 using KeenEyes.TestBridge.Time;
+using KeenEyes.TestBridge.UI;
 using KeenEyes.TestBridge.Window;
 
 namespace KeenEyes.TestBridge.Ipc.Protocol;
@@ -239,6 +244,45 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(List<SnapshotMarkerSnapshot>))]
 [JsonSerializable(typeof(ValidationResultSnapshot))]
 [JsonSerializable(typeof(DeterminismResultSnapshot))]
+// Animation types
+[JsonSerializable(typeof(AnimationStatisticsSnapshot))]
+[JsonSerializable(typeof(AnimationPlayerSnapshot))]
+[JsonSerializable(typeof(AnimatorSnapshot))]
+[JsonSerializable(typeof(AnimationClipSnapshot))]
+[JsonSerializable(typeof(AnimationClipSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<AnimationClipSnapshot>))]
+[JsonSerializable(typeof(List<AnimationClipSnapshot>))]
+// Physics types
+[JsonSerializable(typeof(PhysicsStatisticsSnapshot))]
+[JsonSerializable(typeof(Vector3Snapshot))]
+[JsonSerializable(typeof(QuaternionSnapshot))]
+[JsonSerializable(typeof(RayHitSnapshot))]
+[JsonSerializable(typeof(PhysicsBodySnapshot))]
+// Navigation types
+[JsonSerializable(typeof(NavigationStatisticsSnapshot))]
+[JsonSerializable(typeof(NavAgentSnapshot))]
+[JsonSerializable(typeof(NavPathSnapshot))]
+[JsonSerializable(typeof(NavPointSnapshot))]
+[JsonSerializable(typeof(NavPointSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<NavPointSnapshot>))]
+[JsonSerializable(typeof(List<NavPointSnapshot>))]
+// Network types
+[JsonSerializable(typeof(NetworkStatisticsSnapshot))]
+[JsonSerializable(typeof(ConnectionStatsSnapshot))]
+[JsonSerializable(typeof(ClientSnapshot))]
+[JsonSerializable(typeof(ClientSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<ClientSnapshot>))]
+[JsonSerializable(typeof(List<ClientSnapshot>))]
+[JsonSerializable(typeof(ReplicationStateSnapshot))]
+// UI types
+[JsonSerializable(typeof(UIStatisticsSnapshot))]
+[JsonSerializable(typeof(UIElementSnapshot))]
+[JsonSerializable(typeof(UIElementSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<UIElementSnapshot>))]
+[JsonSerializable(typeof(List<UIElementSnapshot>))]
+[JsonSerializable(typeof(UIBoundsSnapshot))]
+[JsonSerializable(typeof(UIStyleSnapshot))]
+[JsonSerializable(typeof(UIInteractionSnapshot))]
 internal partial class IpcJsonContext : JsonSerializerContext
 {
 }

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using KeenEyes.TestBridge.State;
 
 namespace KeenEyes.Mcp.TestBridge.Tests.Mocks;
@@ -10,6 +11,9 @@ internal sealed class MockStateController : IStateController
     public Dictionary<int, EntitySnapshot> Entities { get; } = [];
     public Dictionary<string, object?> Extensions { get; } = [];
     public List<SystemInfo> Systems { get; } = [];
+
+    // Store component data separately for GetComponentAsync
+    private readonly Dictionary<(int EntityId, string ComponentType), JsonElement> componentData = [];
 
     public WorldStats Stats { get; set; } = new()
     {
@@ -86,20 +90,25 @@ internal sealed class MockStateController : IStateController
         return Task.FromResult(entity);
     }
 
-    public Task<IReadOnlyDictionary<string, object?>?> GetComponentAsync(int entityId, string componentTypeName)
+    public Task<JsonElement?> GetComponentAsync(int entityId, string componentTypeName)
     {
         if (!Entities.TryGetValue(entityId, out var entity))
         {
-            return Task.FromResult<IReadOnlyDictionary<string, object?>?>(null);
+            return Task.FromResult<JsonElement?>(null);
         }
 
         if (!entity.Components.TryGetValue(componentTypeName, out var component))
         {
-            return Task.FromResult<IReadOnlyDictionary<string, object?>?>(null);
+            // Check the separate component data storage
+            if (componentData.TryGetValue((entityId, componentTypeName), out var storedComponent))
+            {
+                return Task.FromResult<JsonElement?>(storedComponent);
+            }
+
+            return Task.FromResult<JsonElement?>(null);
         }
 
-        return Task.FromResult<IReadOnlyDictionary<string, object?>?>(
-            component.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Task.FromResult<JsonElement?>(component);
     }
 
     public Task<WorldStats> GetWorldStatsAsync() => Task.FromResult(Stats);
@@ -154,7 +163,7 @@ internal sealed class MockStateController : IStateController
             Id = id,
             Version = 1,
             Name = name,
-            Components = new Dictionary<string, IReadOnlyDictionary<string, object?>>(),
+            Components = new Dictionary<string, JsonElement>(),
             ComponentTypes = componentTypes ?? [],
             ParentId = parentId,
             ChildIds = [],
@@ -165,20 +174,32 @@ internal sealed class MockStateController : IStateController
     /// <summary>
     /// Helper to add an entity with component data.
     /// </summary>
-    public void AddEntityWithComponents(int id, string? name, Dictionary<string, Dictionary<string, object?>> components)
+    public void AddEntityWithComponents(int id, string? name, Dictionary<string, JsonElement> components)
     {
         Entities[id] = new EntitySnapshot
         {
             Id = id,
             Version = 1,
             Name = name,
-            Components = components.ToDictionary(
-                kvp => kvp.Key,
-                kvp => (IReadOnlyDictionary<string, object?>)kvp.Value),
+            Components = components,
             ComponentTypes = [.. components.Keys],
             ParentId = null,
             ChildIds = [],
             Tags = []
         };
+
+        // Also store in component data for GetComponentAsync
+        foreach (var (componentType, data) in components)
+        {
+            componentData[(id, componentType)] = data;
+        }
+    }
+
+    /// <summary>
+    /// Helper to set component data for an entity.
+    /// </summary>
+    public void SetComponentData(int entityId, string componentType, JsonElement data)
+    {
+        componentData[(entityId, componentType)] = data;
     }
 }
