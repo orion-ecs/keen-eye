@@ -12,6 +12,8 @@ using KeenEyes.TestBridge.Process;
 using KeenEyes.TestBridge.ProcessImpl;
 using KeenEyes.TestBridge.Profile;
 using KeenEyes.TestBridge.ProfileImpl;
+using KeenEyes.TestBridge.Snapshot;
+using KeenEyes.TestBridge.SnapshotImpl;
 using KeenEyes.TestBridge.State;
 using KeenEyes.TestBridge.SystemImpl;
 using KeenEyes.TestBridge.Systems;
@@ -51,6 +53,7 @@ public sealed class InProcessBridge : ITestBridge
     private readonly SystemControllerImpl systemController;
     private readonly MutationControllerImpl mutationController;
     private readonly ProfileControllerImpl profileController;
+    private readonly SnapshotControllerImpl snapshotController;
     private readonly TestBridgeOptions options;
     private bool disposed;
 
@@ -87,6 +90,7 @@ public sealed class InProcessBridge : ITestBridge
         systemController = new SystemControllerImpl(world);
         mutationController = new MutationControllerImpl(world);
         profileController = new ProfileControllerImpl(world);
+        snapshotController = new SnapshotControllerImpl(world);
 
         // Wire up log controller to state controller for WorldStats
         stateController.SetLogController(logController);
@@ -124,6 +128,9 @@ public sealed class InProcessBridge : ITestBridge
 
     /// <inheritdoc />
     public IProfileController Profile => profileController;
+
+    /// <inheritdoc />
+    public ISnapshotController Snapshot => snapshotController;
 
     /// <inheritdoc />
     public IInputContext InputContext => compositeInputContext is not null
