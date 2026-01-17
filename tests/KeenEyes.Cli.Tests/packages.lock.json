@@ -385,6 +385,14 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
+      "keeneyes.debugging": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )"
+        }
+      },
       "keeneyes.editor": {
         "type": "Project",
         "dependencies": {
@@ -550,7 +558,9 @@
       "keeneyes.testbridge": {
         "type": "Project",
         "dependencies": {
+          "KeenEyes.AI": "[1.0.0, )",
           "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Debugging": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
           "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",

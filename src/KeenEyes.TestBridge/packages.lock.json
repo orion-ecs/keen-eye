@@ -4,9 +4,9 @@
     "net10.0": {
       "Microsoft.NET.ILLink.Tasks": {
         "type": "Direct",
-        "requested": "[10.0.0, )",
-        "resolved": "10.0.0",
-        "contentHash": "kICGrGYEzCNI3wPzfEXcwNHgTvlvVn9yJDhSdRK+oZQy4jvYH529u7O0xf5ocQKzOMjfS07+3z9PKRIjrFMJDA=="
+        "requested": "[10.0.1, )",
+        "resolved": "10.0.1",
+        "contentHash": "ISahzLHsHY7vrwqr2p1YWZ+gsxoBRtH7gWRDK8fDUst9pp2He0GiesaqEfeX0V8QMCJM3eNEHGGpnIcPjFo2NQ=="
       },
       "SonarAnalyzer.CSharp": {
         "type": "Direct",
@@ -23,6 +23,16 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
+      "keeneyes.ai": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Navigation": "[1.0.0, )",
+          "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.common": {
         "type": "Project",
         "dependencies": {
@@ -33,6 +43,14 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.debugging": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )"
         }
       },
       "keeneyes.graphics.abstractions": {
@@ -49,6 +67,19 @@
         }
       },
       "keeneyes.logging": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.navigation": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.navigation.abstractions": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"

@@ -194,6 +194,16 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
+      "keeneyes.ai": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Navigation": "[1.0.0, )",
+          "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.common": {
         "type": "Project",
         "dependencies": {
@@ -204,6 +214,14 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.debugging": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )"
         }
       },
       "keeneyes.graphics.abstractions": {
@@ -225,6 +243,19 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
+      "keeneyes.navigation": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.navigation.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.network.abstractions": {
         "type": "Project",
         "dependencies": {
@@ -241,7 +272,9 @@
       "keeneyes.testbridge": {
         "type": "Project",
         "dependencies": {
+          "KeenEyes.AI": "[1.0.0, )",
           "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Debugging": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
           "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",

@@ -22,6 +22,7 @@
     <ProjectReference Include="..\KeenEyes.Graphics.Abstractions\KeenEyes.Graphics.Abstractions.csproj" />
     <ProjectReference Include="..\KeenEyes.Logging\KeenEyes.Logging.csproj" />
     <ProjectReference Include="..\KeenEyes.Debugging\KeenEyes.Debugging.csproj" />
+    <ProjectReference Include="..\KeenEyes.AI\KeenEyes.AI.csproj" />
   </ItemGroup>
 
 </Project>

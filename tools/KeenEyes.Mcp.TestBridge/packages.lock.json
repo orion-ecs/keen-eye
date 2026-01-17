@@ -332,6 +332,14 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
+      "keeneyes.debugging": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )"
+        }
+      },
       "keeneyes.graphics.abstractions": {
         "type": "Project",
         "dependencies": {
@@ -364,12 +372,21 @@
           "KeenEyes.Core": "[1.0.0, )"
         }
       },
+      "keeneyes.replay": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )"
+        }
+      },
       "keeneyes.testbridge": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Debugging": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
+          "KeenEyes.Replay": "[1.0.0, )",
           "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",
           "KeenEyes.Testing": "[1.0.0, )",
           "StbImageWriteSharp": "[1.16.7, )"

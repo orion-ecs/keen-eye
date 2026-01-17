@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using KeenEyes.Input.Abstractions;
+using KeenEyes.TestBridge.AI;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Commands;
 using KeenEyes.TestBridge.Input;
@@ -79,6 +80,7 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
         Mutation = new RemoteMutationController(this);
         Profile = new RemoteProfileController(this);
         Snapshot = new RemoteSnapshotController(this);
+        AI = new RemoteAIController(this);
 
         transport.MessageReceived += OnMessageReceived;
         transport.ConnectionChanged += OnConnectionChanged;
@@ -124,6 +126,9 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
 
     /// <inheritdoc />
     public ISnapshotController Snapshot { get; }
+
+    /// <inheritdoc />
+    public IAIController AI { get; }
 
     /// <inheritdoc />
     /// <remarks>

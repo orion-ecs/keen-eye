@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using KeenEyes.Input.Abstractions;
+using KeenEyes.TestBridge.AI;
 using KeenEyes.TestBridge.Capture;
 using KeenEyes.TestBridge.Logging;
 using KeenEyes.TestBridge.Mutation;
@@ -141,6 +142,23 @@ namespace KeenEyes.TestBridge.Ipc.Protocol;
 [JsonSerializable(typeof(TimelineSystemStatsSnapshot[]))]
 [JsonSerializable(typeof(IReadOnlyList<TimelineSystemStatsSnapshot>))]
 [JsonSerializable(typeof(List<TimelineSystemStatsSnapshot>))]
+// AI types
+[JsonSerializable(typeof(AIStatisticsSnapshot))]
+[JsonSerializable(typeof(BehaviorTreeSnapshot))]
+[JsonSerializable(typeof(StateMachineSnapshot))]
+[JsonSerializable(typeof(StateInfoSnapshot))]
+[JsonSerializable(typeof(StateInfoSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<StateInfoSnapshot>))]
+[JsonSerializable(typeof(List<StateInfoSnapshot>))]
+[JsonSerializable(typeof(UtilityAISnapshot))]
+[JsonSerializable(typeof(UtilityScoreSnapshot))]
+[JsonSerializable(typeof(UtilityScoreSnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<UtilityScoreSnapshot>))]
+[JsonSerializable(typeof(List<UtilityScoreSnapshot>))]
+[JsonSerializable(typeof(BlackboardEntrySnapshot))]
+[JsonSerializable(typeof(BlackboardEntrySnapshot[]))]
+[JsonSerializable(typeof(IReadOnlyList<BlackboardEntrySnapshot>))]
+[JsonSerializable(typeof(List<BlackboardEntrySnapshot>))]
 // Input command arguments
 [JsonSerializable(typeof(KeyActionArgs))]
 [JsonSerializable(typeof(KeyPressArgs))]
