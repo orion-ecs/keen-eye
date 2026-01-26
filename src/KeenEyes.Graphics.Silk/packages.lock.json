@@ -4,9 +4,9 @@
     "net10.0": {
       "FontStashSharp.PlatformAgnostic": {
         "type": "Direct",
-        "requested": "[1.5.2, )",
-        "resolved": "1.5.2",
-        "contentHash": "/Srtf2DyIBBTbaZ4jpOQZnGFoEcbiXPMZnPuSft8MkMdbMYgCXPD5S123a992qTGVFKQjD9IGapd7Kyg2GD6sw==",
+        "requested": "[1.5.3, )",
+        "resolved": "1.5.3",
+        "contentHash": "xA4mBGDMBq7yhh1QFVa6DHxmNbW/79loQ4veAHDEtMUNXtOiYYpOw3W6bKciu46MmozA2qcIf6d/cSDGjMhuLA==",
         "dependencies": {
           "Cyotek.Drawing.BitmapFont": "2.0.4",
           "FontStashSharp.Base": "1.2.2",
