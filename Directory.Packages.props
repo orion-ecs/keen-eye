@@ -19,7 +19,7 @@
     <PackageVersion Include="Silk.NET.Windowing" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.Input" Version="2.22.0" />
     <PackageVersion Include="Silk.NET.Maths" Version="2.22.0" />
-    <PackageVersion Include="FontStashSharp.PlatformAgnostic" Version="1.5.2" />
+    <PackageVersion Include="FontStashSharp.PlatformAgnostic" Version="1.5.3" />
   </ItemGroup>
   <ItemGroup Label="Physics">
     <PackageVersion Include="BepuPhysics" Version="2.4.0" />
