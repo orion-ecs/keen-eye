@@ -120,7 +120,7 @@ jobs:
         run: ./aot-sample-publish/KeenEyes.Sample.Aot.exe
 
       - name: Upload AOT binaries
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: aot-binaries-${{ matrix.os }}
           path: |
