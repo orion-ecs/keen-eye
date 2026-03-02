@@ -4,9 +4,9 @@
     "net10.0": {
       "SonarAnalyzer.CSharp": {
         "type": "Direct",
-        "requested": "[10.18.0.131500, )",
-        "resolved": "10.18.0.131500",
-        "contentHash": "Rbad71/k5e8MfG81i03Yh2YQQgovIdmyhWcLRevrcW4h9i1DUB3kKX9O1QiOGXcULLjkTdRAXdR8A8XtinL3Pg=="
+        "requested": "[10.20.0.135146, )",
+        "resolved": "10.20.0.135146",
+        "contentHash": "Dx+sh/lhhJrG4Sr5W+bCDr/JKhY1Op6UaIoG5UrDVIyryC7rZtqO4Q4adzvm3IqAhFGHY7oYuaSjtR46hIv8qQ=="
       },
       "Cyotek.Drawing.BitmapFont": {
         "type": "Transitive",
@@ -378,6 +378,7 @@
           "KeenEyes.Debugging": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
           "KeenEyes.Logging": "[1.0.0, )",
+          "KeenEyes.Replay": "[1.0.0, )",
           "KeenEyes.TestBridge.Abstractions": "[1.0.0, )",
           "KeenEyes.Testing": "[1.0.0, )",
           "StbImageWriteSharp": "[1.16.7, )"
