@@ -235,6 +235,57 @@ Custom node body content is drawn through `INodeTypeDefinition.RenderBody`, whic
 - `PortPositionCache` (a world extension registered by `GraphPlugin`) caches computed screen-space port positions so `GraphInputSystem` and `GraphRenderSystem` don't recompute node layout every frame for hit-testing.
 - Selection and drag state use tag components (`GraphNodeSelectedTag`, `GraphNodeDraggingTag`, etc.) so `world.Query<...>()` can filter selected/dragging nodes without scanning a boolean field on every `GraphNode`.
 
+## The Abstractions Layer (`KeenEyes.Graph.Abstractions`)
+
+Everything described above — `GraphContext`, `NodeTypeRegistry`, `PortRegistry`, and the six systems — lives in the `KeenEyes.Graph` package. A separate node-type library (a math-node pack, a KESL shader-node pack, etc.) doesn't need any of that: the components, the `INodeTypeDefinition`/`IGraphRenderer` contracts, and the shared enums it implements against all live in `KeenEyes.Graph.Abstractions`, which has no reference back to `KeenEyes.Graph`. Only the host application that installs `GraphPlugin` needs the concrete package.
+
+### INodeTypeDefinition
+
+`INodeTypeDefinition` (see [Defining a Custom Node Type](#defining-a-custom-node-type) above for a worked example) depends only on `Entity`, `IWorld`, and `KeenEyes.Graphics.Abstractions` (`I2DRenderer`, `Rectangle`) — nothing from `KeenEyes.Graph` itself. Its members:
+
+| Member | Type | Purpose |
+|--------|------|---------|
+| `TypeId` | `int` | Unique type ID. IDs 1–100 are reserved for built-ins; user-defined types start at 101 (`BuiltInNodeIds.UserDefinedStart`, defined in `KeenEyes.Graph`). |
+| `Name` | `string` | Display name shown in the header and node-creation menu. |
+| `Category` | `string` | Grouping used when the context menu organizes node types (e.g. `"Math"`, `"Logic"`, `"Flow"`, `"Utility"`). |
+| `InputPorts` / `OutputPorts` | `IReadOnlyList<PortDefinition>` | The type's fixed port layout. |
+| `IsCollapsible` | `bool` | Whether a collapse toggle appears in the node header. |
+| `Initialize(Entity node, IWorld world)` | `void` | Called after the node entity is created, to add type-specific components (e.g. `CommentNodeData`). |
+| `RenderBody(Entity node, IWorld world, I2DRenderer renderer, Rectangle bodyArea)` | `float` | Draws custom body content below the header; returns the height actually consumed, or `0` for none. |
+
+A definition is passive — implementing the interface doesn't register anything by itself. Registration happens on the `KeenEyes.Graph` side, via `NodeTypeRegistry.Register<TDefinition>()` (or the instance overload `Register(INodeTypeDefinition)`), which stores the definition, mirrors its ports into the underlying `PortRegistry` for backward compatibility, and throws `ArgumentException` if `TypeId` is already registered. `NodeTypeRegistry.CreateNode` is what actually invokes `Initialize` on the matching definition after spawning the `GraphNode` entity.
+
+### PortDefinition and the port type system
+
+`PortDefinition` is the `readonly record struct` backing `InputPorts`/`OutputPorts`: `(string Name, PortDirection Direction, PortTypeId TypeId, Vector2 LocalOffset, bool AllowMultiple = false)`. `PortDirection` is a two-value enum (`Input`, `Output`). Build definitions with the `PortDefinition.Input(name, typeId, yOffset, allowMultiple)` / `PortDefinition.Output(name, typeId, yOffset, nodeWidth)` factories shown earlier rather than the constructor, since they compute `LocalOffset` for you.
+
+`PortTypeId` is the full set of port data types, with explicit numeric values grouped for future expansion room:
+
+| Value | Numeric ID | Notes |
+|-------|-----------|-------|
+| `Any` | 0 | Connects to/from anything. |
+| `Float`, `Float2`, `Float3`, `Float4` | 1–4 | Floating-point scalar/vectors. |
+| `Int`, `Int2`, `Int3`, `Int4` | 10–13 | Integer scalar/vectors. |
+| `Bool` | 20 | Boolean. |
+| `Entity` | 30 | Entity reference. |
+| `Flow` | 100 | Execution flow, for control-flow nodes. |
+
+`PortTypeCompatibility` (a static class) is the single source of truth for connection validity, and is what `GraphContext.Connect` calls before creating a `GraphConnection`:
+
+- `CanConnect(PortTypeId source, PortTypeId target)` — `true` for exact matches, anything into `Any`, and the implicit widening conversions already listed under [Ports and Type Compatibility](#ports-and-type-compatibility) above (`float`→`float2/3/4`, `float2`→`float3/4`, `float3`→`float4`, `int`→`float`, and the equivalent `int`→`int2/3/4` widenings). `Flow` connects only to `Flow`; anything else touching `Flow` is rejected before conversions are considered.
+- `RequiresConversion(PortTypeId source, PortTypeId target)` — `true` when `source != target`, `target` isn't `Any`, and `CanConnect` allows the pair; i.e. the connection is valid but not a same-type match. `GraphRenderSystem` uses this to flag connections that need an implicit conversion (via `IGraphRenderer.DrawConnection`'s `requiresConversion` parameter).
+
+### Core node, graph, and connection model types
+
+The `GraphCanvas`, `GraphNode`, and `GraphConnection` components documented under [Core Concepts](#core-concepts) above are all defined in `KeenEyes.Graph.Abstractions`, as are every state/tag component listed under [Node State and Interaction Components](#node-state-and-interaction-components) (`GraphNodeCollapsed`, `PendingConnection`, `HoveredPort`, `GraphContextMenu`, `GraphViewAnimation`, `WidgetFocus`, and the tag components). A custom node library can construct and query all of these without a dependency on `KeenEyes.Graph`.
+
+Two contracts round out the model:
+
+- **`IGraphRenderer`** — the rendering contract `GraphRenderSystem` implements: `DrawConnection(Vector2 start, Vector2 end, PortTypeId type, ConnectionStyle style, bool isSelected, bool requiresConversion)`, `DrawGrid(Rectangle visibleArea, float gridSize, float zoom)`, `DrawSelectionBox(Rectangle bounds)`, `DrawPortHighlight(Vector2 position, PortTypeId type, bool isValidTarget)`, and `DrawConnectionPreview(Vector2 start, Vector2 end, PortTypeId sourceType, PortTypeId? targetType, ConnectionStyle style)`. A custom renderer (e.g. for a headless test harness) implements this interface directly rather than subclassing `GraphRenderSystem`.
+- **`GraphInteractionMode`** — the enum stored on `GraphCanvas.Mode`: `None`, `Panning`, `Selecting`, `DraggingNode`, `ConnectingPort`, `ContextMenu`, `Duplicating`.
+
+Two smaller enums round out the widget/connection styling surface: `ConnectionStyle` (`Bezier`, `Straight`, `Stepped` — only `Bezier` is currently drawn by `GraphRenderSystem`) and `WidgetType` (`None`, `FloatField`, `IntField`, `ColorPicker`, `Dropdown`, `Slider`, `TextArea` — the set `NodeWidgets` and `WidgetFocus.Type` draw from).
+
 ## Next Steps
 
 - [Plugins Guide](plugins.md) - How plugins work
