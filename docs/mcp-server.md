@@ -222,6 +222,122 @@ Tools for screenshots and frame recording.
 
 Image formats: `png` (default), `jpeg`, `bmp`
 
+### Mutation Tools
+
+Tools for creating, modifying, and destroying entities at runtime.
+
+| Tool | Description |
+|------|-------------|
+| `mutation_spawn` | Spawn a new empty entity |
+| `mutation_spawn_with_components` | Spawn an entity with components |
+| `mutation_despawn` | Destroy an entity |
+| `mutation_clone` | Clone an existing entity |
+| `mutation_set_name` / `mutation_clear_name` | Set or clear an entity's name |
+| `mutation_set_parent` | Re-parent an entity |
+| `mutation_get_root_entities` | List entities with no parent |
+| `mutation_add_component` / `mutation_remove_component` / `mutation_set_component` | Add, remove, or replace a component |
+| `mutation_set_field` | Set a single field on a component |
+| `mutation_add_tag` / `mutation_remove_tag` / `mutation_get_all_tags` | Manage string tags |
+
+### System Tools
+
+Tools for inspecting and toggling registered systems.
+
+| Tool | Description |
+|------|-------------|
+| `system_list` / `system_get_count` / `system_get` | List systems, count them, or get one |
+| `system_enable` / `system_disable` / `system_toggle` | Change a system's enabled state |
+| `system_get_by_phase` | List systems in a given phase |
+| `system_get_enabled` / `system_get_disabled` | Filter systems by state |
+
+### Time Tools
+
+Tools for controlling simulation time.
+
+| Tool | Description |
+|------|-------------|
+| `time_get_state` | Get the current time/pause/scale state |
+| `time_pause` / `time_resume` / `time_toggle_pause` | Control pause state |
+| `time_set_scale` | Set the time scale (slow-mo / fast-forward) |
+| `time_step_frame` | Advance a single frame while paused |
+
+### Log Tools
+
+Tools for querying the in-game log ring buffer.
+
+| Tool | Description |
+|------|-------------|
+| `log_get_stats` / `log_get_count` | Aggregate log statistics and counts |
+| `log_get_recent` | Most recent entries |
+| `log_get_errors` | Error-level entries |
+| `log_get_by_level` / `log_get_by_category` | Filter by severity or category |
+| `log_search` / `log_query` | Text search and structured queries |
+| `log_clear` | Clear the buffer |
+
+### Window Tools
+
+Read-only tools for inspecting the game window.
+
+| Tool | Description |
+|------|-------------|
+| `window_is_available` | Check if a window is present |
+| `window_get_state` | Full window state |
+| `window_get_size` / `window_get_aspect_ratio` | Dimensions |
+| `window_get_title` | Window title |
+| `window_is_closing` / `window_is_focused` | Window lifecycle/focus flags |
+
+### AI Tools
+
+Tools for inspecting and steering `KeenEyes.AI` agents (behavior trees, state machines, utility AI, blackboards).
+
+| Tool | Description |
+|------|-------------|
+| `ai_get_statistics` | Aggregate AI agent statistics |
+| `ai_behavior_tree_list` / `ai_behavior_tree_get` / `ai_behavior_tree_reset` | Inspect and reset behavior trees |
+| `ai_state_machine_list` / `ai_state_machine_get` | Inspect FSM agents |
+| `ai_state_machine_force_state` / `ai_state_machine_force_state_by_name` | Force an FSM into a state |
+| `ai_utility_list` / `ai_utility_get` / `ai_utility_score_all` / `ai_utility_force_evaluation` | Inspect and drive utility AI scoring |
+| `ai_blackboard_get` / `ai_blackboard_get_value` / `ai_blackboard_set_value` / `ai_blackboard_remove_value` / `ai_blackboard_clear` | Read and mutate blackboard values |
+
+### Profiling & Memory Tools
+
+Tools for `KeenEyes.Debugging` profilers (system/query timing, GC, memory, timeline). Most require debug mode enabled.
+
+| Tool | Description |
+|------|-------------|
+| `profile_debug_mode_status` / `profile_debug_mode_enable` / `profile_debug_mode_disable` | Toggle debug/profiling mode |
+| `profile_system_*` | System timing: availability, get, list, slowest, reset |
+| `profile_query_*` | Query timing: get, list, slowest, cache stats, reset |
+| `profile_gc_*` | GC profiling: get, list, hotspots, reset |
+| `memory_available` / `memory_get_stats` / `memory_get_archetypes` | Memory and archetype statistics |
+| `timeline_*` | Frame timeline: start, stop, status, get frame/recent, per-system stats, reset |
+
+### Replay Tools
+
+Tools for `KeenEyes.Replay` recording, playback, and determinism validation.
+
+| Tool | Description |
+|------|-------------|
+| `replay_start_recording` / `replay_stop_recording` / `replay_cancel_recording` / `replay_is_recording` | Control recording |
+| `replay_force_snapshot` | Force a keyframe snapshot |
+| `replay_save` / `replay_load` / `replay_list` / `replay_delete` / `replay_get_metadata` | Manage saved replays |
+| `replay_play` / `replay_pause` / `replay_stop` / `replay_get_playback_state` / `replay_set_speed` | Control playback |
+| `replay_seek_frame` / `replay_seek_time` / `replay_step_forward` / `replay_step_backward` | Seek and step |
+| `replay_get_frame` / `replay_get_frame_range` / `replay_get_inputs` / `replay_get_events` / `replay_get_snapshots` | Inspect recorded data |
+| `replay_validate` / `replay_check_determinism` | Validate replays and check determinism |
+
+### Snapshot Tools
+
+Tools for saving, restoring, and diffing world snapshots (including quicksave/quickload).
+
+| Tool | Description |
+|------|-------------|
+| `snapshot_create` / `snapshot_restore` / `snapshot_delete` / `snapshot_list` / `snapshot_get_info` | Manage in-memory snapshots |
+| `snapshot_diff` / `snapshot_diff_current` | Diff two snapshots, or a snapshot against the live world |
+| `snapshot_save_file` / `snapshot_load_file` | Persist snapshots to disk |
+| `quicksave` / `quickload` | Convenience quicksave slot |
+| `snapshot_export_json` / `snapshot_import_json` | JSON import/export |
+
 ## Available Resources
 
 Resources provide read-only access to game state via URI templates.

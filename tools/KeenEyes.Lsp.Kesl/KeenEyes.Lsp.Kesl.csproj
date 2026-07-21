@@ -10,8 +10,8 @@
     <AssemblyName>KeenEyes.Lsp.Kesl</AssemblyName>
     <RootNamespace>KeenEyes.Lsp.Kesl</RootNamespace>
     <Description>Language Server Protocol implementation for KESL (KeenEyes Shader Language)</Description>
-    <!-- LSP protocol types don't need XML documentation -->
-    <NoWarn>$(NoWarn);CS1591;S2094</NoWarn>
+    <!-- S2094: empty marker/DTO classes are intentional in the LSP protocol layer -->
+    <NoWarn>$(NoWarn);S2094</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

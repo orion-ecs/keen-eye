@@ -20,6 +20,10 @@ public sealed class LogResources(BridgeConnectionManager connection)
     private const string LogByCategoryUriTemplate = "keeneyes://logs/category/{pattern}";
 #pragma warning restore S1075
 
+    /// <summary>
+    /// Retrieves aggregate log statistics as a JSON resource.
+    /// </summary>
+    /// <returns>A <see cref="TextResourceContents"/> containing the serialized log statistics.</returns>
     [McpServerResource(
         UriTemplate = LogStatsUri,
         Name = "log-stats",
@@ -38,6 +42,11 @@ public sealed class LogResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Retrieves the most recent log entries as a JSON resource.
+    /// </summary>
+    /// <param name="count">Maximum number of entries to return (default: 100).</param>
+    /// <returns>A <see cref="TextResourceContents"/> containing the serialized log entries.</returns>
     [McpServerResource(
         UriTemplate = LogRecentUri,
         Name = "log-recent",
@@ -57,6 +66,12 @@ public sealed class LogResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Retrieves log entries filtered by severity level as a JSON resource.
+    /// </summary>
+    /// <param name="level">The log level to filter by (0=Trace, 1=Debug, 2=Info, 3=Warning, 4=Error, 5=Fatal).</param>
+    /// <param name="maxResults">Maximum number of entries to return (default: 1000).</param>
+    /// <returns>A <see cref="TextResourceContents"/> containing the serialized log entries.</returns>
     [McpServerResource(
         UriTemplate = LogByLevelUriTemplate,
         Name = "log-by-level",
@@ -78,6 +93,12 @@ public sealed class LogResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Retrieves log entries filtered by category pattern as a JSON resource.
+    /// </summary>
+    /// <param name="pattern">Category pattern supporting wildcards (<c>*</c> and <c>?</c>).</param>
+    /// <param name="maxResults">Maximum number of entries to return (default: 1000).</param>
+    /// <returns>A <see cref="TextResourceContents"/> containing the serialized log entries.</returns>
     [McpServerResource(
         UriTemplate = LogByCategoryUriTemplate,
         Name = "log-by-category",

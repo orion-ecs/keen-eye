@@ -13,6 +13,10 @@ public sealed class LogTools(BridgeConnectionManager connection)
 {
     #region Statistics
 
+    /// <summary>
+    /// Gets log statistics including counts per level, timestamps, and capacity.
+    /// </summary>
+    /// <returns>The aggregated log statistics.</returns>
     [McpServerTool(Name = "log_get_stats")]
     [Description("Get log statistics including counts per level, timestamps, and capacity.")]
     public async Task<LogStatsResult> GetStats()
@@ -35,6 +39,10 @@ public sealed class LogTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the total number of log entries currently stored.
+    /// </summary>
+    /// <returns>The current log entry count.</returns>
     [McpServerTool(Name = "log_get_count")]
     [Description("Get the total number of log entries currently stored.")]
     public async Task<LogCountResult> GetCount()
@@ -48,6 +56,11 @@ public sealed class LogTools(BridgeConnectionManager connection)
 
     #region Retrieval
 
+    /// <summary>
+    /// Gets the most recent log entries, newest first.
+    /// </summary>
+    /// <param name="count">Maximum number of entries to return (default: 100, max: 1000).</param>
+    /// <returns>The most recent log entries.</returns>
     [McpServerTool(Name = "log_get_recent")]
     [Description("Get the most recent log entries. Returns newest first.")]
     public async Task<LogEntriesResult> GetRecent(
@@ -65,6 +78,11 @@ public sealed class LogTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets only error and fatal log entries, useful for debugging issues.
+    /// </summary>
+    /// <param name="maxResults">Maximum number of entries to return (default: 100).</param>
+    /// <returns>The matching error and fatal log entries, newest first.</returns>
     [McpServerTool(Name = "log_get_errors")]
     [Description("Get only error and fatal log entries. Useful for debugging issues.")]
     public async Task<LogEntriesResult> GetErrors(
@@ -90,6 +108,12 @@ public sealed class LogTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets log entries at a specific level.
+    /// </summary>
+    /// <param name="level">Log level (0=Trace, 1=Debug, 2=Info, 3=Warning, 4=Error, 5=Fatal).</param>
+    /// <param name="maxResults">Maximum number of entries to return (default: 100).</param>
+    /// <returns>The log entries matching the specified level.</returns>
     [McpServerTool(Name = "log_get_by_level")]
     [Description("Get log entries at a specific level. Level values: 0=Trace, 1=Debug, 2=Info, 3=Warning, 4=Error, 5=Fatal.")]
     public async Task<LogEntriesResult> GetByLevel(
@@ -108,6 +132,12 @@ public sealed class LogTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets log entries matching a category pattern. Supports wildcards (* for any, ? for a single character).
+    /// </summary>
+    /// <param name="categoryPattern">Category pattern (e.g., 'Physics.*' or 'AI.Pathfinding').</param>
+    /// <param name="maxResults">Maximum number of entries to return (default: 100).</param>
+    /// <returns>The log entries whose category matches the pattern.</returns>
     [McpServerTool(Name = "log_get_by_category")]
     [Description("Get log entries matching a category pattern. Supports wildcards (* for any, ? for single character).")]
     public async Task<LogEntriesResult> GetByCategory(
@@ -130,6 +160,12 @@ public sealed class LogTools(BridgeConnectionManager connection)
 
     #region Search
 
+    /// <summary>
+    /// Searches log messages for specific text using a case-insensitive substring match.
+    /// </summary>
+    /// <param name="searchText">Text to search for in log messages.</param>
+    /// <param name="maxResults">Maximum number of entries to return (default: 100).</param>
+    /// <returns>The log entries whose message contains the search text.</returns>
     [McpServerTool(Name = "log_search")]
     [Description("Search log messages for specific text. Case-insensitive substring search.")]
     public async Task<LogEntriesResult> Search(
@@ -148,6 +184,18 @@ public sealed class LogTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Queries logs with multiple optional filters, combined with AND logic.
+    /// </summary>
+    /// <param name="minLevel">Minimum log level (0=Trace, 1=Debug, 2=Info, 3=Warning, 4=Error, 5=Fatal).</param>
+    /// <param name="maxLevel">Maximum log level (0=Trace, 1=Debug, 2=Info, 3=Warning, 4=Error, 5=Fatal).</param>
+    /// <param name="categoryPattern">Category pattern (supports wildcards: *, ?).</param>
+    /// <param name="messageContains">Text to search for in log messages.</param>
+    /// <param name="after">Only include entries after this ISO 8601 timestamp.</param>
+    /// <param name="before">Only include entries before this ISO 8601 timestamp.</param>
+    /// <param name="maxResults">Maximum number of entries to return (default: 100).</param>
+    /// <param name="skip">Number of entries to skip, for pagination.</param>
+    /// <returns>The log entries matching all specified filters.</returns>
     [McpServerTool(Name = "log_query")]
     [Description("Query logs with multiple filters. All filters are optional and combined with AND logic.")]
     public async Task<LogEntriesResult> Query(
@@ -195,6 +243,10 @@ public sealed class LogTools(BridgeConnectionManager connection)
 
     #region Management
 
+    /// <summary>
+    /// Clears all log entries. This action cannot be undone.
+    /// </summary>
+    /// <returns>The result of the clear operation, including how many entries were removed.</returns>
     [McpServerTool(Name = "log_clear")]
     [Description("Clear all log entries. This action cannot be undone.")]
     public async Task<LogClearResult> Clear()
@@ -220,16 +272,59 @@ public sealed class LogTools(BridgeConnectionManager connection)
 /// </summary>
 public sealed record LogStatsResult
 {
+    /// <summary>
+    /// Gets whether the statistics were retrieved successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the total number of log entries currently stored.
+    /// </summary>
     public int TotalCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of stored entries at the Trace level.
+    /// </summary>
     public int TraceCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of stored entries at the Debug level.
+    /// </summary>
     public int DebugCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of stored entries at the Info level.
+    /// </summary>
     public int InfoCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of stored entries at the Warning level.
+    /// </summary>
     public int WarningCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of stored entries at the Error level.
+    /// </summary>
     public int ErrorCount { get; init; }
+
+    /// <summary>
+    /// Gets the number of stored entries at the Fatal level.
+    /// </summary>
     public int FatalCount { get; init; }
+
+    /// <summary>
+    /// Gets the timestamp of the oldest stored log entry, if any entries exist.
+    /// </summary>
     public DateTime? OldestTimestamp { get; init; }
+
+    /// <summary>
+    /// Gets the timestamp of the newest stored log entry, if any entries exist.
+    /// </summary>
     public DateTime? NewestTimestamp { get; init; }
+
+    /// <summary>
+    /// Gets the maximum number of log entries the store can hold, if bounded.
+    /// </summary>
     public int? Capacity { get; init; }
 }
 
@@ -238,6 +333,9 @@ public sealed record LogStatsResult
 /// </summary>
 public sealed record LogCountResult
 {
+    /// <summary>
+    /// Gets the total number of log entries currently stored.
+    /// </summary>
     public required int Count { get; init; }
 }
 
@@ -246,8 +344,19 @@ public sealed record LogCountResult
 /// </summary>
 public sealed record LogEntriesResult
 {
+    /// <summary>
+    /// Gets whether the query was executed successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the log entries returned by the query.
+    /// </summary>
     public IReadOnlyList<LogEntrySnapshot> Entries { get; init; } = [];
+
+    /// <summary>
+    /// Gets the number of entries in <see cref="Entries"/>.
+    /// </summary>
     public int Count { get; init; }
 }
 
@@ -256,8 +365,19 @@ public sealed record LogEntriesResult
 /// </summary>
 public sealed record LogClearResult
 {
+    /// <summary>
+    /// Gets whether the clear operation completed successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the number of log entries that were removed.
+    /// </summary>
     public int ClearedCount { get; init; }
+
+    /// <summary>
+    /// Gets a human-readable summary of the clear operation.
+    /// </summary>
     public required string Message { get; init; }
 }
 

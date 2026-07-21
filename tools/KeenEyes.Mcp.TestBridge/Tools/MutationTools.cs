@@ -20,6 +20,11 @@ public sealed class MutationTools(BridgeConnectionManager connection)
 {
     #region Entity Management
 
+    /// <summary>
+    /// Spawns a new entity with an optional name.
+    /// </summary>
+    /// <param name="name">Optional name for the entity.</param>
+    /// <returns>The result of the spawn operation, including the new entity's ID and version.</returns>
     [McpServerTool(Name = "mutation_spawn")]
     [Description("Spawn a new entity with an optional name and components.")]
     public async Task<MutationEntityResult> Spawn(
@@ -31,6 +36,12 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         return MutationEntityResult.FromResult(result);
     }
 
+    /// <summary>
+    /// Spawns a new entity with the specified components.
+    /// </summary>
+    /// <param name="name">Optional name for the entity.</param>
+    /// <param name="componentsJson">JSON array of components. Each component has 'type' (component type name) and optional 'data' (JSON object with field values).</param>
+    /// <returns>The result of the spawn operation, including the new entity's ID and version, or an error if the component JSON is invalid.</returns>
     [McpServerTool(Name = "mutation_spawn_with_components")]
     [Description("Spawn a new entity with specified components. Component data is JSON.")]
     public async Task<MutationEntityResult> SpawnWithComponents(
@@ -79,6 +90,11 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         return MutationEntityResult.FromResult(result);
     }
 
+    /// <summary>
+    /// Despawns (destroys) an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to despawn.</param>
+    /// <returns>The result of the despawn operation.</returns>
     [McpServerTool(Name = "mutation_despawn")]
     [Description("Despawn (destroy) an entity.")]
     public async Task<MutationBoolResult> Despawn(
@@ -94,6 +110,12 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Clones an existing entity, duplicating all its components and tags.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to clone.</param>
+    /// <param name="name">Optional name for the cloned entity.</param>
+    /// <returns>The result of the clone operation, including the new entity's ID and version.</returns>
     [McpServerTool(Name = "mutation_clone")]
     [Description("Clone an existing entity, duplicating all its components and tags.")]
     public async Task<MutationEntityResult> Clone(
@@ -107,6 +129,12 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         return MutationEntityResult.FromResult(result);
     }
 
+    /// <summary>
+    /// Sets the name of an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to rename.</param>
+    /// <param name="name">The new name for the entity.</param>
+    /// <returns>The result of the rename operation.</returns>
     [McpServerTool(Name = "mutation_set_name")]
     [Description("Set the name of an entity.")]
     public async Task<MutationBoolResult> SetName(
@@ -124,6 +152,11 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Clears (removes) the name from an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to clear the name from.</param>
+    /// <returns>The result of the clear operation.</returns>
     [McpServerTool(Name = "mutation_clear_name")]
     [Description("Clear (remove) the name from an entity.")]
     public async Task<MutationBoolResult> ClearName(
@@ -143,6 +176,12 @@ public sealed class MutationTools(BridgeConnectionManager connection)
 
     #region Hierarchy
 
+    /// <summary>
+    /// Sets the parent of an entity, or makes it a root entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to reparent.</param>
+    /// <param name="parentId">The parent entity ID, or null to make this a root entity.</param>
+    /// <returns>The result of the reparent operation.</returns>
     [McpServerTool(Name = "mutation_set_parent")]
     [Description("Set the parent of an entity, or make it a root entity.")]
     public async Task<MutationBoolResult> SetParent(
@@ -160,6 +199,10 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets all root entities (entities without parents).
+    /// </summary>
+    /// <returns>The result containing the IDs of all root entities.</returns>
     [McpServerTool(Name = "mutation_get_root_entities")]
     [Description("Get all root entities (entities without parents).")]
     public async Task<MutationRootEntitiesResult> GetRootEntities()
@@ -177,6 +220,13 @@ public sealed class MutationTools(BridgeConnectionManager connection)
 
     #region Components
 
+    /// <summary>
+    /// Adds a component to an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to add the component to.</param>
+    /// <param name="componentType">The component type name (e.g., 'Position', 'Velocity').</param>
+    /// <param name="dataJson">Optional JSON object with field values for the component.</param>
+    /// <returns>The result of the add operation, or an error if the data JSON is invalid.</returns>
     [McpServerTool(Name = "mutation_add_component")]
     [Description("Add a component to an entity.")]
     public async Task<MutationBoolResult> AddComponent(
@@ -214,6 +264,12 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Removes a component from an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to remove the component from.</param>
+    /// <param name="componentType">The component type name (e.g., 'Position', 'Velocity').</param>
+    /// <returns>The result of the remove operation.</returns>
     [McpServerTool(Name = "mutation_remove_component")]
     [Description("Remove a component from an entity.")]
     public async Task<MutationBoolResult> RemoveComponent(
@@ -231,6 +287,13 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Sets all fields of a component on an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity.</param>
+    /// <param name="componentType">The component type name (e.g., 'Position', 'Velocity').</param>
+    /// <param name="dataJson">JSON object with field values for the component.</param>
+    /// <returns>The result of the set operation, or an error if the data JSON is invalid.</returns>
     [McpServerTool(Name = "mutation_set_component")]
     [Description("Set all fields of a component on an entity.")]
     public async Task<MutationBoolResult> SetComponent(
@@ -265,6 +328,14 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Sets a single field of a component on an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity.</param>
+    /// <param name="componentType">The component type name (e.g., 'Position', 'Velocity').</param>
+    /// <param name="fieldName">The name of the field to set.</param>
+    /// <param name="valueJson">JSON value for the field (can be a number, string, boolean, or object).</param>
+    /// <returns>The result of the set operation, or an error if the value JSON is invalid.</returns>
     [McpServerTool(Name = "mutation_set_field")]
     [Description("Set a single field of a component on an entity.")]
     public async Task<MutationBoolResult> SetField(
@@ -305,6 +376,12 @@ public sealed class MutationTools(BridgeConnectionManager connection)
 
     #region Tags
 
+    /// <summary>
+    /// Adds a string tag to an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to add the tag to.</param>
+    /// <param name="tag">The tag to add.</param>
+    /// <returns>The result of the add operation.</returns>
     [McpServerTool(Name = "mutation_add_tag")]
     [Description("Add a string tag to an entity.")]
     public async Task<MutationBoolResult> AddTag(
@@ -322,6 +399,12 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Removes a string tag from an entity.
+    /// </summary>
+    /// <param name="entityId">The ID of the entity to remove the tag from.</param>
+    /// <param name="tag">The tag to remove.</param>
+    /// <returns>The result of the remove operation.</returns>
     [McpServerTool(Name = "mutation_remove_tag")]
     [Description("Remove a string tag from an entity.")]
     public async Task<MutationBoolResult> RemoveTag(
@@ -339,6 +422,10 @@ public sealed class MutationTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets all unique tags currently in use across all entities.
+    /// </summary>
+    /// <returns>The result containing all unique tags in use.</returns>
     [McpServerTool(Name = "mutation_get_all_tags")]
     [Description("Get all unique tags currently in use across all entities.")]
     public async Task<MutationTagsResult> GetAllTags()

@@ -6,8 +6,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Tool doesn't need XML docs -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
     <!-- MCP server name -->
     <AssemblyTitle>KeenEyes MCP TestBridge Server</AssemblyTitle>
     <Description>MCP server bridging LLM clients to KeenEyes games via TestBridge IPC</Description>

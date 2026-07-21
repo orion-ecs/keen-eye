@@ -20,6 +20,10 @@ public sealed class SystemTools(BridgeConnectionManager connection)
 {
     #region Listing
 
+    /// <summary>
+    /// Lists all registered ECS systems along with their state and metadata.
+    /// </summary>
+    /// <returns>A <see cref="SystemListResult"/> containing the systems and their count.</returns>
     [McpServerTool(Name = "system_list")]
     [Description("List all registered ECS systems with their state and metadata.")]
     public async Task<SystemListResult> List()
@@ -34,6 +38,10 @@ public sealed class SystemTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the total number of registered systems.
+    /// </summary>
+    /// <returns>A <see cref="SystemCountResult"/> containing the system count.</returns>
     [McpServerTool(Name = "system_get_count")]
     [Description("Get the total number of registered systems.")]
     public async Task<SystemCountResult> GetCount()
@@ -43,6 +51,11 @@ public sealed class SystemTools(BridgeConnectionManager connection)
         return new SystemCountResult { Count = count };
     }
 
+    /// <summary>
+    /// Gets detailed information about a specific system by name.
+    /// </summary>
+    /// <param name="name">The system name (e.g., 'MovementSystem', 'PhysicsSystem').</param>
+    /// <returns>A <see cref="SystemResult"/> describing the system, or a failed result if the system was not found.</returns>
     [McpServerTool(Name = "system_get")]
     [Description("Get detailed information about a specific system by name.")]
     public async Task<SystemResult> Get(
@@ -68,6 +81,11 @@ public sealed class SystemTools(BridgeConnectionManager connection)
 
     #region Enable/Disable
 
+    /// <summary>
+    /// Enables a system so that it is executed during world updates.
+    /// </summary>
+    /// <param name="name">The name of the system to enable.</param>
+    /// <returns>A <see cref="SystemResult"/> describing the updated system, or a failed result if the system was not found.</returns>
     [McpServerTool(Name = "system_enable")]
     [Description("Enable a system so it will be executed during world updates.")]
     public async Task<SystemResult> Enable(
@@ -90,6 +108,11 @@ public sealed class SystemTools(BridgeConnectionManager connection)
         }
     }
 
+    /// <summary>
+    /// Disables a system so that it is skipped during world updates.
+    /// </summary>
+    /// <param name="name">The name of the system to disable.</param>
+    /// <returns>A <see cref="SystemResult"/> describing the updated system, or a failed result if the system was not found.</returns>
     [McpServerTool(Name = "system_disable")]
     [Description("Disable a system so it will be skipped during world updates.")]
     public async Task<SystemResult> Disable(
@@ -112,6 +135,11 @@ public sealed class SystemTools(BridgeConnectionManager connection)
         }
     }
 
+    /// <summary>
+    /// Toggles a system's enabled state.
+    /// </summary>
+    /// <param name="name">The name of the system to toggle.</param>
+    /// <returns>A <see cref="SystemResult"/> describing the updated system, or a failed result if the system was not found.</returns>
     [McpServerTool(Name = "system_toggle")]
     [Description("Toggle a system's enabled state.")]
     public async Task<SystemResult> Toggle(
@@ -138,6 +166,11 @@ public sealed class SystemTools(BridgeConnectionManager connection)
 
     #region Filtering
 
+    /// <summary>
+    /// Gets all systems in a specific execution phase.
+    /// </summary>
+    /// <param name="phase">The phase name (e.g., 'Update', 'FixedUpdate', 'LateUpdate', 'Render').</param>
+    /// <returns>A <see cref="SystemListResult"/> containing the matching systems and their count.</returns>
     [McpServerTool(Name = "system_get_by_phase")]
     [Description("Get all systems in a specific execution phase.")]
     public async Task<SystemListResult> GetByPhase(
@@ -154,6 +187,10 @@ public sealed class SystemTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets all currently enabled systems.
+    /// </summary>
+    /// <returns>A <see cref="SystemListResult"/> containing the enabled systems and their count.</returns>
     [McpServerTool(Name = "system_get_enabled")]
     [Description("Get all currently enabled systems.")]
     public async Task<SystemListResult> GetEnabled()
@@ -168,6 +205,10 @@ public sealed class SystemTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets all currently disabled systems.
+    /// </summary>
+    /// <returns>A <see cref="SystemListResult"/> containing the disabled systems and their count.</returns>
     [McpServerTool(Name = "system_get_disabled")]
     [Description("Get all currently disabled systems.")]
     public async Task<SystemListResult> GetDisabled()

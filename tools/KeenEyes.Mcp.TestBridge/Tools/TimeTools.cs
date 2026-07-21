@@ -20,6 +20,10 @@ public sealed class TimeTools(BridgeConnectionManager connection)
 {
     #region State
 
+    /// <summary>
+    /// Gets the current time control state, including pause status, time scale, and frame information.
+    /// </summary>
+    /// <returns>The current time control state.</returns>
     [McpServerTool(Name = "time_get_state")]
     [Description("Get the current time control state including pause status, time scale, and frame information.")]
     public async Task<TimeStateResult> GetState()
@@ -33,6 +37,10 @@ public sealed class TimeTools(BridgeConnectionManager connection)
 
     #region Pause Control
 
+    /// <summary>
+    /// Pauses game execution. The game stops updating until resumed.
+    /// </summary>
+    /// <returns>The updated time control state after pausing.</returns>
     [McpServerTool(Name = "time_pause")]
     [Description("Pause game execution. The game will stop updating until resumed.")]
     public async Task<TimeStateResult> Pause()
@@ -42,6 +50,10 @@ public sealed class TimeTools(BridgeConnectionManager connection)
         return TimeStateResult.FromSnapshot(state);
     }
 
+    /// <summary>
+    /// Resumes game execution after being paused.
+    /// </summary>
+    /// <returns>The updated time control state after resuming.</returns>
     [McpServerTool(Name = "time_resume")]
     [Description("Resume game execution after being paused.")]
     public async Task<TimeStateResult> Resume()
@@ -51,6 +63,10 @@ public sealed class TimeTools(BridgeConnectionManager connection)
         return TimeStateResult.FromSnapshot(state);
     }
 
+    /// <summary>
+    /// Toggles between paused and running states.
+    /// </summary>
+    /// <returns>The updated time control state after toggling.</returns>
     [McpServerTool(Name = "time_toggle_pause")]
     [Description("Toggle between paused and running states.")]
     public async Task<TimeStateResult> TogglePause()
@@ -64,6 +80,12 @@ public sealed class TimeTools(BridgeConnectionManager connection)
 
     #region Time Scale
 
+    /// <summary>
+    /// Sets the time scale multiplier. Use 1.0 for normal speed, values below 1.0 for slow motion,
+    /// and values above 1.0 for fast forward.
+    /// </summary>
+    /// <param name="scale">The time scale multiplier (0.0 = frozen, 0.5 = half speed, 1.0 = normal, 2.0 = double speed).</param>
+    /// <returns>The updated time control state, or a failed result if <paramref name="scale"/> is negative.</returns>
     [McpServerTool(Name = "time_set_scale")]
     [Description("Set the time scale multiplier. Use 1.0 for normal speed, <1.0 for slow motion, >1.0 for fast forward.")]
     public async Task<TimeStateResult> SetScale(
@@ -88,6 +110,11 @@ public sealed class TimeTools(BridgeConnectionManager connection)
 
     #region Frame Stepping
 
+    /// <summary>
+    /// Steps forward a specified number of frames while paused. Useful for frame-by-frame debugging.
+    /// </summary>
+    /// <param name="frames">The number of frames to step forward (default: 1).</param>
+    /// <returns>The updated time control state, or a failed result if <paramref name="frames"/> is less than 1.</returns>
     [McpServerTool(Name = "time_step_frame")]
     [Description("Step forward a specified number of frames while paused. Useful for frame-by-frame debugging.")]
     public async Task<TimeStateResult> StepFrame(
