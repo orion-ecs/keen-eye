@@ -25,6 +25,13 @@ namespace KeenEyes.Animation.IK.Solvers;
 /// solver composes world positions by walking the entity hierarchy and writes results back
 /// as local rotations (see <see cref="IKSolverMath"/> for the space determination).
 /// </para>
+/// <para>
+/// Bones carrying an <see cref="Components.IKConstraint"/> component have their computed
+/// local rotations clamped to the joint limits when the analytic pose is written back
+/// (root and mid rotations, plus the end effector when a target rotation is requested).
+/// Constrained chains may not reach the target; the reported error always measures the
+/// actual end effector position. Bones without a constraint are unaffected.
+/// </para>
 /// </remarks>
 public sealed class TwoBoneSolver : IIKSolver
 {
@@ -124,9 +131,17 @@ public sealed class TwoBoneSolver : IIKSolver
         solved[1] = solvedMid;
         solved[2] = solvedTip;
 
-        IKSolverMath.ApplyWorldPositions(world, bones, solved, context.TargetRotation);
+        var constraints = IKConstraintSolver.GetChainConstraints(world, bones);
+        IKSolverMath.ApplyWorldPositions(world, bones, solved, context.TargetRotation, constraints);
 
-        var error = Vector3.Distance(solvedTip, context.TargetPosition);
+        // Constraint clamping can pull the end effector off the analytic solution, so
+        // measure the error from the actual tip position when constraints are active.
+        var error = constraints is null
+            ? Vector3.Distance(solvedTip, context.TargetPosition)
+            : Vector3.Distance(
+                IKSolverMath.GetWorldTransform(world, bones[2]).Position,
+                context.TargetPosition);
+
         return error <= context.Chain.Tolerance
             ? IKSolverResult.Success(0, error)
             : IKSolverResult.Partial(0, error);
