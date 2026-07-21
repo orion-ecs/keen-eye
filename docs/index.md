@@ -181,6 +181,7 @@ using var world = new WorldBuilder()
 - [TestBridge Architecture](testbridge.md) - External tool integration, IPC protocol, command reference
 - [MCP Server](mcp-server.md) - AI tool integration via Model Context Protocol
 - [Editor](editor.md) - The visual editor: panels, play mode, hot reload, and the plugin model
+- [Editor Plugin Development](editor-plugin-development.md) - Reference for authoring editor plugins (lifecycle, capabilities, extension points)
 - [CLI (`keeneyes`)](cli.md) - Manage editor plugins, package sources, and save-file migrations
 
 ### UI Features

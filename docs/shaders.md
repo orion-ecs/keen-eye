@@ -221,6 +221,40 @@ watcher.Watch("Assets/Shaders");
 - `IGpuDevice.WaitIdle()` is a hard synchronization point that blocks until all submitted GPU work completes — use it sparingly, and prefer `IGpuFence` for finer-grained synchronization when you only need to know that specific work has finished.
 - `GpuCommandBuffer.DispatchAuto` and `CompiledShader.CalculateDispatchX`/`CalculateDispatch2D` compute workgroup counts from the shader's declared local size, so dispatch sizing stays correct if a shader's `numthreads`/`local_size` changes.
 
+## Compiler internals
+
+This section is for contributors working on `KeenEyes.Shaders.Compiler` itself. If you're only consuming KESL from a game or plugin project, the sections above are all you need.
+
+`KeslCompiler` orchestrates a straightforward, linear pipeline: **lexer → parser → AST → generators**. Each stage is a separate, independently testable class with no shared mutable state between compilations — a new `Lexer`/`Parser` pair is created per call, so nothing carries over between files.
+
+### Lexing
+
+`Lexer` (`Lexing/Lexer.cs`) turns raw KESL source text into a flat `List<Token>`. `Tokenize()` repeatedly calls `NextToken()` until it produces a `TokenKind.EndOfFile` token. Each `Token` carries its `TokenKind`, raw text, and a `SourceLocation` (file, line, column) used later for diagnostics.
+
+The lexer recognizes KESL's keywords (`component`, `compute`, `vertex`, `fragment`, `geometry`, `pipeline`, the query modifiers `read`/`write`/`optional`/`without`, primitive types like `float3` and `mat4`, and so on) via a static `Dictionary<string, TokenKind>` lookup applied to scanned identifiers — anything not in that table becomes a plain `TokenKind.Identifier`. It also handles `//` line comments and `/* */` block comments, integer and float literals (including exponents and an `f`/`F` suffix), and multi-character operators such as `==`, `!=`, `&&`, and `+=`. Any character the lexer doesn't recognize produces a `TokenKind.Error` token rather than throwing; `KeslCompiler.Compile` scans the token list for `TokenKind.Error` up front and turns each into a `Diagnostic` with the `KeslErrorCodes.UnexpectedCharacter` code before parsing ever starts.
+
+### Parsing
+
+`Parser` (`Parsing/Parser.cs`) is a hand-written recursive-descent parser over the token list produced by the lexer. `Parse()` loops over top-level declarations, dispatching on the current token's `TokenKind` to one of `ParseComponentDeclaration`, `ParseComputeDeclaration`, `ParseVertexDeclaration`, `ParseFragmentDeclaration`, `ParseGeometryDeclaration`, or `ParsePipelineDeclaration`. Each of those methods recursively parses the nested blocks specific to that declaration kind — `query`/`params`/`execute` for compute shaders, `input`/`output`/`textures`/`samplers`/`layout` for vertex, fragment, and geometry shaders.
+
+Parse errors are represented by an internal `ParseException`. When a parse method can't consume the token it expects, it records a `Diagnostic` (via the parser's `Error`/`Consume` helpers) and throws `ParseException` to unwind out of the current declaration. `Parse()` catches this at the top level and calls `Synchronize()` to skip forward to a likely declaration boundary, so a single malformed declaration doesn't abort the entire file — the parser keeps collecting diagnostics for the rest of the source. Several error paths (`ErrorExpectedDeclaration`, `ErrorExpectedBindingMode`, `ErrorExpectedTypeName`, `ErrorExpectedInputTopology`, and similar) also call `SuggestionEngine.GetSuggestions` against a fixed candidate list (declaration keywords, binding modes, type names, topology names) to populate the "did you mean?" suggestions rendered by `DiagnosticFormatter`.
+
+### AST
+
+The parser's output is a `SourceFile`, a `Declaration` list of `ComponentDeclaration`, `ComputeDeclaration`, `VertexDeclaration`, `FragmentDeclaration`, `GeometryDeclaration`, and `PipelineDeclaration` nodes (`Parsing/Ast/AstNode.cs`). Every AST node is an immutable `record` deriving from the abstract `AstNode(SourceLocation Location)`, so nodes are cheap to construct and safe to share across the code generators that read them. Nested blocks are their own records too — `QueryBlock`/`QueryBinding`, `ParamsBlock`/`ParamDeclaration`, `InputBlock`/`OutputBlock`/`AttributeDeclaration`, `TexturesBlock`/`SamplersBlock`, `GeometryLayoutBlock`, and `ExecuteBlock`, whose `Body` is a list of `Statement` nodes (assignments, `if`/`for`, etc. — defined in `Parsing/Ast/Statements.cs` and `Expressions.cs`). This AST is the sole hand-off point between parsing and code generation; none of the generators re-consult tokens or source text.
+
+### Code generators
+
+`GlslGenerator` and `HlslGenerator` both implement `IShaderGenerator`, which defines one `Generate` overload per declaration type (`ComputeDeclaration`, `VertexDeclaration`, `FragmentDeclaration`, `GeometryDeclaration`) plus a `Backend` and `FileExtension`. Both walk the same AST shape but emit different textual conventions for the same concepts — for example, a `write` query binding becomes an `std430` GLSL buffer under `GlslGenerator` but a `RWStructuredBuffer`/`register(u#)` declaration under `HlslGenerator`, and `mat4` becomes GLSL's `mat4` versus HLSL's `float4x4`. Each generator builds its output into an internal `StringBuilder`, tracking its own indentation and buffer/resource binding-index counters (`_bindingIndex` in `GlslGenerator`; separate `srvIndex`/`uavIndex` counters for read-only vs. read-write resources in `HlslGenerator`) as it walks the query bindings and execute-block statements.
+
+`CSharpBindingGenerator` is a third generator with the same per-declaration-type `Generate` overloads (plus one for `PipelineDeclaration`, which the shader-language generators don't handle) but no `IShaderGenerator` conformance, since it emits C# rather than shader source. It produces the partial binding classes described in the SDK integration above — one per shader — using its own `Namespace` property to control the generated namespace.
+
+### How `KeslCompiler` ties it together
+
+`KeslCompiler.Compile` runs the lexer, checks for `TokenKind.Error` tokens, then runs the parser and merges its diagnostics, returning a `CompilationResult` (a parsed `SourceFile?` plus the accumulated `Diagnostics`). The static `GenerateGlsl`/`GenerateHlsl`/`GenerateShader` methods and the instance `GenerateCSharp` methods are thin overload sets that construct the matching generator and call `Generate` on a single AST node — `GenerateShader(declaration, backend)` is the one that switches on `ShaderBackend` to pick `GlslGenerator` or `HlslGenerator` at runtime.
+
+`CompileAndGenerate` is the all-in-one entry point: it calls `Compile`, and if there are no errors, iterates every top-level `Declaration` in the `SourceFile`, running the appropriate GLSL, HLSL, and C# generators for each and collecting the results into a `ShaderOutput` (name plus each generated file's name and contents) per shader. `PipelineDeclaration`s are handled specially — a pipeline itself only produces a C# binding (no shader source), but `GenerateInlineShaderOutputs` recurses into any `PipelineStage.InlineShader` (an inline `vertex`/`geometry`/`fragment` block defined directly inside the `pipeline` rather than referenced by name) to emit outputs for those stages too. The final `CompilationOutput` is what `KeslSourceGenerator` (in `KeenEyes.Shaders.Generator`) writes into the build as generated files, and what `KeslCompiler.CompileAndGenerate`'s direct callers inspect via `HasErrors`/`Diagnostics` when driving the compiler by hand.
+
 ## Next Steps
 
 - [ADR-009: KESL Shader Language](adr/009-kesl-shader-language.md) - Original design document
