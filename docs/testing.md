@@ -24,7 +24,6 @@ With `KeenEyes.Testing`, you can test in isolation:
 
 ```csharp
 // With KeenEyes.Testing - focused, fast tests
-var mockWorld = new MockWorld();
 var mockContext = new MockPluginContext("Test");
 
 var plugin = new MyPlugin();
@@ -275,23 +274,24 @@ public void MovementSystem_UpdatesPositions()
 }
 ```
 
-### Unit Test with MockWorld
+### Unit Test with TestWorld
+
+Build an isolated world with `TestWorldBuilder`, opting into only the mocks the test needs. `TestWorld.Step()` advances the manual clock and runs one update; the mock renderer records every draw call it received:
 
 ```csharp
 [Fact]
-public void RenderSystem_SkipsInvisibleEntities()
+public void RenderSystem_RecordsDrawCommands()
 {
-    var mockWorld = new MockWorld();
-    var renderer = new MockRenderer();
+    using var test = new TestWorldBuilder()
+        .WithManualTime()
+        .WithMock2DRenderer()
+        .Build();
 
-    // Set up test entity as invisible
-    mockWorld.SetupEntity(entity, visible: false);
+    // Arrange entities in test.World and register your render system here...
 
-    var system = new RenderSystem(renderer);
-    system.Initialize(mockWorld);
-    system.Update(0.016f);
+    test.Step(); // advance one frame at the manual clock's fps
 
-    Assert.Empty(renderer.RenderedEntities);
+    Assert.NotEmpty(test.Mock2DRenderer!.Commands);
 }
 ```
 
