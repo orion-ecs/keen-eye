@@ -1,5 +1,6 @@
 using System.Numerics;
 
+using KeenEyes.Animation.Components;
 using KeenEyes.Common;
 
 namespace KeenEyes.Animation.IK.Solvers;
@@ -109,17 +110,31 @@ internal static class IKSolverMath
     /// Writes solved world-space joint positions back to the chain as local bone rotations.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Only rotations are modified: each bone is rotated in world space so that its child lands
     /// on the solved position, then converted back to a parent-relative local rotation. Because
     /// solvers preserve joint distances, bone translation offsets (and thus bone lengths) are
     /// left untouched.
+    /// </para>
+    /// <para>
+    /// When <paramref name="constraints"/> is provided, each bone's local rotation is clamped
+    /// to its joint limits via <see cref="IKConstraintSolver.Apply"/> immediately after being
+    /// computed, and the constrained world rotation propagates to all descendant bones. The
+    /// resulting pose therefore always satisfies the constraints, at the cost of possibly
+    /// deviating from the requested <paramref name="solved"/> positions.
+    /// </para>
     /// </remarks>
     /// <param name="world">The world containing the bones.</param>
     /// <param name="bones">Bone entities ordered root to tip, forming a parent-child hierarchy.</param>
     /// <param name="solved">Solved world-space positions for each bone, root to tip.</param>
     /// <param name="tipWorldRotation">Optional world-space rotation to apply to the tip bone (end effector).</param>
+    /// <param name="constraints">
+    /// Optional per-bone joint constraints indexed to match <paramref name="bones"/>; pass
+    /// <see langword="null"/> when the chain is unconstrained.
+    /// </param>
     internal static void ApplyWorldPositions(
-        IWorld world, Entity[] bones, ReadOnlySpan<Vector3> solved, Quaternion? tipWorldRotation)
+        IWorld world, Entity[] bones, ReadOnlySpan<Vector3> solved, Quaternion? tipWorldRotation,
+        IKConstraint[]? constraints = null)
     {
         // World transform of the chain root's parent (identity if none).
         var parentPos = Vector3.Zero;
@@ -155,6 +170,12 @@ internal static class IKSolverMath
                 local.Rotation = Quaternion.Normalize(Quaternion.Inverse(parentRot) * worldRot);
             }
 
+            if (constraints is not null && constraints[i].ConstraintType != IKConstraintType.None)
+            {
+                local.Rotation = IKConstraintSolver.Apply(local.Rotation, in constraints[i]);
+                worldRot = Quaternion.Normalize(parentRot * local.Rotation);
+            }
+
             parentPos = worldPos;
             parentRot = worldRot;
             parentScale = worldScale;
@@ -164,6 +185,11 @@ internal static class IKSolverMath
         {
             ref var tipLocal = ref world.Get<Transform3D>(bones[^1]);
             tipLocal.Rotation = Quaternion.Normalize(Quaternion.Inverse(parentRot) * targetRotation);
+
+            if (constraints is not null && constraints[^1].ConstraintType != IKConstraintType.None)
+            {
+                tipLocal.Rotation = IKConstraintSolver.Apply(tipLocal.Rotation, in constraints[^1]);
+            }
         }
     }
 }

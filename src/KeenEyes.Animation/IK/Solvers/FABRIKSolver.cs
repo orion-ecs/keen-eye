@@ -26,6 +26,15 @@ namespace KeenEyes.Animation.IK.Solvers;
 /// solver composes world positions by walking the entity hierarchy and writes results back
 /// as local rotations (see <see cref="IKSolverMath"/> for the space determination).
 /// </para>
+/// <para>
+/// Bones carrying an <see cref="Components.IKConstraint"/> component are constrained by
+/// re-projection after every iteration: the pass results are written back as clamped local
+/// rotations and the resulting world positions are re-read before the next iteration.
+/// Constraining in rotation space (rather than nudging joint positions) preserves bone
+/// lengths exactly and keeps each iteration starting from a constraint-satisfying pose,
+/// which avoids oscillation between the forward and backward passes. Chains without any
+/// constrained bone follow the original position-only iteration path unchanged.
+/// </para>
 /// </remarks>
 [SuppressMessage("Minor Code Smell", "S101:Types should be named in PascalCase",
     Justification = "FABRIK is an established algorithm acronym, consistent with IKSolverType.FABRIK.")]
@@ -65,6 +74,7 @@ public sealed class FABRIKSolver : IIKSolver
             return IKSolverResult.Partial(0, Vector3.Distance(positions[^1], target));
         }
 
+        var constraints = IKConstraintSolver.GetChainConstraints(world, bones);
         var rootPos = positions[0];
         var tolerance = MathF.Max(context.Chain.Tolerance, 0f);
         var rootToTarget = target - rootPos;
@@ -78,7 +88,15 @@ public sealed class FABRIKSolver : IIKSolver
                 positions[i + 1] = positions[i] + (direction * lengths[i]);
             }
 
-            IKSolverMath.ApplyWorldPositions(world, bones, positions, tipWorldRotation: null);
+            IKSolverMath.ApplyWorldPositions(world, bones, positions, tipWorldRotation: null, constraints);
+
+            if (constraints is not null)
+            {
+                // Clamping may have bent the chain away from the straight stretch;
+                // measure the error from the actual tip position.
+                IKSolverMath.GetWorldPositions(world, bones, positions);
+            }
+
             return IKSolverResult.Partial(0, Vector3.Distance(positions[^1], target));
         }
 
@@ -106,10 +124,22 @@ public sealed class FABRIKSolver : IIKSolver
                 positions[i + 1] = positions[i] + (direction * lengths[i]);
             }
 
+            if (constraints is not null)
+            {
+                // Constraint re-projection: write the pass results back as clamped local
+                // rotations, then re-read the constrained world positions so the next
+                // iteration (and the error check) starts from a valid pose.
+                IKSolverMath.ApplyWorldPositions(world, bones, positions, tipWorldRotation: null, constraints);
+                IKSolverMath.GetWorldPositions(world, bones, positions);
+            }
+
             error = Vector3.Distance(positions[^1], target);
         }
 
-        IKSolverMath.ApplyWorldPositions(world, bones, positions, tipWorldRotation: null);
+        if (constraints is null)
+        {
+            IKSolverMath.ApplyWorldPositions(world, bones, positions, tipWorldRotation: null);
+        }
 
         return error <= tolerance
             ? IKSolverResult.Success(iterations, error)
