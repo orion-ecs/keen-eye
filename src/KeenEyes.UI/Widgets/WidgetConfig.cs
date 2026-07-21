@@ -969,6 +969,7 @@ public sealed record MenuItemDef(
     /// <summary>
     /// Creates a separator item.
     /// </summary>
+    /// <returns>A menu item definition representing a separator line.</returns>
     public static MenuItemDef Separator() => new("", IsSeparator: true);
 }
 
@@ -1198,6 +1199,7 @@ public abstract record ToolbarItemDef
     /// <summary>
     /// Creates a button item.
     /// </summary>
+    /// <param name="Definition">The toolbar button definition.</param>
     public sealed record Button(ToolbarButtonDef Definition) : ToolbarItemDef;
 
     /// <summary>
@@ -1986,24 +1988,40 @@ public sealed record ToastConfig(
     /// <summary>
     /// Creates an info toast configuration.
     /// </summary>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">Optional title displayed above the message.</param>
+    /// <param name="duration">How long the toast displays in seconds (0 = indefinite).</param>
+    /// <returns>A toast configuration styled for informational messages.</returns>
     public static ToastConfig Info(string message, string? title = null, float duration = 3f) =>
         new(message, title, ToastType.Info, duration);
 
     /// <summary>
     /// Creates a success toast configuration.
     /// </summary>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">Optional title displayed above the message.</param>
+    /// <param name="duration">How long the toast displays in seconds (0 = indefinite).</param>
+    /// <returns>A toast configuration styled for success messages.</returns>
     public static ToastConfig Success(string message, string? title = null, float duration = 3f) =>
         new(message, title, ToastType.Success, duration);
 
     /// <summary>
     /// Creates a warning toast configuration.
     /// </summary>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">Optional title displayed above the message.</param>
+    /// <param name="duration">How long the toast displays in seconds (0 = indefinite).</param>
+    /// <returns>A toast configuration styled for warning messages.</returns>
     public static ToastConfig Warning(string message, string? title = null, float duration = 5f) =>
         new(message, title, ToastType.Warning, duration);
 
     /// <summary>
     /// Creates an error toast configuration.
     /// </summary>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">Optional title displayed above the message.</param>
+    /// <param name="duration">How long the toast displays in seconds (0 = indefinite).</param>
+    /// <returns>A toast configuration styled for error messages.</returns>
     public static ToastConfig Error(string message, string? title = null, float duration = 0f) =>
         new(message, title, ToastType.Error, duration);
 
@@ -2053,24 +2071,32 @@ public sealed record ToastContainerConfig(
     /// <summary>
     /// Creates a top-right positioned container.
     /// </summary>
+    /// <param name="maxVisible">Maximum number of visible toasts.</param>
+    /// <returns>A toast container configuration anchored to the top-right corner.</returns>
     public static ToastContainerConfig TopRight(int maxVisible = 5) =>
         new(ToastPosition.TopRight, maxVisible);
 
     /// <summary>
     /// Creates a bottom-right positioned container.
     /// </summary>
+    /// <param name="maxVisible">Maximum number of visible toasts.</param>
+    /// <returns>A toast container configuration anchored to the bottom-right corner.</returns>
     public static ToastContainerConfig BottomRight(int maxVisible = 5) =>
         new(ToastPosition.BottomRight, maxVisible);
 
     /// <summary>
     /// Creates a top-center positioned container.
     /// </summary>
+    /// <param name="maxVisible">Maximum number of visible toasts.</param>
+    /// <returns>A toast container configuration anchored to the top-center of the screen.</returns>
     public static ToastContainerConfig TopCenter(int maxVisible = 3) =>
         new(ToastPosition.TopCenter, maxVisible);
 
     /// <summary>
     /// Creates a bottom-center positioned container.
     /// </summary>
+    /// <param name="maxVisible">Maximum number of visible toasts.</param>
+    /// <returns>A toast container configuration anchored to the bottom-center of the screen.</returns>
     public static ToastContainerConfig BottomCenter(int maxVisible = 3) =>
         new(ToastPosition.BottomCenter, maxVisible);
 }
@@ -2102,30 +2128,43 @@ public sealed record SpinnerConfig(
     /// <summary>
     /// Creates a small spinner (24px).
     /// </summary>
+    /// <param name="color">The spinner color.</param>
+    /// <returns>A spinner configuration sized for small UI elements.</returns>
     public static SpinnerConfig Small(Vector4? color = null) =>
         new(Size: 24f, Color: color, Thickness: 2f);
 
     /// <summary>
     /// Creates a medium spinner (40px).
     /// </summary>
+    /// <param name="color">The spinner color.</param>
+    /// <returns>A spinner configuration sized for typical loading indicators.</returns>
     public static SpinnerConfig Medium(Vector4? color = null) =>
         new(Size: 40f, Color: color);
 
     /// <summary>
     /// Creates a large spinner (64px).
     /// </summary>
+    /// <param name="color">The spinner color.</param>
+    /// <returns>A spinner configuration sized for prominent loading states.</returns>
     public static SpinnerConfig Large(Vector4? color = null) =>
         new(Size: 64f, Color: color, Thickness: 4f);
 
     /// <summary>
     /// Creates a dot-style spinner.
     /// </summary>
+    /// <param name="size">The size of the spinner in pixels.</param>
+    /// <param name="dotCount">Number of dot elements in the spinner.</param>
+    /// <param name="color">The spinner color.</param>
+    /// <returns>A spinner configuration using the dots animation style.</returns>
     public static SpinnerConfig Dots(float size = 40f, int dotCount = 8, Vector4? color = null) =>
         new(Style: SpinnerStyle.Dots, Size: size, ElementCount: dotCount, Color: color);
 
     /// <summary>
     /// Creates a bar-style spinner (indeterminate progress).
     /// </summary>
+    /// <param name="width">The width of the spinner bar in pixels.</param>
+    /// <param name="color">The spinner color.</param>
+    /// <returns>A spinner configuration using the indeterminate progress bar style.</returns>
     public static SpinnerConfig Bar(float width = 200f, Vector4? color = null) =>
         new(Style: SpinnerStyle.Bar, Size: width, Color: color);
 
@@ -2169,24 +2208,34 @@ public sealed record ColorPickerConfig(
     /// <summary>
     /// Creates an HSV color picker configuration.
     /// </summary>
+    /// <param name="initialColor">The initial color in RGBA format (0-1 range).</param>
+    /// <param name="showAlpha">Whether to show the alpha slider.</param>
+    /// <returns>A color picker configuration using HSV mode.</returns>
     public static ColorPickerConfig HSV(Vector4? initialColor = null, bool showAlpha = true) =>
         new(InitialColor: initialColor, Mode: ColorPickerMode.HSV, ShowAlpha: showAlpha);
 
     /// <summary>
     /// Creates an RGB color picker configuration.
     /// </summary>
+    /// <param name="initialColor">The initial color in RGBA format (0-1 range).</param>
+    /// <param name="showAlpha">Whether to show the alpha slider.</param>
+    /// <returns>A color picker configuration using RGB mode.</returns>
     public static ColorPickerConfig RGB(Vector4? initialColor = null, bool showAlpha = true) =>
         new(InitialColor: initialColor, Mode: ColorPickerMode.RGB, ShowAlpha: showAlpha);
 
     /// <summary>
     /// Creates a compact color picker (no hex input, smaller size).
     /// </summary>
+    /// <param name="initialColor">The initial color in RGBA format (0-1 range).</param>
+    /// <returns>A color picker configuration with a reduced footprint.</returns>
     public static ColorPickerConfig Compact(Vector4? initialColor = null) =>
         new(InitialColor: initialColor, ShowHexInput: false, Width: 200f, Height: 220f);
 
     /// <summary>
     /// Creates a color picker without alpha slider.
     /// </summary>
+    /// <param name="initialColor">The initial color in RGBA format (0-1 range).</param>
+    /// <returns>A color picker configuration with the alpha slider disabled.</returns>
     public static ColorPickerConfig Opaque(Vector4? initialColor = null) =>
         new(InitialColor: initialColor, ShowAlpha: false);
 
@@ -2234,36 +2283,52 @@ public sealed record DatePickerConfig(
     /// <summary>
     /// Creates a date-only picker configuration.
     /// </summary>
+    /// <param name="initialValue">The initial date/time value.</param>
+    /// <returns>A date picker configuration restricted to date selection.</returns>
     public static DatePickerConfig DateOnly(DateTime? initialValue = null) =>
         new(InitialValue: initialValue, Mode: DatePickerMode.Date);
 
     /// <summary>
     /// Creates a time-only picker configuration.
     /// </summary>
+    /// <param name="initialValue">The initial date/time value.</param>
+    /// <param name="format">The time format (12-hour or 24-hour).</param>
+    /// <returns>A date picker configuration restricted to time selection.</returns>
     public static DatePickerConfig TimeOnly(DateTime? initialValue = null, TimeFormat format = TimeFormat.Hour24) =>
         new(InitialValue: initialValue, Mode: DatePickerMode.Time, TimeFormat: format, Height: 100f);
 
     /// <summary>
     /// Creates a date and time picker configuration.
     /// </summary>
+    /// <param name="initialValue">The initial date/time value.</param>
+    /// <param name="format">The time format (12-hour or 24-hour).</param>
+    /// <returns>A date picker configuration that selects both date and time.</returns>
     public static DatePickerConfig DateAndTime(DateTime? initialValue = null, TimeFormat format = TimeFormat.Hour24) =>
         new(InitialValue: initialValue, Mode: DatePickerMode.DateTime, TimeFormat: format, Height: 380f);
 
     /// <summary>
     /// Creates a date picker with a date range constraint.
     /// </summary>
+    /// <param name="minDate">The minimum selectable date.</param>
+    /// <param name="maxDate">The maximum selectable date.</param>
+    /// <param name="initialValue">The initial date/time value.</param>
+    /// <returns>A date picker configuration restricted to the given date range.</returns>
     public static DatePickerConfig WithRange(DateTime minDate, DateTime maxDate, DateTime? initialValue = null) =>
         new(InitialValue: initialValue, MinDate: minDate, MaxDate: maxDate);
 
     /// <summary>
     /// Creates a date picker that only allows future dates.
     /// </summary>
+    /// <param name="initialValue">The initial date/time value (defaults to today).</param>
+    /// <returns>A date picker configuration with today as the minimum selectable date.</returns>
     public static DatePickerConfig FutureOnly(DateTime? initialValue = null) =>
         new(InitialValue: initialValue ?? DateTime.Today, MinDate: DateTime.Today);
 
     /// <summary>
     /// Creates a date picker that only allows past dates.
     /// </summary>
+    /// <param name="initialValue">The initial date/time value (defaults to today).</param>
+    /// <returns>A date picker configuration with today as the maximum selectable date.</returns>
     public static DatePickerConfig PastOnly(DateTime? initialValue = null) =>
         new(InitialValue: initialValue ?? DateTime.Today, MaxDate: DateTime.Today);
 
@@ -2317,18 +2382,24 @@ public sealed record DataGridConfig(
     /// <summary>
     /// Creates a default data grid configuration with specified columns.
     /// </summary>
+    /// <param name="columns">The column definitions.</param>
+    /// <returns>A data grid configuration using the specified columns.</returns>
     public static DataGridConfig WithColumns(params DataGridColumnDef[] columns) =>
         new(Columns: columns);
 
     /// <summary>
     /// Creates a data grid with simple string column headers.
     /// </summary>
+    /// <param name="headers">The column header text for each column.</param>
+    /// <returns>A data grid configuration with a column generated for each header.</returns>
     public static DataGridConfig WithHeaders(params string[] headers) =>
         new(Columns: headers.Select(h => new DataGridColumnDef(h)).ToArray());
 
     /// <summary>
     /// Creates a read-only data grid (no selection, no sorting, no resize).
     /// </summary>
+    /// <param name="columns">The column definitions.</param>
+    /// <returns>A data grid configuration with selection, sorting, and column resize disabled.</returns>
     public static DataGridConfig ReadOnly(params DataGridColumnDef[] columns) =>
         new(
             Columns: columns,
@@ -2339,6 +2410,8 @@ public sealed record DataGridConfig(
     /// <summary>
     /// Creates a data grid that allows multiple row selection.
     /// </summary>
+    /// <param name="columns">The column definitions.</param>
+    /// <returns>A data grid configuration with multi-row selection enabled.</returns>
     public static DataGridConfig MultiSelect(params DataGridColumnDef[] columns) =>
         new(
             Columns: columns,

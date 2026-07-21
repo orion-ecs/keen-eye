@@ -123,6 +123,8 @@ public sealed class QueryDescription
     /// <summary>
     /// Checks if an entity with the given components matches this query.
     /// </summary>
+    /// <param name="entityComponents">The component types present on the entity.</param>
+    /// <returns><c>true</c> if the entity has all required components and none of the excluded components; otherwise, <c>false</c>.</returns>
     public bool Matches(IEnumerable<Type> entityComponents)
     {
         var componentSet = entityComponents.ToHashSet();
@@ -181,6 +183,8 @@ public readonly struct QueryBuilder : IQueryBuilder
     }
 
     /// <summary>Requires the entity to have this component (filter only, not accessed).</summary>
+    /// <typeparam name="TWith">The component type that must be present.</typeparam>
+    /// <returns>This builder for chaining.</returns>
     public QueryBuilder With<TWith>() where TWith : struct, IComponent
     {
         description.AddWith<TWith>();
@@ -188,6 +192,8 @@ public readonly struct QueryBuilder : IQueryBuilder
     }
 
     /// <summary>Excludes entities that have this component.</summary>
+    /// <typeparam name="TWithout">The component type that must not be present.</typeparam>
+    /// <returns>This builder for chaining.</returns>
     public QueryBuilder Without<TWithout>() where TWithout : struct, IComponent
     {
         description.AddWithout<TWithout>();
@@ -196,6 +202,7 @@ public readonly struct QueryBuilder : IQueryBuilder
 
     /// <summary>Requires the entity to have this string tag.</summary>
     /// <param name="tag">The string tag that must be present.</param>
+    /// <returns>This builder for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     public QueryBuilder WithTag(string tag)
@@ -207,6 +214,7 @@ public readonly struct QueryBuilder : IQueryBuilder
 
     /// <summary>Excludes entities that have this string tag.</summary>
     /// <param name="tag">The string tag that must NOT be present.</param>
+    /// <returns>This builder for chaining.</returns>
     /// <exception cref="ArgumentNullException">Thrown when <paramref name="tag"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown when <paramref name="tag"/> is empty or whitespace.</exception>
     public QueryBuilder WithoutTag(string tag)
@@ -223,6 +231,7 @@ public readonly struct QueryBuilder : IQueryBuilder
     public World World => world;
 
     /// <summary>Gets an enumerator for iterating over matching entities.</summary>
+    /// <returns>An enumerator over the entities matching this query.</returns>
     public QueryEnumerator GetEnumerator() => new(world, description);
     IEnumerator<Entity> IEnumerable<Entity>.GetEnumerator() => GetEnumerator();
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

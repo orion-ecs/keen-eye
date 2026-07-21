@@ -179,6 +179,9 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Gets a reference to a component for the entity at the specified index.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="index">The index of the entity within the chunk.</param>
+    /// <returns>A reference to the component data.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T Get<T>(int index) where T : struct, IComponent
     {
@@ -188,6 +191,9 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Gets a readonly reference to a component.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="index">The index of the entity within the chunk.</param>
+    /// <returns>A readonly reference to the component data.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref readonly T GetReadonly<T>(int index) where T : struct, IComponent
     {
@@ -197,6 +203,9 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Sets a component value at the specified index.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="index">The index of the entity within the chunk.</param>
+    /// <param name="component">The component value to set.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set<T>(int index, in T component) where T : struct, IComponent
     {
@@ -229,6 +238,8 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Gets a span of components for efficient iteration.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <returns>A span over all component values of type <typeparamref name="T"/> in this chunk.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Span<T> GetSpan<T>() where T : struct, IComponent
     {
@@ -238,6 +249,8 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Gets a readonly span of components.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <returns>A readonly span over all component values of type <typeparamref name="T"/> in this chunk.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<T> GetReadOnlySpan<T>() where T : struct, IComponent
     {
@@ -247,6 +260,7 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Gets a span of all entities in this chunk.
     /// </summary>
+    /// <returns>A readonly span over all entities currently stored in this chunk.</returns>
     public ReadOnlySpan<Entity> GetEntities()
     {
         return new ReadOnlySpan<Entity>(entities, 0, count);
@@ -255,6 +269,8 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Gets the entity at the specified index.
     /// </summary>
+    /// <param name="index">The index of the entity within the chunk.</param>
+    /// <returns>The entity stored at the specified index.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Entity GetEntity(int index)
     {
@@ -264,6 +280,8 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Gets the index of an entity in this chunk.
     /// </summary>
+    /// <param name="entity">The entity to locate.</param>
+    /// <returns>The index of the entity within the chunk, or -1 if it is not present.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetEntityIndex(Entity entity)
     {
@@ -273,6 +291,8 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Checks if this chunk contains the specified entity.
     /// </summary>
+    /// <param name="entity">The entity to check for.</param>
+    /// <returns><see langword="true"/> if the entity is present in this chunk; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Contains(Entity entity)
     {
@@ -282,6 +302,8 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Checks if this chunk has a specific component type.
     /// </summary>
+    /// <typeparam name="T">The component type to check for.</typeparam>
+    /// <returns><see langword="true"/> if this chunk stores components of type <typeparamref name="T"/>; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has<T>() where T : struct, IComponent
     {
@@ -291,6 +313,8 @@ public sealed class ArchetypeChunk : IDisposable
     /// <summary>
     /// Checks if this chunk has a specific component type.
     /// </summary>
+    /// <param name="type">The component type to check for.</param>
+    /// <returns><see langword="true"/> if this chunk stores components of the specified type; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has(Type type)
     {

@@ -164,6 +164,11 @@ public static class ParallelQueryExtensions
     /// <summary>
     /// Processes all matching entities in parallel with readonly component access.
     /// </summary>
+    /// <typeparam name="T1">First component type.</typeparam>
+    /// <typeparam name="T2">Second component type.</typeparam>
+    /// <param name="query">The query builder.</param>
+    /// <param name="action">The action to execute for each entity.</param>
+    /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallelReadOnly<T1, T2>(
         this QueryBuilder query,
         EntityActionReadOnly<T1, T2> action,
@@ -253,6 +258,12 @@ public static class ParallelQueryExtensions
     /// <summary>
     /// Processes all matching entities in parallel with readonly component access.
     /// </summary>
+    /// <typeparam name="T1">First component type.</typeparam>
+    /// <typeparam name="T2">Second component type.</typeparam>
+    /// <typeparam name="T3">Third component type.</typeparam>
+    /// <param name="query">The query builder.</param>
+    /// <param name="action">The action to execute for each entity.</param>
+    /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallelReadOnly<T1, T2, T3>(
         this QueryBuilder query,
         EntityActionReadOnly<T1, T2, T3> action,
@@ -349,6 +360,13 @@ public static class ParallelQueryExtensions
     /// <summary>
     /// Processes all matching entities in parallel with readonly component access.
     /// </summary>
+    /// <typeparam name="T1">First component type.</typeparam>
+    /// <typeparam name="T2">Second component type.</typeparam>
+    /// <typeparam name="T3">Third component type.</typeparam>
+    /// <typeparam name="T4">Fourth component type.</typeparam>
+    /// <param name="query">The query builder.</param>
+    /// <param name="action">The action to execute for each entity.</param>
+    /// <param name="minEntityCount">Minimum entity count to enable parallelization.</param>
     public static void ForEachParallelReadOnly<T1, T2, T3, T4>(
         this QueryBuilder query,
         EntityActionReadOnly<T1, T2, T3, T4> action,
@@ -428,18 +446,29 @@ public static class ParallelQueryExtensions
 /// <summary>
 /// Delegate for processing an entity with one component.
 /// </summary>
+/// <typeparam name="T1">The component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A reference to the component instance.</param>
 public delegate void EntityAction<T1>(Entity entity, ref T1 c1)
     where T1 : struct, IComponent;
 
 /// <summary>
 /// Delegate for processing an entity with one readonly component.
 /// </summary>
+/// <typeparam name="T1">The component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A read-only reference to the component instance.</param>
 public delegate void EntityActionReadOnly<T1>(Entity entity, in T1 c1)
     where T1 : struct, IComponent;
 
 /// <summary>
 /// Delegate for processing an entity with two components.
 /// </summary>
+/// <typeparam name="T1">First component type.</typeparam>
+/// <typeparam name="T2">Second component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A reference to the first component instance.</param>
+/// <param name="c2">A reference to the second component instance.</param>
 public delegate void EntityAction<T1, T2>(Entity entity, ref T1 c1, ref T2 c2)
     where T1 : struct, IComponent
     where T2 : struct, IComponent;
@@ -447,6 +476,11 @@ public delegate void EntityAction<T1, T2>(Entity entity, ref T1 c1, ref T2 c2)
 /// <summary>
 /// Delegate for processing an entity with two readonly components.
 /// </summary>
+/// <typeparam name="T1">First component type.</typeparam>
+/// <typeparam name="T2">Second component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A read-only reference to the first component instance.</param>
+/// <param name="c2">A read-only reference to the second component instance.</param>
 public delegate void EntityActionReadOnly<T1, T2>(Entity entity, in T1 c1, in T2 c2)
     where T1 : struct, IComponent
     where T2 : struct, IComponent;
@@ -454,6 +488,13 @@ public delegate void EntityActionReadOnly<T1, T2>(Entity entity, in T1 c1, in T2
 /// <summary>
 /// Delegate for processing an entity with three components.
 /// </summary>
+/// <typeparam name="T1">First component type.</typeparam>
+/// <typeparam name="T2">Second component type.</typeparam>
+/// <typeparam name="T3">Third component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A reference to the first component instance.</param>
+/// <param name="c2">A reference to the second component instance.</param>
+/// <param name="c3">A reference to the third component instance.</param>
 public delegate void EntityAction<T1, T2, T3>(Entity entity, ref T1 c1, ref T2 c2, ref T3 c3)
     where T1 : struct, IComponent
     where T2 : struct, IComponent
@@ -462,6 +503,13 @@ public delegate void EntityAction<T1, T2, T3>(Entity entity, ref T1 c1, ref T2 c
 /// <summary>
 /// Delegate for processing an entity with three readonly components.
 /// </summary>
+/// <typeparam name="T1">First component type.</typeparam>
+/// <typeparam name="T2">Second component type.</typeparam>
+/// <typeparam name="T3">Third component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A read-only reference to the first component instance.</param>
+/// <param name="c2">A read-only reference to the second component instance.</param>
+/// <param name="c3">A read-only reference to the third component instance.</param>
 public delegate void EntityActionReadOnly<T1, T2, T3>(Entity entity, in T1 c1, in T2 c2, in T3 c3)
     where T1 : struct, IComponent
     where T2 : struct, IComponent
@@ -470,6 +518,15 @@ public delegate void EntityActionReadOnly<T1, T2, T3>(Entity entity, in T1 c1, i
 /// <summary>
 /// Delegate for processing an entity with four components.
 /// </summary>
+/// <typeparam name="T1">First component type.</typeparam>
+/// <typeparam name="T2">Second component type.</typeparam>
+/// <typeparam name="T3">Third component type.</typeparam>
+/// <typeparam name="T4">Fourth component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A reference to the first component instance.</param>
+/// <param name="c2">A reference to the second component instance.</param>
+/// <param name="c3">A reference to the third component instance.</param>
+/// <param name="c4">A reference to the fourth component instance.</param>
 public delegate void EntityAction<T1, T2, T3, T4>(Entity entity, ref T1 c1, ref T2 c2, ref T3 c3, ref T4 c4)
     where T1 : struct, IComponent
     where T2 : struct, IComponent
@@ -479,6 +536,15 @@ public delegate void EntityAction<T1, T2, T3, T4>(Entity entity, ref T1 c1, ref 
 /// <summary>
 /// Delegate for processing an entity with four readonly components.
 /// </summary>
+/// <typeparam name="T1">First component type.</typeparam>
+/// <typeparam name="T2">Second component type.</typeparam>
+/// <typeparam name="T3">Third component type.</typeparam>
+/// <typeparam name="T4">Fourth component type.</typeparam>
+/// <param name="entity">The entity being processed.</param>
+/// <param name="c1">A read-only reference to the first component instance.</param>
+/// <param name="c2">A read-only reference to the second component instance.</param>
+/// <param name="c3">A read-only reference to the third component instance.</param>
+/// <param name="c4">A read-only reference to the fourth component instance.</param>
 public delegate void EntityActionReadOnly<T1, T2, T3, T4>(Entity entity, in T1 c1, in T2 c2, in T3 c3, in T4 c4)
     where T1 : struct, IComponent
     where T2 : struct, IComponent
