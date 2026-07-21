@@ -8,6 +8,7 @@ namespace KeenEyes.Mcp.TestBridge.Resources;
 /// <summary>
 /// MCP resources for capture and screenshot access.
 /// </summary>
+/// <param name="connection">The connection manager used to reach the active test bridge.</param>
 [McpServerResourceType]
 public sealed class CaptureResources(BridgeConnectionManager connection)
 {
@@ -16,6 +17,11 @@ public sealed class CaptureResources(BridgeConnectionManager connection)
     private const string ScreenshotUri = "keeneyes://capture/screenshot";
 #pragma warning restore S1075
 
+    /// <summary>
+    /// Captures the current screenshot and returns it as a PNG blob resource.
+    /// </summary>
+    /// <returns>A <see cref="BlobResourceContents"/> containing the base64-encoded PNG screenshot data.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when screenshot capture is not available on the connected bridge.</exception>
     [McpServerResource(
         UriTemplate = ScreenshotUri,
         Name = "screenshot",

@@ -15,11 +15,17 @@ namespace KeenEyes.Mcp.TestBridge.Tools;
 /// entities and components at a point in time.
 /// </para>
 /// </remarks>
+/// <param name="connection">The bridge connection manager used to reach the active game or editor session.</param>
 [McpServerToolType]
 public sealed class SnapshotTools(BridgeConnectionManager connection)
 {
     #region Create/Restore
 
+    /// <summary>
+    /// Creates a named in-memory snapshot of the current world state.
+    /// </summary>
+    /// <param name="name">Unique name for this snapshot.</param>
+    /// <returns>The result of the create operation.</returns>
     [McpServerTool(Name = "snapshot_create")]
     [Description("Create a named in-memory snapshot of the current world state.")]
     public async Task<SnapshotOperationResult> Create(
@@ -31,6 +37,11 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
         return SnapshotOperationResult.FromResult(result);
     }
 
+    /// <summary>
+    /// Restores the world state from a named snapshot, clearing the current world and recreating all entities.
+    /// </summary>
+    /// <param name="name">Name of the snapshot to restore.</param>
+    /// <returns>The result of the restore operation.</returns>
     [McpServerTool(Name = "snapshot_restore")]
     [Description("Restore the world state from a named snapshot. This clears the current world and recreates all entities.")]
     public async Task<SnapshotOperationResult> Restore(
@@ -42,6 +53,11 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
         return SnapshotOperationResult.FromResult(result);
     }
 
+    /// <summary>
+    /// Deletes a named snapshot from memory.
+    /// </summary>
+    /// <param name="name">Name of the snapshot to delete.</param>
+    /// <returns>The result of the delete operation.</returns>
     [McpServerTool(Name = "snapshot_delete")]
     [Description("Delete a named snapshot from memory.")]
     public async Task<SnapshotDeleteResult> Delete(
@@ -62,6 +78,10 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
 
     #region List/Info
 
+    /// <summary>
+    /// Lists all available snapshots with their metadata.
+    /// </summary>
+    /// <returns>A result containing the count and metadata of all available snapshots.</returns>
     [McpServerTool(Name = "snapshot_list")]
     [Description("List all available snapshots with their metadata.")]
     public async Task<SnapshotListResult> List()
@@ -75,6 +95,11 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets detailed information about a specific snapshot.
+    /// </summary>
+    /// <param name="name">Name of the snapshot.</param>
+    /// <returns>The snapshot metadata, or <see langword="null"/> if no snapshot with that name exists.</returns>
     [McpServerTool(Name = "snapshot_get_info")]
     [Description("Get detailed information about a specific snapshot.")]
     public async Task<SnapshotInfoResult?> GetInfo(
@@ -90,6 +115,12 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
 
     #region Diff
 
+    /// <summary>
+    /// Compares two named snapshots and reports the differences between them.
+    /// </summary>
+    /// <param name="name1">Name of the first (baseline) snapshot.</param>
+    /// <param name="name2">Name of the second snapshot to compare.</param>
+    /// <returns>The differences between the two snapshots.</returns>
     [McpServerTool(Name = "snapshot_diff")]
     [Description("Compare two named snapshots and show the differences.")]
     public async Task<SnapshotDiffResult> Diff(
@@ -103,6 +134,11 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
         return SnapshotDiffResult.FromDiff(diff);
     }
 
+    /// <summary>
+    /// Compares a snapshot with the current world state.
+    /// </summary>
+    /// <param name="name">Name of the snapshot to compare against the current state.</param>
+    /// <returns>The differences between the snapshot and the current world state.</returns>
     [McpServerTool(Name = "snapshot_diff_current")]
     [Description("Compare a snapshot with the current world state.")]
     public async Task<SnapshotDiffResult> DiffCurrent(
@@ -118,6 +154,12 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
 
     #region File Operations
 
+    /// <summary>
+    /// Saves a snapshot to a file on disk.
+    /// </summary>
+    /// <param name="name">Name of the snapshot to save.</param>
+    /// <param name="path">File path to save the snapshot to.</param>
+    /// <returns>The result of the save operation.</returns>
     [McpServerTool(Name = "snapshot_save_file")]
     [Description("Save a snapshot to a file on disk.")]
     public async Task<SnapshotOperationResult> SaveToFile(
@@ -131,6 +173,12 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
         return SnapshotOperationResult.FromResult(result);
     }
 
+    /// <summary>
+    /// Loads a snapshot from a file on disk.
+    /// </summary>
+    /// <param name="path">File path to load the snapshot from.</param>
+    /// <param name="name">Optional name for the loaded snapshot; defaults to the filename when omitted.</param>
+    /// <returns>The result of the load operation.</returns>
     [McpServerTool(Name = "snapshot_load_file")]
     [Description("Load a snapshot from a file on disk.")]
     public async Task<SnapshotOperationResult> LoadFromFile(
@@ -148,6 +196,10 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
 
     #region Quick Save/Load
 
+    /// <summary>
+    /// Creates a quicksave snapshot for rapid iteration. Only one quicksave can exist at a time.
+    /// </summary>
+    /// <returns>The result of the quicksave operation.</returns>
     [McpServerTool(Name = "quicksave")]
     [Description("Create a quicksave snapshot for rapid iteration. Only one quicksave can exist at a time.")]
     public async Task<SnapshotOperationResult> QuickSave()
@@ -157,6 +209,10 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
         return SnapshotOperationResult.FromResult(result);
     }
 
+    /// <summary>
+    /// Restores the world state from the quicksave snapshot.
+    /// </summary>
+    /// <returns>The result of the quickload operation.</returns>
     [McpServerTool(Name = "quickload")]
     [Description("Restore from the quicksave snapshot.")]
     public async Task<SnapshotOperationResult> QuickLoad()
@@ -170,6 +226,11 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
 
     #region Export/Import
 
+    /// <summary>
+    /// Exports a snapshot as a JSON string.
+    /// </summary>
+    /// <param name="name">Name of the snapshot to export.</param>
+    /// <returns>The result of the export operation, including the JSON payload when successful.</returns>
     [McpServerTool(Name = "snapshot_export_json")]
     [Description("Export a snapshot as a JSON string.")]
     public async Task<SnapshotExportResult> ExportJson(
@@ -187,6 +248,12 @@ public sealed class SnapshotTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Imports a snapshot from a JSON string.
+    /// </summary>
+    /// <param name="json">JSON string containing snapshot data.</param>
+    /// <param name="name">Name to assign to the imported snapshot.</param>
+    /// <returns>The result of the import operation.</returns>
     [McpServerTool(Name = "snapshot_import_json")]
     [Description("Import a snapshot from a JSON string.")]
     public async Task<SnapshotOperationResult> ImportJson(

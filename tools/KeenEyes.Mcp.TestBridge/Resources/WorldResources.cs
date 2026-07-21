@@ -9,6 +9,7 @@ namespace KeenEyes.Mcp.TestBridge.Resources;
 /// <summary>
 /// MCP resources for world and entity state information.
 /// </summary>
+/// <param name="connection">The connection manager used to reach the active test bridge.</param>
 [McpServerResourceType]
 public sealed class WorldResources(BridgeConnectionManager connection)
 {
@@ -22,6 +23,10 @@ public sealed class WorldResources(BridgeConnectionManager connection)
     private const string EntityComponentUriTemplate = "keeneyes://entity/{id}/component/{type}";
 #pragma warning restore S1075
 
+    /// <summary>
+    /// Gets aggregate statistics about the current world state.
+    /// </summary>
+    /// <returns>A JSON text resource containing the world statistics.</returns>
     [McpServerResource(
         UriTemplate = WorldStatsUri,
         Name = "world-stats",
@@ -40,6 +45,11 @@ public sealed class WorldResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets detailed information about an entity by its ID.
+    /// </summary>
+    /// <param name="id">Entity ID.</param>
+    /// <returns>A JSON text resource containing the entity snapshot, or an error payload if no such entity exists.</returns>
     [McpServerResource(
         UriTemplate = EntityByIdUriTemplate,
         Name = "entity-by-id",
@@ -71,6 +81,11 @@ public sealed class WorldResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Finds the first entity with the given name.
+    /// </summary>
+    /// <param name="name">Entity name.</param>
+    /// <returns>A JSON text resource containing the entity snapshot, or an error payload if none is found.</returns>
     [McpServerResource(
         UriTemplate = EntityByNameUriTemplate,
         Name = "entity-by-name",
@@ -102,6 +117,12 @@ public sealed class WorldResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets a single component's data from an entity.
+    /// </summary>
+    /// <param name="id">Entity ID.</param>
+    /// <param name="type">Component type name.</param>
+    /// <returns>A JSON text resource containing the component data, or an error payload if the component is not found on the entity.</returns>
     [McpServerResource(
         UriTemplate = EntityComponentUriTemplate,
         Name = "entity-component",
@@ -134,6 +155,10 @@ public sealed class WorldResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the list of systems registered in the world, including their timing information.
+    /// </summary>
+    /// <returns>A JSON text resource containing the world's systems.</returns>
     [McpServerResource(
         UriTemplate = WorldSystemsUri,
         Name = "world-systems",
@@ -152,6 +177,11 @@ public sealed class WorldResources(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets performance metrics for the world, such as FPS and frame timing.
+    /// </summary>
+    /// <param name="frameCount">Number of frames to analyze (default: 60).</param>
+    /// <returns>A JSON text resource containing the performance metrics.</returns>
     [McpServerResource(
         UriTemplate = WorldPerformanceUri,
         Name = "world-performance",

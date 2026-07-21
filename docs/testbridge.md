@@ -80,6 +80,7 @@ The TestBridge architecture consists of multiple layers, each with a specific re
 | `KeenEyes.TestBridge.Abstractions` | Interfaces and data types | Reference for custom implementations |
 | `KeenEyes.TestBridge` | Core implementation | In-process testing, game integration |
 | `KeenEyes.TestBridge.Ipc` | IPC layer | External tool connections |
+| `KeenEyes.TestBridge.Client` | `TestBridgeClient` for external .NET processes | Connecting to a running game from a separate test process |
 | `KeenEyes.Mcp.TestBridge` | MCP server | AI tool integration |
 
 ## Integration Guide
@@ -1320,6 +1321,62 @@ Pre-built prompts for common workflows:
 1. Requires graphics context (not headless)
 2. Must be called from render thread
 3. Check for OpenGL/Vulkan context errors
+
+## Connecting from an External .NET Process
+
+The layers above cover in-process usage (`TestBridgePlugin` + `ITestBridge`) and the raw
+IPC/MCP protocol. For a .NET test process or tool that wants to talk to a running game
+without hand-rolling the IPC protocol, add the `KeenEyes.TestBridge.Client` package and use
+`TestBridgeClient`.
+
+`TestBridgeClient` implements `ITestBridge` over the same named-pipe/TCP transport used by
+the MCP server, so the exact same calling code (`client.Input`, `client.State`, etc.) works
+whether you're in-process or out-of-process.
+
+```csharp
+using KeenEyes.TestBridge;
+using KeenEyes.TestBridge.Client;
+
+// Connect to a running game's TestBridge pipe
+await using var client = new TestBridgeClient(new IpcOptions
+{
+    PipeName = "MyGame.TestBridge",
+    TransportMode = IpcTransportMode.NamedPipe
+});
+
+await client.ConnectAsync();
+
+// Same controller-based API as the in-process bridge
+var entity = await client.State.GetEntityByNameAsync("Player");
+var stats = await client.State.GetWorldStatsAsync();
+
+await client.Input.KeyPressAsync(Key.Space);
+
+await client.DisconnectAsync();
+```
+
+### `TestBridgeClient` Members
+
+| Member | Description |
+|--------|-------------|
+| `TestBridgeClient(IpcOptions? options = null)` | Constructs a client for the given transport (`IpcTransportMode.NamedPipe` or `IpcTransportMode.Tcp`); defaults to named pipes on `KeenEyes.TestBridge` if `options` is omitted. |
+| `ConnectAsync(CancellationToken cancellationToken = default)` | Opens the transport connection to the server. |
+| `DisconnectAsync()` | Closes the transport connection. |
+| `IsConnected` | Whether the transport is currently connected. |
+| `Input`, `State`, `Capture`, `Logs`, `Window`, `Time`, `Systems`, `Mutation`, `Profile`, `Snapshot`, `AI`, `Replay` | The same controller interfaces (`IInputController`, `IStateController`, etc.) exposed by the in-process bridge, backed by remote IPC calls. |
+| `ExecuteAsync(ITestCommand command, CancellationToken cancellationToken = default)` | Executes a raw `ITestCommand` and returns a `CommandResult`. |
+| `WaitForAsync(...)` | Polls a condition against `State` until it's true or the timeout elapses (overloads for sync and async predicates). |
+| `ConnectionChanged` | Event raised when the connection state changes. |
+
+Two members intentionally throw `NotSupportedException` over IPC, since they require direct
+in-process access to the game:
+
+- `Process` - process management is only available via the in-process bridge.
+- `InputContext` - use the `Input` controller to inject events instead of touching the
+  input context directly.
+
+`TestBridgeClient` implements `IAsyncDisposable` (and `IDisposable`); disposing cancels any
+pending requests and closes the transport.
 
 ## Related Documentation
 

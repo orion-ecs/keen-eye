@@ -24,7 +24,6 @@ With `KeenEyes.Testing`, you can test in isolation:
 
 ```csharp
 // With KeenEyes.Testing - focused, fast tests
-var mockWorld = new MockWorld();
 var mockContext = new MockPluginContext("Test");
 
 var plugin = new MyPlugin();
@@ -275,23 +274,24 @@ public void MovementSystem_UpdatesPositions()
 }
 ```
 
-### Unit Test with MockWorld
+### Unit Test with TestWorld
+
+Build an isolated world with `TestWorldBuilder`, opting into only the mocks the test needs. `TestWorld.Step()` advances the manual clock and runs one update; the mock renderer records every draw call it received:
 
 ```csharp
 [Fact]
-public void RenderSystem_SkipsInvisibleEntities()
+public void RenderSystem_RecordsDrawCommands()
 {
-    var mockWorld = new MockWorld();
-    var renderer = new MockRenderer();
+    using var test = new TestWorldBuilder()
+        .WithManualTime()
+        .WithMock2DRenderer()
+        .Build();
 
-    // Set up test entity as invisible
-    mockWorld.SetupEntity(entity, visible: false);
+    // Arrange entities in test.World and register your render system here...
 
-    var system = new RenderSystem(renderer);
-    system.Initialize(mockWorld);
-    system.Update(0.016f);
+    test.Step(); // advance one frame at the manual clock's fps
 
-    Assert.Empty(renderer.RenderedEntities);
+    Assert.NotEmpty(test.Mock2DRenderer!.Commands);
 }
 ```
 
@@ -349,6 +349,218 @@ public void RegisterPrefab_WithDuplicateName_ThrowsArgumentException() { }
 
 [Fact]
 public void Update_WhenDisabled_SkipsExecution() { }
+```
+
+## Assertion Helpers
+
+`KeenEyes.Testing` provides FluentAssertions-style extension methods that throw `AssertionException` with a descriptive message on failure. They live in the `KeenEyes.Testing` namespace and work against `Entity`, `World`/`IWorld`, `TestWorld`, and component values directly - no assertion library dependency required.
+
+### Entity Assertions
+
+`EntityAssertions` checks alive/dead state, component presence, tags, and predicate matches:
+
+```csharp
+var entity = world.Spawn().With(new Position { X = 10 }).Build();
+
+entity.ShouldBeAlive(world);
+entity.ShouldHaveComponent<Position>(world);
+entity.ShouldNotHaveComponent<Velocity>(world);
+entity.ShouldHaveTag<EnemyTag>(world);
+entity.ShouldHaveComponentMatching<Position>(world, p => p.X > 0);
+```
+
+Overloads accepting a `TestWorld` instead of `World`/`IWorld` are also available, so assertions can chain directly off `TestWorldBuilder.Build()` results.
+
+### Component Assertions
+
+`ComponentAssertions` operates on component struct values directly - useful after pulling a component out with `world.Get<T>()`:
+
+```csharp
+var position = world.Get<Position>(entity);
+
+position.ShouldEqual(new Position { X = 10, Y = 20 });
+position.ShouldMatch(p => p.X >= 0 && p.Y >= 0, "position should be in positive quadrant");
+position.ShouldHaveField(p => p.X, 10);
+position.ShouldHaveFieldInRange(p => p.X, 0f, 100f);
+position.ShouldBeDefault();
+```
+
+`ShouldHaveField` and `ShouldHaveFieldMatching` take an `Expression<Func<T, TField>>` field selector and are reflection-free (AOT-compatible) - the expression tree is compiled once and the field name is only used for the failure message.
+
+### World Assertions
+
+`WorldAssertions` checks entity counts, installed plugins, and query results:
+
+```csharp
+world.ShouldHaveEntityCount(2);
+world.ShouldNotBeEmpty();
+world.ShouldHavePlugin<PhysicsPlugin>();
+world.ShouldNotHavePlugin<RenderingPlugin>();
+world.ShouldContainEntitiesWith<Position, Velocity>();
+world.ShouldContainExactlyWith<EnemyTag>(5);
+```
+
+Every assertion accepts an optional `because` string that is appended to the failure message.
+
+## Snapshot Testing
+
+`KeenEyes.Testing.Snapshots` captures the full state of a world (or a subset of entities) as plain data, then diffs two captures to verify that an operation produced exactly the changes you expect - or none at all.
+
+### Capturing Snapshots
+
+`WorldSnapshot.Create(world)` walks every live entity and records an `EntitySnapshot` per entity (ID, version, name, and a `Dictionary<string, Dictionary<string, object?>>` of component field values, keyed by component type name):
+
+```csharp
+using KeenEyes.Testing.Snapshots;
+
+var before = WorldSnapshot.Create(world);
+world.Update(1.0f);
+var after = WorldSnapshot.Create(world);
+```
+
+An overload, `WorldSnapshot.Create(world, entities)`, captures only the specified entities. `WorldSnapshot` exposes `EntityCount`, `EntityIds`, `GetEntity(id)`, `EntitiesWithComponent<T>()`, and `AllComponentTypes` for inspecting a capture directly.
+
+### Comparing Snapshots
+
+`SnapshotComparer.Compare(expected, actual)` returns a `SnapshotComparison` describing every difference - added/removed entities, version or name changes, added/removed components, and per-field value changes - each as a `SnapshotDifference` with a `DifferenceType` (`EntityAdded`, `ComponentRemoved`, `FieldChanged`, etc.):
+
+```csharp
+var comparison = SnapshotComparer.Compare(before, after);
+
+if (!comparison.AreEqual)
+{
+    Console.WriteLine(comparison.GetReport());
+}
+```
+
+`SnapshotComparer.CompareEntities(expected, actual)` compares two `EntitySnapshot` instances directly when you only care about one entity.
+
+### Snapshot Assertions
+
+`SnapshotAssertions` wraps the comparer in fluent, `AssertionException`-throwing checks:
+
+```csharp
+after.ShouldEqual(before);
+after.ShouldHaveEntityCount(before.EntityCount);
+after.ShouldContainEntity(entity.Id);
+after.ShouldHaveEntitiesWithComponent<Health>();
+
+comparison.ShouldBeEqual();
+comparison.ShouldHaveDifferenceCount(1);
+```
+
+`EntitySnapshot` has its own `ShouldHaveComponent<T>()`, `ShouldNotHaveComponent<T>()`, and `ShouldEqual()` for entity-level checks.
+
+## Recording and Playback
+
+Two recorders capture activity during a test run for later inspection or replay.
+
+### InputRecorder / InputPlayer
+
+`KeenEyes.Testing.Input.InputRecorder` subscribes to an `IInputContext` (keyboard, mouse, gamepad events) and records each event as a timestamped `RecordedInputEvent` (e.g. `RecordedKeyDownEvent`, `RecordedMouseMoveEvent`, `RecordedGamepadAxisEvent`). Pairing it with a `TestClock` synchronizes timestamps to simulation time:
+
+```csharp
+using KeenEyes.Testing.Input;
+
+using var testWorld = new TestWorldBuilder()
+    .WithManualTime()
+    .WithMockInput()
+    .Build();
+
+var recorder = new InputRecorder(testWorld.MockInput!, testWorld.Clock);
+
+recorder.StartRecording(name: "jump-sequence");
+testWorld.MockInput!.SimulateKeyDown(Key.Space);
+testWorld.Step();
+testWorld.MockInput.SimulateKeyUp(Key.Space);
+
+var recording = recorder.StopRecording();
+var json = recording.ToJson(); // or recording.ToBinary()
+```
+
+`InputRecording` can round-trip through `ToJson()`/`FromJson()` or `ToBinary()`/`FromBinary()`, making recorded sequences reusable as fixtures across test runs.
+
+`InputPlayer` plays a loaded `InputRecording` back through a `MockInputContext`, firing each event once the `TestClock` reaches its timestamp:
+
+```csharp
+var player = new InputPlayer(testWorld.MockInput!, testWorld.Clock!);
+
+player.LoadRecording(InputRecording.FromJson(json));
+player.Play();
+
+while (player.IsPlaying)
+{
+    player.Update();
+    testWorld.Step();
+}
+```
+
+`InputPlayer` also supports `Pause()`, `Stop()`, `Seek(positionMs)`, and an `OnPlaybackComplete` event.
+
+### SystemRecorder
+
+`KeenEyes.Testing.Systems.SystemRecorder` attaches to a world's system hooks (`AttachTo(world, phase)`) and records every system execution as a `SystemCall` (system type, name, delta time, and UTC timestamp). `TestWorldBuilder.WithSystemRecording()` wires one up automatically and exposes it via `TestWorld.SystemRecorder`:
+
+```csharp
+using var testWorld = new TestWorldBuilder()
+    .WithSystemRecording()
+    .WithSystem<MovementSystem>()
+    .WithManualTime()
+    .Build();
+
+testWorld.Step();
+
+var recorder = testWorld.SystemRecorder!;
+recorder
+    .ShouldHaveCalledSystem<MovementSystem>()
+    .ShouldHaveCalledSystemTimes<MovementSystem>(1);
+
+Assert.Equal(1, recorder.GetCallCount<MovementSystem>());
+```
+
+`SystemRecorderAssertions` adds `ShouldHaveCalledSystemAtLeast<T>()`, `ShouldNotHaveCalledSystem<T>()`, `ShouldHaveTotalCallCount()`, `ShouldHaveNoCalls()`, and `ShouldHaveAccumulatedDeltaTime<T>()`. `SystemRecorder` itself also exposes `GetCalls<T>()`, `GetLastCall<T>()`, `GetTotalDeltaTime<T>()`, and `Clear()` for direct inspection.
+
+## Test Fixtures
+
+`KeenEyes.Testing.Fixtures` provides ready-made components and entity builders so tests don't need to declare throwaway component types.
+
+### CommonComponents
+
+A set of `[Component]`-generated structs prefixed `Test` (`TestPosition`, `TestPosition3D`, `TestVelocity`, `TestHealth`, `TestDamage`, `TestSpeed`, `TestRotation`, `TestScale`, `TestLifetime`, `TestTeam`, `TestCounter`) plus `[TagComponent]` tags (`PlayerTag`, `EnemyTag`, `ProjectileTag`, `PickupTag`, `DeadTag`, `ActiveTag`, `DisabledTag`, `InvulnerableTag`). Each component has a `Create(...)` factory and most have convenience properties like `TestHealth.Full(max)`, `TestPosition.Zero`, or `TestHealth.Percentage`:
+
+```csharp
+using KeenEyes.Testing.Fixtures;
+
+var entity = world.Spawn()
+    .With(TestPosition.Create(0, 0))
+    .With(TestHealth.Full(100))
+    .WithTag<EnemyTag>()
+    .Build();
+```
+
+### EntityPresets / EntityPresetBuilder
+
+`EntityPresets` provides factory methods - `Player(world)`, `Enemy(world)`, `Projectile(world)`, `Pickup(world)`, `MovingEntity(world)` - that return a fluent `EntityPresetBuilder` pre-populated with sensible defaults built from the `CommonComponents` above:
+
+```csharp
+using var world = new World();
+
+var player = EntityPresets.Player(world)
+    .WithName("Player1")
+    .AtPosition(100, 50)
+    .WithHealth(100)
+    .Build();
+```
+
+`EntityPresetBuilder` supports `WithName`, `AtPosition`, `WithVelocity`, `WithHealth` (single value or current/max pair), `WithDamage`, `WithSpeed`, `WithLifetime`, `OnTeam`, and `WithTag<T>()`, finished with `Build()`.
+
+For batches, `EntityPresets.CreatePlayers(world, count)`, `CreateEnemies(world, count)`, and `CreateProjectiles(world, count)` return a `BatchEntityBuilder` that applies the same modifiers - `WithHealth`, `WithDamage`, `WithSpeed`, `InGrid(columns, spacing)`, `InLine(spacing, horizontal)`, `WithSequentialTeams()`, `WithAlternatingTeams(teamA, teamB)`, or a custom `WithModifier((builder, index) => ...)` - to every entity before calling `Build()`, which returns an `Entity[]`:
+
+```csharp
+var enemies = EntityPresets.CreateEnemies(world, count: 5)
+    .WithHealth(50)
+    .InGrid(columns: 5, spacing: 32f)
+    .Build();
 ```
 
 ## Next Steps

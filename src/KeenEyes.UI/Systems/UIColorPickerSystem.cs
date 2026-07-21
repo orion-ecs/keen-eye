@@ -313,6 +313,8 @@ public sealed class UIColorPickerSystem : SystemBase
     /// <summary>
     /// Converts RGB color to hue (0-360).
     /// </summary>
+    /// <param name="color">The RGBA color to convert.</param>
+    /// <returns>The hue component in degrees (0-360).</returns>
     public static float RgbToHue(Vector4 color)
     {
         float r = color.X;
@@ -353,6 +355,8 @@ public sealed class UIColorPickerSystem : SystemBase
     /// <summary>
     /// Converts RGB color to saturation (0-1).
     /// </summary>
+    /// <param name="color">The RGBA color to convert.</param>
+    /// <returns>The saturation component (0-1).</returns>
     public static float RgbToSaturation(Vector4 color)
     {
         float max = MathF.Max(color.X, MathF.Max(color.Y, color.Z));
@@ -369,6 +373,8 @@ public sealed class UIColorPickerSystem : SystemBase
     /// <summary>
     /// Converts RGB color to value/brightness (0-1).
     /// </summary>
+    /// <param name="color">The RGBA color to convert.</param>
+    /// <returns>The value/brightness component (0-1).</returns>
     public static float RgbToValue(Vector4 color)
     {
         return MathF.Max(color.X, MathF.Max(color.Y, color.Z));

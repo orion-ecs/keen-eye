@@ -429,6 +429,140 @@ world.AddSystem<RenderSystem>(SystemPhase.Render, order: 0);
 
 These systems are in `KeenEyes.Graphics` and work with any backend implementing `IGraphicsContext`.
 
+## Shadows
+
+The `KeenEyes.Graphics.Shadows` namespace provides shadow mapping for directional, point, and spot lights. Directional lights use Cascaded Shadow Maps (CSM, up to 4 cascades); point lights use cubemap shadow maps; spot lights use a single 2D shadow map.
+
+### Enabling Shadows
+
+Shadow casting is controlled per-light and per-renderable:
+
+```csharp
+// Light.Directional() and Light.Spot() enable CastShadows by default;
+// Light.Point() does not.
+world.Spawn()
+    .With(new Transform3D(Vector3.Zero,
+        Quaternion.CreateFromYawPitchRoll(0.5f, -0.8f, 0), Vector3.One))
+    .With(Light.Directional(new Vector3(1, 0.95f, 0.8f), 1.0f))  // CastShadows = true
+    .Build();
+
+// Renderable.CastShadows / ReceiveShadows default to true
+var graphics = world.GetExtension<IGraphicsContext>();
+var cube = graphics.CreateCube();
+world.Spawn()
+    .With(Transform3D.Identity)
+    .With(new Renderable(cube.Id, 0) { CastShadows = true, ReceiveShadows = true })
+    .With(new Material { ShaderId = graphics.LitShader.Id })
+    .Build();
+```
+
+### ShadowRenderingSystem
+
+`ShadowRenderingSystem` renders the depth-only shadow passes for every shadow-casting light before the main color pass. It owns a `ShadowMapManager`, which allocates and updates the render targets and light-space matrices for each shadow-casting light. To have the main render pass actually sample the resulting shadow maps, assign the `ShadowRenderingSystem` instance to `RenderSystem.ShadowSystem`:
+
+```csharp
+using KeenEyes.Graphics.Shadows;
+
+var shadowSystem = new ShadowRenderingSystem
+{
+    Settings = new ShadowSettings
+    {
+        Resolution = ShadowResolution.High,
+        FilterMode = ShadowFilterMode.Pcf3x3,
+        CascadeCount = 4,
+        CascadeSplitLambda = 0.75f,
+        MaxShadowDistance = 100f
+    }
+};
+var renderSystem = new RenderSystem { ShadowSystem = shadowSystem };
+
+// Shadow pass must run before the color pass that samples it
+world.AddSystem(shadowSystem, SystemPhase.Render, order: -1);
+world.AddSystem(renderSystem, SystemPhase.Render, order: 0);
+```
+
+`ShadowSettings` (in `KeenEyes.Graphics.Abstractions`) controls quality:
+
+| Property | Purpose |
+|----------|---------|
+| `Resolution` | `ShadowResolution.Low/Medium/High/VeryHigh` (512–4096px) |
+| `FilterMode` | `ShadowFilterMode.Hard/Pcf3x3/Pcf5x5/Pcf7x7` |
+| `CascadeCount` | Number of directional light cascades (clamped 1-4) |
+| `CascadeSplitLambda` | Blends uniform (0) vs. logarithmic (1) cascade splits |
+| `MaxShadowDistance` | Distance from the camera beyond which shadows aren't rendered |
+| `NormalBias` / `DepthBias` | Reduce shadow acne |
+
+The cascade math itself (split distances, frustum corners, light-space matrices, cubemap face matrices, and texel-snapping stabilization) lives in the static `CascadeUtils` class, which `ShadowMapManager` calls internally each frame.
+
+### Debug Visualization
+
+`ShadowMapVisualizationSystem` draws shadow maps as on-screen thumbnails for debugging. Point it at an existing `ShadowRenderingSystem` and add it after the render pass:
+
+```csharp
+var shadowViz = new ShadowMapVisualizationSystem
+{
+    ShadowSystem = shadowSystem,
+    Mode = ShadowVisualizationMode.Cascades,  // Cascades, SpotLights, PointLights, or All
+    ShowCascadeColors = true
+};
+world.AddSystem(shadowViz, SystemPhase.Render, order: 1);
+```
+
+Call `shadowViz.SetViewportSize(width, height)` from your `OnResize` callback so thumbnails stay correctly positioned.
+
+## Instanced Rendering
+
+`InstanceBatchingSystem` (in `KeenEyes.Graphics`) groups entities that share the same mesh, material, and a user-defined batch ID into a single GPU instanced draw call. This is intended for rendering many copies of the same object (trees, rocks, particles) with minimal CPU overhead.
+
+Mark entities with the `InstanceBatch` component alongside `Transform3D` and `Renderable`:
+
+```csharp
+using KeenEyes.Graphics.Abstractions;
+
+// 1000 trees rendered with a single draw call per material/mesh combination
+for (int i = 0; i < 1000; i++)
+{
+    world.Spawn()
+        .With(new Transform3D(positions[i], Quaternion.Identity, Vector3.One))
+        .With(new Renderable(treeMeshId, treeMaterialId))
+        .With(new InstanceBatch(batchId: 1))
+        .Build();
+}
+
+world.AddSystem(new InstanceBatchingSystem(), SystemPhase.Render, order: -1);
+world.AddSystem<RenderSystem>(SystemPhase.Render, order: 0);
+```
+
+`InstanceBatch.ColorTint` (a `Vector4`) is multiplied with the material's base color, giving per-instance color variation without separate materials. `RenderSystem` automatically skips any entity that has an `InstanceBatch` component — those entities are drawn by `InstanceBatchingSystem` itself, which issues the instanced draw calls directly during its `Update`.
+
+## Level of Detail (LOD)
+
+`LodSystem` (in `KeenEyes.Graphics`) automatically swaps an entity's mesh based on distance from the camera or projected screen coverage, reducing triangle counts for distant objects. It should run before `RenderSystem` so the mesh swap happens before the object is drawn.
+
+Attach a `LodGroup` component (in `KeenEyes.Graphics.Abstractions`) alongside `Transform3D` and `Renderable`:
+
+```csharp
+using KeenEyes.Graphics.Abstractions;
+
+var highDetail = graphics.CreateMesh(highVertices, highIndices);
+var mediumDetail = graphics.CreateMesh(mediumVertices, mediumIndices);
+var lowDetail = graphics.CreateMesh(lowVertices, lowIndices);
+
+world.Spawn()
+    .With(Transform3D.Identity)
+    .With(new Renderable(highDetail.Id, materialId))
+    .With(LodGroup.Create(
+        new LodLevel(highDetail.Id, 0f),      // Level 0: used up to 20 units
+        new LodLevel(mediumDetail.Id, 20f),   // Level 1: used 20-50 units
+        new LodLevel(lowDetail.Id, 50f)))     // Level 2: used beyond 50 units
+    .Build();
+
+world.AddSystem(new LodSystem { HysteresisFactor = 0.1f });
+world.AddSystem<RenderSystem>(SystemPhase.Render);
+```
+
+`LodGroup.Create(...)` overloads support 1-4 levels; each `LodLevel(MeshId, Threshold)` pairs a mesh handle with a distance (or screen-coverage) threshold. `LodGroup.SelectionMode` chooses between `LodSelectionMode.Distance` (threshold is world-space distance) and `LodSelectionMode.ScreenSize` (threshold is projected screen coverage, 0-1); `LodGroup.Bias` offsets the calculation per-entity. `LodSystem.HysteresisFactor` (default 0.05) widens the switch threshold in the direction the entity is currently trending, to prevent flickering when an entity sits near a boundary; `LodSystem.GlobalBias` applies the same kind of offset to every entity.
+
 ## 2D Rendering Patterns
 
 While KeenEyes graphics primarily targets 3D, 2D games can use orthographic cameras and specialized patterns.

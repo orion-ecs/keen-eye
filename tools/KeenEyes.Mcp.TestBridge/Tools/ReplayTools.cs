@@ -18,11 +18,19 @@ namespace KeenEyes.Mcp.TestBridge.Tools;
 /// Playback can be done independently using the built-in ReplayPlayer.
 /// </para>
 /// </remarks>
+/// <param name="connection">The connection manager used to reach the active bridge.</param>
 [McpServerToolType]
 public sealed class ReplayTools(BridgeConnectionManager connection)
 {
     #region Recording Control
 
+    /// <summary>
+    /// Starts recording gameplay, requiring the ReplayPlugin to be installed on the world.
+    /// </summary>
+    /// <param name="name">Optional name for this recording.</param>
+    /// <param name="maxFrames">Maximum frames to record (default: 36000 = 10 minutes at 60fps).</param>
+    /// <param name="snapshotIntervalMs">Interval in milliseconds between world state snapshots (default: 5000 = 5 seconds).</param>
+    /// <returns>The result of the start-recording operation.</returns>
     [McpServerTool(Name = "replay_start_recording")]
     [Description("Start recording gameplay. Requires ReplayPlugin to be installed on the world.")]
     public async Task<ReplayOperationResultMcp> StartRecording(
@@ -38,6 +46,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Stops recording and keeps the recorded data in memory; use replay_save to persist it.
+    /// </summary>
+    /// <returns>The result of the stop-recording operation.</returns>
     [McpServerTool(Name = "replay_stop_recording")]
     [Description("Stop recording and keep the recording data in memory. Use replay_save to persist.")]
     public async Task<ReplayOperationResultMcp> StopRecording()
@@ -47,6 +59,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Cancels recording and discards all recorded data.
+    /// </summary>
+    /// <returns>The result of the cancel-recording operation.</returns>
     [McpServerTool(Name = "replay_cancel_recording")]
     [Description("Cancel recording and discard all recorded data.")]
     public async Task<ReplayOperationResultMcp> CancelRecording()
@@ -56,6 +72,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Checks whether recording is currently in progress.
+    /// </summary>
+    /// <returns>The current recording status, including recording info when active.</returns>
     [McpServerTool(Name = "replay_is_recording")]
     [Description("Check if recording is currently in progress.")]
     public async Task<RecordingStatusResult> IsRecording()
@@ -71,6 +91,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Forces a world state snapshot to be taken during recording.
+    /// </summary>
+    /// <returns>The result of the force-snapshot operation.</returns>
     [McpServerTool(Name = "replay_force_snapshot")]
     [Description("Force a world state snapshot during recording.")]
     public async Task<ReplayOperationResultMcp> ForceSnapshot()
@@ -84,6 +108,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
 
     #region Recording Management
 
+    /// <summary>
+    /// Saves the current recording to a file.
+    /// </summary>
+    /// <param name="path">File path to save the replay to (with .kreplay extension).</param>
+    /// <returns>The result of the save operation.</returns>
     [McpServerTool(Name = "replay_save")]
     [Description("Save the current recording to a file.")]
     public async Task<ReplayOperationResultMcp> Save(
@@ -95,6 +124,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Loads a replay file for playback.
+    /// </summary>
+    /// <param name="path">File path of the replay to load.</param>
+    /// <returns>The result of the load operation.</returns>
     [McpServerTool(Name = "replay_load")]
     [Description("Load a replay file for playback.")]
     public async Task<ReplayOperationResultMcp> Load(
@@ -106,6 +140,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Lists all replay files in a directory.
+    /// </summary>
+    /// <param name="directory">Directory to search for replay files (null = current directory).</param>
+    /// <returns>The list of replay files found in the directory.</returns>
     [McpServerTool(Name = "replay_list")]
     [Description("List all replay files in a directory.")]
     public async Task<ReplayFileListResult> List(
@@ -122,6 +161,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Deletes a replay file.
+    /// </summary>
+    /// <param name="path">File path of the replay to delete.</param>
+    /// <returns>The result of the delete operation.</returns>
     [McpServerTool(Name = "replay_delete")]
     [Description("Delete a replay file.")]
     public async Task<ReplayDeleteResult> Delete(
@@ -138,6 +182,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets metadata from a replay file without loading it for playback.
+    /// </summary>
+    /// <param name="path">File path of the replay.</param>
+    /// <returns>The replay metadata, or <see langword="null"/> if the file could not be read.</returns>
     [McpServerTool(Name = "replay_get_metadata")]
     [Description("Get metadata from a replay file without loading it for playback.")]
     public async Task<ReplayMetadataResult?> GetMetadata(
@@ -153,6 +202,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
 
     #region Playback Control
 
+    /// <summary>
+    /// Starts or resumes playback of the loaded replay.
+    /// </summary>
+    /// <returns>The result of the play operation.</returns>
     [McpServerTool(Name = "replay_play")]
     [Description("Start or resume playback of the loaded replay.")]
     public async Task<ReplayOperationResultMcp> Play()
@@ -162,6 +215,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Pauses playback.
+    /// </summary>
+    /// <returns>The result of the pause operation.</returns>
     [McpServerTool(Name = "replay_pause")]
     [Description("Pause playback.")]
     public async Task<ReplayOperationResultMcp> Pause()
@@ -171,6 +228,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Stops playback and resets to the beginning.
+    /// </summary>
+    /// <returns>The result of the stop operation.</returns>
     [McpServerTool(Name = "replay_stop")]
     [Description("Stop playback and reset to the beginning.")]
     public async Task<ReplayOperationResultMcp> Stop()
@@ -180,6 +241,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Gets the current playback state.
+    /// </summary>
+    /// <returns>The current playback state.</returns>
     [McpServerTool(Name = "replay_get_playback_state")]
     [Description("Get the current playback state.")]
     public async Task<PlaybackStateResult> GetPlaybackState()
@@ -189,6 +254,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return PlaybackStateResult.FromSnapshot(state);
     }
 
+    /// <summary>
+    /// Sets the playback speed.
+    /// </summary>
+    /// <param name="speed">Playback speed multiplier (0.25 to 4.0).</param>
+    /// <returns>The result of the set-speed operation.</returns>
     [McpServerTool(Name = "replay_set_speed")]
     [Description("Set the playback speed (0.25x to 4.0x).")]
     public async Task<ReplayOperationResultMcp> SetSpeed(
@@ -204,6 +274,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
 
     #region Playback Navigation
 
+    /// <summary>
+    /// Seeks to a specific frame in the replay.
+    /// </summary>
+    /// <param name="frame">Frame number to seek to.</param>
+    /// <returns>The result of the seek operation.</returns>
     [McpServerTool(Name = "replay_seek_frame")]
     [Description("Seek to a specific frame in the replay.")]
     public async Task<ReplayOperationResultMcp> SeekFrame(
@@ -215,6 +290,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Seeks to a specific time in the replay.
+    /// </summary>
+    /// <param name="seconds">Time in seconds to seek to.</param>
+    /// <returns>The result of the seek operation.</returns>
     [McpServerTool(Name = "replay_seek_time")]
     [Description("Seek to a specific time in the replay.")]
     public async Task<ReplayOperationResultMcp> SeekTime(
@@ -226,6 +306,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Steps forward by a number of frames, pausing playback if it is currently playing.
+    /// </summary>
+    /// <param name="frames">Number of frames to step forward.</param>
+    /// <returns>The result of the step-forward operation.</returns>
     [McpServerTool(Name = "replay_step_forward")]
     [Description("Step forward by a number of frames (pauses if playing).")]
     public async Task<ReplayOperationResultMcp> StepForward(
@@ -237,6 +322,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ReplayOperationResultMcp.FromResult(result);
     }
 
+    /// <summary>
+    /// Steps backward by a number of frames, pausing playback if it is currently playing.
+    /// </summary>
+    /// <param name="frames">Number of frames to step backward.</param>
+    /// <returns>The result of the step-backward operation.</returns>
     [McpServerTool(Name = "replay_step_backward")]
     [Description("Step backward by a number of frames (pauses if playing).")]
     public async Task<ReplayOperationResultMcp> StepBackward(
@@ -252,6 +342,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
 
     #region Frame Inspection
 
+    /// <summary>
+    /// Gets details about a specific frame.
+    /// </summary>
+    /// <param name="frame">Frame number to inspect.</param>
+    /// <returns>The frame details, or <see langword="null"/> if the frame does not exist.</returns>
     [McpServerTool(Name = "replay_get_frame")]
     [Description("Get details about a specific frame.")]
     public async Task<ReplayFrameResult?> GetFrame(
@@ -263,6 +358,12 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return frameData != null ? ReplayFrameResult.FromSnapshot(frameData) : null;
     }
 
+    /// <summary>
+    /// Gets details about a range of frames.
+    /// </summary>
+    /// <param name="startFrame">Starting frame number.</param>
+    /// <param name="count">Number of frames to retrieve.</param>
+    /// <returns>The requested range of frame details.</returns>
     [McpServerTool(Name = "replay_get_frame_range")]
     [Description("Get details about a range of frames.")]
     public async Task<FrameRangeResult> GetFrameRange(
@@ -281,6 +382,12 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets input events for a range of frames.
+    /// </summary>
+    /// <param name="startFrame">Starting frame number.</param>
+    /// <param name="endFrame">Ending frame number.</param>
+    /// <returns>The input events recorded within the given frame range.</returns>
     [McpServerTool(Name = "replay_get_inputs")]
     [Description("Get input events for a range of frames.")]
     public async Task<InputEventsResult> GetInputs(
@@ -300,6 +407,12 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets replay events, such as entity spawns and despawns, for a range of frames.
+    /// </summary>
+    /// <param name="startFrame">Starting frame number.</param>
+    /// <param name="endFrame">Ending frame number.</param>
+    /// <returns>The replay events recorded within the given frame range.</returns>
     [McpServerTool(Name = "replay_get_events")]
     [Description("Get replay events (entity spawns, despawns, etc.) for a range of frames.")]
     public async Task<ReplayEventsResult> GetEvents(
@@ -319,6 +432,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets a list of all world state snapshots in the loaded replay.
+    /// </summary>
+    /// <returns>The snapshot markers contained in the loaded replay.</returns>
     [McpServerTool(Name = "replay_get_snapshots")]
     [Description("Get a list of all world state snapshots in the loaded replay.")]
     public async Task<SnapshotMarkersResult> GetSnapshots()
@@ -336,6 +453,11 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
 
     #region Validation
 
+    /// <summary>
+    /// Validates a replay file for integrity and compatibility.
+    /// </summary>
+    /// <param name="path">File path of the replay to validate.</param>
+    /// <returns>The validation result.</returns>
     [McpServerTool(Name = "replay_validate")]
     [Description("Validate a replay file for integrity and compatibility.")]
     public async Task<ValidationResult> Validate(
@@ -347,6 +469,10 @@ public sealed class ReplayTools(BridgeConnectionManager connection)
         return ValidationResult.FromSnapshot(result);
     }
 
+    /// <summary>
+    /// Checks whether the loaded replay has determinism issues, such as checksum mismatches.
+    /// </summary>
+    /// <returns>The determinism check result.</returns>
     [McpServerTool(Name = "replay_check_determinism")]
     [Description("Check if the loaded replay has determinism issues (checksum mismatches).")]
     public async Task<DeterminismResult> CheckDeterminism()

@@ -8,9 +8,14 @@ namespace KeenEyes.Mcp.TestBridge.Tools;
 /// <summary>
 /// MCP tools for window state queries.
 /// </summary>
+/// <param name="connection">The connection manager used to reach the active test bridge.</param>
 [McpServerToolType]
 public sealed class WindowTools(BridgeConnectionManager connection)
 {
+    /// <summary>
+    /// Checks whether window state queries are available.
+    /// </summary>
+    /// <returns>The availability result; <see cref="WindowAvailableResult.Available"/> is <see langword="false"/> if the game is running headless.</returns>
     [McpServerTool(Name = "window_is_available")]
     [Description("Check if window state queries are available. Returns false if the game is running headless.")]
     public WindowAvailableResult WindowIsAvailable()
@@ -22,6 +27,10 @@ public sealed class WindowTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the complete window state, including size, title, focus state, and closing status.
+    /// </summary>
+    /// <returns>The window state result.</returns>
     [McpServerTool(Name = "window_get_state")]
     [Description("Get complete window state including size, title, focus state, and closing status.")]
     public async Task<WindowStateResult> WindowGetState()
@@ -50,6 +59,10 @@ public sealed class WindowTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the current window dimensions in pixels.
+    /// </summary>
+    /// <returns>The window size result.</returns>
     [McpServerTool(Name = "window_get_size")]
     [Description("Get the current window dimensions in pixels.")]
     public async Task<WindowSizeResultMcp> WindowGetSize()
@@ -74,6 +87,10 @@ public sealed class WindowTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the current window title.
+    /// </summary>
+    /// <returns>The window title result.</returns>
     [McpServerTool(Name = "window_get_title")]
     [Description("Get the current window title.")]
     public async Task<WindowTitleResult> WindowGetTitle()
@@ -97,6 +114,10 @@ public sealed class WindowTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Checks whether the window is in the process of closing.
+    /// </summary>
+    /// <returns>The window closing state result.</returns>
     [McpServerTool(Name = "window_is_closing")]
     [Description("Check if the window is in the process of closing.")]
     public async Task<WindowClosingResult> WindowIsClosing()
@@ -120,6 +141,10 @@ public sealed class WindowTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Checks whether the window currently has focus.
+    /// </summary>
+    /// <returns>The window focus state result.</returns>
     [McpServerTool(Name = "window_is_focused")]
     [Description("Check if the window currently has focus.")]
     public async Task<WindowFocusedResult> WindowIsFocused()
@@ -143,6 +168,10 @@ public sealed class WindowTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the current window aspect ratio (width divided by height).
+    /// </summary>
+    /// <returns>The window aspect ratio result.</returns>
     [McpServerTool(Name = "window_get_aspect_ratio")]
     [Description("Get the current window aspect ratio (width / height).")]
     public async Task<WindowAspectRatioResult> WindowGetAspectRatio()
@@ -172,6 +201,9 @@ public sealed class WindowTools(BridgeConnectionManager connection)
 /// </summary>
 public sealed record WindowAvailableResult
 {
+    /// <summary>
+    /// Gets whether window state queries are available.
+    /// </summary>
     public required bool Available { get; init; }
 }
 
@@ -180,13 +212,44 @@ public sealed record WindowAvailableResult
 /// </summary>
 public sealed record WindowStateResult
 {
+    /// <summary>
+    /// Gets whether the window state was retrieved successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the error message when the query failed; <see langword="null"/> otherwise.
+    /// </summary>
     public string? Error { get; init; }
+
+    /// <summary>
+    /// Gets the window width in pixels.
+    /// </summary>
     public int Width { get; init; }
+
+    /// <summary>
+    /// Gets the window height in pixels.
+    /// </summary>
     public int Height { get; init; }
+
+    /// <summary>
+    /// Gets the window title.
+    /// </summary>
     public string? Title { get; init; }
+
+    /// <summary>
+    /// Gets whether the window is in the process of closing.
+    /// </summary>
     public bool IsClosing { get; init; }
+
+    /// <summary>
+    /// Gets whether the window currently has focus.
+    /// </summary>
     public bool IsFocused { get; init; }
+
+    /// <summary>
+    /// Gets the window aspect ratio (width divided by height).
+    /// </summary>
     public float AspectRatio { get; init; }
 }
 
@@ -195,9 +258,24 @@ public sealed record WindowStateResult
 /// </summary>
 public sealed record WindowSizeResultMcp
 {
+    /// <summary>
+    /// Gets whether the window size was retrieved successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the error message when the query failed; <see langword="null"/> otherwise.
+    /// </summary>
     public string? Error { get; init; }
+
+    /// <summary>
+    /// Gets the window width in pixels.
+    /// </summary>
     public int Width { get; init; }
+
+    /// <summary>
+    /// Gets the window height in pixels.
+    /// </summary>
     public int Height { get; init; }
 }
 
@@ -206,8 +284,19 @@ public sealed record WindowSizeResultMcp
 /// </summary>
 public sealed record WindowTitleResult
 {
+    /// <summary>
+    /// Gets whether the window title was retrieved successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the error message when the query failed; <see langword="null"/> otherwise.
+    /// </summary>
     public string? Error { get; init; }
+
+    /// <summary>
+    /// Gets the window title.
+    /// </summary>
     public string? Title { get; init; }
 }
 
@@ -216,8 +305,19 @@ public sealed record WindowTitleResult
 /// </summary>
 public sealed record WindowClosingResult
 {
+    /// <summary>
+    /// Gets whether the window closing state was retrieved successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the error message when the query failed; <see langword="null"/> otherwise.
+    /// </summary>
     public string? Error { get; init; }
+
+    /// <summary>
+    /// Gets whether the window is in the process of closing.
+    /// </summary>
     public bool IsClosing { get; init; }
 }
 
@@ -226,8 +326,19 @@ public sealed record WindowClosingResult
 /// </summary>
 public sealed record WindowFocusedResult
 {
+    /// <summary>
+    /// Gets whether the window focus state was retrieved successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the error message when the query failed; <see langword="null"/> otherwise.
+    /// </summary>
     public string? Error { get; init; }
+
+    /// <summary>
+    /// Gets whether the window currently has focus.
+    /// </summary>
     public bool IsFocused { get; init; }
 }
 
@@ -236,7 +347,18 @@ public sealed record WindowFocusedResult
 /// </summary>
 public sealed record WindowAspectRatioResult
 {
+    /// <summary>
+    /// Gets whether the window aspect ratio was retrieved successfully.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the error message when the query failed; <see langword="null"/> otherwise.
+    /// </summary>
     public string? Error { get; init; }
+
+    /// <summary>
+    /// Gets the window aspect ratio (width divided by height).
+    /// </summary>
     public float AspectRatio { get; init; }
 }

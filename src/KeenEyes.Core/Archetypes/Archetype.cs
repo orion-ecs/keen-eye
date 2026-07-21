@@ -190,6 +190,9 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets a reference to a component for the entity at the specified global index.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="globalIndex">The global index of the entity within this archetype.</param>
+    /// <returns>A reference to the component data.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T Get<T>(int globalIndex) where T : struct, IComponent
     {
@@ -200,6 +203,9 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets a reference to a component for an entity.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="entity">The entity to get the component for.</param>
+    /// <returns>A reference to the component data.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T GetByEntity<T>(Entity entity) where T : struct, IComponent
     {
@@ -210,6 +216,9 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets a readonly reference to a component.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="globalIndex">The global index of the entity within this archetype.</param>
+    /// <returns>A readonly reference to the component data.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref readonly T GetReadonly<T>(int globalIndex) where T : struct, IComponent
     {
@@ -220,6 +229,9 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Sets a component value at the specified global index.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="globalIndex">The global index of the entity within this archetype.</param>
+    /// <param name="component">The component value to set.</param>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set<T>(int globalIndex, in T component) where T : struct, IComponent
     {
@@ -260,6 +272,9 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets a readonly span of components from a specific chunk.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="chunkIndex">The chunk index.</param>
+    /// <returns>A readonly span over component values in that chunk.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<T> GetChunkReadOnlySpan<T>(int chunkIndex) where T : struct, IComponent
     {
@@ -271,6 +286,8 @@ public sealed class Archetype : IDisposable
     /// Note: With chunked storage, this only returns the first chunk's span.
     /// For full iteration, use chunk-based methods.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <returns>A span over component values in the first chunk.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     [Obsolete("Use GetChunkSpan for chunked archetypes. This method only returns the first chunk. Will be removed in v1.0.")]
     public Span<T> GetSpan<T>() where T : struct, IComponent
@@ -286,6 +303,8 @@ public sealed class Archetype : IDisposable
     /// Gets a readonly span of components.
     /// Note: With chunked storage, this only returns the first chunk's span.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <returns>A readonly span over component values in the first chunk.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     [Obsolete("Use GetChunkReadOnlySpan for chunked archetypes. This method only returns the first chunk. Will be removed in v1.0.")]
     public ReadOnlySpan<T> GetReadOnlySpan<T>() where T : struct, IComponent
@@ -300,6 +319,8 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Checks if this archetype contains a specific component type.
     /// </summary>
+    /// <typeparam name="T">The component type to check for.</typeparam>
+    /// <returns><see langword="true"/> if the archetype contains the component type; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has<T>() where T : struct, IComponent
     {
@@ -309,6 +330,8 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Checks if this archetype contains a specific component type.
     /// </summary>
+    /// <param name="type">The component type to check for.</param>
+    /// <returns><see langword="true"/> if the archetype contains the component type; otherwise, <see langword="false"/>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool Has(Type type)
     {
@@ -343,6 +366,8 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets the global index of an entity in this archetype.
     /// </summary>
+    /// <param name="entity">The entity to locate.</param>
+    /// <returns>The global index of the entity, or -1 if the entity is not found in this archetype.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetEntityIndex(Entity entity)
     {
@@ -356,6 +381,8 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets the entity location (chunk index and index within chunk).
     /// </summary>
+    /// <param name="entity">The entity to locate.</param>
+    /// <returns>A tuple containing the chunk index and index within the chunk, or (-1, -1) if the entity is not found.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public (int ChunkIndex, int IndexInChunk) GetEntityLocation(Entity entity)
     {
@@ -365,6 +392,8 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets the entity at the specified global index.
     /// </summary>
+    /// <param name="globalIndex">The global index within this archetype.</param>
+    /// <returns>The entity at the specified index.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Entity GetEntity(int globalIndex)
     {

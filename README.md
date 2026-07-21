@@ -38,7 +38,7 @@ keen-eye/
 ├── docs/                   # Documentation
 ├── Directory.Build.props   # Shared MSBuild properties
 ├── Directory.Packages.props # Centralized NuGet package versions
-└── KeenEyes.sln            # Solution file
+└── KeenEyes.slnx           # Solution file
 ```
 
 ## Getting Started

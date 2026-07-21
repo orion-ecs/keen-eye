@@ -383,12 +383,32 @@ public static class WorldPluginExtensions
 
 ```bash
 dotnet restore
-dotnet build
-dotnet test --max-parallel-test-modules 1
-dotnet format --verify-no-changes  # Check formatting
+dotnet build                                  # Zero warnings (TreatWarningsAsErrors)
+dotnet test --max-parallel-test-modules 1     # Full suite
+dotnet format --verify-no-changes             # Check formatting (auto-fix: dotnet format)
 ```
 
+The solution file is `KeenEyes.slnx` (not `.sln`). `dotnet build`/`test` with no argument operate on it.
+
 **Important:** Always use `--max-parallel-test-modules 1` when running tests. This prevents test assemblies from running in parallel, which causes ThreadPool contention and intermittent hangs in the Parallelism, Network, and Debugging test suites.
+
+### Running a Single Test or Project
+
+Tests use **xUnit.net v3 on Microsoft Testing Platform** (MTP), not VSTest — configured via `global.json` (`"runner": "Microsoft.Testing.Platform"`). MTP filter options are passed **after `--`**, not via VSTest's `--filter`:
+
+```bash
+# Run one test project (fastest inner loop)
+dotnet test tests/KeenEyes.Core.Tests --max-parallel-test-modules 1
+
+# Run a single test method (glob patterns supported)
+dotnet test tests/KeenEyes.Core.Tests -- --filter-method "*Spawn_CreatesEntity*"
+
+# Run all tests in a class / namespace
+dotnet test tests/KeenEyes.Core.Tests -- --filter-class "*WorldTests"
+dotnet test tests/KeenEyes.Core.Tests -- --filter-namespace "KeenEyes.Core.Tests.Queries"
+```
+
+`--filter-not-method`, `--filter-not-class`, etc. negate. Each test project lives in `tests/KeenEyes.<Area>.Tests` mirroring `src/`.
 
 ## Key Design Decisions
 
@@ -615,17 +635,19 @@ public ref T Get<T>(Entity entity) where T : struct, IComponent
 - Self-evident properties (e.g., `public int Count => items.Count;`)
 - Generated code (source generators handle this)
 
-### Validation
+### Enforcement (per tier)
 
-The build enforces documentation:
-```xml
-<PropertyGroup>
-  <GenerateDocumentationFile>true</GenerateDocumentationFile>
-  <NoWarn>$(NoWarn);CS1591</NoWarn> <!-- Remove this to enforce -->
-</PropertyGroup>
-```
+XML documentation is enforced differently depending on where a project lives. `GenerateDocumentationFile` and `TreatWarningsAsErrors` are `true` repo-wide (root `Directory.Build.props`); the difference is whether `CS1591` ("missing XML comment for publicly visible type or member") is suppressed.
 
-Future goal: Enable CS1591 warning to require docs on all public members.
+| Tier | Location | CS1591 | Meaning |
+|------|----------|--------|---------|
+| **Runtime libraries** | `src/**` | **Enforced** (not suppressed) | A missing summary on any public/protected member is a build error. A green build proves the public API is documented. |
+| **Editor & build tooling** | `editor/**` | **Exempt** | `editor/Directory.Build.props` sets `GenerateDocumentationFile=false` and adds `CS1591` to `NoWarn`. App/prototype code — docs encouraged but not gated. |
+| **Standalone tools** | `tools/**` | **Enforced** | Same as `src/`. (Historically these suppressed CS1591 per-csproj; that was removed — do **not** re-add `CS1591` to `NoWarn` in a tool `.csproj`.) |
+
+Practical consequence: **"green CI" only proves documentation coverage for `src/` and `tools/`.** When adding a public member to a `src/` or `tools/` project, it must carry at least a `<summary>` or the build fails. `editor/` relies on convention, not the compiler.
+
+Note: CS1591 only fires on a *missing* comment. A member with a `<summary>` but no `<param>`/`<returns>`/`<typeparam>` still builds clean — tag completeness is a code-review concern (see the Style Guide above), not a build gate.
 
 ## Code Quality Requirements
 

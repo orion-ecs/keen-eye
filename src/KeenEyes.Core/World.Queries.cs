@@ -7,6 +7,8 @@ public sealed partial class World
     /// <summary>
     /// Creates a query for entities with the specified component.
     /// </summary>
+    /// <typeparam name="T1">The required component type.</typeparam>
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
     public QueryBuilder Query<T1>()
         where T1 : struct, IComponent
     {
@@ -16,6 +18,9 @@ public sealed partial class World
     /// <summary>
     /// Creates a query for entities with the specified components.
     /// </summary>
+    /// <typeparam name="T1">The first required component type.</typeparam>
+    /// <typeparam name="T2">The second required component type.</typeparam>
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
     public QueryBuilder Query<T1, T2>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent
@@ -26,6 +31,10 @@ public sealed partial class World
     /// <summary>
     /// Creates a query for entities with the specified components.
     /// </summary>
+    /// <typeparam name="T1">The first required component type.</typeparam>
+    /// <typeparam name="T2">The second required component type.</typeparam>
+    /// <typeparam name="T3">The third required component type.</typeparam>
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
     public QueryBuilder Query<T1, T2, T3>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent
@@ -37,6 +46,11 @@ public sealed partial class World
     /// <summary>
     /// Creates a query for entities with the specified components.
     /// </summary>
+    /// <typeparam name="T1">The first required component type.</typeparam>
+    /// <typeparam name="T2">The second required component type.</typeparam>
+    /// <typeparam name="T3">The third required component type.</typeparam>
+    /// <typeparam name="T4">The fourth required component type.</typeparam>
+    /// <returns>A query builder for filtering and enumerating entities.</returns>
     public QueryBuilder Query<T1, T2, T3, T4>()
         where T1 : struct, IComponent
         where T2 : struct, IComponent

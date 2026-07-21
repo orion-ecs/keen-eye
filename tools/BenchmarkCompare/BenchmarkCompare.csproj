@@ -6,8 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Tool doesn't need XML docs -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Command-line utility that compares KeenEyes benchmark result sets and reports performance regressions.</Description>
   </PropertyGroup>
 
 </Project>

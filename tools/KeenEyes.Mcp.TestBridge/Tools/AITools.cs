@@ -25,6 +25,10 @@ public sealed class AITools(BridgeConnectionManager connection)
 {
     #region Statistics
 
+    /// <summary>
+    /// Gets overall AI statistics, including counts of behavior trees, state machines, and utility AI instances.
+    /// </summary>
+    /// <returns>The aggregated <see cref="AIStatisticsResult"/>.</returns>
     [McpServerTool(Name = "ai_get_statistics")]
     [Description("Get overall AI statistics including counts of behavior trees, state machines, and utility AI instances.")]
     public async Task<AIStatisticsResult> GetStatistics()
@@ -38,6 +42,10 @@ public sealed class AITools(BridgeConnectionManager connection)
 
     #region Behavior Trees
 
+    /// <summary>
+    /// Lists all entities that have a <c>BehaviorTreeComponent</c>.
+    /// </summary>
+    /// <returns>The list of matching entity IDs.</returns>
     [McpServerTool(Name = "ai_behavior_tree_list")]
     [Description("List all entities that have a BehaviorTreeComponent.")]
     public async Task<EntityListResult> GetBehaviorTreeEntities()
@@ -52,6 +60,11 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the current state of an entity's behavior tree.
+    /// </summary>
+    /// <param name="entityId">The entity ID to query.</param>
+    /// <returns>The behavior tree state, or an error result if the entity has no behavior tree.</returns>
     [McpServerTool(Name = "ai_behavior_tree_get")]
     [Description("Get the current state of an entity's behavior tree.")]
     public async Task<BehaviorTreeResult> GetBehaviorTreeState(
@@ -73,6 +86,11 @@ public sealed class AITools(BridgeConnectionManager connection)
         return BehaviorTreeResult.FromSnapshot(snapshot);
     }
 
+    /// <summary>
+    /// Resets an entity's behavior tree to its initial state.
+    /// </summary>
+    /// <param name="entityId">The entity ID to reset.</param>
+    /// <returns>The result of the reset operation.</returns>
     [McpServerTool(Name = "ai_behavior_tree_reset")]
     [Description("Reset an entity's behavior tree to its initial state.")]
     public async Task<OperationResult> ResetBehaviorTree(
@@ -92,6 +110,10 @@ public sealed class AITools(BridgeConnectionManager connection)
 
     #region State Machines
 
+    /// <summary>
+    /// Lists all entities that have a <c>StateMachineComponent</c>.
+    /// </summary>
+    /// <returns>The list of matching entity IDs.</returns>
     [McpServerTool(Name = "ai_state_machine_list")]
     [Description("List all entities that have a StateMachineComponent.")]
     public async Task<EntityListResult> GetStateMachineEntities()
@@ -106,6 +128,11 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the current state of an entity's state machine, including all states and transitions.
+    /// </summary>
+    /// <param name="entityId">The entity ID to query.</param>
+    /// <returns>The state machine state, or an error result if the entity has no state machine.</returns>
     [McpServerTool(Name = "ai_state_machine_get")]
     [Description("Get the current state of an entity's state machine, including all states and transitions.")]
     public async Task<StateMachineResult> GetStateMachineState(
@@ -127,6 +154,12 @@ public sealed class AITools(BridgeConnectionManager connection)
         return StateMachineResult.FromSnapshot(snapshot);
     }
 
+    /// <summary>
+    /// Forces a state machine to transition to a specific state by index.
+    /// </summary>
+    /// <param name="entityId">The entity ID.</param>
+    /// <param name="stateIndex">The state index to transition to.</param>
+    /// <returns>The result of the transition operation.</returns>
     [McpServerTool(Name = "ai_state_machine_force_state")]
     [Description("Force a state machine to transition to a specific state by index.")]
     public async Task<OperationResult> ForceStateTransition(
@@ -144,6 +177,12 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Forces a state machine to transition to a specific state by name.
+    /// </summary>
+    /// <param name="entityId">The entity ID.</param>
+    /// <param name="stateName">The state name to transition to.</param>
+    /// <returns>The result of the transition operation.</returns>
     [McpServerTool(Name = "ai_state_machine_force_state_by_name")]
     [Description("Force a state machine to transition to a specific state by name.")]
     public async Task<OperationResult> ForceStateTransitionByName(
@@ -165,6 +204,10 @@ public sealed class AITools(BridgeConnectionManager connection)
 
     #region Utility AI
 
+    /// <summary>
+    /// Lists all entities that have a <c>UtilityComponent</c>.
+    /// </summary>
+    /// <returns>The list of matching entity IDs.</returns>
     [McpServerTool(Name = "ai_utility_list")]
     [Description("List all entities that have a UtilityComponent.")]
     public async Task<EntityListResult> GetUtilityAIEntities()
@@ -179,6 +222,11 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the current state of an entity's utility AI, including the current action and evaluation settings.
+    /// </summary>
+    /// <param name="entityId">The entity ID to query.</param>
+    /// <returns>The utility AI state, or an error result if the entity has no utility AI.</returns>
     [McpServerTool(Name = "ai_utility_get")]
     [Description("Get the current state of an entity's utility AI, including current action and evaluation settings.")]
     public async Task<UtilityAIResult> GetUtilityAIState(
@@ -200,6 +248,11 @@ public sealed class AITools(BridgeConnectionManager connection)
         return UtilityAIResult.FromSnapshot(snapshot);
     }
 
+    /// <summary>
+    /// Evaluates and returns scores for all available actions on a utility AI entity.
+    /// </summary>
+    /// <param name="entityId">The entity ID to score.</param>
+    /// <returns>The scores for all evaluated actions.</returns>
     [McpServerTool(Name = "ai_utility_score_all")]
     [Description("Evaluate and return scores for all available actions on a utility AI entity.")]
     public async Task<UtilityScoresResult> ScoreAllActions(
@@ -217,6 +270,11 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Forces an immediate utility AI evaluation, bypassing the normal evaluation interval.
+    /// </summary>
+    /// <param name="entityId">The entity ID.</param>
+    /// <returns>The result of the evaluation operation.</returns>
     [McpServerTool(Name = "ai_utility_force_evaluation")]
     [Description("Force an immediate utility AI evaluation, bypassing the normal evaluation interval.")]
     public async Task<OperationResult> ForceUtilityEvaluation(
@@ -236,6 +294,11 @@ public sealed class AITools(BridgeConnectionManager connection)
 
     #region Blackboard
 
+    /// <summary>
+    /// Gets all entries in an entity's AI blackboard.
+    /// </summary>
+    /// <param name="entityId">The entity ID to query.</param>
+    /// <returns>The blackboard entries for the entity.</returns>
     [McpServerTool(Name = "ai_blackboard_get")]
     [Description("Get all entries in an entity's AI blackboard.")]
     public async Task<BlackboardResult> GetBlackboard(
@@ -253,6 +316,12 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets a specific value from an entity's AI blackboard.
+    /// </summary>
+    /// <param name="entityId">The entity ID to query.</param>
+    /// <param name="key">The blackboard key.</param>
+    /// <returns>The blackboard value, or an error result if the key is not found.</returns>
     [McpServerTool(Name = "ai_blackboard_get_value")]
     [Description("Get a specific value from an entity's AI blackboard.")]
     public async Task<BlackboardValueResult> GetBlackboardValue(
@@ -281,6 +350,13 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Sets a value in an entity's AI blackboard. Supports strings, numbers, booleans, and null.
+    /// </summary>
+    /// <param name="entityId">The entity ID.</param>
+    /// <param name="key">The blackboard key.</param>
+    /// <param name="value">The value to set, as JSON.</param>
+    /// <returns>The result of the set operation.</returns>
     [McpServerTool(Name = "ai_blackboard_set_value")]
     [Description("Set a value in an entity's AI blackboard. Supports strings, numbers, booleans, and null.")]
     public async Task<OperationResult> SetBlackboardValue(
@@ -300,6 +376,12 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Removes a value from an entity's AI blackboard.
+    /// </summary>
+    /// <param name="entityId">The entity ID.</param>
+    /// <param name="key">The blackboard key to remove.</param>
+    /// <returns>The result of the remove operation.</returns>
     [McpServerTool(Name = "ai_blackboard_remove_value")]
     [Description("Remove a value from an entity's AI blackboard.")]
     public async Task<OperationResult> RemoveBlackboardValue(
@@ -317,6 +399,11 @@ public sealed class AITools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Clears all entries from an entity's AI blackboard.
+    /// </summary>
+    /// <param name="entityId">The entity ID.</param>
+    /// <returns>The result of the clear operation.</returns>
     [McpServerTool(Name = "ai_blackboard_clear")]
     [Description("Clear all entries from an entity's AI blackboard.")]
     public async Task<OperationResult> ClearBlackboard(

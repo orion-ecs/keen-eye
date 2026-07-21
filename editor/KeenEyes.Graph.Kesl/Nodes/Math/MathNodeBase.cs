@@ -19,13 +19,21 @@ public abstract class BinaryMathNodeBase : INodeTypeDefinition
         PortDefinition.Output("Result", PortTypeId.Float, 72.5f)
     ];
 
+    /// <inheritdoc />
     public abstract int TypeId { get; }
+    /// <inheritdoc />
     public abstract string Name { get; }
+    /// <inheritdoc />
     public string Category => "KESL/Math";
+    /// <inheritdoc />
     public IReadOnlyList<PortDefinition> InputPorts => BinaryInputs;
+    /// <inheritdoc />
     public IReadOnlyList<PortDefinition> OutputPorts => BinaryOutputs;
+    /// <inheritdoc />
     public bool IsCollapsible => true;
+    /// <inheritdoc />
     public void Initialize(Entity node, IWorld world) { }
+    /// <inheritdoc />
     public float RenderBody(Entity node, IWorld world, I2DRenderer renderer, Rectangle bodyArea) => 0f;
 }
 
@@ -44,13 +52,21 @@ public abstract class UnaryMathNodeBase : INodeTypeDefinition
         PortDefinition.Output("Result", PortTypeId.Float, 60f)
     ];
 
+    /// <inheritdoc />
     public abstract int TypeId { get; }
+    /// <inheritdoc />
     public abstract string Name { get; }
+    /// <inheritdoc />
     public string Category => "KESL/Math";
+    /// <inheritdoc />
     public IReadOnlyList<PortDefinition> InputPorts => UnaryInputs;
+    /// <inheritdoc />
     public IReadOnlyList<PortDefinition> OutputPorts => UnaryOutputs;
+    /// <inheritdoc />
     public bool IsCollapsible => true;
+    /// <inheritdoc />
     public void Initialize(Entity node, IWorld world) { }
+    /// <inheritdoc />
     public float RenderBody(Entity node, IWorld world, I2DRenderer renderer, Rectangle bodyArea) => 0f;
 }
 
@@ -71,12 +87,20 @@ public abstract class TernaryMathNodeBase : INodeTypeDefinition
         PortDefinition.Output("Result", PortTypeId.Float, 85f)
     ];
 
+    /// <inheritdoc />
     public abstract int TypeId { get; }
+    /// <inheritdoc />
     public abstract string Name { get; }
+    /// <inheritdoc />
     public string Category => "KESL/Math";
+    /// <inheritdoc />
     public IReadOnlyList<PortDefinition> InputPorts => TernaryInputs;
+    /// <inheritdoc />
     public IReadOnlyList<PortDefinition> OutputPorts => TernaryOutputs;
+    /// <inheritdoc />
     public bool IsCollapsible => true;
+    /// <inheritdoc />
     public void Initialize(Entity node, IWorld world) { }
+    /// <inheritdoc />
     public float RenderBody(Entity node, IWorld world, I2DRenderer renderer, Rectangle bodyArea) => 0f;
 }

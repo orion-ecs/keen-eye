@@ -13,6 +13,10 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
 {
     #region Screenshots
 
+    /// <summary>
+    /// Checks whether screenshot capture is available on the connected bridge.
+    /// </summary>
+    /// <returns>A <see cref="CaptureAvailabilityResult"/> indicating whether capture is available.</returns>
     [McpServerTool(Name = "capture_is_available")]
     [Description("Check if screenshot capture is available. Capture may be unavailable in headless mode.")]
     public CaptureAvailabilityResult CaptureIsAvailable()
@@ -21,6 +25,11 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         return new CaptureAvailabilityResult { IsAvailable = bridge.Capture.IsAvailable };
     }
 
+    /// <summary>
+    /// Captures a screenshot and returns it as base64-encoded image data.
+    /// </summary>
+    /// <param name="format">The image format: 'png' (default), 'jpeg', or 'bmp'.</param>
+    /// <returns>A <see cref="ScreenshotResult"/> containing the encoded image data, or an error if capture failed.</returns>
     [McpServerTool(Name = "capture_screenshot")]
     [Description("Capture a screenshot and return it as base64-encoded image data. Formats: 'png' (default), 'jpeg', 'bmp'.")]
     public async Task<ScreenshotResult> CaptureScreenshot(
@@ -64,6 +73,12 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         }
     }
 
+    /// <summary>
+    /// Captures a screenshot and saves it to a file.
+    /// </summary>
+    /// <param name="filePath">The file path to save the screenshot to.</param>
+    /// <param name="format">The image format: 'png' (default), 'jpeg', or 'bmp'.</param>
+    /// <returns>A <see cref="ScreenshotFileResult"/> containing the full saved file path, or an error if capture failed.</returns>
     [McpServerTool(Name = "capture_screenshot_to_file")]
     [Description("Capture a screenshot and save it to a file. Returns the full file path.")]
     public async Task<ScreenshotFileResult> CaptureScreenshotToFile(
@@ -105,6 +120,15 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         }
     }
 
+    /// <summary>
+    /// Captures a region of the screen and returns it as base64-encoded image data.
+    /// </summary>
+    /// <param name="x">The left edge X coordinate (0-based).</param>
+    /// <param name="y">The top edge Y coordinate (0-based).</param>
+    /// <param name="width">The region width in pixels.</param>
+    /// <param name="height">The region height in pixels.</param>
+    /// <param name="format">The image format: 'png' (default), 'jpeg', or 'bmp'.</param>
+    /// <returns>A <see cref="ScreenshotResult"/> containing the encoded image data, or an error if capture failed.</returns>
     [McpServerTool(Name = "capture_screenshot_region")]
     [Description("Capture a region of the screen and return it as base64-encoded image data.")]
     public async Task<ScreenshotResult> CaptureScreenshotRegion(
@@ -163,6 +187,16 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         }
     }
 
+    /// <summary>
+    /// Captures a region of the screen and saves it to a file.
+    /// </summary>
+    /// <param name="x">The left edge X coordinate (0-based).</param>
+    /// <param name="y">The top edge Y coordinate (0-based).</param>
+    /// <param name="width">The region width in pixels.</param>
+    /// <param name="height">The region height in pixels.</param>
+    /// <param name="filePath">The file path to save the screenshot to.</param>
+    /// <param name="format">The image format: 'png' (default), 'jpeg', or 'bmp'.</param>
+    /// <returns>A <see cref="ScreenshotFileResult"/> containing the full saved file path, or an error if capture failed.</returns>
     [McpServerTool(Name = "capture_screenshot_region_to_file")]
     [Description("Capture a region of the screen and save it to a file.")]
     public async Task<ScreenshotFileResult> CaptureScreenshotRegionToFile(
@@ -224,6 +258,11 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
 
     #region Recording
 
+    /// <summary>
+    /// Starts recording frames, storing them in memory on the game side.
+    /// </summary>
+    /// <param name="maxFrames">The maximum number of frames to record before the oldest are discarded (default: 300).</param>
+    /// <returns>A <see cref="RecordingResult"/> indicating whether recording was started.</returns>
     [McpServerTool(Name = "capture_start_recording")]
     [Description("Start recording frames. Frames are stored in memory on the game side.")]
     public async Task<RecordingResult> CaptureStartRecording(
@@ -259,6 +298,10 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Stops recording and returns the number of frames captured.
+    /// </summary>
+    /// <returns>A <see cref="RecordingResult"/> containing the number of recorded frames.</returns>
     [McpServerTool(Name = "capture_stop_recording")]
     [Description("Stop recording and return the number of frames captured.")]
     public async Task<RecordingResult> CaptureStopRecording()
@@ -284,6 +327,10 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Checks whether frame recording is currently active.
+    /// </summary>
+    /// <returns>A <see cref="RecordingStateResult"/> describing the current recording state.</returns>
     [McpServerTool(Name = "capture_is_recording")]
     [Description("Check if frame recording is currently active.")]
     public RecordingStateResult CaptureIsRecording()
@@ -297,6 +344,10 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
         };
     }
 
+    /// <summary>
+    /// Gets the number of frames recorded so far.
+    /// </summary>
+    /// <returns>A <see cref="RecordedCountResult"/> containing the recorded frame count and recording state.</returns>
     [McpServerTool(Name = "capture_get_recorded_count")]
     [Description("Get the number of frames recorded so far.")]
     public RecordedCountResult CaptureGetRecordedCount()
@@ -344,6 +395,9 @@ public sealed class CaptureTools(BridgeConnectionManager connection)
 /// </summary>
 public sealed record CaptureAvailabilityResult
 {
+    /// <summary>
+    /// Gets whether screenshot capture is available.
+    /// </summary>
     public required bool IsAvailable { get; init; }
 }
 
@@ -352,11 +406,34 @@ public sealed record CaptureAvailabilityResult
 /// </summary>
 public sealed record ScreenshotResult
 {
+    /// <summary>
+    /// Gets whether the screenshot capture succeeded.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the base64-encoded image data, or <c>null</c> if capture failed.
+    /// </summary>
     public string? Data { get; init; }
+
+    /// <summary>
+    /// Gets the MIME type of the captured image, or <c>null</c> if capture failed.
+    /// </summary>
     public string? MimeType { get; init; }
+
+    /// <summary>
+    /// Gets the width of the captured image in pixels.
+    /// </summary>
     public int Width { get; init; }
+
+    /// <summary>
+    /// Gets the height of the captured image in pixels.
+    /// </summary>
     public int Height { get; init; }
+
+    /// <summary>
+    /// Gets the error message, or <c>null</c> if capture succeeded.
+    /// </summary>
     public string? Error { get; init; }
 }
 
@@ -365,9 +442,24 @@ public sealed record ScreenshotResult
 /// </summary>
 public sealed record ScreenshotFileResult
 {
+    /// <summary>
+    /// Gets whether the screenshot capture succeeded.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets the full path the screenshot was saved to, or <c>null</c> if capture failed.
+    /// </summary>
     public string? FilePath { get; init; }
+
+    /// <summary>
+    /// Gets a human-readable message describing the outcome, or <c>null</c> if capture failed.
+    /// </summary>
     public string? Message { get; init; }
+
+    /// <summary>
+    /// Gets the error message, or <c>null</c> if capture succeeded.
+    /// </summary>
     public string? Error { get; init; }
 }
 
@@ -376,8 +468,19 @@ public sealed record ScreenshotFileResult
 /// </summary>
 public sealed record RecordingResult
 {
+    /// <summary>
+    /// Gets whether the recording operation succeeded.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets a human-readable message describing the outcome.
+    /// </summary>
     public required string Message { get; init; }
+
+    /// <summary>
+    /// Gets the number of frames captured, or <c>null</c> if not applicable.
+    /// </summary>
     public int? FrameCount { get; init; }
 }
 
@@ -386,7 +489,14 @@ public sealed record RecordingResult
 /// </summary>
 public sealed record RecordingStateResult
 {
+    /// <summary>
+    /// Gets whether frame recording is currently active.
+    /// </summary>
     public required bool IsRecording { get; init; }
+
+    /// <summary>
+    /// Gets the number of frames recorded so far.
+    /// </summary>
     public required int RecordedFrameCount { get; init; }
 }
 
@@ -395,7 +505,14 @@ public sealed record RecordingStateResult
 /// </summary>
 public sealed record RecordedCountResult
 {
+    /// <summary>
+    /// Gets the number of frames recorded so far.
+    /// </summary>
     public required int Count { get; init; }
+
+    /// <summary>
+    /// Gets whether frame recording is currently active.
+    /// </summary>
     public required bool IsRecording { get; init; }
 }
 

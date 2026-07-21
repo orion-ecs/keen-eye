@@ -180,6 +180,9 @@ using var world = new WorldBuilder()
 - [Testing Guide](testing.md) - Unit testing with mocks
 - [TestBridge Architecture](testbridge.md) - External tool integration, IPC protocol, command reference
 - [MCP Server](mcp-server.md) - AI tool integration via Model Context Protocol
+- [Editor](editor.md) - The visual editor: panels, play mode, hot reload, and the plugin model
+- [Editor Plugin Development](editor-plugin-development.md) - Reference for authoring editor plugins (lifecycle, capabilities, extension points)
+- [CLI (`keeneyes`)](cli.md) - Manage editor plugins, package sources, and save-file migrations
 
 ### UI Features
 - [UI System](ui.md) - Retained-mode UI with ECS entities
@@ -190,18 +193,31 @@ using var world = new WorldBuilder()
 ## Libraries
 
 - [Abstractions](abstractions.md) - Lightweight interfaces for plugin development
+- [Animation](animation.md) - Skeletal playback, animator state machines, sprite animation, and tweening
+- [Asset Management](assets.md) - Loading, caching, reference counting, and hot reload for game assets
+- [Audio](audio.md) - ECS-driven sound playback, 3D spatial audio, and mixer channels (OpenAL)
 - [Common](common.md) - Shared utilities (float extensions, velocity components)
-- [Spatial](spatial.md) - 3D transform components with System.Numerics
-  - [Getting Started with Spatial Partitioning](spatial-partitioning/getting-started.md)
-  - [Strategy Selection Guide](spatial-partitioning/strategy-selection.md)
-  - [Performance Tuning](spatial-partitioning/performance-tuning.md)
+- [Debugging & Profiling](debugging.md) - Profilers, memory/GC tracking, entity inspection, and timeline recording
 - [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
 - [Input](input.md) - Keyboard, mouse, and gamepad input handling
+- [Localization](localization.md) - Multi-language text and locale-aware assets/fonts
+- [Navigation & Pathfinding](navigation.md) - Path following with pluggable Grid (A*) and DotRecast (navmesh) providers
 - [Networking](networking.md) - Server-authoritative multiplayer with prediction
   - `KeenEyes.Network` - Core networking plugins and LocalTransport
   - `KeenEyes.Network.Transport.Tcp` - TCP transport (reliable ordered)
   - `KeenEyes.Network.Transport.Udp` - UDP transport (configurable reliability)
+- [Node Graph Editor](graph.md) - Visual pan/zoom node-graph editor (canvases, nodes, ports, connections)
+- [Particles](particles.md) - High-performance pooled particle effects
+- [Persistence & Encryption](persistence.md) - Save slots with optional AES-256 encryption over the snapshot system
+- [Physics](physics.md) - BepuPhysics v2 integration (rigid bodies, colliders, collision events)
+- [Replay Recording & Playback](replay.md) - Frame-by-frame recording for crash repro, killcams, demos, and ghosts
+- [Shaders & KESL](shaders.md) - The KESL shader language, its compiler pipeline, and GPU compute abstractions
+- [Spatial](spatial.md) - 3D transform components with System.Numerics
+  - [Getting Started with Spatial Partitioning](spatial-partitioning/getting-started.md)
+  - [Strategy Selection Guide](spatial-partitioning/strategy-selection.md)
+  - [Performance Tuning](spatial-partitioning/performance-tuning.md)
 - [UI](ui.md) - ECS-based retained-mode UI system
+- [UI Theming](themes.md) - OS-aware light/dark theming and automatic UIStyle application
 
 ## Architecture Decisions
 

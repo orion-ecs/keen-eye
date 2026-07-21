@@ -89,18 +89,29 @@ public sealed record LspError
 public static class LspErrorCodes
 {
     // JSON-RPC standard errors
+    /// <summary>The JSON sent to the server could not be parsed.</summary>
     public const int ParseError = -32700;
+    /// <summary>The JSON sent is not a valid request object.</summary>
     public const int InvalidRequest = -32600;
+    /// <summary>The requested method does not exist or is not available.</summary>
     public const int MethodNotFound = -32601;
+    /// <summary>One or more method parameters are invalid.</summary>
     public const int InvalidParams = -32602;
+    /// <summary>An internal JSON-RPC error occurred while processing the request.</summary>
     public const int InternalError = -32603;
 
     // LSP-specific errors
+    /// <summary>A request was received before the server has finished initializing.</summary>
     public const int ServerNotInitialized = -32002;
+    /// <summary>An unknown error occurred that does not map to a more specific code.</summary>
     public const int UnknownErrorCode = -32001;
+    /// <summary>The request failed but was otherwise properly formed and delivered.</summary>
     public const int RequestFailed = -32803;
+    /// <summary>The server cancelled the request; the client should resend it if appropriate.</summary>
     public const int ServerCancelled = -32802;
+    /// <summary>The result of the request is stale because its content was modified since the request started.</summary>
     public const int ContentModified = -32801;
+    /// <summary>The client cancelled the request and does not expect a response.</summary>
     public const int RequestCancelled = -32800;
 }
 

@@ -139,6 +139,8 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// <summary>
     /// Gets the component info for a type, or null if not registered.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <returns>The component info for the type, or <c>null</c> if not registered.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ComponentInfo? Get<T>() where T : struct, IComponent
     {
@@ -151,6 +153,8 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// <summary>
     /// Gets the component info for a type, or null if not registered.
     /// </summary>
+    /// <param name="type">The component type to look up.</param>
+    /// <returns>The component info for the type, or <c>null</c> if not registered.</returns>
     public ComponentInfo? Get(Type type)
     {
         lock (syncRoot)
@@ -167,6 +171,9 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// <summary>
     /// Gets or registers a component type.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="isTag">Whether this is a tag component.</param>
+    /// <returns>The component info for this type.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ComponentInfo GetOrRegister<T>(bool isTag = false) where T : struct, IComponent
     {
@@ -177,6 +184,8 @@ public sealed class ComponentRegistry : IComponentRegistry
     /// <summary>
     /// Checks if a component type is registered.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <returns><c>true</c> if the component type is registered; otherwise, <c>false</c>.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool IsRegistered<T>() where T : struct, IComponent
     {

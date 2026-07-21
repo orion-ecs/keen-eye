@@ -30,21 +30,20 @@ public readonly record struct NetworkConnectionEventArgs(string Endpoint, string
 /// <item>Event-driven data reception</item>
 /// </list>
 /// <para>
-/// This is an interface-only design. A mock implementation (MockNetworkContext) will be
-/// provided in a future update for testing networked game code without actual network connections.
+/// <see cref="MockNetworkContext"/> is the in-memory implementation used to test networked
+/// game code without real network connections.
 /// </para>
 /// </remarks>
 /// <example>
 /// <code>
-/// // Future usage with MockNetworkContext
 /// var network = new MockNetworkContext();
-/// network.SetLatency(50); // Simulate 50ms latency
-/// network.SetPacketLoss(0.01f); // Simulate 1% packet loss
+/// network.SimulateLatency(50);      // Simulate 50ms latency
+/// network.SimulatePacketLoss(0.01f); // Simulate 1% packet loss
 ///
 /// network.Connect("localhost:7777");
 /// network.Send(new PlayerMoveMessage { X = 10, Y = 20 });
 ///
-/// while (network.TryReceive(out var message))
+/// while (network.TryReceive&lt;PlayerMoveMessage&gt;(out var message))
 /// {
 ///     ProcessMessage(message);
 /// }
