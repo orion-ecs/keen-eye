@@ -5,6 +5,8 @@
     <Description>Silk.NET OpenGL graphics implementation for KeenEyes ECS</Description>
     <PackageTags>ecs;graphics;opengl;silk.net;rendering</PackageTags>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- S6640: unsafe blocks are inherent to native interop with OpenGL/OpenAL via Silk.NET -->
+    <NoWarn>$(NoWarn);S6640</NoWarn>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
 

@@ -311,6 +311,8 @@ public sealed class RingBufferLogProvider : ILogProvider, ILogQueryable
             .Replace("\\*", ".*")
             .Replace("\\?", ".");
 
-        return new Regex($"^{regexPattern}$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        // Timeout guards against pathological patterns (S6444); wildcard-derived
+        // patterns are simple, so 100ms is far beyond any legitimate match time.
+        return new Regex($"^{regexPattern}$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
     }
 }

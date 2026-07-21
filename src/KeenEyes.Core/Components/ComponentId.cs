@@ -17,6 +17,30 @@ public readonly record struct ComponentId(int Value) : IComparable<ComponentId>
     /// <inheritdoc />
     public int CompareTo(ComponentId other) => Value.CompareTo(other.Value);
 
+    /// <summary>Determines whether one component ID is less than another.</summary>
+    /// <param name="left">The first component ID.</param>
+    /// <param name="right">The second component ID.</param>
+    /// <returns><see langword="true"/> if <paramref name="left"/> is less than <paramref name="right"/>.</returns>
+    public static bool operator <(ComponentId left, ComponentId right) => left.Value < right.Value;
+
+    /// <summary>Determines whether one component ID is less than or equal to another.</summary>
+    /// <param name="left">The first component ID.</param>
+    /// <param name="right">The second component ID.</param>
+    /// <returns><see langword="true"/> if <paramref name="left"/> is less than or equal to <paramref name="right"/>.</returns>
+    public static bool operator <=(ComponentId left, ComponentId right) => left.Value <= right.Value;
+
+    /// <summary>Determines whether one component ID is greater than another.</summary>
+    /// <param name="left">The first component ID.</param>
+    /// <param name="right">The second component ID.</param>
+    /// <returns><see langword="true"/> if <paramref name="left"/> is greater than <paramref name="right"/>.</returns>
+    public static bool operator >(ComponentId left, ComponentId right) => left.Value > right.Value;
+
+    /// <summary>Determines whether one component ID is greater than or equal to another.</summary>
+    /// <param name="left">The first component ID.</param>
+    /// <param name="right">The second component ID.</param>
+    /// <returns><see langword="true"/> if <paramref name="left"/> is greater than or equal to <paramref name="right"/>.</returns>
+    public static bool operator >=(ComponentId left, ComponentId right) => left.Value >= right.Value;
+
     /// <inheritdoc />
     public override string ToString() => $"ComponentId({Value})";
 

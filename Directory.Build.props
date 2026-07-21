@@ -8,7 +8,10 @@
     <!-- NU1603: Downgrade warning - package X depends on Y >= A but Y B was resolved.
          This occurs when transitive dependencies request older versions than what's
          pinned via CentralPackageTransitivePinningEnabled. Higher versions are safe. -->
-    <IssuesToBypass>NU1603;S125;S1104;S3267;S4136;S3903;S6966;S3358;S1751</IssuesToBypass>
+    <!-- S2245: Sonar's crypto-RNG rule. This engine intentionally uses seedable
+         pseudo-random (System.Random) for deterministic simulation, replays, and
+         benchmarks; nothing in the codebase generates security material. -->
+    <IssuesToBypass>NU1603;S125;S1104;S3267;S4136;S3903;S6966;S3358;S1751;S2245</IssuesToBypass>
     <NoWarn>$(NoWarn);$(IssuesToBypass)</NoWarn>
     <WarningsNotAsErrors>$(WarningsNotAsErrors);$(IssuesToBypass)</WarningsNotAsErrors>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>

@@ -291,7 +291,9 @@ public sealed class HotReloadManager : IDisposable
     {
         var startInfo = new ProcessStartInfo
         {
+#pragma warning disable S4036 // PATH resolution is the canonical discovery mechanism for the dotnet muxer; an absolute path would be machine- and platform-specific.
             FileName = "dotnet",
+#pragma warning restore S4036
             Arguments = $"build \"{_projectPath}\" -c Debug --no-restore",
             RedirectStandardOutput = true,
             RedirectStandardError = true,

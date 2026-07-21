@@ -7,19 +7,19 @@
   </ItemGroup>
   <ItemGroup Label="Analyzers">
     <PackageVersion Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0" />
-    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.18.0.131500" />
+    <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.29.0.143774" />
   </ItemGroup>
   <ItemGroup Label="Source Generators">
     <PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
-    <PackageVersion Include="System.Text.Json" Version="10.0.2" />
+    <PackageVersion Include="System.Text.Json" Version="10.0.10" />
   </ItemGroup>
   <ItemGroup Label="Graphics">
-    <PackageVersion Include="Silk.NET.OpenGL" Version="2.22.0" />
-    <PackageVersion Include="Silk.NET.Windowing" Version="2.22.0" />
-    <PackageVersion Include="Silk.NET.Input" Version="2.22.0" />
-    <PackageVersion Include="Silk.NET.Maths" Version="2.22.0" />
-    <PackageVersion Include="FontStashSharp.PlatformAgnostic" Version="1.5.4" />
+    <PackageVersion Include="Silk.NET.OpenGL" Version="2.23.0" />
+    <PackageVersion Include="Silk.NET.Windowing" Version="2.23.0" />
+    <PackageVersion Include="Silk.NET.Input" Version="2.23.0" />
+    <PackageVersion Include="Silk.NET.Maths" Version="2.23.0" />
+    <PackageVersion Include="FontStashSharp.PlatformAgnostic" Version="1.5.6" />
   </ItemGroup>
   <ItemGroup Label="Physics">
     <PackageVersion Include="BepuPhysics" Version="2.4.0" />
@@ -43,15 +43,15 @@
     <PackageVersion Include="Pfim" Version="0.11.4" />
   </ItemGroup>
   <ItemGroup Label="Editor">
-    <PackageVersion Include="NuGet.Configuration" Version="7.0.3" />
-    <PackageVersion Include="NuGet.Protocol" Version="7.0.3" />
-    <PackageVersion Include="NuGet.Versioning" Version="7.0.3" />
+    <PackageVersion Include="NuGet.Configuration" Version="7.6.0" />
+    <PackageVersion Include="NuGet.Protocol" Version="7.6.0" />
+    <PackageVersion Include="NuGet.Versioning" Version="7.6.0" />
   </ItemGroup>
   <ItemGroup Label="Localization">
     <PackageVersion Include="MessageFormat" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup Label="MCP">
     <PackageVersion Include="ModelContextProtocol" Version="0.5.0-preview.1" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
   </ItemGroup>
 </Project>
