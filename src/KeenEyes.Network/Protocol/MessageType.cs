@@ -101,6 +101,16 @@ public enum MessageType : byte
     /// </summary>
     ClientAck = 0x21,
 
+    /// <summary>
+    /// Client sends owner-authoritative component state for an entity it owns.
+    /// </summary>
+    /// <remarks>
+    /// Only valid for entities the sending client owns whose replicated components
+    /// use <see cref="SyncStrategy.OwnerAuthoritative"/>. The server validates
+    /// ownership and strategy before applying and relaying the state.
+    /// </remarks>
+    OwnerStateUpdate = 0x22,
+
     // Ownership (0x30-0x3F)
 
     /// <summary>

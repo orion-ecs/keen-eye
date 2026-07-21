@@ -152,6 +152,42 @@ public record class ServerNetworkConfig : NetworkPluginConfig
     /// Gets or sets the maximum number of clients.
     /// </summary>
     public int MaxClients { get; set; } = 16;
+
+    /// <summary>
+    /// Gets or sets the validation hook for owner-authoritative state updates.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Invoked once per component in an
+    /// <c>OwnerStateUpdate</c> message after the server
+    /// has confirmed the sending client owns the entity and the component uses
+    /// <see cref="SyncStrategy.OwnerAuthoritative"/>. Return <see langword="true"/>
+    /// to accept the update or <see langword="false"/> to reject it (leaving server
+    /// state unchanged).
+    /// </para>
+    /// <para>
+    /// When <see langword="null"/> (the default), all owner-authoritative updates
+    /// that pass the ownership and strategy checks are accepted.
+    /// </para>
+    /// </remarks>
+    public Func<OwnerStateValidationContext, bool>? OwnerStateValidator { get; set; }
+
+    /// <summary>
+    /// Gets or sets the policy hook for client ownership requests.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Invoked when a client sends an
+    /// <c>OwnershipRequest</c>. Return
+    /// <see langword="true"/> to grant ownership (the server transfers ownership and
+    /// broadcasts an <c>OwnershipTransfer</c>) or
+    /// <see langword="false"/> to deny it.
+    /// </para>
+    /// <para>
+    /// When <see langword="null"/> (the default), all ownership requests are denied.
+    /// </para>
+    /// </remarks>
+    public Func<OwnershipRequestContext, bool>? OwnershipRequestPolicy { get; set; }
 }
 
 /// <summary>

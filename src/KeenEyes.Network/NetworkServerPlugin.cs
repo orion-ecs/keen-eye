@@ -2,6 +2,7 @@ using KeenEyes.Capabilities;
 using KeenEyes.Network.Components;
 using KeenEyes.Network.Protocol;
 using KeenEyes.Network.Replication;
+using KeenEyes.Network.Serialization;
 using KeenEyes.Network.Systems;
 using KeenEyes.Network.Transport;
 
@@ -36,6 +37,8 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     private readonly Dictionary<int, ClientState> clients = [];
 
     private IPluginContext? context;
+    private OwnerAuthoritativeComponentSet? ownerAuthTypes;
+    private INetworkSerializer? ownerAuthTypesSource;
     private uint currentTick;
     private float tickAccumulator;
     private EventSubscription? entityCreatedSubscription;
@@ -415,6 +418,14 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
                 ClientInputReceived?.Invoke(clientId, tick, inputPayload);
                 break;
 
+            case MessageType.OwnerStateUpdate:
+                HandleOwnerStateUpdate(clientId, ref reader);
+                break;
+
+            case MessageType.OwnershipRequest:
+                HandleOwnershipRequest(clientId, ref reader);
+                break;
+
             case MessageType.Ping:
                 // Respond with pong
                 Span<byte> pongBuffer = stackalloc byte[8];
@@ -423,6 +434,139 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
                 transport.Send(clientId, pongWriter.GetWrittenSpan(), DeliveryMode.Unreliable);
                 break;
         }
+    }
+
+    private void HandleOwnerStateUpdate(int clientId, ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var serializer = config.Serializer;
+        if (serializer is null)
+        {
+            return;
+        }
+
+        var networkId = reader.ReadNetworkId();
+
+        // Resolve the target entity and confirm the sending client owns it.
+        var ownsEntity =
+            networkIdManager.TryGetLocalEntity(networkId, out var entity)
+            && context.World.IsAlive(entity)
+            && context.World.Has<NetworkOwner>(entity)
+            && context.World.Get<NetworkOwner>(entity).ClientId == clientId;
+
+        // Collect the component types the entity currently has so unknown or
+        // absent components can be rejected without adding new component types.
+        var existingTypes = ownsEntity ? CollectComponentTypes(entity) : null;
+
+        var ownerAuth = GetOwnerAuthTypes(serializer);
+        var validator = config.OwnerStateValidator;
+
+        var componentCount = reader.ReadComponentCount();
+        for (int i = 0; i < componentCount; i++)
+        {
+            // Always read the component so the reader advances even when rejected.
+            var component = reader.ReadComponent(serializer, out var componentType);
+            if (component is null || componentType is null)
+            {
+                continue;
+            }
+
+            // Reject silently: wrong owner, non-owner-authoritative component, or a
+            // component the server entity does not already have.
+            if (!ownsEntity
+                || !ownerAuth.Contains(componentType)
+                || existingTypes is null
+                || !existingTypes.Contains(componentType))
+            {
+                continue;
+            }
+
+            // Run the configurable validation hook (default accept).
+            if (validator is not null && !validator(new OwnerStateValidationContext
+            {
+                ClientId = clientId,
+                Entity = entity,
+                ComponentType = componentType,
+                Value = component,
+            }))
+            {
+                continue;
+            }
+
+            // Apply to the authoritative server world. NetworkServerSendSystem detects
+            // the change and relays it to other clients; echoes back to the owner are
+            // suppressed there.
+            context.World.SetComponent(entity, componentType, component);
+        }
+    }
+
+    private void HandleOwnershipRequest(int clientId, ref NetworkMessageReader reader)
+    {
+        if (context is null)
+        {
+            return;
+        }
+
+        var networkId = reader.ReadNetworkId();
+
+        if (!networkIdManager.TryGetLocalEntity(networkId, out var entity)
+            || !context.World.IsAlive(entity))
+        {
+            return;
+        }
+
+        var policy = config.OwnershipRequestPolicy;
+        var granted = policy is not null && policy(new OwnershipRequestContext
+        {
+            ClientId = clientId,
+            Entity = entity,
+            NetworkId = networkId,
+        });
+
+        if (!granted)
+        {
+            // Deny silently (default deny when no policy is configured).
+            return;
+        }
+
+        // Grant ownership on the server and broadcast the transfer to all clients.
+        context.World.Set(entity, new NetworkOwner { ClientId = clientId });
+
+        Span<byte> buffer = stackalloc byte[16];
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.OwnershipTransfer, currentTick);
+        writer.WriteNetworkId(networkId);
+        writer.WriteSignedBits(clientId, 16);
+        transport.SendToAll(writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+    }
+
+    private HashSet<Type> CollectComponentTypes(Entity entity)
+    {
+        var types = new HashSet<Type>();
+        if (context?.World is ISnapshotCapability snapshot)
+        {
+            foreach (var (type, _) in snapshot.GetComponents(entity))
+            {
+                types.Add(type);
+            }
+        }
+
+        return types;
+    }
+
+    private OwnerAuthoritativeComponentSet GetOwnerAuthTypes(INetworkSerializer serializer)
+    {
+        if (ownerAuthTypes is null || !ReferenceEquals(ownerAuthTypesSource, serializer))
+        {
+            ownerAuthTypes = new OwnerAuthoritativeComponentSet(serializer);
+            ownerAuthTypesSource = serializer;
+        }
+
+        return ownerAuthTypes;
     }
 
     private void OnEntityCreated(Entity entity, string? name)
