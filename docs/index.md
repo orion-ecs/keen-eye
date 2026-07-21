@@ -190,18 +190,28 @@ using var world = new WorldBuilder()
 ## Libraries
 
 - [Abstractions](abstractions.md) - Lightweight interfaces for plugin development
+- [Animation](animation.md) - Skeletal playback, animator state machines, sprite animation, and tweening
+- [Asset Management](assets.md) - Loading, caching, reference counting, and hot reload for game assets
+- [Audio](audio.md) - ECS-driven sound playback, 3D spatial audio, and mixer channels (OpenAL)
 - [Common](common.md) - Shared utilities (float extensions, velocity components)
-- [Spatial](spatial.md) - 3D transform components with System.Numerics
-  - [Getting Started with Spatial Partitioning](spatial-partitioning/getting-started.md)
-  - [Strategy Selection Guide](spatial-partitioning/strategy-selection.md)
-  - [Performance Tuning](spatial-partitioning/performance-tuning.md)
 - [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
 - [Input](input.md) - Keyboard, mouse, and gamepad input handling
+- [Localization](localization.md) - Multi-language text and locale-aware assets/fonts
+- [Navigation & Pathfinding](navigation.md) - Path following with pluggable Grid (A*) and DotRecast (navmesh) providers
 - [Networking](networking.md) - Server-authoritative multiplayer with prediction
   - `KeenEyes.Network` - Core networking plugins and LocalTransport
   - `KeenEyes.Network.Transport.Tcp` - TCP transport (reliable ordered)
   - `KeenEyes.Network.Transport.Udp` - UDP transport (configurable reliability)
+- [Node Graph Editor](graph.md) - Visual pan/zoom node-graph editor (canvases, nodes, ports, connections)
+- [Particles](particles.md) - High-performance pooled particle effects
+- [Replay Recording & Playback](replay.md) - Frame-by-frame recording for crash repro, killcams, demos, and ghosts
+- [Shaders & KESL](shaders.md) - The KESL shader language, its compiler pipeline, and GPU compute abstractions
+- [Spatial](spatial.md) - 3D transform components with System.Numerics
+  - [Getting Started with Spatial Partitioning](spatial-partitioning/getting-started.md)
+  - [Strategy Selection Guide](spatial-partitioning/strategy-selection.md)
+  - [Performance Tuning](spatial-partitioning/performance-tuning.md)
 - [UI](ui.md) - ECS-based retained-mode UI system
+- [UI Theming](themes.md) - OS-aware light/dark theming and automatic UIStyle application
 
 ## Architecture Decisions
 

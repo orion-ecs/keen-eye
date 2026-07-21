@@ -103,8 +103,30 @@
   items:
     - name: Abstractions
       href: abstractions.md
+    - name: Animation
+      href: animation.md
+    - name: Asset Management
+      href: assets.md
+    - name: Audio
+      href: audio.md
     - name: Common
       href: common.md
+    - name: Graphics
+      href: graphics.md
+    - name: Input
+      href: input.md
+    - name: Localization
+      href: localization.md
+    - name: Navigation & Pathfinding
+      href: navigation.md
+    - name: Node Graph Editor
+      href: graph.md
+    - name: Particles
+      href: particles.md
+    - name: Replay Recording & Playback
+      href: replay.md
+    - name: Shaders & KESL
+      href: shaders.md
     - name: Spatial
       href: spatial.md
       items:
@@ -114,12 +136,10 @@
           href: spatial-partitioning/strategy-selection.md
         - name: Performance Tuning
           href: spatial-partitioning/performance-tuning.md
-    - name: Graphics
-      href: graphics.md
-    - name: Input
-      href: input.md
     - name: UI
       href: ui.md
+    - name: UI Theming
+      href: themes.md
     - name: Runtime
       href: runtime.md
 - name: SDK
