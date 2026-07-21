@@ -67,12 +67,6 @@ public sealed class CompilationResult
     public FragmentDeclaration? FragmentDeclaration { get; }
 
     /// <summary>
-    /// Gets the compiled AST (for backwards compatibility - returns compute declaration).
-    /// </summary>
-    [Obsolete("Use ComputeDeclaration, VertexDeclaration, or FragmentDeclaration instead.")]
-    public ComputeDeclaration? Declaration => ComputeDeclaration;
-
-    /// <summary>
     /// Gets compilation errors.
     /// </summary>
     public IReadOnlyList<CompilationError> Errors { get; }

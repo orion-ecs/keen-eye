@@ -11,13 +11,21 @@ public abstract class UnaryVectorNodeBase : INodeTypeDefinition
         PortDefinition.Input("Vector", PortTypeId.Float3, 60f)
     ];
 
+    /// <inheritdoc />
     public abstract int TypeId { get; }
+    /// <inheritdoc />
     public abstract string Name { get; }
+    /// <inheritdoc />
     public string Category => "KESL/Vector";
+    /// <inheritdoc />
     public IReadOnlyList<PortDefinition> InputPorts => UnaryInputs;
+    /// <inheritdoc />
     public abstract IReadOnlyList<PortDefinition> OutputPorts { get; }
+    /// <inheritdoc />
     public bool IsCollapsible => true;
+    /// <inheritdoc />
     public void Initialize(Entity node, IWorld world) { }
+    /// <inheritdoc />
     public float RenderBody(Entity node, IWorld world, I2DRenderer renderer, Rectangle bodyArea) => 0f;
 }
 
