@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Network.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
   </ItemGroup>
 

@@ -190,6 +190,28 @@ public record class ServerNetworkConfig : NetworkPluginConfig
     public Func<OwnershipRequestContext, bool>? OwnershipRequestPolicy { get; set; }
 
     /// <summary>
+    /// Gets or sets the interest manager used for area-of-interest filtering.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When <see langword="null"/> (the default), no filtering occurs: every
+    /// entity update is broadcast to every client through a single shared
+    /// message stream, exactly as if interest management did not exist.
+    /// </para>
+    /// <para>
+    /// When set, the server replicates per client: it keeps a relevance set,
+    /// dirty-tracking baseline, and bandwidth budget for each client. Entities
+    /// entering a client's scope are spawned on that client with full state,
+    /// entities leaving scope are despawned on that client, and in-scope
+    /// entities receive per-client deltas. A client's own entities are always
+    /// relevant to it. Late joiners are synchronized through scope entry
+    /// (targeted spawns) rather than a broadcast full snapshot, so
+    /// out-of-scope entities are never leaked to them.
+    /// </para>
+    /// </remarks>
+    public IInterestManager? InterestManager { get; set; }
+
+    /// <summary>
     /// Gets or sets the number of network ticks of authoritative entity state to retain
     /// per entity for lag compensation.
     /// </summary>
