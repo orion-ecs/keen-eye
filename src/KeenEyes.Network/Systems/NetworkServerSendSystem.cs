@@ -61,12 +61,23 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         // Collect entities that need updates and sort by priority
         entitiesToUpdate.Clear();
 
+        // Capture authoritative state for lag compensation once per network tick.
+        // This reuses the same iteration over networked entities and records every
+        // entity (not just those sent this tick), so history stays complete even for
+        // entities that did not change or were dropped by the bandwidth budget.
+        var history = plugin.StateHistory;
+
         foreach (var entity in World.Query<NetworkId, NetworkState>())
         {
             ref var networkState = ref World.Get<NetworkState>(entity);
 
             // Accumulate priority over time
             networkState.AccumulatedPriority += deltaTime;
+
+            if (history is not null && serializer is not null && World is ISnapshotCapability snapshot)
+            {
+                history.Capture(entity, plugin.CurrentTick, snapshot, serializer);
+            }
 
             if (ShouldSendEntity(entity, ref networkState, serializer))
             {

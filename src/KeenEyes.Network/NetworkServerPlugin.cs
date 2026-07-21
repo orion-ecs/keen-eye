@@ -35,6 +35,8 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     private readonly ServerNetworkConfig config = config ?? new ServerNetworkConfig();
     private readonly NetworkIdManager networkIdManager = new(isServer: true);
     private readonly Dictionary<int, ClientState> clients = [];
+    private readonly ServerStateHistory? stateHistory =
+        config is { StateHistoryTicks: > 0 } cfg ? new ServerStateHistory(cfg.StateHistoryTicks) : null;
 
     private IPluginContext? context;
     private OwnerAuthoritativeComponentSet? ownerAuthTypes;
@@ -76,6 +78,17 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     /// Gets the server configuration.
     /// </summary>
     public ServerNetworkConfig Config => config;
+
+    /// <summary>
+    /// Gets the tick-indexed history of authoritative entity states used for lag
+    /// compensation, or <see langword="null"/> when history is disabled.
+    /// </summary>
+    /// <remarks>
+    /// History is enabled by setting <see cref="ServerNetworkConfig.StateHistoryTicks"/>
+    /// to a positive value. When disabled this is <see langword="null"/> and no state is
+    /// captured. States are recorded once per network tick by the server send system.
+    /// </remarks>
+    public ServerStateHistory? StateHistory => stateHistory;
 
     /// <summary>
     /// Raised when a client input is received.
@@ -580,6 +593,9 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
 
     private void OnEntityDestroyed(Entity entity)
     {
+        // Drop any recorded state history for the despawned entity.
+        stateHistory?.Remove(entity);
+
         // Remove from network tracking
         if (networkIdManager.TryGetNetworkId(entity, out var networkId))
         {
