@@ -125,4 +125,7 @@ jobs:
         run: dotnet build --configuration Release
 
       - name: Check formatting
-        run: dotnet format --no-restore --verify-no-changes --verbosity diagnostic
+        # Exclude the generator integration-test project: MSBuildWorkspace cannot
+        # materialize its source-generated types (UpdatePhysicsShader), so format
+        # verification false-fails there while real builds succeed. See #1026.
+        run: dotnet format --no-restore --verify-no-changes --verbosity diagnostic --exclude tests/KeenEyes.Shaders.Generator.IntegrationTests
