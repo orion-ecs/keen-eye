@@ -34,6 +34,8 @@ That's it! The SDK automatically:
 | AOT Compatible | `true` | Set `<IsAotCompatible>` |
 | KeenEyes.Core | Included | Set `<IncludeKeenEyesCore>false</IncludeKeenEyesCore>` |
 | KeenEyes.Generators | Included | Set `<IncludeKeenEyesGenerators>false</IncludeKeenEyesGenerators>` |
+| KeenEyes.Shaders.Generator (KESL) | Included | Set `<IncludeKeenEyesShaders>false</IncludeKeenEyesShaders>` |
+| Asset path constants | Off | Set `<GenerateAssetConstants>true</GenerateAssetConstants>` |
 
 ## Custom Item Types
 
@@ -72,6 +74,24 @@ Assets are automatically copied to the output directory.
   <KeenEyesWorld Include="Worlds\**\*.keworld" />
 </ItemGroup>
 ```
+
+### Shaders (`.kesl`)
+
+```xml
+<ItemGroup>
+  <KeenEyesShader Include="Shaders\**\*.kesl" />
+</ItemGroup>
+```
+
+`.kesl` files are auto-detected and compiled to GLSL + C# bindings by `KeenEyes.Shaders.Generator` during build (unless `IncludeKeenEyesShaders` is `false`).
+
+## Shader Compilation (KESL)
+
+The Game SDK references the KESL source generator and passes every `**/*.kesl` file to it automatically, producing GLSL and strongly-typed C# shader bindings at build time. Opt out with `<IncludeKeenEyesShaders>false</IncludeKeenEyesShaders>`.
+
+## Asset Constants Generation
+
+Enable `<GenerateAssetConstants>true</GenerateAssetConstants>` to generate a type-safe `Assets` class of compile-time-validated asset paths from the files under `AssetConstantsRootPath` (default: `Assets/`). Override `AssetConstantsNamespace`, `AssetConstantsClassName`, and `AssetConstantsRootPath` as needed.
 
 ## Version Properties
 

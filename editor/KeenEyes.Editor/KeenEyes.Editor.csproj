@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>KeenEyes.Editor</RootNamespace>
     <AssemblyName>KeenEyes.Editor</AssemblyName>
+    <Description>Visual editor application for the KeenEyes ECS framework — scene editing, entity inspectors, play mode, and a NuGet-based plugin marketplace.</Description>
   </PropertyGroup>
 
   <ItemGroup>

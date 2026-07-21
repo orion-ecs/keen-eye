@@ -19,14 +19,13 @@ namespace KeenEyes.AI.FSM;
 /// var patrolState = new State
 /// {
 ///     Name = "Patrol",
-///     OnUpdateActions = [new PatrolAction { WaypointTag = "PatrolPoint" }]
+///     OnUpdateActions = [new PatrolAction { Waypoints = waypoints, Loop = true }]
 /// };
 ///
 /// var chaseState = new State
 /// {
 ///     Name = "Chase",
-///     OnEnterActions = [new PlaySoundAction { Sound = "alert" }],
-///     OnUpdateActions = [new ChaseAction { Speed = 5f }]
+///     OnUpdateActions = [new ChaseAction { Target = player, CatchDistance = 1.5f }]
 /// };
 /// </code>
 /// </example>

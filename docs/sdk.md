@@ -112,10 +112,15 @@ Disable automatic package references:
   <!-- Don't include KeenEyes.Generators -->
   <IncludeKeenEyesGenerators>false</IncludeKeenEyesGenerators>
 
+  <!-- Don't include the KESL shader generator -->
+  <IncludeKeenEyesShaders>false</IncludeKeenEyesShaders>
+
   <!-- Plugin SDK only: Include KeenEyes.Common -->
   <IncludeKeenEyesCommon>true</IncludeKeenEyesCommon>
 </PropertyGroup>
 ```
+
+The Game SDK includes `KeenEyes.Core`, `KeenEyes.Generators`, and `KeenEyes.Shaders.Generator` by default.
 
 ### Adding Feature Packages
 
@@ -172,6 +177,41 @@ World files define initial world setup:
 <ItemGroup>
   <KeenEyesWorld Include="Worlds/**/*.keworld" />
 </ItemGroup>
+```
+
+### Shaders
+
+Shader files written in KESL (KeenEyes Shader Language) are compiled at build time:
+
+```xml
+<ItemGroup>
+  <KeenEyesShader Include="Shaders/**/*.kesl" />
+</ItemGroup>
+```
+
+## Shader Compilation (KESL)
+
+When `IncludeKeenEyesShaders` is `true` (the default for the Game SDK), the SDK references `KeenEyes.Shaders.Generator` as an analyzer and auto-detects every `**/*.kesl` file in the project, registering it as both an `AdditionalFiles` entry and a `<KeenEyesShader>` item. The source generator compiles each shader to GLSL plus strongly-typed C# bindings during the build — no manual wiring or runtime shader parsing required. Set `IncludeKeenEyesShaders=false` to opt out (see [Opting Out](#opting-out)).
+
+## Asset Constants Generation
+
+The SDK can generate type-safe, compile-time-validated constants for your asset paths so a typo in a texture or audio path becomes a build error rather than a runtime failure. It is **off by default**; enable it with `GenerateAssetConstants`:
+
+```xml
+<PropertyGroup>
+  <GenerateAssetConstants>true</GenerateAssetConstants>
+  <!-- Optional overrides (defaults shown) -->
+  <AssetConstantsNamespace>$(RootNamespace)</AssetConstantsNamespace>
+  <AssetConstantsClassName>Assets</AssetConstantsClassName>
+  <AssetConstantsRootPath>$(MSBuildProjectDirectory)/Assets</AssetConstantsRootPath>
+</PropertyGroup>
+```
+
+When enabled, asset files under `AssetConstantsRootPath` (images, audio, fonts, `.json`, `.atlas`, `.keanim`, `.glb`/`.gltf`, and more) are passed to the generator, which emits a static class (default name `Assets`) of path constants:
+
+```csharp
+// Generated — usage
+var texture = assetManager.Load<Texture>(Assets.Sprites.Player);
 ```
 
 ## Version Information
