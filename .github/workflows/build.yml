@@ -57,7 +57,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -111,7 +110,6 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
 
       - name: Build (required for source generators)
         run: dotnet build --configuration Release
