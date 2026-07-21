@@ -1,6 +1,7 @@
 using KeenEyes.Capabilities;
 using KeenEyes.Network.Components;
 using KeenEyes.Network.Protocol;
+using KeenEyes.Network.Replication;
 using KeenEyes.Network.Serialization;
 using KeenEyes.Network.Transport;
 
@@ -21,6 +22,10 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 
     // Track bytes sent this tick for bandwidth limiting
     private int bytesSentThisTick;
+
+    // Cached owner-authoritative strategy lookup (rebuilt if the serializer changes).
+    private OwnerAuthoritativeComponentSet? ownerAuthTypes;
+    private INetworkSerializer? ownerAuthTypesSource;
 
     // Pre-allocated list to avoid per-tick allocations
     private readonly List<(Entity entity, float priority, bool needsFullSync)> entitiesToUpdate = [];
@@ -165,12 +170,15 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 
     private void SendEntityUpdate(Entity entity, NetworkId networkId, ref NetworkState state)
     {
-        var writer = new NetworkMessageWriter(sendBuffer);
         var serializer = plugin.Config.Serializer;
 
         if (state.NeedsFullSync)
         {
-            // Send full entity state
+            // Send full entity state. The full snapshot is always broadcast to every
+            // client (including a client owner) because it carries the entity's initial
+            // component values; the owner immediately overrides its owner-authoritative
+            // components with its own upstream state.
+            var writer = new NetworkMessageWriter(sendBuffer);
             writer.WriteHeader(MessageType.EntitySpawn, plugin.CurrentTick);
 
             var owner = World.Has<NetworkOwner>(entity)
@@ -183,23 +191,93 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             WriteReplicatedComponentsFull(entity, ref writer, serializer);
 
             state.NeedsFullSync = false;
+
+            var span = writer.GetWrittenSpan();
+            bytesSentThisTick += span.Length;
+            plugin.SendToAll(span, DeliveryMode.UnreliableSequenced);
         }
         else
         {
-            // Send delta update (only changed fields within components)
-            writer.WriteHeader(MessageType.ComponentDelta, plugin.CurrentTick);
-            writer.WriteUInt32(networkId.Value);
-
-            // Write components with delta encoding
-            WriteReplicatedComponentsDelta(entity, ref writer, serializer);
+            SendDeltaUpdate(entity, networkId, serializer);
         }
+
+        // Update last sent state for delta tracking
+        SaveSentState(entity, serializer);
+    }
+
+    private void SendDeltaUpdate(Entity entity, NetworkId networkId, INetworkSerializer? serializer)
+    {
+        var owner = World.Has<NetworkOwner>(entity)
+            ? World.Get<NetworkOwner>(entity)
+            : NetworkOwner.Server;
+
+        // Echo suppression: for a client-owned entity, owner-authoritative components
+        // must not be sent back to the owner (its own state is authoritative). Other
+        // components (server-authoritative, predicted, interpolated) still reach the
+        // owner so reconciliation and server updates work. Server-owned entities have
+        // no client owner to echo to and use the standard single broadcast.
+        if (serializer is not null && owner.ClientId != NetworkOwner.ServerClientId)
+        {
+            SendClientOwnedDelta(entity, networkId, owner.ClientId, serializer);
+            return;
+        }
+
+        var writer = new NetworkMessageWriter(sendBuffer);
+        writer.WriteHeader(MessageType.ComponentDelta, plugin.CurrentTick);
+        writer.WriteUInt32(networkId.Value);
+        WriteReplicatedComponentsDelta(entity, ref writer, serializer);
 
         var span = writer.GetWrittenSpan();
         bytesSentThisTick += span.Length;
         plugin.SendToAll(span, DeliveryMode.UnreliableSequenced);
+    }
 
-        // Update last sent state for delta tracking
-        SaveSentState(entity, serializer);
+    private void SendClientOwnedDelta(Entity entity, NetworkId networkId, int ownerId, INetworkSerializer serializer)
+    {
+        var ownerAuth = GetOwnerAuthTypes(serializer);
+        var changed = CollectChangedComponents(entity, serializer);
+
+        var toOwnerAndOthers = new List<(Type type, object current, object? baseline)>();
+        var toOthersOnly = new List<(Type type, object current, object? baseline)>();
+        foreach (var component in changed)
+        {
+            if (ownerAuth.Contains(component.type))
+            {
+                toOthersOnly.Add(component);
+            }
+            else
+            {
+                toOwnerAndOthers.Add(component);
+            }
+        }
+
+        // Owner-authoritative components: relay to every client except the owner.
+        if (toOthersOnly.Count > 0)
+        {
+            var span = WriteDeltaMessage(networkId, toOthersOnly, serializer);
+            bytesSentThisTick += span.Length;
+            plugin.SendToAllExcept(ownerId, span, DeliveryMode.UnreliableSequenced);
+        }
+
+        // Remaining components: broadcast to all clients including the owner.
+        if (toOwnerAndOthers.Count > 0)
+        {
+            var span = WriteDeltaMessage(networkId, toOwnerAndOthers, serializer);
+            bytesSentThisTick += span.Length;
+            plugin.SendToAll(span, DeliveryMode.UnreliableSequenced);
+        }
+    }
+
+    private ReadOnlySpan<byte> WriteDeltaMessage(
+        NetworkId networkId,
+        List<(Type type, object current, object? baseline)> components,
+        INetworkSerializer serializer)
+    {
+        var writer = new NetworkMessageWriter(sendBuffer);
+        writer.WriteHeader(MessageType.ComponentDelta, plugin.CurrentTick);
+        writer.WriteUInt32(networkId.Value);
+        WriteDeltaComponents(ref writer, components, serializer);
+        return writer.GetWrittenSpan();
     }
 
     private void WriteReplicatedComponentsFull(Entity entity, ref NetworkMessageWriter writer, INetworkSerializer? serializer)
@@ -238,6 +316,12 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             return;
         }
 
+        var toSend = CollectChangedComponents(entity, serializer);
+        WriteDeltaComponents(ref writer, toSend, serializer);
+    }
+
+    private List<(Type type, object current, object? baseline)> CollectChangedComponents(Entity entity, INetworkSerializer serializer)
+    {
         // Get last sent state for delta comparison
         lastSentState.TryGetValue(entity, out var entityLastState);
 
@@ -280,10 +364,18 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             }
         }
 
-        writer.WriteComponentCount((byte)toSend.Count);
+        return toSend;
+    }
+
+    private static void WriteDeltaComponents(
+        ref NetworkMessageWriter writer,
+        List<(Type type, object current, object? baseline)> components,
+        INetworkSerializer serializer)
+    {
+        writer.WriteComponentCount((byte)components.Count);
 
         // Write each component with delta encoding where supported
-        foreach (var (type, current, baseline) in toSend)
+        foreach (var (type, current, baseline) in components)
         {
             // Use delta serialization if we have a baseline and the type supports it
             if (baseline is not null && serializer.SupportsDelta(type))
@@ -296,6 +388,17 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
                 writer.WriteComponent(serializer, type, current);
             }
         }
+    }
+
+    private OwnerAuthoritativeComponentSet GetOwnerAuthTypes(INetworkSerializer serializer)
+    {
+        if (ownerAuthTypes is null || !ReferenceEquals(ownerAuthTypesSource, serializer))
+        {
+            ownerAuthTypes = new OwnerAuthoritativeComponentSet(serializer);
+            ownerAuthTypesSource = serializer;
+        }
+
+        return ownerAuthTypes;
     }
 
     private void SaveSentState(Entity entity, INetworkSerializer? serializer)

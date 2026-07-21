@@ -647,8 +647,9 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
             var strategy = comp.Strategy switch
             {
                 0 => "SyncStrategy.Authoritative",
-                1 => "SyncStrategy.OwnerPredicted",
-                2 => "SyncStrategy.InterpolatedOnly",
+                1 => "SyncStrategy.Interpolated",
+                2 => "SyncStrategy.Predicted",
+                3 => "SyncStrategy.OwnerAuthoritative",
                 _ => "SyncStrategy.Authoritative"
             };
             sb.AppendLine($"        new NetworkComponentInfo");

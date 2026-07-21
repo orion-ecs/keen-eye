@@ -43,6 +43,9 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
     private readonly Dictionary<Entity, SnapshotBuffer> snapshotBuffers = [];
     private readonly Dictionary<Entity, object> inputBuffers = []; // Stores InputBuffer<T> instances
 
+    private OwnerAuthoritativeComponentSet? ownerAuthTypes;
+    private INetworkSerializer? ownerAuthTypesSource;
+
     private IPluginContext? context;
     private ClientPredictionSystem? predictionSystem;
     private uint currentTick;
@@ -596,6 +599,15 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             return;
         }
 
+        // Owner-authoritative components on locally owned entities: the local client
+        // is authoritative, so its own state wins. Ignore incoming server state for
+        // these components (the server suppresses echoing them in steady state, but
+        // full snapshots and spawns still carry an initial value).
+        if (context.World.Has<LocallyOwned>(entity) && IsOwnerAuthoritative(componentType))
+        {
+            return;
+        }
+
         // If interpolation is enabled for this entity and component,
         // push to snapshot buffer instead of applying directly
         if (snapshotBuffer is not null &&
@@ -760,6 +772,51 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
         // Notify listeners
         OwnershipChanged?.Invoke(entity, oldOwnerId, newOwnerId);
+    }
+
+    /// <summary>
+    /// Requests ownership of a networked entity from the server.
+    /// </summary>
+    /// <param name="networkId">The network ID of the entity to request ownership of.</param>
+    /// <remarks>
+    /// <para>
+    /// The server evaluates the request against its ownership request policy and,
+    /// if granted, transfers ownership and broadcasts an ownership transfer that
+    /// this client processes to update local ownership tags.
+    /// </para>
+    /// <para>
+    /// Does nothing when the client is not connected.
+    /// </para>
+    /// </remarks>
+    public void RequestOwnership(uint networkId)
+    {
+        if (!isConnected)
+        {
+            return;
+        }
+
+        Span<byte> buffer = stackalloc byte[16];
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.OwnershipRequest, currentTick);
+        writer.WriteNetworkId(networkId);
+        transport.Send(0, writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+    }
+
+    private bool IsOwnerAuthoritative(Type componentType)
+    {
+        var serializer = config.Serializer;
+        if (serializer is null)
+        {
+            return false;
+        }
+
+        if (ownerAuthTypes is null || !ReferenceEquals(ownerAuthTypesSource, serializer))
+        {
+            ownerAuthTypes = new OwnerAuthoritativeComponentSet(serializer);
+            ownerAuthTypesSource = serializer;
+        }
+
+        return ownerAuthTypes.Contains(componentType);
     }
 
     private void HandleHierarchyChange(ref NetworkMessageReader reader)
