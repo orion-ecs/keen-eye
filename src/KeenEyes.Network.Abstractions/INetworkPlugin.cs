@@ -129,6 +129,11 @@ public record class NetworkPluginConfig
     /// <para>
     /// If null, interpolation will not be applied (remote entities may stutter).
     /// </para>
+    /// <para>
+    /// On the client this property also gates registration of the interpolation
+    /// system: the client plugin registers its interpolation system during install
+    /// only when an interpolator is configured here.
+    /// </para>
     /// </remarks>
     public INetworkInterpolator? Interpolator { get; set; }
 }
