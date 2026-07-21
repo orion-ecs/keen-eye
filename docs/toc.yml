@@ -111,6 +111,8 @@
       href: audio.md
     - name: Common
       href: common.md
+    - name: Debugging & Profiling
+      href: debugging.md
     - name: Graphics
       href: graphics.md
     - name: Input
@@ -123,6 +125,10 @@
       href: graph.md
     - name: Particles
       href: particles.md
+    - name: Persistence & Encryption
+      href: persistence.md
+    - name: Physics
+      href: physics.md
     - name: Replay Recording & Playback
       href: replay.md
     - name: Shaders & KESL

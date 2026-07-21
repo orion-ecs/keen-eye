@@ -194,6 +194,7 @@ using var world = new WorldBuilder()
 - [Asset Management](assets.md) - Loading, caching, reference counting, and hot reload for game assets
 - [Audio](audio.md) - ECS-driven sound playback, 3D spatial audio, and mixer channels (OpenAL)
 - [Common](common.md) - Shared utilities (float extensions, velocity components)
+- [Debugging & Profiling](debugging.md) - Profilers, memory/GC tracking, entity inspection, and timeline recording
 - [Graphics](graphics.md) - OpenGL/Vulkan rendering with Silk.NET
 - [Input](input.md) - Keyboard, mouse, and gamepad input handling
 - [Localization](localization.md) - Multi-language text and locale-aware assets/fonts
@@ -204,6 +205,8 @@ using var world = new WorldBuilder()
   - `KeenEyes.Network.Transport.Udp` - UDP transport (configurable reliability)
 - [Node Graph Editor](graph.md) - Visual pan/zoom node-graph editor (canvases, nodes, ports, connections)
 - [Particles](particles.md) - High-performance pooled particle effects
+- [Persistence & Encryption](persistence.md) - Save slots with optional AES-256 encryption over the snapshot system
+- [Physics](physics.md) - BepuPhysics v2 integration (rigid bodies, colliders, collision events)
 - [Replay Recording & Playback](replay.md) - Frame-by-frame recording for crash repro, killcams, demos, and ghosts
 - [Shaders & KESL](shaders.md) - The KESL shader language, its compiler pipeline, and GPU compute abstractions
 - [Spatial](spatial.md) - 3D transform components with System.Numerics
