@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <RootNamespace>KeenEyes.Cli</RootNamespace>
     <AssemblyName>keeneyes</AssemblyName>
+    <Description>Command-line interface for the KeenEyes ECS framework — project migrations, plugin management, and package source configuration.</Description>
   </PropertyGroup>
 
   <ItemGroup>
