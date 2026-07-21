@@ -7,8 +7,11 @@ namespace KeenEyes.Lsp.Kesl.Protocol;
 /// </summary>
 public static class LspHeaders
 {
+    /// <summary>The name of the header that specifies the length, in bytes, of the message content.</summary>
     public const string ContentLength = "Content-Length";
+    /// <summary>The name of the header that specifies the MIME type and encoding of the message content.</summary>
     public const string ContentType = "Content-Type";
+    /// <summary>The JSON-RPC protocol version used by LSP messages.</summary>
     public const string JsonRpc = "2.0";
 }
 
@@ -115,9 +118,13 @@ public record TextDocumentPositionParams
 /// </summary>
 public enum LspDiagnosticSeverity
 {
+    /// <summary>Reports an error.</summary>
     Error = 1,
+    /// <summary>Reports a warning.</summary>
     Warning = 2,
+    /// <summary>Reports an informational message.</summary>
     Information = 3,
+    /// <summary>Reports a hint.</summary>
     Hint = 4
 }
 
@@ -201,30 +208,55 @@ public enum TextDocumentSyncKind
 /// </summary>
 public enum CompletionItemKind
 {
+    /// <summary>A plain text completion item.</summary>
     Text = 1,
+    /// <summary>A method completion item.</summary>
     Method = 2,
+    /// <summary>A function completion item.</summary>
     Function = 3,
+    /// <summary>A constructor completion item.</summary>
     Constructor = 4,
+    /// <summary>A field completion item.</summary>
     Field = 5,
+    /// <summary>A variable completion item.</summary>
     Variable = 6,
+    /// <summary>A class completion item.</summary>
     Class = 7,
+    /// <summary>An interface completion item.</summary>
     Interface = 8,
+    /// <summary>A module completion item.</summary>
     Module = 9,
+    /// <summary>A property completion item.</summary>
     Property = 10,
+    /// <summary>A unit completion item.</summary>
     Unit = 11,
+    /// <summary>A value completion item.</summary>
     Value = 12,
+    /// <summary>An enum completion item.</summary>
     Enum = 13,
+    /// <summary>A keyword completion item.</summary>
     Keyword = 14,
+    /// <summary>A snippet completion item.</summary>
     Snippet = 15,
+    /// <summary>A color completion item.</summary>
     Color = 16,
+    /// <summary>A file completion item.</summary>
     File = 17,
+    /// <summary>A reference completion item.</summary>
     Reference = 18,
+    /// <summary>A folder completion item.</summary>
     Folder = 19,
+    /// <summary>An enum member completion item.</summary>
     EnumMember = 20,
+    /// <summary>A constant completion item.</summary>
     Constant = 21,
+    /// <summary>A struct completion item.</summary>
     Struct = 22,
+    /// <summary>An event completion item.</summary>
     Event = 23,
+    /// <summary>An operator completion item.</summary>
     Operator = 24,
+    /// <summary>A type parameter completion item.</summary>
     TypeParameter = 25
 }
 
@@ -295,6 +327,12 @@ public sealed record MarkupContent
     [JsonPropertyName("value")]
     public required string Value { get; init; }
 
+    /// <summary>Creates a <see cref="MarkupContent"/> whose value is interpreted as plain text.</summary>
+    /// <param name="text">The plain text content.</param>
+    /// <returns>A <see cref="MarkupContent"/> with kind set to "plaintext".</returns>
     public static MarkupContent PlainText(string text) => new() { Kind = "plaintext", Value = text };
+    /// <summary>Creates a <see cref="MarkupContent"/> whose value is interpreted as Markdown.</summary>
+    /// <param name="markdown">The Markdown content.</param>
+    /// <returns>A <see cref="MarkupContent"/> with kind set to "markdown".</returns>
     public static MarkupContent Markdown(string markdown) => new() { Kind = "markdown", Value = markdown };
 }

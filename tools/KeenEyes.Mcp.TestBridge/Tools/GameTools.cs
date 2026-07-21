@@ -12,6 +12,14 @@ namespace KeenEyes.Mcp.TestBridge.Tools;
 [McpServerToolType]
 public sealed class GameTools(BridgeConnectionManager connection, McpServer server)
 {
+    /// <summary>
+    /// Connects to a running KeenEyes game over the configured transport. Must be called before using other tools.
+    /// </summary>
+    /// <param name="pipeName">Named pipe name (default: from KEENEYES_PIPE_NAME env var or 'KeenEyes.TestBridge').</param>
+    /// <param name="host">TCP host for network connection (default: '127.0.0.1').</param>
+    /// <param name="port">TCP port for network connection (default: 19283).</param>
+    /// <param name="transport">Transport mode: 'pipe' or 'tcp' (default: 'pipe').</param>
+    /// <returns>The resulting connection status.</returns>
     [McpServerTool(Name = "game_connect")]
     [Description("Connect to a running KeenEyes game. Must be called before using other tools. Returns connection status.")]
     public async Task<ConnectionResult> GameConnect(
@@ -64,6 +72,10 @@ public sealed class GameTools(BridgeConnectionManager connection, McpServer serv
         }
     }
 
+    /// <summary>
+    /// Disconnects from the currently connected game.
+    /// </summary>
+    /// <returns>The resulting connection status.</returns>
     [McpServerTool(Name = "game_disconnect")]
     [Description("Disconnect from the game.")]
     public async Task<ConnectionResult> GameDisconnect()
@@ -90,6 +102,10 @@ public sealed class GameTools(BridgeConnectionManager connection, McpServer serv
         };
     }
 
+    /// <summary>
+    /// Gets detailed connection status including latency and uptime.
+    /// </summary>
+    /// <returns>The current <see cref="ConnectionStatus"/>.</returns>
     [McpServerTool(Name = "game_status")]
     [Description("Get detailed connection status including latency and uptime.")]
     public ConnectionStatus GameStatus()
@@ -97,6 +113,10 @@ public sealed class GameTools(BridgeConnectionManager connection, McpServer serv
         return connection.GetStatus();
     }
 
+    /// <summary>
+    /// Gets the current game window dimensions in pixels.
+    /// </summary>
+    /// <returns>The window width and height.</returns>
     [McpServerTool(Name = "game_get_screen_size")]
     [Description("Get the current game window dimensions in pixels.")]
     public async Task<ScreenSizeResult> GameGetScreenSize()
@@ -111,6 +131,15 @@ public sealed class GameTools(BridgeConnectionManager connection, McpServer serv
         };
     }
 
+    /// <summary>
+    /// Waits for a game state condition to become true. Useful for waiting after input before checking state.
+    /// </summary>
+    /// <param name="condition">Condition: 'entity_exists', 'entity_gone', 'component_exists', 'component_gone'.</param>
+    /// <param name="timeoutMs">Timeout in milliseconds (default: 5000).</param>
+    /// <param name="entityId">Entity ID to check (use this or <paramref name="entityName"/>).</param>
+    /// <param name="entityName">Entity name to check (use this or <paramref name="entityId"/>).</param>
+    /// <param name="componentType">Component type name (for component conditions).</param>
+    /// <returns>Whether the condition was met before the timeout elapsed, and how long it took.</returns>
     [McpServerTool(Name = "game_wait_for_condition")]
     [Description("Wait for a game state condition. Useful for waiting after input before checking state.")]
     public async Task<WaitResult> GameWaitForCondition(
@@ -234,11 +263,34 @@ public sealed class GameTools(BridgeConnectionManager connection, McpServer serv
 /// </summary>
 public sealed record ConnectionResult
 {
+    /// <summary>
+    /// Gets whether the connection operation succeeded.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets a human-readable description of the connection outcome.
+    /// </summary>
     public required string Message { get; init; }
+
+    /// <summary>
+    /// Gets the named pipe used for the connection, when applicable.
+    /// </summary>
     public string? PipeName { get; init; }
+
+    /// <summary>
+    /// Gets the TCP host used for the connection, when applicable.
+    /// </summary>
     public string? Host { get; init; }
+
+    /// <summary>
+    /// Gets the TCP port used for the connection, when applicable.
+    /// </summary>
     public int? Port { get; init; }
+
+    /// <summary>
+    /// Gets the transport mode used for the connection.
+    /// </summary>
     public string? Transport { get; init; }
 }
 
@@ -247,7 +299,14 @@ public sealed record ConnectionResult
 /// </summary>
 public sealed record ScreenSizeResult
 {
+    /// <summary>
+    /// Gets the window width in pixels.
+    /// </summary>
     public required int Width { get; init; }
+
+    /// <summary>
+    /// Gets the window height in pixels.
+    /// </summary>
     public required int Height { get; init; }
 }
 
@@ -256,7 +315,18 @@ public sealed record ScreenSizeResult
 /// </summary>
 public sealed record WaitResult
 {
+    /// <summary>
+    /// Gets whether the condition was met before the timeout elapsed.
+    /// </summary>
     public required bool Success { get; init; }
+
+    /// <summary>
+    /// Gets a human-readable description of the wait outcome.
+    /// </summary>
     public required string Message { get; init; }
+
+    /// <summary>
+    /// Gets the elapsed time, in milliseconds, spent waiting for the condition.
+    /// </summary>
     public required int ElapsedMs { get; init; }
 }

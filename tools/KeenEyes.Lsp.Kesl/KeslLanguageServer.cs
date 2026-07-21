@@ -20,6 +20,11 @@ public sealed class KeslLanguageServer
 
     private bool shutdown;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="KeslLanguageServer"/> class.
+    /// </summary>
+    /// <param name="input">The stream from which incoming LSP messages are read.</param>
+    /// <param name="output">The stream to which outgoing LSP messages are written.</param>
     public KeslLanguageServer(Stream input, Stream output)
     {
         framing = new MessageFraming(input, output);
