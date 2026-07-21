@@ -1252,21 +1252,19 @@ mcp__keeneyes-bridge__state_query_entities      # List entities
 | `game_wait_for_condition` | Wait for entity/component state |
 
 **State Inspection:**
-| Tool | Status | Description |
-|------|--------|-------------|
-| `state_get_entity_count` | ✓ | Total entity count |
-| `state_get_world_stats` | ✓ | Entity/archetype/memory stats |
-| `state_get_systems` | ✓ | List all systems with timing |
-| `state_get_performance` | ✓ | FPS and frame timing |
-| `state_query_entities` | ✓* | Query entities with filters |
-| `state_get_entity` | ✗ | Get entity by ID (see #843) |
-| `state_get_entity_by_name` | ✗ | Get entity by name (see #843) |
-| `state_get_component` | ✗ | Get component data (see #843) |
-| `state_get_children` | ✓ | Get child entity IDs |
-| `state_get_parent` | ✓ | Get parent entity ID |
-| `state_get_entities_with_tag` | ✓ | Find entities by tag |
-
-*`state_query_entities` works with `includeComponentData=false` only.
+| Tool | Description |
+|------|-------------|
+| `state_get_entity_count` | Total entity count |
+| `state_get_world_stats` | Entity/archetype/memory stats |
+| `state_get_systems` | List all systems with timing |
+| `state_get_performance` | FPS and frame timing |
+| `state_query_entities` | Query entities with filters |
+| `state_get_entity` | Get entity by ID |
+| `state_get_entity_by_name` | Get entity by name |
+| `state_get_component` | Get component data |
+| `state_get_children` | Get child entity IDs |
+| `state_get_parent` | Get parent entity ID |
+| `state_get_entities_with_tag` | Find entities by tag |
 
 **Input Injection:**
 | Tool | Description |
@@ -1283,14 +1281,16 @@ mcp__keeneyes-bridge__state_query_entities      # List entities
 | `input_reset` | Reset all input state |
 
 **Capture:**
-| Tool | Status | Description |
-|------|--------|-------------|
-| `capture_is_available` | ✓ | Check if capture is available |
-| `capture_screenshot` | ✗ | Capture screenshot (see #844) |
-| `capture_screenshot_to_file` | ✗ | Save screenshot to file |
-| `capture_start_recording` | ✓ | Start frame recording |
-| `capture_stop_recording` | ✓ | Stop recording |
-| `capture_is_recording` | ✓ | Check recording status |
+| Tool | Description |
+|------|-------------|
+| `capture_is_available` | Check if capture is available |
+| `capture_screenshot` | Capture screenshot |
+| `capture_screenshot_to_file` | Save screenshot to file |
+| `capture_start_recording` | Start frame recording |
+| `capture_stop_recording` | Stop recording |
+| `capture_is_recording` | Check recording status |
+
+Beyond these, the server exposes nine more tool categories — `mutation_*`, `system_*`, `time_*`, `log_*`, `window_*`, `ai_*`, `profile_*`/`memory_*`/`timeline_*`, `replay_*`, and `snapshot_*` (plus `quicksave`/`quickload`). See [docs/mcp-server.md](docs/mcp-server.md) for the complete reference.
 
 ### Integrating TestBridge in Your Application
 
@@ -1339,15 +1339,10 @@ var entities = await bridge.State.QueryEntitiesAsync(new EntityQuery
 });
 ```
 
-### Known Issues
-
-- **#843**: `state_get_entity`, `state_get_component`, and `state_query_entities` with component data fail due to `Dictionary<string, object?>` not being AOT-serializable
-- **#844**: Screenshot capture fails with OpenGL context error (must run on render thread)
-
 ### Debugging Tips
 
 1. **Check connection**: Use `game_status` to verify connection and latency
-2. **Query entity structure**: Use `state_query_entities` without component data to see entity hierarchy
+2. **Query entity structure**: Use `state_query_entities` to see entity hierarchy
 3. **Use hierarchical queries**: `state_get_children` and `state_get_parent` work reliably
 4. **Inject input for testing**: Use `input_*` tools to simulate user interaction
 5. **Monitor performance**: Use `state_get_performance` to track frame times
