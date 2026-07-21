@@ -1,4 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+
 using Jeffijoe.MessageFormat;
 
 namespace KeenEyes.Localization;
@@ -65,7 +67,8 @@ public sealed class IcuFormatter : IMessageFormatter
 
         try
         {
-            var formatter = new MessageFormatter(useCache: true, locale: locale.Code);
+            var culture = CultureInfo.GetCultureInfo(locale.Code);
+            var formatter = new MessageFormatter(useCache: true, culture: culture);
 
             var argsDict = args switch
             {
@@ -75,7 +78,7 @@ public sealed class IcuFormatter : IMessageFormatter
                 _ => ConvertToDictionary(args)
             };
 
-            result = formatter.FormatMessage(template, argsDict);
+            result = formatter.FormatMessage(template, argsDict, culture);
             return true;
         }
         catch (Exception)
