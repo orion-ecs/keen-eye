@@ -29,6 +29,8 @@ world.InstallPlugin(new AnimationPlugin());
 
 - `AnimationPlayer`, `Animator`, `SpriteAnimator`, `BoneReference`
 - `TweenFloat`, `TweenVector2`, `TweenVector3`, `TweenVector4`
+- With `AnimationConfig.EnableIK`: `IKRig`, `IKChainReference`, `IKTarget`, `IKConstraint`
+- With `AnimationConfig.EnableGpuSkinning`: `SkinnedMesh`
 
 and the following systems, all in `SystemPhase.Update` (order matters, since later systems depend on earlier ones having run):
 
@@ -39,11 +41,13 @@ and the following systems, all in `SystemPhase.Update` (order matters, since lat
 | 52 | `SpriteAnimationSystem` | Advances `SpriteAnimator` time and resolves the current frame |
 | 53 | `AnimationEventSystem` | Detects and publishes clip events crossed this frame |
 | 55 | `SkeletonPoseSystem` | Samples clips and writes pose data to bone `Transform3D`s |
+| 57 | `IKSolverSystem` | Solves IK chains on top of the FK pose (only with `EnableIK`) |
 | 60 | `TweenSystem` | Advances all tween components and computes `CurrentValue` |
+| 80 | `SkinnedMeshBoneSystem` | Computes GPU bone matrices from final transforms (only with `EnableGpuSkinning`) |
 
-It also creates an `AnimationManager` and exposes it as a world extension via `context.SetExtension`.
+It also creates an `AnimationManager` and exposes it as a world extension via `context.SetExtension`. With `EnableIK` it additionally exposes an `IKManager` extension preloaded with the `TwoBone` and `FABRIK` solvers.
 
-> `SkinnedMeshBoneSystem` (GPU bone matrix computation for `SkinnedMesh` entities) exists in `KeenEyes.Animation.Systems` but is **not** registered by `AnimationPlugin`; add it explicitly with `world.AddSystem<SkinnedMeshBoneSystem>(...)` if you render skinned meshes. Similarly, the IK components (`IKRig`, `IKChainReference`, `IKConstraint`, `IKTarget`) and `LookAtTarget` are not registered by the plugin and have no bundled solver systems yet — see [IK Rigs](#ik-rigs-unwired) below.
+> Both `EnableIK` and `EnableGpuSkinning` default to **false**: worlds only pay for the IK and skinning systems when they opt in. `LookAtTarget` is still not registered by the plugin and has no bundled system yet. See [Inverse Kinematics](#inverse-kinematics) below for IK usage.
 
 ### Registering Assets
 
@@ -148,7 +152,7 @@ An `AnimationClip` holds one `BoneTrack` per animated bone (added with `AddBoneT
 
 ### Skinned Mesh Rendering
 
-`SkinnedMesh` marks a mesh entity for GPU skinning: it carries `MeshAssetId`, `BoneEntityIds` (in skeleton order), `InverseBindMatrices`, and a `Generation` counter. `SkinnedMeshBoneSystem` (not auto-registered — see above) walks each bone entity's world transform, multiplies by its inverse bind matrix, and stores the result in a `BoneMatrixBuffer`, which tracks per-bone generations so only changed matrices need re-uploading to the GPU.
+`SkinnedMesh` marks a mesh entity for GPU skinning: it carries `MeshAssetId`, `BoneEntityIds` (in skeleton order), `InverseBindMatrices`, and a `Generation` counter. `SkinnedMeshBoneSystem` (registered at order 80 when `AnimationConfig.EnableGpuSkinning` is set — see above) walks each bone entity's world transform, multiplies by its inverse bind matrix, and stores the result in a `BoneMatrixBuffer`, which tracks per-bone generations so only changed matrices need re-uploading to the GPU.
 
 ```csharp
 var character = world.Spawn()
@@ -210,11 +214,38 @@ var alpha = tween.CurrentValue;
 
 `TweenSystem` advances all four tween component types every frame and evaluates the easing curve via `Easing.Evaluate(EaseType, t)`. `EaseType` covers linear plus in/out/in-out variants of quadratic, cubic, quartic, quintic, sine, exponential, circular, elastic, back, and bounce curves. `AnimationConfig.MaxTweensPerEntity` documents an intended per-entity cap (default 16) but is not currently enforced by `TweenSystem`.
 
-### IK Rigs (unwired)
+### Inverse Kinematics
 
-`KeenEyes.Animation.IK` and the `IKManager` class provide the data model for inverse-kinematics rigs: `IKRigDefinition` (a named collection of `IKChainDefinition`s, built with `AddTwoBoneChain`/`AddFABRIKChain`), `IKChainDefinition` (bone names root-to-tip, `IKSolverType` — `TwoBone`, `FABRIK`, `CCD`, or `LookAt` — iteration/tolerance settings), and the `IKRig`, `IKChainReference`, `IKConstraint`, and `IKTarget` components that would attach a rig to a skeleton entity. `IKManager` registers rigs/chains and looks up solver instances by `IKSolverType` via `RegisterSolver`/`GetSolver`/`GetSolverForType`.
+`KeenEyes.Animation.IK` and the `IKManager` class provide the data model for inverse-kinematics rigs: `IKRigDefinition` (a named collection of `IKChainDefinition`s, built with `AddTwoBoneChain`/`AddFABRIKChain`), `IKChainDefinition` (bone names root-to-tip, `IKSolverType` — `TwoBone`, `FABRIK`, `CCD`, or `LookAt` — iteration/tolerance settings), and the `IKRig`, `IKChainReference`, `IKConstraint`, and `IKTarget` components that attach a rig to a skeleton. `IKManager` registers rigs/chains and looks up solver instances by `IKSolverType` via `RegisterSolver`/`GetSolver`/`GetSolverForType`.
 
-As of this writing, **`AnimationPlugin` does not register the IK components, does not create/expose an `IKManager` extension, and ships no `IIKSolver` implementations or IK system** — the types exist as a foundation for a future feature. If you want to use them today, construct your own `IKManager`, register solver implementations of `IIKSolver`, register the IK components with `world.Components.Register<T>()`, and drive solving from a custom system.
+IK is opt-in: install the plugin with `AnimationConfig.EnableIK = true` and the plugin registers the four IK components, exposes an `IKManager` world extension with the two bundled `IIKSolver` implementations (`TwoBoneSolver` for three-bone limbs, `FABRIKSolver` for chains of two or more bones), and adds `IKSolverSystem` at order 57 — after `SkeletonPoseSystem` (order 55) writes the FK pose, so IK layers on top of the sampled animation.
+
+```csharp
+world.InstallPlugin(new AnimationPlugin(new AnimationConfig { EnableIK = true }));
+
+// 1. Register the chain (bone names root-to-tip must match the BoneReference names)
+var ik = world.GetExtension<IKManager>();
+var chainId = ik.RegisterChain(
+    IKChainDefinition.TwoBone("LeftArm", "UpperArm.L", "Forearm.L", "Hand.L", Vector3.UnitZ));
+
+// 2. Spawn a target entity holding the world-space goal
+var target = world.Spawn()
+    .With(IKTarget.AtPosition(new Vector3(1f, 1f, 0f)))
+    .Build();
+
+// 3. Attach the chain reference to the end-effector bone (the tip, e.g. the hand)
+world.Add(handBone, IKChainReference.ForChain(chainId, target.Id));
+
+world.Update(deltaTime);  // FK pose at order 55, IK solve at order 57
+```
+
+Each frame, `IKSolverSystem` queries entities with `IKChainReference` + `BoneReference` + `Transform3D`, resolves the chain definition from `IKManager`, and collects the chain's bones by walking the entity hierarchy up from the end effector, validating each bone's `BoneReference.BoneName` against the definition's `BoneNames`. The solver is chosen by the chain's `IKSolverType`, falling back to FABRIK when the configured solver is unavailable or cannot handle the chain's bone count (e.g. a `TwoBone` chain that is not exactly three bones); chains with no usable solver are skipped. If the target's `PoleTargetEntityId` refers to a live entity with a `Transform3D`, its world position is passed to the solver as the pole; otherwise the chain's `PoleVector` applies. Bones carrying an `IKConstraint` component have their joint limits applied by the solvers automatically.
+
+**FK/IK blending:** the effective weight is `IKRig.GlobalWeight × IKChainReference.Weight × IKTarget.Weight`, clamped to [0, 1]. The `IKRig` component is looked up on the end effector's `SkeletonRootId` entity and is optional (its absence means global weight 1). Weight 0 skips the chain entirely, leaving the FK pose untouched; weight 1 applies the full IK result; anything in between slerps each bone's local rotation from the FK pose toward the IK pose.
+
+**Graceful degradation:** disabled rigs/chains (`IKRig.Enabled`, `IKChainReference.Enabled`), missing or despawned target entities, unregistered chain IDs, and incomplete or misnamed bone hierarchies are all skipped without throwing — the FK pose is never corrupted by a misconfigured chain.
+
+Note that the `CCD` and `LookAt` solver types have no bundled implementations yet; chains configured with them fall back to FABRIK (register your own `IIKSolver` with `IKManager.RegisterSolver` to override). `LookAtTarget` is likewise not yet driven by any bundled system.
 
 ## Performance
 
