@@ -220,6 +220,8 @@ public sealed class LogCapture : IDisposable
         var regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(pattern)
             .Replace("\\*", ".*")
             .Replace("\\?", ".") + "$";
-        return new System.Text.RegularExpressions.Regex(regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        // Timeout guards against pathological patterns (S6444); wildcard-derived
+        // patterns are simple, so 100ms is far beyond any legitimate match time.
+        return new System.Text.RegularExpressions.Regex(regexPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     }
 }

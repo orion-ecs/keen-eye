@@ -139,7 +139,9 @@ internal sealed class PluginSignatureVerifier
     /// </summary>
     private static byte[] ComputePublicKeyToken(byte[] publicKey)
     {
+#pragma warning disable S4790 // SHA-1 is mandated here: the .NET public key token format is defined by the runtime as the last 8 bytes of the SHA-1 hash of the public key. A different algorithm would produce tokens that do not match assembly identity.
         var hash = System.Security.Cryptography.SHA1.HashData(publicKey);
+#pragma warning restore S4790
         var token = new byte[8];
         Array.Copy(hash, hash.Length - 8, token, 0, 8);
         Array.Reverse(token);

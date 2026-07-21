@@ -314,7 +314,9 @@ public sealed class EditorLogProvider : ILogProvider, ILogQueryable
         var regexPattern = "^" + Regex.Escape(pattern)
             .Replace("\\*", ".*")
             .Replace("\\?", ".") + "$";
-        return new Regex(regexPattern, RegexOptions.IgnoreCase);
+        // Timeout guards against pathological patterns (S6444); wildcard-derived
+        // patterns are simple, so 100ms is far beyond any legitimate match time.
+        return new Regex(regexPattern, RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
     }
 
     /// <inheritdoc/>

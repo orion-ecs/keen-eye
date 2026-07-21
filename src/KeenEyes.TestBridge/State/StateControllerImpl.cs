@@ -400,10 +400,13 @@ internal sealed class StateControllerImpl(World world) : IStateController
                 .Replace("\\?", ".") +
             "$";
 
+        // Timeout guards against pathological patterns (S6444); wildcard-derived
+        // patterns are simple, so 100ms is far beyond any legitimate match time.
         return System.Text.RegularExpressions.Regex.IsMatch(
             text,
             regexPattern,
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase,
+            TimeSpan.FromMilliseconds(100));
     }
 
     private EntitySnapshot CreateEntitySnapshot(Entity entity, bool includeComponentData)

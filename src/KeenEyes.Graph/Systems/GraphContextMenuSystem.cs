@@ -240,29 +240,38 @@ public sealed class GraphContextMenuSystem : SystemBase
             return;
         }
 
-        // Handle alphanumeric keys (simplified - in a real impl, use proper text input)
+        // Handle alphanumeric keys (simplified - in a real impl, use proper text input).
+        // The typed character is appended after the scan loops so no string
+        // concatenation happens inside a loop (S1643).
+        char? typed = null;
         for (var key = Key.A; key <= Key.Z; key++)
         {
             if (WasKeyJustPressed(keyboard, key))
             {
                 var shift = (keyboard.Modifiers & KeyModifiers.Shift) != 0;
-                var ch = shift ? (char)key : char.ToLowerInvariant((char)key);
-                menu.SearchFilter += ch;
-                menu.SelectedIndex = 0;
-                return;
+                typed = shift ? (char)key : char.ToLowerInvariant((char)key);
+                break;
             }
         }
 
         // Handle number keys
-        for (var key = Key.Number0; key <= Key.Number9; key++)
+        if (!typed.HasValue)
         {
-            if (WasKeyJustPressed(keyboard, key))
+            for (var key = Key.Number0; key <= Key.Number9; key++)
             {
-                var digit = (char)('0' + (key - Key.Number0));
-                menu.SearchFilter += digit;
-                menu.SelectedIndex = 0;
-                return;
+                if (WasKeyJustPressed(keyboard, key))
+                {
+                    typed = (char)('0' + (key - Key.Number0));
+                    break;
+                }
             }
+        }
+
+        if (typed.HasValue)
+        {
+            menu.SearchFilter += typed.Value;
+            menu.SelectedIndex = 0;
+            return;
         }
 
         // Handle space
