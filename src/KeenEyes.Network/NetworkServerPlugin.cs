@@ -670,4 +670,33 @@ public sealed class ClientState
     /// Gets or sets the round-trip time in milliseconds.
     /// </summary>
     public float RoundTripTimeMs { get; set; }
+
+    /// <summary>
+    /// Whether this client's interest relevance set has been computed at least once.
+    /// </summary>
+    /// <remarks>
+    /// Only used when <see cref="ServerNetworkConfig.InterestManager"/> is set.
+    /// Uninitialized clients force an immediate relevance update so late joiners
+    /// do not wait for the next scheduled recomputation.
+    /// </remarks>
+    internal bool InterestInitialized { get; set; }
+
+    /// <summary>
+    /// The entities currently in scope for this client.
+    /// </summary>
+    /// <remarks>
+    /// Only used when <see cref="ServerNetworkConfig.InterestManager"/> is set.
+    /// Rebuilt by the send system at the interest manager's update frequency.
+    /// </remarks>
+    internal HashSet<Entity> RelevantEntities { get; } = [];
+
+    /// <summary>
+    /// Per-entity component baselines of the state last sent to this client.
+    /// </summary>
+    /// <remarks>
+    /// Only used when <see cref="ServerNetworkConfig.InterestManager"/> is set.
+    /// An entity without an entry receives a full <c>EntitySpawn</c>; entries are
+    /// removed on scope exit so re-entry re-sends full state.
+    /// </remarks>
+    internal Dictionary<Entity, Dictionary<Type, object>> LastSentState { get; } = [];
 }
