@@ -168,6 +168,73 @@ A no-op provider useful for testing or disabling logging:
 logManager.AddProvider(new NullLogProvider());
 ```
 
+### RingBufferLogProvider
+
+Stores entries in a bounded, thread-safe in-memory buffer that supports querying. This is the provider to reach for when a tool (an editor console, an MCP server, a debug session capture) needs to browse log history rather than just watch a stream:
+
+```csharp
+using KeenEyes.Logging.Providers;
+
+var ringBuffer = new RingBufferLogProvider(capacity: 5000); // default is RingBufferLogProvider.DefaultCapacity (10,000)
+logManager.AddProvider(ringBuffer);
+```
+
+When the buffer fills up, the oldest entries are evicted to make room for new ones. See [Querying Log History](#querying-log-history) below for how to read entries back out.
+
+## Querying Log History
+
+Providers that store entries in memory can implement `ILogQueryable` to expose retrieval and filtering. `RingBufferLogProvider` implements both `ILogProvider` and `ILogQueryable`, so it can be added to a `LogManager` for live logging and queried independently for history:
+
+```csharp
+var ringBuffer = new RingBufferLogProvider();
+logManager.AddProvider(ringBuffer);
+
+// ... application runs and logs ...
+
+// Get everything currently stored
+IReadOnlyList<LogEntry> all = ringBuffer.GetEntries();
+
+// Filter with a LogQuery
+var errors = ringBuffer.Query(new LogQuery
+{
+    MinLevel = LogLevel.Error,
+    CategoryPattern = "ECS.*",
+    MessageContains = "failed",
+    After = DateTime.Now.AddMinutes(-10),
+    MaxResults = 50,
+    NewestFirst = true
+});
+```
+
+`LogQuery` properties are all optional filters — leaving one unset means "no filter" for that dimension:
+
+| Property | Description |
+|----------|--------------|
+| `MinLevel` / `MaxLevel` | Inclusive level range |
+| `CategoryPattern` | Wildcard pattern (`*` and `?`) matched against `LogEntry.Category` |
+| `MessageContains` | Case-insensitive substring match against `LogEntry.Message` |
+| `After` / `Before` | Inclusive timestamp range |
+| `MaxResults` | Maximum entries returned (default 1000) |
+| `Skip` | Entries to skip, for pagination with `MaxResults` |
+| `NewestFirst` | Reverse-chronological order when true (default); chronological when false |
+
+Each result is a `LogEntry` record (`Timestamp`, `Level`, `Category`, `Message`, `Properties`).
+
+Call `GetStats()` for a summary without pulling every entry:
+
+```csharp
+LogStats stats = ringBuffer.GetStats();
+
+Console.WriteLine($"{stats.TotalCount} entries ({stats.ErrorCount} errors, {stats.FatalCount} fatal)");
+Console.WriteLine($"Buffer capacity: {stats.Capacity}");
+Console.WriteLine($"Oldest: {stats.OldestTimestamp}, Newest: {stats.NewestTimestamp}");
+
+// Per-level counts by LogLevel value
+int warnings = stats.GetCountForLevel(LogLevel.Warning);
+```
+
+`ILogQueryable` also exposes `EntryCount`, `Clear()`, and the `LogAdded` / `LogsCleared` events, so a console UI or MCP resource can subscribe for live updates instead of polling.
+
 ## Creating Custom Providers
 
 Implement `ILogProvider` to create custom log destinations:
@@ -286,6 +353,69 @@ logManager.Dispose();
 - `LogManager` is thread-safe
 - All built-in providers are thread-safe
 - Scopes use `AsyncLocal` for proper async context flow
+
+## ECS-Specific Logging
+
+`LogManager` and its providers are ECS-agnostic — they know nothing about worlds, entities, or systems. `EcsLoggingPlugin` bridges the gap: it's a `IWorldPlugin` that hooks into world events and turns them into structured log messages via an internal `EcsLogger`.
+
+### Installing the Plugin
+
+```csharp
+using KeenEyes.Logging;
+
+var logManager = new LogManager();
+logManager.AddProvider(new ConsoleLogProvider());
+
+var world = new World();
+world.InstallPlugin(new EcsLoggingPlugin(logManager));
+```
+
+Once installed, the plugin automatically logs:
+- **System execution** — start/complete timing (via the system hook capability, when available) and enable/disable changes
+- **Entity lifecycle** — creation and destruction
+
+Messages are written under the `ECS.System`, `ECS.Entity`, `ECS.Component`, and `ECS.Query` categories.
+
+### Per-Category Verbosity
+
+Each category in `EcsLogCategory` (`System`, `Entity`, `Component`, `Query`) can have its own minimum level, independent of `LogManager.MinimumLevel`. Access the logger through the plugin's `Logger` property:
+
+```csharp
+var plugin = new EcsLoggingPlugin(logManager);
+
+plugin.Logger.SetCategoryLevel(EcsLogCategory.System, LogLevel.Debug);
+plugin.Logger.SetCategoryLevel(EcsLogCategory.Component, LogLevel.Warning); // quiet down noisy component churn
+plugin.Logger.IsEnabled = true; // master on/off switch for all ECS logging
+
+world.InstallPlugin(plugin);
+```
+
+`EcsLogger.IsLevelEnabled(category, level)` combines the master switch, the per-category level, and the underlying `LogManager`'s level check, so callers can guard expensive work the same way they would with `LogManager.IsLevelEnabled`.
+
+### Component Logging
+
+Component add/remove/change logging is opt-in per type, since subscribing requires compile-time type information and unconditionally logging every component would be expensive in busy scenes:
+
+```csharp
+// After the plugin is installed:
+plugin.EnableComponentLogging<Position>();
+plugin.EnableComponentLogging<Velocity>();
+```
+
+This subscribes to `IWorld.OnComponentAdded<T>`, `OnComponentRemoved<T>`, and `OnComponentChanged<T>` for the given component type and logs each event under `ECS.Component` at `LogLevel.Trace`. Calling `EnableComponentLogging<T>()` before the plugin is installed throws `InvalidOperationException`.
+
+### Query Cache Statistics
+
+`EcsLoggingPlugin.LogQueryStats(cachedQueries, cacheHits, cacheMisses, hitRate)` logs a summary line under `ECS.Query` at `LogLevel.Info`. It doesn't hook into the query system automatically — call it yourself (e.g., from your own system or a periodic diagnostic) with numbers from wherever your query cache tracks them.
+
+### Accessing the Logger via Extension
+
+`EcsLoggingPlugin` registers the `EcsLogger` as a world extension on install, so other plugins or systems can retrieve it without holding a reference to the plugin itself:
+
+```csharp
+var ecsLogger = world.GetExtension<EcsLogger>();
+ecsLogger.LogEntityParentChanged(childId: 5, parentId: 2);
+```
 
 ## Integration Example
 
