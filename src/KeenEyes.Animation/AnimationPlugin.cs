@@ -140,6 +140,7 @@ public sealed class AnimationPlugin : IWorldPlugin
             context.RegisterComponent<IKChainReference>();
             context.RegisterComponent<IKTarget>();
             context.RegisterComponent<IKConstraint>();
+            context.RegisterComponent<LookAtTarget>();
 
             // Expose the IK manager with the bundled solvers pre-registered.
             ikManager = new IKManager();
@@ -151,6 +152,12 @@ public sealed class AnimationPlugin : IWorldPlugin
             context.AddSystem<IKSolverSystem>(
                 SystemPhase.Update,
                 order: 57);
+
+            // Look-at constraints run after full-chain IK so aim adjustments
+            // (head/eye tracking) layer on top of the solved pose.
+            context.AddSystem<LookAtSystem>(
+                SystemPhase.Update,
+                order: 58);
         }
 
         // Tweens update after animation state

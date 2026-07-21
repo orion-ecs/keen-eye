@@ -34,10 +34,13 @@ public sealed class AnimationConfig
     /// <para>
     /// When enabled, the plugin registers the IK components (<see cref="Components.IKRig"/>,
     /// <see cref="Components.IKChainReference"/>, <see cref="Components.IKTarget"/>,
-    /// <see cref="Components.IKConstraint"/>), exposes an <see cref="IKManager"/> world
-    /// extension preloaded with the TwoBone and FABRIK solvers, and adds
+    /// <see cref="Components.IKConstraint"/>, <see cref="Components.LookAtTarget"/>),
+    /// exposes an <see cref="IKManager"/> world extension preloaded with the TwoBone and
+    /// FABRIK solvers, and adds the IK pipeline systems:
     /// <see cref="Systems.IKSolverSystem"/> at order 57 so IK chains are solved after
-    /// <see cref="Systems.SkeletonPoseSystem"/> writes the FK pose.
+    /// <see cref="Systems.SkeletonPoseSystem"/> writes the FK pose, followed by
+    /// <see cref="Systems.LookAtSystem"/> at order 58 so look-at/aim constraints are
+    /// layered on top of the solved chains.
     /// </para>
     /// <para>
     /// Disabled by default: worlds that do not use IK pay no per-frame cost.
