@@ -142,6 +142,41 @@ public sealed class ServerStateHistory
     }
 
     /// <summary>
+    /// Gets the recorded state of an entity at the earliest tick at or after the given tick.
+    /// </summary>
+    /// <param name="entity">The entity to query.</param>
+    /// <param name="tick">The lower bound tick (inclusive).</param>
+    /// <param name="matchedTick">
+    /// When this method returns <see langword="true"/>, the actual tick whose state was
+    /// returned; otherwise zero.
+    /// </param>
+    /// <param name="state">
+    /// When this method returns <see langword="true"/>, the recorded component states for
+    /// <paramref name="matchedTick"/>; otherwise an empty dictionary.
+    /// </param>
+    /// <returns>
+    /// <see langword="true"/> if any retained state at or after <paramref name="tick"/>
+    /// exists for the entity; otherwise <see langword="false"/>.
+    /// </returns>
+    /// <remarks>
+    /// This is the forward-looking counterpart to <see cref="TryGetStateAtOrBefore"/>.
+    /// Lag compensation pairs the two to bracket a client's action time and interpolate
+    /// between the surrounding recorded ticks.
+    /// </remarks>
+    public bool TryGetStateAtOrAfter(Entity entity, uint tick, out uint matchedTick, out IReadOnlyDictionary<Type, object> state)
+    {
+        if (histories.TryGetValue(entity, out var ring) && ring.TryGetAtOrAfter(tick, out matchedTick, out var slot))
+        {
+            state = slot;
+            return true;
+        }
+
+        matchedTick = 0;
+        state = EmptyState.Instance;
+        return false;
+    }
+
+    /// <summary>
     /// Drops all recorded history for an entity. Call when the entity despawns.
     /// </summary>
     /// <param name="entity">The entity whose history should be dropped.</param>
@@ -213,6 +248,33 @@ public sealed class ServerStateHistory
                 for (uint offset = 0; offset < (uint)capacity && offset <= start; offset++)
                 {
                     var candidate = start - offset;
+                    var index = (int)(candidate % (uint)capacity);
+                    if (occupied[index] && ticks[index] == candidate)
+                    {
+                        matchedTick = candidate;
+                        slot = slots[index];
+                        return true;
+                    }
+                }
+            }
+
+            matchedTick = 0;
+            slot = null!;
+            return false;
+        }
+
+        public bool TryGetAtOrAfter(uint tick, out uint matchedTick, out Dictionary<Type, object> slot)
+        {
+            // Nothing at or after a tick beyond the newest recorded one.
+            if (hasAny && tick <= newestTick)
+            {
+                // The ring retains ticks in (newestTick - capacity, newestTick]; never search
+                // below that window or an evicted slot could produce a false match. Bounding
+                // the start there also caps the walk at one full ring pass.
+                var oldest = newestTick + 1 > (uint)capacity ? newestTick + 1 - (uint)capacity : 0u;
+                var start = tick > oldest ? tick : oldest;
+                for (var candidate = start; candidate <= newestTick; candidate++)
+                {
                     var index = (int)(candidate % (uint)capacity);
                     if (occupied[index] && ticks[index] == candidate)
                     {

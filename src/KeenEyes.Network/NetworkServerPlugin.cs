@@ -39,6 +39,7 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         config is { StateHistoryTicks: > 0 } cfg ? new ServerStateHistory(cfg.StateHistoryTicks) : null;
 
     private IPluginContext? context;
+    private LagCompensation? lagCompensation;
     private OwnerAuthoritativeComponentSet? ownerAuthTypes;
     private INetworkSerializer? ownerAuthTypesSource;
     private uint currentTick;
@@ -91,6 +92,17 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     public ServerStateHistory? StateHistory => stateHistory;
 
     /// <summary>
+    /// Gets the lag-compensation helper for rewinding to a client's perceived state, or
+    /// <see langword="null"/> when state history is disabled or the plugin is not installed.
+    /// </summary>
+    /// <remarks>
+    /// The helper is available only when <see cref="ServerNetworkConfig.StateHistoryTicks"/>
+    /// is positive (which enables <see cref="StateHistory"/>) and the plugin has been
+    /// installed into a world, since rewinding mutates that world's live components.
+    /// </remarks>
+    public LagCompensation? LagCompensation => lagCompensation;
+
+    /// <summary>
     /// Raised when a client input is received.
     /// </summary>
     /// <remarks>
@@ -116,6 +128,13 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         // Subscribe to entity events for replication
         entityCreatedSubscription = context.World.OnEntityCreated(OnEntityCreated);
         entityDestroyedSubscription = context.World.OnEntityDestroyed(OnEntityDestroyed);
+
+        // Lag compensation needs both a history to rewind through and a live world to
+        // rewind, so it is created only once installed and only when history is enabled.
+        if (stateHistory is not null)
+        {
+            lagCompensation = new LagCompensation(this, context.World, stateHistory, config);
+        }
     }
 
     /// <inheritdoc/>
@@ -130,6 +149,7 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         entityCreatedSubscription?.Dispose();
         entityDestroyedSubscription?.Dispose();
 
+        lagCompensation = null;
         this.context = null;
     }
 
@@ -228,6 +248,21 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     {
         return clients.Values;
     }
+
+    /// <summary>
+    /// Gets the most recently measured round-trip time to a client, in milliseconds.
+    /// </summary>
+    /// <param name="clientId">The client to look up.</param>
+    /// <returns>
+    /// The client's round-trip time in milliseconds, or <c>0</c> when the client is not
+    /// connected. A zero value yields no latency compensation for that client.
+    /// </returns>
+    /// <remarks>
+    /// This is the latency input for <see cref="Replication.LagCompensation"/>; the rewind
+    /// helper halves it to estimate the one-way delay of a client's action.
+    /// </remarks>
+    public float GetClientRoundTripTimeMs(int clientId)
+        => clients.TryGetValue(clientId, out var state) ? state.RoundTripTimeMs : 0f;
 
     /// <summary>
     /// Sends a full world snapshot to a client.
