@@ -1,5 +1,6 @@
 using KeenEyes.Animation.Components;
 using KeenEyes.Animation.Events;
+using KeenEyes.Animation.IK.Solvers;
 using KeenEyes.Animation.Systems;
 
 namespace KeenEyes.Animation;
@@ -58,6 +59,7 @@ namespace KeenEyes.Animation;
 public sealed class AnimationPlugin : IWorldPlugin
 {
     private AnimationManager? animationManager;
+    private IKManager? ikManager;
 
     /// <summary>
     /// Creates a new animation plugin with default configuration.
@@ -132,10 +134,39 @@ public sealed class AnimationPlugin : IWorldPlugin
             SystemPhase.Update,
             order: 55);
 
+        if (Config.EnableIK)
+        {
+            context.RegisterComponent<IKRig>();
+            context.RegisterComponent<IKChainReference>();
+            context.RegisterComponent<IKTarget>();
+            context.RegisterComponent<IKConstraint>();
+
+            // Expose the IK manager with the bundled solvers pre-registered.
+            ikManager = new IKManager();
+            ikManager.RegisterSolver(new TwoBoneSolver());
+            ikManager.RegisterSolver(new FABRIKSolver());
+            context.SetExtension(ikManager);
+
+            // IK solving runs after the FK pose has been written (order 55)
+            context.AddSystem<IKSolverSystem>(
+                SystemPhase.Update,
+                order: 57);
+        }
+
         // Tweens update after animation state
         context.AddSystem<TweenSystem>(
             SystemPhase.Update,
             order: 60);
+
+        if (Config.EnableGpuSkinning)
+        {
+            context.RegisterComponent<SkinnedMesh>();
+
+            // Bone matrices are computed last, from the frame's final bone transforms
+            context.AddSystem<SkinnedMeshBoneSystem>(
+                SystemPhase.Update,
+                order: 80);
+        }
     }
 
     /// <inheritdoc/>
@@ -147,6 +178,14 @@ public sealed class AnimationPlugin : IWorldPlugin
         // Dispose the animation manager
         animationManager?.Dispose();
         animationManager = null;
+
+        // Remove and dispose the IK manager if IK was enabled
+        if (ikManager != null)
+        {
+            context.RemoveExtension<IKManager>();
+            ikManager.Dispose();
+            ikManager = null;
+        }
 
         // Systems are automatically cleaned up by PluginManager
     }

@@ -28,6 +28,40 @@ public sealed class AnimationConfig
     public int MaxTweensPerEntity { get; set; } = 16;
 
     /// <summary>
+    /// Gets or sets whether inverse kinematics support is enabled.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the plugin registers the IK components (<see cref="Components.IKRig"/>,
+    /// <see cref="Components.IKChainReference"/>, <see cref="Components.IKTarget"/>,
+    /// <see cref="Components.IKConstraint"/>), exposes an <see cref="IKManager"/> world
+    /// extension preloaded with the TwoBone and FABRIK solvers, and adds
+    /// <see cref="Systems.IKSolverSystem"/> at order 57 so IK chains are solved after
+    /// <see cref="Systems.SkeletonPoseSystem"/> writes the FK pose.
+    /// </para>
+    /// <para>
+    /// Disabled by default: worlds that do not use IK pay no per-frame cost.
+    /// </para>
+    /// </remarks>
+    public bool EnableIK { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether GPU skinning support is enabled.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the plugin registers the <see cref="Components.SkinnedMesh"/> component
+    /// and adds <see cref="Systems.SkinnedMeshBoneSystem"/> at order 80, which computes final
+    /// bone matrices (world transform × inverse bind matrix) after animation and IK have
+    /// produced the frame's final bone transforms.
+    /// </para>
+    /// <para>
+    /// Disabled by default: only worlds that render skinned meshes need it.
+    /// </para>
+    /// </remarks>
+    public bool EnableGpuSkinning { get; set; }
+
+    /// <summary>
     /// Validates the configuration.
     /// </summary>
     /// <returns>An error message if invalid, or null if valid.</returns>
