@@ -180,6 +180,8 @@ using var world = new WorldBuilder()
 - [Testing Guide](testing.md) - Unit testing with mocks
 - [TestBridge Architecture](testbridge.md) - External tool integration, IPC protocol, command reference
 - [MCP Server](mcp-server.md) - AI tool integration via Model Context Protocol
+- [Editor](editor.md) - The visual editor: panels, play mode, hot reload, and the plugin model
+- [CLI (`keeneyes`)](cli.md) - Manage editor plugins, package sources, and save-file migrations
 
 ### UI Features
 - [UI System](ui.md) - Retained-mode UI with ECS entities

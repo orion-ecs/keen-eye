@@ -152,6 +152,10 @@
   href: sdk.md
 - name: Editor Integration
   items:
+    - name: Editor
+      href: editor.md
+    - name: CLI (keeneyes)
+      href: cli.md
     - name: Plugin Dependencies
       href: editor-plugin-dependencies.md
     - name: Plugin Hot Reload

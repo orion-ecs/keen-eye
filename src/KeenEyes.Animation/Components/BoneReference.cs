@@ -18,12 +18,12 @@ namespace KeenEyes.Animation.Components;
 /// // Create a skeleton hierarchy
 /// var hip = world.Spawn()
 ///     .With(Transform3D.Identity)
-///     .With(new BoneReference { BoneName = "Hip", SkeletonRoot = characterEntity })
+///     .With(new BoneReference { BoneName = "Hip", SkeletonRootId = characterEntity.Id })
 ///     .Build();
 ///
 /// var spine = world.Spawn()
 ///     .With(Transform3D.Identity)
-///     .With(new BoneReference { BoneName = "Spine", SkeletonRoot = characterEntity })
+///     .With(new BoneReference { BoneName = "Spine", SkeletonRootId = characterEntity.Id })
 ///     .Build();
 ///
 /// world.SetParent(spine, hip);
