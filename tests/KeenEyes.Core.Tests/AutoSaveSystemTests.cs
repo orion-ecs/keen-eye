@@ -318,8 +318,11 @@ public class AutoSaveSystemTests : IDisposable
     {
         using var world = new World { SaveDirectory = testSaveDirectory };
 
-        // Create many entities to ensure measurable file sizes
-        for (int i = 0; i < 100; i++)
+        // Create many entities to ensure measurable file sizes. The count must be
+        // large enough that the delta's fixed structural overhead cannot approach
+        // the baseline size: at 100 entities the ratio sat at ~51%, making the 50%
+        // assertion below flip on byte-level serializer changes.
+        for (int i = 0; i < 500; i++)
         {
             world.Spawn($"Entity{i}")
                 .With(new SerializablePosition { X = i, Y = i * 2f })
