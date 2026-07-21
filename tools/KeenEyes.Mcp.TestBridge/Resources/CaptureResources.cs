@@ -20,7 +20,7 @@ public sealed class CaptureResources(BridgeConnectionManager connection)
     /// <summary>
     /// Captures the current screenshot and returns it as a PNG blob resource.
     /// </summary>
-    /// <returns>A <see cref="BlobResourceContents"/> containing the base64-encoded PNG screenshot data.</returns>
+    /// <returns>A <see cref="BlobResourceContents"/> containing the raw PNG screenshot bytes.</returns>
     /// <exception cref="InvalidOperationException">Thrown when screenshot capture is not available on the connected bridge.</exception>
     [McpServerResource(
         UriTemplate = ScreenshotUri,
@@ -37,11 +37,6 @@ public sealed class CaptureResources(BridgeConnectionManager connection)
         }
 
         var bytes = await bridge.Capture.GetScreenshotBytesAsync(ImageFormat.Png);
-        return new BlobResourceContents
-        {
-            Uri = ScreenshotUri,
-            MimeType = "image/png",
-            Blob = Convert.ToBase64String(bytes)
-        };
+        return BlobResourceContents.FromBytes(bytes, ScreenshotUri, "image/png");
     }
 }

@@ -10,9 +10,9 @@
       },
       "NLayer": {
         "type": "Direct",
-        "requested": "[1.16.0, )",
-        "resolved": "1.16.0",
-        "contentHash": "G/AexTjdl6cm0wYlkCkQgtpPLBc5vOWyOTIQpeC6p8V8fb7kbCYA+fEHFPJiU+KeRHH4Q1RGqTFyf9uqVALnkQ=="
+        "requested": "[2.0.1, )",
+        "resolved": "2.0.1",
+        "contentHash": "0nhnDRx98u7zXXbPIF11QYYupOOOQ9W22eqoyQyXn/gitRXbf9zAK8YfxyqS1Ix+TSqJv8EPNSk3VkDb7fChKw=="
       },
       "NVorbis": {
         "type": "Direct",

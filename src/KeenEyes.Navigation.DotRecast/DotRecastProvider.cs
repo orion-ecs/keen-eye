@@ -155,11 +155,15 @@ public sealed class DotRecastProvider : INavigationProvider
             return NavPath.Empty;
         }
 
-        // Find path through polygon corridor
-        var pathList = new List<long>(256);
-        status = query.FindPath(startRef, endRef, startPt, endPt, filter, ref pathList, DtFindPathOption.AnyAngle);
+        // Find path through polygon corridor.
+        // Note: DotRecast's Span-based FindPath overload no longer accepts a
+        // DtFindPathOption argument, so the any-angle smoothing option that was
+        // previously requested via DtFindPathOption.AnyAngle is not available in
+        // this API. Paths follow the polygon corridor without any-angle raycasting.
+        Span<long> path = stackalloc long[256];
+        status = query.FindPath(startRef, endRef, startPt, endPt, filter, path, out var pathCount, path.Length);
 
-        if (status.Failed() || pathList.Count == 0)
+        if (status.Failed() || pathCount == 0)
         {
             return NavPath.Empty;
         }
@@ -168,8 +172,8 @@ public sealed class DotRecastProvider : INavigationProvider
         Span<DtStraightPath> straightPath = stackalloc DtStraightPath[256];
         status = query.FindStraightPath(
             startPt, endPt,
-            pathList, pathList.Count,
-            straightPath, out var straightPathCount, 256,
+            path, pathCount,
+            straightPath, out var straightPathCount, straightPath.Length,
             DtStraightPathOptions.DT_STRAIGHTPATH_ALL_CROSSINGS);
 
         if (status.Failed() || straightPathCount == 0)
@@ -337,10 +341,12 @@ public sealed class DotRecastProvider : INavigationProvider
             // Hit occurred
             hitPosition = Vector3.Lerp(start, end, hit.t);
 
-            // Get area type at hit point
-            if (hit.path.Count > 0)
+            // Get area type at hit point.
+            // DtRaycastHit.path is now a fixed-size Span<long>; only the first
+            // pathCount entries are valid, so index the last valid entry directly.
+            if (hit.pathCount > 0)
             {
-                activeMesh.InternalNavMesh.GetPolyArea(hit.path[^1], out var area);
+                activeMesh.InternalNavMesh.GetPolyArea(hit.path[hit.pathCount - 1], out var area);
                 hitAreaType = (NavAreaType)area;
             }
             else
