@@ -188,6 +188,24 @@ public record class ServerNetworkConfig : NetworkPluginConfig
     /// </para>
     /// </remarks>
     public Func<OwnershipRequestContext, bool>? OwnershipRequestPolicy { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of network ticks of authoritative entity state to retain
+    /// per entity for lag compensation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The default of <c>0</c> disables the history entirely: the server allocates nothing
+    /// and captures nothing, so there is zero cost when the feature is off.
+    /// </para>
+    /// <para>
+    /// One entry is recorded per entity per network tick, so roughly <see cref="NetworkPluginConfig.TickRate"/>
+    /// ticks is approximately one second of history. Larger values allow compensating for
+    /// higher latency at the cost of memory (one boxed component snapshot per retained tick
+    /// per entity).
+    /// </para>
+    /// </remarks>
+    public int StateHistoryTicks { get; set; }
 }
 
 /// <summary>
