@@ -201,6 +201,16 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             context.AddSystem(predictionSystem, SystemPhase.Update);
         }
 
+        // Add interpolation system for remote entities when an interpolator is configured.
+        // The gate is NetworkPluginConfig.Interpolator: without one there is nothing to
+        // blend, so remote entities would fall back to direct state application.
+        if (config.Interpolator is not null)
+        {
+            context.AddSystem(
+                new InterpolationSystem(config.InterpolationDelayMs, config.Interpolator, GetSnapshotBuffer),
+                SystemPhase.Update);
+        }
+
         context.AddSystem(new NetworkClientSendSystem(this), SystemPhase.LateUpdate);
     }
 
@@ -527,6 +537,9 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             return;
         }
 
+        var reconcile = ShouldReconcile(entity);
+        Dictionary<Type, object>? serverStates = reconcile ? [] : null;
+
         var interpolator = config.Interpolator;
         snapshotBuffers.TryGetValue(entity, out var snapshotBuffer);
 
@@ -537,11 +550,43 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             // ReadComponentDeltaWithBaseline looks up the entity's current value as baseline
             var component = reader.ReadComponentDeltaWithBaseline(serializer, entity, context.World, out var componentType);
 
-            if (component is not null && componentType is not null)
+            if (component is null || componentType is null)
+            {
+                continue;
+            }
+
+            if (serverStates is not null)
+            {
+                serverStates[componentType] = component;
+            }
+            else
             {
                 ApplyComponent(entity, componentType, component, snapshotBuffer, interpolator);
             }
         }
+
+        if (serverStates is not null)
+        {
+            predictionSystem!.OnServerStateReceived(entity, lastReceivedTick, serverStates);
+        }
+    }
+
+    /// <summary>
+    /// Determines whether authoritative server state for an entity should be routed
+    /// through client-side prediction reconciliation rather than applied directly.
+    /// </summary>
+    /// <param name="entity">The entity receiving authoritative state.</param>
+    /// <returns>
+    /// <see langword="true"/> when prediction is enabled, a prediction system exists,
+    /// and the entity is a locally owned, predicted entity; otherwise <see langword="false"/>.
+    /// </returns>
+    private bool ShouldReconcile(Entity entity)
+    {
+        return config.EnablePrediction
+            && predictionSystem is not null
+            && context is not null
+            && context.World.Has<Predicted>(entity)
+            && context.World.Has<LocallyOwned>(entity);
     }
 
     private void ApplyComponent(Entity entity, Type componentType, object component, SnapshotBuffer? snapshotBuffer, INetworkInterpolator? interpolator)
@@ -591,6 +636,9 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
             return;
         }
 
+        var reconcile = ShouldReconcile(entity);
+        Dictionary<Type, object>? serverStates = reconcile ? [] : null;
+
         var interpolator = config.Interpolator;
         snapshotBuffers.TryGetValue(entity, out var snapshotBuffer);
 
@@ -598,31 +646,24 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
         for (int i = 0; i < componentCount; i++)
         {
             var component = reader.ReadComponent(serializer, out var componentType);
-            if (component is not null && componentType is not null)
+            if (component is null || componentType is null)
             {
-                // If interpolation is enabled for this entity and component,
-                // push to snapshot buffer instead of applying directly
-                if (snapshotBuffer is not null &&
-                    interpolator is not null &&
-                    interpolator.IsInterpolatable(componentType))
-                {
-                    snapshotBuffer.PushSnapshot(componentType, component);
-
-                    // Update interpolation timestamps
-                    if (context.World.Has<InterpolationState>(entity))
-                    {
-                        ref var interpState = ref context.World.Get<InterpolationState>(entity);
-                        interpState.FromTime = interpState.ToTime;
-                        interpState.ToTime = serverTime;
-                        interpState.Factor = 0f; // Reset factor for new interpolation window
-                    }
-                }
-                else
-                {
-                    // No interpolation, apply directly
-                    context.World.SetComponent(entity, componentType, component);
-                }
+                continue;
             }
+
+            if (serverStates is not null)
+            {
+                serverStates[componentType] = component;
+            }
+            else
+            {
+                ApplyComponent(entity, componentType, component, snapshotBuffer, interpolator);
+            }
+        }
+
+        if (serverStates is not null)
+        {
+            predictionSystem!.OnServerStateReceived(entity, lastReceivedTick, serverStates);
         }
     }
 
