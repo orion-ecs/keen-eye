@@ -1,0 +1,13 @@
+# URL patterns lychee should not check (regular expressions).
+# Migrated from .github/markdown-link-check-config.json.
+
+# GitHub issue/PR/commit links (transient, rate-limited)
+^https://github\.com/.*/issues/\d+
+^https://github\.com/.*/pull/\d+
+^https://github\.com/.*/commit/
+
+# Sites that block automated link checkers
+^https://stackoverflow\.com/
+^https://[a-z]+\.stackexchange\.com/
+^https://www\.gamedev\.net/
+^https://dotnet\.libhunt\.com/

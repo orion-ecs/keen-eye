@@ -12,9 +12,14 @@ on:
         required: false
         default: 'all'
 
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   nightly-review:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       issues: write
@@ -230,8 +235,8 @@ jobs:
             ## Key Directories to Review
 
             - `src/KeenEyes.Core/` - Core ECS runtime framework
-            - `src/KeenEyes.Generators/` - Roslyn source generators
-            - `src/KeenEyes.Generators.Attributes/` - Generator attributes
+            - `editor/KeenEyes.Generators/` - Roslyn source generators
+            - `src/KeenEyes.Abstractions/` - Component/system attributes and core contracts
             - `tests/` - Unit and integration tests
             - `samples/` - Example code (check for anti-patterns users might copy)
             - `benchmarks/` - Performance benchmarks

@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: '0 0 * * 1' # Run weekly on Monday at midnight UTC
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # Determine what files changed to decide if we need to run CodeQL
   changes:
@@ -63,6 +67,7 @@ jobs:
   analyze:
     name: Analyze Code
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     needs: [changes, changes-pr]
     # Run if: code changes detected, OR push to main, OR scheduled run
     if: |
@@ -86,7 +91,8 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4

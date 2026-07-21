@@ -2,7 +2,7 @@ name: PR Checks
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, labeled, unlabeled]
+    types: [opened, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -12,7 +12,9 @@ jobs:
   changes:
     name: Detect Changes
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       docs: ${{ steps.filter.outputs.docs }}
@@ -28,11 +30,12 @@ jobs:
             docs:
               - '**/*.md'
               - 'docs/**'
-              - '.github/markdown-link-check-config.json'
+              - '.lycheeignore'
 
   size-label:
     name: Size Label
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
@@ -59,6 +62,7 @@ jobs:
   auto-label:
     name: Auto Label
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       contents: read
       pull-requests: write
@@ -76,6 +80,7 @@ jobs:
   pr-title-check:
     name: PR Title Check
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       pull-requests: read
 
@@ -106,7 +111,9 @@ jobs:
   block-fixup:
     name: Block Fixup Commits
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
+      contents: read
       pull-requests: read
 
     steps:
@@ -117,21 +124,36 @@ jobs:
 
       - name: Block fixup commits
         run: |
-          git log origin/${{ github.base_ref }}..${{ github.sha }} --oneline | grep -q "fixup!" && exit 1 || exit 0
+          set -euo pipefail
+          if ! log="$(git log origin/${{ github.base_ref }}..${{ github.sha }} --oneline)"; then
+            echo "::error::Failed to read git log for fixup detection."
+            exit 1
+          fi
+          if echo "$log" | grep -q "fixup!"; then
+            echo "::error::Fixup commits detected. Please squash them before merging."
+            exit 1
+          fi
 
   check-links:
     name: Check Links
     needs: changes
     if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
       - name: Check markdown links
-        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        uses: lycheeverse/lychee-action@v2
         with:
-          use-quiet-mode: 'yes'
-          config-file: '.github/markdown-link-check-config.json'
-          base-branch: ${{ github.base_ref }}
+          args: >-
+            --no-progress
+            --max-retries 3
+            --retry-wait-time 30
+            --timeout 20
+            --accept 200,206
+            './**/*.md'
