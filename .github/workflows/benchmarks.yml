@@ -32,7 +32,7 @@ on:
         type: string
 
 concurrency:
-  group: benchmarks-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -44,6 +44,7 @@ jobs:
   benchmark:
     name: Run Benchmarks
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       pull-requests: write
       contents: read
@@ -58,7 +59,8 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Determine benchmark configuration
         id: config

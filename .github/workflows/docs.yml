@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'src/**'
+      - 'editor/KeenEyes.Generators/**'
+      - 'docs/**'
+      - 'docfx.json'
+      - 'toc.yml'
+      - '*.md'
+      - 'index.md'
   workflow_dispatch:
 
 permissions:
@@ -24,6 +32,7 @@ jobs:
   build:
     name: Build Documentation
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -35,10 +44,11 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Install DocFX
-        run: dotnet tool install -g docfx
+        run: dotnet tool install -g docfx --version 2.78.5
 
       - name: Restore dependencies
         run: dotnet restore
@@ -58,6 +68,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

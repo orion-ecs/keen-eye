@@ -10,8 +10,9 @@ on:
       - 'tests/**'
       - 'samples/**'
       - 'tools/**'
+      - 'editor/**'
       - '**/*.csproj'
-      - '*.sln'
+      - '*.slnx'
       - 'Directory.Packages.props'
       - 'Directory.Build.props'
       - '.editorconfig'
@@ -24,8 +25,9 @@ on:
       - 'tests/**'
       - 'samples/**'
       - 'tools/**'
+      - 'editor/**'
       - '**/*.csproj'
-      - '*.sln'
+      - '*.slnx'
       - 'Directory.Packages.props'
       - 'Directory.Build.props'
       - '.editorconfig'
@@ -43,6 +45,7 @@ jobs:
   build:
     name: Build & Test
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       pull-requests: write
@@ -57,7 +60,8 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Restore dependencies
         run: dotnet restore
@@ -102,6 +106,9 @@ jobs:
   format-check:
     name: Format Check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -111,7 +118,8 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Build (required for source generators)
         run: dotnet build --configuration Release

@@ -7,7 +7,7 @@
           "src": "src",
           "files": [
             "KeenEyes.Core/**/*.csproj",
-            "KeenEyes.Generators.Attributes/**/*.csproj"
+            "KeenEyes.Abstractions/**/*.csproj"
           ]
         }
       ],

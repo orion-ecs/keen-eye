@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*.*.*'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -14,21 +18,20 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: write
-      packages: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: ./global.json
-          dotnet-quality: 'preview'
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
 
       - name: Extract version from tag
         id: version
