@@ -91,7 +91,7 @@ public sealed class DotRecastMeshBuilder
         var trisArray = indices.ToArray();
 
         // Create geometry provider
-        var geom = new SimpleInputGeomProvider(vertsArray, trisArray);
+        var geom = new RcSampleInputGeomProvider(vertsArray, trisArray);
 
         // Compute bounds
         var bmin = geom.GetMeshBoundsMin();
@@ -187,7 +187,7 @@ public sealed class DotRecastMeshBuilder
         return Build(vertices, indices, null);
     }
 
-    private NavMeshData BuildFromGeometry(IInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax)
+    private NavMeshData BuildFromGeometry(IRcInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax)
     {
         // Create Recast config
         var rcConfig = CreateRcConfig();

@@ -40,7 +40,7 @@
           "KeenEyes.Common": "[1.0.0, )",
           "KeenEyes.Core": "[1.0.0, )",
           "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
-          "NLayer": "[1.16.0, )",
+          "NLayer": "[2.0.1, )",
           "NVorbis": "[0.10.5, )",
           "Pfim": "[0.11.4, )",
           "SharpGLTF.Core": "[1.0.6, )",
@@ -89,9 +89,9 @@
       },
       "NLayer": {
         "type": "CentralTransitive",
-        "requested": "[1.16.0, )",
-        "resolved": "1.16.0",
-        "contentHash": "G/AexTjdl6cm0wYlkCkQgtpPLBc5vOWyOTIQpeC6p8V8fb7kbCYA+fEHFPJiU+KeRHH4Q1RGqTFyf9uqVALnkQ=="
+        "requested": "[2.0.1, )",
+        "resolved": "2.0.1",
+        "contentHash": "0nhnDRx98u7zXXbPIF11QYYupOOOQ9W22eqoyQyXn/gitRXbf9zAK8YfxyqS1Ix+TSqJv8EPNSk3VkDb7fChKw=="
       },
       "NVorbis": {
         "type": "CentralTransitive",
