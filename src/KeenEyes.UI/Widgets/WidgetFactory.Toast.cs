@@ -280,24 +280,48 @@ public static partial class WidgetFactory
     /// <summary>
     /// Creates an info toast.
     /// </summary>
+    /// <param name="world">The world to create the toast in.</param>
+    /// <param name="container">The toast container entity.</param>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">The optional toast title.</param>
+    /// <param name="duration">The duration, in seconds, the toast remains visible before dismissing.</param>
+    /// <returns>The toast entity.</returns>
     public static Entity ShowInfoToast(IWorld world, Entity container, string message, string? title = null, float duration = 3f) =>
         ShowToast(world, container, ToastConfig.Info(message, title, duration));
 
     /// <summary>
     /// Creates a success toast.
     /// </summary>
+    /// <param name="world">The world to create the toast in.</param>
+    /// <param name="container">The toast container entity.</param>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">The optional toast title.</param>
+    /// <param name="duration">The duration, in seconds, the toast remains visible before dismissing.</param>
+    /// <returns>The toast entity.</returns>
     public static Entity ShowSuccessToast(IWorld world, Entity container, string message, string? title = null, float duration = 3f) =>
         ShowToast(world, container, ToastConfig.Success(message, title, duration));
 
     /// <summary>
     /// Creates a warning toast.
     /// </summary>
+    /// <param name="world">The world to create the toast in.</param>
+    /// <param name="container">The toast container entity.</param>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">The optional toast title.</param>
+    /// <param name="duration">The duration, in seconds, the toast remains visible before dismissing.</param>
+    /// <returns>The toast entity.</returns>
     public static Entity ShowWarningToast(IWorld world, Entity container, string message, string? title = null, float duration = 5f) =>
         ShowToast(world, container, ToastConfig.Warning(message, title, duration));
 
     /// <summary>
     /// Creates an error toast.
     /// </summary>
+    /// <param name="world">The world to create the toast in.</param>
+    /// <param name="container">The toast container entity.</param>
+    /// <param name="message">The toast message text.</param>
+    /// <param name="title">The optional toast title.</param>
+    /// <param name="duration">The duration, in seconds, the toast remains visible before dismissing. A value of zero means the toast does not auto-dismiss.</param>
+    /// <returns>The toast entity.</returns>
     public static Entity ShowErrorToast(IWorld world, Entity container, string message, string? title = null, float duration = 0f) =>
         ShowToast(world, container, ToastConfig.Error(message, title, duration));
 

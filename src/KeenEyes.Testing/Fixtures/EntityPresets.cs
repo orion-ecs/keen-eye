@@ -160,6 +160,8 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity name.
     /// </summary>
+    /// <param name="name">The name to assign to the entity.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithName(string name)
     {
         this.name = name;
@@ -169,6 +171,9 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity position.
     /// </summary>
+    /// <param name="x">The X coordinate of the position.</param>
+    /// <param name="y">The Y coordinate of the position.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder AtPosition(float x, float y)
     {
         posX = x;
@@ -179,6 +184,9 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity velocity.
     /// </summary>
+    /// <param name="vx">The velocity component along the X axis.</param>
+    /// <param name="vy">The velocity component along the Y axis.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithVelocity(float vx, float vy)
     {
         velX = vx;
@@ -190,6 +198,8 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity health (both current and max).
     /// </summary>
+    /// <param name="value">The current and maximum health value to assign.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithHealth(int value)
     {
         health = value;
@@ -200,6 +210,9 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity health with different current and max values.
     /// </summary>
+    /// <param name="current">The current health value.</param>
+    /// <param name="max">The maximum health value.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithHealth(int current, int max)
     {
         health = current;
@@ -210,6 +223,8 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity damage.
     /// </summary>
+    /// <param name="value">The damage value to assign.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithDamage(int value)
     {
         damage = value;
@@ -219,6 +234,8 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity speed.
     /// </summary>
+    /// <param name="value">The speed value to assign.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithSpeed(float value)
     {
         speed = value;
@@ -228,6 +245,8 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity lifetime.
     /// </summary>
+    /// <param name="seconds">The lifetime duration, in seconds.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithLifetime(float seconds)
     {
         lifetime = seconds;
@@ -237,6 +256,8 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Sets the entity team.
     /// </summary>
+    /// <param name="teamId">The team identifier to assign.</param>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder OnTeam(int teamId)
     {
         team = teamId;
@@ -246,6 +267,8 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Adds a tag component to the entity.
     /// </summary>
+    /// <typeparam name="T">The tag component type.</typeparam>
+    /// <returns>This builder, for chaining.</returns>
     public EntityPresetBuilder WithTag<T>() where T : struct, ITagComponent
     {
         tagActions.Add(builder => builder.WithTag<T>());
@@ -255,6 +278,7 @@ public sealed class EntityPresetBuilder
     /// <summary>
     /// Builds and returns the entity.
     /// </summary>
+    /// <returns>The constructed entity.</returns>
     public Entity Build()
     {
         var builder = name != null
@@ -329,6 +353,8 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Applies a modification to each entity based on its index.
     /// </summary>
+    /// <param name="modifier">The action to apply to each entity's builder, given the entity's index.</param>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder WithModifier(Action<EntityPresetBuilder, int> modifier)
     {
         modifiers.Add(modifier);
@@ -338,6 +364,8 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Sets all entities to have the specified health.
     /// </summary>
+    /// <param name="value">The current and maximum health value to assign to each entity.</param>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder WithHealth(int value)
     {
         return WithModifier((b, _) => b.WithHealth(value));
@@ -346,6 +374,8 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Sets all entities to have the specified damage.
     /// </summary>
+    /// <param name="value">The damage value to assign to each entity.</param>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder WithDamage(int value)
     {
         return WithModifier((b, _) => b.WithDamage(value));
@@ -354,6 +384,8 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Sets all entities to have the specified speed.
     /// </summary>
+    /// <param name="value">The speed value to assign to each entity.</param>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder WithSpeed(float value)
     {
         return WithModifier((b, _) => b.WithSpeed(value));
@@ -362,6 +394,9 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Positions entities in a grid pattern.
     /// </summary>
+    /// <param name="columns">The number of columns in the grid.</param>
+    /// <param name="spacing">The distance between adjacent entities.</param>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder InGrid(int columns, float spacing)
     {
         return WithModifier((b, i) =>
@@ -375,6 +410,9 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Positions entities in a line.
     /// </summary>
+    /// <param name="spacing">The distance between adjacent entities.</param>
+    /// <param name="horizontal">Whether to lay out entities along the X axis (<see langword="true"/>) or the Y axis (<see langword="false"/>).</param>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder InLine(float spacing, bool horizontal = true)
     {
         return WithModifier((b, i) =>
@@ -393,6 +431,7 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Assigns sequential team IDs to entities.
     /// </summary>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder WithSequentialTeams()
     {
         return WithModifier((b, i) => b.OnTeam(i));
@@ -401,6 +440,9 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Assigns entities to alternating teams.
     /// </summary>
+    /// <param name="teamA">The team identifier assigned to entities at even indices.</param>
+    /// <param name="teamB">The team identifier assigned to entities at odd indices.</param>
+    /// <returns>This builder, for chaining.</returns>
     public BatchEntityBuilder WithAlternatingTeams(int teamA, int teamB)
     {
         return WithModifier((b, i) => b.OnTeam(i % 2 == 0 ? teamA : teamB));
@@ -409,6 +451,7 @@ public sealed class BatchEntityBuilder
     /// <summary>
     /// Builds and returns all entities.
     /// </summary>
+    /// <returns>An array containing the constructed entities.</returns>
     public Entity[] Build()
     {
         var entities = new Entity[count];

@@ -26,6 +26,9 @@ public partial struct TestPosition
     /// <summary>
     /// Creates a new position with the specified coordinates.
     /// </summary>
+    /// <param name="x">The X coordinate.</param>
+    /// <param name="y">The Y coordinate.</param>
+    /// <returns>A new <see cref="TestPosition"/> with the specified coordinates.</returns>
     public static TestPosition Create(float x, float y) => new() { X = x, Y = y };
 
     /// <summary>
@@ -55,6 +58,10 @@ public partial struct TestPosition3D
     /// <summary>
     /// Creates a new position with the specified coordinates.
     /// </summary>
+    /// <param name="x">The X coordinate.</param>
+    /// <param name="y">The Y coordinate.</param>
+    /// <param name="z">The Z coordinate.</param>
+    /// <returns>A new <see cref="TestPosition3D"/> with the specified coordinates.</returns>
     public static TestPosition3D Create(float x, float y, float z) => new() { X = x, Y = y, Z = z };
 
     /// <summary>
@@ -81,6 +88,9 @@ public partial struct TestVelocity
     /// <summary>
     /// Creates a new velocity with the specified values.
     /// </summary>
+    /// <param name="vx">The X velocity.</param>
+    /// <param name="vy">The Y velocity.</param>
+    /// <returns>A new <see cref="TestVelocity"/> with the specified values.</returns>
     public static TestVelocity Create(float vx, float vy) => new() { VX = vx, VY = vy };
 
     /// <summary>
@@ -107,11 +117,16 @@ public partial struct TestHealth
     /// <summary>
     /// Creates a new health component with the specified values.
     /// </summary>
+    /// <param name="current">The current health value.</param>
+    /// <param name="max">The maximum health value.</param>
+    /// <returns>A new <see cref="TestHealth"/> with the specified values.</returns>
     public static TestHealth Create(int current, int max) => new() { Current = current, Max = max };
 
     /// <summary>
     /// Creates a full health component with the specified maximum.
     /// </summary>
+    /// <param name="max">The maximum health value, also used as the current health value.</param>
+    /// <returns>A new <see cref="TestHealth"/> whose current value equals its maximum.</returns>
     public static TestHealth Full(int max) => new() { Current = max, Max = max };
 
     /// <summary>
@@ -140,6 +155,8 @@ public partial struct TestDamage
     /// <summary>
     /// Creates a new damage component with the specified amount.
     /// </summary>
+    /// <param name="amount">The damage amount.</param>
+    /// <returns>A new <see cref="TestDamage"/> with the specified amount.</returns>
     public static TestDamage Create(int amount) => new() { Amount = amount };
 
     /// <inheritdoc/>
@@ -158,6 +175,8 @@ public partial struct TestSpeed
     /// <summary>
     /// Creates a new speed component with the specified value.
     /// </summary>
+    /// <param name="value">The movement speed.</param>
+    /// <returns>A new <see cref="TestSpeed"/> with the specified value.</returns>
     public static TestSpeed Create(float value) => new() { Value = value };
 
     /// <inheritdoc/>
@@ -176,6 +195,8 @@ public partial struct TestRotation
     /// <summary>
     /// Creates a new rotation component with the specified angle.
     /// </summary>
+    /// <param name="angle">The rotation angle in degrees.</param>
+    /// <returns>A new <see cref="TestRotation"/> with the specified angle.</returns>
     public static TestRotation Create(float angle) => new() { Angle = angle };
 
     /// <inheritdoc/>
@@ -194,6 +215,8 @@ public partial struct TestScale
     /// <summary>
     /// Creates a new scale component with the specified value.
     /// </summary>
+    /// <param name="value">The scale value.</param>
+    /// <returns>A new <see cref="TestScale"/> with the specified value.</returns>
     public static TestScale Create(float value) => new() { Value = value };
 
     /// <summary>
@@ -217,6 +240,8 @@ public partial struct TestLifetime
     /// <summary>
     /// Creates a new lifetime component with the specified duration.
     /// </summary>
+    /// <param name="seconds">The remaining lifetime in seconds.</param>
+    /// <returns>A new <see cref="TestLifetime"/> with the specified duration.</returns>
     public static TestLifetime Create(float seconds) => new() { Remaining = seconds };
 
     /// <summary>
@@ -240,6 +265,8 @@ public partial struct TestTeam
     /// <summary>
     /// Creates a new team component with the specified ID.
     /// </summary>
+    /// <param name="id">The team identifier.</param>
+    /// <returns>A new <see cref="TestTeam"/> with the specified ID.</returns>
     public static TestTeam Create(int id) => new() { Id = id };
 
     /// <inheritdoc/>
@@ -258,6 +285,8 @@ public partial struct TestCounter
     /// <summary>
     /// Creates a new counter with the specified initial value.
     /// </summary>
+    /// <param name="value">The current count.</param>
+    /// <returns>A new <see cref="TestCounter"/> with the specified initial value.</returns>
     public static TestCounter Create(int value) => new() { Value = value };
 
     /// <inheritdoc/>
