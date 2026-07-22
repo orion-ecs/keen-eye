@@ -1,4 +1,5 @@
 using System.IO.Compression;
+using System.Text.Json;
 using KeenEyes.Serialization;
 
 namespace KeenEyes;
@@ -183,8 +184,9 @@ internal sealed class SaveManager
             var fileData = File.ReadAllBytes(filePath);
             return SaveFileFormat.ReadMetadata(fileData);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
         {
+            // Unreadable or corrupt slot files are treated as missing.
             return null;
         }
     }
@@ -223,9 +225,9 @@ internal sealed class SaveManager
                     slotInfo = SaveFileFormat.ReadMetadata(fileData);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
             {
-                // Skip invalid files
+                // Skip unreadable or corrupt files
             }
 
             if (slotInfo is not null)
@@ -255,8 +257,9 @@ internal sealed class SaveManager
             var fileData = File.ReadAllBytes(filePath);
             return SaveFileFormat.IsValidFormat(fileData);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException)
         {
+            // Unreadable slot files are treated as missing.
             return false;
         }
     }
@@ -367,8 +370,9 @@ internal sealed class SaveManager
             var fileData = File.ReadAllBytes(filePath);
             return SaveFileFormat.Validate(fileData);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
         {
+            // Unreadable or corrupt slot files fail validation.
             return null;
         }
     }
@@ -655,8 +659,9 @@ internal sealed class SaveManager
             var fileData = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
             return SaveFileFormat.ReadMetadata(fileData);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
         {
+            // Unreadable or corrupt slot files are treated as missing.
             return null;
         }
     }
@@ -689,9 +694,9 @@ internal sealed class SaveManager
                     result.Add(slotInfo);
                 }
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
             {
-                // Skip invalid files
+                // Skip unreadable or corrupt files
             }
         }
 
@@ -796,8 +801,9 @@ internal sealed class SaveManager
             var fileData = await File.ReadAllBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
             return SaveFileFormat.Validate(fileData);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
         {
+            // Unreadable or corrupt slot files fail validation.
             return null;
         }
     }

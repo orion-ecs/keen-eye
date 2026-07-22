@@ -176,9 +176,9 @@ public sealed class ArabicTextShaper : ITextShaper
         // Arabic Unicode range: U+0600-U+06FF (Arabic)
         // Also check U+FB50-U+FDFF (Arabic Presentation Forms-A)
         // And U+FE70-U+FEFF (Arabic Presentation Forms-B)
-        return (c >= '\u0600' && c <= '\u06FF') ||
-               (c >= '\uFB50' && c <= '\uFDFF') ||
-               (c >= '\uFE70' && c <= '\uFEFF');
+        return c is (>= '\u0600' and <= '\u06FF')
+            or (>= '\uFB50' and <= '\uFDFF')
+            or (>= '\uFE70' and <= '\uFEFF');
     }
 
     /// <summary>

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using KeenEyes.Persistence.Encryption;
 using KeenEyes.Serialization;
 
@@ -342,8 +343,9 @@ public sealed class EncryptedPersistenceApi
             var fileData = File.ReadAllBytes(filePath);
             return SaveFileFormat.ReadMetadata(fileData);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
         {
+            // Unreadable or corrupt slot files are treated as missing.
             return null;
         }
     }
@@ -368,9 +370,9 @@ public sealed class EncryptedPersistenceApi
                 var fileData = File.ReadAllBytes(file);
                 info = SaveFileFormat.ReadMetadata(fileData);
             }
-            catch
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or EndOfStreamException or JsonException)
             {
-                // Skip invalid files
+                // Skip unreadable or corrupt files
             }
 
             if (info is not null)

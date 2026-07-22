@@ -146,8 +146,8 @@ public static class GhostFileFormat
         // Write compressed data
         writer.Write(compressedData);
 
-        // Write checksum if enabled
-        if (options.IncludeChecksum && checksum is not null)
+        // Write checksum if enabled (non-null only when options.IncludeChecksum is set)
+        if (checksum is not null)
         {
             var checksumValue = uint.Parse(checksum, System.Globalization.NumberStyles.HexNumber);
             writer.Write(checksumValue);

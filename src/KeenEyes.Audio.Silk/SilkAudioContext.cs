@@ -115,7 +115,7 @@ public sealed class SilkAudioContext : IAudioContext
 
         int channels = format is AudioFormat.Stereo8 or AudioFormat.Stereo16 ? 2 : 1;
         int bitsPerSample = format is AudioFormat.Mono16 or AudioFormat.Stereo16 ? 16 : 8;
-        float duration = (float)data.Length / (sampleRate * channels * (bitsPerSample / 8));
+        float duration = data.Length / (sampleRate * channels * (bitsPerSample / 8f));
 
         return CreateClipInternal(data.ToArray(), format, sampleRate, channels, bitsPerSample, duration);
     }
@@ -358,12 +358,16 @@ public sealed class SilkAudioContext : IAudioContext
     /// <inheritdoc />
     public void PauseAll()
     {
+        if (device is null)
+        {
+            return;
+        }
+
         foreach (var (soundId, instance) in activeSounds)
         {
-            var state = device?.GetSourceState(instance.SourceId);
-            if (state == AudioPlayState.Playing)
+            if (device.GetSourceState(instance.SourceId) == AudioPlayState.Playing)
             {
-                device?.PauseSource(instance.SourceId);
+                device.PauseSource(instance.SourceId);
                 pausedByPauseAll.Add(soundId);
             }
         }

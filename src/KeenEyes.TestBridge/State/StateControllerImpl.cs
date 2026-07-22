@@ -12,8 +12,8 @@ namespace KeenEyes.TestBridge.State;
 /// </summary>
 internal sealed class StateControllerImpl(World world) : IStateController
 {
-    private readonly IInspectionCapability? inspectionCapability = world as IInspectionCapability;
-    private readonly IStatisticsCapability? statisticsCapability = world as IStatisticsCapability;
+    private readonly IInspectionCapability inspectionCapability = world;
+    private readonly IStatisticsCapability statisticsCapability = world;
     private ILogController? logController;
 
     // Frame timing for performance metrics
@@ -158,22 +158,12 @@ internal sealed class StateControllerImpl(World world) : IStateController
 
     public async Task<WorldStats> GetWorldStatsAsync()
     {
-        long memoryBytes = 0;
-        int archetypeCount = 0;
-        int componentTypeCount = 0;
         int pluginCount = 0;
 
-        if (statisticsCapability != null)
-        {
-            var memStats = statisticsCapability.GetMemoryStats();
-            memoryBytes = memStats.EstimatedComponentBytes;
-            archetypeCount = memStats.ArchetypeCount;
-        }
-
-        if (inspectionCapability != null)
-        {
-            componentTypeCount = inspectionCapability.GetRegisteredComponents().Count();
-        }
+        var memStats = statisticsCapability.GetMemoryStats();
+        var memoryBytes = memStats.EstimatedComponentBytes;
+        var archetypeCount = memStats.ArchetypeCount;
+        var componentTypeCount = inspectionCapability.GetRegisteredComponents().Count();
 
         // Count systems (we'll need to estimate this)
         var systemCount = systemTimes.Count;

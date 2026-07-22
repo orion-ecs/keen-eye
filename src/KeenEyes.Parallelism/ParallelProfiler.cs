@@ -204,7 +204,7 @@ public sealed class ParallelProfiler(ParallelSystemScheduler scheduler) : IDispo
 
         // Calculate parallel efficiency
         var totalSystemTime = systemTimings.Values.Sum(t => t.TotalTicks);
-        var avgFrameTime = frameCount > 0 ? totalFrameTime / frameCount : 0;
+        var avgFrameTime = frameCount > 0 ? (double)totalFrameTime / frameCount : 0;
         var parallelEfficiency = avgFrameTime > 0 && totalSystemTime > 0
             ? Math.Min(1.0, (double)totalSystemTime / (avgFrameTime * frameCount) / Environment.ProcessorCount)
             : 0;

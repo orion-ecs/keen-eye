@@ -148,7 +148,7 @@ internal sealed class SilkTextRenderer(IGraphicsDevice device, SilkFontManager f
 
         // Calculate total height for vertical alignment
         int lineCount = breaks.Count + 1;
-        float totalHeight = lineCount * lineHeight;
+        float totalHeight = lineCount * (float)lineHeight;
 
         // Determine starting Y based on vertical alignment
         float startY = alignV switch

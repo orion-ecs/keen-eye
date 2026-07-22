@@ -225,8 +225,8 @@ public static class LogAssertions
     {
         var matches = provider.Entries.Where(e =>
             e.Properties != null &&
-            e.Properties.ContainsKey(propertyName) &&
-            (propertyValue == null || Equals(e.Properties[propertyName], propertyValue)));
+            e.Properties.TryGetValue(propertyName, out var actualValue) &&
+            (propertyValue == null || Equals(actualValue, propertyValue)));
 
         if (!matches.Any())
         {

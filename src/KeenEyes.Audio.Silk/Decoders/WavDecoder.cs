@@ -70,7 +70,7 @@ internal static class WavDecoder
 
                 var audioData = data.Slice(offset + 8, chunkSize).ToArray();
                 var format = GetAudioFormat(channels, bitsPerSample);
-                var duration = (float)audioData.Length / (sampleRate * channels * (bitsPerSample / 8));
+                var duration = audioData.Length / (sampleRate * channels * (bitsPerSample / 8f));
 
                 return new WavData
                 {

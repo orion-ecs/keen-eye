@@ -50,7 +50,7 @@ public sealed class AudioClipAsset : IDisposable
     /// <summary>
     /// Gets the estimated size of the audio data in bytes.
     /// </summary>
-    public long SizeBytes => (long)(Duration.TotalSeconds * SampleRate * Channels * (BitsPerSample / 8));
+    public long SizeBytes => (long)(Duration.TotalSeconds * SampleRate * Channels * (BitsPerSample / 8.0));
 
     /// <summary>
     /// Creates a new audio clip asset.
