@@ -58,6 +58,11 @@ public sealed class ReplayRecorder : IInputRecorder
     private string? recordingName;
     private IReadOnlyDictionary<string, object>? recordingMetadata;
 
+    // Full world state of the most recently captured marker, used as the baseline for
+    // computing the next marker's delta. Reconstructed to the exact state at that marker
+    // regardless of whether the marker was stored as a keyframe or a delta.
+    private WorldSnapshot? previousMarkerSnapshot;
+
     // Ring buffer support
     private int ringBufferStart;
 
@@ -155,6 +160,7 @@ public sealed class ReplayRecorder : IInputRecorder
         snapshots.Clear();
         currentFrameEvents.Clear();
         currentFrameInputs.Clear();
+        previousMarkerSnapshot = null;
         ringBufferStart = 0;
 
         // Initialize recording state
@@ -208,9 +214,11 @@ public sealed class ReplayRecorder : IInputRecorder
             }
             finalFrames = actualFrames;
 
-            // Filter snapshots to only include those within the ring buffer window
+            // Filter snapshots to only include those within the ring buffer window. Delta
+            // markers cannot be reconstructed without their preceding keyframe, so extend
+            // the window backward to the keyframe that governs the first retained marker.
             var minFrameNumber = actualFrames.Count > 0 ? actualFrames[0].FrameNumber : 0;
-            finalSnapshots = snapshots.Where(s => s.FrameNumber >= minFrameNumber).ToList();
+            finalSnapshots = FilterSnapshotsForWindow(minFrameNumber);
         }
         else
         {
@@ -232,6 +240,39 @@ public sealed class ReplayRecorder : IInputRecorder
     }
 
     /// <summary>
+    /// Returns the snapshot markers whose frame number is at or after
+    /// <paramref name="minFrameNumber"/>, extended backward to include the keyframe that
+    /// governs the first retained delta marker so the delta chain remains reconstructable.
+    /// </summary>
+    private List<SnapshotMarker> FilterSnapshotsForWindow(int minFrameNumber)
+    {
+        // Find the first marker at or after the window start.
+        var startIndex = -1;
+        for (var i = 0; i < snapshots.Count; i++)
+        {
+            if (snapshots[i].FrameNumber >= minFrameNumber)
+            {
+                startIndex = i;
+                break;
+            }
+        }
+
+        if (startIndex < 0)
+        {
+            return [];
+        }
+
+        // Walk back to the keyframe governing the first retained marker so any retained
+        // delta can still be applied on top of a full snapshot.
+        while (startIndex > 0 && !snapshots[startIndex].IsKeyframe)
+        {
+            startIndex--;
+        }
+
+        return snapshots.GetRange(startIndex, snapshots.Count - startIndex);
+    }
+
+    /// <summary>
     /// Cancels the current recording without returning data.
     /// </summary>
     /// <remarks>
@@ -245,6 +286,7 @@ public sealed class ReplayRecorder : IInputRecorder
         snapshots.Clear();
         currentFrameEvents.Clear();
         currentFrameInputs.Clear();
+        previousMarkerSnapshot = null;
     }
 
     /// <summary>
@@ -558,24 +600,61 @@ public sealed class ReplayRecorder : IInputRecorder
             return; // Can't create snapshot without concrete World
         }
 
+        // Always compute the full current state: it is either stored directly (keyframe)
+        // or diffed against the previous marker (delta), and it becomes the baseline for
+        // the next marker's delta either way.
         var snapshot = SnapshotManager.CreateSnapshot(concreteWorld, serializer);
 
-        // Calculate checksum if enabled
+        // Calculate checksum if enabled. The checksum always reflects the full world state
+        // at this marker so reconstructed state (keyframe + delta chain) can be validated.
         uint? checksum = null;
         if (options.RecordChecksums)
         {
             checksum = WorldChecksum.Calculate(concreteWorld, serializer);
         }
 
-        var marker = new SnapshotMarker
+        // The first marker is always a keyframe; thereafter every KeyframeInterval-th marker
+        // is a keyframe and the rest are deltas. An interval of 1 or less disables deltas.
+        var markerIndex = snapshots.Count;
+        var isKeyframe =
+            markerIndex == 0 ||
+            options.KeyframeInterval <= 1 ||
+            markerIndex % options.KeyframeInterval == 0 ||
+            previousMarkerSnapshot is null;
+
+        SnapshotMarker marker;
+        if (isKeyframe)
         {
-            FrameNumber = frameNumber,
-            ElapsedTime = elapsedTime,
-            Snapshot = snapshot,
-            Checksum = checksum
-        };
+            marker = new SnapshotMarker
+            {
+                FrameNumber = frameNumber,
+                ElapsedTime = elapsedTime,
+                Snapshot = snapshot,
+                Checksum = checksum
+            };
+        }
+        else
+        {
+            var baselineMarker = snapshots[^1];
+            var delta = DeltaDiffer.CreateDelta(
+                concreteWorld,
+                previousMarkerSnapshot!,
+                serializer,
+                baselineMarker.FrameNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                markerIndex);
+
+            marker = new SnapshotMarker
+            {
+                FrameNumber = frameNumber,
+                ElapsedTime = elapsedTime,
+                Delta = delta,
+                BaselineFrameNumber = baselineMarker.FrameNumber,
+                Checksum = checksum
+            };
+        }
 
         snapshots.Add(marker);
+        previousMarkerSnapshot = snapshot;
 
         // Record snapshot event
         currentFrameEvents.Add(new ReplayEvent

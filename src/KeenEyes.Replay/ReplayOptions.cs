@@ -182,4 +182,28 @@ public sealed record ReplayOptions
     /// <seealso cref="ReplayPlayer.AutoValidate"/>
     /// <seealso cref="ReplayPlayer.ValidateCurrentFrame"/>
     public bool RecordChecksums { get; init; }
+
+    /// <summary>
+    /// Gets or sets how often a full-state keyframe snapshot is captured, measured in
+    /// number of snapshot markers.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// To reduce file size, snapshots between keyframes are stored as deltas relative to
+    /// the previous marker's state (see <see cref="Serialization.DeltaSnapshot"/>) rather
+    /// than as complete world snapshots. Every <c>KeyframeInterval</c>-th marker is a full
+    /// keyframe, which bounds the length of the delta chain that must be replayed when
+    /// seeking: reconstructing any marker requires restoring the nearest preceding keyframe
+    /// and applying at most <c>KeyframeInterval - 1</c> deltas.
+    /// </para>
+    /// <para>
+    /// The very first marker of every recording is always a full keyframe regardless of
+    /// this value. A value of 1 (or less) disables delta compression entirely, capturing
+    /// every marker as a full keyframe.
+    /// </para>
+    /// <para>
+    /// Default is 10.
+    /// </para>
+    /// </remarks>
+    public int KeyframeInterval { get; init; } = 10;
 }
