@@ -409,7 +409,7 @@ public sealed class EditorLayout
         {
             return JsonSerializer.Deserialize<EditorLayout>(json, GetJsonOptions());
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or NotSupportedException)
         {
             return null;
         }

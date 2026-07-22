@@ -689,7 +689,7 @@ public static class FrameInspectorPanel
                 _ => null
             };
         }
-        catch
+        catch (OverflowException)
         {
             return null;
         }

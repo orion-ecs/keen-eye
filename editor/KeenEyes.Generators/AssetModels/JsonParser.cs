@@ -132,7 +132,7 @@ internal static class JsonParser
 
             return scene;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or FormatException)
         {
             return null;
         }
@@ -194,7 +194,7 @@ internal static class JsonParser
 
             return prefab;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or FormatException)
         {
             return null;
         }
@@ -273,7 +273,7 @@ internal static class JsonParser
 
             return config;
         }
-        catch
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException or FormatException)
         {
             return null;
         }

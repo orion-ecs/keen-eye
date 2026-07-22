@@ -223,7 +223,7 @@ public static class NavMeshSerializer
             var magic = reader.ReadBytes(4);
             return magic.AsSpan().SequenceEqual(MagicBytes);
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }

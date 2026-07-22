@@ -316,7 +316,7 @@ public sealed class LinqHotPathAnalyzer : DiagnosticAnalyzer
 
         var parts = new System.Collections.Generic.List<string>();
         var current = ns;
-        while (current != null && !current.IsGlobalNamespace)
+        while (!current.IsGlobalNamespace)
         {
             parts.Insert(0, current.Name);
             current = current.ContainingNamespace;

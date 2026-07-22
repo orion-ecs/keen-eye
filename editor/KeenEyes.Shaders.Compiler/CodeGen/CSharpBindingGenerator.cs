@@ -230,7 +230,6 @@ public sealed class CSharpBindingGenerator
 
         // Get component spans
         var writeBindings = new List<QueryBinding>();
-        var readBindings = new List<QueryBinding>();
 
         foreach (var binding in compute.Query.Bindings)
         {
@@ -245,10 +244,6 @@ public sealed class CSharpBindingGenerator
             if (binding.AccessMode == AccessMode.Write)
             {
                 writeBindings.Add(binding);
-            }
-            else
-            {
-                readBindings.Add(binding);
             }
         }
 

@@ -525,7 +525,8 @@ public sealed class SceneSerializer
             // Call it with isTag = false (auto-detected from ITagComponent)
             return genericMethod.Invoke(world.Components, [false]) as ComponentInfo;
         }
-        catch
+        catch (Exception ex) when (
+            ex is ArgumentException or InvalidOperationException or MemberAccessException or TargetInvocationException)
         {
             // Registration failed (type may not be a valid component)
             return null;

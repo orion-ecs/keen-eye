@@ -183,7 +183,7 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
     private static FieldSerializationType GetFieldSerializationType(ITypeSymbol type)
     {
         // Check special types first (primitives)
-        var result = type.SpecialType switch
+        FieldSerializationType? result = type.SpecialType switch
         {
             SpecialType.System_Boolean => FieldSerializationType.Bool,
             SpecialType.System_Byte => FieldSerializationType.Byte,
@@ -196,7 +196,7 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
             SpecialType.System_UInt64 => FieldSerializationType.UInt64,
             SpecialType.System_Single => FieldSerializationType.Float,
             SpecialType.System_Double => FieldSerializationType.Double,
-            _ => (FieldSerializationType?)null
+            _ => null
         };
 
         if (result.HasValue)

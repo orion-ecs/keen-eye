@@ -138,7 +138,7 @@ public sealed class PluginInstaller
                     {
                         File.Delete(nupkgPath);
                     }
-                    catch
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     {
                         // Ignore cleanup failures
                     }
@@ -255,7 +255,7 @@ public sealed class PluginInstaller
             var range = VersionRange.Parse(versionRange);
             return range.Satisfies(installed);
         }
-        catch
+        catch (Exception ex) when (ex is ArgumentException or FormatException)
         {
             return false;
         }
@@ -268,7 +268,7 @@ public sealed class PluginInstaller
             var range = VersionRange.Parse(versionRange);
             return range.MinVersion?.ToNormalizedString();
         }
-        catch
+        catch (Exception ex) when (ex is ArgumentException or FormatException)
         {
             return null;
         }

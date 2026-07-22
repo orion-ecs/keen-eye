@@ -129,17 +129,10 @@ public sealed class TypeCompatibilityRule : IValidationRule
             return target is PortTypeId.Float2 or PortTypeId.Float3 or PortTypeId.Float4;
         }
 
-        // Int can be promoted to int vector types
+        // Int can be promoted to float or int vector types
         if (source == PortTypeId.Int)
         {
-            return target is PortTypeId.Int2 or PortTypeId.Int3 or PortTypeId.Int4;
-        }
-
-        // Float and Int are interchangeable in shader contexts
-        if ((source == PortTypeId.Float && target == PortTypeId.Int) ||
-            (source == PortTypeId.Int && target == PortTypeId.Float))
-        {
-            return true;
+            return target is PortTypeId.Float or PortTypeId.Int2 or PortTypeId.Int3 or PortTypeId.Int4;
         }
 
         return false;
