@@ -505,7 +505,7 @@ public class Mock2DRendererTests
     [Fact]
     public void Dispose_ResetsState()
     {
-        var renderer = new Mock2DRenderer();
+        using var renderer = new Mock2DRenderer();
         renderer.Begin();
         renderer.FillRect(0, 0, 10, 10, Vector4.One);
 
@@ -518,7 +518,7 @@ public class Mock2DRendererTests
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
-        var renderer = new Mock2DRenderer();
+        using var renderer = new Mock2DRenderer();
 
         renderer.Dispose();
         renderer.Dispose();

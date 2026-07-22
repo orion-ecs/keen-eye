@@ -65,9 +65,9 @@ public partial class MemoryTrackerTests
         using var world = new World();
         var tracker = new MemoryTracker(world);
 
-        var entity1 = world.Spawn().Build();
-        var entity2 = world.Spawn().Build();
-        var entity3 = world.Spawn().Build();
+        _ = world.Spawn().Build();
+        _ = world.Spawn().Build();
+        _ = world.Spawn().Build();
 
         // Act
         var stats = tracker.GetMemoryStats();
@@ -84,9 +84,9 @@ public partial class MemoryTrackerTests
         using var world = new World();
         var tracker = new MemoryTracker(world);
 
-        var entity1 = world.Spawn().Build();
+        _ = world.Spawn().Build();
         var entity2 = world.Spawn().Build();
-        var entity3 = world.Spawn().Build();
+        _ = world.Spawn().Build();
 
         world.Despawn(entity2);
 
@@ -105,7 +105,7 @@ public partial class MemoryTrackerTests
         using var world = new World();
         var tracker = new MemoryTracker(world);
 
-        var entity = world.Spawn()
+        _ = world.Spawn()
             .With(new TestComponent { Value = 42 })
             .Build();
 
@@ -124,15 +124,15 @@ public partial class MemoryTrackerTests
         var tracker = new MemoryTracker(world);
 
         // Create entities with different component combinations (different archetypes)
-        var entity1 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestComponent { Value = 1 })
             .Build();
 
-        var entity2 = world.Spawn()
+        _ = world.Spawn()
             .With(new LargeComponent())
             .Build();
 
-        var entity3 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestComponent { Value = 2 })
             .With(new LargeComponent())
             .Build();
@@ -151,7 +151,7 @@ public partial class MemoryTrackerTests
         using var world = new World();
         var tracker = new MemoryTracker(world);
 
-        var entity = world.Spawn()
+        _ = world.Spawn()
             .With(new TestComponent { Value = 42 })
             .With(new LargeComponent())
             .Build();
@@ -191,8 +191,8 @@ public partial class MemoryTrackerTests
         using var world = new World();
         var tracker = new MemoryTracker(world);
 
-        var entity1 = world.Spawn().Build();
-        var entity2 = world.Spawn().Build();
+        _ = world.Spawn().Build();
+        _ = world.Spawn().Build();
 
         // Act
         var report = tracker.GetMemoryReport();
@@ -209,10 +209,10 @@ public partial class MemoryTrackerTests
         var tracker = new MemoryTracker(world);
 
         var entity1 = world.Spawn().Build();
-        var entity2 = world.Spawn().Build();
+        _ = world.Spawn().Build();
         world.Despawn(entity1);
 
-        var entity3 = world.Spawn().Build(); // Should reuse entity1
+        _ = world.Spawn().Build(); // Should reuse entity1
 
         // Act
         var report = tracker.GetMemoryReport();
@@ -253,13 +253,13 @@ public partial class MemoryTrackerTests
         using var world = new World();
         var tracker = new MemoryTracker(world);
 
-        var entity = world.Spawn()
+        _ = world.Spawn()
             .With(new TestComponent { Value = 42 })
             .Build();
 
         // Execute a query to populate cache
         var query = world.Query<TestComponent>();
-        foreach (var e in query)
+        foreach (var _ in query)
         {
             // Process entity
         }
@@ -533,7 +533,7 @@ public partial class MemoryTrackerTests
 
         var stats2 = tracker.GetMemoryStats();
 
-        var entity2 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestComponent { Value = 2 })
             .Build();
 

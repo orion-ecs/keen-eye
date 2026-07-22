@@ -221,7 +221,7 @@ public class MockEncryptionProviderTests
     {
         var provider = new MockEncryptionProvider { ShouldFailEncrypt = true };
 
-        try { provider.Encrypt([1, 2, 3]); } catch { }
+        Should.Throw<InvalidOperationException>(() => provider.Encrypt([1, 2, 3]));
 
         provider.EncryptCount.ShouldBe(1);
     }

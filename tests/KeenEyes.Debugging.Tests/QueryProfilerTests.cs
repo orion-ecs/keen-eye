@@ -317,7 +317,7 @@ public partial class QueryProfilerTests
         // Execute query multiple times to generate cache hits
         for (int i = 0; i < 5; i++)
         {
-            foreach (var entity in world.Query<TestComponent>())
+            foreach (var _ in world.Query<TestComponent>())
             {
                 // Process
             }
@@ -499,7 +499,7 @@ public partial class QueryProfilerTests
         // Act - Profile actual queries
         profiler.BeginQuery("AllTestComponents");
         var count1 = 0;
-        foreach (var entity in world.Query<TestComponent>())
+        foreach (var _ in world.Query<TestComponent>())
         {
             count1++;
         }
@@ -507,7 +507,7 @@ public partial class QueryProfilerTests
 
         profiler.BeginQuery("AllOtherComponents");
         var count2 = 0;
-        foreach (var entity in world.Query<OtherComponent>())
+        foreach (var _ in world.Query<OtherComponent>())
         {
             count2++;
         }

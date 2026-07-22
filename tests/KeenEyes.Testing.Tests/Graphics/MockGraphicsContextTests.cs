@@ -585,7 +585,7 @@ public class MockGraphicsContextTests
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
-        var context = new MockGraphicsContext();
+        using var context = new MockGraphicsContext();
 
         context.Dispose();
         context.Dispose();

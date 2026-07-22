@@ -935,7 +935,7 @@ public class ReplayInputTests
         {
             recorder.BeginFrame(0.016f);
             recorder.RecordKeyDown($"Key{frame}");
-            recorder.RecordMouseMove(new Vector2(frame * 10, frame * 20));
+            recorder.RecordMouseMove(new Vector2(frame * 10f, frame * 20f));
             recorder.EndFrame(0.016f);
         }
         var replayData = recorder.StopRecording();
@@ -962,7 +962,7 @@ public class ReplayInputTests
         for (int i = 0; i < 10; i++)
         {
             Assert.Equal($"Key{i}", keyEvents[i].Key);
-            Assert.Equal(new Vector2(i * 10, i * 20), mouseEvents[i].Position);
+            Assert.Equal(new Vector2(i * 10f, i * 20f), mouseEvents[i].Position);
         }
     }
 

@@ -223,7 +223,7 @@ public class ReplayPlayerTimelineTests
     public void Step_WhenDisposed_ThrowsObjectDisposedException()
     {
         // Arrange
-        var player = new ReplayPlayer();
+        using var player = new ReplayPlayer();
         player.LoadReplay(CreateTestReplay(100));
         player.Dispose();
 
@@ -371,7 +371,7 @@ public class ReplayPlayerTimelineTests
     public void SeekToFrame_WhenDisposed_ThrowsObjectDisposedException()
     {
         // Arrange
-        var player = new ReplayPlayer();
+        using var player = new ReplayPlayer();
         player.LoadReplay(CreateTestReplay(100));
         player.Dispose();
 
@@ -535,7 +535,7 @@ public class ReplayPlayerTimelineTests
     public void SeekToTime_WhenDisposed_ThrowsObjectDisposedException()
     {
         // Arrange
-        var player = new ReplayPlayer();
+        using var player = new ReplayPlayer();
         player.LoadReplay(CreateTestReplay(100));
         player.Dispose();
 
@@ -666,7 +666,7 @@ public class ReplayPlayerTimelineTests
     public void GetNearestSnapshot_WhenDisposed_ThrowsObjectDisposedException()
     {
         // Arrange
-        var player = new ReplayPlayer();
+        using var player = new ReplayPlayer();
         player.LoadReplay(CreateTestReplay(100));
         player.Dispose();
 
@@ -739,7 +739,7 @@ public class ReplayPlayerTimelineTests
         player.SeekToFrame(100);
         player.Step(10);
         player.Step(-5);
-        var snapshot = player.GetNearestSnapshot(player.CurrentFrame);
+        _ = player.GetNearestSnapshot(player.CurrentFrame);
         player.SeekToTime(TimeSpan.FromMilliseconds(500));
         player.Stop();
 

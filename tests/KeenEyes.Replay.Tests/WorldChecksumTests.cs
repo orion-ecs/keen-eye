@@ -220,7 +220,7 @@ public class WorldChecksumTests
     public void Calculate_WithNullSnapshot_ThrowsArgumentNullException()
     {
         // Act & Assert
-        Assert.Throws<ArgumentNullException>(() => WorldChecksum.Calculate((WorldSnapshot)null!));
+        Assert.Throws<ArgumentNullException>(() => WorldChecksum.Calculate(null!));
     }
 
     [Fact]

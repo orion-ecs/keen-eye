@@ -31,14 +31,14 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create two dynamic bodies that should collide
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 10f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(new CollisionFilter(1, 0xFFFFFFFF))
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 8f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
@@ -66,14 +66,14 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create two dynamic bodies with filters that prevent collision
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 10f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(new CollisionFilter(1, 0b0010)) // Layer 1, only collides with layer 2
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 8f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
@@ -101,14 +101,14 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create overlapping trigger and dynamic body
-        var trigger = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 0f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Box(5f, 5f, 5f))
             .With(RigidBody.Static())
             .With(CollisionFilter.Trigger())
             .Build();
 
-        var dynamic = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 1f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
@@ -140,14 +140,14 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create two overlapping bodies with different materials
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 1.5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(PhysicsMaterial.Rubber)
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 0f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Box(10f, 1f, 10f))
             .With(RigidBody.Static())
@@ -175,13 +175,13 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create overlapping bodies without explicit material components
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 1.5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 0f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Box(10f, 1f, 10f))
             .With(RigidBody.Static())
@@ -212,13 +212,13 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create overlapping box-box collision which will have multiple contact points
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 0.8f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Box(1f, 1f, 1f))
             .With(RigidBody.Dynamic(1f))
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 0f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Box(5f, 1f, 5f))
             .With(RigidBody.Static())
@@ -249,13 +249,13 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create two overlapping spheres
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 0f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(1.5f, 0f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
@@ -323,13 +323,13 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create two dynamic bodies that will collide
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 10f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 8f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
@@ -360,13 +360,13 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create bodies without explicit collision filters (should use default)
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 10f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 8f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
@@ -393,14 +393,14 @@ public class CollisionCallbackTests : IDisposable
         world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Create one body with filter, one without
-        var entityA = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 10f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(new CollisionFilter(1, 0xFFFFFFFF))
             .Build();
 
-        var entityB = world.Spawn()
+        _ = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 8f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))

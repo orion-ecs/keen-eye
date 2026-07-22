@@ -701,8 +701,8 @@ public class ReplayPlayerEventTests
         {
             // Try to access player state from within event handler
             // This would deadlock if events were fired inside the lock
-            var state = player.State;
-            var frame = player.CurrentFrame;
+            _ = player.State;
+            _ = player.CurrentFrame;
             completed = true;
         };
 

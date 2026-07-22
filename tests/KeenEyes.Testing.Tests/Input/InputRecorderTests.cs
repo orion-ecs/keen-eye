@@ -351,7 +351,7 @@ public class InputRecorderTests
     public void Dispose_UnsubscribesFromEvents()
     {
         using var input = new MockInputContext();
-        var recorder = new InputRecorder(input);
+        using var recorder = new InputRecorder(input);
         recorder.StartRecording();
 
         var initialCount = recorder.CurrentRecording!.Count;
@@ -371,7 +371,7 @@ public class InputRecorderTests
     public void Dispose_CanBeCalledMultipleTimes()
     {
         using var input = new MockInputContext();
-        var recorder = new InputRecorder(input);
+        using var recorder = new InputRecorder(input);
 
         recorder.Dispose();
         recorder.Dispose();

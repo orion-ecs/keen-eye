@@ -442,7 +442,7 @@ public class MockWindowTests
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
-        var window = new MockWindow();
+        using var window = new MockWindow();
         window.CreateDevice();
 
         window.Dispose();

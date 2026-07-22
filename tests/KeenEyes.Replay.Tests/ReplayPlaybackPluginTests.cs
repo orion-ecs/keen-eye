@@ -159,7 +159,7 @@ public class ReplayPlaybackPluginTests
         world.InstallPlugin(playbackPlugin);
 
         var serializer = new MockComponentSerializer();
-        var recordingPlugin = new ReplayPlugin(serializer);
+        _ = new ReplayPlugin(serializer);
 
         // Note: This test assumes ReplayPlugin also checks for ReplayPlayer
         // If it doesn't, we just verify the playback plugin installed correctly
@@ -459,7 +459,7 @@ public class ReplayPlaybackPluginTests
         // Act
         player.LoadReplay(emptyReplay);
         player.Play();
-        var changed = player.Update(0.016f);
+        _ = player.Update(0.016f);
 
         // Assert - should immediately stop with no changes
         Assert.Equal(PlaybackState.Stopped, player.State);

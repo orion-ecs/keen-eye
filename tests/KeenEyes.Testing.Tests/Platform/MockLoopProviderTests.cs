@@ -333,7 +333,7 @@ public class MockLoopProviderTests
     [Fact]
     public void Dispose_CallsReset()
     {
-        var loop = new MockLoopProvider();
+        using var loop = new MockLoopProvider();
         loop.Initialize();
         loop.Run();
         loop.TriggerUpdate(0.016f);

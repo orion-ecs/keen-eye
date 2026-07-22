@@ -354,9 +354,9 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_RegistersPhysicsWorldExtension()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new PhysicsPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -368,9 +368,9 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_RegistersPhysicsStepSystem()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new PhysicsPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -381,10 +381,10 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_WithInterpolation_RegistersPhysicsSyncSystem()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var config = new PhysicsConfig { EnableInterpolation = true };
         var plugin = new PhysicsPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -395,10 +395,10 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_WithoutInterpolation_DoesNotRegisterPhysicsSyncSystem()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var config = new PhysicsConfig { EnableInterpolation = false };
         var plugin = new PhysicsPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -408,9 +408,9 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_RegistersPhysicsComponents()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new PhysicsPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -423,14 +423,14 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_CreatesPhysicsWorldWithConfig()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var config = new PhysicsConfig
         {
             FixedTimestep = 1f / 120f,
             Gravity = new Vector3(0, -20f, 0)
         };
         var plugin = new PhysicsPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -442,9 +442,9 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_SystemRegistrationOrder_PhysicsStepHasOrderZero()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new PhysicsPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -456,9 +456,9 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_DefaultConfig_RegistersBothSystems()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new PhysicsPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -472,10 +472,10 @@ public class PhysicsPluginTests : IDisposable
     [Fact]
     public void Install_WithAllFeatures_RegistersBothSystems()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var config = new PhysicsConfig { EnableInterpolation = true };
         var plugin = new PhysicsPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 

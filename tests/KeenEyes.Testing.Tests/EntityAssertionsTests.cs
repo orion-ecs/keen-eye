@@ -298,7 +298,7 @@ public class EntityAssertionsTests
     {
         var entity = new Entity(0, 1);
 
-        Should.Throw<ArgumentNullException>(() => entity.ShouldBeAlive((World)null!));
+        Should.Throw<ArgumentNullException>(() => entity.ShouldBeAlive((IWorld)null!));
     }
 
     [Fact]
@@ -306,7 +306,7 @@ public class EntityAssertionsTests
     {
         var entity = new Entity(0, 1);
 
-        Should.Throw<ArgumentNullException>(() => entity.ShouldHaveComponent<TestPosition>((World)null!));
+        Should.Throw<ArgumentNullException>(() => entity.ShouldHaveComponent<TestPosition>((IWorld)null!));
     }
 
     [Fact]

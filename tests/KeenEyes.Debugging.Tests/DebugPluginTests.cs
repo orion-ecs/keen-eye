@@ -600,8 +600,8 @@ public partial class DebugPluginTests
         var plugin = new DebugPlugin();
         world.InstallPlugin(plugin);
 
-        var entity1 = world.Spawn().Build();
-        var entity2 = world.Spawn().Build();
+        _ = world.Spawn().Build();
+        _ = world.Spawn().Build();
 
         var tracker = world.GetExtension<MemoryTracker>();
         Assert.NotNull(tracker);
@@ -1140,7 +1140,6 @@ public partial class DebugPluginTests
     {
         // Arrange - disable profiling and GC tracking so no hooks are needed
         using var world = new World();
-        var mockHooks = new MockSystemHookCapability();
         var options = new DebugOptions
         {
             EnableProfiling = false,
