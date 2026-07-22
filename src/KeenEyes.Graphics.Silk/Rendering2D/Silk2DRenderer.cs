@@ -653,6 +653,14 @@ public sealed class Silk2DRenderer : I2DRenderer
     }
 
     /// <inheritdoc />
+    public void DrawTextureRotated(TextureHandle texture, in Rectangle destRect, in Rectangle sourceRect, float rotation, Vector2 origin, Vector4? tint = null)
+    {
+        // Simplified: rotation is not yet applied by this renderer (matches the rotation-only
+        // overload above); draw the requested sub-region so sprite-sheet frames select correctly.
+        DrawTextureRegion(texture, destRect, sourceRect, tint);
+    }
+
+    /// <inheritdoc />
     public void PushClip(in Rectangle rect)
     {
         Flush(); // Flush before changing scissor

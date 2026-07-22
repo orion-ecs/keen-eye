@@ -70,12 +70,41 @@ Adding a `ParticleEmitter` component fires `World.OnComponentAdded<ParticleEmitt
 - **Burst emission** - `BurstCount` particles every `BurstInterval` seconds; `BurstInterval = 0` fires a single one-shot burst instead of repeating.
 - **Spawn ranges** - `LifetimeMin`/`LifetimeMax`, `StartSizeMin`/`StartSizeMax`, `StartSpeedMin`/`StartSpeedMax`, `StartRotationMin`/`StartRotationMax` are all sampled uniformly at random per particle.
 - **Shape** - `Shape` (an `EmissionShape`) controls where particles spawn and their initial direction.
-- **Visuals** - `Texture` (a `TextureHandle`; particles render as filled circles when it's not valid), `StartColor`, and `BlendMode`.
+- **Space** - `Space` (a `ParticleSpace`) selects world- or local-space simulation (see [Simulation Space](#simulation-space-world-vs-local) below); defaults to `ParticleSpace.World`.
+- **Visuals** - `Texture` (a `TextureHandle`; particles render as filled circles when it's not valid), `StartColor`, `BlendMode`, and `TextureSheetColumns`/`TextureSheetRows` for sprite-sheet animation (see [Texture Sheet Animation](#texture-sheet-animation) below).
 - **Playback** - `IsPlaying` toggles emission on and off without removing the component.
 
 `ParticleEmitter.Default` provides sensible starting values, and `ParticleEmitter.Burst(count, lifetime)` / `ParticleEmitter.Continuous(rate, lifetime)` are convenience factories for the two emission modes.
 
-`EmissionShape` supports four shapes via static factories: `EmissionShape.Point`, `EmissionShape.Sphere(radius)`, `EmissionShape.Cone(radius, angle)` / `EmissionShape.Cone(radius, angle, direction)`, and `EmissionShape.Box(width, height)`.
+`EmissionShape` supports these shapes via static factories:
+
+- `EmissionShape.Point` - all particles emit from the emitter origin.
+- `EmissionShape.Sphere(radius)` - a filled disc (the sphere flattened to 2D); direction is radial outward.
+- `EmissionShape.Cone(radius, angle)` / `EmissionShape.Cone(radius, angle, direction)` - a spread arc around `direction`.
+- `EmissionShape.Box(width, height)` - a filled rectangle; direction is random.
+- `EmissionShape.Hemisphere(radius)` / `EmissionShape.Hemisphere(radius, direction)` - **2D interpretation:** a filled half-disc. Positions and initial directions span the 180-degree arc centered on `direction` (default `Vector2.UnitY`), mirroring how `Sphere` flattens a sphere to a disc.
+- `EmissionShape.Edge(length)` / `EmissionShape.Edge(extent)` - a straight line segment centered on the emitter (spanning `-extent/2` to `+extent/2`; `Edge(length)` lies along the X axis). Direction is random. The extent is stored in `Size`.
+- `EmissionShape.Circle(radius)` - the **perimeter** of a ring (not a filled disc): positions lie exactly at distance `radius`, with an outward radial direction.
+
+#### Simulation Space (World vs Local)
+
+`ParticleEmitter.Space` chooses the coordinate space particles are simulated in:
+
+- `ParticleSpace.World` (default) - particles spawn at the emitter's current world position and are stored in world coordinates. Once spawned they are independent, so moving the emitter afterwards leaves existing particles where they are. This is the original behavior.
+- `ParticleSpace.Local` - particles are stored relative to the emitter. Their world position is resolved each frame by adding the emitter's current position, so moving the emitter carries all of its live particles with it. Velocity is still integrated in the emitter's local frame.
+
+#### Texture Sheet Animation
+
+Set `TextureSheetColumns` and `TextureSheetRows` to treat `Texture` as a grid of animation frames laid out left-to-right, top-to-bottom. When `TextureSheetColumns * TextureSheetRows` is greater than 1, `ParticleRenderSystem` selects the frame from each particle's normalized age: frame `0` at spawn advancing to the final frame at end of life (`frame = clamp((int)(normalizedAge * frameCount), 0, frameCount - 1)`), and draws only that frame's UV sub-rectangle. A value of `0` or `1` for either dimension disables sheet animation and draws the whole texture.
+
+```csharp
+var explosion = ParticleEffects.Explosion() with
+{
+    Texture = explosionSheet, // e.g. a 4x4 grid of 16 frames
+    TextureSheetColumns = 4,
+    TextureSheetRows = 4
+};
+```
 
 ### `ParticleEmitterModifiers`
 

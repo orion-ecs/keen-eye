@@ -154,6 +154,95 @@ public class EmissionShapeTests
 
     #endregion
 
+    #region Hemisphere Shape Tests
+
+    [Fact]
+    public void Hemisphere_HasHemisphereType()
+    {
+        var shape = EmissionShape.Hemisphere(10f);
+
+        Assert.Equal(EmissionShapeType.Hemisphere, shape.Type);
+    }
+
+    [Fact]
+    public void Hemisphere_HasCorrectRadius()
+    {
+        var shape = EmissionShape.Hemisphere(25f);
+
+        Assert.Equal(25f, shape.Radius);
+    }
+
+    [Fact]
+    public void Hemisphere_DefaultsToUpwardDirection()
+    {
+        var shape = EmissionShape.Hemisphere(10f);
+
+        Assert.Equal(Vector2.UnitY, shape.Direction);
+    }
+
+    [Fact]
+    public void Hemisphere_WithDirection_NormalizesDirection()
+    {
+        var shape = EmissionShape.Hemisphere(10f, new Vector2(3f, 4f)); // Length 5
+
+        var normalized = Vector2.Normalize(new Vector2(3f, 4f));
+        Assert.Equal(normalized.X, shape.Direction.X, 4);
+        Assert.Equal(normalized.Y, shape.Direction.Y, 4);
+    }
+
+    #endregion
+
+    #region Edge Shape Tests
+
+    [Fact]
+    public void Edge_HasEdgeType()
+    {
+        var shape = EmissionShape.Edge(100f);
+
+        Assert.Equal(EmissionShapeType.Edge, shape.Type);
+    }
+
+    [Fact]
+    public void Edge_Length_StoresExtentOnXAxis()
+    {
+        var shape = EmissionShape.Edge(200f);
+
+        Assert.Equal(200f, shape.Size.X);
+        Assert.Equal(0f, shape.Size.Y);
+    }
+
+    [Fact]
+    public void Edge_Extent_StoresExtentVector()
+    {
+        var extent = new Vector2(50f, 120f);
+        var shape = EmissionShape.Edge(extent);
+
+        Assert.Equal(EmissionShapeType.Edge, shape.Type);
+        Assert.Equal(extent, shape.Size);
+    }
+
+    #endregion
+
+    #region Circle Shape Tests
+
+    [Fact]
+    public void Circle_HasCircleType()
+    {
+        var shape = EmissionShape.Circle(10f);
+
+        Assert.Equal(EmissionShapeType.Circle, shape.Type);
+    }
+
+    [Fact]
+    public void Circle_HasCorrectRadius()
+    {
+        var shape = EmissionShape.Circle(42f);
+
+        Assert.Equal(42f, shape.Radius);
+    }
+
+    #endregion
+
     #region Record Struct Behavior Tests
 
     [Fact]

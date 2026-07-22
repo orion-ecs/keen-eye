@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Common;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Particles.Components;
 using KeenEyes.Particles.Data;
@@ -15,7 +16,9 @@ namespace KeenEyes.Particles.Systems;
 /// batching.
 /// </para>
 /// <para>
-/// If a particle has a valid texture, it uses <see cref="I2DRenderer.DrawTextureRotated"/>.
+/// If a particle has a valid texture, it uses
+/// <see cref="I2DRenderer.DrawTextureRotated(TextureHandle, in Rectangle, float, Vector2, Vector4?)"/>
+/// (or the sprite-sheet overload when a texture sheet is configured).
 /// Otherwise, it falls back to <see cref="I2DRenderer.FillCircle"/>.
 /// </para>
 /// </remarks>
@@ -63,10 +66,10 @@ public sealed class ParticleRenderSystem : SystemBase
 
         // Group emitters by blend mode for efficient batching
         // We'll render transparent first, then additive (so glow effects overlay)
-        var transparentEmitters = new List<(Entity, ParticlePool, ParticleEmitter)>();
-        var additiveEmitters = new List<(Entity, ParticlePool, ParticleEmitter)>();
-        var multiplyEmitters = new List<(Entity, ParticlePool, ParticleEmitter)>();
-        var premultipliedEmitters = new List<(Entity, ParticlePool, ParticleEmitter)>();
+        var transparentEmitters = new List<RenderEntry>();
+        var additiveEmitters = new List<RenderEntry>();
+        var multiplyEmitters = new List<RenderEntry>();
+        var premultipliedEmitters = new List<RenderEntry>();
 
         foreach (var entity in World.Query<ParticleEmitter>())
         {
@@ -77,19 +80,27 @@ public sealed class ParticleRenderSystem : SystemBase
                 continue;
             }
 
+            // Local-space particles are stored relative to the emitter, so translate them
+            // by the emitter's current position at render time. World-space particles use
+            // absolute coordinates and need no offset.
+            var offset = emitter.Space == ParticleSpace.Local
+                ? ResolveEmitterPosition(entity)
+                : Vector2.Zero;
+            var entry = new RenderEntry(pool, emitter, offset);
+
             switch (emitter.BlendMode)
             {
                 case BlendMode.Transparent:
-                    transparentEmitters.Add((entity, pool, emitter));
+                    transparentEmitters.Add(entry);
                     break;
                 case BlendMode.Additive:
-                    additiveEmitters.Add((entity, pool, emitter));
+                    additiveEmitters.Add(entry);
                     break;
                 case BlendMode.Multiply:
-                    multiplyEmitters.Add((entity, pool, emitter));
+                    multiplyEmitters.Add(entry);
                     break;
                 case BlendMode.Premultiplied:
-                    premultipliedEmitters.Add((entity, pool, emitter));
+                    premultipliedEmitters.Add(entry);
                     break;
             }
         }
@@ -102,7 +113,7 @@ public sealed class ParticleRenderSystem : SystemBase
         RenderBatch(r, additiveEmitters);
     }
 
-    private static void RenderBatch(I2DRenderer renderer, List<(Entity, ParticlePool, ParticleEmitter)> emitters)
+    private static void RenderBatch(I2DRenderer renderer, List<RenderEntry> emitters)
     {
         if (emitters.Count == 0)
         {
@@ -111,25 +122,32 @@ public sealed class ParticleRenderSystem : SystemBase
 
         // Calculate total particles for batch hint
         var totalParticles = 0;
-        foreach (var (_, pool, _) in emitters)
+        foreach (var entry in emitters)
         {
-            totalParticles += pool.ActiveCount;
+            totalParticles += entry.Pool.ActiveCount;
         }
 
         renderer.Begin();
         renderer.SetBatchHint(totalParticles);
 
-        foreach (var (_, pool, emitter) in emitters)
+        foreach (var entry in emitters)
         {
-            RenderPool(renderer, pool, emitter.Texture);
+            RenderPool(renderer, entry.Pool, in entry.Emitter, entry.Offset);
         }
 
         renderer.End();
     }
 
-    private static void RenderPool(I2DRenderer renderer, ParticlePool pool, TextureHandle texture)
+    private static void RenderPool(I2DRenderer renderer, ParticlePool pool, in ParticleEmitter emitter, Vector2 offset)
     {
+        var texture = emitter.Texture;
         var hasTexture = texture.IsValid;
+
+        // A texture sheet is only active when the grid describes more than one frame.
+        var columns = Math.Max(1, emitter.TextureSheetColumns);
+        var rows = Math.Max(1, emitter.TextureSheetRows);
+        var frameCount = columns * rows;
+        var animated = hasTexture && frameCount > 1;
 
         for (var i = 0; i < pool.Capacity; i++)
         {
@@ -146,32 +164,95 @@ public sealed class ParticleRenderSystem : SystemBase
 
             var size = pool.Sizes[i];
             var halfSize = size / 2f;
+            var posX = pool.PositionsX[i] + offset.X;
+            var posY = pool.PositionsY[i] + offset.Y;
 
             if (hasTexture)
             {
                 var destRect = new Rectangle(
-                    pool.PositionsX[i] - halfSize,
-                    pool.PositionsY[i] - halfSize,
+                    posX - halfSize,
+                    posY - halfSize,
                     size,
                     size);
 
-                renderer.DrawTextureRotated(
-                    texture,
-                    in destRect,
-                    pool.Rotations[i],
-                    new Vector2(0.5f, 0.5f),
-                    color);
+                if (animated)
+                {
+                    var sourceRect = FrameSourceRect(pool.NormalizedAges[i], columns, rows, frameCount);
+                    renderer.DrawTextureRotated(
+                        texture,
+                        in destRect,
+                        in sourceRect,
+                        pool.Rotations[i],
+                        new Vector2(0.5f, 0.5f),
+                        color);
+                }
+                else
+                {
+                    renderer.DrawTextureRotated(
+                        texture,
+                        in destRect,
+                        pool.Rotations[i],
+                        new Vector2(0.5f, 0.5f),
+                        color);
+                }
             }
             else
             {
                 // Fallback: draw as filled circle
                 renderer.FillCircle(
-                    pool.PositionsX[i],
-                    pool.PositionsY[i],
+                    posX,
+                    posY,
                     halfSize,
                     color,
                     segments: 8);
             }
         }
+    }
+
+    /// <summary>
+    /// Computes the UV sub-rectangle for the sprite-sheet frame at the given normalized age.
+    /// </summary>
+    private static Rectangle FrameSourceRect(float normalizedAge, int columns, int rows, int frameCount)
+    {
+        var frame = (int)(normalizedAge * frameCount);
+        if (frame < 0)
+        {
+            frame = 0;
+        }
+        else if (frame >= frameCount)
+        {
+            frame = frameCount - 1;
+        }
+
+        var col = frame % columns;
+        var row = frame / columns;
+        var frameWidth = 1f / columns;
+        var frameHeight = 1f / rows;
+
+        return new Rectangle(col * frameWidth, row * frameHeight, frameWidth, frameHeight);
+    }
+
+    private Vector2 ResolveEmitterPosition(Entity entity)
+    {
+        if (World.Has<Transform2D>(entity))
+        {
+            ref readonly var transform = ref World.Get<Transform2D>(entity);
+            return transform.Position;
+        }
+
+        if (World.Has<Transform3D>(entity))
+        {
+            ref readonly var transform3D = ref World.Get<Transform3D>(entity);
+            return new Vector2(transform3D.Position.X, transform3D.Position.Y);
+        }
+
+        return Vector2.Zero;
+    }
+
+    private readonly struct RenderEntry(ParticlePool pool, ParticleEmitter emitter, Vector2 offset)
+    {
+        public readonly ParticlePool Pool = pool;
+        public readonly ParticleEmitter Emitter = emitter;
+        public readonly Vector2 Offset = offset;
     }
 }

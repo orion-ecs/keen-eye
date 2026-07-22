@@ -260,6 +260,12 @@ public sealed class Mock2DRenderer : I2DRenderer
         RecordCommand(new DrawTextureRotatedCommand(texture, destRect, rotation, origin, tint ?? Vector4.One));
     }
 
+    /// <inheritdoc />
+    public void DrawTextureRotated(TextureHandle texture, in Rectangle destRect, in Rectangle sourceRect, float rotation, Vector2 origin, Vector4? tint = null)
+    {
+        RecordCommand(new DrawTextureRotatedRegionCommand(texture, destRect, sourceRect, rotation, origin, tint ?? Vector4.One));
+    }
+
     #endregion
 
     #region Clipping
@@ -480,6 +486,17 @@ public sealed record DrawTextureRegionCommand(TextureHandle Texture, Rectangle D
 /// <param name="Origin">The rotation origin.</param>
 /// <param name="Tint">The color tint.</param>
 public sealed record DrawTextureRotatedCommand(TextureHandle Texture, Rectangle DestRect, float Rotation, Vector2 Origin, Vector4 Tint) : Draw2DCommand;
+
+/// <summary>
+/// A rotated texture region draw command (for sprite-sheet/atlas frames).
+/// </summary>
+/// <param name="Texture">The texture handle.</param>
+/// <param name="DestRect">The destination rectangle.</param>
+/// <param name="SourceRect">The source rectangle in texture coordinates.</param>
+/// <param name="Rotation">The rotation angle in radians.</param>
+/// <param name="Origin">The rotation origin.</param>
+/// <param name="Tint">The color tint.</param>
+public sealed record DrawTextureRotatedRegionCommand(TextureHandle Texture, Rectangle DestRect, Rectangle SourceRect, float Rotation, Vector2 Origin, Vector4 Tint) : Draw2DCommand;
 
 /// <summary>
 /// A push clip command.

@@ -58,6 +58,16 @@ public partial struct ParticleEmitter
     /// </summary>
     public EmissionShape Shape;
 
+    /// <summary>
+    /// The coordinate space particles are simulated in.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="ParticleSpace.World"/> (the default) spawns particles at the emitter's
+    /// world position and leaves them behind when the emitter moves.
+    /// <see cref="ParticleSpace.Local"/> attaches particles to the emitter so they move with it.
+    /// </remarks>
+    public ParticleSpace Space;
+
     #endregion
 
     #region Particle Properties
@@ -122,6 +132,27 @@ public partial struct ParticleEmitter
     /// </summary>
     public BlendMode BlendMode;
 
+    /// <summary>
+    /// Number of columns in the particle's texture sheet (sprite sheet).
+    /// </summary>
+    /// <remarks>
+    /// When <see cref="TextureSheetColumns"/> multiplied by <see cref="TextureSheetRows"/>
+    /// is greater than 1, the emitter's <see cref="Texture"/> is treated as a grid of
+    /// animation frames laid out left-to-right, top-to-bottom. The displayed frame advances
+    /// with each particle's normalized age (0 at spawn, the final frame at end of life).
+    /// A value of 0 or 1 disables sheet animation and draws the whole texture.
+    /// </remarks>
+    public int TextureSheetColumns;
+
+    /// <summary>
+    /// Number of rows in the particle's texture sheet (sprite sheet).
+    /// </summary>
+    /// <remarks>
+    /// See <see cref="TextureSheetColumns"/> for how the grid is interpreted. A value of
+    /// 0 or 1 (combined with the column count) disables sheet animation.
+    /// </remarks>
+    public int TextureSheetRows;
+
     #endregion
 
     #region State (managed by system)
@@ -160,6 +191,7 @@ public partial struct ParticleEmitter
         BurstCount = 0,
         BurstInterval = 0f,
         Shape = EmissionShape.Point,
+        Space = ParticleSpace.World,
         LifetimeMin = 1f,
         LifetimeMax = 2f,
         StartSizeMin = 8f,
@@ -171,6 +203,8 @@ public partial struct ParticleEmitter
         Texture = TextureHandle.Invalid,
         StartColor = Vector4.One,
         BlendMode = BlendMode.Additive,
+        TextureSheetColumns = 1,
+        TextureSheetRows = 1,
         IsPlaying = true,
         EmissionAccumulator = 0f,
         BurstTimer = 0f,
