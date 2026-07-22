@@ -106,7 +106,30 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release
 
+      # paths-ignore in codeql-config.yml does not filter results for compiled
+      # languages (the tracer extracts everything the build compiles, including
+      # source-generator output emitted under obj/). Analyze without uploading,
+      # strip generated/build-output paths from the SARIF, then upload.
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{matrix.language}}"
+          upload: failure-only
+          output: sarif-results
+
+      - name: Filter generated code from SARIF
+        uses: advanced-security/filter-sarif@v1
+        with:
+          patterns: |
+            -**/obj/**
+            -**/bin/**
+            -**/*.g.cs
+            -**/*.generated.cs
+            -**/*.Designer.cs
+          input: sarif-results/${{ matrix.language }}.sarif
+          output: sarif-results/${{ matrix.language }}.sarif
+
+      - name: Upload filtered SARIF
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: sarif-results/${{ matrix.language }}.sarif
