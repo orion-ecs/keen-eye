@@ -508,4 +508,20 @@ public readonly record struct GhostInstance(
     /// Gets the optional label for this ghost.
     /// </summary>
     public string? Label => Config.Label;
+
+    /// <summary>
+    /// Gets a value indicating whether this ghost should render a motion trail.
+    /// </summary>
+    public bool ShowTrail => Config.ShowTrail;
+
+    /// <summary>
+    /// Copies this ghost's recent trail points into the supplied buffer.
+    /// </summary>
+    /// <param name="destination">The buffer to fill, oldest point first.</param>
+    /// <returns>The number of points written.</returns>
+    /// <remarks>
+    /// This is a convenience pass-through to
+    /// <see cref="GhostPlayer.GetTrailPoints(Span{Vector3})"/> and does not allocate.
+    /// </remarks>
+    public int GetTrailPoints(Span<Vector3> destination) => Player.GetTrailPoints(destination);
 }

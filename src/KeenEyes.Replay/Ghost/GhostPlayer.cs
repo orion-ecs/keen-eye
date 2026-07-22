@@ -753,6 +753,86 @@ public sealed class GhostPlayer : IDisposable
     }
 
     /// <summary>
+    /// Copies the ghost's recent trail points into the supplied buffer.
+    /// </summary>
+    /// <param name="destination">
+    /// The buffer to fill. Points are written oldest-first, so the last written
+    /// element is the most recent position (nearest the ghost's current position).
+    /// If the buffer is smaller than the available history, only the most recent
+    /// points that fit are written.
+    /// </param>
+    /// <returns>The number of points written to <paramref name="destination"/>.</returns>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// <para>
+    /// The trail is the sequence of recorded frame positions at or before the current
+    /// playback position, ordered from oldest to newest. It tracks the playhead across
+    /// <see cref="Update"/>, <see cref="UpdateByDistance"/>, <see cref="SeekToTime"/>,
+    /// and <see cref="SeekToFrame"/>.
+    /// </para>
+    /// <para>
+    /// The trail is empty while the playhead sits on the first frame - that is, before
+    /// playback has advanced past the start and after <see cref="Stop"/> resets it -
+    /// since there is no traversed path to show.
+    /// </para>
+    /// <para>
+    /// This overload does not allocate: it writes directly into the caller's span.
+    /// Renderers should reuse a single buffer sized to
+    /// <see cref="GhostVisualConfig.TrailLength"/> across frames.
+    /// </para>
+    /// </remarks>
+    public int GetTrailPoints(Span<Vector3> destination)
+    {
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            return FillTrailPoints(destination);
+        }
+    }
+
+    /// <summary>
+    /// Gets the ghost's recent trail points as a newly allocated array.
+    /// </summary>
+    /// <param name="maxPoints">The maximum number of points to return.</param>
+    /// <returns>
+    /// An array of trail points ordered from oldest to newest, containing at most
+    /// <paramref name="maxPoints"/> entries. Returns an empty array when there is no
+    /// trail (for example, before playback starts).
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="maxPoints"/> is negative.</exception>
+    /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
+    /// <remarks>
+    /// This convenience overload allocates a new array on each call. For per-frame
+    /// rendering, prefer <see cref="GetTrailPoints(Span{Vector3})"/> with a reusable
+    /// buffer to avoid garbage.
+    /// </remarks>
+    public Vector3[] GetTrailPoints(int maxPoints)
+    {
+        if (maxPoints < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxPoints), maxPoints,
+                "Maximum points cannot be negative.");
+        }
+
+        ThrowIfDisposed();
+
+        lock (syncRoot)
+        {
+            int available = AvailableTrailPointCount();
+            int count = Math.Min(maxPoints, available);
+            if (count == 0)
+            {
+                return [];
+            }
+
+            var result = new Vector3[count];
+            FillTrailPoints(result);
+            return result;
+        }
+    }
+
+    /// <summary>
     /// Releases all resources used by the <see cref="GhostPlayer"/>.
     /// </summary>
     public void Dispose()
@@ -772,6 +852,55 @@ public sealed class GhostPlayer : IDisposable
             Unload();
             disposed = true;
         }
+    }
+
+    // Number of recorded frames at or before the current playhead. Must be called
+    // with syncRoot held.
+    private int AvailableTrailPointCount()
+    {
+        if (ghostData is null)
+        {
+            return 0;
+        }
+
+        var frames = ghostData.Frames;
+        if (frames.Count == 0)
+        {
+            return 0;
+        }
+
+        // The trail is the path behind the playhead. When the playhead sits on the
+        // first frame there is no traversed path yet, so the trail is empty - this
+        // covers "before playback starts" (Load leaves the playhead at frame 0) and
+        // "after Stop" (Stop resets the playhead to frame 0).
+        if (currentFrameIndex <= 0)
+        {
+            return 0;
+        }
+
+        return currentFrameIndex + 1;
+    }
+
+    // Writes the most recent trail points (oldest-first) into destination and returns
+    // the count written. Must be called with syncRoot held.
+    private int FillTrailPoints(Span<Vector3> destination)
+    {
+        int available = AvailableTrailPointCount();
+        if (available == 0 || destination.Length == 0)
+        {
+            return 0;
+        }
+
+        var frames = ghostData!.Frames;
+        int count = Math.Min(destination.Length, available);
+        int start = currentFrameIndex - count + 1;
+
+        for (int i = 0; i < count; i++)
+        {
+            destination[i] = frames[start + i].Position;
+        }
+
+        return count;
     }
 
     private bool UpdateTimeSynced(float deltaTime)

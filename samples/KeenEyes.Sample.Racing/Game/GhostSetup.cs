@@ -21,19 +21,33 @@ public static class GhostSetup
     public const string CarEntityName = "RaceCar";
 
     /// <summary>Gold, mostly transparent styling for the fastest recorded lap.</summary>
+    /// <remarks>
+    /// Enables a gradient racing-line trail so the fastest lap's path is easy to trace.
+    /// </remarks>
     public static GhostVisualConfig BestLap { get; } = new()
     {
         TintColor = new Vector4(1f, 0.84f, 0f, 1f),
         Opacity = 0.4f,
         Label = "Best Lap",
+        ShowTrail = true,
+        TrailLength = 40,
+        TrailFadeStart = 0.25f,
+        TrailStyle = TrailStyle.Gradient,
     };
 
     /// <summary>Cyan, semi-transparent styling for the immediately preceding lap.</summary>
+    /// <remarks>
+    /// Enables a shorter dotted trail to distinguish it from the best lap's line.
+    /// </remarks>
     public static GhostVisualConfig PreviousLap { get; } = new()
     {
         TintColor = new Vector4(0f, 0.7f, 1f, 1f),
         Opacity = 0.55f,
         Label = "Previous Lap",
+        ShowTrail = true,
+        TrailLength = 24,
+        TrailFadeStart = 0.4f,
+        TrailStyle = TrailStyle.Dots,
     };
 
     /// <summary>
