@@ -548,4 +548,36 @@ public class WorldGetAllEntitiesTests
         Assert.Contains(entity2, entities);
         Assert.DoesNotContain(entity1, entities);
     }
+
+    #region WithBoxed Validation
+
+    [Fact]
+    public void WithBoxed_WithMatchingValueType_AddsComponent()
+    {
+        using var world = new World();
+        var info = world.Components.Register<BuilderTestPosition>();
+
+        var entity = world.Spawn()
+            .WithBoxed(info, new BuilderTestPosition { X = 3f, Y = 4f })
+            .Build();
+
+        var component = world.Get<BuilderTestPosition>(entity);
+        Assert.Equal(3f, component.X);
+        Assert.Equal(4f, component.Y);
+    }
+
+    [Fact]
+    public void WithBoxed_WithMismatchedValueType_ThrowsArgumentException()
+    {
+        using var world = new World();
+        var info = world.Components.Register<BuilderTestPosition>();
+
+        var builder = world.Spawn();
+
+        var exception = Assert.Throws<ArgumentException>(
+            () => builder.WithBoxed(info, new BuilderTestVelocity { X = 1f, Y = 2f }));
+        Assert.Contains("not assignable", exception.Message);
+    }
+
+    #endregion
 }

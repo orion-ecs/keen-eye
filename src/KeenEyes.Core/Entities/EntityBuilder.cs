@@ -199,10 +199,22 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     /// <exception cref="ArgumentNullException">
     /// Thrown when <paramref name="info"/> or <paramref name="value"/> is null.
     /// </exception>
+    /// <exception cref="ArgumentException">
+    /// Thrown when <paramref name="value"/> is not an instance of the component type
+    /// described by <paramref name="info"/>.
+    /// </exception>
     public EntityBuilder WithBoxed(ComponentInfo info, object value)
     {
         ArgumentNullException.ThrowIfNull(info);
         ArgumentNullException.ThrowIfNull(value);
+
+        if (!info.Type.IsInstanceOfType(value))
+        {
+            throw new ArgumentException(
+                $"Value of type '{value.GetType()}' is not assignable to component type '{info.Type}'.",
+                nameof(value));
+        }
+
         components.Add((info, value));
         return this;
     }

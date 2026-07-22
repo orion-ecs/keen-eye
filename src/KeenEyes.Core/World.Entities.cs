@@ -176,6 +176,13 @@ public sealed partial class World
     /// When an entity with a parent is despawned, it is automatically removed from its
     /// parent's children collection.
     /// </para>
+    /// <para>
+    /// <strong>Warning:</strong> Despawning entities during query iteration may cause
+    /// unexpected behavior — removal swaps the last entity into the freed slot, so one
+    /// entity can be skipped by the enumerator. Queue despawns with
+    /// <see cref="CommandBuffer.Despawn(Entity)"/> and apply them after iteration
+    /// completes instead.
+    /// </para>
     /// </remarks>
     /// <seealso cref="DespawnRecursive(Entity)"/>
     public bool Despawn(Entity entity)
