@@ -1333,6 +1333,250 @@ public class SerializationGeneratorTests
 
     #endregion
 
+    #region Engine Component Opt-In Tests
+
+    private const string EngineOptInSource = """
+        using KeenEyes;
+        using KeenEyes.Common;
+
+        [assembly: SerializeEngineComponents(typeof(Transform3D))]
+        """;
+
+    [Fact]
+    public void SerializationGenerator_WithEngineComponentOptIn_IncludesEngineComponentInSerializer()
+    {
+        var (diagnostics, generatedTrees, _) = RunGeneratorWithEngineReferences(EngineOptInSource);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("class ComponentSerializer"));
+        Assert.NotNull(generated);
+        Assert.Contains("Serialize_Transform3D", generated);
+        Assert.Contains("Deserialize_Transform3D", generated);
+        Assert.Contains("ComponentsByName[\"KeenEyes.Common.Transform3D\"]", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_WithEngineComponentAndProjectComponent_IncludesBoth()
+    {
+        var source = """
+            using KeenEyes;
+            using KeenEyes.Common;
+
+            [assembly: SerializeEngineComponents(typeof(Transform3D))]
+
+            namespace TestApp;
+
+            [Component(Serializable = true)]
+            public partial struct LapTimer
+            {
+                public float ElapsedSeconds;
+            }
+            """;
+
+        var (diagnostics, generatedTrees, _) = RunGeneratorWithEngineReferences(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.FirstOrDefault(t => t.Contains("class ComponentSerializer"));
+        Assert.NotNull(generated);
+        Assert.Contains("Serialize_Transform3D", generated);
+        Assert.Contains("Serialize_LapTimer", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_WithVector3AndQuaternionFields_EmitsExplicitWritersWithoutReflectionFallback()
+    {
+        var (diagnostics, generatedTrees, _) = RunGeneratorWithEngineReferences(EngineOptInSource);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.First(t => t.Contains("class ComponentSerializer"));
+
+        // Explicit field-by-field helpers, not the reflection-based JsonSerializer fallback
+        Assert.Contains("WriteVector3(writer, \"position\", value.Position)", generated);
+        Assert.Contains("WriteQuaternion(writer, \"rotation\", value.Rotation)", generated);
+        Assert.Contains("result.Position = ReadVector3(positionElem)", generated);
+        Assert.Contains("result.Rotation = ReadQuaternion(rotationElem)", generated);
+        Assert.DoesNotContain("JsonSerializer.Serialize(writer, value.Position)", generated);
+        Assert.DoesNotContain("JsonSerializer.Deserialize<System.Numerics.Vector3>", generated);
+    }
+
+    [Fact]
+    public void SerializationGenerator_WithEngineComponentOptIn_GeneratedCodeCompiles()
+    {
+        var (diagnostics, _, outputCompilation) = RunGeneratorWithEngineReferences(EngineOptInSource);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var compileErrors = outputCompilation.GetDiagnostics(TestContext.Current.CancellationToken)
+            .Where(d => d.Severity == DiagnosticSeverity.Error)
+            .ToList();
+        Assert.Empty(compileErrors);
+    }
+
+    [Fact]
+    public void SerializationGenerator_WithNonStructEngineComponent_ReportsKeen130()
+    {
+        var source = """
+            using KeenEyes;
+
+            [assembly: SerializeEngineComponents(typeof(string))]
+            """;
+
+        var (diagnostics, generatedTrees, _) = RunGeneratorWithEngineReferences(source);
+
+        Assert.Contains(diagnostics, d => d.Id == "KEEN130" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("class ComponentSerializer"));
+    }
+
+    [Fact]
+    public void SerializationGenerator_WithDuplicateEngineComponent_GeneratesSingleEntry()
+    {
+        var source = """
+            using KeenEyes;
+            using KeenEyes.Common;
+
+            [assembly: SerializeEngineComponents(typeof(Transform3D), typeof(Transform3D))]
+            """;
+
+        var (diagnostics, generatedTrees, outputCompilation) = RunGeneratorWithEngineReferences(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+        var generated = generatedTrees.First(t => t.Contains("class ComponentSerializer"));
+        // A duplicated opt-in must not emit duplicate methods (which would not compile)
+        var firstIndex = generated.IndexOf("private static JsonElement Serialize_Transform3D", StringComparison.Ordinal);
+        var lastIndex = generated.LastIndexOf("private static JsonElement Serialize_Transform3D", StringComparison.Ordinal);
+        Assert.True(firstIndex >= 0);
+        Assert.Equal(firstIndex, lastIndex);
+        Assert.Empty(outputCompilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity == DiagnosticSeverity.Error));
+    }
+
+    [Fact]
+    public void SerializationGenerator_EngineComponentJsonRoundTrip_PreservesTransformValues()
+    {
+        var serializer = CompileAndCreateSerializer(EngineOptInSource);
+
+        var original = new KeenEyes.Common.Transform3D(
+            new System.Numerics.Vector3(1.5f, -2.25f, 3.75f),
+            System.Numerics.Quaternion.CreateFromYawPitchRoll(0.5f, -0.25f, 0.75f),
+            new System.Numerics.Vector3(2f, 0.5f, 1.25f));
+
+        var json = serializer.Serialize(typeof(KeenEyes.Common.Transform3D), original);
+        Assert.NotNull(json);
+
+        var restored = serializer.Deserialize("KeenEyes.Common.Transform3D", json.Value);
+        var transform = Assert.IsType<KeenEyes.Common.Transform3D>(restored);
+
+        Assert.Equal(original.Position.X, transform.Position.X, 5);
+        Assert.Equal(original.Position.Y, transform.Position.Y, 5);
+        Assert.Equal(original.Position.Z, transform.Position.Z, 5);
+        Assert.Equal(original.Rotation.X, transform.Rotation.X, 5);
+        Assert.Equal(original.Rotation.Y, transform.Rotation.Y, 5);
+        Assert.Equal(original.Rotation.Z, transform.Rotation.Z, 5);
+        Assert.Equal(original.Rotation.W, transform.Rotation.W, 5);
+        Assert.Equal(original.Scale.X, transform.Scale.X, 5);
+        Assert.Equal(original.Scale.Y, transform.Scale.Y, 5);
+        Assert.Equal(original.Scale.Z, transform.Scale.Z, 5);
+    }
+
+    [Fact]
+    public void SerializationGenerator_EngineComponentBinaryRoundTrip_PreservesTransformValues()
+    {
+        var serializer = CompileAndCreateSerializer(EngineOptInSource);
+        var binarySerializer = Assert.IsAssignableFrom<KeenEyes.Serialization.IBinaryComponentSerializer>(serializer);
+
+        var original = new KeenEyes.Common.Transform3D(
+            new System.Numerics.Vector3(10f, 20f, 30f),
+            new System.Numerics.Quaternion(0.1f, 0.2f, 0.3f, 0.9f),
+            new System.Numerics.Vector3(1f, 2f, 3f));
+
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            Assert.True(binarySerializer.WriteTo(typeof(KeenEyes.Common.Transform3D), original, writer));
+        }
+
+        stream.Position = 0;
+        using var reader = new BinaryReader(stream);
+        var restored = binarySerializer.ReadFrom("KeenEyes.Common.Transform3D", reader);
+        var transform = Assert.IsType<KeenEyes.Common.Transform3D>(restored);
+
+        Assert.Equal(original.Position.X, transform.Position.X, 5);
+        Assert.Equal(original.Position.Y, transform.Position.Y, 5);
+        Assert.Equal(original.Position.Z, transform.Position.Z, 5);
+        Assert.Equal(original.Rotation.W, transform.Rotation.W, 5);
+        Assert.Equal(original.Scale.Z, transform.Scale.Z, 5);
+    }
+
+    /// <summary>
+    /// Runs the generator with references to the real engine assemblies (Abstractions,
+    /// Common, Core) so [SerializeEngineComponents] targets resolve and the generated
+    /// serializer can be fully compiled.
+    /// </summary>
+    private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources, CSharpCompilation OutputCompilation) RunGeneratorWithEngineReferences(string source)
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(source);
+
+        var runtimeDir = System.Runtime.InteropServices.RuntimeEnvironment.GetRuntimeDirectory();
+        var references = new List<MetadataReference>
+        {
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(Path.Join(runtimeDir, "System.Runtime.dll")),
+            MetadataReference.CreateFromFile(Path.Join(runtimeDir, "System.Linq.dll")),
+            MetadataReference.CreateFromFile(Path.Join(runtimeDir, "System.Memory.dll")),
+            MetadataReference.CreateFromFile(Path.Join(runtimeDir, "System.Numerics.Vectors.dll")),
+            MetadataReference.CreateFromFile(Path.Join(runtimeDir, "netstandard.dll")),
+            MetadataReference.CreateFromFile(typeof(System.Text.Json.JsonElement).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(ComponentAttribute).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(KeenEyes.Common.Transform3D).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(KeenEyes.Serialization.IComponentSerializer).Assembly.Location),
+        };
+
+        var compilation = CSharpCompilation.Create(
+            "EngineOptInTestAssembly",
+            [syntaxTree],
+            references,
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable));
+
+        var generator = new SerializationGenerator();
+        GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
+
+        var runResult = driver.GetRunResult();
+        var generatedSources = runResult.GeneratedTrees
+            .Select(t => t.GetText().ToString())
+            .ToList();
+
+        return (diagnostics, generatedSources, (CSharpCompilation)outputCompilation);
+    }
+
+    /// <summary>
+    /// Compiles the source with the generator applied, loads the emitted assembly, and
+    /// instantiates the generated KeenEyes.Generated.ComponentSerializer. The instance is
+    /// usable through the engine's serializer interfaces because the emitted assembly is
+    /// compiled against the same engine assemblies loaded in the test process.
+    /// </summary>
+    private static KeenEyes.Serialization.IComponentSerializer CompileAndCreateSerializer(string source)
+    {
+        var (diagnostics, _, outputCompilation) = RunGeneratorWithEngineReferences(source);
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        using var stream = new MemoryStream();
+        var emitResult = outputCompilation.Emit(stream, cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(
+            emitResult.Success,
+            string.Join(Environment.NewLine, emitResult.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
+
+        var assembly = System.Reflection.Assembly.Load(stream.ToArray());
+        var serializerType = assembly.GetType("KeenEyes.Generated.ComponentSerializer");
+        Assert.NotNull(serializerType);
+
+        var instance = Activator.CreateInstance(serializerType);
+        return Assert.IsAssignableFrom<KeenEyes.Serialization.IComponentSerializer>(instance);
+    }
+
+    #endregion
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(ComponentAttribute).Assembly;

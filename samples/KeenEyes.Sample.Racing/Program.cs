@@ -1,5 +1,15 @@
+using KeenEyes;
+using KeenEyes.Common;
+using KeenEyes.Generated;
 using KeenEyes.Replay.Ghost;
 using KeenEyes.Sample.Racing;
+
+// The ghost pipeline records each car's Transform3D - an engine component from
+// KeenEyes.Common. The source generator only serializes components declared in
+// this project, so engine components must be opted in explicitly. This single
+// attribute folds Transform3D into the generated ComponentSerializer alongside
+// the sample's own [Component(Serializable = true)] structs.
+[assembly: SerializeEngineComponents(typeof(Transform3D))]
 
 // =============================================================================
 // KEEN EYES ECS - Racing Ghost Mode Demo
@@ -24,7 +34,7 @@ Console.WriteLine(new string('=', 60));
 var track = new Track(radius: 50f);
 var renderer = new TrackRenderer(track);
 var raceManager = new RaceManager(track, renderer);
-var serializer = new RacingComponentSerializer();
+var serializer = ComponentSerializer.Instance;
 
 Console.WriteLine($"Track: circular, radius {track.Radius:F0}, lap length {track.Length:F1} units.\n");
 

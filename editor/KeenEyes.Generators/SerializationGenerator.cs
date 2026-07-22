@@ -20,6 +20,19 @@ public sealed class SerializationGenerator : IIncrementalGenerator
     private const string ComponentAttribute = "KeenEyes.ComponentAttribute";
     private const string MigrateFromAttribute = "KeenEyes.MigrateFromAttribute";
     private const string DefaultValueAttribute = "KeenEyes.DefaultValueAttribute";
+    private const string SerializeEngineComponentsAttribute = "KeenEyes.SerializeEngineComponentsAttribute";
+    private const string ComponentInterface = "KeenEyes.IComponent";
+
+    /// <summary>
+    /// KEEN130: A type passed to [SerializeEngineComponents] is not a struct implementing IComponent.
+    /// </summary>
+    private static readonly DiagnosticDescriptor InvalidEngineComponentDescriptor = new(
+        id: "KEEN130",
+        title: "Invalid engine component type",
+        messageFormat: "Type '{0}' cannot be serialized as an engine component; it must be a struct implementing KeenEyes.IComponent",
+        category: "KeenEyes.Serialization",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -34,24 +47,110 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
         var collected = serializableComponents.Collect();
 
+        // Find engine components opted in via [assembly: SerializeEngineComponents(...)]
+        var engineCandidates = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                SerializeEngineComponentsAttribute,
+                predicate: static (_, _) => true,
+                transform: static (ctx, _) => GetEngineComponentCandidates(ctx))
+            .SelectMany(static (candidates, _) => candidates)
+            .Collect();
+
         // Generate the serialization registry only if there are serializable components
-        context.RegisterSourceOutput(collected, static (ctx, components) =>
+        context.RegisterSourceOutput(collected.Combine(engineCandidates), static (ctx, pair) =>
         {
+            var (components, candidates) = pair;
+
+            // Report invalid [SerializeEngineComponents] targets
+            foreach (var candidate in candidates)
+            {
+                if (candidate.Info is null)
+                {
+                    ctx.ReportDiagnostic(Diagnostic.Create(
+                        InvalidEngineComponentDescriptor,
+                        candidate.Location,
+                        candidate.DisplayName));
+                }
+            }
+
             var validComponents = components
                 .Where(c => c is not null)
                 .Select(c => c!)
-                .ToImmutableArray();
+                .ToList();
+
+            // Fold in valid engine components, skipping duplicates. A project component
+            // with the same full name wins over an engine opt-in.
+            var knownNames = new HashSet<string>(validComponents.Select(c => c.FullName));
+            foreach (var candidate in candidates)
+            {
+                if (candidate.Info is not null && knownNames.Add(candidate.Info.FullName))
+                {
+                    validComponents.Add(candidate.Info);
+                }
+            }
 
             // Don't generate anything if there are no serializable components
             // This avoids conflicts when multiple projects reference KeenEyes.Core
-            if (validComponents.Length == 0)
+            if (validComponents.Count == 0)
             {
                 return;
             }
 
-            var source = GenerateSerializationRegistry(validComponents);
+            var source = GenerateSerializationRegistry(validComponents.ToImmutableArray());
             ctx.AddSource("ComponentSerializer.g.cs", SourceText.From(source, Encoding.UTF8));
         });
+    }
+
+    /// <summary>
+    /// Resolves the types listed in [assembly: SerializeEngineComponents(...)] applications.
+    /// Invalid targets (non-structs or types not implementing IComponent) produce a
+    /// candidate without info so a diagnostic can be reported at the attribute site.
+    /// </summary>
+    private static ImmutableArray<EngineComponentCandidate> GetEngineComponentCandidates(
+        GeneratorAttributeSyntaxContext context)
+    {
+        var results = ImmutableArray.CreateBuilder<EngineComponentCandidate>();
+
+        foreach (var attr in context.Attributes)
+        {
+            if (attr.ConstructorArguments.Length == 0 ||
+                attr.ConstructorArguments[0].Kind != TypedConstantKind.Array)
+            {
+                continue;
+            }
+
+            var location = attr.ApplicationSyntaxReference?.GetSyntax().GetLocation();
+
+            foreach (var typeArg in attr.ConstructorArguments[0].Values)
+            {
+                if (typeArg.Value is not INamedTypeSymbol typeSymbol)
+                {
+                    continue;
+                }
+
+                var isComponentStruct = typeSymbol.TypeKind == TypeKind.Struct &&
+                    typeSymbol.AllInterfaces.Any(i => i.ToDisplayString() == ComponentInterface);
+
+                if (!isComponentStruct)
+                {
+                    results.Add(new EngineComponentCandidate(
+                        null, typeSymbol.ToDisplayString(), location));
+                    continue;
+                }
+
+                var info = new SerializableComponentInfo(
+                    typeSymbol.Name,
+                    typeSymbol.ContainingNamespace.ToDisplayString(),
+                    typeSymbol.ToDisplayString(),
+                    CollectSerializableFields(typeSymbol),
+                    Version: 1,
+                    Migrations: ImmutableArray<MigrationMethodInfo>.Empty);
+
+                results.Add(new EngineComponentCandidate(info, info.FullName, location));
+            }
+        }
+
+        return results.ToImmutable();
     }
 
     private static SerializableComponentInfo? GetSerializableComponentInfo(GeneratorAttributeSyntaxContext context)
@@ -88,6 +187,52 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         }
 
         // Collect fields for serialization
+        var fields = CollectSerializableFields(typeSymbol);
+
+        // Collect migration methods
+        var migrations = new List<MigrationMethodInfo>();
+        foreach (var member in typeSymbol.GetMembers())
+        {
+            if (member is not IMethodSymbol method)
+            {
+                continue;
+            }
+
+            foreach (var migrateAttr in method.GetAttributes())
+            {
+                if (migrateAttr.AttributeClass?.ToDisplayString() != MigrateFromAttribute)
+                {
+                    continue;
+                }
+
+                // Validate migration method signature and extract version
+                if (migrateAttr.ConstructorArguments.Length > 0 &&
+                    migrateAttr.ConstructorArguments[0].Value is int fromVersion &&
+                    method.IsStatic &&
+                    SymbolEqualityComparer.Default.Equals(method.ReturnType, typeSymbol) &&
+                    method.Parameters.Length == 1 &&
+                    method.Parameters[0].Type.ToDisplayString() == "System.Text.Json.JsonElement")
+                {
+                    migrations.Add(new MigrationMethodInfo(fromVersion, method.Name));
+                }
+            }
+        }
+
+        return new SerializableComponentInfo(
+            typeSymbol.Name,
+            typeSymbol.ContainingNamespace.ToDisplayString(),
+            typeSymbol.ToDisplayString(),
+            fields,
+            version,
+            migrations.ToImmutableArray());
+    }
+
+    /// <summary>
+    /// Collects the serializable instance fields of a component struct, including any
+    /// [DefaultValue] literals used for auto-migration.
+    /// </summary>
+    private static ImmutableArray<SerializableFieldInfo> CollectSerializableFields(INamedTypeSymbol typeSymbol)
+    {
         var fields = new List<SerializableFieldInfo>();
         foreach (var member in typeSymbol.GetMembers())
         {
@@ -123,42 +268,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 defaultValueLiteral));
         }
 
-        // Collect migration methods
-        var migrations = new List<MigrationMethodInfo>();
-        foreach (var member in typeSymbol.GetMembers())
-        {
-            if (member is not IMethodSymbol method)
-            {
-                continue;
-            }
-
-            foreach (var migrateAttr in method.GetAttributes())
-            {
-                if (migrateAttr.AttributeClass?.ToDisplayString() != MigrateFromAttribute)
-                {
-                    continue;
-                }
-
-                // Validate migration method signature and extract version
-                if (migrateAttr.ConstructorArguments.Length > 0 &&
-                    migrateAttr.ConstructorArguments[0].Value is int fromVersion &&
-                    method.IsStatic &&
-                    SymbolEqualityComparer.Default.Equals(method.ReturnType, typeSymbol) &&
-                    method.Parameters.Length == 1 &&
-                    method.Parameters[0].Type.ToDisplayString() == "System.Text.Json.JsonElement")
-                {
-                    migrations.Add(new MigrationMethodInfo(fromVersion, method.Name));
-                }
-            }
-        }
-
-        return new SerializableComponentInfo(
-            typeSymbol.Name,
-            typeSymbol.ContainingNamespace.ToDisplayString(),
-            typeSymbol.ToDisplayString(),
-            fields.ToImmutableArray(),
-            version,
-            migrations.ToImmutableArray());
+        return fields.ToImmutableArray();
     }
 
     private static string GetJsonTypeName(ITypeSymbol type)
@@ -180,6 +290,11 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "decimal" or "System.Decimal" => "Decimal",
             "bool" or "System.Boolean" => "Boolean",
             "string" or "System.String" => "String",
+            // System.Numerics types get explicit, AOT-safe field-by-field code. The
+            // generic Object fallback would route them through JsonSerializer, which
+            // ignores their public fields (X/Y/Z/W) with default options.
+            "System.Numerics.Vector3" => "Vector3",
+            "System.Numerics.Quaternion" => "Quaternion",
             _ => "Object" // For complex types, use generic deserialization
         };
     }
@@ -570,9 +685,67 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             GenerateComponentMethods(sb, component);
         }
 
+        // Shared System.Numerics JSON helpers, emitted only when a field needs them
+        GenerateNumericsHelpers(sb, components);
+
         sb.AppendLine("}");
 
         return sb.ToString();
+    }
+
+    /// <summary>
+    /// Emits Read/Write helper methods for System.Numerics field types that appear in at
+    /// least one component. The helpers write each member explicitly, keeping the generated
+    /// JSON code reflection-free for Native AOT.
+    /// </summary>
+    private static void GenerateNumericsHelpers(StringBuilder sb, ImmutableArray<SerializableComponentInfo> components)
+    {
+        var usesVector3 = components.Any(c => c.Fields.Any(f => f.JsonTypeName == "Vector3"));
+        var usesQuaternion = components.Any(c => c.Fields.Any(f => f.JsonTypeName == "Quaternion"));
+
+        if (usesVector3)
+        {
+            sb.AppendLine("    private static void WriteVector3(Utf8JsonWriter writer, string name, System.Numerics.Vector3 value)");
+            sb.AppendLine("    {");
+            sb.AppendLine("        writer.WriteStartObject(name);");
+            sb.AppendLine("        writer.WriteNumber(\"x\", value.X);");
+            sb.AppendLine("        writer.WriteNumber(\"y\", value.Y);");
+            sb.AppendLine("        writer.WriteNumber(\"z\", value.Z);");
+            sb.AppendLine("        writer.WriteEndObject();");
+            sb.AppendLine("    }");
+            sb.AppendLine();
+            sb.AppendLine("    private static System.Numerics.Vector3 ReadVector3(JsonElement element)");
+            sb.AppendLine("    {");
+            sb.AppendLine("        return new System.Numerics.Vector3(");
+            sb.AppendLine("            element.TryGetProperty(\"x\", out var x) ? x.GetSingle() : 0f,");
+            sb.AppendLine("            element.TryGetProperty(\"y\", out var y) ? y.GetSingle() : 0f,");
+            sb.AppendLine("            element.TryGetProperty(\"z\", out var z) ? z.GetSingle() : 0f);");
+            sb.AppendLine("    }");
+            sb.AppendLine();
+        }
+
+        if (usesQuaternion)
+        {
+            sb.AppendLine("    private static void WriteQuaternion(Utf8JsonWriter writer, string name, System.Numerics.Quaternion value)");
+            sb.AppendLine("    {");
+            sb.AppendLine("        writer.WriteStartObject(name);");
+            sb.AppendLine("        writer.WriteNumber(\"x\", value.X);");
+            sb.AppendLine("        writer.WriteNumber(\"y\", value.Y);");
+            sb.AppendLine("        writer.WriteNumber(\"z\", value.Z);");
+            sb.AppendLine("        writer.WriteNumber(\"w\", value.W);");
+            sb.AppendLine("        writer.WriteEndObject();");
+            sb.AppendLine("    }");
+            sb.AppendLine();
+            sb.AppendLine("    private static System.Numerics.Quaternion ReadQuaternion(JsonElement element)");
+            sb.AppendLine("    {");
+            sb.AppendLine("        return new System.Numerics.Quaternion(");
+            sb.AppendLine("            element.TryGetProperty(\"x\", out var x) ? x.GetSingle() : 0f,");
+            sb.AppendLine("            element.TryGetProperty(\"y\", out var y) ? y.GetSingle() : 0f,");
+            sb.AppendLine("            element.TryGetProperty(\"z\", out var z) ? z.GetSingle() : 0f,");
+            sb.AppendLine("            element.TryGetProperty(\"w\", out var w) ? w.GetSingle() : 1f);");
+            sb.AppendLine("    }");
+            sb.AppendLine();
+        }
     }
 
     private static void GenerateComponentMethods(StringBuilder sb, SerializableComponentInfo component)
@@ -587,36 +760,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             var camelFieldName = StringHelpers.ToCamelCase(field.Name);
             sb.AppendLine($"        if (json.TryGetProperty(\"{camelFieldName}\", out var {camelFieldName}Elem))");
             sb.AppendLine("        {");
-
-            if (field.JsonTypeName == "Object")
-            {
-                // Complex type - use generic deserialization
-                if (field.IsNullable)
-                {
-                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText());");
-                }
-                else
-                {
-                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText()) ?? throw new JsonException(\"Non-nullable field '{field.Name}' was null in JSON\");");
-                }
-            }
-            else if (field.JsonTypeName == "String")
-            {
-                if (field.IsNullable)
-                {
-                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString();");
-                }
-                else
-                {
-                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString() ?? string.Empty;");
-                }
-            }
-            else
-            {
-                // Value types like int, bool, etc. - GetInt32(), GetBoolean(), etc. never return null
-                sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.Get{field.JsonTypeName}();");
-            }
-
+            AppendJsonFieldAssignment(sb, field, camelFieldName);
             sb.AppendLine("        }");
         }
 
@@ -647,6 +791,10 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             else if (field.JsonTypeName == "Boolean")
             {
                 sb.AppendLine($"        writer.WriteBoolean(\"{camelFieldName}\", value.{field.Name});");
+            }
+            else if (field.JsonTypeName is "Vector3" or "Quaternion")
+            {
+                sb.AppendLine($"        Write{field.JsonTypeName}(writer, \"{camelFieldName}\", value.{field.Name});");
             }
             else
             {
@@ -718,32 +866,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             sb.AppendLine("        {");
 
             // Generate the field reading code (same as deserialize)
-            if (field.JsonTypeName == "Object")
-            {
-                if (field.IsNullable)
-                {
-                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText());");
-                }
-                else
-                {
-                    sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText()) ?? throw new JsonException(\"Non-nullable field '{field.Name}' was null in JSON\");");
-                }
-            }
-            else if (field.JsonTypeName == "String")
-            {
-                if (field.IsNullable)
-                {
-                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString();");
-                }
-                else
-                {
-                    sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString() ?? string.Empty;");
-                }
-            }
-            else
-            {
-                sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.Get{field.JsonTypeName}();");
-            }
+            AppendJsonFieldAssignment(sb, field, camelFieldName);
 
             sb.AppendLine("        }");
 
@@ -760,6 +883,48 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        return result;");
         sb.AppendLine("    }");
         sb.AppendLine();
+    }
+
+    /// <summary>
+    /// Emits the assignment reading one field from an already-fetched JsonElement local
+    /// (named <c>{camelFieldName}Elem</c>) into <c>result.{field.Name}</c>. Shared by the
+    /// deserialize and auto-migration method generators.
+    /// </summary>
+    private static void AppendJsonFieldAssignment(StringBuilder sb, SerializableFieldInfo field, string camelFieldName)
+    {
+        if (field.JsonTypeName == "Object")
+        {
+            // Complex type - use generic deserialization
+            if (field.IsNullable)
+            {
+                sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText());");
+            }
+            else
+            {
+                sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText()) ?? throw new JsonException(\"Non-nullable field '{field.Name}' was null in JSON\");");
+            }
+        }
+        else if (field.JsonTypeName == "String")
+        {
+            if (field.IsNullable)
+            {
+                sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString();");
+            }
+            else
+            {
+                sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.GetString() ?? string.Empty;");
+            }
+        }
+        else if (field.JsonTypeName is "Vector3" or "Quaternion")
+        {
+            // System.Numerics types use generated field-by-field readers
+            sb.AppendLine($"            result.{field.Name} = Read{field.JsonTypeName}({camelFieldName}Elem);");
+        }
+        else
+        {
+            // Value types like int, bool, etc. - GetInt32(), GetBoolean(), etc. never return null
+            sb.AppendLine($"            result.{field.Name} = {camelFieldName}Elem.Get{field.JsonTypeName}();");
+        }
     }
 
     private static void GenerateMigratorMethods(StringBuilder sb)
@@ -1119,6 +1284,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "Decimal" => "reader.ReadDecimal()",
             "Boolean" => "reader.ReadBoolean()",
             "String" => "reader.ReadString()", // BinaryReader.ReadString() never returns null
+            "Vector3" => "new System.Numerics.Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle())",
+            "Quaternion" => "new System.Numerics.Quaternion(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle())",
             _ => isNullable
                 ? $"JsonSerializer.Deserialize<{type}>(reader.ReadString())"
                 : $"JsonSerializer.Deserialize<{type}>(reader.ReadString()) ?? throw new InvalidDataException(\"Non-nullable field was null in binary data\")"
@@ -1133,6 +1300,8 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "UInt32" or "UInt64" or "UInt16" or "SByte" or
             "Single" or "Double" or "Decimal" or "Boolean" or "String"
                 => $"writer.Write({valueExpr});",
+            "Vector3" => $"writer.Write({valueExpr}.X); writer.Write({valueExpr}.Y); writer.Write({valueExpr}.Z);",
+            "Quaternion" => $"writer.Write({valueExpr}.X); writer.Write({valueExpr}.Y); writer.Write({valueExpr}.Z); writer.Write({valueExpr}.W);",
             _ => $"writer.Write(JsonSerializer.Serialize({valueExpr}));" // Complex types as JSON
         };
     }
@@ -1161,4 +1330,14 @@ public sealed class SerializationGenerator : IIncrementalGenerator
     private sealed record MigrationMethodInfo(
         int FromVersion,
         string MethodName);
+
+    /// <summary>
+    /// A type listed in [assembly: SerializeEngineComponents(...)]. <see cref="Info"/> is
+    /// null when the type is not a valid component struct, in which case a KEEN130
+    /// diagnostic is reported at <see cref="Location"/>.
+    /// </summary>
+    private sealed record EngineComponentCandidate(
+        SerializableComponentInfo? Info,
+        string DisplayName,
+        Location? Location);
 }

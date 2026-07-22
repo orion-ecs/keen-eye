@@ -164,6 +164,23 @@ public partial struct Position
 
 The source generator creates a `ComponentSerializationRegistry` class that handles serialization without reflection.
 
+### Engine Components
+
+The generator only sees components declared **in the compiling project**, so engine-provided components (such as `KeenEyes.Common.Transform3D`) are absent from the generated serializer by default. Features that read them from snapshots — replay ghost extraction, for example — would silently receive no data.
+
+Opt engine components in with an assembly-level attribute:
+
+```csharp
+using KeenEyes;
+using KeenEyes.Common;
+
+[assembly: SerializeEngineComponents(typeof(Transform3D))]
+```
+
+Each listed type must be a struct implementing `IComponent` (the generator reports `KEEN130` otherwise). The generator then emits the same AOT-safe code for it as for your own `[Component(Serializable = true)]` structs, so the single generated `ComponentSerializer` covers JSON, binary, registration, and default creation for engine and game components alike. Only the types you list are included — nothing is registered implicitly.
+
+Fields of type `System.Numerics.Vector3` and `System.Numerics.Quaternion` are serialized member-by-member with explicit reader/writer code (no reflection), producing nested objects such as `{"position": {"x": 1.0, "y": 2.0, "z": 3.0}}`.
+
 ## Custom JSON Options
 
 Customize JSON serialization:
