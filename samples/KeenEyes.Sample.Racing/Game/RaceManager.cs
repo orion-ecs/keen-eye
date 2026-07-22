@@ -39,6 +39,10 @@ public sealed class RaceManager
     private readonly Track track;
     private readonly TrackRenderer renderer;
 
+    // Reused across checkpoints so reading a ghost's trail allocates nothing per call.
+    // Sized to comfortably hold the sample's configured trail lengths.
+    private readonly Vector3[] trailBuffer = new Vector3[128];
+
     /// <summary>
     /// Initializes a new instance of the <see cref="RaceManager"/> class.
     /// </summary>
@@ -145,6 +149,7 @@ public sealed class RaceManager
         {
             new('C', "Your Car", world.Get<Transform3D>(car).Position),
         };
+        var trails = new List<TrackTrail>();
 
         foreach (var ghost in ghosts.ActiveGhosts)
         {
@@ -157,8 +162,24 @@ public sealed class RaceManager
 
             Console.WriteLine($"          vs {label,-13} {gap:+0.00;-0.00}s ({status})");
             markers.Add(new TrackMarker(symbol, label, ghost.Position));
+
+            // When the ghost opts into a trail, read its recent path from the
+            // data-only provider. GetTrailPoints writes into our reusable buffer with
+            // no per-call allocation; we then snapshot just the points it wrote.
+            if (ghost.ShowTrail)
+            {
+                var length = Math.Min(ghost.Config.TrailLength, trailBuffer.Length);
+                var count = ghost.GetTrailPoints(trailBuffer.AsSpan(0, length));
+                if (count > 0)
+                {
+                    trails.Add(new TrackTrail(
+                        trailBuffer.AsSpan(0, count).ToArray(),
+                        ghost.Config.TrailFadeStart,
+                        ghost.Config.TrailStyle));
+                }
+            }
         }
 
-        Console.WriteLine(renderer.Render(markers));
+        Console.WriteLine(renderer.Render(markers, trails));
     }
 }
