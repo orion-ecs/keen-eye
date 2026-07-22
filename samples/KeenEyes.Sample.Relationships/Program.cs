@@ -87,36 +87,36 @@ var damageEventCount = 0;
 // Subscribe to entity lifecycle events. Stacked using statements scope the subscriptions
 // so they are disposed (unsubscribed) once the lifecycle demo finishes - even if an
 // exception is thrown - before the change-tracking demo begins.
-using (var createdSub = world.OnEntityCreated((entity, name) =>
+using (world.OnEntityCreated((entity, name) =>
 {
     createdCount++;
     Console.WriteLine($"  [EVENT] Entity created: {name ?? "unnamed"} ({entity})");
 }))
-using (var destroyedSub = world.OnEntityDestroyed(entity =>
+using (world.OnEntityDestroyed(entity =>
 {
     destroyedCount++;
     var name = world.GetName(entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Entity destroyed: {name} ({entity})");
 }))
 // Subscribe to component events
-using (var healthAddedSub = world.OnComponentAdded<Health>((entity, health) =>
+using (world.OnComponentAdded<Health>((entity, health) =>
 {
     var name = world.GetName(entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Health added to {name}: {health.Current}/{health.Max}");
 }))
-using (var healthChangedSub = world.OnComponentChanged<Health>((entity, oldVal, newVal) =>
+using (world.OnComponentChanged<Health>((entity, oldVal, newVal) =>
 {
     var name = world.GetName(entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Health changed for {name}: {oldVal.Current} -> {newVal.Current}");
 }))
 // Subscribe to custom events
-using (var damageSub = world.Events.Subscribe<DamageEvent>(evt =>
+using (world.Events.Subscribe<DamageEvent>(evt =>
 {
     damageEventCount++;
     var targetName = world.GetName(evt.Target) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Damage event: {targetName} took {evt.Amount} damage");
 }))
-using (var deathSub = world.Events.Subscribe<DeathEvent>(evt =>
+using (world.Events.Subscribe<DeathEvent>(evt =>
 {
     var name = world.GetName(evt.Entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Death event: {name} died ({evt.Cause})");
