@@ -75,7 +75,9 @@ public interface ICrowdNavigationProvider : INavigationProvider
     /// Gets the simulated state of a crowd agent.
     /// </summary>
     /// <param name="entity">The registered crowd agent entity.</param>
-    /// <param name="state">The agent's simulated position and velocities.</param>
+    /// <param name="state">
+    /// The agent's simulated position, velocities, and off-mesh traversal state.
+    /// </param>
     /// <returns>True if the entity is registered in the crowd.</returns>
     bool TryGetCrowdAgentState(Entity entity, out CrowdAgentState state);
 }
@@ -86,7 +88,22 @@ public interface ICrowdNavigationProvider : INavigationProvider
 /// <param name="Position">The agent's simulated position on the navigation mesh.</param>
 /// <param name="Velocity">The agent's actual velocity after avoidance and collision resolution.</param>
 /// <param name="DesiredVelocity">The agent's desired velocity before avoidance was applied.</param>
+/// <param name="IsTraversingOffMeshLink">
+/// True while the crowd simulation is animating the agent across an off-mesh
+/// connection instead of steering it along the walkable surface.
+/// </param>
+/// <param name="OffMeshLinkStart">
+/// The world-space entry point of the off-mesh connection being traversed.
+/// Only meaningful while <paramref name="IsTraversingOffMeshLink"/> is true.
+/// </param>
+/// <param name="OffMeshLinkEnd">
+/// The world-space exit point of the off-mesh connection being traversed.
+/// Only meaningful while <paramref name="IsTraversingOffMeshLink"/> is true.
+/// </param>
 public readonly record struct CrowdAgentState(
     Vector3 Position,
     Vector3 Velocity,
-    Vector3 DesiredVelocity);
+    Vector3 DesiredVelocity,
+    bool IsTraversingOffMeshLink,
+    Vector3 OffMeshLinkStart,
+    Vector3 OffMeshLinkEnd);
