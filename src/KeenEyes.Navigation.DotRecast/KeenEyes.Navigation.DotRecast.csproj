@@ -19,6 +19,7 @@
   <ItemGroup>
     <PackageReference Include="DotRecast.Detour" />
     <PackageReference Include="DotRecast.Detour.Crowd" />
+    <PackageReference Include="DotRecast.Detour.TileCache" />
     <PackageReference Include="DotRecast.Recast" />
   </ItemGroup>
 

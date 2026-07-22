@@ -1,4 +1,5 @@
 using KeenEyes.Navigation.Abstractions;
+using KeenEyes.Navigation.Abstractions.Components;
 
 namespace KeenEyes.Navigation.DotRecast;
 
@@ -56,6 +57,7 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
 {
     private readonly NavMeshConfig config;
     private readonly NavMeshData? prebuiltMesh;
+    private readonly NavMeshStreamingManager? streamingManager;
     private DotRecastProvider? provider;
     private NavMeshObstacleManager? obstacleManager;
 
@@ -123,6 +125,37 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
         this.config = config;
     }
 
+    /// <summary>
+    /// Creates a new DotRecast navigation plugin that streams navmesh tiles
+    /// around anchor entities.
+    /// </summary>
+    /// <param name="streamingManager">
+    /// The streaming manager to drive. The plugin installs its
+    /// <see cref="NavMeshStreamingManager.Mesh"/> on the provider, exposes the
+    /// manager as a world extension, and registers a system that mirrors
+    /// entities carrying <c>NavMeshStreamingAnchor</c> into the manager each
+    /// update. The caller retains ownership and must dispose the manager after
+    /// the plugin is uninstalled.
+    /// </param>
+    /// <param name="config">The query configuration.</param>
+    /// <exception cref="ArgumentNullException">Thrown if streamingManager or config is null.</exception>
+    /// <exception cref="ArgumentException">Thrown if configuration is invalid.</exception>
+    public DotRecastNavigationPlugin(NavMeshStreamingManager streamingManager, NavMeshConfig config)
+    {
+        ArgumentNullException.ThrowIfNull(streamingManager);
+        ArgumentNullException.ThrowIfNull(config);
+
+        var error = config.Validate();
+        if (error != null)
+        {
+            throw new ArgumentException($"Invalid NavMeshConfig: {error}", nameof(config));
+        }
+
+        this.streamingManager = streamingManager;
+        this.config = config;
+        prebuiltMesh = streamingManager.Mesh;
+    }
+
     /// <inheritdoc/>
     public string Name => "DotRecastNavigation";
 
@@ -146,6 +179,15 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
 
         // Register the mesh builder for runtime navmesh generation
         context.SetExtension(new DotRecastMeshBuilder(config));
+
+        // Tile streaming: expose the manager and drive residency from anchor
+        // entities before path requests run (PathRequestSystem is order -100).
+        if (streamingManager != null)
+        {
+            context.RegisterComponent<NavMeshStreamingAnchor>();
+            context.SetExtension(streamingManager);
+            context.AddSystem<NavMeshStreamingSystem>(SystemPhase.Update, order: -200);
+        }
     }
 
     /// <inheritdoc/>
@@ -156,6 +198,11 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
         context.RemoveExtension<INavigationProvider>();
         context.RemoveExtension<NavMeshObstacleManager>();
         context.RemoveExtension<DotRecastMeshBuilder>();
+
+        if (streamingManager != null)
+        {
+            context.RemoveExtension<NavMeshStreamingManager>();
+        }
 
         // Dispose the provider
         provider?.Dispose();

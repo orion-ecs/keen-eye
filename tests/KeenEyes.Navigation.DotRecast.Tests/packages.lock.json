@@ -243,6 +243,7 @@
         "dependencies": {
           "DotRecast.Detour": "[2026.1.3, )",
           "DotRecast.Detour.Crowd": "[2026.1.3, )",
+          "DotRecast.Detour.TileCache": "[2026.1.3, )",
           "DotRecast.Recast": "[2026.1.3, )",
           "KeenEyes.Common": "[1.0.0, )",
           "KeenEyes.Navigation.Abstractions": "[1.0.0, )"
@@ -303,6 +304,16 @@
         "contentHash": "TvdiyfG3wpcAOX12Pt/iAGtYNyHbGPa8SyYDJjivN0n2pt//8Llr3eHzOP7Gbkln0fFUTgCjTiaIoEE0rXV2XA==",
         "dependencies": {
           "DotRecast.Detour": "2026.1.3"
+        }
+      },
+      "DotRecast.Detour.TileCache": {
+        "type": "CentralTransitive",
+        "requested": "[2026.1.3, )",
+        "resolved": "2026.1.3",
+        "contentHash": "pI8rQyTb86TMUA65msqts6d8brQ5m0x/zkALqwrUZkpmrJS3Rx1CEh/yM2EFgCfLBz9xt/Oi7MyT3cjUP5LjOA==",
+        "dependencies": {
+          "DotRecast.Detour": "2026.1.3",
+          "DotRecast.Recast": "2026.1.3"
         }
       },
       "DotRecast.Recast": {
