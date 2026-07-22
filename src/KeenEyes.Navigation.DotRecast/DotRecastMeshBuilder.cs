@@ -23,8 +23,12 @@ namespace KeenEyes.Navigation.DotRecast;
 /// <item>Generating polygon mesh and detail mesh</item>
 /// </list>
 /// <para>
-/// For large worlds, use tiled building with the <see cref="NavMeshConfig.UseTiles"/>
-/// option to enable runtime updates and streaming.
+/// For large worlds, enable tiled building with <see cref="NavMeshConfig.UseTiles"/>.
+/// A tiled build partitions the geometry bounds into a grid of square tiles
+/// (<see cref="NavMeshConfig.TileSize"/> cells on a side), builds each tile
+/// independently with a bordered configuration, and installs them into a
+/// multi-tile <see cref="DtNavMesh"/> via <see cref="DtNavMesh.AddTile"/>. This is
+/// the prerequisite for runtime tile streaming and bounded partial rebuilds.
 /// </para>
 /// </remarks>
 public sealed class DotRecastMeshBuilder
@@ -71,10 +75,16 @@ public sealed class DotRecastMeshBuilder
     /// <param name="vertices">The mesh vertices (XYZ triplets).</param>
     /// <param name="indices">The triangle indices.</param>
     /// <param name="areaIds">Optional per-triangle area IDs. If null, all triangles are walkable.</param>
+    /// <param name="overrideTileSize">
+    /// Optional per-surface tile size (in cells) that overrides
+    /// <see cref="NavMeshConfig.TileSize"/> when greater than zero. Mirrors
+    /// <c>NavMeshSurface.OverrideTileSize</c>. Ignored when tiling is disabled.
+    /// </param>
     /// <returns>The built navigation mesh data.</returns>
     /// <exception cref="ArgumentException">Thrown when geometry is invalid.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when overrideTileSize is negative.</exception>
     /// <exception cref="InvalidOperationException">Thrown when mesh building fails.</exception>
-    public NavMeshData Build(ReadOnlySpan<float> vertices, ReadOnlySpan<int> indices, int[]? areaIds = null)
+    public NavMeshData Build(ReadOnlySpan<float> vertices, ReadOnlySpan<int> indices, int[]? areaIds = null, int overrideTileSize = 0)
     {
         if (vertices.Length == 0 || vertices.Length % 3 != 0)
         {
@@ -85,6 +95,8 @@ public sealed class DotRecastMeshBuilder
         {
             throw new ArgumentException("Indices must be triangle triplets", nameof(indices));
         }
+
+        ArgumentOutOfRangeException.ThrowIfNegative(overrideTileSize);
 
         // Convert to arrays for DotRecast
         var vertsArray = vertices.ToArray();
@@ -100,7 +112,7 @@ public sealed class DotRecastMeshBuilder
         // Build the navmesh
         // areaIds reserved for future area marking support
         _ = areaIds;
-        return BuildFromGeometry(geom, bmin, bmax);
+        return BuildFromGeometry(geom, bmin, bmax, overrideTileSize);
     }
 
     /// <summary>
@@ -109,8 +121,12 @@ public sealed class DotRecastMeshBuilder
     /// <param name="vertices">The mesh vertices.</param>
     /// <param name="indices">The triangle indices.</param>
     /// <param name="areaIds">Optional per-triangle area IDs.</param>
+    /// <param name="overrideTileSize">
+    /// Optional per-surface tile size (in cells) that overrides
+    /// <see cref="NavMeshConfig.TileSize"/> when greater than zero.
+    /// </param>
     /// <returns>The built navigation mesh data.</returns>
-    public NavMeshData Build(ReadOnlySpan<Vector3> vertices, ReadOnlySpan<int> indices, int[]? areaIds = null)
+    public NavMeshData Build(ReadOnlySpan<Vector3> vertices, ReadOnlySpan<int> indices, int[]? areaIds = null, int overrideTileSize = 0)
     {
         // Convert Vector3 to float triplets
         var floatVerts = new float[vertices.Length * 3];
@@ -121,7 +137,7 @@ public sealed class DotRecastMeshBuilder
             floatVerts[i * 3 + 2] = vertices[i].Z;
         }
 
-        return Build(floatVerts, indices, areaIds);
+        return Build(floatVerts, indices, areaIds, overrideTileSize);
     }
 
     /// <summary>
@@ -164,8 +180,8 @@ public sealed class DotRecastMeshBuilder
             0, 3, 2,
 
             // Top face (facing up, CCW when viewed from above) - this is the walkable surface
-            4, 5, 6,
-            4, 6, 7,
+            4, 6, 5,
+            4, 7, 6,
 
             // Front face (facing -Z)
             0, 1, 5,
@@ -187,10 +203,17 @@ public sealed class DotRecastMeshBuilder
         return Build(vertices, indices, null);
     }
 
-    private NavMeshData BuildFromGeometry(IRcInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax)
+    private NavMeshData BuildFromGeometry(IRcInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax, int overrideTileSize)
     {
-        // Create Recast config
-        var rcConfig = CreateRcConfig();
+        return config.UseTiles
+            ? BuildTiled(geom, bmin, bmax, overrideTileSize)
+            : BuildSingleTile(geom, bmin, bmax);
+    }
+
+    private NavMeshData BuildSingleTile(IRcInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax)
+    {
+        // Create Recast config (tile size is irrelevant when tiling is disabled)
+        var rcConfig = CreateRcConfig(config.TileSize);
 
         // Create builder config
         var bcfg = new RcBuilderConfig(rcConfig, bmin, bmax);
@@ -203,6 +226,8 @@ public sealed class DotRecastMeshBuilder
             throw new InvalidOperationException("Failed to build navigation mesh");
         }
 
+        MarkWalkablePolys(result.Mesh);
+
         // Create Detour navmesh data from result
         var dtParams = CreateNavMeshParams(result.Mesh, result.MeshDetail, bmin, bmax);
         var meshData = DtNavMeshBuilder.CreateNavMeshData(dtParams);
@@ -212,20 +237,114 @@ public sealed class DotRecastMeshBuilder
             throw new InvalidOperationException("Failed to create navmesh data");
         }
 
-        // Create the navmesh
+        // Create the navmesh with the single-tile Init overload.
         var navMesh = new DtNavMesh();
         navMesh.Init(meshData, config.MaxVertsPerPoly, 0);
 
         return new NavMeshData(navMesh, config.ToAgentSettings());
     }
 
-    private RcConfig CreateRcConfig()
+    private NavMeshData BuildTiled(IRcInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax, int overrideTileSize)
     {
-        // RcConfig constructor takes agent parameters in world units
+        // Effective tile size honours a per-surface override (NavMeshSurface.OverrideTileSize)
+        // when positive, otherwise falls back to the global config value.
+        int tileSize = overrideTileSize > 0 ? overrideTileSize : config.TileSize;
+        var rcConfig = CreateRcConfig(tileSize);
+
+        // Partition the bounds into a grid of tiles: tw x th tiles of tileSize cells each.
+        RcRecast.CalcTileCount(bmin, bmax, config.CellSize, rcConfig.TileSizeX, rcConfig.TileSizeZ, out int tw, out int th);
+
+        // Size the navmesh so tile + poly indices fit in the reference bit budget.
+        // DotRecast packs the polygon reference as salt|tile|poly; the tile and poly
+        // indices together use 22 bits. Allocate as many bits to the tile index as the
+        // grid needs (capped at 14 to leave room for salt), and give the rest to polys.
+        int tileColumns = Math.Max(1, tw * th);
+        int tileBits = Math.Min(BitOperations.Log2(BitOperations.RoundUpToPowerOf2((uint)tileColumns)), 14);
+        int polyBits = 22 - tileBits;
+        int maxTiles = 1 << tileBits;
+        int maxPolysPerTile = 1 << polyBits;
+
+        // Tile footprint in world units.
+        float tileWorldSize = rcConfig.TileSizeX * config.CellSize;
+
+        var navMeshParams = new DtNavMeshParams
+        {
+            orig = bmin,
+            tileWidth = tileWorldSize,
+            tileHeight = tileWorldSize,
+            maxTiles = maxTiles,
+            maxPolys = maxPolysPerTile
+        };
+
+        var navMesh = new DtNavMesh();
+        navMesh.Init(navMeshParams, config.MaxVertsPerPoly);
+
+        // BuildTiles walks the whole tw x th grid and returns one result per tile.
+        var results = builder.BuildTiles(geom, rcConfig, false, true);
+
+        int tilesAdded = 0;
+        foreach (var result in results)
+        {
+            // Skip empty tiles (no walkable geometry landed in this cell).
+            if (result?.Mesh == null || result.Mesh.npolys == 0)
+            {
+                continue;
+            }
+
+            MarkWalkablePolys(result.Mesh);
+
+            var dtParams = CreateNavMeshParams(
+                result.Mesh,
+                result.MeshDetail,
+                result.Mesh.bmin,
+                result.Mesh.bmax,
+                result.TileX,
+                result.TileZ);
+
+            var meshData = DtNavMeshBuilder.CreateNavMeshData(dtParams);
+            if (meshData == null)
+            {
+                continue;
+            }
+
+            navMesh.AddTile(meshData, 0, 0, out _);
+            tilesAdded++;
+        }
+
+        if (tilesAdded == 0)
+        {
+            throw new InvalidOperationException("Failed to build navigation mesh");
+        }
+
+        return new NavMeshData(navMesh, config.ToAgentSettings());
+    }
+
+    /// <summary>
+    /// Assigns a walkable polygon flag to every non-null-area polygon so the default
+    /// Detour query filter (which requires at least one include flag bit set) can
+    /// traverse them.
+    /// </summary>
+    private static void MarkWalkablePolys(RcPolyMesh mesh)
+    {
+        for (int i = 0; i < mesh.npolys; i++)
+        {
+            if (mesh.areas[i] != RcRecast.RC_NULL_AREA)
+            {
+                mesh.flags[i] = 1;
+            }
+        }
+    }
+
+    private RcConfig CreateRcConfig(int tileSize)
+    {
+        // RcConfig constructor takes agent parameters in world units.
+        // The walkable area modification must resolve to a non-null area
+        // (RC_WALKABLE_AREA); mapping it to RC_NULL_AREA (0) would make Recast treat
+        // every span as unwalkable and produce an empty mesh.
         return new RcConfig(
             useTiles: config.UseTiles,
-            tileSizeX: config.TileSize,
-            tileSizeZ: config.TileSize,
+            tileSizeX: tileSize,
+            tileSizeZ: tileSize,
             borderSize: config.MaxVertsPerPoly + 3,
             partition: RcPartition.WATERSHED,
             cellSize: config.CellSize,
@@ -244,7 +363,7 @@ public sealed class DotRecastMeshBuilder
             filterLowHangingObstacles: config.FilterLowHangingObstacles,
             filterLedgeSpans: config.FilterLedgeSpans,
             filterWalkableLowHeightSpans: config.FilterWalkableLowHeightSpans,
-            walkableAreaMod: new RcAreaModification(0, 0x3f),
+            walkableAreaMod: new RcAreaModification(RcRecast.RC_WALKABLE_AREA),
             buildMeshDetail: true);
     }
 

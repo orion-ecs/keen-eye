@@ -121,4 +121,70 @@ internal static class TestHelper
 
         return builder.Build(vertices.ToArray(), indices.ToArray());
     }
+
+    /// <summary>
+    /// Creates a NavMeshConfig with tiled building enabled for tiled-build tests.
+    /// </summary>
+    /// <param name="tileSize">The tile size in cells.</param>
+    public static NavMeshConfig CreateTiledTestConfig(int tileSize = 48)
+    {
+        var config = CreateTestConfig();
+        config.UseTiles = true;
+        config.TileSize = tileSize;
+        return config;
+    }
+
+    /// <summary>
+    /// Builds a flat square slab (a thick floor) centered on the origin plane at Y=0.
+    /// </summary>
+    /// <remarks>
+    /// Unlike a zero-thickness plane, the slab spans a small vertical extent so Recast
+    /// can voxelize it into walkable spans. The top face (Y=0) is wound so its normal
+    /// points up, making it the walkable surface. A large slab spans multiple tiles.
+    /// </remarks>
+    /// <param name="size">The side length of the slab in world units.</param>
+    /// <returns>The vertices (XYZ triplets) and triangle indices of the slab.</returns>
+    public static (float[] Vertices, int[] Indices) BuildSlabGeometry(float size)
+    {
+        const float top = 0f;
+        const float bottom = -1f;
+
+        var vertices = new[]
+        {
+            // Bottom face
+            0f, bottom, 0f,
+            size, bottom, 0f,
+            size, bottom, size,
+            0f, bottom, size,
+
+            // Top face (walkable surface)
+            0f, top, 0f,
+            size, top, 0f,
+            size, top, size,
+            0f, top, size
+        };
+
+        var indices = new[]
+        {
+            // Bottom (normal down)
+            0, 2, 1,
+            0, 3, 2,
+
+            // Top (normal up - walkable)
+            4, 6, 5,
+            4, 7, 6,
+
+            // Sides
+            0, 1, 5,
+            0, 5, 4,
+            2, 3, 7,
+            2, 7, 6,
+            0, 4, 7,
+            0, 7, 3,
+            1, 2, 6,
+            1, 6, 5
+        };
+
+        return (vertices, indices);
+    }
 }
