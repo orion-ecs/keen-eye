@@ -2,6 +2,7 @@ using KeenEyes.Network.Components;
 using KeenEyes.Network.Prediction;
 using KeenEyes.Network.Protocol;
 using KeenEyes.Network.Serialization;
+using KeenEyes.Network.Systems;
 using KeenEyes.Network.Transport;
 using KeenEyes.Testing.Network;
 
@@ -95,6 +96,43 @@ public struct NetInput : INetworkInput
 }
 
 /// <summary>
+/// Replicated velocity component used to exercise multi-component correction magnitude.
+/// </summary>
+public struct NetVelocity : IComponent, INetworkSerializable, INetworkDeltaSerializable<NetVelocity>
+{
+    /// <summary>The X velocity.</summary>
+    public float VX;
+
+    /// <inheritdoc/>
+    public readonly void NetworkSerialize(ref BitWriter writer) => writer.WriteFloat(VX);
+
+    /// <inheritdoc/>
+    public void NetworkDeserialize(ref BitReader reader) => VX = reader.ReadFloat();
+
+    /// <inheritdoc/>
+    public readonly uint GetDirtyMask(in NetVelocity baseline) =>
+        MathF.Abs(VX - baseline.VX) > 0.0001f ? 1u : 0u;
+
+    /// <inheritdoc/>
+    public readonly void NetworkSerializeDelta(ref BitWriter writer, in NetVelocity baseline, uint dirtyMask)
+    {
+        if ((dirtyMask & 1) != 0)
+        {
+            writer.WriteFloat(VX);
+        }
+    }
+
+    /// <inheritdoc/>
+    public readonly void NetworkDeserializeDelta(ref BitReader reader, ref NetVelocity baseline, uint dirtyMask)
+    {
+        if ((dirtyMask & 1) != 0)
+        {
+            baseline.VX = reader.ReadFloat();
+        }
+    }
+}
+
+/// <summary>
 /// Test interpolator that linearly blends <see cref="NetPosition"/> values.
 /// </summary>
 public sealed class NetPositionInterpolator : INetworkInterpolator
@@ -156,6 +194,35 @@ public sealed class PredictionReconciliationTests
                 Frequency = 0,
                 Priority = 128,
                 SupportsInterpolation = true,
+                SupportsPrediction = true,
+                SupportsDelta = true,
+            });
+
+        return serializer;
+    }
+
+    private static MockNetworkSerializer CreateSerializerWithVelocity()
+    {
+        var serializer = CreateSerializer();
+        serializer.RegisterComponentWithDelta<NetVelocity>(
+            serialize: (ref BitWriter w, NetVelocity v) => w.WriteFloat(v.VX),
+            deserialize: (ref BitReader r) => new NetVelocity { VX = r.ReadFloat() },
+            getDirtyMask: (NetVelocity current, NetVelocity baseline) => current.GetDirtyMask(baseline),
+            serializeDelta: (ref BitWriter w, NetVelocity current, NetVelocity baseline, uint mask) =>
+                current.NetworkSerializeDelta(ref w, baseline, mask),
+            deserializeDelta: (ref BitReader r, NetVelocity baseline, uint mask) =>
+            {
+                new NetVelocity().NetworkDeserializeDelta(ref r, ref baseline, mask);
+                return baseline;
+            },
+            new NetworkComponentInfo
+            {
+                Type = typeof(NetVelocity),
+                NetworkTypeId = 2,
+                Strategy = SyncStrategy.Authoritative,
+                Frequency = 0,
+                Priority = 128,
+                SupportsInterpolation = false,
                 SupportsPrediction = true,
                 SupportsDelta = true,
             });
@@ -314,6 +381,156 @@ public sealed class PredictionReconciliationTests
 
     #endregion
 
+    #region Correction Magnitude Tests
+
+    [Fact]
+    public async Task OnServerStateReceived_PredictionMatches_ResetsCorrectionMagnitudeToZero()
+    {
+        var (server, client) = LocalTransport.CreatePair();
+        using var clientWorld = new World();
+
+        await server.ListenAsync(7777);
+
+        var serializer = CreateSerializer();
+        var config = new ClientNetworkConfig
+        {
+            ServerAddress = "localhost",
+            ServerPort = 7777,
+            EnablePrediction = true,
+            Serializer = serializer,
+        };
+        var clientPlugin = new NetworkClientPlugin(client, config);
+        clientWorld.InstallPlugin(clientPlugin);
+
+        await clientPlugin.ConnectAsync();
+        clientPlugin.UpdateTick(5);
+
+        var predictedEntity = clientPlugin.SpawnNetworkedEntity(networkId: 1, ownerId: clientPlugin.LocalClientId);
+        clientWorld.Add(predictedEntity, new NetPosition { X = 10f, Y = 0f });
+
+        clientWorld.Update(0.016f);
+
+        // Simulate a stale magnitude left over from an earlier correction;
+        // a matching confirmation must clear it.
+        {
+            ref var predState = ref clientWorld.Get<PredictionState>(predictedEntity);
+            predState.LastCorrectionMagnitude = 0.75f;
+        }
+
+        // Server confirms exactly what the client predicted.
+        SendComponentUpdate(server, serverTick: 5, networkId: 1, serializer, new NetPosition { X = 10f, Y = 0f });
+        client.Update();
+
+        ref readonly var result = ref clientWorld.Get<PredictionState>(predictedEntity);
+        Assert.False(result.MispredictionDetected);
+        Assert.Equal(0f, result.LastCorrectionMagnitude, 0.0001f);
+
+        clientWorld.UninstallPlugin("NetworkClient");
+        client.Dispose();
+        server.Dispose();
+    }
+
+    [Fact]
+    public async Task Reconcile_SingleComponentDiverged_SetsCorrectionMagnitudeToOne()
+    {
+        var (server, client) = LocalTransport.CreatePair();
+        using var clientWorld = new World();
+
+        await server.ListenAsync(7777);
+
+        var serializer = CreateSerializer();
+        var config = new ClientNetworkConfig
+        {
+            ServerAddress = "localhost",
+            ServerPort = 7777,
+            EnablePrediction = true,
+            Serializer = serializer,
+        };
+        var clientPlugin = new NetworkClientPlugin(client, config);
+        clientWorld.InstallPlugin(clientPlugin);
+
+        await clientPlugin.ConnectAsync();
+        clientPlugin.UpdateTick(5);
+
+        var predictedEntity = clientPlugin.SpawnNetworkedEntity(networkId: 1, ownerId: clientPlugin.LocalClientId);
+        clientWorld.Add(predictedEntity, new NetPosition { X = 10f, Y = 0f });
+
+        clientWorld.Update(0.016f);
+
+        // The only compared component diverges: 1 of 1 corrected -> magnitude 1.
+        SendComponentUpdate(server, serverTick: 5, networkId: 1, serializer, new NetPosition { X = 3f, Y = 0f });
+        client.Update();
+
+        ref readonly var result = ref clientWorld.Get<PredictionState>(predictedEntity);
+        Assert.True(result.MispredictionDetected);
+        Assert.Equal(1f, result.LastCorrectionMagnitude, 0.0001f);
+
+        clientWorld.UninstallPlugin("NetworkClient");
+        client.Dispose();
+        server.Dispose();
+    }
+
+    [Fact]
+    public async Task Reconcile_MoreComponentsDiverged_IncreasesCorrectionMagnitude()
+    {
+        var (server, client) = LocalTransport.CreatePair();
+        using var clientWorld = new World();
+
+        await server.ListenAsync(7777);
+
+        var serializer = CreateSerializerWithVelocity();
+        var config = new ClientNetworkConfig
+        {
+            ServerAddress = "localhost",
+            ServerPort = 7777,
+            EnablePrediction = true,
+            Serializer = serializer,
+        };
+        var clientPlugin = new NetworkClientPlugin(client, config);
+        clientWorld.InstallPlugin(clientPlugin);
+
+        await clientPlugin.ConnectAsync();
+        clientPlugin.UpdateTick(5);
+
+        var predictedEntity = clientPlugin.SpawnNetworkedEntity(networkId: 1, ownerId: clientPlugin.LocalClientId);
+        clientWorld.Add(predictedEntity, new NetPosition { X = 10f, Y = 0f });
+        clientWorld.Add(predictedEntity, new NetVelocity { VX = 1f });
+
+        // Save the tick-5 prediction for both components.
+        clientWorld.Update(0.016f);
+
+        // Tick 5: only the position diverges -> 1 of 2 compared components corrected.
+        SendComponentUpdates(server, serverTick: 5, networkId: 1, serializer,
+            (typeof(NetPosition), new NetPosition { X = 3f, Y = 0f }),
+            (typeof(NetVelocity), new NetVelocity { VX = 1f }));
+        client.Update();
+
+        var partialMagnitude = clientWorld.Get<PredictionState>(predictedEntity).LastCorrectionMagnitude;
+        Assert.Equal(0.5f, partialMagnitude, 0.0001f);
+
+        // Save the tick-6 prediction (post-reconciliation values).
+        clientPlugin.UpdateTick(6);
+        clientWorld.Update(0.016f);
+
+        // Tick 6: both components diverge -> 2 of 2 compared components corrected.
+        SendComponentUpdates(server, serverTick: 6, networkId: 1, serializer,
+            (typeof(NetPosition), new NetPosition { X = 50f, Y = 20f }),
+            (typeof(NetVelocity), new NetVelocity { VX = 9f }));
+        client.Update();
+
+        var fullMagnitude = clientWorld.Get<PredictionState>(predictedEntity).LastCorrectionMagnitude;
+        Assert.Equal(1f, fullMagnitude, 0.0001f);
+
+        // The magnitude grows monotonically with the breadth of the divergence.
+        Assert.True(fullMagnitude > partialMagnitude);
+
+        clientWorld.UninstallPlugin("NetworkClient");
+        client.Dispose();
+        server.Dispose();
+    }
+
+    #endregion
+
     #region Interpolation Tests
 
     [Fact]
@@ -360,6 +577,83 @@ public sealed class PredictionReconciliationTests
         server.Dispose();
     }
 
+    [Fact]
+    public void InterpolationSystem_FirstSnapshotPairAheadOfLocalClock_ProducesCorrectFactor()
+    {
+        using var world = new World();
+
+        var buffers = new Dictionary<Entity, SnapshotBuffer>();
+        var system = new InterpolationSystem(
+            interpolationDelayMs: 50f,
+            interpolator: new NetPositionInterpolator(),
+            getSnapshotBuffer: entity => buffers.GetValueOrDefault(entity));
+        world.AddSystem(system, SystemPhase.Update);
+
+        // Joining a long-running server: the plugin's tick-derived snapshot timestamps
+        // start around 100s while the system's render clock starts at zero.
+        var entity = world.Spawn()
+            .With(default(Interpolated))
+            .With(new InterpolationState { FromTime = 100.0, ToTime = 100.1 })
+            .With(new NetPosition { X = 0f, Y = 0f })
+            .Build();
+
+        var buffer = new SnapshotBuffer();
+        buffer.PushSnapshot(typeof(NetPosition), new NetPosition { X = 0f, Y = 0f });
+        buffer.PushSnapshot(typeof(NetPosition), new NetPosition { X = 10f, Y = 0f });
+        buffers[entity] = buffer;
+
+        // On the very first update the clock must adopt the snapshot time basis:
+        // render time = 100.1 - 0.05 = 100.05 -> factor (100.05 - 100.0) / 0.1 = 0.5.
+        // Without origin sync the factor would clamp to 0 until ~100s of frame time
+        // had accumulated.
+        world.Update(0.016f);
+
+        Assert.Equal(0.5f, world.Get<InterpolationState>(entity).Factor, 0.001f);
+        Assert.Equal(5f, world.Get<NetPosition>(entity).X, 0.001f);
+    }
+
+    [Fact]
+    public void InterpolationSystem_AfterLongStall_ResynchronizesToSnapshotTimestamps()
+    {
+        using var world = new World();
+
+        var buffers = new Dictionary<Entity, SnapshotBuffer>();
+        var system = new InterpolationSystem(
+            interpolationDelayMs: 50f,
+            interpolator: new NetPositionInterpolator(),
+            getSnapshotBuffer: entity => buffers.GetValueOrDefault(entity));
+        world.AddSystem(system, SystemPhase.Update);
+
+        var entity = world.Spawn()
+            .With(default(Interpolated))
+            .With(new InterpolationState { FromTime = 0.0, ToTime = 0.1 })
+            .With(new NetPosition { X = 0f, Y = 0f })
+            .Build();
+
+        var buffer = new SnapshotBuffer();
+        buffer.PushSnapshot(typeof(NetPosition), new NetPosition { X = 0f, Y = 0f });
+        buffer.PushSnapshot(typeof(NetPosition), new NetPosition { X = 10f, Y = 0f });
+        buffers[entity] = buffer;
+
+        // Normal operation: the render clock and snapshot timestamps share the origin.
+        world.Update(0.1f);
+        Assert.Equal(0.5f, world.Get<InterpolationState>(entity).Factor, 0.001f);
+
+        // Simulated stall/reconnect: the next snapshots arrive with timestamps ~50s
+        // ahead of the local render clock.
+        buffer.PushSnapshot(typeof(NetPosition), new NetPosition { X = 20f, Y = 0f });
+        buffer.PushSnapshot(typeof(NetPosition), new NetPosition { X = 30f, Y = 0f });
+        world.Set(entity, new InterpolationState { FromTime = 50.0, ToTime = 50.1 });
+
+        // One frame later the clock snaps to the new basis instead of clamping the
+        // factor to 0 for the next ~50 seconds of frame time.
+        // Render time = 50.1 - 0.05 = 50.05 -> factor 0.5 -> X = 25 (blend of 20 and 30).
+        world.Update(0.016f);
+
+        Assert.Equal(0.5f, world.Get<InterpolationState>(entity).Factor, 0.001f);
+        Assert.Equal(25f, world.Get<NetPosition>(entity).X, 0.001f);
+    }
+
     #endregion
 
     private static void SendComponentUpdate(
@@ -375,6 +669,27 @@ public sealed class PredictionReconciliationTests
         writer.WriteNetworkId(networkId);
         writer.WriteComponentCount(1);
         writer.WriteComponent(serializer, typeof(NetPosition), state);
+        server.SendToAll(writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+        server.Update();
+    }
+
+    private static void SendComponentUpdates(
+        LocalTransport server,
+        uint serverTick,
+        uint networkId,
+        MockNetworkSerializer serializer,
+        params (Type Type, object Value)[] components)
+    {
+        Span<byte> buffer = stackalloc byte[256];
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.ComponentUpdate, serverTick);
+        writer.WriteNetworkId(networkId);
+        writer.WriteComponentCount((byte)components.Length);
+        foreach (var (type, value) in components)
+        {
+            writer.WriteComponent(serializer, type, value);
+        }
+
         server.SendToAll(writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
         server.Update();
     }
