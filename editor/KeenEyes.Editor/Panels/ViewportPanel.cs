@@ -235,6 +235,13 @@ public static class ViewportPanel
     /// <summary>
     /// Renders the viewport scene.
     /// </summary>
+    /// <remarks>
+    /// Must run before the UI render pass each frame: the graphics context has no
+    /// scissored clear, so the <see cref="IGraphicsContext.Clear"/> below wipes the
+    /// entire framebuffer. <see cref="EditorApplication"/> composes the frame as
+    /// clear → this pass → UI pass, and the viewport area's UI background is
+    /// transparent so the scene rendered here stays visible beneath the UI.
+    /// </remarks>
     /// <param name="editorWorld">The editor world.</param>
     /// <param name="panel">The viewport panel entity.</param>
     public static void Render(IWorld editorWorld, Entity panel)
@@ -270,7 +277,8 @@ public static class ViewportPanel
             return;
         }
 
-        // Set viewport and clear
+        // Set viewport and clear. The clear affects the whole framebuffer, which is
+        // safe only because this pass runs before any UI is drawn this frame.
         graphics.SetViewport(viewportX, viewportY, viewportWidth, viewportHeight);
         graphics.SetClearColor(EditorColors.ViewportBackground);
         graphics.Clear(ClearMask.ColorBuffer | ClearMask.DepthBuffer);
@@ -342,6 +350,13 @@ public static class ViewportPanel
             graphics.SetCulling(true, CullFaceMode.Back);
             graphics.SetBlending(false);
         }
+
+        // Hand the context back to the UI pass: full-window viewport with the 2D
+        // pipeline state the UI renderer expects (the 2D renderer manages its own
+        // blend state but not viewport or culling).
+        graphics.SetViewport(0, 0, graphics.Width, graphics.Height);
+        graphics.SetDepthTest(false);
+        graphics.SetCulling(false);
     }
 
     /// <summary>
@@ -535,8 +550,11 @@ public static class ViewportPanel
 
     private static Entity CreateViewportArea(IWorld world, Entity panel)
     {
+        // Transparent background: the 3D scene is rendered into this region before
+        // the UI pass runs (see EditorApplication frame composition), so the UI must
+        // not paint over it. The scene pass clears the region to ViewportBackground.
         var viewportArea = WidgetFactory.CreatePanel(world, panel, "ViewportArea", new PanelConfig(
-            BackgroundColor: EditorColors.ViewportBackground
+            BackgroundColor: Vector4.Zero
         ));
 
         ref var viewportRect = ref world.Get<UIRect>(viewportArea);
