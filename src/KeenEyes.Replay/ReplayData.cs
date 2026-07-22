@@ -35,7 +35,13 @@ public sealed record ReplayData
     /// <summary>
     /// The current version of the replay data format.
     /// </summary>
-    public const int CurrentVersion = 1;
+    /// <remarks>
+    /// Version 2 introduced delta-compressed snapshot markers (see
+    /// <see cref="SnapshotMarker.Delta"/>). Version 1 recordings, whose markers are all
+    /// full keyframes, remain readable: markers lacking delta fields deserialize as
+    /// keyframes.
+    /// </remarks>
+    public const int CurrentVersion = 2;
 
     /// <summary>
     /// Gets or sets the format version of this replay data.

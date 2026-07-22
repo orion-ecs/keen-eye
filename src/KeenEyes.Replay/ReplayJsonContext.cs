@@ -19,6 +19,7 @@ namespace KeenEyes.Replay;
 [JsonSerializable(typeof(ReplayFrame))]
 [JsonSerializable(typeof(ReplayEvent))]
 [JsonSerializable(typeof(SnapshotMarker))]
+[JsonSerializable(typeof(Serialization.DeltaSnapshot))]
 [JsonSerializable(typeof(ReplayFileInfo))]
 [JsonSerializable(typeof(IReadOnlyList<ReplayFrame>))]
 [JsonSerializable(typeof(IReadOnlyList<ReplayEvent>))]

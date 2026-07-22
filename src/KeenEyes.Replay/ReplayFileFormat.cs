@@ -45,7 +45,13 @@ public static class ReplayFileFormat
     /// <summary>
     /// Current file format version.
     /// </summary>
-    public const ushort CurrentVersion = 1;
+    /// <remarks>
+    /// Version 2 added delta-compressed snapshot markers to the payload. Version 1 files
+    /// remain readable because the reader accepts any header version at or below
+    /// <see cref="CurrentVersion"/> and the delta fields are absent (all-keyframe) in v1
+    /// payloads.
+    /// </remarks>
+    public const ushort CurrentVersion = 2;
 
     /// <summary>
     /// Default file extension for replay files.
