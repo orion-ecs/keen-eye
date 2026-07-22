@@ -440,7 +440,7 @@ public sealed class UIColorPickerSystem : SystemBase
             color = new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is FormatException or OverflowException or ArgumentException)
         {
             return false;
         }

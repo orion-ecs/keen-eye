@@ -639,7 +639,7 @@ public sealed class TestBridgeClient : ITestBridge, IAsyncDisposable
                 tcs.TrySetResult(response);
             }
         }
-        catch
+        catch (JsonException)
         {
             // Ignore malformed messages
         }

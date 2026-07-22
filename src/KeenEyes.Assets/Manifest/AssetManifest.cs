@@ -165,7 +165,7 @@ public sealed class AssetManifest
             return [];
         }
 
-        return info.Dependencies ?? (IReadOnlyList<string>)[];
+        return info.Dependencies ?? [];
     }
 
     /// <summary>

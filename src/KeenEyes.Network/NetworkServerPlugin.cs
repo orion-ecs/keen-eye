@@ -523,11 +523,11 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
                 continue;
             }
 
-            // Reject silently: wrong owner, non-owner-authoritative component, or a
-            // component the server entity does not already have.
-            if (!ownsEntity
+            // Reject silently: wrong owner (existingTypes is only collected for the
+            // owning client), non-owner-authoritative component, or a component the
+            // server entity does not already have.
+            if (existingTypes is null
                 || !ownerAuth.Contains(componentType)
-                || existingTypes is null
                 || !existingTypes.Contains(componentType))
             {
                 continue;

@@ -681,7 +681,7 @@ public sealed class UdpTransport : INetworkTransport
         {
             socket.Send(packet, endpoint);
         }
-        catch
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException)
         {
             // Ignore send errors during disconnect
         }
@@ -755,7 +755,7 @@ public sealed class UdpTransport : INetworkTransport
             var pending = kvp.Value;
             var elapsed = (now - pending.SendTime).TotalMilliseconds;
 
-            if (elapsed > ResendIntervalMs * pending.Attempts)
+            if (elapsed > (double)ResendIntervalMs * pending.Attempts)
             {
                 if (pending.Attempts >= MaxResendAttempts)
                 {

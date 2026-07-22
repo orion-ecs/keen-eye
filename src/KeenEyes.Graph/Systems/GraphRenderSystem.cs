@@ -453,8 +453,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
             var port = nodeType.InputPorts[i];
-            var portColor = GetportColor(port.TypeId);
-            renderer!.FillCircle(screenPos.X, screenPos.Y, portRadius, portColor);
+            var typedPortColor = GetportColor(port.TypeId);
+            renderer!.FillCircle(screenPos.X, screenPos.Y, portRadius, typedPortColor);
         }
 
         // Draw output ports (right edge)
@@ -465,8 +465,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
             var port = nodeType.OutputPorts[i];
-            var portColor = GetportColor(port.TypeId);
-            renderer!.FillCircle(screenPos.X, screenPos.Y, portRadius, portColor);
+            var typedPortColor = GetportColor(port.TypeId);
+            renderer!.FillCircle(screenPos.X, screenPos.Y, portRadius, typedPortColor);
         }
     }
 
@@ -530,8 +530,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             {
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
                 var port = nodeType.InputPorts[i];
-                var portColor = GetportColor(port.TypeId);
-                renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, portColor);
+                var typedPortColor = GetportColor(port.TypeId);
+                renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, typedPortColor);
             }
         }
 
@@ -542,8 +542,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
             {
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
                 var port = nodeType.OutputPorts[i];
-                var portColor = GetportColor(port.TypeId);
-                renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, portColor);
+                var typedPortColor = GetportColor(port.TypeId);
+                renderer!.FillCircle(screenPos.X, screenPos.Y, stubRadius, typedPortColor);
             }
         }
     }
@@ -753,8 +753,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
                 var port = nodeType.InputPorts[i];
-                var portColor = GetportColor(port.TypeId);
-                var ghostportColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
+                var typedPortColor = GetportColor(port.TypeId);
+                var ghostportColor = new Vector4(typedPortColor.X, typedPortColor.Y, typedPortColor.Z, 0.5f);
                 renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostportColor);
             }
 
@@ -766,8 +766,8 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
                 var screenPos = GraphTransform.CanvasToScreen(canvasPos, canvasData.Pan, canvasData.Zoom, origin);
 
                 var port = nodeType.OutputPorts[i];
-                var portColor = GetportColor(port.TypeId);
-                var ghostportColor = new Vector4(portColor.X, portColor.Y, portColor.Z, 0.5f);
+                var typedPortColor = GetportColor(port.TypeId);
+                var ghostportColor = new Vector4(typedPortColor.X, typedPortColor.Y, typedPortColor.Z, 0.5f);
                 renderer.FillCircle(screenPos.X, screenPos.Y, portRadius, ghostportColor);
             }
         }

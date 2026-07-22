@@ -218,8 +218,10 @@ public sealed class FleeAction : IAIAction
         // Sample positions in a cone away from the threat
         for (int i = 0; i < SampleCount; i++)
         {
-            // Calculate angle offset for this sample
-            float angleOffset = (i - SampleCount / 2) * (MathF.PI / SampleCount);
+            // Calculate angle offset for this sample. Integer division is intentional:
+            // it centers the sample indices on the middle sample.
+            int centerIndex = SampleCount / 2;
+            float angleOffset = (i - centerIndex) * (MathF.PI / SampleCount);
 
             // Rotate the away direction
             var sampleDirection = RotateVector(awayDirection, angleOffset);

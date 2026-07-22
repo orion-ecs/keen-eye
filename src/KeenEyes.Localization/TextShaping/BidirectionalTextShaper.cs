@@ -206,10 +206,10 @@ public sealed class BidirectionalTextShaper : ITextShaper
     {
         // Arabic: U+0600-U+06FF, U+FB50-U+FDFF, U+FE70-U+FEFF
         // Hebrew: U+0590-U+05FF
-        return (c >= '\u0600' && c <= '\u06FF') ||
-               (c >= '\uFB50' && c <= '\uFDFF') ||
-               (c >= '\uFE70' && c <= '\uFEFF') ||
-               (c >= '\u0590' && c <= '\u05FF');
+        return c is (>= '\u0600' and <= '\u06FF')
+            or (>= '\uFB50' and <= '\uFDFF')
+            or (>= '\uFE70' and <= '\uFEFF')
+            or (>= '\u0590' and <= '\u05FF');
     }
 
     private static bool IsNeutralCharacter(char c)

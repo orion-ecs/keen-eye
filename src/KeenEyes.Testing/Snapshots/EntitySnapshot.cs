@@ -107,7 +107,7 @@ public sealed class EntitySnapshot
         {
             return (T)Convert.ChangeType(value!, typeof(T));
         }
-        catch
+        catch (Exception ex) when (ex is InvalidCastException or FormatException or OverflowException)
         {
             return default;
         }

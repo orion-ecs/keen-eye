@@ -64,7 +64,7 @@ internal sealed class AssetEntry(int id, string path, Type assetType)
     /// its dependencies are also released. This prevents memory leaks
     /// for assets that load other assets (e.g., glTF models with textures).
     /// </remarks>
-    public IReadOnlyList<int> Dependencies => dependencies ?? (IReadOnlyList<int>)[];
+    public IReadOnlyList<int> Dependencies => dependencies is null ? [] : dependencies;
 
     /// <summary>
     /// Adds a dependency to this asset.

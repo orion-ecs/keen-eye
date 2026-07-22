@@ -123,8 +123,8 @@ public readonly record struct GridCoordinate(int X, int Y)
     /// <returns>The straight-line distance.</returns>
     public float EuclideanDistance(GridCoordinate other)
     {
-        int dx = X - other.X;
-        int dy = Y - other.Y;
+        float dx = X - other.X;
+        float dy = Y - other.Y;
         return MathF.Sqrt(dx * dx + dy * dy);
     }
 

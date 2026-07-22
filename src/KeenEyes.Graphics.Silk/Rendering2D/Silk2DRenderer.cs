@@ -52,7 +52,7 @@ public sealed class Silk2DRenderer : I2DRenderer
     private int indexCount;
     private uint currentTexture;
     private bool isBatching;
-    private Matrix4x4 projection;
+    private Matrix4x4 screenProjection;
     private Vector2 screenSize;
     private bool disposed;
 
@@ -286,7 +286,7 @@ public sealed class Silk2DRenderer : I2DRenderer
     private void UpdateProjection()
     {
         // Orthographic projection: (0,0) at top-left, Y increasing downward
-        projection = Matrix4x4.CreateOrthographicOffCenter(0, screenSize.X, screenSize.Y, 0, -1, 1);
+        screenProjection = Matrix4x4.CreateOrthographicOffCenter(0, screenSize.X, screenSize.Y, 0, -1, 1);
     }
 
     #region I2DRenderer Implementation
@@ -294,7 +294,7 @@ public sealed class Silk2DRenderer : I2DRenderer
     /// <inheritdoc />
     public void Begin()
     {
-        Begin(projection);
+        Begin(screenProjection);
     }
 
     /// <inheritdoc />
@@ -343,7 +343,7 @@ public sealed class Silk2DRenderer : I2DRenderer
 
         // Ensure our shader and state are active (may have been changed by other renderers)
         device.UseProgram(shaderProgram);
-        device.UniformMatrix4(projectionLocation, projection);
+        device.UniformMatrix4(projectionLocation, screenProjection);
         device.Uniform1(textureLocation, 0);
         device.Enable(RenderCapability.Blend);
         device.BlendFunc(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha);
@@ -718,9 +718,9 @@ public sealed class Silk2DRenderer : I2DRenderer
 
     #endregion
 
-    private void EnsureCapacity(int vertexCount, int indexCount)
+    private void EnsureCapacity(int additionalVertices, int additionalIndices)
     {
-        if (this.vertexCount + vertexCount > MaxVertices || this.indexCount + indexCount > MaxIndices)
+        if (vertexCount + additionalVertices > MaxVertices || indexCount + additionalIndices > MaxIndices)
         {
             Flush();
         }
@@ -743,7 +743,7 @@ public sealed class Silk2DRenderer : I2DRenderer
 
         // Setup rounded rect shader
         device.UseProgram(roundedRectShaderProgram);
-        device.UniformMatrix4(roundedRectProjectionLocation, projection);
+        device.UniformMatrix4(roundedRectProjectionLocation, screenProjection);
         device.Enable(RenderCapability.Blend);
         device.BlendFunc(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha);
 
@@ -765,7 +765,7 @@ public sealed class Silk2DRenderer : I2DRenderer
 
         // Restore regular shader for subsequent draws
         device.UseProgram(shaderProgram);
-        device.UniformMatrix4(projectionLocation, projection);
+        device.UniformMatrix4(projectionLocation, screenProjection);
         device.Uniform1(textureLocation, 0);
     }
 
