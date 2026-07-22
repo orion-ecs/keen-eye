@@ -55,6 +55,14 @@ public static class DeltaRestorer
     /// The returned entity map includes all entities from the input map (minus destroyed ones)
     /// plus any newly created entities.
     /// </para>
+    /// <para>
+    /// Application is lenient: modifications targeting an entity that is missing from
+    /// <paramref name="entityMap"/> or is no longer alive are silently skipped rather than
+    /// throwing, as are singletons and cross-entity references whose types or targets cannot
+    /// be resolved. This tolerates deltas that were captured against a slightly different world
+    /// state (for example, an entity destroyed by an earlier delta), so applying a delta never
+    /// fails on an individual unresolvable change.
+    /// </para>
     /// </remarks>
     public static Dictionary<int, Entity> ApplyDelta(
         World world,

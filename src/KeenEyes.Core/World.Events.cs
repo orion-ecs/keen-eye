@@ -25,6 +25,11 @@ public sealed partial class World
     /// Component additions occur when calling <see cref="Add{T}(Entity, in T)"/> at runtime
     /// or when building an entity with <see cref="EntityBuilder.With{T}(T)"/>.
     /// </para>
+    /// <para>
+    /// To unsubscribe, call <see cref="EventSubscription.Dispose"/> on the returned subscription.
+    /// Subscriptions are idempotent: disposing the same subscription multiple times has no
+    /// additional effect.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -61,6 +66,11 @@ public sealed partial class World
     /// Component removals occur when calling <see cref="Remove{T}(Entity)"/> or when
     /// despawning an entity.
     /// </para>
+    /// <para>
+    /// To unsubscribe, call <see cref="EventSubscription.Dispose"/> on the returned subscription.
+    /// Subscriptions are idempotent: disposing the same subscription multiple times has no
+    /// additional effect.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -96,6 +106,11 @@ public sealed partial class World
     /// This is useful for implementing reactive patterns where systems need to respond
     /// to specific component value changes, such as health dropping to zero.
     /// </para>
+    /// <para>
+    /// To unsubscribe, call <see cref="EventSubscription.Dispose"/> on the returned subscription.
+    /// Subscriptions are idempotent: disposing the same subscription multiple times has no
+    /// additional effect.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>
@@ -130,6 +145,11 @@ public sealed partial class World
     /// </para>
     /// <para>
     /// Entity creation events occur when <see cref="EntityBuilder.Build"/> is called.
+    /// </para>
+    /// <para>
+    /// To unsubscribe, call <see cref="EventSubscription.Dispose"/> on the returned subscription.
+    /// Subscriptions are idempotent: disposing the same subscription multiple times has no
+    /// additional effect.
     /// </para>
     /// </remarks>
     /// <example>
@@ -167,6 +187,11 @@ public sealed partial class World
     /// <para>
     /// Entity destruction events occur when <see cref="Despawn(Entity)"/> or
     /// <see cref="DespawnRecursive(Entity)"/> is called.
+    /// </para>
+    /// <para>
+    /// To unsubscribe, call <see cref="EventSubscription.Dispose"/> on the returned subscription.
+    /// Subscriptions are idempotent: disposing the same subscription multiple times has no
+    /// additional effect.
     /// </para>
     /// </remarks>
     /// <example>
