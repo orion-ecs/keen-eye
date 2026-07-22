@@ -302,12 +302,12 @@ public partial class EntityInspectorTests
         using var world = new World();
         var inspector = CreateInspector(world);
 
-        var entity1 = world.Spawn().Build();
+        _ = world.Spawn().Build();
 
         // Act
         var snapshot1 = inspector.GetAllEntities();
 
-        var entity2 = world.Spawn().Build();
+        _ = world.Spawn().Build();
 
         var snapshot2 = inspector.GetAllEntities();
 

@@ -337,7 +337,7 @@ public partial class SnapshotTests
     {
         // Arrange
         using var world = new World();
-        var entity1 = world.Spawn().With(new Position { X = 10, Y = 20 }).Build();
+        _ = world.Spawn().With(new Position { X = 10, Y = 20 }).Build();
         var entity2 = world.Spawn().With(new Position { X = 30, Y = 40 }).Build();
         var snapshot1 = WorldSnapshot.Create(world);
 

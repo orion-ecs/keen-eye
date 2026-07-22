@@ -12,7 +12,7 @@ public class MockSystemHookCapabilityTests
     {
         var capability = new MockSystemHookCapability();
 
-        var subscription = capability.AddSystemHook(beforeHook: (_, _) => { });
+        _ = capability.AddSystemHook(beforeHook: (_, _) => { });
 
         Assert.Equal(1, capability.HookCount);
         Assert.True(capability.WasHookAdded);
@@ -24,7 +24,7 @@ public class MockSystemHookCapabilityTests
     {
         var capability = new MockSystemHookCapability();
 
-        var subscription = capability.AddSystemHook(afterHook: (_, _) => { });
+        _ = capability.AddSystemHook(afterHook: (_, _) => { });
 
         Assert.Equal(1, capability.HookCount);
         Assert.True(capability.HasAfterHook);
@@ -35,7 +35,7 @@ public class MockSystemHookCapabilityTests
     {
         var capability = new MockSystemHookCapability();
 
-        var subscription = capability.AddSystemHook(
+        _ = capability.AddSystemHook(
             beforeHook: (_, _) => { },
             afterHook: (_, _) => { });
 
@@ -49,7 +49,7 @@ public class MockSystemHookCapabilityTests
     {
         var capability = new MockSystemHookCapability();
 
-        var subscription = capability.AddSystemHook(
+        _ = capability.AddSystemHook(
             beforeHook: (_, _) => { },
             phase: SystemPhase.Update);
 
@@ -210,8 +210,8 @@ public class MockSystemHookCapabilityTests
     public void Clear_DisposesSubscriptions()
     {
         var capability = new MockSystemHookCapability();
-        var sub1 = capability.AddSystemHook(beforeHook: (_, _) => { });
-        var sub2 = capability.AddSystemHook(afterHook: (_, _) => { });
+        _ = capability.AddSystemHook(beforeHook: (_, _) => { });
+        _ = capability.AddSystemHook(afterHook: (_, _) => { });
 
         capability.Clear();
 

@@ -260,7 +260,7 @@ public class GhostTrailTests
     [Fact]
     public void GetTrailPoints_AfterDispose_ThrowsObjectDisposed()
     {
-        var player = new GhostPlayer();
+        using var player = new GhostPlayer();
         player.Load(CreateTestGhostData());
         player.Dispose();
 

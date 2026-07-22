@@ -973,7 +973,7 @@ public class CollisionEventTests : IDisposable
         world.InstallPlugin(new PhysicsPlugin());
 
         var collisionEvents = new List<CollisionEvent>();
-        var subscription = world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
+        using var subscription = world.Subscribe<CollisionEvent>(e => collisionEvents.Add(e));
 
         // Verify subscription was created
         Assert.NotNull(subscription);
@@ -987,8 +987,6 @@ public class CollisionEventTests : IDisposable
         Assert.Single(collisionEvents);
         Assert.Equal(entity1, collisionEvents[0].EntityA);
         Assert.Equal(entity2, collisionEvents[0].EntityB);
-
-        subscription.Dispose();
     }
 
     [Fact]
@@ -998,7 +996,7 @@ public class CollisionEventTests : IDisposable
         world.InstallPlugin(new PhysicsPlugin());
 
         var startedEvents = new List<CollisionStartedEvent>();
-        var subscription = world.Subscribe<CollisionStartedEvent>(e => startedEvents.Add(e));
+        using var subscription = world.Subscribe<CollisionStartedEvent>(e => startedEvents.Add(e));
 
         // Manually send a started event to verify messaging works
         var entity1 = world.Spawn().Build();
@@ -1007,8 +1005,6 @@ public class CollisionEventTests : IDisposable
 
         // Should have received the event
         Assert.Single(startedEvents);
-
-        subscription.Dispose();
     }
 
     [Fact]
@@ -1018,7 +1014,7 @@ public class CollisionEventTests : IDisposable
         world.InstallPlugin(new PhysicsPlugin());
 
         var endedEvents = new List<CollisionEndedEvent>();
-        var subscription = world.Subscribe<CollisionEndedEvent>(e => endedEvents.Add(e));
+        using var subscription = world.Subscribe<CollisionEndedEvent>(e => endedEvents.Add(e));
 
         // Manually send an ended event to verify messaging works
         var entity1 = world.Spawn().Build();
@@ -1027,8 +1023,6 @@ public class CollisionEventTests : IDisposable
 
         // Should have received the event
         Assert.Single(endedEvents);
-
-        subscription.Dispose();
     }
 
     [Fact]

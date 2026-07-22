@@ -26,7 +26,7 @@ public class PhysicsForcedCollisionTests : IDisposable
         var physics = world.GetExtension<PhysicsWorld>();
 
         var collisions = new List<CollisionEvent>();
-        var subscription = world.Subscribe<CollisionEvent>(e => collisions.Add(e));
+        using var subscription = world.Subscribe<CollisionEvent>(e => collisions.Add(e));
 
         // Ground
         _ = world.Spawn()
@@ -52,8 +52,6 @@ public class PhysicsForcedCollisionTests : IDisposable
             physics.Step(1f / 60f);
         }
 
-        subscription.Dispose();
-
         // Should have generated collision events
         Assert.True(collisions.Count > 0 || physics.HasPhysicsBody(sphere));
     }
@@ -66,7 +64,7 @@ public class PhysicsForcedCollisionTests : IDisposable
         var physics = world.GetExtension<PhysicsWorld>();
 
         var collisions = new List<CollisionEvent>();
-        var subscription = world.Subscribe<CollisionEvent>(e => collisions.Add(e));
+        using var subscription = world.Subscribe<CollisionEvent>(e => collisions.Add(e));
 
         // Two spheres moving toward each other
         var sphere1 = world.Spawn()
@@ -88,8 +86,6 @@ public class PhysicsForcedCollisionTests : IDisposable
         {
             physics.Step(1f / 60f);
         }
-
-        subscription.Dispose();
 
         // Should have detected collision or at least both bodies exist
         Assert.True(collisions.Count > 0 || (physics.HasPhysicsBody(sphere1) && physics.HasPhysicsBody(sphere2)));
@@ -137,7 +133,7 @@ public class PhysicsForcedCollisionTests : IDisposable
         var physics = world.GetExtension<PhysicsWorld>();
 
         var triggerEvents = new List<CollisionEvent>();
-        var subscription = world.Subscribe<CollisionEvent>(e =>
+        using var subscription = world.Subscribe<CollisionEvent>(e =>
         {
             if (e.IsTrigger)
             {
@@ -166,8 +162,6 @@ public class PhysicsForcedCollisionTests : IDisposable
         {
             physics.Step(1f / 60f);
         }
-
-        subscription.Dispose();
 
         // Trigger events might be detected, or at minimum no crash
         Assert.True(triggerEvents.Count >= 0);
@@ -222,7 +216,7 @@ public class PhysicsForcedCollisionTests : IDisposable
         var physics = world.GetExtension<PhysicsWorld>();
 
         var collisions = new List<CollisionEvent>();
-        var subscription = world.Subscribe<CollisionEvent>(e => collisions.Add(e));
+        using var subscription = world.Subscribe<CollisionEvent>(e => collisions.Add(e));
 
         // Ground
         _ = world.Spawn()
@@ -246,8 +240,6 @@ public class PhysicsForcedCollisionTests : IDisposable
         {
             physics.Step(1f / 60f);
         }
-
-        subscription.Dispose();
 
         // Should have generated many collision events from stacking
         Assert.True(collisions.Count >= 0);  // At least no crash

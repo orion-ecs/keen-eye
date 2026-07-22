@@ -473,7 +473,7 @@ public class TestWorldBuilderTests
         var builder = new TestWorldBuilder();
 
         Should.Throw<ArgumentNullException>(() =>
-            builder.WithTestBridge((Func<World, KeenEyes.Testing.Input.MockInputContext?, KeenEyes.TestBridge.ITestBridge>)null!));
+            builder.WithTestBridge(null!));
     }
 
     [Fact]

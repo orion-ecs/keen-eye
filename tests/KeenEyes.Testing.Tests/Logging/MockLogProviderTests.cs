@@ -284,7 +284,7 @@ public class MockLogProviderTests
     [Fact]
     public void Dispose_ClearsEntries()
     {
-        var provider = new MockLogProvider();
+        using var provider = new MockLogProvider();
         provider.Log(LogLevel.Info, "Cat", "Message", null);
 
         provider.Dispose();

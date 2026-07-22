@@ -434,7 +434,7 @@ public class MockNetworkContextTests
     [Fact]
     public void Dispose_ResetsState()
     {
-        var network = new MockNetworkContext();
+        using var network = new MockNetworkContext();
         network.Connect("server:7777");
         network.SimulateConnect();
 

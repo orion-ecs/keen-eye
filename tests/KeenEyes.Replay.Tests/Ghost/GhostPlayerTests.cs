@@ -711,7 +711,7 @@ public class GhostPlayerTests
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        var player = new GhostPlayer();
+        using var player = new GhostPlayer();
         player.Load(CreateTestGhostData());
 
         // Act & Assert - should not throw
@@ -723,7 +723,7 @@ public class GhostPlayerTests
     public void Dispose_ThrowsOnSubsequentOperations()
     {
         // Arrange
-        var player = new GhostPlayer();
+        using var player = new GhostPlayer();
         player.Load(CreateTestGhostData());
         player.Dispose();
 

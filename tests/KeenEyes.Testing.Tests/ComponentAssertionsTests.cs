@@ -13,7 +13,7 @@ public partial class ComponentAssertionsTests
 
         public readonly bool Equals(TestComponent other) => Value == other.Value;
         public override readonly bool Equals(object? obj) => obj is TestComponent other && Equals(other);
-        public override readonly int GetHashCode() => Value.GetHashCode();
+        public override readonly int GetHashCode() => HashCode.Combine(Value);
         public override readonly string ToString() => $"TestComponent {{ Value = {Value} }}";
     }
 

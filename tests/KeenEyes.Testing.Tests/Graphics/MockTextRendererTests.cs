@@ -335,7 +335,7 @@ public class MockTextRendererTests
     [Fact]
     public void Dispose_ResetsState()
     {
-        var renderer = new MockTextRenderer();
+        using var renderer = new MockTextRenderer();
         var font = new FontHandle(1);
         renderer.DrawText(font, "Test", 0, 0, new Vector4(1, 1, 1, 1));
 

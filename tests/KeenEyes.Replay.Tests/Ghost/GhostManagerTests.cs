@@ -508,7 +508,7 @@ public class GhostManagerTests
     public void Dispose_DisposesAllPlayers()
     {
         // Arrange
-        var manager = new GhostManager();
+        using var manager = new GhostManager();
         manager.AddGhost("ghost1", CreateTestGhostData());
         var player = manager.GetPlayer("ghost1");
 
@@ -523,7 +523,7 @@ public class GhostManagerTests
     public void Dispose_CanBeCalledMultipleTimes()
     {
         // Arrange
-        var manager = new GhostManager();
+        using var manager = new GhostManager();
         manager.AddGhost("ghost1", CreateTestGhostData());
 
         // Act & Assert - should not throw

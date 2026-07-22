@@ -449,7 +449,7 @@ public class MockFontManagerTests
     [Fact]
     public void Dispose_ReleasesAllFonts()
     {
-        var fontManager = new MockFontManager();
+        using var fontManager = new MockFontManager();
         fontManager.LoadFont("test.ttf", 16);
 
         fontManager.Dispose();

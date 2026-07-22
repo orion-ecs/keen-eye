@@ -874,7 +874,7 @@ public class MockGraphicsDeviceTests
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
-        var device = new MockGraphicsDevice();
+        using var device = new MockGraphicsDevice();
 
         device.Dispose();
         device.Dispose();

@@ -96,7 +96,7 @@ public class PhysicsCollisionCoverageTests : IDisposable
             .Build();
 
         // Subscribe to collision events
-        var subscription = world.Subscribe<CollisionEvent>(collision =>
+        using var subscription = world.Subscribe<CollisionEvent>(collision =>
         {
             if ((collision.EntityA == entity1 && collision.EntityB == entity2) ||
                 (collision.EntityA == entity2 && collision.EntityB == entity1))
@@ -110,8 +110,6 @@ public class PhysicsCollisionCoverageTests : IDisposable
         {
             physics.Step(1f / 60f);
         }
-
-        subscription.Dispose();
 
         // Should have detected collision since filters match
         Assert.True(collisionDetected || physics.HasPhysicsBody(entity1));
@@ -143,7 +141,7 @@ public class PhysicsCollisionCoverageTests : IDisposable
             .With(RigidBody.Dynamic(1f))
             .Build();
 
-        var subscription = world.Subscribe<CollisionEvent>(collision =>
+        using var subscription = world.Subscribe<CollisionEvent>(collision =>
         {
             // Subscribe to verify no crash occurs with triggers
         });
@@ -153,8 +151,6 @@ public class PhysicsCollisionCoverageTests : IDisposable
         {
             physics.Step(1f / 60f);
         }
-
-        subscription.Dispose();
 
         // Trigger event might be detected depending on timing
         // At minimum, both entities should still exist
@@ -255,7 +251,7 @@ public class PhysicsCollisionCoverageTests : IDisposable
             .Build();
 
         var collisionEvents = new List<CollisionEvent>();
-        var subscription = world.Subscribe<CollisionEvent>(collision =>
+        using var subscription = world.Subscribe<CollisionEvent>(collision =>
         {
             collisionEvents.Add(collision);
         });
@@ -266,10 +262,11 @@ public class PhysicsCollisionCoverageTests : IDisposable
             physics.Step(1f / 60f);
         }
 
-        subscription.Dispose();
-
-        // Should have recorded collision events (may be multiple contacts)
-        // At minimum, verify the simulation ran without errors
+        // Any recorded collision events must reference the two simulated bodies
+        // (collision timing is not guaranteed, so the collection may be empty)
+        Assert.All(collisionEvents, e => Assert.True(
+            e.EntityA == entity1 || e.EntityA == entity2 ||
+            e.EntityB == entity1 || e.EntityB == entity2));
         Assert.True(physics.HasPhysicsBody(entity1));
         Assert.True(physics.HasPhysicsBody(entity2));
     }

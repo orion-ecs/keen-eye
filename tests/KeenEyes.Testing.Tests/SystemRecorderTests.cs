@@ -560,15 +560,15 @@ public class SystemRecorderTests : IDisposable
         var system = new TestSystem();
         world.AddSystem(system);
 
-        using var recorder = new SystemRecorder();
-        recorder.AttachTo(world);
+        using var attachedRecorder = new SystemRecorder();
+        attachedRecorder.AttachTo(world);
 
         // Act
         world.Update(0.016f);
 
         // Assert
-        recorder.ShouldHaveCalledSystem<TestSystem>();
-        Assert.Equal(0.016f, recorder.Calls[0].DeltaTime);
+        attachedRecorder.ShouldHaveCalledSystem<TestSystem>();
+        Assert.Equal(0.016f, attachedRecorder.Calls[0].DeltaTime);
     }
 
     [Fact]
@@ -579,8 +579,8 @@ public class SystemRecorderTests : IDisposable
         var system = new TestSystem();
         world.AddSystem(system);
 
-        using var recorder = new SystemRecorder();
-        recorder.AttachTo(world);
+        using var attachedRecorder = new SystemRecorder();
+        attachedRecorder.AttachTo(world);
 
         // Act
         world.Update(0.016f);
@@ -588,7 +588,7 @@ public class SystemRecorderTests : IDisposable
         world.Update(0.016f);
 
         // Assert
-        recorder.ShouldHaveCalledSystemTimes<TestSystem>(3);
+        attachedRecorder.ShouldHaveCalledSystemTimes<TestSystem>(3);
     }
 
     [Fact]
@@ -599,15 +599,15 @@ public class SystemRecorderTests : IDisposable
         var system = new TestSystem();
         world.AddSystem(system);
 
-        var recorder = new SystemRecorder();
-        recorder.AttachTo(world);
+        using var attachedRecorder = new SystemRecorder();
+        attachedRecorder.AttachTo(world);
 
         // Act - dispose recorder
-        recorder.Dispose();
+        attachedRecorder.Dispose();
         world.Update(0.016f);
 
         // Assert - no calls recorded after dispose
-        Assert.Equal(0, recorder.TotalCallCount);
+        Assert.Equal(0, attachedRecorder.TotalCallCount);
     }
 
     #endregion
@@ -686,21 +686,21 @@ public class SystemRecorderTests : IDisposable
     public void TestWorldBuilder_WithSystemRecording_DisposesOnTestWorldDispose()
     {
         // Arrange
-        var testWorld = new TestWorldBuilder()
+        using var testWorld = new TestWorldBuilder()
             .WithSystemRecording()
             .WithSystem<TestSystem>()
             .WithManualTime()
             .Build();
 
-        var recorder = testWorld.SystemRecorder!;
+        var attachedRecorder = testWorld.SystemRecorder!;
         testWorld.Step();
-        Assert.Equal(1, recorder.TotalCallCount);
+        Assert.Equal(1, attachedRecorder.TotalCallCount);
 
         // Act
         testWorld.Dispose();
 
         // Assert - recorder is disposed but existing calls are preserved
-        Assert.Equal(1, recorder.TotalCallCount);
+        Assert.Equal(1, attachedRecorder.TotalCallCount);
     }
 
     #endregion
