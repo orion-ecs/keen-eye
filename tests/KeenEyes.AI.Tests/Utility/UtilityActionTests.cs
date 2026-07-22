@@ -256,7 +256,6 @@ public class UtilityActionTests
             ]
         };
 
-        var score1 = action1.CalculateScore(entity, blackboard, world);
         var score2 = action2.CalculateScore(entity, blackboard, world);
 
         // Score2 should be compensated upward to be more fair

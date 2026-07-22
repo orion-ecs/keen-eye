@@ -77,7 +77,7 @@ public class BehaviorTreeSystemTests
         var component = BehaviorTreeComponent.Create(bt);
         component.Enabled = false;
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -98,7 +98,7 @@ public class BehaviorTreeSystemTests
             Enabled = true
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -123,7 +123,7 @@ public class BehaviorTreeSystemTests
             Root = child
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(BehaviorTreeComponent.Create(bt))
             .Build();
 
@@ -246,7 +246,7 @@ public class BehaviorTreeSystemTests
             Root = child
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(BehaviorTreeComponent.Create(bt))
             .Build();
 
@@ -271,11 +271,11 @@ public class BehaviorTreeSystemTests
         var bt1 = new AI.BehaviorTree.BehaviorTree { Name = "Test1", Root = child1 };
         var bt2 = new AI.BehaviorTree.BehaviorTree { Name = "Test2", Root = child2 };
 
-        var entity1 = world.Spawn()
+        world.Spawn()
             .With(BehaviorTreeComponent.Create(bt1))
             .Build();
 
-        var entity2 = world.Spawn()
+        world.Spawn()
             .With(BehaviorTreeComponent.Create(bt2))
             .Build();
 

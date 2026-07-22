@@ -420,7 +420,6 @@ public class RingBufferLogProviderTests
     public void Query_ByTimeRange_ReturnsMatchingEntries()
     {
         using var provider = new RingBufferLogProvider();
-        var baseTime = DateTime.Now;
 
         provider.Log(LogLevel.Info, "Test", "Message 1", null);
         Thread.Sleep(50);
@@ -590,7 +589,7 @@ public class RingBufferLogProviderTests
     [Fact]
     public void Dispose_ClearsEntries()
     {
-        var provider = new RingBufferLogProvider();
+        using var provider = new RingBufferLogProvider();
         provider.Log(LogLevel.Info, "Test", "Message", null);
 
         provider.Dispose();

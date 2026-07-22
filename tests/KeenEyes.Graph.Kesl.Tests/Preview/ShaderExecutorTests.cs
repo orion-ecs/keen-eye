@@ -17,7 +17,7 @@ public class ShaderExecutorTests
     public void Compile_ValidGraph_ReturnsTrue()
     {
         using var builder = new TestGraphBuilder();
-        var shader = builder.CreateComputeShader("TestShader");
+        builder.CreateComputeShader("TestShader");
         builder.CreateQueryBinding("Position", AccessMode.Write);
         builder.CreateQueryBinding("Velocity", AccessMode.Read);
 

@@ -145,14 +145,13 @@ public class AssetHandleTests : IDisposable
     {
         var path = testDir.CreateFile("refcount.txt", "content");
         var original = manager.Load<TestAsset>(path);
-        var acquired = original.Acquire();
+        using var acquired = original.Acquire();
 
         original.Dispose();
 
         // Asset should still be loaded because acquired holds a reference
         Assert.True(manager.IsLoaded(path));
 
-        acquired.Dispose();
     }
 
     [Fact]
@@ -181,7 +180,7 @@ public class AssetHandleTests : IDisposable
     [Fact]
     public void Dispose_ReleasesReference()
     {
-        var aggressiveManager = new AssetManager(new AssetsConfig
+        using var aggressiveManager = new AssetManager(new AssetsConfig
         {
             RootPath = testDir.RootPath,
             CachePolicy = CachePolicy.Aggressive
@@ -195,7 +194,6 @@ public class AssetHandleTests : IDisposable
         handle.Dispose();
 
         Assert.True(asset.IsDisposed);
-        aggressiveManager.Dispose();
     }
 
     #endregion

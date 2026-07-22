@@ -391,7 +391,7 @@ public class DotRecastProviderTests : IDisposable
     public void Dispose_MarksNotReady()
     {
         var mesh = TestHelper.BuildTestNavMesh();
-        var tempProvider = new DotRecastProvider(mesh, TestHelper.CreateTestConfig());
+        using var tempProvider = new DotRecastProvider(mesh, TestHelper.CreateTestConfig());
 
         Assert.True(tempProvider.IsReady);
 
@@ -415,7 +415,7 @@ public class DotRecastProviderTests : IDisposable
     public void Dispose_CancelsPendingRequests()
     {
         var mesh = TestHelper.BuildTestNavMesh();
-        var tempProvider = new DotRecastProvider(mesh, TestHelper.CreateTestConfig());
+        using var tempProvider = new DotRecastProvider(mesh, TestHelper.CreateTestConfig());
         var request = tempProvider.RequestPath(
             new Vector3(5f, 0, 5f),
             new Vector3(15f, 0, 15f),

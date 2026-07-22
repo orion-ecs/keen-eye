@@ -396,7 +396,7 @@ public class GridNavigationProviderTests : IDisposable
     [Fact]
     public void Dispose_MarksNotReady()
     {
-        var tempProvider = new GridNavigationProvider(GridConfig.Default);
+        using var tempProvider = new GridNavigationProvider(GridConfig.Default);
         Assert.True(tempProvider.IsReady);
 
         tempProvider.Dispose();
@@ -417,7 +417,7 @@ public class GridNavigationProviderTests : IDisposable
     [Fact]
     public void Dispose_CancelsPendingRequests()
     {
-        var tempProvider = new GridNavigationProvider(GridConfig.Default);
+        using var tempProvider = new GridNavigationProvider(GridConfig.Default);
         var request = tempProvider.RequestPath(Vector3.Zero, new Vector3(5, 0, 5), AgentSettings.Default);
 
         tempProvider.Dispose();

@@ -265,7 +265,7 @@ public class SceneWorkflowTests : IDisposable
         using (var world = new World())
         {
             var oldParent = world.Spawn("OldParent").Build();
-            var newParent = world.Spawn("NewParent").Build();
+            world.Spawn("NewParent").Build();
             var child = world.Spawn("Child").Build();
             world.SetParent(child, oldParent);
             serializer.Save(world, "Scene", filePath);
@@ -314,7 +314,6 @@ public class SceneWorkflowTests : IDisposable
 
         // Save after commands
         serializer.Save(world, "AfterCommands", afterCommandsPath);
-        var afterCommandsCount = world.EntityCount;
 
         // Undo all
         manager.Undo();

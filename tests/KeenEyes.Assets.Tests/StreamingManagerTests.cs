@@ -275,7 +275,7 @@ public class StreamingManagerTests : IDisposable
         streaming.Queue<TestAsset>("cancel.slow");
         streaming.Start();
 
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
         cts.CancelAfter(50);
 
         // WaitForCompletionAsync catches cancellation and returns gracefully

@@ -121,7 +121,7 @@ public class BuiltInAssetTests
         var handle = new TextureHandle(42);
         var mockGraphics = new MockGraphicsContext();
 
-        var asset = new TextureAsset(handle, 256, 128, TextureFormat.Rgba8, mockGraphics);
+        using var asset = new TextureAsset(handle, 256, 128, TextureFormat.Rgba8, mockGraphics);
         asset.Dispose();
         asset.Dispose(); // Should not throw
     }

@@ -1015,7 +1015,7 @@ public class BundleGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         // Should report circular reference diagnostic
         Assert.Contains(diagnostics, d => d.Id.Contains("KEEN") && d.GetMessage().Contains("circular"));
@@ -1040,7 +1040,7 @@ public class BundleGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         // Should report diagnostic that bundles must be structs
         Assert.Contains(diagnostics, d => d.Severity == DiagnosticSeverity.Error);

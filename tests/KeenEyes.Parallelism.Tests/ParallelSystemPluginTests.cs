@@ -418,7 +418,7 @@ public class ParallelSystemPluginTests
             for (int i = 0; i < 10; i++)
             {
                 world.Spawn()
-                    .With(new Position { X = i * 10, Y = 0 })
+                    .With(new Position { X = i * 10f, Y = 0 })
                     .With(new Velocity { X = 1, Y = 2 })
                     .Build();
             }

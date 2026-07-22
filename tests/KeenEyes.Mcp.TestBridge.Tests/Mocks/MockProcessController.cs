@@ -143,9 +143,9 @@ internal sealed class MockProcessController : IProcessController
     /// </summary>
     public void AddStdout(int processId, string output)
     {
-        if (stdoutBuffers.ContainsKey(processId))
+        if (stdoutBuffers.TryGetValue(processId, out var existing))
         {
-            stdoutBuffers[processId] += output;
+            stdoutBuffers[processId] = existing + output;
         }
     }
 
@@ -154,9 +154,9 @@ internal sealed class MockProcessController : IProcessController
     /// </summary>
     public void AddStderr(int processId, string output)
     {
-        if (stderrBuffers.ContainsKey(processId))
+        if (stderrBuffers.TryGetValue(processId, out var existing))
         {
-            stderrBuffers[processId] += output;
+            stderrBuffers[processId] = existing + output;
         }
     }
 }

@@ -227,7 +227,7 @@ public class ParticleSystemIntegrationTests : IDisposable
         }
 
         // Particle should have moved
-        Assert.True(pool.PositionsX[idx] != initialX);
+        Assert.False(pool.PositionsX[idx].ApproximatelyEquals(initialX));
     }
 
     [Fact]

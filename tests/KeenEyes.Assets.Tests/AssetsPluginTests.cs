@@ -65,7 +65,7 @@ public class AssetsPluginTests : IDisposable
         var plugin = new AssetsPlugin(new AssetsConfig { RootPath = testDir.RootPath });
         world.InstallPlugin(plugin);
 
-        var manager = world.GetExtension<AssetManager>();
+        _ = world.GetExtension<AssetManager>();
         // MeshLoader should be registered, but we can't easily test without valid glTF file
     }
 

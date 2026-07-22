@@ -302,7 +302,7 @@ public class HotReloadServiceTests : IDisposable
         try
         {
             using var world = new World();
-            var service = new HotReloadService(world);
+            using var service = new HotReloadService(world);
 
             EditorSettings.GameProjectPath = tempProject;
             service.Initialize();

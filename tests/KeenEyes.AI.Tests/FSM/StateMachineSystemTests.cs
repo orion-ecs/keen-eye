@@ -79,7 +79,7 @@ public class StateMachineSystemTests
         var component = StateMachineComponent.Create(fsm);
         component.Enabled = false;
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -100,7 +100,7 @@ public class StateMachineSystemTests
             Enabled = true
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -127,7 +127,7 @@ public class StateMachineSystemTests
             States = [new State { Name = "Idle", OnEnterActions = [action] }]
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(StateMachineComponent.Create(fsm))
             .Build();
 
@@ -221,7 +221,7 @@ public class StateMachineSystemTests
             ]
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(StateMachineComponent.Create(fsm))
             .Build();
 
@@ -351,7 +351,7 @@ public class StateMachineSystemTests
             States = [new State { Name = "Idle", OnUpdateActions = [updateAction] }]
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(StateMachineComponent.Create(fsm))
             .Build();
 
@@ -387,7 +387,7 @@ public class StateMachineSystemTests
             ]
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(StateMachineComponent.Create(fsm))
             .Build();
 

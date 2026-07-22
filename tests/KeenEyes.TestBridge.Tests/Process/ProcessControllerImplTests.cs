@@ -321,7 +321,7 @@ public class ProcessControllerImplTests : IDisposable
     public async Task Dispose_WithRunningProcesses_KillsAll()
     {
         using var testController = new ProcessControllerImpl();
-        var info = await testController.StartAsync("dotnet", "--help");
+        await testController.StartAsync("dotnet", "--help");
 
         testController.Dispose();
 
@@ -333,7 +333,7 @@ public class ProcessControllerImplTests : IDisposable
     [Fact]
     public void Dispose_CalledTwice_DoesNotThrow()
     {
-        var testController = new ProcessControllerImpl();
+        using var testController = new ProcessControllerImpl();
 
         testController.Dispose();
         testController.Dispose(); // Should not throw
