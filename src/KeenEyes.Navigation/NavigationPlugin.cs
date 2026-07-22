@@ -14,6 +14,8 @@ namespace KeenEyes.Navigation;
 /// <list type="bullet">
 /// <item><description>Asynchronous pathfinding via <see cref="PathRequestSystem"/></description></item>
 /// <item><description>Agent movement along paths via <see cref="NavMeshAgentSystem"/></description></item>
+/// <item><description>Crowd simulation with local avoidance via <see cref="CrowdSteeringSystem"/>
+/// when the provider implements <see cref="ICrowdNavigationProvider"/></description></item>
 /// <item><description>Dynamic obstacle handling via <see cref="ObstacleUpdateSystem"/></description></item>
 /// </list>
 /// <para>
@@ -53,6 +55,7 @@ public sealed class NavigationPlugin : IWorldPlugin
     private INavigationProvider? provider;
     private EventSubscription? agentAddedSubscription;
     private EventSubscription? agentRemovedSubscription;
+    private EventSubscription? crowdAgentRemovedSubscription;
     private EventSubscription? obstacleAddedSubscription;
     private EventSubscription? obstacleRemovedSubscription;
     private EventSubscription? entityDestroyedSubscription;
@@ -89,6 +92,7 @@ public sealed class NavigationPlugin : IWorldPlugin
     {
         // Register components
         context.RegisterComponent<NavMeshAgent>();
+        context.RegisterComponent<CrowdAgent>();
         context.RegisterComponent<NavMeshObstacle>();
 
         // Get or create navigation provider
@@ -115,12 +119,14 @@ public sealed class NavigationPlugin : IWorldPlugin
         // Unsubscribe from events
         agentAddedSubscription?.Dispose();
         agentRemovedSubscription?.Dispose();
+        crowdAgentRemovedSubscription?.Dispose();
         obstacleAddedSubscription?.Dispose();
         obstacleRemovedSubscription?.Dispose();
         entityDestroyedSubscription?.Dispose();
 
         agentAddedSubscription = null;
         agentRemovedSubscription = null;
+        crowdAgentRemovedSubscription = null;
         obstacleAddedSubscription = null;
         obstacleRemovedSubscription = null;
         entityDestroyedSubscription = null;
@@ -181,6 +187,13 @@ public sealed class NavigationPlugin : IWorldPlugin
             context.AddSystem<NavMeshAgentSystem>(
                 SystemPhase.Update,
                 order: 0);
+
+            // CrowdSteeringSystem - steers crowd-simulated agents
+            // Runs after NavMeshAgentSystem; no-op when the provider
+            // lacks crowd support
+            context.AddSystem<CrowdSteeringSystem>(
+                SystemPhase.Update,
+                order: 10);
         }
 
         // ObstacleUpdateSystem - syncs dynamic obstacles
@@ -198,6 +211,9 @@ public sealed class NavigationPlugin : IWorldPlugin
         // Subscribe to NavMeshAgent component added/removed
         agentAddedSubscription = context.World.OnComponentAdded<NavMeshAgent>(OnAgentAdded);
         agentRemovedSubscription = context.World.OnComponentRemoved<NavMeshAgent>(OnAgentRemoved);
+
+        // Subscribe to CrowdAgent removal to unregister from the crowd simulation
+        crowdAgentRemovedSubscription = context.World.OnComponentRemoved<CrowdAgent>(OnCrowdAgentRemoved);
 
         // Subscribe to NavMeshObstacle component added/removed
         obstacleAddedSubscription = context.World.OnComponentAdded<NavMeshObstacle>(OnObstacleAdded);
@@ -219,6 +235,13 @@ public sealed class NavigationPlugin : IWorldPlugin
         navigationContext?.RemoveAgent(entity);
     }
 
+    private void OnCrowdAgentRemoved(Entity entity)
+    {
+        // Unregister from the crowd simulation; the entity falls back to
+        // plain waypoint steering if it still has a NavMeshAgent
+        (provider as ICrowdNavigationProvider)?.RemoveCrowdAgent(entity);
+    }
+
     private void OnObstacleAdded(Entity entity, NavMeshObstacle obstacle)
     {
         // Obstacle added - obstacle system will handle updates
@@ -234,5 +257,6 @@ public sealed class NavigationPlugin : IWorldPlugin
     {
         // Clean up any navigation state for destroyed entity
         navigationContext?.RemoveAgent(entity);
+        (provider as ICrowdNavigationProvider)?.RemoveCrowdAgent(entity);
     }
 }

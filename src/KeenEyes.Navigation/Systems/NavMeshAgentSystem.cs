@@ -1,5 +1,6 @@
 using System.Numerics;
 using KeenEyes.Common;
+using KeenEyes.Navigation.Abstractions;
 using KeenEyes.Navigation.Abstractions.Components;
 
 namespace KeenEyes.Navigation.Systems;
@@ -27,6 +28,7 @@ internal sealed class NavMeshAgentSystem : SystemBase
 {
     private NavigationContext? context;
     private NavigationConfig? config;
+    private bool crowdSupported;
 
     /// <inheritdoc/>
     protected override void OnInitialize()
@@ -38,6 +40,10 @@ internal sealed class NavMeshAgentSystem : SystemBase
 
         context = ctx;
         config = ctx.Config;
+
+        // When the provider supports crowd simulation, entities with a
+        // CrowdAgent component are steered by CrowdSteeringSystem instead.
+        crowdSupported = ctx.Provider is ICrowdNavigationProvider;
     }
 
     /// <inheritdoc/>
@@ -51,6 +57,12 @@ internal sealed class NavMeshAgentSystem : SystemBase
         // Process all agents with paths
         foreach (var entity in World.Query<NavMeshAgent, Transform3D>())
         {
+            // Crowd-simulated agents are handled by CrowdSteeringSystem
+            if (crowdSupported && World.Has<CrowdAgent>(entity))
+            {
+                continue;
+            }
+
             ref var agent = ref World.Get<NavMeshAgent>(entity);
             ref var transform = ref World.Get<Transform3D>(entity);
 

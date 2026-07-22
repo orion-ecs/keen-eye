@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\KeenEyes.Navigation\KeenEyes.Navigation.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Navigation.DotRecast\KeenEyes.Navigation.DotRecast.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
   </ItemGroup>
