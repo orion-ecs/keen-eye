@@ -58,6 +58,8 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
     private readonly NavMeshConfig config;
     private readonly NavMeshData? prebuiltMesh;
     private readonly NavMeshStreamingManager? streamingManager;
+    private readonly NavMeshTileCache? tileCache;
+    private readonly NavMeshObstacleCarveConfig? carveConfig;
     private DotRecastProvider? provider;
     private NavMeshObstacleManager? obstacleManager;
 
@@ -156,6 +158,49 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
         prebuiltMesh = streamingManager.Mesh;
     }
 
+    /// <summary>
+    /// Creates a new DotRecast navigation plugin whose navmesh is backed by a
+    /// tile cache, routing carving <c>NavMeshObstacle</c> components through
+    /// runtime tile rebuilds.
+    /// </summary>
+    /// <param name="tileCache">
+    /// The tile cache built via <see cref="DotRecastMeshBuilder.BuildTileCache"/>.
+    /// The plugin installs its <see cref="NavMeshTileCache.Mesh"/> on the
+    /// provider, exposes the tile cache as a world extension, and registers a
+    /// system that mirrors entities carrying a carving <c>NavMeshObstacle</c>
+    /// into the cache each update. The caller retains ownership of the cache.
+    /// </param>
+    /// <param name="config">The query configuration.</param>
+    /// <param name="carveConfig">
+    /// The per-tick rebuild budget for obstacle carving. Defaults to
+    /// <see cref="NavMeshObstacleCarveConfig.Default"/> when null.
+    /// </param>
+    /// <exception cref="ArgumentNullException">Thrown if tileCache or config is null.</exception>
+    /// <exception cref="ArgumentException">Thrown if configuration is invalid.</exception>
+    public DotRecastNavigationPlugin(NavMeshTileCache tileCache, NavMeshConfig config, NavMeshObstacleCarveConfig? carveConfig = null)
+    {
+        ArgumentNullException.ThrowIfNull(tileCache);
+        ArgumentNullException.ThrowIfNull(config);
+
+        var error = config.Validate();
+        if (error != null)
+        {
+            throw new ArgumentException($"Invalid NavMeshConfig: {error}", nameof(config));
+        }
+
+        var resolvedCarveConfig = carveConfig ?? NavMeshObstacleCarveConfig.Default;
+        var carveError = resolvedCarveConfig.Validate();
+        if (carveError != null)
+        {
+            throw new ArgumentException($"Invalid NavMeshObstacleCarveConfig: {carveError}", nameof(carveConfig));
+        }
+
+        this.tileCache = tileCache;
+        this.carveConfig = resolvedCarveConfig;
+        this.config = config;
+        prebuiltMesh = tileCache.Mesh;
+    }
+
     /// <inheritdoc/>
     public string Name => "DotRecastNavigation";
 
@@ -188,6 +233,15 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
             context.SetExtension(streamingManager);
             context.AddSystem<NavMeshStreamingSystem>(SystemPhase.Update, order: -200);
         }
+
+        // Tile-cache obstacle carving: expose the cache and drive obstacle
+        // requests plus budgeted rebuilds before path requests run.
+        if (tileCache != null && carveConfig != null)
+        {
+            context.RegisterComponent<NavMeshObstacle>();
+            context.SetExtension(tileCache);
+            context.AddSystem(new ObstacleCarveSystem(tileCache, carveConfig), SystemPhase.Update, order: -200);
+        }
     }
 
     /// <inheritdoc/>
@@ -202,6 +256,11 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
         if (streamingManager != null)
         {
             context.RemoveExtension<NavMeshStreamingManager>();
+        }
+
+        if (tileCache != null)
+        {
+            context.RemoveExtension<NavMeshTileCache>();
         }
 
         // Dispose the provider
