@@ -284,6 +284,49 @@ public sealed class NavMeshData : INavigationMesh
     }
 
     /// <summary>
+    /// Enumerates the boundary polygons of the mesh for visualization.
+    /// </summary>
+    /// <returns>The vertex loop and area type of every walkable polygon, in tile order.</returns>
+    /// <remarks>
+    /// Off-mesh connection polygons carry no surface geometry and are skipped.
+    /// </remarks>
+    public IEnumerable<NavMeshPolygonSurface> GetPolygonSurfaces()
+    {
+        int maxTiles = navMesh.GetMaxTiles();
+
+        for (int i = 0; i < maxTiles; i++)
+        {
+            var tile = navMesh.GetTile(i);
+            if (tile?.data == null)
+            {
+                continue;
+            }
+
+            int polyCount = tile.data.header.polyCount;
+            for (int p = 0; p < polyCount; p++)
+            {
+                var poly = tile.data.polys[p];
+                if (poly.GetPolyType() == DtPolyTypes.DT_POLYTYPE_OFFMESH_CONNECTION)
+                {
+                    continue;
+                }
+
+                var vertices = new Vector3[poly.vertCount];
+                for (int v = 0; v < poly.vertCount; v++)
+                {
+                    int vertIndex = poly.verts[v] * 3;
+                    vertices[v] = new Vector3(
+                        tile.data.verts[vertIndex],
+                        tile.data.verts[vertIndex + 1],
+                        tile.data.verts[vertIndex + 2]);
+                }
+
+                yield return new NavMeshPolygonSurface(vertices, (NavAreaType)poly.GetArea());
+            }
+        }
+    }
+
+    /// <summary>
     /// Deserializes a NavMeshData from a byte array.
     /// </summary>
     /// <param name="data">The serialized data.</param>
@@ -364,3 +407,10 @@ public sealed class NavMeshData : INavigationMesh
         public int NextInt32() => random.Next();
     }
 }
+
+/// <summary>
+/// A polygon surface extracted from a navigation mesh for visualization.
+/// </summary>
+/// <param name="Vertices">The polygon's boundary vertex loop.</param>
+/// <param name="Area">The polygon's area type.</param>
+public readonly record struct NavMeshPolygonSurface(Vector3[] Vertices, NavAreaType Area);

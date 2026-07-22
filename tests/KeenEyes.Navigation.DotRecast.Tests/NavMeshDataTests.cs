@@ -253,4 +253,36 @@ public class NavMeshDataTests
     }
 
     #endregion
+
+    #region GetPolygonSurfaces Tests
+
+    [Fact]
+    public void GetPolygonSurfaces_WithBuiltMesh_ReturnsOneSurfacePerPolygon()
+    {
+        Assert.NotNull(navMesh);
+
+        var surfaces = navMesh.GetPolygonSurfaces().ToList();
+
+        Assert.Equal(navMesh.PolygonCount, surfaces.Count);
+        Assert.All(surfaces, surface => Assert.True(surface.Vertices.Length >= 3));
+    }
+
+    [Fact]
+    public void GetPolygonSurfaces_WithBuiltMesh_VerticesLieWithinMeshBounds()
+    {
+        Assert.NotNull(navMesh);
+        var (min, max) = navMesh.Bounds;
+
+        foreach (var surface in navMesh.GetPolygonSurfaces())
+        {
+            foreach (var vertex in surface.Vertices)
+            {
+                Assert.InRange(vertex.X, min.X - 0.001f, max.X + 0.001f);
+                Assert.InRange(vertex.Y, min.Y - 0.001f, max.Y + 0.001f);
+                Assert.InRange(vertex.Z, min.Z - 0.001f, max.Z + 0.001f);
+            }
+        }
+    }
+
+    #endregion
 }

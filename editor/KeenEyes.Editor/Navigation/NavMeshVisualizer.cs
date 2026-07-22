@@ -177,34 +177,19 @@ public sealed class NavMeshVisualizer : IGizmoRenderer
             return polygons;
         }
 
-        // Iterate through all polygons in the navmesh
-        int polygonCount = navMesh.PolygonCount;
-
-        // This is a simplified implementation - actual implementation would
-        // iterate through DtNavMesh tiles and polygons
-        // For now, we'll use the public API to get polygon vertices
-        for (uint polyId = 1; polyId <= (uint)polygonCount; polyId++)
+        uint index = 0;
+        foreach (var surface in navMesh.GetPolygonSurfaces())
         {
-            try
-            {
-                var vertices = navMesh.GetPolygonVertices(polyId);
-                if (vertices.Length >= 3)
-                {
-                    // Get area type from polygon
-                    var centroid = CalculateCentroid(vertices);
-                    var areaType = navMesh.GetAreaType(centroid);
+            index++;
 
-                    polygons.Add(new NavMeshPolygon
-                    {
-                        PolygonId = polyId,
-                        Vertices = vertices.ToArray(),
-                        AreaType = areaType
-                    });
-                }
-            }
-            catch
+            if (surface.Vertices.Length >= 3)
             {
-                // Skip invalid polygon IDs
+                polygons.Add(new NavMeshPolygon
+                {
+                    PolygonId = index,
+                    Vertices = surface.Vertices,
+                    AreaType = surface.Area
+                });
             }
         }
 
@@ -267,17 +252,6 @@ public sealed class NavMeshVisualizer : IGizmoRenderer
                 }
             }
         }
-    }
-
-    private static Vector3 CalculateCentroid(ReadOnlySpan<Vector3> vertices)
-    {
-        var sum = Vector3.Zero;
-        foreach (var vertex in vertices)
-        {
-            sum += vertex;
-        }
-
-        return sum / vertices.Length;
     }
 
     private static Dictionary<NavAreaType, Vector4> CreateDefaultAreaColors()

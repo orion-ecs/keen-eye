@@ -1,12 +1,16 @@
 using System.Numerics;
 
 using KeenEyes.Common;
+using KeenEyes.Editor.Abstractions.Capabilities;
 using KeenEyes.Editor.Application;
 using KeenEyes.Editor.Viewport;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.UI.Abstractions;
 using KeenEyes.UI.Widgets;
+
+using Key = KeenEyes.Input.Abstractions.Key;
+using MouseButton = KeenEyes.Input.Abstractions.MouseButton;
 
 namespace KeenEyes.Editor.Panels;
 
@@ -39,6 +43,7 @@ public static class ViewportPanel
     /// <param name="worldManager">The world manager for scene access.</param>
     /// <param name="graphicsContext">The graphics context for rendering.</param>
     /// <param name="inputContext">The input context for camera controls.</param>
+    /// <param name="viewportCapability">The viewport capability providing plugin gizmo renderers.</param>
     /// <returns>The created panel entity.</returns>
     public static Entity Create(
         IWorld editorWorld,
@@ -46,7 +51,8 @@ public static class ViewportPanel
         FontHandle font,
         EditorWorldManager worldManager,
         IGraphicsContext graphicsContext,
-        IInputContext inputContext)
+        IInputContext inputContext,
+        IViewportCapability viewportCapability)
     {
         // Create the main panel container
         var panel = WidgetFactory.CreatePanel(editorWorld, parent, "ViewportPanel", new PanelConfig(
@@ -58,8 +64,8 @@ public static class ViewportPanel
         panelRect.WidthMode = UISizeMode.Fill;
         panelRect.HeightMode = UISizeMode.Fill;
 
-        // Create header with toolbar
-        CreateHeader(editorWorld, panel, font);
+        // Create header with toolbar; returns the container for gizmo visibility toggles
+        var gizmoToggleContainer = CreateHeader(editorWorld, panel, font);
 
         // Create the viewport content area
         var viewportArea = CreateViewportArea(editorWorld, panel);
@@ -83,10 +89,24 @@ public static class ViewportPanel
             InputProvider = inputProvider,
             CameraController = cameraController,
             TransformGizmo = transformGizmo,
+            Capability = viewportCapability,
+            GizmoDrawer = new ViewportGizmoDrawer(),
+            GizmoToggleContainer = gizmoToggleContainer,
+            GizmoToggles = [],
             Font = font,
             IsHovered = false,
             LastViewportSize = Vector2.Zero
         });
+
+        // Surface a visibility toggle for every registered gizmo renderer and keep the
+        // toggles in sync as plugins add or remove renderers.
+        foreach (var renderer in viewportCapability.GetGizmoRenderers())
+        {
+            AddGizmoToggle(editorWorld, panel, renderer, font);
+        }
+
+        viewportCapability.GizmoRendererAdded += renderer => AddGizmoToggle(editorWorld, panel, renderer, font);
+        viewportCapability.GizmoRendererRemoved += renderer => RemoveGizmoToggle(editorWorld, panel, renderer);
 
         // Subscribe to scene events
         worldManager.SceneOpened += scene => OnSceneOpened(editorWorld, panel, scene);
@@ -113,12 +133,21 @@ public static class ViewportPanel
             }
         });
 
-        // Subscribe to click for entity picking
+        // Subscribe to click for entity picking and gizmo visibility toggles
         editorWorld.Subscribe<UIClickEvent>(e =>
         {
-            if (e.Element == viewportArea && e.Button == MouseButton.Left)
+            if (e.Button != MouseButton.Left)
+            {
+                return;
+            }
+
+            if (e.Element == viewportArea)
             {
                 OnViewportClick(editorWorld, panel, e.Position);
+            }
+            else
+            {
+                HandleGizmoToggleClick(editorWorld, panel, e.Element);
             }
         });
 
@@ -282,6 +311,37 @@ public static class ViewportPanel
                 projectionMatrix,
                 state.CameraController.Position);
         }
+
+        // Render plugin gizmo renderers registered through the viewport capability
+        if (sceneWorld is not null && state.Capability is not null && state.GizmoDrawer is not null)
+        {
+            state.GizmoDrawer.Begin(
+                graphics,
+                viewMatrix,
+                projectionMatrix,
+                state.CameraController.Position,
+                viewportHeight);
+
+            var context = new GizmoRenderContext
+            {
+                SceneWorld = sceneWorld,
+                SelectedEntities = state.WorldManager.SelectedEntity.IsValid
+                    ? [state.WorldManager.SelectedEntity]
+                    : [],
+                ViewMatrix = viewMatrix,
+                ProjectionMatrix = projectionMatrix,
+                CameraPosition = state.CameraController.Position,
+                Bounds = new ViewportBounds(viewportX, viewportY, viewportWidth, viewportHeight),
+                Drawer = state.GizmoDrawer
+            };
+
+            // Gizmos use translucent colors and arbitrary winding; restore scene state after
+            graphics.SetBlending(true);
+            graphics.SetCulling(false);
+            GizmoRendererPass.Render(state.Capability.GetGizmoRenderers(), context);
+            graphics.SetCulling(true, CullFaceMode.Back);
+            graphics.SetBlending(false);
+        }
     }
 
     /// <summary>
@@ -326,7 +386,7 @@ public static class ViewportPanel
         state.CameraController.SetPresetView(preset);
     }
 
-    private static void CreateHeader(IWorld world, Entity panel, FontHandle font)
+    private static Entity CreateHeader(IWorld world, Entity panel, FontHandle font)
     {
         var header = WidgetFactory.CreatePanel(world, panel, "ViewportHeader", new PanelConfig(
             Height: 28,
@@ -353,12 +413,124 @@ public static class ViewportPanel
             BackgroundColor: Vector4.Zero
         ));
 
+        // Container for per-renderer gizmo visibility toggles
+        var gizmoToggles = WidgetFactory.CreatePanel(world, toolbar, "GizmoToggles", new PanelConfig(
+            Direction: LayoutDirection.Horizontal,
+            Spacing: 4,
+            BackgroundColor: Vector4.Zero
+        ));
+
         // Camera mode indicator label
         WidgetFactory.CreateLabel(world, toolbar, "CameraModeLabel", "Orbit", font, new LabelConfig(
             FontSize: 11,
             TextColor: EditorColors.TextLight,
             HorizontalAlign: TextAlignH.Right
         ));
+
+        return gizmoToggles;
+    }
+
+    /// <summary>
+    /// Creates a visibility toggle button for a gizmo renderer in the viewport header.
+    /// </summary>
+    internal static void AddGizmoToggle(IWorld editorWorld, Entity panel, IGizmoRenderer renderer, FontHandle font)
+    {
+        if (!editorWorld.Has<ViewportPanelState>(panel))
+        {
+            return;
+        }
+
+        ref readonly var state = ref editorWorld.Get<ViewportPanelState>(panel);
+        if (state.GizmoToggles is null || state.GizmoToggles.ContainsValue(renderer))
+        {
+            return;
+        }
+
+        var toggle = WidgetFactory.CreateButton(
+            editorWorld,
+            state.GizmoToggleContainer,
+            $"GizmoToggle_{renderer.Id}",
+            renderer.DisplayName,
+            font,
+            new ButtonConfig(
+                Width: 72,
+                Height: 18,
+                FontSize: 10,
+                CornerRadius: 3
+            ));
+
+        state.GizmoToggles[toggle] = renderer;
+        UpdateGizmoToggleVisual(editorWorld, toggle, renderer.IsEnabled);
+    }
+
+    /// <summary>
+    /// Removes the visibility toggle button for a gizmo renderer.
+    /// </summary>
+    internal static void RemoveGizmoToggle(IWorld editorWorld, Entity panel, IGizmoRenderer renderer)
+    {
+        if (!editorWorld.Has<ViewportPanelState>(panel))
+        {
+            return;
+        }
+
+        ref readonly var state = ref editorWorld.Get<ViewportPanelState>(panel);
+        if (state.GizmoToggles is null)
+        {
+            return;
+        }
+
+        var toggle = Entity.Null;
+        foreach (var (entity, candidate) in state.GizmoToggles)
+        {
+            if (ReferenceEquals(candidate, renderer))
+            {
+                toggle = entity;
+                break;
+            }
+        }
+
+        if (!toggle.IsValid)
+        {
+            return;
+        }
+
+        state.GizmoToggles.Remove(toggle);
+        editorWorld.Despawn(toggle);
+    }
+
+    /// <summary>
+    /// Toggles the associated gizmo renderer when a visibility toggle button is clicked.
+    /// </summary>
+    internal static void HandleGizmoToggleClick(IWorld editorWorld, Entity panel, Entity clicked)
+    {
+        if (!editorWorld.Has<ViewportPanelState>(panel))
+        {
+            return;
+        }
+
+        ref readonly var state = ref editorWorld.Get<ViewportPanelState>(panel);
+        if (state.GizmoToggles is null || !state.GizmoToggles.TryGetValue(clicked, out var renderer))
+        {
+            return;
+        }
+
+        renderer.IsEnabled = !renderer.IsEnabled;
+        UpdateGizmoToggleVisual(editorWorld, clicked, renderer.IsEnabled);
+    }
+
+    private static void UpdateGizmoToggleVisual(IWorld editorWorld, Entity toggle, bool isEnabled)
+    {
+        if (editorWorld.Has<UIStyle>(toggle))
+        {
+            ref var style = ref editorWorld.Get<UIStyle>(toggle);
+            style.BackgroundColor = isEnabled ? EditorColors.Primary : EditorColors.LightPanel;
+        }
+
+        if (editorWorld.Has<UIText>(toggle))
+        {
+            ref var text = ref editorWorld.Get<UIText>(toggle);
+            text.Color = isEnabled ? EditorColors.TextWhite : EditorColors.TextMuted;
+        }
     }
 
     private static Entity CreateViewportArea(IWorld world, Entity panel)
@@ -599,6 +771,10 @@ internal struct ViewportPanelState : IComponent
     public EditorInputProvider InputProvider;
     public EditorCameraController CameraController;
     public TransformGizmo TransformGizmo;
+    public IViewportCapability Capability;
+    public ViewportGizmoDrawer GizmoDrawer;
+    public Entity GizmoToggleContainer;
+    public Dictionary<Entity, IGizmoRenderer> GizmoToggles;
     public FontHandle Font;
     public bool IsHovered;
     public Vector2 LastViewportSize;
