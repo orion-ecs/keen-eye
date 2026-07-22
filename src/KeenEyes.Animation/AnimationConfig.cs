@@ -49,6 +49,25 @@ public sealed class AnimationConfig
     public bool EnableIK { get; set; }
 
     /// <summary>
+    /// Gets or sets whether root motion support is enabled.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, the plugin registers the <see cref="Components.RootMotion"/> component
+    /// and adds <see cref="Systems.RootMotionSystem"/> at order 56, directly after
+    /// <see cref="Systems.SkeletonPoseSystem"/> (order 55). The system extracts the root
+    /// bone's per-frame movement from the playing clip(s), suppresses the root bone's
+    /// animated local translation, and either applies the delta to the skeleton root
+    /// entity's Transform3D or exposes it for character controllers, depending on
+    /// <see cref="Components.RootMotion.Mode"/>.
+    /// </para>
+    /// <para>
+    /// Disabled by default: worlds that do not use root motion pay no per-frame cost.
+    /// </para>
+    /// </remarks>
+    public bool EnableRootMotion { get; set; }
+
+    /// <summary>
     /// Gets or sets whether GPU skinning support is enabled.
     /// </summary>
     /// <remarks>

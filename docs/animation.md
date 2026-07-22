@@ -247,6 +247,31 @@ Each frame, `IKSolverSystem` queries entities with `IKChainReference` + `BoneRef
 
 Note that the `CCD` and `LookAt` solver types have no bundled implementations yet; chains configured with them fall back to FABRIK (register your own `IIKSolver` with `IKManager.RegisterSolver` to override). `LookAtTarget` is likewise not yet driven by any bundled system.
 
+### Root Motion
+
+Root motion extracts the movement of a designated root bone (typically "Root" or "Hips") from the playing animation and delivers it to the skeleton root entity, so walk/run/turn clips drive the character through the world instead of playing in place.
+
+Root motion is opt-in: install the plugin with `AnimationConfig.EnableRootMotion = true` and the plugin registers the `RootMotion` component and adds `RootMotionSystem` at order 56 — directly after `SkeletonPoseSystem` (order 55) writes the FK pose and before IK (order 57) consumes bone transforms.
+
+```csharp
+world.InstallPlugin(new AnimationPlugin(new AnimationConfig { EnableRootMotion = true }));
+
+var character = world.Spawn()
+    .With(Transform3D.Identity)
+    .With(AnimationPlayer.ForClip(walkClipId))
+    .With(RootMotion.ForBone("Root"))
+    .Build();
+```
+
+Each frame, `RootMotionSystem` samples the root bone's track at the previous and current playback times and computes the frame delta (position by difference, rotation as `current * inverse(previous)`). The delta is transformed into the entity's space using its current orientation, scaled by `PositionScale`/`RotationScale`, and delivered according to `Mode`:
+
+- **`RootMotionMode.ApplyToEntity`** (default): the delta is applied directly to the entity's `Transform3D`.
+- **`RootMotionMode.ExposeDelta`**: the entity is left untouched and the delta is written to `RootMotion.DeltaPosition`/`DeltaRotation` for a character controller or physics system to consume (the fields are populated in both modes).
+
+The root bone's animated local translation (and rotation, when `ApplyRotation` is set) is suppressed after extraction so the motion isn't applied twice. With `PlanarOnly`, the delta is restricted to the XZ plane and the bone keeps its animated Y translation — vertical motion (crouching, bobbing) stays in the skeleton while horizontal motion drives the entity. `ApplyPosition`/`ApplyRotation` select which channels are extracted at all.
+
+Looping is handled seamlessly: when `WrapMode.Loop` playback wraps between frames, the delta accumulates `[previousTime → clip end]` plus `[clip start → currentTime]`, so the loop seam produces continuous motion with no teleport back. Under an `Animator` crossfade, both clips' root deltas are blended with the same weight (`TransitionProgress`) that the pose blend uses, so root velocity matches the blended pose and feet don't slide during transitions.
+
 ## Performance
 
 - **Per-frame caching:** `SkeletonPoseSystem` builds a per-frame `Dictionary` cache of active `AnimationPlayer`/`Animator` states before iterating bones, so sampling cost for a skeleton's clip is paid once regardless of bone count.
