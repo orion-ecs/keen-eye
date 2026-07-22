@@ -8,7 +8,7 @@ namespace KeenEyes.Editor.Assets;
 public sealed class AssetDatabase : Abstractions.IAssetDatabase, IDisposable
 {
     private readonly string _projectRoot;
-    private readonly Dictionary<string, AssetEntry> _assets = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, AssetEntry> _assets = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly FileSystemWatcher _watcher;
     private readonly Lock _lock = new();
     private bool _isDisposed;

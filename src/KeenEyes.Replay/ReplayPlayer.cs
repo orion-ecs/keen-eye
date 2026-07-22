@@ -2126,13 +2126,13 @@ public sealed class ReplayPlayer : IDisposable
             }
 
             // Copy handlers to avoid holding lock during invocation
-            handlersCopy = new Dictionary<InputEventType, List<Action<InputEvent>>>(inputHandlers.Count);
+            handlersCopy = [with(inputHandlers.Count)];
             foreach (var kvp in inputHandlers)
             {
                 handlersCopy[kvp.Key] = [.. kvp.Value];
             }
 
-            customHandlersCopy = new Dictionary<string, List<Delegate>>(customInputHandlers.Count);
+            customHandlersCopy = [with(customInputHandlers.Count)];
             foreach (var kvp in customInputHandlers)
             {
                 customHandlersCopy[kvp.Key] = [.. kvp.Value];
@@ -2215,13 +2215,13 @@ public sealed class ReplayPlayer : IDisposable
             }
 
             // Copy handlers to avoid holding lock during invocation
-            handlersCopy = new Dictionary<InputEventType, List<Action<InputEvent>>>(inputHandlers.Count);
+            handlersCopy = [with(inputHandlers.Count)];
             foreach (var kvp in inputHandlers)
             {
                 handlersCopy[kvp.Key] = [.. kvp.Value];
             }
 
-            customHandlersCopy = new Dictionary<string, List<Delegate>>(customInputHandlers.Count);
+            customHandlersCopy = [with(customInputHandlers.Count)];
             foreach (var kvp in customInputHandlers)
             {
                 customHandlersCopy[kvp.Key] = [.. kvp.Value];

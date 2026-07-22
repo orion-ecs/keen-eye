@@ -32,7 +32,7 @@ namespace KeenEyes.Input.Abstractions;
 /// </example>
 public sealed class InputActionMap
 {
-    private readonly Dictionary<string, InputAction> actions = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, InputAction> actions = [with(StringComparer.OrdinalIgnoreCase)];
     private bool enabled = true;
 
     /// <summary>

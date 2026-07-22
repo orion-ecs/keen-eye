@@ -13,9 +13,9 @@ namespace KeenEyes.Editor.Plugins.Security;
 internal sealed class PermissionManager
 {
     private readonly string storePath;
-    private readonly Dictionary<string, PluginPermission> grants = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, PluginPermission> declaredRequired = new(StringComparer.OrdinalIgnoreCase);
-    private readonly Dictionary<string, PluginPermission> declaredOptional = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, PluginPermission> grants = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly Dictionary<string, PluginPermission> declaredRequired = [with(StringComparer.OrdinalIgnoreCase)];
+    private readonly Dictionary<string, PluginPermission> declaredOptional = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly IEditorPluginLogger? logger;
 
     private static readonly JsonSerializerOptions JsonOptions = new()

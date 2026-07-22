@@ -353,7 +353,7 @@ public static class ProjectPanel
     private sealed class FolderNode
     {
         public string Name { get; }
-        public Dictionary<string, FolderNode> SubFolders { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, FolderNode> SubFolders { get; } = [with(StringComparer.OrdinalIgnoreCase)];
         public List<AssetEntry> Assets { get; } = [];
 
         public FolderNode(string name)

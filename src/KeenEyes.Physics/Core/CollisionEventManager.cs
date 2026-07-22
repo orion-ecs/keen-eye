@@ -91,7 +91,7 @@ internal sealed class CollisionEventManager(IWorld world)
     private readonly Dictionary<CollisionPairKey, bool> pairTriggerStatus = [];
 
     // Reusable list for entity removal (avoids allocation during RemoveEntity)
-    private readonly List<CollisionPairKey> removalBuffer = new(16);
+    private readonly List<CollisionPairKey> removalBuffer = [with(16)];
 
     /// <summary>
     /// Records a collision from the narrow phase callback.

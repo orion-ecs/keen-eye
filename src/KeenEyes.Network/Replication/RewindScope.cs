@@ -49,7 +49,7 @@ public ref struct RewindScope
     internal RewindScope(IWorld world, List<(Entity Entity, Type Type, object Live, object Historical)> swaps)
     {
         this.world = world;
-        originals = new List<(Entity, Type, object)>(swaps.Count);
+        originals = [with(swaps.Count)];
 
         // Phase 1: record the exact live boxed values first, so restore is byte-for-byte.
         foreach (var (entity, type, live, _) in swaps)

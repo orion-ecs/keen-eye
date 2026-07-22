@@ -41,7 +41,7 @@ public enum WrapMode
 /// </remarks>
 public sealed class AnimationClip
 {
-    private readonly Dictionary<string, BoneTrack> boneTracks = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, BoneTrack> boneTracks = [with(StringComparer.Ordinal)];
 
     /// <summary>
     /// Gets or sets the name of this animation clip.

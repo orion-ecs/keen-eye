@@ -29,7 +29,7 @@ public class HierarchyRefreshBenchmarks
             EntityCount,
             sceneRoot: worldManager.CurrentSceneRoot);
 
-        nodes = new List<HierarchyNode>(EntityCount);
+        nodes = [with(EntityCount)];
     }
 
     [GlobalCleanup]

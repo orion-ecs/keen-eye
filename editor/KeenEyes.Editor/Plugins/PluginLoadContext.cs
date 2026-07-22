@@ -53,8 +53,9 @@ internal sealed class PluginLoadContext : AssemblyLoadContext
         // Assemblies that should be loaded from the host context to ensure
         // type identity across plugin boundaries. Plugins reference the same
         // IEditorPlugin, IEditorContext, etc. as the host.
-        sharedAssemblies = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-        {
+        sharedAssemblies =
+        [
+with(StringComparer.OrdinalIgnoreCase),
             // KeenEyes assemblies
             "KeenEyes.Core",
             "KeenEyes.Abstractions",
@@ -63,7 +64,7 @@ internal sealed class PluginLoadContext : AssemblyLoadContext
             "KeenEyes.Editor.Abstractions",
 
             // System assemblies are handled by the default context automatically
-        };
+        ];
     }
 
     /// <inheritdoc/>

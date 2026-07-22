@@ -53,7 +53,7 @@ public sealed class AStarPathfinder
             : grid.CellCount;
 
         nodePool = new PathNode[poolSize];
-        nodeIndices = new Dictionary<int, int>(poolSize);
+        nodeIndices = [with(poolSize)];
         openSet = new PriorityQueue<int, float>(poolSize);
 
         // Initialize area costs to 1.0
