@@ -197,7 +197,14 @@ public sealed class DotRecastProvider : ICrowdNavigationProvider
             var pos = ToVector3(pt.pos);
 
             activeMesh.InternalNavMesh.GetPolyArea(pt.refs, out var area);
-            waypoints[i] = new NavPoint(pos, (NavAreaType)area, (uint)pt.refs);
+
+            // Surface Detour's off-mesh connection marker so path-following
+            // logic can detect link entry points in a provider-agnostic way.
+            var properties = (pt.flags & DtStraightPathFlags.DT_STRAIGHTPATH_OFFMESH_CONNECTION) != 0
+                ? NavPointProperties.OffMeshConnection
+                : NavPointProperties.None;
+
+            waypoints[i] = new NavPoint(pos, (NavAreaType)area, (uint)pt.refs, properties);
 
             if (i > 0)
             {

@@ -4,6 +4,8 @@
 using System.Diagnostics;
 using System.Numerics;
 using KeenEyes.Editor.Abstractions;
+using KeenEyes.Navigation.Abstractions;
+using KeenEyes.Navigation.Abstractions.Components;
 using KeenEyes.Navigation.DotRecast;
 
 namespace KeenEyes.Editor.Navigation;
@@ -114,10 +116,13 @@ public sealed class NavMeshBakeCommand : IEditorCommand
             var runtimeConfig = config.ToRuntimeConfig();
             var builder = new DotRecastMeshBuilder(runtimeConfig);
 
+            var offMeshLinks = CollectOffMeshLinks();
+
             bakedNavMesh = builder.Build(
                 geometryResult.Vertices,
                 geometryResult.Indices,
-                geometryResult.AreaIds);
+                geometryResult.AreaIds,
+                offMeshLinks: offMeshLinks);
 
             ReportProgress(
                 NavMeshBakePhase.Building,
@@ -183,6 +188,30 @@ public sealed class NavMeshBakeCommand : IEditorCommand
             Percentage = percentage,
             Message = message
         });
+    }
+
+    /// <summary>
+    /// Collects <see cref="OffMeshLink"/> components from the scene into
+    /// builder definitions. Link positions are world-space.
+    /// </summary>
+    private List<OffMeshLinkDefinition>? CollectOffMeshLinks()
+    {
+        List<OffMeshLinkDefinition>? links = null;
+
+        foreach (var entity in world.Query<OffMeshLink>())
+        {
+            ref readonly var link = ref world.Get<OffMeshLink>(entity);
+            links ??= [];
+            links.Add(new OffMeshLinkDefinition(
+                link.Start,
+                link.End,
+                link.Radius,
+                link.Bidirectional,
+                link.AreaType,
+                link.CostModifier));
+        }
+
+        return links;
     }
 
     private string GetDefaultOutputPath()
