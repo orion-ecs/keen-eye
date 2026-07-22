@@ -139,6 +139,71 @@ public sealed record GhostVisualConfig
     public Vector4? OutlineColor { get; init; }
 
     /// <summary>
+    /// Gets or sets whether the ghost should render a motion trail.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When true, games should read the ghost's recent path from
+    /// <see cref="GhostPlayer.GetTrailPoints(System.Span{Vector3})"/> and draw a
+    /// fading trail behind the ghost. When false (the default), no trail is drawn
+    /// and the trail provider is never consulted, so there is zero behavior change.
+    /// </para>
+    /// <para>
+    /// The ghost system does not render the trail itself; these settings are hints
+    /// for the game's rendering code.
+    /// </para>
+    /// </remarks>
+    public bool ShowTrail { get; init; }
+
+    /// <summary>
+    /// Gets or sets the maximum number of recent frames included in the trail.
+    /// </summary>
+    /// <value>
+    /// A positive frame count. Default is 60 (roughly one second at 60 fps).
+    /// </value>
+    /// <remarks>
+    /// This bounds both the visual length of the trail and the buffer a renderer
+    /// needs to request from
+    /// <see cref="GhostPlayer.GetTrailPoints(System.Span{Vector3})"/>. Longer trails
+    /// use more memory in the caller's buffer but do not affect stored ghost data.
+    /// </remarks>
+    public int TrailLength { get; init; } = 60;
+
+    /// <summary>
+    /// Gets or sets the opacity at the oldest (tail) end of the trail.
+    /// </summary>
+    /// <value>
+    /// A value between 0.0 (fully transparent tail) and 1.0 (no fade). Default is 0.5.
+    /// </value>
+    /// <remarks>
+    /// The trail fades from this opacity at the tail toward full opacity at the head
+    /// (the ghost's current position). Renderers should interpolate opacity across the
+    /// trail points using this as the starting value.
+    /// </remarks>
+    public float TrailFadeStart { get; init; } = 0.5f;
+
+    /// <summary>
+    /// Gets or sets the width of the trail, in world units.
+    /// </summary>
+    /// <value>
+    /// A positive width. Default is 0.1.
+    /// </value>
+    /// <remarks>
+    /// Renderers that draw the trail as a line or ribbon should use this as the line
+    /// thickness. Renderers that draw discrete markers may ignore it.
+    /// </remarks>
+    public float TrailWidth { get; init; } = 0.1f;
+
+    /// <summary>
+    /// Gets or sets the style used to draw the trail.
+    /// </summary>
+    /// <remarks>
+    /// Default is <see cref="TrailStyle.Line"/>. See <see cref="TrailStyle"/> for the
+    /// available styles and the <see cref="TrailStyle.Ribbon"/> fallback note.
+    /// </remarks>
+    public TrailStyle TrailStyle { get; init; } = TrailStyle.Line;
+
+    /// <summary>
     /// Creates a new <see cref="GhostVisualConfig"/> with the specified opacity.
     /// </summary>
     /// <param name="opacity">The opacity value (0.0 to 1.0).</param>

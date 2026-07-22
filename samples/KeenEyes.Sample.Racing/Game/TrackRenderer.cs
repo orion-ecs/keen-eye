@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
+using KeenEyes.Replay.Ghost;
 
 namespace KeenEyes.Sample.Racing;
 
@@ -12,6 +13,14 @@ namespace KeenEyes.Sample.Racing;
 /// <param name="Label">A human-readable name shown in the legend.</param>
 /// <param name="Position">The marker's world-space position.</param>
 public readonly record struct TrackMarker(char Symbol, string Label, Vector3 Position);
+
+/// <summary>
+/// A fading motion trail to draw behind a ghost on the ASCII track view.
+/// </summary>
+/// <param name="Points">The trail points, ordered oldest first, newest last.</param>
+/// <param name="FadeStart">The opacity at the oldest (tail) point; the head is fully opaque.</param>
+/// <param name="Style">The requested trail style (see the per-style notes on the renderer's Render method).</param>
+public readonly record struct TrackTrail(IReadOnlyList<Vector3> Points, float FadeStart, TrailStyle Style);
 
 /// <summary>
 /// Renders a top-down ASCII view of the circular track with the car and its ghosts.
@@ -42,15 +51,34 @@ public sealed class TrackRenderer
         this.height = height;
     }
 
+    // Glyph ramp for trail age, faintest (oldest) to boldest (newest). Renderers on a
+    // real GPU would fade an alpha value instead; on a character grid we quantize the
+    // computed opacity onto these glyphs so the direction of travel reads at a glance.
+    private static readonly char[] trailGlyphs = [':', '+', '*'];
+
     /// <summary>
-    /// Builds the ASCII view for the given markers.
+    /// Builds the ASCII view for the given markers and ghost trails.
     /// </summary>
     /// <param name="markers">The markers to plot on the track.</param>
+    /// <param name="trails">
+    /// The ghost trails to draw beneath the markers. Pass an empty list for no trails.
+    /// </param>
     /// <returns>A multi-line string containing the rendered view and legend.</returns>
-    /// <exception cref="ArgumentNullException">Thrown when <paramref name="markers"/> is null.</exception>
-    public string Render(IReadOnlyList<TrackMarker> markers)
+    /// <exception cref="ArgumentNullException">Thrown when an argument is null.</exception>
+    /// <remarks>
+    /// Trails are drawn on top of the racing line but beneath the car/ghost markers, so
+    /// a head marker always wins its cell. Each trail point is quantized to a glyph by
+    /// its age-based opacity (fading from <see cref="TrackTrail.FadeStart"/> at the tail
+    /// to fully opaque at the head). <see cref="TrailStyle.Dots"/> draws every other
+    /// point for a dashed look; <see cref="TrailStyle.Line"/>, <see cref="TrailStyle.Gradient"/>,
+    /// and <see cref="TrailStyle.Ribbon"/> draw a continuous run of glyphs. This 2D view
+    /// has no oriented 3D primitive, so <see cref="TrailStyle.Ribbon"/> falls back to the
+    /// line rendering.
+    /// </remarks>
+    public string Render(IReadOnlyList<TrackMarker> markers, IReadOnlyList<TrackTrail> trails)
     {
         ArgumentNullException.ThrowIfNull(markers);
+        ArgumentNullException.ThrowIfNull(trails);
 
         var grid = new char[height, width];
         for (var row = 0; row < height; row++)
@@ -67,6 +95,12 @@ public sealed class TrackRenderer
         {
             var distance = track.Length * i / samples;
             Plot(grid, track.PositionAt(distance), '.');
+        }
+
+        // Draw ghost trails on top of the racing line but under the markers below.
+        foreach (var trail in trails)
+        {
+            PlotTrail(grid, trail);
         }
 
         // Overlay the markers on top of the racing line, in the order given (the
@@ -126,6 +160,33 @@ public sealed class TrackRenderer
 
         grid[row, col] = symbol;
         return true;
+    }
+
+    private void PlotTrail(char[,] grid, TrackTrail trail)
+    {
+        var points = trail.Points;
+        if (points.Count == 0)
+        {
+            return;
+        }
+
+        // Dots draw a dashed trail; every other line style draws a continuous run.
+        var step = trail.Style == TrailStyle.Dots ? 2 : 1;
+
+        for (var i = 0; i < points.Count; i += step)
+        {
+            // Opacity ramps from FadeStart at the tail to 1.0 at the head. With a
+            // single point, treat it as the head (fully opaque).
+            var age = points.Count > 1 ? (float)i / (points.Count - 1) : 1f;
+            var opacity = trail.FadeStart + (1f - trail.FadeStart) * age;
+
+            var glyph = trailGlyphs[Math.Clamp(
+                (int)(opacity * trailGlyphs.Length),
+                0,
+                trailGlyphs.Length - 1)];
+
+            Plot(grid, points[i], glyph);
+        }
     }
 
     private void Plot(char[,] grid, Vector3 position, char symbol)

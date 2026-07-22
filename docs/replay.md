@@ -249,6 +249,57 @@ ghostPlayer.SyncMode = GhostSyncMode.TimeSynced;
 ghostPlayer.Play();
 ```
 
+### Ghost trails
+
+A ghost can optionally leave a fading trail showing the path it has recently traveled — useful for visualizing racing lines and comparing trajectories. Like the rest of `GhostVisualConfig`, the trail is **data-only**: the ghost system computes trail points but never draws them, so games (or the editor) supply the rendering.
+
+Enable and shape the trail through `GhostVisualConfig`:
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `ShowTrail` | `false` | Master switch. When `false`, the trail provider is never consulted, so there is zero behavior change. |
+| `TrailLength` | `60` | Maximum number of recent frames in the trail (bounds the buffer a renderer needs). |
+| `TrailFadeStart` | `0.5f` | Opacity at the oldest (tail) point; the head is fully opaque. |
+| `TrailWidth` | `0.1f` | Line/ribbon thickness in world units. |
+| `TrailStyle` | `TrailStyle.Line` | `Line`, `Ribbon`, `Dots`, or `Gradient`. |
+
+The trail points come from `GhostPlayer` (also surfaced on `GhostInstance`):
+
+```csharp
+// Zero-allocation: fills a caller-owned buffer, returns the number of points written.
+public int GetTrailPoints(Span<Vector3> destination);
+
+// Convenience: allocates a new array of up to maxPoints entries.
+public Vector3[] GetTrailPoints(int maxPoints);
+```
+
+Points are the recorded frame positions at or before the current playhead, ordered **oldest first, newest last**, so they feed a line strip directly. The provider tracks the playhead across `Update`, `UpdateByDistance`, `SeekToTime`, and `SeekToFrame`. It returns **no points while the playhead sits on the first frame** — before playback has advanced, and after `Stop` resets it — because there is no traversed path to show. The `Span<Vector3>` overload does not allocate; reuse one buffer sized to `TrailLength` across frames. The `int maxPoints` overload allocates a fresh array per call and is a convenience for non-hot paths.
+
+Drawing a trail with a 2D renderer is a short loop over the points, fading opacity from `TrailFadeStart` at the tail to full opacity at the head, using the existing `I2DRenderer.DrawLineStrip` seam:
+
+```csharp
+Span<Vector2> screen = stackalloc Vector2[config.TrailLength];
+Span<Vector3> world = stackalloc Vector3[config.TrailLength];
+
+int count = ghost.GetTrailPoints(world);
+for (int i = 0; i < count; i++)
+{
+    screen[i] = WorldToScreen(world[i]); // your camera projection
+}
+
+if (count >= 2 && config.TrailStyle != TrailStyle.Dots)
+{
+    // Fade the whole strip toward the head; per-vertex gradients would draw
+    // segment-by-segment with an interpolated alpha across [TrailFadeStart, 1].
+    var color = config.TintColor with { W = config.TrailFadeStart };
+    renderer.DrawLineStrip(screen[..count], color, config.TrailWidth);
+}
+```
+
+**`Ribbon` limitation:** a true ribbon is an oriented 3D strip that needs a 3D line renderer, which KeenEyes does not currently provide. The 2D reference renderers therefore treat `TrailStyle.Ribbon` as `TrailStyle.Line` (documented, not silent). `Dots` draws discrete markers per point; `Gradient` grades color/opacity along the path.
+
+The `samples/KeenEyes.Sample.Racing` sample enables trails on its ghosts (`GhostSetup`) and renders age-faded glyphs in the console track view (`TrackRenderer`), reading the points through the zero-allocation `GetTrailPoints(Span<Vector3>)` overload with a reusable buffer.
+
 ## Performance
 
 - Recording has effectively zero overhead when `IsRecording` is `false` — the plugin's system hooks and event subscriptions short-circuit immediately.
