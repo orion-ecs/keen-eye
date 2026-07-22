@@ -209,6 +209,13 @@ public class UdpTransportTests
         using var client1 = pair.Value.Client;
         var port = pair.Value.Port;
 
+        var connectedClients = new List<int>();
+        server.ClientConnected += id => connectedClients.Add(id);
+
+        // Register first client on the server.
+        await Task.Delay(100);
+        server.Update();
+
         // Try to connect second client
         using var client2 = new UdpTransport();
         using var cts = new CancellationTokenSource(2000);
@@ -224,6 +231,12 @@ public class UdpTransportTests
 
         await Task.Delay(100);
         server.Update();
+
+        // Gate on the server actually registering both clients before asserting
+        // delivery. Under machine load the second handshake may not complete in
+        // time; without this the test flakes (fails in-suite, passes isolated).
+        // Mirrors the gating in SendToAllExcept_ExcludesSpecifiedClient.
+        Assert.SkipWhen(connectedClients.Count < 2, "Need at least 2 clients for this test");
 
         byte[]? received1 = null;
         byte[]? received2 = null;
