@@ -2,6 +2,7 @@ using System.Numerics;
 using DotRecast.Core.Numerics;
 using DotRecast.Detour;
 using KeenEyes.Navigation.Abstractions;
+using KeenEyes.Navigation.Abstractions.Components;
 
 namespace KeenEyes.Navigation.DotRecast;
 
@@ -19,9 +20,10 @@ namespace KeenEyes.Navigation.DotRecast;
 /// <item>Raycast line-of-sight queries</item>
 /// <item>Area-based cost modifiers</item>
 /// <item>Thread-safe query pooling</item>
+/// <item>Crowd simulation with local avoidance via <see cref="ICrowdNavigationProvider"/></item>
 /// </list>
 /// </remarks>
-public sealed class DotRecastProvider : INavigationProvider
+public sealed class DotRecastProvider : ICrowdNavigationProvider
 {
     private readonly NavMeshConfig config;
     private readonly Queue<DotRecastPathRequest> pendingRequests;
@@ -30,6 +32,7 @@ public sealed class DotRecastProvider : INavigationProvider
 
     private NavMeshData? activeMesh;
     private NavMeshQueryPool? queryPool;
+    private DotRecastCrowdManager? crowdManager;
     private bool disposed;
 
     /// <summary>
@@ -120,6 +123,9 @@ public sealed class DotRecastProvider : INavigationProvider
 
         activeMesh = navMeshData;
         queryPool = new NavMeshQueryPool(navMeshData.InternalNavMesh);
+
+        // Rebuild the crowd on the new mesh, re-adding registered agents
+        crowdManager?.SetNavMesh(navMeshData);
     }
 
     #region Pathfinding
@@ -482,6 +488,66 @@ public sealed class DotRecastProvider : INavigationProvider
 
     #endregion
 
+    #region Crowd Simulation
+
+    /// <inheritdoc/>
+    public int CrowdAgentCount => crowdManager?.AgentCount ?? 0;
+
+    /// <inheritdoc/>
+    public bool TryAddCrowdAgent(Entity entity, Vector3 position, in NavMeshAgent agent, in CrowdAgent crowdAgent)
+    {
+        ThrowIfDisposed();
+
+        if (activeMesh == null)
+        {
+            return false;
+        }
+
+        crowdManager ??= new DotRecastCrowdManager(activeMesh, config.AgentRadius);
+        return crowdManager.TryAddAgent(entity, position, in agent, in crowdAgent);
+    }
+
+    /// <inheritdoc/>
+    public void RemoveCrowdAgent(Entity entity)
+    {
+        crowdManager?.RemoveAgent(entity);
+    }
+
+    /// <inheritdoc/>
+    public bool RequestCrowdMoveTarget(Entity entity, Vector3 target)
+    {
+        ThrowIfDisposed();
+        return crowdManager?.RequestMoveTarget(entity, target) ?? false;
+    }
+
+    /// <inheritdoc/>
+    public bool ResetCrowdMoveTarget(Entity entity)
+    {
+        ThrowIfDisposed();
+        return crowdManager?.ResetMoveTarget(entity) ?? false;
+    }
+
+    /// <inheritdoc/>
+    public void UpdateCrowd(float deltaTime)
+    {
+        ThrowIfDisposed();
+        crowdManager?.Update(deltaTime);
+    }
+
+    /// <inheritdoc/>
+    public bool TryGetCrowdAgentState(Entity entity, out CrowdAgentState state)
+    {
+        if (crowdManager == null)
+        {
+            state = default;
+            return false;
+        }
+
+        return crowdManager.TryGetAgentState(entity, out state);
+    }
+
+    #endregion
+
     /// <inheritdoc/>
     public void Dispose()
     {
@@ -500,6 +566,7 @@ public sealed class DotRecastProvider : INavigationProvider
             }
         }
 
+        crowdManager?.Dispose();
         queryPool?.Dispose();
         disposed = true;
     }

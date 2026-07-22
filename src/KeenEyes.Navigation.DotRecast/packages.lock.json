@@ -11,6 +11,15 @@
           "DotRecast.Core": "2026.1.3"
         }
       },
+      "DotRecast.Detour.Crowd": {
+        "type": "Direct",
+        "requested": "[2026.1.3, )",
+        "resolved": "2026.1.3",
+        "contentHash": "TvdiyfG3wpcAOX12Pt/iAGtYNyHbGPa8SyYDJjivN0n2pt//8Llr3eHzOP7Gbkln0fFUTgCjTiaIoEE0rXV2XA==",
+        "dependencies": {
+          "DotRecast.Detour": "2026.1.3"
+        }
+      },
       "DotRecast.Recast": {
         "type": "Direct",
         "requested": "[2026.1.3, )",
