@@ -5,6 +5,17 @@ queries:
   - uses: security-extended
   - uses: security-and-quality
 
+# For compiled languages, paths-ignore does not limit extraction (the whole
+# build is still traced); the codeql-action applies these globs as alert-level
+# result filters, which is exactly what we want: suppress alerts in generated
+# and build-output code that no human maintains.
+paths-ignore:
+  - '**/obj/**'
+  - '**/bin/**'
+  - '**/*.g.cs'
+  - '**/*.generated.cs'
+  - '**/*.Designer.cs'
+
 # Disable specific rules
 query-filters:
   # Disable LINQ suggestion rules - ECS hot paths intentionally avoid LINQ
@@ -20,3 +31,20 @@ query-filters:
   # trusted internal sources (asset paths, config locations), not user input
   - exclude:
       id: cs/path-injection
+  # Same rationale as cs/path-injection above: Path.Combine arguments come
+  # from trusted internal sources (save-slot names are validated upstream by
+  # SlotNameValidator; log/asset paths are engine-constructed), not user input.
+  - exclude:
+      id: cs/path-combine
+  # Disable structural-style suggestions. House style (enforced via
+  # .editorconfig, Roslyn analyzers with TreatWarningsAsErrors, and the Sonar
+  # bypass list in Directory.Build.props - see S3358) prefers explicit if/else
+  # and guard-clause nesting over ternary chains and merged conditions.
+  - exclude:
+      id: cs/nested-if-statements
+  - exclude:
+      id: cs/missed-ternary-operator
+  # Block complexity is already governed by Sonar/Roslyn thresholds at build
+  # time; this metric-style duplicate adds noise without a distinct signal.
+  - exclude:
+      id: cs/complex-block
