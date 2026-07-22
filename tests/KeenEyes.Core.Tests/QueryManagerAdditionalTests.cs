@@ -366,7 +366,7 @@ public class QueryManagerAdditionalTests
 
         using var manager = new ArchetypeManager(world.Components);
         var arch1 = manager.GetOrCreateArchetype([typeof(Position)]);
-        var arch2 = manager.GetOrCreateArchetype([typeof(Velocity)]);
+        _ = manager.GetOrCreateArchetype([typeof(Velocity)]);
 
         var cache = new ArchetypeCache();
 
@@ -427,7 +427,7 @@ public class QueryManagerAdditionalTests
         var queryManager = new QueryManager(manager);
 
         // Create archetype
-        var archetype = manager.GetOrCreateArchetype([typeof(Position)]);
+        _ = manager.GetOrCreateArchetype([typeof(Position)]);
 
         // Query to create cache entry
         var description = new QueryDescription();

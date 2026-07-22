@@ -44,13 +44,13 @@ public partial class ClientServerIntegrationTests
         using var clientWorld = new World { Name = "Client" };
 
         // Server creates entities
-        var serverPlayer = serverWorld.Spawn()
+        _ = serverWorld.Spawn()
             .With(new Position { X = 100, Y = 200 })
             .With(new Health { Current = 100, Max = 100 })
             .Build();
 
         // Client creates entities
-        var clientPlayer = clientWorld.Spawn()
+        _ = clientWorld.Spawn()
             .With(new Position { X = 95, Y = 195 })
             .With(new Health { Current = 100, Max = 100 })
             .Build();

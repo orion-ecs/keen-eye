@@ -229,10 +229,10 @@ public partial class MultiWorldIsolationTests
     [Fact]
     public void WorldDisposal_DoesntAffectOtherWorlds()
     {
-        var world1 = new World();
+        using var world1 = new World();
         using var world2 = new World();
 
-        var entity1 = world1.Spawn().With(new Position()).Build();
+        _ = world1.Spawn().With(new Position()).Build();
         var entity2 = world2.Spawn().With(new Position()).Build();
 
         // Dispose world1

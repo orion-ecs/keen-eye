@@ -73,7 +73,7 @@ public class PluginContextTests
 
         world.InstallPlugin(plugin);
 
-        var iworld = ((IPluginContext)plugin.CapturedContext!).World;
+        var iworld = plugin.CapturedContext!.World;
         Assert.Same(world, iworld);
     }
 

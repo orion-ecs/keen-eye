@@ -142,7 +142,7 @@ public class MessagingTests
 
         var messageCount = 0;
 
-        var subscription = world.Subscribe<DamageMessage>(_ => messageCount++);
+        using var subscription = world.Subscribe<DamageMessage>(_ => messageCount++);
 
         // Dispose multiple times should not throw
         subscription.Dispose();
@@ -797,7 +797,7 @@ public class MessagingTests
     [Fact]
     public void WorldDispose_ClearsAllSubscriptions()
     {
-        var world = new World();
+        using var world = new World();
 
         var messageCount = 0;
 
@@ -806,10 +806,7 @@ public class MessagingTests
 
         Assert.Equal(2, world.GetMessageSubscriberCount<DamageMessage>());
 
-        world.Dispose();
-
-        // Can't verify directly since we can't use world after dispose
-        // But ensure no exception during cleanup
+        // Disposal happens via the using declaration; this verifies no exception during cleanup.
     }
 
     [Fact]

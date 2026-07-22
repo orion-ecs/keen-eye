@@ -54,7 +54,7 @@ public class SceneManagerTests
     {
         using var world = new World();
 
-        var scene1 = world.Scenes.Spawn("Level");
+        _ = world.Scenes.Spawn("Level");
         var scene2 = world.Scenes.Spawn("Level");
 
         var found = world.Scenes.GetScene("Level");
@@ -220,10 +220,8 @@ public class SceneManagerTests
 
         world.Scenes.Unload(scene);
 
-        // Persistent entity should still have its membership
-        ref readonly var membership = ref world.Get<SceneMembership>(entity);
-        // The scene root was despawned, so we can't check its metadata directly
-        // but the unload operation should have worked
+        // Persistent entity should still have its membership and remain alive.
+        Assert.True(world.Has<SceneMembership>(entity));
         Assert.True(world.IsAlive(entity));
     }
 
@@ -672,14 +670,11 @@ public class SceneManagerTests
     [Fact]
     public void WorldDispose_ClearsSceneManager()
     {
-        var world = new World();
+        using var world = new World();
         _ = world.Scenes.Spawn("TestScene");
         Assert.Equal(1, world.Scenes.LoadedCount);
 
-        world.Dispose();
-
-        // After dispose, we can't safely access Scenes
-        // This test just verifies no exception is thrown during cleanup
+        // Disposal happens via the using declaration; this verifies no exception is thrown during cleanup.
     }
 
     #endregion

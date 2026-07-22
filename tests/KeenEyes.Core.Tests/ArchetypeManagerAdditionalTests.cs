@@ -145,7 +145,7 @@ public class ArchetypeManagerAdditionalTests
         var registry = new ComponentRegistry();
         registry.Register<Position>();
 
-        var manager = new ArchetypeManager(registry);
+        using var manager = new ArchetypeManager(registry);
         manager.GetOrCreateArchetype([typeof(Position)]);
 
         manager.Clear();

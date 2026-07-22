@@ -114,8 +114,6 @@ public class ComponentValidationManagerTests
 
         manager.RegisterValidator(validator);
 
-        var entity = world.Spawn().Build();
-
         // This would need validation to be enabled in the world
         // For now, just verify the validator was registered
         Assert.NotNull(validator);

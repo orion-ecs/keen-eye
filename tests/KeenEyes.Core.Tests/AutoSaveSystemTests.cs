@@ -283,7 +283,7 @@ public class AutoSaveSystemTests : IDisposable
         for (int i = 0; i < 5; i++)
         {
             // Make a change before each save
-            world.Set(entity, new SerializablePosition { X = i * 10, Y = i * 10 });
+            world.Set(entity, new SerializablePosition { X = i * 10f, Y = i * 10f });
             world.Update(2f);
         }
 
@@ -670,8 +670,8 @@ public class AutoSaveSystemTests : IDisposable
         var newEntityMap = DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
 
         // Verify new entity was created
-        Assert.True(newEntityMap.ContainsKey(999));
-        Assert.True(world.IsAlive(newEntityMap[999]));
+        Assert.True(newEntityMap.TryGetValue(999, out var createdEntity));
+        Assert.True(world.IsAlive(createdEntity));
     }
 
     [Fact]
@@ -1057,8 +1057,7 @@ public class AutoSaveSystemTests : IDisposable
         var newEntityMap = DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
 
         // Verify child was created with correct parent
-        Assert.True(newEntityMap.ContainsKey(999));
-        var child = newEntityMap[999];
+        Assert.True(newEntityMap.TryGetValue(999, out var child));
         Assert.Equal(parent, world.GetParent(child));
     }
 

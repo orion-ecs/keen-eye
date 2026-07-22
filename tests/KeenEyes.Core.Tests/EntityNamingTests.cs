@@ -553,7 +553,7 @@ public class EntityNamingTests
     {
         using var world = new World();
 
-        var entity1 = world.Spawn("Player").Build();
+        _ = world.Spawn("Player").Build();
         var entity2 = world.Spawn("Enemy").Build();
 
         // Try to rename entity2 to "Player" which already exists

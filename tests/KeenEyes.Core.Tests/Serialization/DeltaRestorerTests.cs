@@ -26,7 +26,7 @@ public class DeltaRestorerTests
     public void ApplyDelta_WithEmptyDelta_MakesNoChanges()
     {
         using var world = new World();
-        var entity = world.Spawn("Entity").With(new SerializablePosition { X = 1, Y = 2 }).Build();
+        _ = world.Spawn("Entity").With(new SerializablePosition { X = 1, Y = 2 }).Build();
 
         var baseline = SnapshotManager.CreateSnapshot(world, serializer);
         var entityMap = SnapshotManager.RestoreSnapshot(world, baseline, serializer);
@@ -91,7 +91,7 @@ public class DeltaRestorerTests
     {
         using var world = new World();
         var entity1 = world.Spawn("Entity1").With(new SerializablePosition { X = 0, Y = 0 }).Build();
-        var entity2 = world.Spawn("Entity2").With(new SerializablePosition { X = 1, Y = 1 }).Build();
+        _ = world.Spawn("Entity2").With(new SerializablePosition { X = 1, Y = 1 }).Build();
 
         var baseline = SnapshotManager.CreateSnapshot(world, serializer);
         var entityMap = SnapshotManager.RestoreSnapshot(world, baseline, serializer);
@@ -807,7 +807,7 @@ public class DeltaRestorerTests
         };
 
         entityMap = DeltaRestorer.ApplyDelta(world, delta1, serializer, entityMap);
-        entityMap = DeltaRestorer.ApplyDelta(world, delta2, serializer, entityMap);
+        _ = DeltaRestorer.ApplyDelta(world, delta2, serializer, entityMap);
 
         var restoredEntity = world.GetEntityByName("Entity");
         ref var pos = ref world.Get<SerializablePosition>(restoredEntity);

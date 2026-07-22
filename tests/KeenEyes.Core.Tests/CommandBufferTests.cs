@@ -1138,7 +1138,7 @@ public class CommandBufferTests
         for (int i = 0; i < 5; i++)
         {
             world.Spawn()
-                .With(new TestPosition { X = i * 10, Y = i * 10 })
+                .With(new TestPosition { X = i * 10f, Y = i * 10f })
                 .Build();
         }
 
@@ -1166,7 +1166,7 @@ public class CommandBufferTests
         for (int i = 0; i < 3; i++)
         {
             world.Spawn()
-                .With(new TestPosition { X = i * 100, Y = 0 })
+                .With(new TestPosition { X = i * 100f, Y = 0 })
                 .WithTag<ActiveTag>()
                 .Build();
         }

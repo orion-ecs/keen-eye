@@ -49,17 +49,12 @@ public class HierarchyManagerAdditionalTests
     public void GetParent_WithInvalidParentId_ReturnsNull()
     {
         using var world = new World();
-        var manager = new HierarchyManager(world);
 
         var child = world.Spawn()
             .With(new TestPosition { X = 1, Y = 1 })
             .Build();
 
-        // Manually set an invalid parent ID using internal access
-        // This simulates a corrupted state
-        var invalidParent = new Entity { Id = 99999, Version = 1 };
-
-        // GetParent should handle this gracefully
+        // A child that was never parented should report no valid parent.
         var result = world.GetParent(child);
         Assert.False(result.IsValid);
     }

@@ -136,7 +136,7 @@ public class SystemBaseTests
     public void SystemBase_Dispose_CanBeOverridden()
     {
         using var world = new World();
-        var system = new TestCountingSystem();
+        using var system = new TestCountingSystem();
         system.Initialize(world);
 
         system.Dispose();
@@ -181,21 +181,20 @@ public class SystemGroupTests
     public void SystemGroup_AddGeneric_AddsSystem()
     {
         using var world = new World();
-        var group = new SystemGroup("TestGroup");
+        using var group = new SystemGroup("TestGroup");
 
         group.Add<TestCountingSystem>();
         group.Initialize(world);
         group.Update(0.016f);
 
         // If we got here without exception, the system was added and updated
-        group.Dispose();
     }
 
     [Fact]
     public void SystemGroup_AddInstance_AddsSystem()
     {
         using var world = new World();
-        var group = new SystemGroup("TestGroup");
+        using var group = new SystemGroup("TestGroup");
         var system = new TestCountingSystem();
 
         group.Add(system);
@@ -203,30 +202,27 @@ public class SystemGroupTests
         group.Update(0.016f);
 
         Assert.Equal(1, system.UpdateCount);
-        group.Dispose();
     }
 
     [Fact]
     public void SystemGroup_Add_ReturnsSelf_ForChaining()
     {
-        var group = new SystemGroup("TestGroup");
+        using var group = new SystemGroup("TestGroup");
 
         var result = group.Add<TestCountingSystem>();
 
         Assert.Same(group, result);
-        group.Dispose();
     }
 
     [Fact]
     public void SystemGroup_AddInstance_ReturnsSelf_ForChaining()
     {
-        var group = new SystemGroup("TestGroup");
+        using var group = new SystemGroup("TestGroup");
         var system = new TestCountingSystem();
 
         var result = group.Add(system);
 
         Assert.Same(group, result);
-        group.Dispose();
     }
 
     [Fact]
@@ -236,7 +232,7 @@ public class SystemGroupTests
         var system1 = new TestCountingSystem();
         var system2 = new TestCountingSystem();
 
-        var group = new SystemGroup("TestGroup")
+        using var group = new SystemGroup("TestGroup")
             .Add(system1)
             .Add(system2);
 
@@ -244,7 +240,6 @@ public class SystemGroupTests
 
         Assert.Equal(1, system1.InitializeCount);
         Assert.Equal(1, system2.InitializeCount);
-        group.Dispose();
     }
 
     [Fact]
@@ -254,7 +249,7 @@ public class SystemGroupTests
         var system1 = new TestCountingSystem();
         var system2 = new TestCountingSystem();
 
-        var group = new SystemGroup("TestGroup")
+        using var group = new SystemGroup("TestGroup")
             .Add(system1)
             .Add(system2);
 
@@ -263,7 +258,6 @@ public class SystemGroupTests
 
         Assert.Equal(1, system1.UpdateCount);
         Assert.Equal(1, system2.UpdateCount);
-        group.Dispose();
     }
 
     [Fact]
@@ -273,7 +267,7 @@ public class SystemGroupTests
         var system1 = new TestCountingSystem();
         var system2 = new TestCountingSystem();
 
-        var group = new SystemGroup("TestGroup")
+        using var group = new SystemGroup("TestGroup")
             .Add(system1)
             .Add(system2);
 
@@ -282,7 +276,6 @@ public class SystemGroupTests
 
         Assert.Equal(0.5f, system1.TotalDeltaTime);
         Assert.Equal(0.5f, system2.TotalDeltaTime);
-        group.Dispose();
     }
 
     [Fact]
@@ -292,7 +285,7 @@ public class SystemGroupTests
         var system1 = new TestCountingSystem();
         var system2 = new TestCountingSystem();
 
-        var group = new SystemGroup("TestGroup")
+        using var group = new SystemGroup("TestGroup")
             .Add(system1)
             .Add(system2);
 
@@ -309,7 +302,7 @@ public class SystemGroupTests
         using var world = new World();
         var system = new TestCountingSystem();
 
-        var group = new SystemGroup("TestGroup").Add(system);
+        using var group = new SystemGroup("TestGroup").Add(system);
         group.Initialize(world);
         group.Dispose();
 
@@ -327,7 +320,7 @@ public class SystemGroupTests
         var system1 = new TestCountingSystem();
         var system2 = new TestCountingSystem();
 
-        var group = new SystemGroup("TestGroup").Add(system1);
+        using var group = new SystemGroup("TestGroup").Add(system1);
         group.Initialize(world);
 
         // Add second system after initialization
@@ -335,7 +328,6 @@ public class SystemGroupTests
 
         Assert.Equal(1, system1.InitializeCount);
         Assert.Equal(1, system2.InitializeCount); // Should be auto-initialized
-        group.Dispose();
     }
 
     [Fact]
@@ -344,7 +336,7 @@ public class SystemGroupTests
         using var world = new World();
         var system1 = new TestCountingSystem();
 
-        var group = new SystemGroup("TestGroup").Add(system1);
+        using var group = new SystemGroup("TestGroup").Add(system1);
         group.Initialize(world);
 
         // Add system using generic method after initialization
@@ -352,7 +344,6 @@ public class SystemGroupTests
 
         // Verify the group can update without errors (system is initialized)
         group.Update(0.016f);
-        group.Dispose();
     }
 
     [Fact]
@@ -362,26 +353,23 @@ public class SystemGroupTests
         var system = new TestCountingSystem();
 
         var innerGroup = new SystemGroup("InnerGroup").Add(system);
-        var outerGroup = new SystemGroup("OuterGroup").Add(innerGroup);
+        using var outerGroup = new SystemGroup("OuterGroup").Add(innerGroup);
 
         outerGroup.Initialize(world);
         outerGroup.Update(0.016f);
 
         Assert.Equal(1, system.InitializeCount);
         Assert.Equal(1, system.UpdateCount);
-        outerGroup.Dispose();
     }
 
     [Fact]
     public void SystemGroup_EmptyGroup_UpdateDoesNotThrow()
     {
         using var world = new World();
-        var group = new SystemGroup("EmptyGroup");
+        using var group = new SystemGroup("EmptyGroup");
 
         group.Initialize(world);
         group.Update(0.016f); // Should not throw
-
-        group.Dispose();
     }
 
     [Fact]

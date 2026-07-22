@@ -244,7 +244,7 @@ public class SystemHookTests
         using var world = new World();
         var invokeCount = 0;
 
-        var subscription = world.AddSystemHook(
+        using var subscription = world.AddSystemHook(
             beforeHook: (system, dt) => invokeCount++,
             afterHook: null
         );
@@ -264,7 +264,7 @@ public class SystemHookTests
         using var world = new World();
         var invokeCount = 0;
 
-        var subscription = world.AddSystemHook(
+        using var subscription = world.AddSystemHook(
             beforeHook: (system, dt) => invokeCount++,
             afterHook: null
         );
@@ -285,12 +285,12 @@ public class SystemHookTests
         var count1 = 0;
         var count2 = 0;
 
-        var sub1 = world.AddSystemHook(
+        using var sub1 = world.AddSystemHook(
             beforeHook: (system, dt) => count1++,
             afterHook: null
         );
 
-        var sub2 = world.AddSystemHook(
+        using var sub2 = world.AddSystemHook(
             beforeHook: (system, dt) => count2++,
             afterHook: null
         );
@@ -425,7 +425,7 @@ public class SystemHookTests
     [Fact]
     public void World_Dispose_ClearsAllHooks()
     {
-        var world = new World();
+        using var world = new World();
         var invokeCount = 0;
 
         world.AddSystemHook(
@@ -472,8 +472,8 @@ public class SystemHookTests
         world.Update(0.016f);
         world.Update(0.033f);
 
-        Assert.True(profilerData.ContainsKey(nameof(TestHookSystem)));
-        var (executionCount, totalDeltaTime) = profilerData[nameof(TestHookSystem)];
+        Assert.True(profilerData.TryGetValue(nameof(TestHookSystem), out var hookStats));
+        var (executionCount, totalDeltaTime) = hookStats;
         Assert.Equal(2, executionCount);
         Assert.Equal(0.049f, totalDeltaTime, 5);
     }

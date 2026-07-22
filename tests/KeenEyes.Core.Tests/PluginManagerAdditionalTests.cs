@@ -124,7 +124,7 @@ public class PluginManagerAdditionalTests
         var plugin2 = new TestSimplePlugin();
         var plugin3 = new TestExtensionPlugin();
 
-        var world = new World();
+        using var world = new World();
         world.InstallPlugin(plugin1);
         world.InstallPlugin(plugin2);
         world.InstallPlugin(plugin3);
@@ -138,7 +138,7 @@ public class PluginManagerAdditionalTests
     [Fact]
     public void Dispose_WithPluginSystems_DisposesAllSystems()
     {
-        var world = new World();
+        using var world = new World();
         var plugin = new TestMultiSystemPlugin();
 
         world.InstallPlugin(plugin);
@@ -153,7 +153,7 @@ public class PluginManagerAdditionalTests
     [Fact]
     public void Dispose_MultipleTimes_DoesNotThrow()
     {
-        var world = new World();
+        using var world = new World();
         world.InstallPlugin<TestSimplePlugin>();
 
         world.Dispose();

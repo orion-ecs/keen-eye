@@ -654,7 +654,7 @@ public class QueryCachingTests
         var exceptionLock = new object();
 
         var threads = new Thread[threadCount];
-        var startBarrier = new Barrier(threadCount);
+        using var startBarrier = new Barrier(threadCount);
 
         for (var i = 0; i < threadCount; i++)
         {
@@ -718,7 +718,7 @@ public class QueryCachingTests
         const int iterationsPerThread = 500;
         var exceptions = new List<Exception>();
         var exceptionLock = new object();
-        var stopFlag = new ManualResetEventSlim(false);
+        using var stopFlag = new ManualResetEventSlim(false);
 
         // Reader threads that continuously query
         var readerThreads = new Thread[readerThreadCount];
@@ -826,7 +826,7 @@ public class QueryCachingTests
         const int iterationsPerThread = 500;
         var exceptions = new List<Exception>();
         var exceptionLock = new object();
-        var startBarrier = new Barrier(threadCount);
+        using var startBarrier = new Barrier(threadCount);
 
         var threads = new Thread[threadCount];
         var descriptions = new[] { posDescription, velDescription, healthDescription };
@@ -903,7 +903,7 @@ public class QueryCachingTests
         var exceptionLock = new object();
 
         var readerThreads = new Thread[readerCount];
-        var writerComplete = new ManualResetEventSlim(false);
+        using var writerComplete = new ManualResetEventSlim(false);
 
         // Start reader threads
         for (var i = 0; i < readerCount; i++)

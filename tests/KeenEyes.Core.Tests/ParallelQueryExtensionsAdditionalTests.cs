@@ -403,7 +403,7 @@ public class ParallelQueryExtensionsAdditionalTests
         for (int i = 0; i < 5; i++)
         {
             world.Spawn()
-                .With(new Position { X = i, Y = i * 2 })
+                .With(new Position { X = i, Y = i * 2f })
                 .With(new Velocity { X = 1, Y = 1 })
                 .Build();
         }

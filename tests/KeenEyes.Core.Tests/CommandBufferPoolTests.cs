@@ -146,10 +146,10 @@ public class CommandBufferPoolTests
         var globalId1 = CommandBufferPool.GetGlobalPlaceholderId(bufferId1, cmd1.PlaceholderId);
         var globalId2 = CommandBufferPool.GetGlobalPlaceholderId(bufferId2, cmd2.PlaceholderId);
 
-        Assert.True(entityMap.ContainsKey(globalId1));
-        Assert.True(entityMap.ContainsKey(globalId2));
-        Assert.True(world.IsAlive(entityMap[globalId1]));
-        Assert.True(world.IsAlive(entityMap[globalId2]));
+        Assert.True(entityMap.TryGetValue(globalId1, out var mappedEntity1));
+        Assert.True(entityMap.TryGetValue(globalId2, out var mappedEntity2));
+        Assert.True(world.IsAlive(mappedEntity1));
+        Assert.True(world.IsAlive(mappedEntity2));
     }
 
     [Fact]
@@ -281,7 +281,7 @@ public class CommandBufferPoolTests
         var buffer2 = pool.Rent(systemId: 2);
 
         // First batch: spawn parent
-        var parentCmd = buffer1.Spawn()
+        buffer1.Spawn()
             .With(new Position { X = 0, Y = 0 });
 
         // Second batch: spawn child and add component to parent

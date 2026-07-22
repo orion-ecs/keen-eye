@@ -438,10 +438,10 @@ public class GetComponentsTests
             .ToDictionary(c => c.Type.FullName!, c => c.Value);
 
         Assert.Equal(2, snapshot.Count);
-        Assert.True(snapshot.ContainsKey(typeof(TestPosition).FullName!));
+        Assert.True(snapshot.TryGetValue(typeof(TestPosition).FullName!, out var positionValue));
         Assert.True(snapshot.ContainsKey(typeof(TestHealth).FullName!));
 
-        var position = Assert.IsType<TestPosition>(snapshot[typeof(TestPosition).FullName!]);
+        var position = Assert.IsType<TestPosition>(positionValue);
         Assert.Equal(50f, position.X);
         Assert.Equal(75f, position.Y);
     }

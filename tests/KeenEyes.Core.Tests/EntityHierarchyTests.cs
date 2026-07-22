@@ -866,12 +866,10 @@ public class EntityHierarchyTests
         var root = world.Spawn().Build();
 
         // Create a hierarchy with 100 children, each with 10 grandchildren
-        var children = new List<Entity>();
         for (int i = 0; i < 100; i++)
         {
             var child = world.Spawn().Build();
             world.SetParent(child, root);
-            children.Add(child);
 
             for (int j = 0; j < 10; j++)
             {
