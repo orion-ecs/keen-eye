@@ -36,7 +36,7 @@ public sealed class AssetConstantsGenerator : IIncrementalGenerator
     private static readonly HashSet<string> KnownAssetExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         // Textures
-        ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".webp", ".dds",
+        ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".dds",
         // Audio
         ".wav", ".ogg", ".mp3", ".flac",
         // Fonts

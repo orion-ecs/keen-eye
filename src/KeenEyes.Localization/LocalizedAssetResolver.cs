@@ -34,7 +34,7 @@ public sealed class LocalizedAssetResolver(string rootPath, LocalizationConfig c
 {
     private readonly string rootPath = rootPath ?? string.Empty;
     private readonly LocalizationConfig config = config ?? LocalizationConfig.Default;
-    private readonly string[] commonExtensions = [".png", ".jpg", ".jpeg", ".webp", ".wav", ".ogg", ".mp3", ".ttf", ".otf"];
+    private readonly string[] commonExtensions = [".png", ".jpg", ".jpeg", ".wav", ".ogg", ".mp3", ".ttf", ".otf"];
 
     /// <inheritdoc />
     public string? Resolve(string assetKey, Locale locale)
