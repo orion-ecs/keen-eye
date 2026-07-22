@@ -91,8 +91,8 @@ public static class SystemHooksExample
         using var world = new World();
         var profiler = new SystemProfiler();
 
-        // Register profiling hook
-        var profilingHook = world.AddSystemHook(
+        // Register profiling hook (disposed automatically when the method exits)
+        using var profilingHook = world.AddSystemHook(
             beforeHook: (system, dt) => profiler.BeginSystem(system),
             afterHook: (system, dt) => profiler.EndSystem(system)
         );
@@ -119,9 +119,6 @@ public static class SystemHooksExample
 
         // Print profiling report
         profiler.PrintReport();
-
-        // Clean up
-        profilingHook.Dispose();
     }
 
     /// <summary>
@@ -134,8 +131,8 @@ public static class SystemHooksExample
         using var world = new World();
         var logs = new List<string>();
 
-        // Register logging hook
-        var loggingHook = world.AddSystemHook(
+        // Register logging hook (disposed automatically when the method exits)
+        using var loggingHook = world.AddSystemHook(
             beforeHook: (system, dt) =>
             {
                 var message = $"[{DateTime.Now:HH:mm:ss.fff}] Starting {system.GetType().Name}";
@@ -158,9 +155,6 @@ public static class SystemHooksExample
         world.Update(0.016f);
 
         Console.WriteLine($"\nTotal log entries: {logs.Count}");
-
-        // Clean up
-        loggingHook.Dispose();
     }
 
     /// <summary>
@@ -173,8 +167,8 @@ public static class SystemHooksExample
         using var world = new World();
         var debugMode = false; // Toggle this to enable/disable debug systems
 
-        // Register conditional execution hook
-        var conditionalHook = world.AddSystemHook(
+        // Register conditional execution hook (disposed automatically when the method exits)
+        using var conditionalHook = world.AddSystemHook(
             beforeHook: (system, dt) =>
             {
                 // Disable debug systems when not in debug mode
@@ -195,9 +189,6 @@ public static class SystemHooksExample
         world.Update(0.016f);
 
         Console.WriteLine($"\nDebug mode: {debugMode}");
-
-        // Clean up
-        conditionalHook.Dispose();
     }
 
     /// <summary>
@@ -211,8 +202,8 @@ public static class SystemHooksExample
         var updatePhaseCount = 0;
         var fixedUpdatePhaseCount = 0;
 
-        // Register hook only for Update phase
-        var updateHook = world.AddSystemHook(
+        // Register hook only for Update phase (disposed automatically when the method exits)
+        using var updateHook = world.AddSystemHook(
             beforeHook: (system, dt) =>
             {
                 updatePhaseCount++;
@@ -222,8 +213,8 @@ public static class SystemHooksExample
             phase: SystemPhase.Update
         );
 
-        // Register hook only for FixedUpdate phase
-        var fixedUpdateHook = world.AddSystemHook(
+        // Register hook only for FixedUpdate phase (disposed automatically when the method exits)
+        using var fixedUpdateHook = world.AddSystemHook(
             beforeHook: (system, dt) =>
             {
                 fixedUpdatePhaseCount++;
@@ -243,10 +234,6 @@ public static class SystemHooksExample
 
         Console.WriteLine($"\nUpdate phase hook invocations: {updatePhaseCount}");
         Console.WriteLine($"FixedUpdate phase hook invocations: {fixedUpdatePhaseCount}");
-
-        // Clean up
-        updateHook.Dispose();
-        fixedUpdateHook.Dispose();
     }
 
     /// <summary>
@@ -260,18 +247,18 @@ public static class SystemHooksExample
         var profiler = new SystemProfiler();
         var executionOrder = new List<string>();
 
-        // Register multiple hooks
-        var hook1 = world.AddSystemHook(
+        // Register multiple hooks (disposed automatically when the method exits)
+        using var hook1 = world.AddSystemHook(
             beforeHook: (system, dt) => executionOrder.Add($"Hook1-Before-{system.GetType().Name}"),
             afterHook: (system, dt) => executionOrder.Add($"Hook1-After-{system.GetType().Name}")
         );
 
-        var hook2 = world.AddSystemHook(
+        using var hook2 = world.AddSystemHook(
             beforeHook: (system, dt) => profiler.BeginSystem(system),
             afterHook: (system, dt) => profiler.EndSystem(system)
         );
 
-        var hook3 = world.AddSystemHook(
+        using var hook3 = world.AddSystemHook(
             beforeHook: (system, dt) => executionOrder.Add($"Hook3-Before-{system.GetType().Name}"),
             afterHook: (system, dt) => executionOrder.Add($"Hook3-After-{system.GetType().Name}")
         );
@@ -291,11 +278,6 @@ public static class SystemHooksExample
 
         // Show profiling
         profiler.PrintReport();
-
-        // Clean up
-        hook1.Dispose();
-        hook2.Dispose();
-        hook3.Dispose();
     }
 
     /// <summary>

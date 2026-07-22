@@ -43,7 +43,7 @@ Console.WriteLine($"Created player: {player}");
 for (int i = 0; i < 3; i++)
 {
     var enemy = world.Spawn()
-        .WithPosition(x: 200 + i * 50, y: 100)
+        .WithPosition(x: 200f + i * 50f, y: 100f)
         .WithHealth(current: 30 + i * 10, max: 50)
         .WithEnemy()
         .Build();

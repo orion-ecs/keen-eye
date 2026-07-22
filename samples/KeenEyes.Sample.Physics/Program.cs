@@ -166,13 +166,14 @@ void RunStackingCollisionDemo()
     int collisionStartCount = 0;
     int totalCollisions = 0;
 
-    // Subscribe to collision events
-    var collisionSub = world.Subscribe<CollisionEvent>(collision =>
+    // Subscribe to collision events. Using declarations guarantee the subscriptions are
+    // disposed (unsubscribed) when the demo method exits, even if an exception is thrown.
+    using var collisionSub = world.Subscribe<CollisionEvent>(collision =>
     {
         totalCollisions++;
     });
 
-    var collisionStartSub = world.Subscribe<CollisionStartedEvent>(collision =>
+    using var collisionStartSub = world.Subscribe<CollisionStartedEvent>(collision =>
     {
         collisionStartCount++;
         Console.WriteLine($"  Collision started between entities {collision.EntityA.Id} and {collision.EntityB.Id}");
@@ -249,10 +250,6 @@ void RunStackingCollisionDemo()
     {
         PrintEntityPosition(world, stackedBoxes[i], $"  Box {i + 1}");
     }
-
-    // Cleanup subscriptions
-    collisionSub.Dispose();
-    collisionStartSub.Dispose();
 
     Console.WriteLine("Demo 2 completed - Collision events tracked and stack toppled!");
 }

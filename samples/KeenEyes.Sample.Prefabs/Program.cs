@@ -7,7 +7,6 @@ using KeenEyes.Sample.Prefabs;
 // This sample demonstrates:
 // 1. Source-generated prefabs (recommended approach)
 // 2. Spawning entities from .keprefab files
-// 3. Legacy runtime prefabs (deprecated, shown for migration reference)
 // =============================================================================
 
 Console.WriteLine("KeenEyes ECS - Prefabs Demo");
@@ -154,56 +153,7 @@ Console.WriteLine($"  Players: {playerCount}");
 Console.WriteLine($"  Enemies: {enemyCount}");
 Console.WriteLine($"  Bosses: {bossCount}");
 
-// =============================================================================
-// PART 6: Legacy Runtime Prefabs (Deprecated)
-// =============================================================================
-
-Console.WriteLine("\n[6] Legacy Runtime Prefabs (Deprecated)\n");
-Console.WriteLine("The following demonstrates the deprecated runtime prefab API.");
-Console.WriteLine("This is shown for migration reference - prefer .keprefab files.\n");
-
-#pragma warning disable CS0618 // Type or member is obsolete
-
-// Create a runtime prefab (deprecated)
-var customPrefab = new EntityPrefab()
-    .With(new Position { X = 0, Y = 0 })
-    .With(new Health { Current = 999, Max = 999 })
-    .WithTag<Enemy>();
-
-world.RegisterPrefab("CustomEnemy", customPrefab);
-Console.WriteLine("Registered 'CustomEnemy' runtime prefab (deprecated)");
-
-// Spawn from runtime prefab
-var customEnemy = world.SpawnFromPrefab("CustomEnemy").Build();
-Console.WriteLine($"Spawned from runtime prefab: {customEnemy}");
-Console.WriteLine($"  Health: {world.Get<Health>(customEnemy).Max}");
-
-// Named entity spawning from runtime prefab
-var namedBoss = world.SpawnFromPrefab("CustomEnemy", "TheCustomBoss").Build();
-Console.WriteLine($"Spawned named entity: {namedBoss}");
-
-// Retrieve by name
-var foundBoss = world.GetEntityByName("TheCustomBoss");
-Console.WriteLine($"Found by name: {foundBoss} (valid: {foundBoss.IsValid})");
-
-// Runtime prefab management
-Console.WriteLine($"\nHas 'CustomEnemy': {world.HasPrefab("CustomEnemy")}");
-Console.WriteLine($"Has 'NonExistent': {world.HasPrefab("NonExistent")}");
-
-Console.WriteLine("\nAll runtime prefabs:");
-foreach (var prefabName in world.GetAllPrefabNames())
-{
-    Console.WriteLine($"  - {prefabName}");
-}
-
-// Unregister
-world.UnregisterPrefab("CustomEnemy");
-Console.WriteLine("\nUnregistered 'CustomEnemy'");
-Console.WriteLine($"Has 'CustomEnemy': {world.HasPrefab("CustomEnemy")}");
-
-#pragma warning restore CS0618
-
 Console.WriteLine("\n" + new string('=', 50));
 Console.WriteLine("Prefabs demo complete!");
-Console.WriteLine("\nMigration tip: Replace runtime prefabs with .keprefab files");
-Console.WriteLine("for compile-time validation and type-safe spawn methods.");
+Console.WriteLine("\nDefine prefabs in .keprefab files for compile-time validation");
+Console.WriteLine("and type-safe, source-generated spawn methods.");
