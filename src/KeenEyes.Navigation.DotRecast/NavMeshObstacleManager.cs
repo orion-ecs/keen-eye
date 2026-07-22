@@ -15,8 +15,9 @@ namespace KeenEyes.Navigation.DotRecast;
 /// navmesh data, this approach uses query filters to exclude polygons.
 /// </para>
 /// <para>
-/// For true dynamic navmesh updates, consider using DotRecast.Detour.TileCache
-/// which supports streaming and runtime navmesh modification.
+/// For true dynamic navmesh updates that carve the walkable surface itself,
+/// build the mesh with <see cref="DotRecastMeshBuilder.BuildTileCache"/> and
+/// manage obstacles through the resulting <see cref="NavMeshTileCache"/>.
 /// </para>
 /// </remarks>
 public sealed class NavMeshObstacleManager
