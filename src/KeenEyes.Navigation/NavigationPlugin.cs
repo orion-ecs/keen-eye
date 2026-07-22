@@ -103,8 +103,15 @@ public sealed class NavigationPlugin : IWorldPlugin
         navigationContext.SetProvider(provider);
         context.SetExtension(navigationContext);
 
-        // Also register the INavigationProvider for direct access
-        context.SetExtension(provider);
+        // Ensure the INavigationProvider is accessible for direct queries.
+        // In the provider-plugin path (e.g. GridNavigationPlugin) the same instance is
+        // already registered; re-registering it would dispose it, because SetExtension
+        // disposes the extension it replaces. Only register when it is not already present.
+        if (!context.TryGetExtension<INavigationProvider>(out var registered)
+            || !ReferenceEquals(registered, provider))
+        {
+            context.SetExtension(provider);
+        }
 
         // Register systems
         RegisterSystems(context);
