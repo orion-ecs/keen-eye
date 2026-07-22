@@ -21,6 +21,7 @@
     <Project Path="samples/KeenEyes.Sample.Multiplayer/KeenEyes.Sample.Multiplayer.csproj" />
     <Project Path="samples/KeenEyes.Sample.Physics/KeenEyes.Sample.Physics.csproj" />
     <Project Path="samples/KeenEyes.Sample.Prefabs/KeenEyes.Sample.Prefabs.csproj" />
+    <Project Path="samples/KeenEyes.Sample.Racing/KeenEyes.Sample.Racing.csproj" />
     <Project Path="samples/KeenEyes.Sample.Relationships/KeenEyes.Sample.Relationships.csproj" />
     <Project Path="samples/KeenEyes.Sample.RenderingCulling/KeenEyes.Sample.RenderingCulling.csproj" />
     <Project Path="samples/KeenEyes.Sample.Replay/KeenEyes.Sample.Replay.csproj" />
