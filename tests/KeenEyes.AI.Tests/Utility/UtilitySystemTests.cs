@@ -89,7 +89,7 @@ public class UtilitySystemTests
         var component = UtilityComponent.Create(ai);
         component.Enabled = false;
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -110,7 +110,7 @@ public class UtilitySystemTests
             Enabled = true
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -178,7 +178,7 @@ public class UtilitySystemTests
             ]
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(UtilityComponent.Create(ai))
             .Build();
 
@@ -283,7 +283,7 @@ public class UtilitySystemTests
         var component = UtilityComponent.Create(ai);
         component.EvaluationInterval = 1.0f;
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -328,7 +328,7 @@ public class UtilitySystemTests
         var component = UtilityComponent.Create(ai);
         component.EvaluationInterval = 0.5f;
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -401,7 +401,7 @@ public class UtilitySystemTests
         var component = UtilityComponent.Create(ai);
         component.EvaluationInterval = 10f; // Long interval
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(component)
             .Build();
 
@@ -497,11 +497,11 @@ public class UtilitySystemTests
             ]
         };
 
-        var entity1 = world.Spawn()
+        world.Spawn()
             .With(UtilityComponent.Create(ai1))
             .Build();
 
-        var entity2 = world.Spawn()
+        world.Spawn()
             .With(UtilityComponent.Create(ai2))
             .Build();
 

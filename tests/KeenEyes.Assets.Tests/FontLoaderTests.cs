@@ -115,9 +115,8 @@ public class FontLoaderTests : IDisposable
         var fontData = new byte[] { 0x00, 0x01, 0x00, 0x00 };
         var path = testDir.CreateFile("fonts/TestFont.ttf", fontData);
 
-        var handle = manager.Load<FontAsset>(path);
+        using var handle = manager.Load<FontAsset>(path);
         var fontHandle = handle.Asset!.Handle;
-        var asset = handle.Asset;
 
         Assert.True(fontManager.IsValid(fontHandle));
 

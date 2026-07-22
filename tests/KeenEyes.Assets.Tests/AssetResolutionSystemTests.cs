@@ -43,12 +43,11 @@ public class AssetResolutionSystemTests : IDisposable
     public void Initialize_WithoutAssetManager_DisablesSystem()
     {
         using var worldWithoutAssets = new World();
-        var sys = new AssetResolutionSystem();
+        using var sys = new AssetResolutionSystem();
         sys.Initialize(worldWithoutAssets);
 
         Assert.False(sys.Enabled);
 
-        sys.Dispose();
     }
 
     #endregion
@@ -67,7 +66,7 @@ public class AssetResolutionSystemTests : IDisposable
     public void Enabled_WhenFalse_UpdateDoesNothing()
     {
         var path = testDir.CreateFile("disabled.txt", "content");
-        var entity = world.Spawn()
+        world.Spawn()
             .With(new AssetRef<TestAsset> { Path = path })
             .Build();
 
@@ -143,7 +142,7 @@ public class AssetResolutionSystemTests : IDisposable
     {
         assetManager.RegisterLoader(new SlowLoader(100));
         var path = testDir.CreateFile("pending.slow", "content");
-        var entity = world.Spawn()
+        world.Spawn()
             .With(new AssetRef<TestAsset> { Path = path })
             .Build();
 
@@ -167,12 +166,11 @@ public class AssetResolutionSystemTests : IDisposable
     [Fact]
     public void Update_WithNullWorld_DoesNothing()
     {
-        var sys = new AssetResolutionSystem();
+        using var sys = new AssetResolutionSystem();
         // Don't call Initialize - world will be null
 
         sys.Update(0.016f); // Should not throw
 
-        sys.Dispose();
     }
 
     #endregion
@@ -247,7 +245,7 @@ public class AssetResolutionSystemTests : IDisposable
         // Pre-load the asset
         using var preloaded = assetManager.Load<RawAsset>(path);
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(new AssetRef<RawAsset> { Path = path, HandleId = preloaded.Id })
             .Build();
 

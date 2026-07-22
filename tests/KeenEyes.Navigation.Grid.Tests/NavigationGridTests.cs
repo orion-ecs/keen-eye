@@ -84,9 +84,9 @@ public class NavigationGridTests
     {
         var grid = new NavigationGrid(10, 10, 1f);
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => { var _ = grid[new GridCoordinate(10, 5)]; });
-        Assert.Throws<ArgumentOutOfRangeException>(() => { var _ = grid[new GridCoordinate(5, 10)]; });
-        Assert.Throws<ArgumentOutOfRangeException>(() => { var _ = grid[new GridCoordinate(-1, 5)]; });
+        Assert.Throws<ArgumentOutOfRangeException>(() => { _ = grid[new GridCoordinate(10, 5)]; });
+        Assert.Throws<ArgumentOutOfRangeException>(() => { _ = grid[new GridCoordinate(5, 10)]; });
+        Assert.Throws<ArgumentOutOfRangeException>(() => { _ = grid[new GridCoordinate(-1, 5)]; });
     }
 
     [Fact]

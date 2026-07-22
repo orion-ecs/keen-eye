@@ -298,9 +298,9 @@ public class ShaderPreviewPanelTests
         using var builder = new TestGraphBuilder();
 
         // Create a physics update shader
-        var shader = builder.CreateComputeShader("PhysicsUpdate");
-        var posBinding = builder.CreateQueryBinding("Position", AccessMode.Write);
-        var velBinding = builder.CreateQueryBinding("Velocity", AccessMode.Read);
+        builder.CreateComputeShader("PhysicsUpdate");
+        builder.CreateQueryBinding("Position", AccessMode.Write);
+        builder.CreateQueryBinding("Velocity", AccessMode.Read);
 
         var panel = new ShaderPreviewPanel { DeltaTime = 1.0f };
         panel.SetCanvas(builder.Canvas, builder.World);

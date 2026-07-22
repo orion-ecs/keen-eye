@@ -102,7 +102,7 @@ public sealed class BuiltInGizmoPluginsTests : IDisposable
     [Fact]
     public void Dispose_RemovesGizmoRenderersFromViewportCapability()
     {
-        var manager = CreateBootEquivalentManager(out var viewport);
+        using var manager = CreateBootEquivalentManager(out var viewport);
         BuiltInGizmoPlugins.Install(manager);
         Assert.NotEmpty(viewport.GetGizmoRenderers());
 

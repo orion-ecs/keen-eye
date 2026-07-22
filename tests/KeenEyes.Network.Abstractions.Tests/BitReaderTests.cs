@@ -273,7 +273,6 @@ public class BitReaderTests
     public void ReadBits_ZeroBits_ThrowsArgumentOutOfRange()
     {
         byte[] data = [0xFF];
-        var reader = new BitReader(data);
 
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => ReadBitsHelper(data, 0));
         Assert.Equal("bits", ex.ParamName);

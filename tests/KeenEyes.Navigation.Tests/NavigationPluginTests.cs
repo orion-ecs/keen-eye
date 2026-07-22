@@ -137,7 +137,7 @@ public class NavigationPluginTests : IDisposable
     [Fact]
     public void Install_RegistersNavMeshAgentComponent()
     {
-        using var world = new World();
+        using var testWorld = new World();
 
         // Use custom provider to avoid dependency on GridNavigationPlugin
         var gridConfig = GridConfig.WithSize(100, 100, 1f);
@@ -150,7 +150,7 @@ public class NavigationPluginTests : IDisposable
         };
 
         var plugin = new NavigationPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, testWorld);
 
         plugin.Install(context);
 
@@ -160,7 +160,7 @@ public class NavigationPluginTests : IDisposable
     [Fact]
     public void Install_RegistersNavMeshObstacleComponent()
     {
-        using var world = new World();
+        using var testWorld = new World();
 
         var gridConfig = GridConfig.WithSize(100, 100, 1f);
         var customProvider = new GridNavigationProvider(gridConfig);
@@ -172,7 +172,7 @@ public class NavigationPluginTests : IDisposable
         };
 
         var plugin = new NavigationPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, testWorld);
 
         plugin.Install(context);
 
@@ -186,7 +186,7 @@ public class NavigationPluginTests : IDisposable
     [Fact]
     public void Install_RegistersPathRequestSystem()
     {
-        using var world = new World();
+        using var testWorld = new World();
 
         var gridConfig = GridConfig.WithSize(100, 100, 1f);
         var customProvider = new GridNavigationProvider(gridConfig);
@@ -198,7 +198,7 @@ public class NavigationPluginTests : IDisposable
         };
 
         var plugin = new NavigationPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, testWorld);
 
         plugin.Install(context);
 
@@ -209,7 +209,7 @@ public class NavigationPluginTests : IDisposable
     [Fact]
     public void Install_WithSteeringEnabled_RegistersNavMeshAgentSystem()
     {
-        using var world = new World();
+        using var testWorld = new World();
 
         var gridConfig = GridConfig.WithSize(100, 100, 1f);
         var customProvider = new GridNavigationProvider(gridConfig);
@@ -222,7 +222,7 @@ public class NavigationPluginTests : IDisposable
         };
 
         var plugin = new NavigationPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, testWorld);
 
         plugin.Install(context);
 
@@ -232,7 +232,7 @@ public class NavigationPluginTests : IDisposable
     [Fact]
     public void Install_WithSteeringDisabled_DoesNotRegisterNavMeshAgentSystem()
     {
-        using var world = new World();
+        using var testWorld = new World();
 
         var gridConfig = GridConfig.WithSize(100, 100, 1f);
         var customProvider = new GridNavigationProvider(gridConfig);
@@ -245,7 +245,7 @@ public class NavigationPluginTests : IDisposable
         };
 
         var plugin = new NavigationPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, testWorld);
 
         plugin.Install(context);
 
@@ -255,7 +255,7 @@ public class NavigationPluginTests : IDisposable
     [Fact]
     public void Install_WithDynamicObstaclesEnabled_RegistersObstacleUpdateSystem()
     {
-        using var world = new World();
+        using var testWorld = new World();
 
         var gridConfig = GridConfig.WithSize(100, 100, 1f);
         var customProvider = new GridNavigationProvider(gridConfig);
@@ -268,7 +268,7 @@ public class NavigationPluginTests : IDisposable
         };
 
         var plugin = new NavigationPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, testWorld);
 
         plugin.Install(context);
 
@@ -278,7 +278,7 @@ public class NavigationPluginTests : IDisposable
     [Fact]
     public void Install_WithDynamicObstaclesDisabled_DoesNotRegisterObstacleUpdateSystem()
     {
-        using var world = new World();
+        using var testWorld = new World();
 
         var gridConfig = GridConfig.WithSize(100, 100, 1f);
         var customProvider = new GridNavigationProvider(gridConfig);
@@ -291,7 +291,7 @@ public class NavigationPluginTests : IDisposable
         };
 
         var plugin = new NavigationPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, testWorld);
 
         plugin.Install(context);
 

@@ -101,8 +101,8 @@ public class ParallelQueryExtensionsTests
         for (int i = 0; i < 50; i++)
         {
             ref var pos = ref world.Get<ParallelTestPosition>(entities[i]);
-            Assert.Equal(i * 2, pos.X);
-            Assert.Equal(i * 2, pos.Y);
+            Assert.Equal(i * 2f, pos.X);
+            Assert.Equal(i * 2f, pos.Y);
         }
     }
 
@@ -214,7 +214,7 @@ public class ParallelQueryExtensionsTests
         {
             entities.Add(world.Spawn()
                 .With(new ParallelTestPosition { X = 0, Y = 0 })
-                .With(new ParallelTestVelocity { X = i, Y = i * 2 })
+                .With(new ParallelTestVelocity { X = i, Y = i * 2f })
                 .Build());
         }
 
@@ -231,7 +231,7 @@ public class ParallelQueryExtensionsTests
         {
             ref var pos = ref world.Get<ParallelTestPosition>(entities[i]);
             Assert.Equal(i, pos.X);
-            Assert.Equal(i * 2, pos.Y);
+            Assert.Equal(i * 2f, pos.Y);
         }
     }
 

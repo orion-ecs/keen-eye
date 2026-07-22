@@ -383,7 +383,7 @@ public class EditorSettingsTests
     [Fact]
     public void Load_NonExistentFile_UsesDefaults()
     {
-        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".json");
+        var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".json");
         ResetSettingsForTest();
 
         EditorSettings.Load(path);

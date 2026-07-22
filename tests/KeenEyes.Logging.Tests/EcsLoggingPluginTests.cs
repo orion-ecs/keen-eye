@@ -96,7 +96,7 @@ public class EcsLoggingPluginTests
         world.InstallPlugin(plugin);
         provider.Clear(); // Clear any installation logs
 
-        var entity = world.Spawn("TestEntity").Build();
+        world.Spawn("TestEntity").Build();
 
         provider.ContainsCategory("ECS.Entity").ShouldBeTrue();
         provider.ContainsMessage("created").ShouldBeTrue();
@@ -195,7 +195,7 @@ public class EcsLoggingPluginTests
         plugin.EnableComponentLogging<TestPosition>();
         provider.Clear();
 
-        var entity = world.Spawn().With(new TestPosition { X = 1, Y = 2 }).Build();
+        world.Spawn().With(new TestPosition { X = 1, Y = 2 }).Build();
 
         var componentLogs = provider.GetByCategory("ECS.Component");
         componentLogs.Count.ShouldBeGreaterThanOrEqualTo(1);
@@ -256,7 +256,7 @@ public class EcsLoggingPluginTests
         // Note: Not calling EnableComponentLogging<TestPosition>()
         provider.Clear();
 
-        var entity = world.Spawn().With(new TestPosition { X = 1, Y = 2 }).Build();
+        world.Spawn().With(new TestPosition { X = 1, Y = 2 }).Build();
 
         var componentLogs = provider.GetByCategory("ECS.Component");
         componentLogs.Count.ShouldBe(0);
@@ -276,7 +276,7 @@ public class EcsLoggingPluginTests
         plugin.EnableComponentLogging<TestVelocity>();
         provider.Clear();
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(new TestPosition { X = 1, Y = 2 })
             .With(new TestVelocity { X = 3, Y = 4 })
             .Build();
@@ -328,7 +328,7 @@ public class EcsLoggingPluginTests
         provider.Clear();
 
         // This should NOT be logged (Debug < Warning)
-        var entity = world.Spawn().Build();
+        world.Spawn().Build();
 
         var entityLogs = provider.GetByCategory("ECS.Entity");
         entityLogs.Count.ShouldBe(0);

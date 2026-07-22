@@ -156,7 +156,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         Assert.Contains(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("circular"));
@@ -188,7 +188,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         Assert.Contains(diagnostics, d => d.Id == "KEEN029" && d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("conflicting"));
@@ -216,7 +216,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         Assert.Contains(diagnostics, d => d.Id == "KEEN029" && d.Severity == DiagnosticSeverity.Error);
     }
@@ -241,7 +241,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         Assert.Contains(diagnostics, d => d.Id == "KEEN026" && d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("must be a struct"));
@@ -267,7 +267,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         Assert.Contains(diagnostics, d => d.Id == "KEEN026" && d.Severity == DiagnosticSeverity.Error);
     }
@@ -661,7 +661,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         Assert.Contains(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("circular"));
@@ -739,7 +739,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         // Should detect the cycle: A -> B -> D -> A
         Assert.Contains(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
@@ -784,7 +784,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         Assert.Contains(diagnostics, d => d.Id == "KEEN027" && d.Severity == DiagnosticSeverity.Error);
         Assert.Contains(diagnostics.Select(d => d.GetMessage()), msg => msg.Contains("circular"));
@@ -948,7 +948,7 @@ public class MixinGeneratorTests
             }
             """;
 
-        var (diagnostics, generatedTrees) = RunGenerator(source);
+        var (diagnostics, _) = RunGenerator(source);
 
         // Should report diagnostic for invalid mixin type
         Assert.Contains(diagnostics, d => d.Id.Contains("KEEN") && d.Severity >= DiagnosticSeverity.Warning);

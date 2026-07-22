@@ -53,7 +53,7 @@ public class AIPluginTests
         // Should not throw - component is registered
         Should.NotThrow(() =>
         {
-            var entity = world.Spawn()
+            world.Spawn()
                 .With(StateMachineComponent.Create(fsm))
                 .Build();
         });
@@ -75,7 +75,7 @@ public class AIPluginTests
         // Should not throw - component is registered
         Should.NotThrow(() =>
         {
-            var entity = world.Spawn()
+            world.Spawn()
                 .With(BehaviorTreeComponent.Create(bt))
                 .Build();
         });
@@ -99,7 +99,7 @@ public class AIPluginTests
         // Should not throw - component is registered
         Should.NotThrow(() =>
         {
-            var entity = world.Spawn()
+            world.Spawn()
                 .With(UtilityComponent.Create(ai))
                 .Build();
         });
@@ -143,7 +143,7 @@ public class AIPluginTests
             Root = node
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(BehaviorTreeComponent.Create(bt))
             .Build();
 
@@ -171,7 +171,7 @@ public class AIPluginTests
             ]
         };
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(UtilityComponent.Create(ai))
             .Build();
 

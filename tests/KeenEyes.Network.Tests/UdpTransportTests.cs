@@ -135,44 +135,36 @@ public class UdpTransportTests
     [Fact]
     public async Task ClientConnected_RaisedOnServerWhenClientConnects()
     {
-        var server = new UdpTransport();
-        var client = new UdpTransport();
+        using var server = new UdpTransport();
+        using var client = new UdpTransport();
 
+        await server.ListenAsync(0);
+        var port = server.LocalPort;
+
+        int? connectedClientId = null;
+        server.ClientConnected += id => connectedClientId = id;
+
+        using var cts = new CancellationTokenSource(2000);
         try
         {
-            await server.ListenAsync(0);
-            var port = server.LocalPort;
-
-            int? connectedClientId = null;
-            server.ClientConnected += id => connectedClientId = id;
-
-            using var cts = new CancellationTokenSource(2000);
-            try
-            {
-                await client.ConnectAsync("127.0.0.1", port, cts.Token);
-            }
-            catch (TimeoutException)
-            {
-                Assert.Skip("UDP networking not available in this environment");
-                return;
-            }
-            catch (OperationCanceledException)
-            {
-                Assert.Skip("UDP networking not available in this environment");
-                return;
-            }
-
-            await Task.Delay(100);
-            server.Update();
-
-            Assert.NotNull(connectedClientId);
-            Assert.True(connectedClientId > 0);
+            await client.ConnectAsync("127.0.0.1", port, cts.Token);
         }
-        finally
+        catch (TimeoutException)
         {
-            server.Dispose();
-            client.Dispose();
+            Assert.Skip("UDP networking not available in this environment");
+            return;
         }
+        catch (OperationCanceledException)
+        {
+            Assert.Skip("UDP networking not available in this environment");
+            return;
+        }
+
+        await Task.Delay(100);
+        server.Update();
+
+        Assert.NotNull(connectedClientId);
+        Assert.True(connectedClientId > 0);
     }
 
     [Fact]

@@ -346,7 +346,7 @@ public class AnimationSystemTests : IDisposable
         clip.Events.AddEvent(0.6f, "event3");
         var clipId = manager.RegisterClip(clip);
 
-        var entity = world.Spawn()
+        world.Spawn()
             .With(AnimationPlayer.ForClip(clipId))
             .Build();
 

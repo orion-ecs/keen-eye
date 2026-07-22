@@ -316,7 +316,7 @@ public class HotReloadManagerTests
         try
         {
             using var world = new World();
-            var manager = new HotReloadManager(tempProject, world);
+            using var manager = new HotReloadManager(tempProject, world);
             manager.StartWatching();
             manager.Dispose();
 
@@ -335,7 +335,7 @@ public class HotReloadManagerTests
         try
         {
             using var world = new World();
-            var manager = new HotReloadManager(tempProject, world);
+            using var manager = new HotReloadManager(tempProject, world);
 
             manager.Dispose();
             manager.Dispose(); // Should not throw

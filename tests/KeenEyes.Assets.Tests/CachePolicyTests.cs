@@ -33,7 +33,7 @@ public class CachePolicyTests : IDisposable
         var path2 = testDir.CreateFile("new.txt", new string('b', 100));
 
         // Load old first, then new
-        var h1 = manager.Load<TestAsset>(path1);
+        using var h1 = manager.Load<TestAsset>(path1);
         Thread.Sleep(10); // Ensure different timestamps
         var h2 = manager.Load<TestAsset>(path2);
 
@@ -145,7 +145,7 @@ public class CachePolicyTests : IDisposable
 
         var path = testDir.CreateFile("multi.txt", "content");
         var h1 = manager.Load<TestAsset>(path);
-        var h2 = manager.Load<TestAsset>(path);
+        using var h2 = manager.Load<TestAsset>(path);
         var asset = h1.Asset!;
 
         h1.Dispose();

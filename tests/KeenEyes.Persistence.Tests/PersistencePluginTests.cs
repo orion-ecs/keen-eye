@@ -150,7 +150,7 @@ public class PersistencePluginTests : IDisposable
         api.SaveToSlot("slot1", serializer);
         world.Clear();
 
-        var (_, entityMap) = api.LoadFromSlot("slot1", serializer);
+        api.LoadFromSlot("slot1", serializer);
 
         Assert.Single(world.GetAllEntities());
         var player = world.GetEntityByName("Player");
@@ -192,7 +192,7 @@ public class PersistencePluginTests : IDisposable
         api.SaveToSlot("slot1", serializer);
         world.Clear();
 
-        var (_, entityMap) = api.LoadFromSlot("slot1", serializer);
+        api.LoadFromSlot("slot1", serializer);
 
         var player = world.GetEntityByName("Player");
         Assert.True(player.IsValid);
@@ -351,7 +351,7 @@ public class PersistencePluginTests : IDisposable
         await api.SaveToSlotAsync("slot1", serializer, cancellationToken: TestContext.Current.CancellationToken);
         world.Clear();
 
-        var (info, entityMap) = await api.LoadFromSlotAsync("slot1", serializer, cancellationToken: TestContext.Current.CancellationToken);
+        await api.LoadFromSlotAsync("slot1", serializer, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Single(world.GetAllEntities());
     }

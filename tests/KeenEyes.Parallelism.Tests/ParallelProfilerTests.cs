@@ -158,7 +158,7 @@ public class ParallelProfilerTests
     {
         var (world, scheduler) = CreateScheduler();
         using var _ = world;
-        var profiler = new ParallelProfiler(scheduler);
+        using var profiler = new ParallelProfiler(scheduler);
 
         profiler.Start();
         profiler.Dispose();
@@ -216,8 +216,8 @@ public class ParallelProfilerTests
 
         var metrics = profiler.GetMetrics();
 
-        Assert.True(metrics.SystemStats.ContainsKey(typeof(MovementSystem)));
-        Assert.Equal(1, metrics.SystemStats[typeof(MovementSystem)].ExecutionCount);
+        Assert.True(metrics.SystemStats.TryGetValue(typeof(MovementSystem), out var movementStats));
+        Assert.Equal(1, movementStats.ExecutionCount);
     }
 
     [Fact]
@@ -523,7 +523,7 @@ public class ParallelProfilerTests
     {
         var (world, scheduler) = CreateScheduler();
         using var _ = world;
-        var profiler = new ParallelProfiler(scheduler);
+        using var profiler = new ParallelProfiler(scheduler);
 
         profiler.Dispose();
         profiler.Dispose(); // Should not throw

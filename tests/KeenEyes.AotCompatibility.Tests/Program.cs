@@ -154,7 +154,7 @@ Test("Query With filter", () =>
     }
 
     var enemyCount = 0;
-    foreach (var entity in world.Query<Position>().With<EnemyTag>())
+    foreach (var _ in world.Query<Position>().With<EnemyTag>())
     {
         enemyCount++;
     }
@@ -189,7 +189,7 @@ Test("Query Without filter", () =>
     }
 
     var movingCount = 0;
-    foreach (var entity in world.Query<Position>().Without<FrozenTag>())
+    foreach (var _ in world.Query<Position>().Without<FrozenTag>())
     {
         movingCount++;
     }
@@ -285,7 +285,7 @@ Test("System registration and execution", () =>
 // Test 12: WorldBuilder
 Test("WorldBuilder with factory delegates", () =>
 {
-    var world = new WorldBuilder()
+    using var world = new WorldBuilder()
         .WithSystem<MovementSystem>()
         .Build();
 
@@ -308,7 +308,6 @@ Test("WorldBuilder with factory delegates", () =>
         }
     }
 
-    world.Dispose();
 });
 
 // Test 13: Singletons

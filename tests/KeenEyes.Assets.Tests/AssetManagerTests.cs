@@ -96,7 +96,7 @@ public class AssetManagerTests : IDisposable
     {
         manager.RegisterLoader(new SlowLoader(500));
         var path = testDir.CreateFile("slow.slow", "Slow Content");
-        var cts = new CancellationTokenSource();
+        using var cts = new CancellationTokenSource();
 
         var loadTask = manager.LoadAsync<TestAsset>(path, cancellationToken: cts.Token);
         cts.Cancel();
@@ -201,13 +201,12 @@ public class AssetManagerTests : IDisposable
         var path = testDir.CreateFile("ref.txt", "content");
 
         var h1 = manager.Load<TestAsset>(path);
-        var h2 = manager.Load<TestAsset>(path);
+        using var h2 = manager.Load<TestAsset>(path);
         var asset = h1.Asset!;
 
         h1.Dispose();
         Assert.False(asset.IsDisposed); // Still referenced by h2
 
-        h2.Dispose();
         // Asset may or may not be disposed depending on cache policy
     }
 
@@ -216,12 +215,11 @@ public class AssetManagerTests : IDisposable
     {
         var path = testDir.CreateFile("acquire.txt", "content");
         var original = manager.Load<TestAsset>(path);
-        var acquired = original.Acquire();
+        using var acquired = original.Acquire();
 
         original.Dispose();
         Assert.True(manager.IsLoaded(path)); // Still loaded due to acquired handle
 
-        acquired.Dispose();
     }
 
     #endregion

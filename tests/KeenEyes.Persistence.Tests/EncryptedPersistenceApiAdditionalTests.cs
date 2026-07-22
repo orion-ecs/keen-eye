@@ -64,7 +64,7 @@ public class EncryptedPersistenceApiAdditionalTests : IDisposable
         api.SaveToSlot("json_load_slot", serializer, options);
         world.Clear();
 
-        var (slotInfo, entityMap) = api.LoadFromSlot("json_load_slot", serializer);
+        var (slotInfo, _) = api.LoadFromSlot("json_load_slot", serializer);
 
         Assert.Equal(SaveFormat.Json, slotInfo.Format);
         var player = world.GetEntityByName("Player");
@@ -105,7 +105,7 @@ public class EncryptedPersistenceApiAdditionalTests : IDisposable
         await api.SaveToSlotAsync("async_json_load", serializer, options, TestContext.Current.CancellationToken);
         world.Clear();
 
-        var (info, entityMap) = await api.LoadFromSlotAsync("async_json_load", serializer, cancellationToken: TestContext.Current.CancellationToken);
+        var (info, _) = await api.LoadFromSlotAsync("async_json_load", serializer, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(SaveFormat.Json, info.Format);
         var player = world.GetEntityByName("AsyncPlayer");

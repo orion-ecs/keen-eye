@@ -65,7 +65,7 @@ public class StateControllerImplTests
     public async Task GetEntityByNameAsync_ExistingEntity_ReturnsSnapshot()
     {
         using var world = new World();
-        var entity = world.Spawn()
+        world.Spawn()
             .WithName("Player")
             .Build();
         using var bridge = new InProcessBridge(world);

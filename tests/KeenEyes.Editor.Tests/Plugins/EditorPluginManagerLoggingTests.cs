@@ -35,7 +35,7 @@ public sealed class EditorPluginManagerLoggingTests : IDisposable
         world.Dispose();
     }
 
-    private EditorPluginManager CreateManager(ILogProvider? logProvider = null)
+    private EditorPluginManager CreateManager(ILogProvider? provider = null)
     {
         return new EditorPluginManager(
             worldManager,
@@ -43,7 +43,7 @@ public sealed class EditorPluginManagerLoggingTests : IDisposable
             undoRedo,
             assets,
             world,
-            logProvider);
+            provider);
     }
 
     #region LogInfo Tests
@@ -65,7 +65,7 @@ public sealed class EditorPluginManagerLoggingTests : IDisposable
     [Fact]
     public void LogInfo_WithoutLogProvider_DoesNotThrow()
     {
-        using var manager = CreateManager(logProvider: null);
+        using var manager = CreateManager(provider: null);
 
         // Should not throw - falls back to Console.WriteLine
         var exception = Record.Exception(() =>
@@ -94,7 +94,7 @@ public sealed class EditorPluginManagerLoggingTests : IDisposable
     [Fact]
     public void LogWarning_WithoutLogProvider_DoesNotThrow()
     {
-        using var manager = CreateManager(logProvider: null);
+        using var manager = CreateManager(provider: null);
 
         var exception = Record.Exception(() =>
             ((IEditorPluginLogger)manager).LogWarning("Warning message"));
@@ -122,7 +122,7 @@ public sealed class EditorPluginManagerLoggingTests : IDisposable
     [Fact]
     public void LogError_WithoutLogProvider_DoesNotThrow()
     {
-        using var manager = CreateManager(logProvider: null);
+        using var manager = CreateManager(provider: null);
 
         var exception = Record.Exception(() =>
             ((IEditorPluginLogger)manager).LogError("Error message"));

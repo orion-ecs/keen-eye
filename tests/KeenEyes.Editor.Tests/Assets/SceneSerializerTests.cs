@@ -261,11 +261,10 @@ public class SceneSerializerTests : IDisposable
     [Fact]
     public void Load_ReturnsSceneName()
     {
-        var sourceWorld = new World();
+        using var sourceWorld = new World();
         sourceWorld.Spawn("Entity").Build();
         var filePath = Path.Combine(tempDir, "test.kescene");
         serializer.Save(sourceWorld, "MyScene", filePath);
-        sourceWorld.Dispose();
 
         var loadedName = SceneSerializer.Load(world, filePath);
 
@@ -275,12 +274,11 @@ public class SceneSerializerTests : IDisposable
     [Fact]
     public void Load_RestoresEntities()
     {
-        var sourceWorld = new World();
+        using var sourceWorld = new World();
         sourceWorld.Spawn("Entity1").Build();
         sourceWorld.Spawn("Entity2").Build();
         var filePath = Path.Combine(tempDir, "test.kescene");
         serializer.Save(sourceWorld, "TestScene", filePath);
-        sourceWorld.Dispose();
 
         SceneSerializer.Load(world, filePath);
 
@@ -318,7 +316,7 @@ public class SceneSerializerTests : IDisposable
 
         serializer.Save(world, "Test", filePath);
 
-        var newWorld = new World();
+        using var newWorld = new World();
         SceneSerializer.Load(newWorld, filePath);
 
         var names = newWorld.GetAllEntities()
@@ -330,7 +328,6 @@ public class SceneSerializerTests : IDisposable
         Assert.Contains("Beta", names);
         Assert.Contains("Gamma", names);
 
-        newWorld.Dispose();
     }
 
     [Fact]
@@ -343,7 +340,7 @@ public class SceneSerializerTests : IDisposable
 
         serializer.Save(world, "Test", filePath);
 
-        var newWorld = new World();
+        using var newWorld = new World();
         SceneSerializer.Load(newWorld, filePath);
 
         var loadedChild = newWorld.GetAllEntities()
@@ -353,7 +350,6 @@ public class SceneSerializerTests : IDisposable
         Assert.True(loadedParent.IsValid);
         Assert.Equal("Parent", newWorld.GetName(loadedParent));
 
-        newWorld.Dispose();
     }
 
     [Fact]
@@ -364,12 +360,11 @@ public class SceneSerializerTests : IDisposable
 
         var sceneData = serializer.CaptureScene(world, "TestScene");
 
-        var newWorld = new World();
+        using var newWorld = new World();
         SceneSerializer.RestoreScene(newWorld, sceneData);
 
         Assert.Equal(world.EntityCount, newWorld.EntityCount);
 
-        newWorld.Dispose();
     }
 
     #endregion

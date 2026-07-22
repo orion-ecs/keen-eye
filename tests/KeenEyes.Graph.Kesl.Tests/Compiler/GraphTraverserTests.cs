@@ -24,7 +24,7 @@ public class GraphTraverserTests
         using var builder = new TestGraphBuilder();
         var constant = builder.CreateFloatConstant(1.0f);
         var add = builder.CreateAddNode();
-        var compute = builder.CreateComputeShader();
+        builder.CreateComputeShader();
 
         // constant -> add -> compute (via execute port)
         builder.Connect(constant, 0, add, 0);

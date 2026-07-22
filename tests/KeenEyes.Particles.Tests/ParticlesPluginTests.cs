@@ -535,7 +535,7 @@ public class ParticlesPluginTests : IDisposable
     {
         using var w = new World();
         var config = ParticlesConfig.Default;
-        var manager = new ParticleManager(w, config);
+        using var manager = new ParticleManager(w, config);
 
         var entity = new Entity(1, 0);
         var emitter = ParticleEmitter.Burst(10, 1f);
@@ -556,7 +556,6 @@ public class ParticlesPluginTests : IDisposable
         Assert.Equal(1, manager.EmitterCount);
         Assert.Same(originalPool, manager.GetPool(entity));
 
-        manager.Dispose();
     }
 
     [Fact]
@@ -564,7 +563,7 @@ public class ParticlesPluginTests : IDisposable
     {
         using var w = new World();
         var config = ParticlesConfig.Default;
-        var manager = new ParticleManager(w, config);
+        using var manager = new ParticleManager(w, config);
 
         var entity = new Entity(999, 0);
 
@@ -573,7 +572,6 @@ public class ParticlesPluginTests : IDisposable
 
         Assert.Equal(0, manager.EmitterCount);
 
-        manager.Dispose();
     }
 
     #endregion

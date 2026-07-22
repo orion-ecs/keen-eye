@@ -102,7 +102,6 @@ public class HotReloadTests : IDisposable
         // Create a file that will fail to parse on reload
         var path = testDir.CreateFile("error.txt", "valid content");
         using var handle = manager.Load<TestAsset>(path);
-        var originalContent = handle.Asset!.Content;
 
         // We can't easily simulate a loader error, but the behavior is tested
         await manager.ReloadAsync(path);

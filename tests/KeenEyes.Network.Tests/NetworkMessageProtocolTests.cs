@@ -416,7 +416,6 @@ public class NetworkMessageProtocolTests
 
         // Write multiple messages
         writer.WriteHeader(MessageType.Ping, 1);
-        var pingEnd = writer.BytesWritten;
 
         Span<byte> buffer2 = stackalloc byte[256];
         var writer2 = new NetworkMessageWriter(buffer2);
