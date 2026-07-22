@@ -10,16 +10,16 @@ namespace KeenEyes.Mcp.TestBridge.Tests.Tools;
 /// </summary>
 public sealed class InputParsingTests
 {
-    private static readonly MethodInfo ParseKeyMethod = typeof(InputTools)
+    private static readonly MethodInfo parseKeyMethod = typeof(InputTools)
         .GetMethod("ParseKey", BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    private static readonly MethodInfo ParseModifiersMethod = typeof(InputTools)
+    private static readonly MethodInfo parseModifiersMethod = typeof(InputTools)
         .GetMethod("ParseModifiers", BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    private static readonly MethodInfo ParseMouseButtonMethod = typeof(InputTools)
+    private static readonly MethodInfo parseMouseButtonMethod = typeof(InputTools)
         .GetMethod("ParseMouseButton", BindingFlags.NonPublic | BindingFlags.Static)!;
 
-    private static readonly MethodInfo ParseGamepadButtonMethod = typeof(InputTools)
+    private static readonly MethodInfo parseGamepadButtonMethod = typeof(InputTools)
         .GetMethod("ParseGamepadButton", BindingFlags.NonPublic | BindingFlags.Static)!;
 
     #region ParseKey Tests
@@ -42,7 +42,7 @@ public sealed class InputParsingTests
     [InlineData("F12", Key.F12)]
     public void ParseKey_ValidKeys_ReturnsCorrectEnum(string input, Key expected)
     {
-        var result = (Key)ParseKeyMethod.Invoke(null, [input])!;
+        var result = (Key)parseKeyMethod.Invoke(null, [input])!;
         result.ShouldBe(expected);
     }
 
@@ -52,7 +52,7 @@ public sealed class InputParsingTests
     [InlineData("NotAKey")]
     public void ParseKey_InvalidKeys_ThrowsArgumentException(string input)
     {
-        var exception = Should.Throw<TargetInvocationException>(() => ParseKeyMethod.Invoke(null, [input]));
+        var exception = Should.Throw<TargetInvocationException>(() => parseKeyMethod.Invoke(null, [input]));
         exception.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
@@ -63,21 +63,21 @@ public sealed class InputParsingTests
     [Fact]
     public void ParseModifiers_Null_ReturnsNone()
     {
-        var result = (KeyModifiers)ParseModifiersMethod.Invoke(null, [null])!;
+        var result = (KeyModifiers)parseModifiersMethod.Invoke(null, [null])!;
         result.ShouldBe(KeyModifiers.None);
     }
 
     [Fact]
     public void ParseModifiers_Empty_ReturnsNone()
     {
-        var result = (KeyModifiers)ParseModifiersMethod.Invoke(null, [""])!;
+        var result = (KeyModifiers)parseModifiersMethod.Invoke(null, [""])!;
         result.ShouldBe(KeyModifiers.None);
     }
 
     [Fact]
     public void ParseModifiers_Shift_ReturnsShift()
     {
-        var result = (KeyModifiers)ParseModifiersMethod.Invoke(null, ["Shift"])!;
+        var result = (KeyModifiers)parseModifiersMethod.Invoke(null, ["Shift"])!;
         result.ShouldBe(KeyModifiers.Shift);
     }
 
@@ -86,14 +86,14 @@ public sealed class InputParsingTests
     [InlineData("Control", KeyModifiers.Control)]
     public void ParseModifiers_Control_ReturnsControl(string input, KeyModifiers expected)
     {
-        var result = (KeyModifiers)ParseModifiersMethod.Invoke(null, [input])!;
+        var result = (KeyModifiers)parseModifiersMethod.Invoke(null, [input])!;
         result.ShouldBe(expected);
     }
 
     [Fact]
     public void ParseModifiers_Alt_ReturnsAlt()
     {
-        var result = (KeyModifiers)ParseModifiersMethod.Invoke(null, ["Alt"])!;
+        var result = (KeyModifiers)parseModifiersMethod.Invoke(null, ["Alt"])!;
         result.ShouldBe(KeyModifiers.Alt);
     }
 
@@ -104,14 +104,14 @@ public sealed class InputParsingTests
     [InlineData("Meta")]
     public void ParseModifiers_Super_ReturnsSuper(string input)
     {
-        var result = (KeyModifiers)ParseModifiersMethod.Invoke(null, [input])!;
+        var result = (KeyModifiers)parseModifiersMethod.Invoke(null, [input])!;
         result.ShouldBe(KeyModifiers.Super);
     }
 
     [Fact]
     public void ParseModifiers_Multiple_ReturnsCombined()
     {
-        var result = (KeyModifiers)ParseModifiersMethod.Invoke(null, ["Shift,Ctrl"])!;
+        var result = (KeyModifiers)parseModifiersMethod.Invoke(null, ["Shift,Ctrl"])!;
         result.ShouldBe(KeyModifiers.Shift | KeyModifiers.Control);
     }
 
@@ -119,7 +119,7 @@ public sealed class InputParsingTests
     public void ParseModifiers_Invalid_ThrowsArgumentException()
     {
         var exception = Should.Throw<TargetInvocationException>(() =>
-            ParseModifiersMethod.Invoke(null, ["InvalidMod"]));
+            parseModifiersMethod.Invoke(null, ["InvalidMod"]));
         exception.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
@@ -138,7 +138,7 @@ public sealed class InputParsingTests
     [InlineData("Button5", MouseButton.Button5)]
     public void ParseMouseButton_ValidButtons_ReturnsCorrectEnum(string? input, MouseButton expected)
     {
-        var result = (MouseButton)ParseMouseButtonMethod.Invoke(null, [input])!;
+        var result = (MouseButton)parseMouseButtonMethod.Invoke(null, [input])!;
         result.ShouldBe(expected);
     }
 
@@ -148,7 +148,7 @@ public sealed class InputParsingTests
     public void ParseMouseButton_InvalidButtons_ThrowsArgumentException(string input)
     {
         var exception = Should.Throw<TargetInvocationException>(() =>
-            ParseMouseButtonMethod.Invoke(null, [input]));
+            parseMouseButtonMethod.Invoke(null, [input]));
         exception.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
@@ -175,7 +175,7 @@ public sealed class InputParsingTests
     [InlineData("DPadRight", GamepadButton.DPadRight)]
     public void ParseGamepadButton_ValidButtons_ReturnsCorrectEnum(string input, GamepadButton expected)
     {
-        var result = (GamepadButton)ParseGamepadButtonMethod.Invoke(null, [input])!;
+        var result = (GamepadButton)parseGamepadButtonMethod.Invoke(null, [input])!;
         result.ShouldBe(expected);
     }
 
@@ -189,7 +189,7 @@ public sealed class InputParsingTests
     public void ParseGamepadButton_InvalidButtons_ThrowsArgumentException(string input)
     {
         var exception = Should.Throw<TargetInvocationException>(() =>
-            ParseGamepadButtonMethod.Invoke(null, [input]));
+            parseGamepadButtonMethod.Invoke(null, [input]));
         exception.InnerException.ShouldBeOfType<ArgumentException>();
     }
 
