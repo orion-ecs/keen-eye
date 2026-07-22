@@ -496,7 +496,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
     private void CreateMenuBar(Entity canvas)
     {
-        var menuDefs = new (string Label, MenuItemDef[] Items)[]
+        var menuDefs = new (string Label, IEnumerable<MenuItemDef> Items)[]
         {
             ("File", [
                 new MenuItemDef("New Scene", "new_scene", Shortcut: "Ctrl+N"),
@@ -557,7 +557,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         };
 
         WidgetFactory.CreateMenuBar(_editorWorld, canvas, _defaultFont,
-            menuDefs.Select(m => (m.Label, (IEnumerable<MenuItemDef>)m.Items)),
+            menuDefs,
             new MenuBarConfig(
                 Height: 26,
                 BackgroundColor: new Vector4(0.15f, 0.15f, 0.18f, 1f),
@@ -1953,9 +1953,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
         // Find common parent for duplicated entities
         Entity? parent = null;
-        if (selected.Count == 1 && sceneWorld is KeenEyes.Capabilities.IHierarchyCapability hierarchy)
+        if (selected.Count == 1)
         {
-            parent = hierarchy.GetParent(selected[0]);
+            parent = sceneWorld.GetParent(selected[0]);
         }
 
         var duplicated = _clipboard.Paste(sceneWorld, parent);
@@ -2221,7 +2221,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
                 UseShellExecute = true
             });
         }
-        catch (Exception ex)
+        catch (Exception ex) when (
+            ex is System.ComponentModel.Win32Exception or InvalidOperationException or PlatformNotSupportedException or IOException)
         {
             Console.WriteLine($"Failed to open URL: {ex.Message}");
         }

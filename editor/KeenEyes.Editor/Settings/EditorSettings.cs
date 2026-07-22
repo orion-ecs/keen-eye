@@ -544,7 +544,7 @@ public static class EditorSettings
                 CopySettings(loaded, _data);
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException or NotSupportedException)
         {
             Console.WriteLine($"Failed to load settings: {ex.Message}");
         }
@@ -570,7 +570,7 @@ public static class EditorSettings
             var json = JsonSerializer.Serialize(_data, GetJsonOptions());
             File.WriteAllText(path, json);
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             Console.WriteLine($"Failed to save settings: {ex.Message}");
         }

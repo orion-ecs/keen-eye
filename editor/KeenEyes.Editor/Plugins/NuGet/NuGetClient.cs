@@ -242,23 +242,7 @@ public sealed class NuGetClient : INuGetClient
         Directory.CreateDirectory(cachePath);
 
         // Extract files
-        foreach (var entry in archive.Entries)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var destinationPath = Path.Combine(cachePath, entry.FullName);
-            var destinationDir = Path.GetDirectoryName(destinationPath);
-
-            if (destinationDir != null)
-            {
-                Directory.CreateDirectory(destinationDir);
-            }
-
-            if (!string.IsNullOrEmpty(entry.Name))
-            {
-                entry.ExtractToFile(destinationPath, overwrite: true);
-            }
-        }
+        ExtractArchiveEntries(archive, cachePath, cancellationToken);
 
         // Create the .nupkg.metadata file that NuGet expects
         var metadataPath = Path.Combine(cachePath, ".nupkg.metadata");
@@ -271,6 +255,56 @@ public sealed class NuGetClient : INuGetClient
             """);
 
         return Task.FromResult(cachePath);
+    }
+
+    /// <summary>
+    /// Extracts all entries from <paramref name="archive"/> into <paramref name="destinationRoot"/>,
+    /// rejecting any entry whose resolved path would escape the destination directory (zip-slip).
+    /// </summary>
+    /// <param name="archive">The archive to extract.</param>
+    /// <param name="destinationRoot">The directory to extract into.</param>
+    /// <param name="cancellationToken">Token to cancel the extraction.</param>
+    /// <exception cref="InvalidDataException">
+    /// Thrown when an archive entry would extract outside <paramref name="destinationRoot"/>.
+    /// </exception>
+    internal static void ExtractArchiveEntries(
+        ZipArchive archive,
+        string destinationRoot,
+        CancellationToken cancellationToken = default)
+    {
+        // Canonicalize the root with a trailing separator so that a sibling
+        // directory like "/target-evil" cannot pass a "/target" prefix check.
+        var canonicalRoot = Path.GetFullPath(destinationRoot);
+
+        if (!canonicalRoot.EndsWith(Path.DirectorySeparatorChar))
+        {
+            canonicalRoot += Path.DirectorySeparatorChar;
+        }
+
+        foreach (var entry in archive.Entries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var destinationPath = Path.GetFullPath(Path.Combine(canonicalRoot, entry.FullName));
+
+            if (!destinationPath.StartsWith(canonicalRoot, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Archive entry '{entry.FullName}' would extract outside the destination directory.");
+            }
+
+            var destinationDir = Path.GetDirectoryName(destinationPath);
+
+            if (destinationDir != null)
+            {
+                Directory.CreateDirectory(destinationDir);
+            }
+
+            if (!string.IsNullOrEmpty(entry.Name))
+            {
+                entry.ExtractToFile(destinationPath, overwrite: true);
+            }
+        }
     }
 
     private static string GetPackageCachePath(string packageId, string version)

@@ -72,7 +72,7 @@ public sealed class LayoutManager
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Console.WriteLine($"Failed to load layout from {path}: {ex.Message}");
         }
@@ -109,7 +109,7 @@ public sealed class LayoutManager
             File.WriteAllText(path, json);
             _currentLayoutPath = path;
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Console.WriteLine($"Failed to save layout to {path}: {ex.Message}");
         }
@@ -220,7 +220,7 @@ public sealed class LayoutManager
             File.Delete(path);
             return true;
         }
-        catch
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return false;
         }

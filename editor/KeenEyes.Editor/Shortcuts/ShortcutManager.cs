@@ -307,7 +307,7 @@ public sealed class ShortcutManager
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
             Console.WriteLine($"Failed to load shortcuts: {ex.Message}");
         }

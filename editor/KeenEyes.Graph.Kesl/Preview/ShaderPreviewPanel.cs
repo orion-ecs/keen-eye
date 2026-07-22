@@ -89,7 +89,7 @@ public sealed class ShaderPreviewPanel
     /// <param name="world">The world containing the graph.</param>
     public void SetCanvas(Entity canvas, IWorld world)
     {
-        if (currentCanvas != canvas || currentWorld != world)
+        if (currentCanvas != canvas || !ReferenceEquals(currentWorld, world))
         {
             currentCanvas = canvas;
             currentWorld = world;

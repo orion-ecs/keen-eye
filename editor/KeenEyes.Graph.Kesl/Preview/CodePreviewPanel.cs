@@ -61,7 +61,7 @@ public sealed class CodePreviewPanel
     /// <param name="world">The world containing the graph.</param>
     public void SetGraph(Entity canvas, IWorld world)
     {
-        if (currentCanvas != canvas || currentWorld != world)
+        if (currentCanvas != canvas || !ReferenceEquals(currentWorld, world))
         {
             currentCanvas = canvas;
             currentWorld = world;

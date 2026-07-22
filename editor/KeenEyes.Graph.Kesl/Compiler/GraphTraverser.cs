@@ -56,9 +56,9 @@ public static class GraphTraverser
                 neighbors.Add(connection.TargetNode);
             }
 
-            if (inDegree.ContainsKey(connection.TargetNode))
+            if (inDegree.TryGetValue(connection.TargetNode, out var degree))
             {
-                inDegree[connection.TargetNode]++;
+                inDegree[connection.TargetNode] = degree + 1;
             }
         }
 

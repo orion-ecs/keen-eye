@@ -449,22 +449,22 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
 
     private static void GenerateNestedValue(StringBuilder sb, Dictionary<string, object?> nested, string indent)
     {
-        if (nested.ContainsKey("X") && nested.ContainsKey("Y"))
+        if (nested.TryGetValue("X", out var x) && nested.TryGetValue("Y", out var y))
         {
-            if (nested.ContainsKey("Z"))
+            if (nested.TryGetValue("Z", out var z))
             {
-                if (nested.ContainsKey("W"))
+                if (nested.TryGetValue("W", out var w))
                 {
-                    sb.Append($"new global::System.Numerics.Vector4({FormatFloat(nested["X"])}, {FormatFloat(nested["Y"])}, {FormatFloat(nested["Z"])}, {FormatFloat(nested["W"])})");
+                    sb.Append($"new global::System.Numerics.Vector4({FormatFloat(x)}, {FormatFloat(y)}, {FormatFloat(z)}, {FormatFloat(w)})");
                 }
                 else
                 {
-                    sb.Append($"new global::System.Numerics.Vector3({FormatFloat(nested["X"])}, {FormatFloat(nested["Y"])}, {FormatFloat(nested["Z"])})");
+                    sb.Append($"new global::System.Numerics.Vector3({FormatFloat(x)}, {FormatFloat(y)}, {FormatFloat(z)})");
                 }
             }
             else
             {
-                sb.Append($"new global::System.Numerics.Vector2({FormatFloat(nested["X"])}, {FormatFloat(nested["Y"])})");
+                sb.Append($"new global::System.Numerics.Vector2({FormatFloat(x)}, {FormatFloat(y)})");
             }
         }
         else

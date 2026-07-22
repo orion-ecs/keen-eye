@@ -174,10 +174,12 @@ public sealed class EditorLogProvider : ILogProvider, ILogQueryable
     {
         foreach (var entry in _entries)
         {
-            var shouldInclude =
-                (entry.Level >= LogLevel.Error && showErrors) ||
-                (entry.Level == LogLevel.Warning && showWarnings) ||
-                (entry.Level < LogLevel.Warning && showInfo);
+            var shouldInclude = entry.Level switch
+            {
+                >= LogLevel.Error => showErrors,
+                LogLevel.Warning => showWarnings,
+                _ => showInfo,
+            };
 
             if (shouldInclude)
             {

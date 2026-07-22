@@ -139,7 +139,7 @@ internal sealed class PluginRepository
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger?.LogWarning($"Error scanning directory '{directory}': {ex.Message}");
         }
@@ -181,7 +181,7 @@ internal sealed class PluginRepository
                 }
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             logger?.LogWarning($"Error scanning NuGet cache: {ex.Message}");
         }

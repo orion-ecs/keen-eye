@@ -31,7 +31,7 @@ static Dictionary<string, ICommand> BuildCommands()
 static async Task<int> RunAsync(string[] args, Dictionary<string, ICommand> commands)
 {
     var output = new ConsoleOutput();
-    var cts = new CancellationTokenSource();
+    using var cts = new CancellationTokenSource();
 
     // Handle Ctrl+C
     Console.CancelKeyPress += (_, e) =>
