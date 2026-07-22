@@ -100,86 +100,7 @@ public sealed class GhostExtractor
             return null;
         }
 
-        var frames = new List<GhostFrame>();
-        TimeSpan lastFrameTime = TimeSpan.MinValue;
-        float cumulativeDistance = 0f;
-        Vector3? lastPosition = null;
-
-        foreach (var snapshotMarker in replay.Snapshots)
-        {
-            // Ghost extraction reads full entity state; delta markers carry no snapshot.
-            if (snapshotMarker.Snapshot is null)
-            {
-                continue;
-            }
-
-            // Skip if we haven't passed the minimum interval
-            if (MinFrameInterval > TimeSpan.Zero &&
-                snapshotMarker.ElapsedTime - lastFrameTime < MinFrameInterval)
-            {
-                continue;
-            }
-
-            // Find the entity in this snapshot
-            var entity = snapshotMarker.Snapshot.Entities
-                .FirstOrDefault(e => e.Name == entityName);
-
-            if (entity is null)
-            {
-                continue;
-            }
-
-            // Find the Transform3D component
-            var transformComponent = entity.Components
-                .FirstOrDefault(c => c.TypeName.StartsWith(Transform3DTypeName, StringComparison.Ordinal));
-
-            if (transformComponent is null || transformComponent.Data is null)
-            {
-                continue;
-            }
-
-            // Parse the transform data
-            var transform = ParseTransform3D(transformComponent.Data.Value);
-            if (transform is null)
-            {
-                continue;
-            }
-
-            var (position, rotation, scale) = transform.Value;
-
-            // Calculate distance if enabled
-            if (CalculateDistance && lastPosition.HasValue)
-            {
-                cumulativeDistance += Vector3.Distance(lastPosition.Value, position);
-            }
-            lastPosition = position;
-
-            // Create the ghost frame
-            var ghostFrame = new GhostFrame(position, rotation, snapshotMarker.ElapsedTime)
-            {
-                Scale = scale,
-                Distance = cumulativeDistance
-            };
-
-            frames.Add(ghostFrame);
-            lastFrameTime = snapshotMarker.ElapsedTime;
-        }
-
-        if (frames.Count == 0)
-        {
-            return null;
-        }
-
-        return new GhostData
-        {
-            Name = replay.Name,
-            EntityName = entityName,
-            RecordingStarted = replay.RecordingStarted,
-            Duration = frames[^1].ElapsedTime - frames[0].ElapsedTime,
-            FrameCount = frames.Count,
-            Frames = frames,
-            Metadata = replay.Metadata
-        };
+        return BuildGhost(replay, entity => entity.Name == entityName, entityName);
     }
 
     /// <summary>
@@ -209,38 +130,48 @@ public sealed class GhostExtractor
             return null;
         }
 
+        return BuildGhost(replay, entity => entity.Id == entityId, entityName: null);
+    }
+
+    /// <summary>
+    /// Builds ghost data for the entity matched by <paramref name="matchEntity"/> across the
+    /// replay's reconstructed states.
+    /// </summary>
+    /// <param name="replay">The source replay data.</param>
+    /// <param name="matchEntity">Predicate that selects the target entity in each state.</param>
+    /// <param name="entityName">
+    /// The known entity name, or <c>null</c> to capture it from the first matching entity
+    /// (used by the by-id overload where the name is not known up front).
+    /// </param>
+    /// <returns>The extracted ghost data, or null when no frames were produced.</returns>
+    private GhostData? BuildGhost(ReplayData replay, Func<SerializedEntity, bool> matchEntity, string? entityName)
+    {
         var frames = new List<GhostFrame>();
         TimeSpan lastFrameTime = TimeSpan.MinValue;
         float cumulativeDistance = 0f;
         Vector3? lastPosition = null;
-        string? entityName = null;
+        var resolvedName = entityName;
 
-        foreach (var snapshotMarker in replay.Snapshots)
+        // Each marker contributes a frame: keyframes are read directly, delta markers are
+        // reconstructed by applying the delta chain from the governing keyframe.
+        foreach (var (marker, state) in ReconstructStates(replay))
         {
-            // Ghost extraction reads full entity state; delta markers carry no snapshot.
-            if (snapshotMarker.Snapshot is null)
-            {
-                continue;
-            }
-
             // Skip if we haven't passed the minimum interval
             if (MinFrameInterval > TimeSpan.Zero &&
-                snapshotMarker.ElapsedTime - lastFrameTime < MinFrameInterval)
+                marker.ElapsedTime - lastFrameTime < MinFrameInterval)
             {
                 continue;
             }
 
-            // Find the entity in this snapshot
-            var entity = snapshotMarker.Snapshot.Entities
-                .FirstOrDefault(e => e.Id == entityId);
-
+            // Find the entity in the reconstructed state
+            var entity = state.Entities.FirstOrDefault(matchEntity);
             if (entity is null)
             {
                 continue;
             }
 
-            // Capture entity name from first occurrence
-            entityName ??= entity.Name;
+            // Capture the entity name from the first occurrence when it was not supplied.
+            resolvedName ??= entity.Name;
 
             // Find the Transform3D component
             var transformComponent = entity.Components
@@ -251,7 +182,8 @@ public sealed class GhostExtractor
                 continue;
             }
 
-            // Parse the transform data
+            // Parse the transform data. Malformed component data yields null and the frame
+            // is skipped, so a single corrupt marker does not abort the whole extraction.
             var transform = ParseTransform3D(transformComponent.Data.Value);
             if (transform is null)
             {
@@ -268,14 +200,14 @@ public sealed class GhostExtractor
             lastPosition = position;
 
             // Create the ghost frame
-            var ghostFrame = new GhostFrame(position, rotation, snapshotMarker.ElapsedTime)
+            var ghostFrame = new GhostFrame(position, rotation, marker.ElapsedTime)
             {
                 Scale = scale,
                 Distance = cumulativeDistance
             };
 
             frames.Add(ghostFrame);
-            lastFrameTime = snapshotMarker.ElapsedTime;
+            lastFrameTime = marker.ElapsedTime;
         }
 
         if (frames.Count == 0)
@@ -286,13 +218,70 @@ public sealed class GhostExtractor
         return new GhostData
         {
             Name = replay.Name,
-            EntityName = entityName,
+            EntityName = resolvedName,
             RecordingStarted = replay.RecordingStarted,
             Duration = frames[^1].ElapsedTime - frames[0].ElapsedTime,
             FrameCount = frames.Count,
             Frames = frames,
             Metadata = replay.Metadata
         };
+    }
+
+    /// <summary>
+    /// Reconstructs the full world state at each snapshot marker in recording order.
+    /// </summary>
+    /// <param name="replay">The source replay data.</param>
+    /// <returns>
+    /// A sequence of markers paired with the world state at that marker. Keyframes yield
+    /// their stored snapshot directly; delta markers yield the state produced by applying
+    /// their delta to the running reconstructed state.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// A delta marker that precedes the first keyframe cannot be reconstructed and is
+    /// skipped. If applying a delta throws (a corrupt or inconsistent marker), that marker
+    /// is skipped and the running baseline is discarded: because each delta is relative to
+    /// the immediately preceding marker, a broken link makes every subsequent delta
+    /// unreconstructable until the next keyframe re-establishes a self-contained baseline.
+    /// </para>
+    /// </remarks>
+    private static IEnumerable<(SnapshotMarker Marker, WorldSnapshot State)> ReconstructStates(ReplayData replay)
+    {
+        WorldSnapshot? currentState = null;
+
+        foreach (var marker in replay.Snapshots)
+        {
+            if (marker.Snapshot is not null)
+            {
+                // Keyframe: a self-contained restore point resets the running state.
+                currentState = marker.Snapshot;
+            }
+            else if (marker.Delta is not null && currentState is not null)
+            {
+                WorldSnapshot next;
+                try
+                {
+                    next = DeltaSnapshotApplier.Apply(currentState, marker.Delta);
+                }
+                catch (Exception)
+                {
+                    // Broad catch: a malformed delta must not abort extraction. Skip this
+                    // marker and invalidate the chain until the next keyframe.
+                    currentState = null;
+                    continue;
+                }
+
+                currentState = next;
+            }
+            else
+            {
+                // Delta marker with no governing keyframe, or a marker carrying neither a
+                // snapshot nor a delta: nothing to reconstruct from.
+                continue;
+            }
+
+            yield return (marker, currentState);
+        }
     }
 
     /// <summary>
@@ -323,8 +312,9 @@ public sealed class GhostExtractor
             return result;
         }
 
-        // Find all unique entity names with transforms. Delta markers carry no full
-        // snapshot, so only keyframe markers contribute entity names here.
+        // Discover candidate entity names from keyframes, which carry full state. Each named
+        // entity is then extracted via ExtractGhost, whose reconstruction fills in the
+        // frames contributed by the intervening delta markers.
         var entityNames = replay.Snapshots
             .Where(s => s.Snapshot is not null)
             .SelectMany(s => s.Snapshot!.Entities)
@@ -381,8 +371,10 @@ public sealed class GhostExtractor
 
             return (position, rotation, scale);
         }
-        catch (JsonException)
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException or FormatException)
         {
+            // Malformed transform data (wrong JSON shape, or a value that is not a number).
+            // Treat as unreadable so the caller skips the frame rather than throwing.
             return null;
         }
     }

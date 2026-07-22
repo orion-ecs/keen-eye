@@ -21,13 +21,12 @@ public readonly record struct LapResult(ReplayData Replay, float LapSeconds);
 /// </summary>
 public sealed class RaceManager
 {
-    // 20 Hz snapshots (every 0.05s) with delta compression disabled so that every
-    // snapshot is a full keyframe. The ghost extractor only reads keyframes, so this
-    // pairing is what yields a smooth ghost - see the README for the full rationale.
+    // 20 Hz snapshots (every 0.05s) with the default delta compression left on. The ghost
+    // extractor reconstructs state at delta markers, so every snapshot feeds the ghost and
+    // the recording stays compact - see the README for the full rationale.
     private static readonly ReplayOptions recordingOptions = new()
     {
         SnapshotInterval = TimeSpan.FromSeconds(0.05),
-        KeyframeInterval = 1,
         RecordSystemEvents = false,
         RecordComponentEvents = false,
         RecordEntityEvents = false,
