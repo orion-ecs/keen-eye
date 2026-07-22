@@ -726,9 +726,9 @@ public sealed class Silk2DRenderer : I2DRenderer
         }
     }
 
-    private void EnsureRoundedRectCapacity(int vertexCount, int indexCount)
+    private void EnsureRoundedRectCapacity(int requiredVertices, int requiredIndices)
     {
-        if (roundedRectVertexCount + vertexCount > MaxVertices || roundedRectIndexCount + indexCount > MaxIndices)
+        if (roundedRectVertexCount + requiredVertices > MaxVertices || roundedRectIndexCount + requiredIndices > MaxIndices)
         {
             FlushRoundedRects();
         }

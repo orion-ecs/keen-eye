@@ -256,12 +256,12 @@ public class UtilityActionTests
             ]
         };
 
+        var score1 = action1.CalculateScore(entity, blackboard, world);
         var score2 = action2.CalculateScore(entity, blackboard, world);
 
-        // Score2 should be compensated upward to be more fair
-        // Without compensation: 0.8 * 0.8 = 0.64
-        // With compensation: higher than 0.64
-        score2.ShouldBeGreaterThan(0.64f);
+        // Both actions have the same raw product (0.64), but action2's score is
+        // compensated upward because it spreads that product across more considerations.
+        score2.ShouldBeGreaterThan(score1);
     }
 
     #endregion
