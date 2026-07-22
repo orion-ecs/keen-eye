@@ -358,7 +358,8 @@
         "type": "Project",
         "dependencies": {
           "KeenEyes.Common": "[1.0.0, )",
-          "KeenEyes.Core": "[1.0.0, )"
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )"
         }
       },
       "keeneyes.runtime": {

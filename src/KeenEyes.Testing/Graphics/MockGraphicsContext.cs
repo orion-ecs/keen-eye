@@ -253,8 +253,8 @@ public sealed class MockGraphicsContext : IGraphicsContext
         MeshDrawCalls.Add(new MeshDrawCall(
             handle,
             boundShader,
-            new Dictionary<int, TextureHandle>(boundTextures),
-            new Dictionary<string, object>(UniformValues)));
+            [with(boundTextures)],
+            [with(UniformValues)]));
     }
 
     #endregion
@@ -455,8 +455,8 @@ public sealed class MockGraphicsContext : IGraphicsContext
             instances,
             instanceCount,
             boundShader,
-            new Dictionary<int, TextureHandle>(boundTextures),
-            new Dictionary<string, object>(UniformValues)));
+            [with(boundTextures)],
+            [with(UniformValues)]));
     }
 
     private InstanceBufferHandle AllocateInstanceBufferHandle()

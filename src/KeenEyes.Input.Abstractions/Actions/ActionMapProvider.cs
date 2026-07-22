@@ -27,7 +27,7 @@ namespace KeenEyes.Input.Abstractions;
 /// </example>
 public sealed class ActionMapProvider : IActionMapProvider
 {
-    private readonly Dictionary<string, InputActionMap> maps = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, InputActionMap> maps = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly List<InputActionMap> mapList = [];
     private InputActionMap? activeMap;
 

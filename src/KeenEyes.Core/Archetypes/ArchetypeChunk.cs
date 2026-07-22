@@ -79,7 +79,7 @@ public sealed class ArchetypeChunk : IDisposable
         ArchetypeId = archetypeId;
         Capacity = capacity;
         entities = new Entity[capacity];
-        entityIdToIndex = new Dictionary<int, int>(capacity);
+        entityIdToIndex = [with(capacity)];
         componentArrays = [];
 
         foreach (var info in componentInfos)

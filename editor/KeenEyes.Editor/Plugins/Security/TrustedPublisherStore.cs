@@ -12,7 +12,7 @@ namespace KeenEyes.Editor.Plugins.Security;
 internal sealed class TrustedPublisherStore
 {
     private readonly string storePath;
-    private readonly Dictionary<string, TrustedPublisher> publishers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, TrustedPublisher> publishers = [with(StringComparer.OrdinalIgnoreCase)];
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,

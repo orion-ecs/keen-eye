@@ -23,11 +23,18 @@
           "KeenEyes.Abstractions": "[1.0.0, )"
         }
       },
+      "keeneyes.logging": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.replay": {
         "type": "Project",
         "dependencies": {
           "KeenEyes.Common": "[1.0.0, )",
-          "KeenEyes.Core": "[1.0.0, )"
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Logging": "[1.0.0, )"
         }
       }
     }

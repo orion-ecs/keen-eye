@@ -35,7 +35,7 @@ public sealed class DictionaryStringSource : IStringSource
 
         translations = new Dictionary<Locale, Dictionary<string, string>>
         {
-            [locale] = new Dictionary<string, string>(strings)
+            [locale] = [with(strings)]
         };
     }
 
@@ -50,7 +50,7 @@ public sealed class DictionaryStringSource : IStringSource
         this.translations = [];
         foreach (var (locale, strings) in translations)
         {
-            this.translations[locale] = new Dictionary<string, string>(strings);
+            this.translations[locale] = [with(strings)];
         }
     }
 

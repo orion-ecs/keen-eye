@@ -20,7 +20,7 @@ internal sealed class PluginRegistryData
     /// Gets or sets the installed plugins.
     /// </summary>
     [JsonPropertyName("plugins")]
-    public Dictionary<string, InstalledPluginEntry> Plugins { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, InstalledPluginEntry> Plugins { get; set; } = [with(StringComparer.OrdinalIgnoreCase)];
 
     /// <summary>
     /// Gets or sets the configured sources.

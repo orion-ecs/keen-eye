@@ -8,7 +8,7 @@ namespace KeenEyes.Editor.Shortcuts;
 /// </summary>
 public sealed class ShortcutManager
 {
-    private readonly Dictionary<string, ShortcutBinding> _bindings = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, ShortcutBinding> _bindings = [with(StringComparer.OrdinalIgnoreCase)];
     private readonly Dictionary<KeyCombination, string> _shortcutToAction = [];
     private KeyModifiers _currentModifiers;
 

@@ -54,7 +54,7 @@ public sealed class AssetManifest
         Assets = assets;
 
         // Build lookup dictionary
-        assetsByPath = new Dictionary<string, AssetInfo>(StringComparer.OrdinalIgnoreCase);
+        assetsByPath = [with(StringComparer.OrdinalIgnoreCase)];
         foreach (var asset in assets)
         {
             assetsByPath[asset.Path] = asset;
@@ -204,7 +204,7 @@ public sealed class AssetManifest
             {
                 TotalAssets = Statistics.TotalAssets,
                 TotalSize = Statistics.TotalSize,
-                ByType = new Dictionary<string, int>(Statistics.ByType)
+                ByType = [with(Statistics.ByType)]
             }
         };
 

@@ -197,7 +197,7 @@ public sealed class PluginUninstaller
 
             // Build uninstall order (dependents first, then target)
             var uninstallOrder = new List<string>();
-            BuildUninstallOrder(packageId, uninstallOrder, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            BuildUninstallOrder(packageId, uninstallOrder, [with(StringComparer.OrdinalIgnoreCase)]);
 
             // Uninstall in order
             foreach (var id in uninstallOrder)
@@ -226,7 +226,7 @@ public sealed class PluginUninstaller
     public IReadOnlyList<string> PreviewCascadeUninstall(string packageId)
     {
         var uninstallOrder = new List<string>();
-        BuildUninstallOrder(packageId, uninstallOrder, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        BuildUninstallOrder(packageId, uninstallOrder, [with(StringComparer.OrdinalIgnoreCase)]);
         return uninstallOrder;
     }
 
