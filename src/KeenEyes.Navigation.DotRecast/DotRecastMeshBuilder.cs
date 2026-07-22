@@ -2,6 +2,8 @@ using System.Numerics;
 using DotRecast.Core;
 using DotRecast.Core.Numerics;
 using DotRecast.Detour;
+using DotRecast.Detour.TileCache;
+using DotRecast.Detour.TileCache.Io.Compress;
 using DotRecast.Recast;
 using DotRecast.Recast.Geom;
 using KeenEyes.Navigation.Abstractions;
@@ -33,6 +35,17 @@ namespace KeenEyes.Navigation.DotRecast;
 /// </remarks>
 public sealed class DotRecastMeshBuilder
 {
+    /// <summary>
+    /// Expected stacked heightfield layers per tile-cache grid cell, used to
+    /// size the navmesh tile budget. Matches the Recast demo's value.
+    /// </summary>
+    private const int ExpectedLayersPerTile = 4;
+
+    /// <summary>
+    /// Maximum simultaneous obstacles a tile cache can track.
+    /// </summary>
+    private const int MaxTileCacheObstacles = 128;
+
     private readonly NavMeshConfig config;
     private readonly RcBuilder builder;
 
@@ -96,16 +109,7 @@ public sealed class DotRecastMeshBuilder
         int overrideTileSize = 0,
         IReadOnlyList<OffMeshLinkDefinition>? offMeshLinks = null)
     {
-        if (vertices.Length == 0 || vertices.Length % 3 != 0)
-        {
-            throw new ArgumentException("Vertices must be XYZ triplets", nameof(vertices));
-        }
-
-        if (indices.Length == 0 || indices.Length % 3 != 0)
-        {
-            throw new ArgumentException("Indices must be triangle triplets", nameof(indices));
-        }
-
+        ValidateGeometry(vertices, indices);
         ArgumentOutOfRangeException.ThrowIfNegative(overrideTileSize);
 
         // Convert to arrays for DotRecast
@@ -272,6 +276,101 @@ public sealed class DotRecastMeshBuilder
 
     private NavMeshData BuildTiled(IRcInputGeomProvider geom, RcVec3f bmin, RcVec3f bmax, int overrideTileSize, OffMeshConnectionData? connections)
     {
+        var (navMeshParams, tiles) = BuildTileData(geom, bmin, bmax, overrideTileSize, connections);
+
+        if (tiles.Count == 0)
+        {
+            throw new InvalidOperationException("Failed to build navigation mesh");
+        }
+
+        var navMesh = new DtNavMesh();
+        navMesh.Init(navMeshParams, config.MaxVertsPerPoly);
+
+        foreach (var meshData in tiles)
+        {
+            navMesh.AddTile(meshData, 0, 0, out _);
+        }
+
+        return new NavMeshData(navMesh, config.ToAgentSettings());
+    }
+
+    /// <summary>
+    /// Builds all tiles of a tiled navigation mesh up front and returns them as
+    /// a streamable tile set instead of installing them into a navmesh.
+    /// </summary>
+    /// <param name="vertices">The mesh vertices (XYZ triplets).</param>
+    /// <param name="indices">The triangle indices.</param>
+    /// <param name="overrideTileSize">
+    /// Optional per-surface tile size (in cells) that overrides
+    /// <see cref="NavMeshConfig.TileSize"/> when greater than zero.
+    /// </param>
+    /// <param name="offMeshLinks">
+    /// Optional off-mesh connections to bake into the tiles.
+    /// </param>
+    /// <returns>
+    /// The tile set, ready to be streamed by <see cref="NavMeshStreamingManager"/>
+    /// or persisted per tile via <see cref="NavMeshTile.Serialize"/>.
+    /// </returns>
+    /// <remarks>
+    /// Tiles are built eagerly because Recast voxelization needs the full input
+    /// geometry; building at bake time keeps the runtime streaming cost down to
+    /// installing and removing pre-built tiles.
+    /// </remarks>
+    /// <exception cref="ArgumentException">Thrown when geometry or off-mesh links are invalid.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when overrideTileSize is negative.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <see cref="NavMeshConfig.UseTiles"/> is disabled or no tile
+    /// contains walkable geometry.
+    /// </exception>
+    public NavMeshTileSet BuildTileSet(
+        ReadOnlySpan<float> vertices,
+        ReadOnlySpan<int> indices,
+        int overrideTileSize = 0,
+        IReadOnlyList<OffMeshLinkDefinition>? offMeshLinks = null)
+    {
+        if (!config.UseTiles)
+        {
+            throw new InvalidOperationException("BuildTileSet requires NavMeshConfig.UseTiles to be enabled");
+        }
+
+        ValidateGeometry(vertices, indices);
+        ArgumentOutOfRangeException.ThrowIfNegative(overrideTileSize);
+
+        var geom = new RcSampleInputGeomProvider(vertices.ToArray(), indices.ToArray());
+        var bmin = geom.GetMeshBoundsMin();
+        var bmax = geom.GetMeshBoundsMax();
+        var connections = CreateOffMeshConnectionData(offMeshLinks);
+
+        var (navMeshParams, tileData) = BuildTileData(geom, bmin, bmax, overrideTileSize, connections);
+
+        if (tileData.Count == 0)
+        {
+            throw new InvalidOperationException("Failed to build navigation mesh");
+        }
+
+        var tiles = new List<NavMeshTile>(tileData.Count);
+        foreach (var meshData in tileData)
+        {
+            tiles.Add(new NavMeshTile(meshData, config.MaxVertsPerPoly));
+        }
+
+        return new NavMeshTileSet(
+            new Vector3(navMeshParams.orig.X, navMeshParams.orig.Y, navMeshParams.orig.Z),
+            navMeshParams.tileWidth,
+            navMeshParams.maxTiles,
+            navMeshParams.maxPolys,
+            config.MaxVertsPerPoly,
+            config.ToAgentSettings(),
+            tiles);
+    }
+
+    private (DtNavMeshParams NavMeshParams, List<DtMeshData> Tiles) BuildTileData(
+        IRcInputGeomProvider geom,
+        RcVec3f bmin,
+        RcVec3f bmax,
+        int overrideTileSize,
+        OffMeshConnectionData? connections)
+    {
         // Effective tile size honours a per-surface override (NavMeshSurface.OverrideTileSize)
         // when positive, otherwise falls back to the global config value.
         int tileSize = overrideTileSize > 0 ? overrideTileSize : config.TileSize;
@@ -280,35 +379,12 @@ public sealed class DotRecastMeshBuilder
         // Partition the bounds into a grid of tiles: tw x th tiles of tileSize cells each.
         RcRecast.CalcTileCount(bmin, bmax, config.CellSize, rcConfig.TileSizeX, rcConfig.TileSizeZ, out int tw, out int th);
 
-        // Size the navmesh so tile + poly indices fit in the reference bit budget.
-        // DotRecast packs the polygon reference as salt|tile|poly; the tile and poly
-        // indices together use 22 bits. Allocate as many bits to the tile index as the
-        // grid needs (capped at 14 to leave room for salt), and give the rest to polys.
-        int tileColumns = Math.Max(1, tw * th);
-        int tileBits = Math.Min(BitOperations.Log2(BitOperations.RoundUpToPowerOf2((uint)tileColumns)), 14);
-        int polyBits = 22 - tileBits;
-        int maxTiles = 1 << tileBits;
-        int maxPolysPerTile = 1 << polyBits;
-
-        // Tile footprint in world units.
-        float tileWorldSize = rcConfig.TileSizeX * config.CellSize;
-
-        var navMeshParams = new DtNavMeshParams
-        {
-            orig = bmin,
-            tileWidth = tileWorldSize,
-            tileHeight = tileWorldSize,
-            maxTiles = maxTiles,
-            maxPolys = maxPolysPerTile
-        };
-
-        var navMesh = new DtNavMesh();
-        navMesh.Init(navMeshParams, config.MaxVertsPerPoly);
+        var navMeshParams = CreateTiledNavMeshParams(bmin, rcConfig.TileSizeX, tw * th, 1);
 
         // BuildTiles walks the whole tw x th grid and returns one result per tile.
         var results = builder.BuildTiles(geom, rcConfig, false, true);
 
-        int tilesAdded = 0;
+        var tiles = new List<DtMeshData>();
         foreach (var result in results)
         {
             // Skip empty tiles (no walkable geometry landed in this cell).
@@ -338,16 +414,146 @@ public sealed class DotRecastMeshBuilder
                 continue;
             }
 
-            navMesh.AddTile(meshData, 0, 0, out _);
-            tilesAdded++;
+            tiles.Add(meshData);
         }
 
-        if (tilesAdded == 0)
+        return (navMeshParams, tiles);
+    }
+
+    /// <summary>
+    /// Sizes navmesh parameters so tile + poly indices fit in the reference bit
+    /// budget. DotRecast packs the polygon reference as salt|tile|poly; the tile
+    /// and poly indices together use 22 bits. Allocate as many bits to the tile
+    /// index as the grid needs (capped at 14 to leave room for salt), and give
+    /// the rest to polys.
+    /// </summary>
+    private DtNavMeshParams CreateTiledNavMeshParams(RcVec3f orig, int tileSizeCells, int tileColumns, int layersPerTile)
+    {
+        int tileSlots = Math.Max(1, tileColumns * layersPerTile);
+        int tileBits = Math.Min(BitOperations.Log2(BitOperations.RoundUpToPowerOf2((uint)tileSlots)), 14);
+        int polyBits = 22 - tileBits;
+
+        // Tile footprint in world units.
+        float tileWorldSize = tileSizeCells * config.CellSize;
+
+        return new DtNavMeshParams
+        {
+            orig = orig,
+            tileWidth = tileWorldSize,
+            tileHeight = tileWorldSize,
+            maxTiles = 1 << tileBits,
+            maxPolys = 1 << polyBits
+        };
+    }
+
+    /// <summary>
+    /// Builds a navigation mesh backed by a Detour tile cache, enabling
+    /// obstacle-driven partial rebuilds at runtime.
+    /// </summary>
+    /// <param name="vertices">The mesh vertices (XYZ triplets).</param>
+    /// <param name="indices">The triangle indices.</param>
+    /// <returns>
+    /// The tile cache wrapper. Its <see cref="NavMeshTileCache.Mesh"/> is fully
+    /// built and immediately usable for pathfinding.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The tile cache pipeline is separate from the regular tiled build: it
+    /// voxelizes the geometry into compressed heightfield layers (rather than
+    /// polygon meshes) so affected tiles can be re-contoured quickly when
+    /// obstacles are added or removed. Because the intermediate data differs,
+    /// tile cache meshes do not interoperate with
+    /// <see cref="BuildTileSet"/>/<see cref="NavMeshStreamingManager"/> streaming
+    /// and do not support off-mesh links.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentException">Thrown when geometry is invalid.</exception>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when <see cref="NavMeshConfig.UseTiles"/> is disabled or mesh
+    /// building fails.
+    /// </exception>
+    public NavMeshTileCache BuildTileCache(ReadOnlySpan<float> vertices, ReadOnlySpan<int> indices)
+    {
+        if (!config.UseTiles)
+        {
+            throw new InvalidOperationException("BuildTileCache requires NavMeshConfig.UseTiles to be enabled");
+        }
+
+        ValidateGeometry(vertices, indices);
+
+        var geom = new RcSampleInputGeomProvider(vertices.ToArray(), indices.ToArray());
+        var bmin = geom.GetMeshBoundsMin();
+        var bmax = geom.GetMeshBoundsMax();
+
+        var rcConfig = CreateRcConfig(config.TileSize);
+        RcRecast.CalcTileCount(bmin, bmax, config.CellSize, rcConfig.TileSizeX, rcConfig.TileSizeZ, out int tw, out int th);
+
+        // Compressed heightfield layers, one build result per grid cell. Each
+        // cell can produce multiple stacked layers (overlapping walkable areas).
+        var storageParams = new DtTileCacheStorageParams(RcByteOrder.LITTLE_ENDIAN, false);
+        var layerResults = new DtTileCacheLayerBuilder(FastLzCompressorFactory.Instance)
+            .Build(geom, rcConfig, storageParams, 1, tw, th);
+
+        var navMeshParams = CreateTiledNavMeshParams(bmin, rcConfig.TileSizeX, tw * th, ExpectedLayersPerTile);
+        var navMesh = new DtNavMesh();
+        navMesh.Init(navMeshParams, config.MaxVertsPerPoly);
+
+        var tileCacheParams = new DtTileCacheParams
+        {
+            orig = bmin,
+            cs = config.CellSize,
+            ch = config.CellHeight,
+            width = rcConfig.TileSizeX,
+            height = rcConfig.TileSizeZ,
+            walkableHeight = config.AgentHeight,
+            walkableRadius = config.AgentRadius,
+            walkableClimb = config.MaxClimbHeight,
+            maxSimplificationError = config.MaxSimplificationError,
+            maxTiles = navMeshParams.maxTiles,
+            maxObstacles = MaxTileCacheObstacles
+        };
+
+        var tileCache = new DtTileCache(
+            in tileCacheParams,
+            storageParams,
+            navMesh,
+            DtTileCacheFastLzCompressor.Shared,
+            new WalkablePolyMeshProcess());
+
+        int tilesBuilt = 0;
+        foreach (var result in layerResults)
+        {
+            foreach (var layer in result.layers)
+            {
+                long tileRef = tileCache.AddTile(layer, 0);
+                if (tileRef != 0)
+                {
+                    // Contour the initial (obstacle-free) layer into navmesh polys.
+                    tileCache.BuildNavMeshTile(tileRef);
+                    tilesBuilt++;
+                }
+            }
+        }
+
+        if (tilesBuilt == 0)
         {
             throw new InvalidOperationException("Failed to build navigation mesh");
         }
 
-        return new NavMeshData(navMesh, config.ToAgentSettings());
+        return new NavMeshTileCache(tileCache, new NavMeshData(navMesh, config.ToAgentSettings()));
+    }
+
+    private static void ValidateGeometry(ReadOnlySpan<float> vertices, ReadOnlySpan<int> indices)
+    {
+        if (vertices.Length == 0 || vertices.Length % 3 != 0)
+        {
+            throw new ArgumentException("Vertices must be XYZ triplets", nameof(vertices));
+        }
+
+        if (indices.Length == 0 || indices.Length % 3 != 0)
+        {
+            throw new ArgumentException("Indices must be triangle triplets", nameof(indices));
+        }
     }
 
     /// <summary>
@@ -512,6 +718,39 @@ public sealed class DotRecastMeshBuilder
         navMeshParams.offMeshConFlags = connections.Flags;
         navMeshParams.offMeshConUserID = connections.UserIds;
         navMeshParams.offMeshConCount = connections.Count;
+    }
+
+    /// <summary>
+    /// Compressor factory that always yields the FastLZ compressor, regardless
+    /// of the storage compatibility mode. The stock
+    /// <c>DtTileCacheCompressorFactory.Shared</c> returns null for
+    /// non-compatibility storage unless a compressor is registered on its
+    /// global instance, which would be hidden static state.
+    /// </summary>
+    private sealed class FastLzCompressorFactory : IDtTileCacheCompressorFactory
+    {
+        public static readonly FastLzCompressorFactory Instance = new();
+
+        public IRcCompressor Create(int compatibility) => DtTileCacheFastLzCompressor.Shared;
+    }
+
+    /// <summary>
+    /// Flags every non-null-area polygon produced by a tile cache rebuild as
+    /// walkable, mirroring <see cref="MarkWalkablePolys"/> for the regular
+    /// build pipeline.
+    /// </summary>
+    private sealed class WalkablePolyMeshProcess : IDtTileCacheMeshProcess
+    {
+        public void Process(DtNavMeshCreateParams option)
+        {
+            for (int i = 0; i < option.polyCount; i++)
+            {
+                if (option.polyAreas[i] != RcRecast.RC_NULL_AREA)
+                {
+                    option.polyFlags[i] = 1;
+                }
+            }
+        }
     }
 
     /// <summary>
