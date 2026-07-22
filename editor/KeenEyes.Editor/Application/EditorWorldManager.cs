@@ -1,5 +1,6 @@
 using KeenEyes.Editor.Assets;
 using KeenEyes.Scenes;
+using Abstractions = KeenEyes.Editor.Abstractions;
 
 namespace KeenEyes.Editor.Application;
 
@@ -7,7 +8,7 @@ namespace KeenEyes.Editor.Application;
 /// Manages the separation between the editor UI world and scene editing worlds.
 /// Uses SceneManager API for scene lifecycle management with a single persistent World.
 /// </summary>
-public sealed class EditorWorldManager : IDisposable
+public sealed class EditorWorldManager : Abstractions.IEditorWorldManager, IDisposable
 {
     private readonly World _world;
     private readonly SceneSerializer _sceneSerializer = new();
@@ -15,6 +16,12 @@ public sealed class EditorWorldManager : IDisposable
     private string? _currentScenePath;
     private bool _isDisposed;
     private int _sceneModificationCount;
+
+    // Backing delegates for the IEditorWorldManager events, which use the EventHandler
+    // pattern. They are bridged from the concrete Action-based events in the constructor.
+    private EventHandler<Abstractions.SceneEventArgs>? _sceneOpenedHandlers;
+    private EventHandler? _sceneClosedHandlers;
+    private EventHandler? _sceneModifiedHandlers;
 
     /// <summary>
     /// Creates a new EditorWorldManager with an empty scene.
@@ -24,6 +31,13 @@ public sealed class EditorWorldManager : IDisposable
         _world = new World();
         // Create initial untitled scene
         _currentSceneRoot = _world.Scenes.Spawn("Untitled");
+
+        // Bridge the concrete Action-based scene events to the abstraction's
+        // EventHandler-based events so consumers observing this manager through
+        // IEditorWorldManager receive notifications.
+        SceneOpened += world => _sceneOpenedHandlers?.Invoke(this, new Abstractions.SceneEventArgs(world, _currentScenePath));
+        SceneClosed += () => _sceneClosedHandlers?.Invoke(this, EventArgs.Empty);
+        SceneModified += () => _sceneModifiedHandlers?.Invoke(this, EventArgs.Empty);
     }
 
     /// <summary>
@@ -53,6 +67,41 @@ public sealed class EditorWorldManager : IDisposable
     /// Gets whether the current scene has unsaved changes.
     /// </summary>
     public bool HasUnsavedChanges => _sceneModificationCount > 0;
+
+    #region IEditorWorldManager (abstraction) implementation
+
+    /// <inheritdoc />
+    IWorld? Abstractions.IEditorWorldManager.CurrentSceneWorld => CurrentSceneWorld;
+
+    /// <inheritdoc />
+    event EventHandler<Abstractions.SceneEventArgs>? Abstractions.IEditorWorldManager.SceneOpened
+    {
+        add => _sceneOpenedHandlers += value;
+        remove => _sceneOpenedHandlers -= value;
+    }
+
+    /// <inheritdoc />
+    event EventHandler? Abstractions.IEditorWorldManager.SceneClosed
+    {
+        add => _sceneClosedHandlers += value;
+        remove => _sceneClosedHandlers -= value;
+    }
+
+    /// <inheritdoc />
+    event EventHandler? Abstractions.IEditorWorldManager.SceneModified
+    {
+        add => _sceneModifiedHandlers += value;
+        remove => _sceneModifiedHandlers -= value;
+    }
+
+    /// <inheritdoc />
+    bool Abstractions.IEditorWorldManager.LoadScene(string path)
+    {
+        LoadScene(path);
+        return _currentSceneRoot.IsValid;
+    }
+
+    #endregion
 
     /// <summary>
     /// Occurs when a new scene is created or loaded.
