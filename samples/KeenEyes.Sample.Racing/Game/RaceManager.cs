@@ -4,6 +4,7 @@ using System.Numerics;
 using KeenEyes.Common;
 using KeenEyes.Replay;
 using KeenEyes.Replay.Ghost;
+using KeenEyes.Serialization;
 
 namespace KeenEyes.Sample.Racing;
 
@@ -59,14 +60,17 @@ public sealed class RaceManager
     /// <summary>
     /// Runs one lap and returns its recording and final time.
     /// </summary>
-    /// <param name="serializer">The serializer used to capture snapshots (must handle Transform3D).</param>
+    /// <param name="serializer">
+    /// The serializer used to capture snapshots. The generated ComponentSerializer covers
+    /// Transform3D because Program.cs opts it in via [assembly: SerializeEngineComponents].
+    /// </param>
     /// <param name="recordingName">A name for the replay recording.</param>
     /// <param name="targetThrottle">The scripted throttle held for the whole lap (0..1).</param>
     /// <param name="ghosts">Ghosts to race against, or null for a solo recording lap.</param>
     /// <returns>The lap result.</returns>
     /// <exception cref="ArgumentNullException">Thrown when a required argument is null.</exception>
     public LapResult RunLap(
-        RacingComponentSerializer serializer,
+        IComponentSerializer serializer,
         string recordingName,
         float targetThrottle,
         GhostManager? ghosts)

@@ -232,6 +232,17 @@ player.DesyncDetected += ex =>
 
 `KeenEyes.Replay.Ghost` extracts a lightweight `GhostData` (just position/rotation/scale per frame, orders of magnitude smaller than a full `ReplayData`) from an existing recording using `GhostExtractor.ExtractGhost(ReplayData replay, string entityName)`. Ghosts are saved/loaded with `GhostFileFormat` (`.keghost` files) and played back independently with `GhostPlayer`, which supports four `GhostSyncMode` values (`TimeSynced`, `FrameSynced`, `DistanceSynced`, `Independent`) for racing-ghost style comparisons against live gameplay. `GhostManager` coordinates several simultaneous ghosts (e.g. "Personal Best" and "World Record") for rendering.
 
+The extractor reads each entity's `KeenEyes.Common.Transform3D` out of replay snapshots — an **engine** component that the source generator does not serialize by default (it only sees components declared in your project). Opt it in once at assembly level, and the generated `ComponentSerializer` records it like any of your own components:
+
+```csharp
+using KeenEyes;
+using KeenEyes.Common;
+
+[assembly: SerializeEngineComponents(typeof(Transform3D))]
+```
+
+Without this opt-in, recordings contain no transform data and `ExtractGhost` returns `null`. See the [Serialization Guide](serialization.md#engine-components) for details, and `samples/KeenEyes.Sample.Racing` for a complete ghost pipeline built on it.
+
 ```csharp
 using KeenEyes.Replay.Ghost;
 

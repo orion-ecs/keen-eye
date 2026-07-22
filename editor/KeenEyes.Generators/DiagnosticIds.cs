@@ -73,6 +73,10 @@ namespace KeenEyes.Generators;
 /// <term>KEEN120-KEEN129</term>
 /// <description>Asset path validation (AssetPathAnalyzer)</description>
 /// </item>
+/// <item>
+/// <term>KEEN130-KEEN139</term>
+/// <description>Engine component serialization (SerializationGenerator)</description>
+/// </item>
 /// </list>
 /// <para>
 /// When adding new diagnostics:

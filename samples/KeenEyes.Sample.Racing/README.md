@@ -6,8 +6,9 @@ it to disk, then race against it - and against multiple ghosts at once - while
 showing the live time gap.
 
 It is the first end-to-end consumer of the ghost pipeline, so it also shows the one
-piece of integration glue a real game needs: making the engine's `Transform3D`
-component serializable into replay snapshots.
+piece of wiring a real game needs: opting the engine's `Transform3D` component into
+the generated serializer with `[assembly: SerializeEngineComponents(...)]` so it is
+recorded into replay snapshots.
 
 ## What it demonstrates
 
@@ -45,7 +46,7 @@ gap to each ghost, and a final standings table.
 
 ```
 KeenEyes.Sample.Racing/
-├── Program.cs                         # Orchestrates the three-lap demo
+├── Program.cs                         # Orchestrates the demo; opts Transform3D into serialization
 ├── Components/
 │   ├── Vehicle.cs                     # Speed / steering state (pure data)
 │   ├── TrackPosition.cs               # Distance travelled along the track
@@ -57,8 +58,7 @@ KeenEyes.Sample.Racing/
     ├── Track.cs                       # Parametric circular racing line
     ├── RaceManager.cs                 # Runs one lap: record + race + report
     ├── GhostSetup.cs                  # Ghost extraction + visual configs
-    ├── TrackRenderer.cs               # Top-down ASCII track view
-    └── RacingComponentSerializer.cs   # Makes Transform3D serializable
+    └── TrackRenderer.cs               # Top-down ASCII track view
 ```
 
 ## Key concepts
@@ -70,14 +70,18 @@ snapshots. But the source-generated `ComponentSerializer` only knows about compo
 declared with `[Component(Serializable = true)]` **in this project** - it never sees
 engine types from `KeenEyes.Common`.
 
-`RacingComponentSerializer` closes that gap. It wraps the generated serializer and
-intercepts only `Transform3D`, emitting the exact JSON shape the extractor expects
-(`Position` / `Rotation` / `Scale` with `X/Y/Z/W` members). Everything else is
-delegated straight through. This is the pattern any game will use to record engine
+One assembly attribute closes that gap. Listing `Transform3D` in
+`[assembly: SerializeEngineComponents(...)]` makes the generator emit the same
+AOT-safe serialization code for it as for the sample's own components, so the one
+generated serializer covers everything the recorder touches - JSON, binary, and
+component registration alike. This is the pattern any game uses to record engine
 components for ghosts.
 
 ```csharp
-var serializer = new RacingComponentSerializer();
+// Program.cs
+[assembly: SerializeEngineComponents(typeof(Transform3D))]
+
+var serializer = ComponentSerializer.Instance;
 world.InstallPlugin(new ReplayPlugin(serializer, recordingOptions));
 ```
 
