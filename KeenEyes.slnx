@@ -8,6 +8,7 @@
     <Project Path="benchmarks/KeenEyes.AotVsJit.Benchmarks/KeenEyes.AotVsJit.Benchmarks.csproj" />
     <Project Path="benchmarks/KeenEyes.AotVsJit.Benchmarks/StartupTimeBenchmark/StartupTimeBenchmark.csproj" />
     <Project Path="benchmarks/KeenEyes.Benchmarks/KeenEyes.Benchmarks.csproj" />
+    <Project Path="benchmarks/KeenEyes.Editor.Benchmarks/KeenEyes.Editor.Benchmarks.csproj" />
     <Project Path="benchmarks/KeenEyes.Spatial.Benchmarks/KeenEyes.Spatial.Benchmarks.csproj" />
   </Folder>
   <Folder Name="/samples/">
