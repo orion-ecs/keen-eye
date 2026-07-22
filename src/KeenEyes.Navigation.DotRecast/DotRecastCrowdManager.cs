@@ -205,7 +205,9 @@ public sealed class DotRecastCrowdManager : IDisposable
     /// Gets the simulated state of a registered crowd agent.
     /// </summary>
     /// <param name="entity">The registered crowd agent entity.</param>
-    /// <param name="state">The agent's simulated position and velocities.</param>
+    /// <param name="state">
+    /// The agent's simulated position, velocities, and off-mesh traversal state.
+    /// </param>
     /// <returns>True if the entity is registered in the crowd.</returns>
     public bool TryGetAgentState(Entity entity, out CrowdAgentState state)
     {
@@ -215,10 +217,18 @@ public sealed class DotRecastCrowdManager : IDisposable
             return false;
         }
 
+        var agent = entry.Agent;
+        var animation = agent.animation;
+        bool traversingLink = agent.state == DtCrowdAgentState.DT_CROWDAGENT_STATE_OFFMESH
+            && animation.active;
+
         state = new CrowdAgentState(
-            ToVector3(entry.Agent.npos),
-            ToVector3(entry.Agent.vel),
-            ToVector3(entry.Agent.dvel));
+            ToVector3(agent.npos),
+            ToVector3(agent.vel),
+            ToVector3(agent.dvel),
+            traversingLink,
+            traversingLink ? ToVector3(animation.startPos) : Vector3.Zero,
+            traversingLink ? ToVector3(animation.endPos) : Vector3.Zero);
         return true;
     }
 

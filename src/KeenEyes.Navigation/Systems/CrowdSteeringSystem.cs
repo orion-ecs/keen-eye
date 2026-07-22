@@ -2,6 +2,7 @@ using System.Numerics;
 using KeenEyes.Common;
 using KeenEyes.Navigation.Abstractions;
 using KeenEyes.Navigation.Abstractions.Components;
+using KeenEyes.Navigation.Events;
 
 namespace KeenEyes.Navigation.Systems;
 
@@ -24,9 +25,18 @@ namespace KeenEyes.Navigation.Systems;
 /// </remarks>
 internal sealed class CrowdSteeringSystem : SystemBase
 {
+    /// <summary>
+    /// The endpoints and area type of an off-mesh traversal in progress,
+    /// captured when the traversal starts so the completion event reports the
+    /// same values.
+    /// </summary>
+    private readonly record struct ActiveTraversal(Vector3 Start, Vector3 End, NavAreaType AreaType);
+
     private readonly Dictionary<Entity, Vector3> requestedTargets = [];
-    private readonly List<Entity> staleTargets = [];
+    private readonly Dictionary<Entity, ActiveTraversal> activeTraversals = [];
+    private readonly List<Entity> staleEntities = [];
     private ICrowdNavigationProvider? crowdProvider;
+    private NavigationConfig? config;
 
     /// <inheritdoc/>
     protected override void OnInitialize()
@@ -35,6 +45,8 @@ internal sealed class CrowdSteeringSystem : SystemBase
         {
             throw new InvalidOperationException("CrowdSteeringSystem requires NavigationContext extension.");
         }
+
+        config = ctx.Config;
 
         // Crowd support is optional; without it this system does nothing and
         // crowd agents degrade to plain waypoint steering.
@@ -109,7 +121,14 @@ internal sealed class CrowdSteeringSystem : SystemBase
         {
             ref var agent = ref World.Get<NavMeshAgent>(entity);
 
-            if (agent.IsStopped || !crowdProvider!.TryGetCrowdAgentState(entity, out var state))
+            if (!crowdProvider!.TryGetCrowdAgentState(entity, out var state))
+            {
+                continue;
+            }
+
+            PublishTraversalTransitions(entity, in state);
+
+            if (agent.IsStopped)
             {
                 continue;
             }
@@ -139,23 +158,94 @@ internal sealed class CrowdSteeringSystem : SystemBase
         crowdProvider!.ResetCrowdMoveTarget(entity);
     }
 
+    /// <summary>
+    /// Sends <see cref="OffMeshLinkTraversalStarted"/> and
+    /// <see cref="OffMeshLinkTraversalCompleted"/> events when the crowd
+    /// simulation moves an agent onto or off an off-mesh connection, mirroring
+    /// the events plain agents receive from <see cref="NavMeshAgentSystem"/>.
+    /// </summary>
+    private void PublishTraversalTransitions(Entity entity, in CrowdAgentState state)
+    {
+        bool wasTraversing = activeTraversals.TryGetValue(entity, out var traversal);
+
+        if (state.IsTraversingOffMeshLink && !wasTraversing)
+        {
+            var areaType = ResolveLinkAreaType(state.OffMeshLinkStart, state.OffMeshLinkEnd);
+            activeTraversals[entity] = new ActiveTraversal(state.OffMeshLinkStart, state.OffMeshLinkEnd, areaType);
+            World.Send(new OffMeshLinkTraversalStarted(entity, state.OffMeshLinkStart, state.OffMeshLinkEnd, areaType));
+        }
+        else if (!state.IsTraversingOffMeshLink && wasTraversing)
+        {
+            activeTraversals.Remove(entity);
+            World.Send(new OffMeshLinkTraversalCompleted(entity, traversal.Start, traversal.End, traversal.AreaType));
+        }
+    }
+
+    /// <summary>
+    /// Resolves the area type for a traversal by matching the traversal
+    /// endpoints against <see cref="OffMeshLink"/> components in the world,
+    /// falling back to <see cref="NavAreaType.OffMeshLink"/> when the mesh was
+    /// baked from definitions that are not present in this world.
+    /// </summary>
+    private NavAreaType ResolveLinkAreaType(Vector3 start, Vector3 end)
+    {
+        foreach (var linkEntity in World.Query<OffMeshLink>())
+        {
+            ref readonly var link = ref World.Get<OffMeshLink>(linkEntity);
+
+            // Link endpoints are snapped onto the mesh during the build, so
+            // matching uses a tolerance derived from each link's radius.
+            float tolerance = link.Radius + config!.WaypointReachDistance;
+            float toleranceSq = tolerance * tolerance;
+
+            bool forward =
+                Vector3.DistanceSquared(link.Start, start) <= toleranceSq &&
+                Vector3.DistanceSquared(link.End, end) <= toleranceSq;
+            bool reverse = link.Bidirectional &&
+                Vector3.DistanceSquared(link.End, start) <= toleranceSq &&
+                Vector3.DistanceSquared(link.Start, end) <= toleranceSq;
+
+            if (forward || reverse)
+            {
+                return link.AreaType;
+            }
+        }
+
+        return NavAreaType.OffMeshLink;
+    }
+
     private void PruneStaleTargets()
     {
         // Entities removed from the crowd (destroyed or component removed)
-        // must not leak requested-target entries.
+        // must not leak requested-target or active-traversal entries.
         foreach (var entity in requestedTargets.Keys)
         {
             if (!crowdProvider!.TryGetCrowdAgentState(entity, out _))
             {
-                staleTargets.Add(entity);
+                staleEntities.Add(entity);
             }
         }
 
-        foreach (var entity in staleTargets)
+        foreach (var entity in staleEntities)
         {
             requestedTargets.Remove(entity);
         }
 
-        staleTargets.Clear();
+        staleEntities.Clear();
+
+        foreach (var entity in activeTraversals.Keys)
+        {
+            if (!crowdProvider!.TryGetCrowdAgentState(entity, out _))
+            {
+                staleEntities.Add(entity);
+            }
+        }
+
+        foreach (var entity in staleEntities)
+        {
+            activeTraversals.Remove(entity);
+        }
+
+        staleEntities.Clear();
     }
 }

@@ -344,5 +344,89 @@ public class OffMeshLinkTests
         Assert.True(position.X > 14f, $"Agent did not reach the far slab (X = {position.X})");
     }
 
+    [Fact]
+    public void Update_CrowdAgentPathIncludesOffMeshLink_TraversesLinkAndFiresEvents()
+    {
+        var mesh = BuildTwoSlabMesh([TwoSlabLink()]);
+        using var provider = new DotRecastProvider(mesh, TestHelper.CreateTestConfig());
+
+        using var world = new World();
+        world.InstallPlugin(new NavigationPlugin(new NavigationConfig
+        {
+            Strategy = NavigationStrategy.Custom,
+            CustomProvider = provider
+        }));
+
+        var events = new List<string>();
+        var started = new List<OffMeshLinkTraversalStarted>();
+        var completed = new List<OffMeshLinkTraversalCompleted>();
+
+        using var startedSub = world.Subscribe<OffMeshLinkTraversalStarted>(evt =>
+        {
+            started.Add(evt);
+            events.Add("started");
+        });
+        using var completedSub = world.Subscribe<OffMeshLinkTraversalCompleted>(evt =>
+        {
+            completed.Add(evt);
+            events.Add("completed");
+        });
+
+        // A matching link entity lets the crowd traversal resolve its area type.
+        var linkComponent = OffMeshLink.Create(linkStart, linkEnd);
+        linkComponent.Radius = 1f;
+        world.Spawn().With(linkComponent).Build();
+
+        var agentComponent = NavMeshAgent.Create();
+        agentComponent.StoppingDistance = 0.5f;
+        var crowdComponent = CrowdAgent.Create();
+        crowdComponent.Radius = 0.6f;
+        var agent = world.Spawn()
+            .With(new Transform3D(new Vector3(3f, 0f, 5f), Quaternion.Identity, Vector3.One))
+            .With(agentComponent)
+            .With(crowdComponent)
+            .Build();
+
+        var context = world.GetExtension<NavigationContext>();
+        context.SetDestination(agent, new Vector3(21f, 0f, 5f));
+
+        bool sawTraversalState = false;
+        for (int i = 0; i < 1000; i++)
+        {
+            world.Update(TimeStep);
+
+            if (provider.TryGetCrowdAgentState(agent, out var state) && state.IsTraversingOffMeshLink)
+            {
+                sawTraversalState = true;
+            }
+
+            if (world.Get<NavMeshAgent>(agent).IsStopped && !world.Get<NavMeshAgent>(agent).PathPending)
+            {
+                break;
+            }
+        }
+
+        // The entity was steered by the crowd simulation, not plain steering.
+        Assert.Equal(1, provider.CrowdAgentCount);
+
+        Assert.True(sawTraversalState, "Crowd agent never entered the off-mesh traversal state");
+        Assert.Single(started);
+        Assert.Single(completed);
+        Assert.Equal(["started", "completed"], events);
+
+        Assert.Equal(agent, started[0].Entity);
+        Assert.Equal(agent, completed[0].Entity);
+        Assert.Equal(NavAreaType.OffMeshLink, started[0].AreaType);
+        Assert.Equal(NavAreaType.OffMeshLink, completed[0].AreaType);
+        Assert.Equal(started[0].Start, completed[0].Start);
+        Assert.Equal(started[0].End, completed[0].End);
+        Assert.True(Vector3.Distance(started[0].Start, linkStart) < 1.5f);
+        Assert.True(Vector3.Distance(started[0].End, linkEnd) < 1.5f);
+
+        // The agent must have crossed the gap onto the far slab.
+        var position = world.Get<Transform3D>(agent).Position;
+        Assert.True(position.X > 14f, $"Crowd agent did not reach the far slab (X = {position.X})");
+    }
+
     #endregion
 }
