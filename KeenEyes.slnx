@@ -109,6 +109,7 @@
     <Project Path="tests/KeenEyes.Input.Abstractions.Tests/KeenEyes.Input.Abstractions.Tests.csproj" />
     <Project Path="tests/KeenEyes.Localization.Tests/KeenEyes.Localization.Tests.csproj" />
     <Project Path="tests/KeenEyes.Logging.Tests/KeenEyes.Logging.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Mcp.TestBridge.Tests/KeenEyes.Mcp.TestBridge.Tests.csproj" />
     <Project Path="tests/KeenEyes.Navigation.Abstractions.Tests/KeenEyes.Navigation.Abstractions.Tests.csproj" />
     <Project Path="tests/KeenEyes.Navigation.DotRecast.Tests/KeenEyes.Navigation.DotRecast.Tests.csproj" />
     <Project Path="tests/KeenEyes.Navigation.Grid.Tests/KeenEyes.Navigation.Grid.Tests.csproj" />

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using KeenEyes.TestBridge.State;
 
 namespace KeenEyes.Mcp.TestBridge.Tests.Mocks;
@@ -86,20 +87,19 @@ internal sealed class MockStateController : IStateController
         return Task.FromResult(entity);
     }
 
-    public Task<IReadOnlyDictionary<string, object?>?> GetComponentAsync(int entityId, string componentTypeName)
+    public Task<JsonElement?> GetComponentAsync(int entityId, string componentTypeName)
     {
         if (!Entities.TryGetValue(entityId, out var entity))
         {
-            return Task.FromResult<IReadOnlyDictionary<string, object?>?>(null);
+            return Task.FromResult<JsonElement?>(null);
         }
 
         if (!entity.Components.TryGetValue(componentTypeName, out var component))
         {
-            return Task.FromResult<IReadOnlyDictionary<string, object?>?>(null);
+            return Task.FromResult<JsonElement?>(null);
         }
 
-        return Task.FromResult<IReadOnlyDictionary<string, object?>?>(
-            component.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Task.FromResult<JsonElement?>(component);
     }
 
     public Task<WorldStats> GetWorldStatsAsync() => Task.FromResult(Stats);
@@ -154,7 +154,7 @@ internal sealed class MockStateController : IStateController
             Id = id,
             Version = 1,
             Name = name,
-            Components = new Dictionary<string, IReadOnlyDictionary<string, object?>>(),
+            Components = new Dictionary<string, JsonElement>(),
             ComponentTypes = componentTypes ?? [],
             ParentId = parentId,
             ChildIds = [],
@@ -174,7 +174,7 @@ internal sealed class MockStateController : IStateController
             Name = name,
             Components = components.ToDictionary(
                 kvp => kvp.Key,
-                kvp => (IReadOnlyDictionary<string, object?>)kvp.Value),
+                kvp => JsonSerializer.SerializeToElement(kvp.Value)),
             ComponentTypes = [.. components.Keys],
             ParentId = null,
             ChildIds = [],
