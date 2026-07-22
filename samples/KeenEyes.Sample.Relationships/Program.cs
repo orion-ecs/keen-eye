@@ -84,91 +84,81 @@ var createdCount = 0;
 var destroyedCount = 0;
 var damageEventCount = 0;
 
-// Subscribe to entity lifecycle events
-var createdSub = world.OnEntityCreated((entity, name) =>
+// Subscribe to entity lifecycle events. Stacked using statements scope the subscriptions
+// so they are disposed (unsubscribed) once the lifecycle demo finishes - even if an
+// exception is thrown - before the change-tracking demo begins.
+using (var createdSub = world.OnEntityCreated((entity, name) =>
 {
     createdCount++;
     Console.WriteLine($"  [EVENT] Entity created: {name ?? "unnamed"} ({entity})");
-});
-
-var destroyedSub = world.OnEntityDestroyed(entity =>
+}))
+using (var destroyedSub = world.OnEntityDestroyed(entity =>
 {
     destroyedCount++;
     var name = world.GetName(entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Entity destroyed: {name} ({entity})");
-});
-
+}))
 // Subscribe to component events
-var healthAddedSub = world.OnComponentAdded<Health>((entity, health) =>
+using (var healthAddedSub = world.OnComponentAdded<Health>((entity, health) =>
 {
     var name = world.GetName(entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Health added to {name}: {health.Current}/{health.Max}");
-});
-
-var healthChangedSub = world.OnComponentChanged<Health>((entity, oldVal, newVal) =>
+}))
+using (var healthChangedSub = world.OnComponentChanged<Health>((entity, oldVal, newVal) =>
 {
     var name = world.GetName(entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Health changed for {name}: {oldVal.Current} -> {newVal.Current}");
-});
-
+}))
 // Subscribe to custom events
-var damageSub = world.Events.Subscribe<DamageEvent>(evt =>
+using (var damageSub = world.Events.Subscribe<DamageEvent>(evt =>
 {
     damageEventCount++;
     var targetName = world.GetName(evt.Target) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Damage event: {targetName} took {evt.Amount} damage");
-});
-
-var deathSub = world.Events.Subscribe<DeathEvent>(evt =>
+}))
+using (var deathSub = world.Events.Subscribe<DeathEvent>(evt =>
 {
     var name = world.GetName(evt.Entity) ?? "unnamed";
     Console.WriteLine($"  [EVENT] Death event: {name} died ({evt.Cause})");
-});
-
-Console.WriteLine("Creating entities (watch for events):");
-
-// Create some enemies
-var enemy1 = world.Spawn("Goblin")
-    .WithPosition(200, 100)
-    .WithHealth(30, 30)
-    .Build();
-
-_ = world.Spawn("Orc")
-    .WithPosition(250, 100)
-    .WithHealth(50, 50)
-    .Build();
-
-// Simulate combat - change health via Set() to trigger events
-Console.WriteLine("\nSimulating combat:");
-
-// Player attacks goblin
-ref readonly var weaponDamage = ref world.Get<Damage>(weapon);
-var goblinHealth = world.Get<Health>(enemy1);
-goblinHealth.Current -= weaponDamage.Amount;
-world.Set(enemy1, goblinHealth);  // Triggers OnComponentChanged
-
-// Publish custom damage event
-world.Events.Publish(new DamageEvent(enemy1, weaponDamage.Amount, player));
-
-// Check if goblin died
-if (goblinHealth.Current <= 0)
+}))
 {
-    world.Events.Publish(new DeathEvent(enemy1, "slain by player"));
-    world.Despawn(enemy1);  // Triggers OnEntityDestroyed
+    Console.WriteLine("Creating entities (watch for events):");
+
+    // Create some enemies
+    var enemy1 = world.Spawn("Goblin")
+        .WithPosition(200, 100)
+        .WithHealth(30, 30)
+        .Build();
+
+    _ = world.Spawn("Orc")
+        .WithPosition(250, 100)
+        .WithHealth(50, 50)
+        .Build();
+
+    // Simulate combat - change health via Set() to trigger events
+    Console.WriteLine("\nSimulating combat:");
+
+    // Player attacks goblin
+    ref readonly var weaponDamage = ref world.Get<Damage>(weapon);
+    var goblinHealth = world.Get<Health>(enemy1);
+    goblinHealth.Current -= weaponDamage.Amount;
+    world.Set(enemy1, goblinHealth);  // Triggers OnComponentChanged
+
+    // Publish custom damage event
+    world.Events.Publish(new DamageEvent(enemy1, weaponDamage.Amount, player));
+
+    // Check if goblin died
+    if (goblinHealth.Current <= 0)
+    {
+        world.Events.Publish(new DeathEvent(enemy1, "slain by player"));
+        world.Despawn(enemy1);  // Triggers OnEntityDestroyed
+    }
+
+    Console.WriteLine($"\nEvent statistics:");
+    Console.WriteLine($"  Entities created: {createdCount}");
+    Console.WriteLine($"  Entities destroyed: {destroyedCount}");
+    Console.WriteLine($"  Damage events: {damageEventCount}");
 }
-
-Console.WriteLine($"\nEvent statistics:");
-Console.WriteLine($"  Entities created: {createdCount}");
-Console.WriteLine($"  Entities destroyed: {destroyedCount}");
-Console.WriteLine($"  Damage events: {damageEventCount}");
-
-// Cleanup subscriptions
-createdSub.Dispose();
-destroyedSub.Dispose();
-healthAddedSub.Dispose();
-healthChangedSub.Dispose();
-damageSub.Dispose();
-deathSub.Dispose();
 
 // =============================================================================
 // PART 3: Change Tracking

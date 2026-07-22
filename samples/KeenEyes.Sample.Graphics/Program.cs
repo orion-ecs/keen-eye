@@ -92,6 +92,10 @@ try
 }
 catch (Exception ex)
 {
+    // Top-level demo entry point: initializing the windowing/graphics stack can surface a
+    // wide range of platform exceptions (missing display, driver, or GL context errors).
+    // A demo recovers by reporting the failure and exiting rather than crashing, so a
+    // catch-all is appropriate here.
     Console.WriteLine($"Error running graphics: {ex.Message}");
     Console.WriteLine("This sample requires a display. Make sure you're running in a graphical environment.");
 }

@@ -284,7 +284,7 @@ async Task RunServerDemo(TransportOptions opts)
 
             // Create player entity for this client
             var player = world.Spawn()
-                .WithPosition(x: 100 + clientId * 50, y: 100)
+                .WithPosition(x: 100f + clientId * 50f, y: 100f)
                 .WithVelocity(x: 0, y: 0)
                 .Build();
             var netId = serverPlugin.RegisterNetworkedEntity(player, ownerId: clientId);

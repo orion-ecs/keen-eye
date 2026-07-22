@@ -42,7 +42,7 @@ public class NodePoolingBenchmarks
             // Add entities to trigger subdivision
             for (int i = 0; i < EntityCount; i++)
             {
-                var pos = new Vector3(i * 2, 0, i * 2);
+                var pos = new Vector3(i * 2f, 0, i * 2f);
                 world.Spawn()
                     .With(new Transform3D(pos, Quaternion.Identity, Vector3.One))
                     .WithTag<SpatialIndexed>()
@@ -82,7 +82,7 @@ public class NodePoolingBenchmarks
             // Add entities to trigger subdivision
             for (int i = 0; i < EntityCount; i++)
             {
-                var pos = new Vector3(i * 2, 0, i * 2);
+                var pos = new Vector3(i * 2f, 0, i * 2f);
                 world.Spawn()
                     .With(new Transform3D(pos, Quaternion.Identity, Vector3.One))
                     .WithTag<SpatialIndexed>()
@@ -126,7 +126,7 @@ public class NodePoolingBenchmarks
             // Add entities to trigger subdivision
             for (int i = 0; i < EntityCount; i++)
             {
-                var pos = new Vector3(i * 2, i * 2, i * 2);
+                var pos = new Vector3(i * 2f, i * 2f, i * 2f);
                 world.Spawn()
                     .With(new Transform3D(pos, Quaternion.Identity, Vector3.One))
                     .WithTag<SpatialIndexed>()
@@ -166,7 +166,7 @@ public class NodePoolingBenchmarks
             // Add entities to trigger subdivision
             for (int i = 0; i < EntityCount; i++)
             {
-                var pos = new Vector3(i * 2, i * 2, i * 2);
+                var pos = new Vector3(i * 2f, i * 2f, i * 2f);
                 world.Spawn()
                     .With(new Transform3D(pos, Quaternion.Identity, Vector3.One))
                     .WithTag<SpatialIndexed>()

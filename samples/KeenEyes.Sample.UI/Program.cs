@@ -128,7 +128,7 @@ try
                     font = fontManager.LoadFont(fontPath, 16f);
                     Console.WriteLine("Font loaded successfully!");
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or ArgumentException)
                 {
                     Console.WriteLine($"Failed to load font: {ex.Message}");
                 }
@@ -150,7 +150,7 @@ try
                     dialogTexture = graphics.LoadTexture(dialogTexturePath);
                     Console.WriteLine($"Dialog texture loaded: {dialogTexture.Width}x{dialogTexture.Height}");
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (ex is IOException or ArgumentException)
                 {
                     Console.WriteLine($"Failed to load dialog texture: {ex.Message}");
                 }
@@ -219,6 +219,10 @@ try
 }
 catch (Exception ex)
 {
+    // Top-level demo entry point: initializing the windowing/graphics stack can surface a
+    // wide range of platform exceptions (missing display, driver, or GL context errors).
+    // A demo recovers by reporting the failure and exiting rather than crashing, so a
+    // catch-all is appropriate here.
     Console.WriteLine($"Error: {ex.Message}");
     Console.WriteLine("This sample requires a display.");
 }
