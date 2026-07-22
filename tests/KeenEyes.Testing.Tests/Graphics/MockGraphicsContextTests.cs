@@ -474,6 +474,69 @@ public class MockGraphicsContextTests
 
     #endregion
 
+    #region Call Log
+
+    [Fact]
+    public void CallLog_RecordsOperationsInOrder()
+    {
+        using var context = new MockGraphicsContext();
+        var mesh = context.CreateQuad();
+
+        context.Clear(ClearMask.ColorBuffer);
+        context.SetViewport(10, 20, 300, 400);
+        context.BindShader(context.UnlitShader);
+        context.DrawMesh(mesh);
+        context.SetDepthTest(false);
+
+        Assert.Equal(
+            [
+                "Clear(ColorBuffer)",
+                "SetViewport(10, 20, 300, 400)",
+                $"BindShader({context.UnlitShader.Id})",
+                $"DrawMesh({mesh.Id})",
+                "SetDepthTest(False)"
+            ],
+            context.CallLog);
+    }
+
+    [Fact]
+    public void CallLog_AllowsInterleavingExternalEntries()
+    {
+        using var context = new MockGraphicsContext();
+
+        context.Clear(ClearMask.ColorBuffer);
+        context.CallLog.Add("External:Event");
+        context.SetViewport(0, 0, 800, 600);
+
+        Assert.Equal(1, context.CallLog.IndexOf("External:Event"));
+    }
+
+    [Fact]
+    public void Reset_ClearsCallLog()
+    {
+        using var context = new MockGraphicsContext();
+        context.Clear(ClearMask.ColorBuffer);
+
+        context.Reset();
+
+        Assert.Empty(context.CallLog);
+    }
+
+    [Fact]
+    public void ClearDrawCalls_ClearsCallLog()
+    {
+        using var context = new MockGraphicsContext();
+        var mesh = context.CreateQuad();
+        context.DrawMesh(mesh);
+
+        context.ClearDrawCalls();
+
+        Assert.Empty(context.CallLog);
+        Assert.NotEmpty(context.Meshes);
+    }
+
+    #endregion
+
     #region Reset and Dispose
 
     [Fact]

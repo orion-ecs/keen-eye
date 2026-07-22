@@ -134,6 +134,18 @@ public sealed class MockGraphicsContext : IGraphicsContext
     public MockContextRenderState RenderState { get; } = new();
 
     /// <summary>
+    /// Gets the ordered log of render-state and draw operations, enabling verification
+    /// of call ordering across a frame (e.g. clears relative to draw calls).
+    /// </summary>
+    /// <remarks>
+    /// Records <see cref="Clear"/>, <see cref="SetViewport"/>, <see cref="SetDepthTest"/>,
+    /// <see cref="SetBlending"/>, <see cref="SetCulling"/>, <see cref="BindShader"/>,
+    /// <see cref="DrawMesh"/>, and <see cref="DrawMeshInstanced"/>. Tests may append
+    /// their own entries to interleave external events with graphics calls.
+    /// </remarks>
+    public List<string> CallLog { get; } = [];
+
+    /// <summary>
     /// Gets the dictionary of uniform values set on the current shader.
     /// </summary>
     public Dictionary<string, object> UniformValues { get; } = [];
@@ -250,6 +262,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     /// <inheritdoc />
     public void DrawMesh(MeshHandle handle)
     {
+        CallLog.Add($"DrawMesh({handle.Id})");
         MeshDrawCalls.Add(new MeshDrawCall(
             handle,
             boundShader,
@@ -379,6 +392,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     /// <inheritdoc />
     public void BindShader(ShaderHandle handle)
     {
+        CallLog.Add($"BindShader({handle.Id})");
         boundShader = handle;
         UniformValues.Clear();
     }
@@ -450,6 +464,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     /// <inheritdoc />
     public void DrawMeshInstanced(MeshHandle mesh, InstanceBufferHandle instances, int instanceCount)
     {
+        CallLog.Add($"DrawMeshInstanced({mesh.Id}, {instanceCount})");
         InstancedMeshDrawCalls.Add(new InstancedMeshDrawCall(
             mesh,
             instances,
@@ -477,6 +492,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
     /// <inheritdoc />
     public void Clear(ClearMask mask)
     {
+        CallLog.Add($"Clear({mask})");
         RenderState.LastClearMask = mask;
         RenderState.ClearCount++;
     }
@@ -484,24 +500,28 @@ public sealed class MockGraphicsContext : IGraphicsContext
     /// <inheritdoc />
     public void SetViewport(int x, int y, int width, int height)
     {
+        CallLog.Add($"SetViewport({x}, {y}, {width}, {height})");
         RenderState.Viewport = (x, y, width, height);
     }
 
     /// <inheritdoc />
     public void SetDepthTest(bool enabled)
     {
+        CallLog.Add($"SetDepthTest({enabled})");
         RenderState.DepthTestEnabled = enabled;
     }
 
     /// <inheritdoc />
     public void SetBlending(bool enabled)
     {
+        CallLog.Add($"SetBlending({enabled})");
         RenderState.BlendingEnabled = enabled;
     }
 
     /// <inheritdoc />
     public void SetCulling(bool enabled, CullFaceMode mode = CullFaceMode.Back)
     {
+        CallLog.Add($"SetCulling({enabled})");
         RenderState.CullingEnabled = enabled;
         RenderState.CullFaceMode = mode;
     }
@@ -668,6 +688,7 @@ public sealed class MockGraphicsContext : IGraphicsContext
         InstanceBuffers.Clear();
         MeshDrawCalls.Clear();
         InstancedMeshDrawCalls.Clear();
+        CallLog.Clear();
         UniformValues.Clear();
         RenderTargets.Clear();
         CubemapRenderTargets.Clear();
@@ -680,12 +701,13 @@ public sealed class MockGraphicsContext : IGraphicsContext
     }
 
     /// <summary>
-    /// Clears only the draw calls, keeping resources.
+    /// Clears only the draw calls and the ordered call log, keeping resources.
     /// </summary>
     public void ClearDrawCalls()
     {
         MeshDrawCalls.Clear();
         InstancedMeshDrawCalls.Clear();
+        CallLog.Clear();
     }
 
     private MeshHandle AllocateMeshHandle()

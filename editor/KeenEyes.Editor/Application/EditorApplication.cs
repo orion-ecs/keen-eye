@@ -303,17 +303,37 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
     private void OnEditorUpdate(float deltaTime)
     {
-        // Clear the framebuffer before rendering
-        _graphics?.Clear(ClearMask.ColorBuffer);
+        ComposeFrame(_graphics, _editorWorld, _viewportPanel, deltaTime);
+    }
 
-        // Update viewport for camera controls and gizmo interaction
-        if (_viewportPanel.IsValid)
+    /// <summary>
+    /// Composes a single editor frame: framebuffer clear, then the 3D viewport pass
+    /// (scene entities, transform gizmo, and plugin gizmo renderers), then the editor
+    /// systems including the UI render pass.
+    /// </summary>
+    /// <remarks>
+    /// The viewport pass must run before the UI pass: <see cref="ViewportPanel.Render"/>
+    /// begins with a full-framebuffer clear (the graphics context has no scissored
+    /// clear), so running it first guarantees the clear can never wipe already-drawn
+    /// UI. The UI pass then paints every panel around the viewport area, whose
+    /// background is transparent so the 3D scene rendered beneath it stays visible.
+    /// </remarks>
+    internal static void ComposeFrame(IGraphicsContext? graphics, World editorWorld, Entity viewportPanel, float deltaTime)
+    {
+        // Clear the framebuffer; also covers frames where the viewport pass early-returns.
+        graphics?.Clear(ClearMask.ColorBuffer);
+
+        if (viewportPanel.IsValid)
         {
-            ViewportPanel.Update(_editorWorld, _viewportPanel, deltaTime);
+            // Update viewport for camera controls and gizmo interaction
+            ViewportPanel.Update(editorWorld, viewportPanel, deltaTime);
+
+            // 3D viewport pass: scene, selection gizmo, and plugin gizmo renderers
+            ViewportPanel.Render(editorWorld, viewportPanel);
         }
 
-        // Run all systems (including UIRenderSystem which draws the UI)
-        _editorWorld.Update(deltaTime);
+        // Run all systems (including UIRenderSystem which draws the UI on top)
+        editorWorld.Update(deltaTime);
     }
 
     private void OnSceneOpened(World sceneWorld)
