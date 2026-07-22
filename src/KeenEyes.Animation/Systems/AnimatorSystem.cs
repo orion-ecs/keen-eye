@@ -63,6 +63,11 @@ public sealed class AnimatorSystem : SystemBase
                 continue;
             }
 
+            // Record the previous sample times before advancing so downstream systems
+            // (e.g. root motion) can compute per-frame deltas.
+            animator.PreviousStateTime = animator.StateTime;
+            animator.PreviousNextStateTime = animator.NextStateTime;
+
             // Process triggered state change
             if (animator.TriggerStateHash != 0)
             {
@@ -86,12 +91,14 @@ public sealed class AnimatorSystem : SystemBase
                         animator.TransitionDuration = transition.Value.Duration;
                         animator.TransitionProgress = 0f;
                         animator.NextStateTime = 0f;
+                        animator.PreviousNextStateTime = 0f;
                     }
                     else
                     {
                         // Immediate transition (no defined crossfade)
                         animator.CurrentStateHash = animator.TriggerStateHash;
                         animator.StateTime = 0f;
+                        animator.PreviousStateTime = 0f;
                         animator.NextStateHash = 0;
                     }
                 }
@@ -111,12 +118,15 @@ public sealed class AnimatorSystem : SystemBase
 
                 if (animator.TransitionProgress >= 1f)
                 {
-                    // Complete transition
+                    // Complete transition; the next state's times carry over as the
+                    // current state's times so per-frame deltas remain continuous.
                     animator.CurrentStateHash = animator.NextStateHash;
                     animator.StateTime = animator.NextStateTime;
+                    animator.PreviousStateTime = animator.PreviousNextStateTime;
                     animator.NextStateHash = 0;
                     animator.TransitionProgress = 0f;
                     animator.NextStateTime = 0f;
+                    animator.PreviousNextStateTime = 0f;
                 }
             }
 
@@ -155,6 +165,7 @@ public sealed class AnimatorSystem : SystemBase
                 animator.TransitionDuration = transition.Duration;
                 animator.TransitionProgress = 0f;
                 animator.NextStateTime = 0f;
+                animator.PreviousNextStateTime = 0f;
                 break;
             }
         }

@@ -134,6 +134,17 @@ public sealed class AnimationPlugin : IWorldPlugin
             SystemPhase.Update,
             order: 55);
 
+        if (Config.EnableRootMotion)
+        {
+            context.RegisterComponent<RootMotion>();
+
+            // Root motion extraction runs directly after the FK pose has been
+            // written (order 55) and before IK (order 57) consumes bone transforms.
+            context.AddSystem<RootMotionSystem>(
+                SystemPhase.Update,
+                order: 56);
+        }
+
         if (Config.EnableIK)
         {
             context.RegisterComponent<IKRig>();

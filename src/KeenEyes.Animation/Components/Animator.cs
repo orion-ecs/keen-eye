@@ -70,6 +70,18 @@ public partial struct Animator
     public float NextStateTime;
 
     /// <summary>
+    /// The previous frame's playback time in the current state (for root motion delta extraction).
+    /// </summary>
+    [BuilderIgnore]
+    public float PreviousStateTime;
+
+    /// <summary>
+    /// The previous frame's playback time in the next state (for root motion delta extraction).
+    /// </summary>
+    [BuilderIgnore]
+    public float PreviousNextStateTime;
+
+    /// <summary>
     /// Whether the animator is currently enabled.
     /// </summary>
     public bool Enabled;
@@ -97,6 +109,8 @@ public partial struct Animator
         TransitionProgress = 0f,
         TransitionDuration = 0f,
         NextStateTime = 0f,
+        PreviousStateTime = 0f,
+        PreviousNextStateTime = 0f,
         Enabled = true,
         Speed = 1f,
         TriggerStateHash = 0
