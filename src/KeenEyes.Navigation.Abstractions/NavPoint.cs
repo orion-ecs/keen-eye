@@ -18,10 +18,15 @@ namespace KeenEyes.Navigation.Abstractions;
 /// Optional identifier of the navmesh polygon containing this point.
 /// Zero if not applicable (e.g., for grid-based navigation).
 /// </param>
+/// <param name="Properties">
+/// Optional flags describing special properties of this point, such as
+/// marking the entry of an off-mesh connection.
+/// </param>
 public readonly record struct NavPoint(
     Vector3 Position,
     NavAreaType AreaType = NavAreaType.Walkable,
-    uint PolygonId = 0)
+    uint PolygonId = 0,
+    NavPointProperties Properties = NavPointProperties.None)
 {
     /// <summary>
     /// Creates a NavPoint at the specified position with default area type.

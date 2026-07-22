@@ -2,6 +2,7 @@ using System.Numerics;
 using KeenEyes.Common;
 using KeenEyes.Navigation.Abstractions;
 using KeenEyes.Navigation.Abstractions.Components;
+using KeenEyes.Navigation.Events;
 
 namespace KeenEyes.Navigation.Systems;
 
@@ -95,6 +96,13 @@ internal sealed class NavMeshAgentSystem : SystemBase
     {
         var path = state.Path;
 
+        // Continue an in-progress off-mesh traversal before anything else
+        if (state.IsTraversingOffMeshLink)
+        {
+            TraverseOffMeshLink(entity, ref agent, ref transform, ref state, deltaTime);
+            return;
+        }
+
         // Check if we've reached the end of the path
         if (state.CurrentWaypointIndex >= path.Count)
         {
@@ -114,6 +122,14 @@ internal sealed class NavMeshAgentSystem : SystemBase
         float reachDistance = config!.WaypointReachDistance;
         if (distanceToWaypoint <= reachDistance)
         {
+            // Reaching an off-mesh connection entry switches the agent into
+            // link traversal instead of normal waypoint advancement.
+            if (IsOffMeshEntry(path, state.CurrentWaypointIndex))
+            {
+                BeginOffMeshTraversal(entity, ref agent, ref state);
+                return;
+            }
+
             state.CurrentWaypointIndex++;
 
             // Check if this was the last waypoint
@@ -181,6 +197,122 @@ internal sealed class NavMeshAgentSystem : SystemBase
         {
             CompleteNavigation(ref agent);
         }
+    }
+
+    private static bool IsOffMeshEntry(Abstractions.NavPath path, int waypointIndex)
+        => (path[waypointIndex].Properties & NavPointProperties.OffMeshConnection) != 0
+            && waypointIndex + 1 < path.Count;
+
+    private void BeginOffMeshTraversal(Entity entity, ref NavMeshAgent agent, ref AgentNavigationState state)
+    {
+        var entry = state.Path[state.CurrentWaypointIndex];
+        var exit = state.Path[state.CurrentWaypointIndex + 1];
+
+        state.IsTraversingOffMeshLink = true;
+        state.OffMeshLinkStart = entry.Position;
+        state.OffMeshLinkEnd = exit.Position;
+        state.OffMeshLinkAreaType = entry.AreaType;
+        state.OffMeshLinkProgress = 0f;
+        state.OffMeshLinkCostModifier = ResolveCostModifier(entry.Position, exit.Position);
+
+        agent.SteeringTarget = exit.Position;
+
+        World.Send(new OffMeshLinkTraversalStarted(entity, entry.Position, exit.Position, entry.AreaType));
+    }
+
+    private void TraverseOffMeshLink(
+        Entity entity,
+        ref NavMeshAgent agent,
+        ref Transform3D transform,
+        ref AgentNavigationState state,
+        float deltaTime)
+    {
+        var start = state.OffMeshLinkStart;
+        var end = state.OffMeshLinkEnd;
+        float length = Vector3.Distance(start, end);
+
+        // Traversal speed is the agent's speed scaled down by the link's cost
+        // modifier (a modifier of 2 makes the crossing take twice as long).
+        float costModifier = MathF.Max(state.OffMeshLinkCostModifier, 0.001f);
+        float traversalSpeed = agent.Speed / costModifier;
+
+        if (length.IsApproximatelyZero())
+        {
+            state.OffMeshLinkProgress = 1f;
+        }
+        else
+        {
+            state.OffMeshLinkProgress += traversalSpeed * deltaTime / length;
+            agent.DesiredVelocity = Vector3.Normalize(end - start) * traversalSpeed;
+        }
+
+        if (state.OffMeshLinkProgress >= 1f)
+        {
+            // Land exactly on the exit point and resume normal path following
+            // from the waypoint after the landing point.
+            var previousPosition = transform.Position;
+            transform.Position = end;
+            state.DistanceTraveled += Vector3.Distance(previousPosition, end);
+            state.IsTraversingOffMeshLink = false;
+            state.CurrentWaypointIndex += 2;
+
+            World.Send(new OffMeshLinkTraversalCompleted(entity, start, end, state.OffMeshLinkAreaType));
+
+            agent.RemainingDistance = CalculateRemainingDistance(
+                transform.Position,
+                state.Path,
+                state.CurrentWaypointIndex);
+
+            if (state.CurrentWaypointIndex >= state.Path.Count)
+            {
+                CompleteNavigation(ref agent);
+            }
+
+            return;
+        }
+
+        var newPosition = Vector3.Lerp(start, end, state.OffMeshLinkProgress);
+        state.DistanceTraveled += Vector3.Distance(transform.Position, newPosition);
+        transform.Position = newPosition;
+        agent.RemainingDistance = Vector3.Distance(newPosition, end) + CalculateRemainingDistance(
+            end,
+            state.Path,
+            state.CurrentWaypointIndex + 2);
+    }
+
+    /// <summary>
+    /// Resolves the cost modifier for a traversal by matching the traversal
+    /// endpoints against <see cref="OffMeshLink"/> components in the world.
+    /// </summary>
+    /// <remarks>
+    /// Link endpoints are snapped onto the navigation mesh during the build, so
+    /// matching uses a tolerance derived from each link's radius. Returns 1
+    /// when no matching link entity exists (e.g., the mesh was baked from
+    /// definitions that are not present in this world).
+    /// </remarks>
+    private float ResolveCostModifier(Vector3 start, Vector3 end)
+    {
+        foreach (var linkEntity in World.Query<OffMeshLink>())
+        {
+            ref readonly var link = ref World.Get<OffMeshLink>(linkEntity);
+
+            float tolerance = link.Radius + config!.WaypointReachDistance;
+            float toleranceSq = tolerance * tolerance;
+
+            bool forward =
+                Vector3.DistanceSquared(link.Start, start) <= toleranceSq &&
+                Vector3.DistanceSquared(link.End, end) <= toleranceSq;
+            bool reverse = link.Bidirectional &&
+                Vector3.DistanceSquared(link.End, start) <= toleranceSq &&
+                Vector3.DistanceSquared(link.Start, end) <= toleranceSq;
+
+            if (forward || reverse)
+            {
+                return MathF.Max(link.CostModifier, 0.001f);
+            }
+        }
+
+        return 1f;
     }
 
     private static void CompleteNavigation(ref NavMeshAgent agent)

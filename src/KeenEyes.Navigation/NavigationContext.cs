@@ -513,4 +513,40 @@ public struct AgentNavigationState
     /// The distance traveled along the path so far.
     /// </summary>
     public float DistanceTraveled;
+
+    /// <summary>
+    /// Whether the agent is currently traversing an off-mesh link.
+    /// </summary>
+    /// <remarks>
+    /// While true, the agent moves by linear interpolation from
+    /// <see cref="OffMeshLinkStart"/> to <see cref="OffMeshLinkEnd"/> instead
+    /// of normal waypoint steering.
+    /// </remarks>
+    public bool IsTraversingOffMeshLink;
+
+    /// <summary>
+    /// The world-space position where the current off-mesh traversal began.
+    /// </summary>
+    public Vector3 OffMeshLinkStart;
+
+    /// <summary>
+    /// The world-space position where the current off-mesh traversal ends.
+    /// </summary>
+    public Vector3 OffMeshLinkEnd;
+
+    /// <summary>
+    /// The area type of the off-mesh link being traversed.
+    /// </summary>
+    public NavAreaType OffMeshLinkAreaType;
+
+    /// <summary>
+    /// Normalized progress (0 to 1) along the current off-mesh traversal.
+    /// </summary>
+    public float OffMeshLinkProgress;
+
+    /// <summary>
+    /// The cost modifier of the link being traversed. Traversal speed is the
+    /// agent's speed divided by this value.
+    /// </summary>
+    public float OffMeshLinkCostModifier;
 }
