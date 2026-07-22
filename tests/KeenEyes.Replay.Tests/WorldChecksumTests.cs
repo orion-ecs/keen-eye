@@ -412,12 +412,29 @@ public class WorldChecksumTests
 
     #region Performance Tests
 
-    [Fact]
-    public void Calculate_Performance_CompletesQuicklyForTypicalWorldSize()
+    // These tests intentionally avoid a wall-clock threshold (the old
+    // "CompletesQuicklyForTypicalWorldSize" test used a hard 500ms budget). An
+    // absolute wall-clock assertion is inherently machine-load-sensitive: it
+    // passes on a quiet machine and fails spuriously under CI/parallel load,
+    // which lets real regressions hide behind an ignored-because-flaky test.
+    //
+    // Instead we assert two load-independent properties that still catch a real
+    // 10x regression:
+    //   1. Allocation-per-entity is bounded (catches a constant-factor blow-up,
+    //      e.g. someone adds an extra copy/materialization on the hot path).
+    //   2. Allocation-per-entity does not grow with world size (catches an
+    //      algorithmic-complexity regression, e.g. an accidental O(n^2) pass).
+    // Both use GC.GetAllocatedBytesForCurrentThread, which is deterministic and
+    // unaffected by how busy the machine is.
+
+    /// <summary>
+    /// Builds a snapshot of <paramref name="count"/> entities, each with a
+    /// Position and Velocity component, for checksum performance measurement.
+    /// </summary>
+    private static WorldSnapshot BuildSnapshot(int count)
     {
-        // Arrange - Create a moderately sized snapshot
-        var entities = new List<SerializedEntity>();
-        for (int i = 0; i < 1000; i++)
+        var entities = new List<SerializedEntity>(count);
+        for (int i = 0; i < count; i++)
         {
             entities.Add(new SerializedEntity
             {
@@ -441,25 +458,75 @@ public class WorldChecksumTests
             });
         }
 
-        var snapshot = new WorldSnapshot
+        return new WorldSnapshot
         {
             Timestamp = DateTimeOffset.UtcNow,
             Entities = entities,
             Singletons = []
         };
+    }
 
-        // Act - Time the calculation
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        for (int i = 0; i < 10; i++)
+    /// <summary>
+    /// Measures the average bytes allocated by a single
+    /// <see cref="WorldChecksum.Calculate(WorldSnapshot)"/> call over the snapshot.
+    /// </summary>
+    private static double MeasureBytesPerCalculate(WorldSnapshot snapshot, int iterations)
+    {
+        // Warm up so JIT/first-touch allocations are not attributed to the measurement.
+        WorldChecksum.Calculate(snapshot);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < iterations; i++)
         {
             WorldChecksum.Calculate(snapshot);
         }
-        stopwatch.Stop();
+        var after = GC.GetAllocatedBytesForCurrentThread();
 
-        // Assert - Should complete 10 calculations in reasonable time
-        // Target: < 1ms per frame, so 10 frames should be < 100ms with margin
-        Assert.True(stopwatch.ElapsedMilliseconds < 500,
-            $"10 checksum calculations took {stopwatch.ElapsedMilliseconds}ms, expected < 500ms");
+        return (after - before) / (double)iterations;
+    }
+
+    [Fact]
+    public void Calculate_AllocatesBoundedMemoryPerEntity()
+    {
+        // Arrange - a typical world size (thousands of entities).
+        const int entityCount = 1000;
+        var snapshot = BuildSnapshot(entityCount);
+
+        // Act - measure heap allocation per calculation (deterministic, load-independent).
+        var bytesPerCall = MeasureBytesPerCalculate(snapshot, iterations: 10);
+        var bytesPerEntity = bytesPerCall / entityCount;
+
+        // Assert - the FNV/JSON hashing path currently allocates well under 2KB
+        // per entity (LINQ OrderBy/ToList buffers + per-component GetRawText/UTF8
+        // bytes). A 4KB ceiling leaves generous headroom for normal variation
+        // while still failing a ~2x+ allocation regression on the hot path.
+        Assert.True(bytesPerEntity < 4096,
+            $"Checksum allocated {bytesPerEntity:F0} bytes/entity ({bytesPerCall:F0} bytes/call for {entityCount} entities), expected < 4096 bytes/entity");
+    }
+
+    [Fact]
+    public void Calculate_AllocationScalesLinearlyWithWorldSize()
+    {
+        // Arrange - two world sizes a 4x factor apart.
+        const int baseCount = 1000;
+        const int largeCount = 4000;
+        var baseSnapshot = BuildSnapshot(baseCount);
+        var largeSnapshot = BuildSnapshot(largeCount);
+
+        // Act - allocation per entity should be roughly constant for a linear
+        // algorithm. If Calculate regressed to O(n^2), per-entity allocation at
+        // 4x the size would grow ~4x.
+        var baseBytesPerEntity = MeasureBytesPerCalculate(baseSnapshot, iterations: 10) / baseCount;
+        var largeBytesPerEntity = MeasureBytesPerCalculate(largeSnapshot, iterations: 10) / largeCount;
+
+        var growth = largeBytesPerEntity / baseBytesPerEntity;
+
+        // Assert - a linear algorithm yields growth ~1.0. A quadratic regression
+        // yields ~4.0 at this size ratio. A 2.5x ceiling comfortably fails a real
+        // complexity regression while tolerating benign per-entity variation.
+        Assert.True(growth < 2.5,
+            $"Allocation per entity grew {growth:F2}x from {baseCount} to {largeCount} entities " +
+            $"({baseBytesPerEntity:F0} -> {largeBytesPerEntity:F0} bytes/entity), expected sub-quadratic scaling (< 2.5x)");
     }
 
     #endregion
