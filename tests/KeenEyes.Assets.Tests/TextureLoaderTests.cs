@@ -63,21 +63,21 @@ public class TextureLoaderTests
     }
 
     [Fact]
-    public void TextureLoader_Extensions_ContainsWebP()
+    public void TextureLoader_Extensions_DoesNotContainWebP()
     {
         var graphics = new MockGraphicsContext();
         var loader = new TextureLoader(graphics);
 
-        Assert.Contains(".webp", loader.Extensions);
+        Assert.DoesNotContain(".webp", loader.Extensions);
     }
 
     [Fact]
-    public void TextureLoader_Extensions_HasNineFormats()
+    public void TextureLoader_Extensions_HasEightFormats()
     {
         var graphics = new MockGraphicsContext();
         var loader = new TextureLoader(graphics);
 
-        Assert.Equal(9, loader.Extensions.Count);
+        Assert.Equal(8, loader.Extensions.Count);
     }
 
     [Fact]

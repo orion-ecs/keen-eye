@@ -40,7 +40,6 @@
     <PackageVersion Include="SharpGLTF.Core" Version="1.0.6" />
     <PackageVersion Include="NVorbis" Version="0.10.5" />
     <PackageVersion Include="NLayer" Version="2.0.1" />
-    <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
     <PackageVersion Include="Pfim" Version="0.11.4" />
   </ItemGroup>
   <ItemGroup Label="Editor">

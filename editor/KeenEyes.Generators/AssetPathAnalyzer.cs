@@ -89,7 +89,7 @@ public sealed class AssetPathAnalyzer : DiagnosticAnalyzer
     // Extension to asset type mapping
     private static readonly Dictionary<string, string[]> TypeToExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["TextureAsset"] = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".webp", ".dds"],
+        ["TextureAsset"] = [".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".dds"],
         ["AudioClipAsset"] = [".wav", ".ogg", ".mp3", ".flac"],
         ["FontAsset"] = [".ttf", ".otf"],
         ["MeshAsset"] = [".gltf", ".glb"],
@@ -102,7 +102,7 @@ public sealed class AssetPathAnalyzer : DiagnosticAnalyzer
     private static readonly HashSet<string> KnownAssetExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         // Textures
-        ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".webp", ".dds",
+        ".png", ".jpg", ".jpeg", ".bmp", ".tga", ".gif", ".psd", ".hdr", ".dds",
         // Audio
         ".wav", ".ogg", ".mp3", ".flac",
         // Fonts
