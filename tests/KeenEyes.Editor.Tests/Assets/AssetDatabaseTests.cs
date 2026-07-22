@@ -1,3 +1,4 @@
+using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Assets;
 
 namespace KeenEyes.Editor.Tests.Assets;
@@ -65,7 +66,7 @@ public class AssetDatabaseTests : IDisposable
         database = new AssetDatabase(tempDir);
         database.Scan();
 
-        Assert.Equal(3, database.AllAssets.Count());
+        Assert.Equal(3, database.AllAssets.Count);
     }
 
     [Fact]
@@ -79,7 +80,7 @@ public class AssetDatabaseTests : IDisposable
         database = new AssetDatabase(tempDir);
         database.Scan(".kescene");
 
-        var assets = database.AllAssets.ToList();
+        var assets = database.AllAssets.Values.ToList();
         Assert.Single(assets);
         Assert.Equal("scene", assets[0].Name);
     }
@@ -92,7 +93,7 @@ public class AssetDatabaseTests : IDisposable
         database = new AssetDatabase(tempDir);
         database.Scan();
 
-        var asset = database.AllAssets.First();
+        var asset = database.AllAssets.Values.First();
         Assert.Equal(AssetType.Scene, asset.Type);
     }
 
@@ -106,7 +107,7 @@ public class AssetDatabaseTests : IDisposable
         database = new AssetDatabase(tempDir);
         database.Scan();
 
-        var asset = database.AllAssets.First();
+        var asset = database.AllAssets.Values.First();
         Assert.Contains("Scenes", asset.RelativePath);
     }
 
@@ -208,7 +209,7 @@ public class AssetDatabaseTests : IDisposable
         database = new AssetDatabase(tempDir);
         database.Scan();
 
-        var asset = database.AllAssets.First();
+        var asset = database.AllAssets.Values.First();
         Assert.Equal(expectedType, asset.Type);
     }
 
@@ -293,14 +294,12 @@ public class AssetDatabaseTests : IDisposable
         database = new AssetDatabase(tempDir);
         database.Scan();
 
-        var asset = database.AllAssets.First();
+        var asset = database.AllAssets.Values.First();
 
         Assert.Equal("test", asset.Name);
         Assert.Equal("test.kescene", asset.RelativePath);
         Assert.Equal(testFile, asset.FullPath);
-        Assert.Equal(".kescene", asset.Extension);
         Assert.Equal(AssetType.Scene, asset.Type);
-        Assert.Equal(content.Length, asset.Size);
         Assert.True(asset.LastModified <= DateTime.UtcNow);
     }
 

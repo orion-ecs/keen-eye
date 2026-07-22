@@ -1,5 +1,6 @@
 using System.Numerics;
 
+using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Application;
 using KeenEyes.Editor.Assets;
 using KeenEyes.Graphics.Abstractions;
@@ -161,7 +162,7 @@ public static class ProjectPanel
         ClearTreeNodes(editorWorld, state.TreeView);
 
         // Build folder structure
-        var folderTree = BuildFolderTree(state.AssetDatabase.AllAssets, state.SearchText);
+        var folderTree = BuildFolderTree(state.AssetDatabase.AllAssets.Values, state.SearchText);
 
         // Create tree nodes
         CreateFolderNodes(editorWorld, state.TreeView, Entity.Null, state.Font, folderTree, "");
@@ -276,7 +277,7 @@ public static class ProjectPanel
                 editorWorld,
                 treeView,
                 parentNode,
-                $"{asset.Name}{asset.Extension}",
+                $"{asset.Name}{Path.GetExtension(asset.FullPath)}",
                 font);
 
             // Add asset icon (text-based)

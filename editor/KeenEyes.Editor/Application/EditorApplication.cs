@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Editor.Abstractions;
 using KeenEyes.Editor.Assets;
 using KeenEyes.Editor.Commands;
 using KeenEyes.Editor.Common.Clipboard;
@@ -822,7 +823,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         else
         {
             // No specific path - look for scenes in asset database
-            var sceneAssets = _assetDatabase.AllAssets
+            var sceneAssets = _assetDatabase.AllAssets.Values
                 .Where(a => a.Type == AssetType.Scene)
                 .ToList();
 
