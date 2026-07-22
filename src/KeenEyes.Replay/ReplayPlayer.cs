@@ -62,10 +62,12 @@ public sealed class ReplayPlayer : IDisposable
     private float playbackSpeed = PlaybackSpeeds.NormalSpeed;
     private bool disposed;
 
-    // Validation context
+    // Validation context. This same context (world + serializer) also serves as the
+    // restore context used by state restoration during navigation.
     private World? validationWorld;
     private IComponentSerializer? validationSerializer;
     private bool autoValidate;
+    private bool enableStateRestoration;
 
     /// <summary>
     /// Raised when playback starts or resumes from a paused state.
@@ -417,6 +419,66 @@ public sealed class ReplayPlayer : IDisposable
     }
 
     /// <summary>
+    /// Gets or sets whether navigation operations restore world state from snapshots.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// When enabled, <see cref="SeekToFrame"/>, <see cref="SeekToTime"/>, and
+    /// <see cref="Step"/> restore the nearest <see cref="SnapshotMarker"/> at or
+    /// before the target frame into the world before advancing the timeline to the
+    /// target frame. This mutates the world, so the flag is opt-in and defaults to
+    /// <c>false</c> to preserve the pure-timeline behavior for consumers that manage
+    /// world state themselves.
+    /// </para>
+    /// <para>
+    /// State restoration requires a context to be set via
+    /// <see cref="SetValidationContext"/> (the same world and serializer used for
+    /// checksum validation double as the restore context). If no context is set,
+    /// restoration is silently skipped and navigation behaves as if the flag were off.
+    /// </para>
+    /// <para>
+    /// <b>Granularity limitation:</b> snapshots capture full world state only at
+    /// snapshot frames. Frames between snapshots carry recorded events and inputs,
+    /// not world state, and the player has no built-in path for re-applying those
+    /// events to reconstruct exact intermediate state. Consequently, restoration
+    /// lands the world on the <em>nearest preceding snapshot's</em> state while the
+    /// timeline position (<see cref="CurrentFrame"/>) moves to the exact target frame.
+    /// When the target frame lies between two snapshots, the world reflects the
+    /// earlier snapshot, not the precise per-frame state. <see cref="Update"/> does
+    /// not restore state; restoration happens only at the navigation points above.
+    /// </para>
+    /// <para>
+    /// Restoration is atomic: if a snapshot fails to apply (for example, an
+    /// unregistered component type), the world is rolled back to its pre-navigation
+    /// state, the timeline position is left unchanged, and a
+    /// <see cref="ReplayStateRestorationException"/> is thrown.
+    /// </para>
+    /// <para>
+    /// Default is false.
+    /// </para>
+    /// </remarks>
+    /// <seealso cref="SetValidationContext"/>
+    /// <seealso cref="GetNearestSnapshot"/>
+    /// <seealso cref="ReplayStateRestorationException"/>
+    public bool EnableStateRestoration
+    {
+        get
+        {
+            lock (syncRoot)
+            {
+                return enableStateRestoration;
+            }
+        }
+        set
+        {
+            lock (syncRoot)
+            {
+                enableStateRestoration = value;
+            }
+        }
+    }
+
+    /// <summary>
     /// Sets the validation context for checksum verification during playback.
     /// </summary>
     /// <param name="world">The world being replayed into.</param>
@@ -434,6 +496,13 @@ public sealed class ReplayPlayer : IDisposable
     /// <para>
     /// The world should be the same world that frames are being replayed into.
     /// The serializer should be the same one used during recording.
+    /// </para>
+    /// <para>
+    /// This context is also used as the restore context: when
+    /// <see cref="EnableStateRestoration"/> is enabled, navigation restores
+    /// snapshots into this same world using this same serializer. A separate
+    /// restore API is intentionally not provided, because the world you validate
+    /// against is exactly the world you restore into.
     /// </para>
     /// </remarks>
     /// <example>
@@ -1153,9 +1222,12 @@ public sealed class ReplayPlayer : IDisposable
     /// clamped to the valid frame range (0 to <see cref="TotalFrames"/> - 1).
     /// </para>
     /// <para>
-    /// For forward stepping, this simply advances the frame index. For backward
-    /// stepping, the position is set directly. Future phases will support
-    /// restoring world state from snapshots during backward stepping.
+    /// The playback position is set directly to the clamped target frame. When
+    /// <see cref="EnableStateRestoration"/> is enabled and a restore context is set
+    /// via <see cref="SetValidationContext"/>, the nearest snapshot at or before the
+    /// target frame is restored into the world before the position advances. See
+    /// <see cref="EnableStateRestoration"/> for the granularity limitation (the world
+    /// lands on the nearest preceding snapshot's state, not exact intermediate state).
     /// </para>
     /// <para>
     /// The <see cref="PlaybackPaused"/> event is fired if playback was playing.
@@ -1209,6 +1281,10 @@ public sealed class ReplayPlayer : IDisposable
                 // Calculate target frame, clamped to valid range
                 var targetFrame = Math.Clamp(currentFrameIndex + frames, 0, frameCount - 1);
 
+                // Restore world state before mutating any player state so that a failed
+                // restore leaves both the world and the timeline position unchanged.
+                RestoreStateForFrameInternal(targetFrame);
+
                 SetCurrentFrameInternal(targetFrame);
 
                 if (currentFrameIndex != previousFrame)
@@ -1243,9 +1319,13 @@ public sealed class ReplayPlayer : IDisposable
     /// <exception cref="ObjectDisposedException">Thrown when this instance has been disposed.</exception>
     /// <remarks>
     /// <para>
-    /// Seeking pauses playback if it was playing. This method finds the nearest
-    /// snapshot at or before the target frame for efficient state restoration
-    /// in future phases.
+    /// Seeking pauses playback if it was playing. When
+    /// <see cref="EnableStateRestoration"/> is enabled and a restore context is set
+    /// via <see cref="SetValidationContext"/>, the nearest snapshot at or before the
+    /// target frame is restored into the world before the timeline advances to the
+    /// target frame. See <see cref="EnableStateRestoration"/> for the granularity
+    /// limitation. When restoration is disabled (the default), only the timeline
+    /// position changes and the world is left untouched.
     /// </para>
     /// <para>
     /// The <see cref="CurrentFrame"/> and <see cref="CurrentTime"/> properties
@@ -1290,6 +1370,10 @@ public sealed class ReplayPlayer : IDisposable
             }
 
             var previousFrame = currentFrameIndex;
+
+            // Restore world state before mutating any player state so that a failed
+            // restore leaves both the world and the timeline position unchanged.
+            RestoreStateForFrameInternal(frameNumber);
 
             // Pause playback when seeking
             if (state == PlaybackState.Playing)
@@ -1383,6 +1467,13 @@ public sealed class ReplayPlayer : IDisposable
 
             var previousFrame = currentFrameIndex;
 
+            // Find the frame at or before the specified time
+            var targetFrame = FindFrameAtTime(time);
+
+            // Restore world state before mutating any player state so that a failed
+            // restore leaves both the world and the timeline position unchanged.
+            RestoreStateForFrameInternal(targetFrame);
+
             // Pause playback when seeking
             if (state == PlaybackState.Playing)
             {
@@ -1390,8 +1481,6 @@ public sealed class ReplayPlayer : IDisposable
                 shouldFirePausedEvent = true;
             }
 
-            // Find the frame at or before the specified time
-            var targetFrame = FindFrameAtTime(time);
             SetCurrentFrameInternal(targetFrame);
 
             if (currentFrameIndex != previousFrame)
@@ -1615,6 +1704,76 @@ public sealed class ReplayPlayer : IDisposable
         }
 
         return resultIndex >= 0 ? snapshots[resultIndex] : null;
+    }
+
+    /// <summary>
+    /// Restores world state from the nearest snapshot at or before the target frame
+    /// when state restoration is enabled and a restore context is available.
+    /// Must be called while holding the lock.
+    /// </summary>
+    /// <param name="targetFrame">The frame the player is navigating to.</param>
+    /// <exception cref="ReplayStateRestorationException">
+    /// Thrown when the snapshot fails to apply. The world is rolled back to its
+    /// pre-restore state before the exception propagates.
+    /// </exception>
+    private void RestoreStateForFrameInternal(int targetFrame)
+    {
+        if (!enableStateRestoration)
+        {
+            return;
+        }
+
+        // No restore context set - behave as if restoration were disabled.
+        if (validationWorld is null || validationSerializer is null)
+        {
+            return;
+        }
+
+        var marker = FindNearestSnapshot(targetFrame);
+        if (marker is null)
+        {
+            return; // No snapshot to restore from - leave the world untouched.
+        }
+
+        // Back up the current world state so a failed restore can roll back. This keeps
+        // restoration atomic: RestoreSnapshot clears the world and then rebuilds it, so a
+        // mid-restore failure would otherwise leave a half-mutated world.
+        WorldSnapshot backup;
+        try
+        {
+            backup = SnapshotManager.CreateSnapshot(validationWorld, validationSerializer);
+        }
+        catch (Exception ex)
+        {
+            // Broad catch: any failure capturing the backup means we cannot guarantee a
+            // safe rollback, so we must not mutate the world at all.
+            throw new ReplayStateRestorationException(targetFrame, marker.FrameNumber, ex);
+        }
+
+        try
+        {
+            SnapshotManager.RestoreSnapshot(validationWorld, marker.Snapshot, validationSerializer);
+        }
+        catch (Exception ex)
+        {
+            // Broad catch: restoration can fail for many reasons (unregistered component
+            // type, schema version mismatch, malformed data). Roll back to the captured
+            // backup so the world is never left half-mutated.
+            try
+            {
+                SnapshotManager.RestoreSnapshot(validationWorld, backup, validationSerializer);
+            }
+            catch (Exception rollbackEx)
+            {
+                throw new ReplayStateRestorationException(
+                    $"Failed to restore world state from the snapshot at frame {marker.FrameNumber} " +
+                    $"while seeking to frame {targetFrame}, and rolling back to the previous state also " +
+                    "failed. The world may be in an inconsistent state.",
+                    rollbackEx);
+            }
+
+            throw new ReplayStateRestorationException(targetFrame, marker.FrameNumber, ex);
+        }
     }
 
     private static ReplayException ConvertToReplayException(InvalidDataException ex, string? filePath)
