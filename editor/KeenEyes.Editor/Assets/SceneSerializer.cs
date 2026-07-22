@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -39,8 +40,11 @@ public sealed class SceneSerializer
     public void Save(World world, string sceneName, string filePath)
     {
         var sceneData = CaptureScene(world, sceneName);
-        var json = JsonSerializer.Serialize(sceneData, JsonOptions);
-        File.WriteAllText(filePath, json);
+
+        // Serialize straight to the file stream; a 5k-entity scene produces a multi-megabyte
+        // document, and materializing it as a string first doubles the transient allocations.
+        using var stream = File.Create(filePath);
+        JsonSerializer.Serialize(stream, sceneData, JsonOptions);
     }
 
     /// <summary>
@@ -51,10 +55,7 @@ public sealed class SceneSerializer
     /// <returns>The scene name.</returns>
     public static string Load(World world, string filePath)
     {
-        var json = File.ReadAllText(filePath);
-        var sceneData = JsonSerializer.Deserialize<SceneData>(json, JsonOptions)
-            ?? throw new InvalidDataException($"Failed to parse scene file: {filePath}");
-
+        var sceneData = ReadSceneFile(filePath);
         RestoreScene(world, sceneData);
         return sceneData.Name;
     }
@@ -68,12 +69,20 @@ public sealed class SceneSerializer
     /// <returns>The scene name.</returns>
     public static string Load(World world, string filePath, Entity sceneRoot)
     {
-        var json = File.ReadAllText(filePath);
-        var sceneData = JsonSerializer.Deserialize<SceneData>(json, JsonOptions)
-            ?? throw new InvalidDataException($"Failed to parse scene file: {filePath}");
-
+        var sceneData = ReadSceneFile(filePath);
         RestoreScene(world, sceneData, sceneRoot);
         return sceneData.Name;
+    }
+
+    /// <summary>
+    /// Reads and parses a scene file directly from its stream, avoiding a transient
+    /// whole-file string allocation.
+    /// </summary>
+    private static SceneData ReadSceneFile(string filePath)
+    {
+        using var stream = File.OpenRead(filePath);
+        return JsonSerializer.Deserialize<SceneData>(stream, JsonOptions)
+            ?? throw new InvalidDataException($"Failed to parse scene file: {filePath}");
     }
 
     /// <summary>
@@ -116,6 +125,7 @@ public sealed class SceneSerializer
     {
         var entities = new List<EntityData>();
         var entityIdMap = new Dictionary<Entity, string>();
+        var captureFieldCache = new Dictionary<Type, (FieldInfo Field, string JsonName)[]>();
 
         // Determine which entities to capture
         var entitiesToCapture = GetEntitiesToCapture(world, sceneRoot);
@@ -147,7 +157,7 @@ public sealed class SceneSerializer
                 Id = entityIdMap[entity],
                 Name = name,
                 Parent = parentId,
-                Components = CaptureComponents(world, entity)
+                Components = CaptureComponents(world, entity, captureFieldCache)
             };
 
             entities.Add(entityData);
@@ -243,13 +253,17 @@ public sealed class SceneSerializer
 
         var entityMap = new Dictionary<string, Entity>();
 
+        // Component type resolution and field metadata are identical for every entity in the
+        // scene, so resolve each component type once per restore rather than once per entity.
+        var restoreCache = new Dictionary<string, ComponentRestoreInfo?>();
+
         // First pass: create all entities with their components
         foreach (var entityData in sceneData.Entities)
         {
             var builder = world.Spawn(entityData.Name);
 
             // Restore components using reflection-based deserialization
-            RestoreComponents(world, builder, entityData.Components);
+            RestoreComponents(builder, entityData.Components, world, restoreCache);
 
             var entity = builder.Build();
             entityMap[entityData.Id] = entity;
@@ -272,7 +286,10 @@ public sealed class SceneSerializer
         }
     }
 
-    private static Dictionary<string, JsonElement> CaptureComponents(World world, Entity entity)
+    private static Dictionary<string, JsonElement> CaptureComponents(
+        World world,
+        Entity entity,
+        Dictionary<Type, (FieldInfo Field, string JsonName)[]> fieldCache)
     {
         var result = new Dictionary<string, JsonElement>();
 
@@ -289,19 +306,38 @@ public sealed class SceneSerializer
 
             // Use ComponentIntrospector to get all editable fields
             // Use camelCase for field names to match JSON deserialization expectations
-            foreach (var field in ComponentIntrospector.GetEditableFields(type))
+            foreach (var (field, jsonFieldName) in GetCaptureFields(type, fieldCache))
             {
                 var fieldValue = ComponentIntrospector.GetFieldValue(value, field);
-                var jsonFieldName = GetJsonPropertyName(field.Name);
                 componentData[jsonFieldName] = SerializeFieldValue(fieldValue);
             }
 
-            // Convert to JsonElement for storage
-            var jsonString = JsonSerializer.Serialize(componentData, JsonOptions);
-            result[typeName] = JsonSerializer.Deserialize<JsonElement>(jsonString, JsonOptions);
+            // Serialize into a pooled UTF-8 buffer and parse in place; this skips the
+            // intermediate JSON string + reparse the previous implementation performed
+            // for every component instance.
+            result[typeName] = JsonSerializer.SerializeToElement(componentData, JsonOptions);
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Gets the editable fields of a component type paired with their camelCase JSON names,
+    /// computing them once per type per capture.
+    /// </summary>
+    private static (FieldInfo Field, string JsonName)[] GetCaptureFields(
+        Type type,
+        Dictionary<Type, (FieldInfo Field, string JsonName)[]> fieldCache)
+    {
+        if (!fieldCache.TryGetValue(type, out var fields))
+        {
+            fields = ComponentIntrospector.GetEditableFields(type)
+                .Select(field => (field, GetJsonPropertyName(field.Name)))
+                .ToArray();
+            fieldCache[type] = fields;
+        }
+
+        return fields;
     }
 
     /// <summary>
@@ -382,51 +418,52 @@ public sealed class SceneSerializer
     }
 
     /// <summary>
+    /// Cached per-restore metadata for a component type: its registry info and the editable
+    /// fields paired with their camelCase JSON property names.
+    /// </summary>
+    private sealed record ComponentRestoreInfo(
+        Type Type,
+        ComponentInfo Info,
+        (FieldInfo Field, string JsonName)[] Fields);
+
+    /// <summary>
     /// Restores components on an entity from serialized data.
     /// </summary>
     private static void RestoreComponents(
-        World world,
         EntityBuilder builder,
-        Dictionary<string, JsonElement> components)
+        Dictionary<string, JsonElement> components,
+        World world,
+        Dictionary<string, ComponentRestoreInfo?> restoreCache)
     {
         foreach (var (typeName, jsonElement) in components)
         {
-            // Try to find the component type
-            var componentType = FindComponentType(world, typeName);
-            if (componentType is null)
+            if (!restoreCache.TryGetValue(typeName, out var restoreInfo))
             {
-                // Type not found - skip this component
+                restoreInfo = BuildRestoreInfo(world, typeName);
+                restoreCache[typeName] = restoreInfo;
+            }
+
+            if (restoreInfo is null)
+            {
+                // Type not found or failed to register - skip this component
                 continue;
             }
 
-            // Get component info from registry, registering if needed
-            var info = world.Components.Get(componentType);
-            if (info is null)
-            {
-                // Not registered - register it now using reflection (editor-only)
-                info = RegisterComponentType(world, componentType);
-                if (info is null)
-                {
-                    // Failed to register - skip this component
-                    continue;
-                }
-            }
-
             // Skip tag components (no data to restore)
-            if (info.IsTag)
+            if (restoreInfo.Info.IsTag)
             {
                 // For tags, just add without data
-                builder.WithBoxed(info, Activator.CreateInstance(componentType)!);
+                builder.WithBoxed(restoreInfo.Info, Activator.CreateInstance(restoreInfo.Type)!);
                 continue;
             }
 
             // Create a new instance of the component
-            var component = Activator.CreateInstance(componentType)!;
+            var component = Activator.CreateInstance(restoreInfo.Type)!;
 
             // Restore field values
-            foreach (var field in ComponentIntrospector.GetEditableFields(componentType))
+            foreach (var (field, jsonName) in restoreInfo.Fields)
             {
-                if (jsonElement.TryGetProperty(GetJsonPropertyName(field.Name), out var fieldElement))
+                if (jsonElement.TryGetProperty(jsonName, out var fieldElement))
                 {
                     var fieldValue = DeserializeFieldValue(fieldElement, field.FieldType);
                     if (fieldValue is not null)
@@ -437,8 +474,37 @@ public sealed class SceneSerializer
             }
 
             // Add the component to the builder
-            builder.WithBoxed(info, component);
+            builder.WithBoxed(restoreInfo.Info, component);
         }
+    }
+
+    /// <summary>
+    /// Resolves a serialized component type name to its type, registry info, and editable
+    /// field metadata. Returns null when the type cannot be found or registered.
+    /// </summary>
+    private static ComponentRestoreInfo? BuildRestoreInfo(World world, string typeName)
+    {
+        // Try to find the component type
+        var componentType = FindComponentType(world, typeName);
+        if (componentType is null)
+        {
+            return null;
+        }
+
+        // Get component info from registry, registering if needed (editor-only reflection)
+        var info = world.Components.Get(componentType) ?? RegisterComponentType(world, componentType);
+        if (info is null)
+        {
+            return null;
+        }
+
+        (FieldInfo Field, string JsonName)[] fields = info.IsTag
+            ? []
+            : ComponentIntrospector.GetEditableFields(componentType)
+                .Select(field => (field, GetJsonPropertyName(field.Name)))
+                .ToArray();
+
+        return new ComponentRestoreInfo(componentType, info, fields);
     }
 
     /// <summary>

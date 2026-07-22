@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using KeenEyes.Capabilities;
 using KeenEyes.Serialization;
@@ -27,6 +28,13 @@ public sealed class EditorComponentSerializer : IComponentSerializer
         WriteIndented = false
     };
 
+    /// <summary>
+    /// Caches <see cref="Type.GetType(string)"/> lookups. Snapshot restore resolves the
+    /// type once per component instance, so at editor scale (thousands of entities) an
+    /// uncached lookup dominates the restore path.
+    /// </summary>
+    private readonly ConcurrentDictionary<string, Type?> typeCache = new();
+
     /// <inheritdoc/>
     public bool IsSerializable(Type type) => true;
 
@@ -38,9 +46,9 @@ public sealed class EditorComponentSerializer : IComponentSerializer
     {
         try
         {
-            var json = JsonSerializer.Serialize(value, type, Options);
-            using var doc = JsonDocument.Parse(json);
-            return doc.RootElement.Clone();
+            // SerializeToElement writes to a pooled UTF-8 buffer and parses it in place,
+            // avoiding the intermediate string + JsonDocument + Clone of the naive path.
+            return JsonSerializer.SerializeToElement(value, type, Options);
         }
         catch
         {
@@ -52,7 +60,7 @@ public sealed class EditorComponentSerializer : IComponentSerializer
     /// <inheritdoc/>
     public object? Deserialize(string typeName, JsonElement json)
     {
-        var type = Type.GetType(typeName);
+        var type = ResolveType(typeName);
         if (type == null)
         {
             return null;
@@ -60,7 +68,8 @@ public sealed class EditorComponentSerializer : IComponentSerializer
 
         try
         {
-            return JsonSerializer.Deserialize(json.GetRawText(), type, Options);
+            // Deserializing from the element directly avoids materializing the raw JSON text.
+            return json.Deserialize(type, Options);
         }
         catch
         {
@@ -70,7 +79,7 @@ public sealed class EditorComponentSerializer : IComponentSerializer
     }
 
     /// <inheritdoc/>
-    public Type? GetType(string typeName) => Type.GetType(typeName);
+    public Type? GetType(string typeName) => ResolveType(typeName);
 
     /// <inheritdoc/>
     public ComponentInfo? RegisterComponent(
@@ -87,7 +96,7 @@ public sealed class EditorComponentSerializer : IComponentSerializer
     /// <inheritdoc/>
     public object? CreateDefault(string typeName)
     {
-        var type = Type.GetType(typeName);
+        var type = ResolveType(typeName);
         if (type == null)
         {
             return null;
@@ -108,4 +117,7 @@ public sealed class EditorComponentSerializer : IComponentSerializer
 
     /// <inheritdoc/>
     public int GetVersion(Type type) => 1;
+
+    private Type? ResolveType(string typeName)
+        => typeCache.GetOrAdd(typeName, static name => Type.GetType(name));
 }
