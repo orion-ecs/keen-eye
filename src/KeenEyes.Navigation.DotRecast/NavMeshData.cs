@@ -2,6 +2,7 @@ using System.Numerics;
 using DotRecast.Core;
 using DotRecast.Core.Numerics;
 using DotRecast.Detour;
+using DotRecast.Detour.Io;
 using KeenEyes.Navigation.Abstractions;
 
 namespace KeenEyes.Navigation.DotRecast;
@@ -22,6 +23,10 @@ namespace KeenEyes.Navigation.DotRecast;
 /// </remarks>
 public sealed class NavMeshData : INavigationMesh
 {
+    // Serialized format version. Bumped to 2 when the tile payload switched to
+    // DotRecast's mesh-set format (full multi-tile topology, BV tree, detail meshes).
+    private const int FormatVersion = 2;
+
     private readonly DtNavMesh navMesh;
     private readonly AgentSettings builtForAgent;
     private readonly string id;
@@ -215,25 +220,12 @@ public sealed class NavMeshData : INavigationMesh
     /// <inheritdoc/>
     public byte[] Serialize()
     {
-        var tiles = new List<byte[]>();
-        int maxTiles = navMesh.GetMaxTiles();
-
-        for (int i = 0; i < maxTiles; i++)
-        {
-            var tile = navMesh.GetTile(i);
-            if (tile?.data != null)
-            {
-                tiles.Add(SerializeTile(tile));
-            }
-        }
-
-        // Write header + all tiles
         using var ms = new MemoryStream();
         using var writer = new BinaryWriter(ms);
 
         // Magic number and version
         writer.Write(0x4B454E4D); // "KENM" - KeenEyes NavMesh
-        writer.Write(1); // Version
+        writer.Write(FormatVersion);
 
         // Agent settings
         writer.Write(builtForAgent.Radius);
@@ -241,28 +233,29 @@ public sealed class NavMeshData : INavigationMesh
         writer.Write(builtForAgent.MaxSlopeAngle);
         writer.Write(builtForAgent.StepHeight);
 
-        // NavMesh params
-        navMesh.ComputeBounds(out var bmin, out var bmax);
-        writer.Write(bmin.X);
-        writer.Write(bmin.Y);
-        writer.Write(bmin.Z);
-        writer.Write(bmax.X);
-        writer.Write(bmax.Y);
-        writer.Write(bmax.Z);
+        // Max vertices per polygon (required to re-read the mesh set)
         writer.Write(navMesh.GetMaxVertsPerPoly());
 
-        // Tile count and data
-        writer.Write(tiles.Count);
-        foreach (var tileData in tiles)
-        {
-            writer.Write(tileData.Length);
-            writer.Write(tileData);
-        }
+        // Serialize the full navmesh (params + every tile, including BV tree and detail
+        // meshes) with DotRecast's own mesh-set writer. This preserves multi-tile
+        // topology so cross-tile links are rebuilt on load.
+        byte[] meshSet = SerializeNavMesh();
+        writer.Write(meshSet.Length);
+        writer.Write(meshSet);
 
         // ID
         writer.Write(id);
 
         return ms.ToArray();
+    }
+
+    private byte[] SerializeNavMesh()
+    {
+        using var meshStream = new MemoryStream();
+        using var meshWriter = new BinaryWriter(meshStream);
+        new DtMeshSetWriter().Write(meshWriter, navMesh, RcByteOrder.LITTLE_ENDIAN, false);
+        meshWriter.Flush();
+        return meshStream.ToArray();
     }
 
     /// <inheritdoc/>
@@ -311,7 +304,7 @@ public sealed class NavMeshData : INavigationMesh
         }
 
         int version = reader.ReadInt32();
-        if (version != 1)
+        if (version != FormatVersion)
         {
             throw new InvalidDataException($"Unsupported NavMesh version: {version}");
         }
@@ -323,36 +316,12 @@ public sealed class NavMeshData : INavigationMesh
         float stepHeight = reader.ReadSingle();
         var agentSettings = new AgentSettings(agentRadius, agentHeight, maxSlope, stepHeight);
 
-        // NavMesh params
-        var bmin = new RcVec3f(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-        var bmax = new RcVec3f(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
         int maxVertsPerPoly = reader.ReadInt32();
 
-        // Create navmesh with params
-        var navMeshParams = new DtNavMeshParams
-        {
-            orig = bmin,
-            tileWidth = bmax.X - bmin.X,
-            tileHeight = bmax.Z - bmin.Z,
-            maxTiles = 1024, // Reasonable default
-            maxPolys = 65535
-        };
-
-        var navMesh = new DtNavMesh();
-        navMesh.Init(navMeshParams, maxVertsPerPoly);
-
-        // Read tiles
-        int tileCount = reader.ReadInt32();
-        for (int i = 0; i < tileCount; i++)
-        {
-            int tileLength = reader.ReadInt32();
-            byte[] tileData = reader.ReadBytes(tileLength);
-            var meshData = DeserializeTile(tileData);
-            if (meshData != null)
-            {
-                navMesh.AddTile(meshData, 0, 0, out _);
-            }
-        }
+        // Read the mesh-set body and rebuild the full multi-tile navmesh.
+        int meshSetLength = reader.ReadInt32();
+        byte[] meshSet = reader.ReadBytes(meshSetLength);
+        var navMesh = DeserializeNavMesh(meshSet, maxVertsPerPoly);
 
         // ID
         string id = reader.ReadString();
@@ -360,145 +329,11 @@ public sealed class NavMeshData : INavigationMesh
         return new NavMeshData(navMesh, agentSettings, id);
     }
 
-    private static byte[] SerializeTile(DtMeshTile tile)
+    private static DtNavMesh DeserializeNavMesh(byte[] meshSet, int maxVertsPerPoly)
     {
-        // Serialize tile data to bytes
-        // This is a simplified serialization - full implementation would use DtNavMeshDataWriter
-        using var ms = new MemoryStream();
-        using var writer = new BinaryWriter(ms);
-
-        var header = tile.data.header;
-
-        // Write header
-        writer.Write(header.magic);
-        writer.Write(header.version);
-        writer.Write(header.x);
-        writer.Write(header.y);
-        writer.Write(header.layer);
-        writer.Write(header.userId);
-        writer.Write(header.polyCount);
-        writer.Write(header.vertCount);
-        writer.Write(header.maxLinkCount);
-        writer.Write(header.detailMeshCount);
-        writer.Write(header.detailVertCount);
-        writer.Write(header.detailTriCount);
-        writer.Write(header.bvNodeCount);
-        writer.Write(header.offMeshConCount);
-        writer.Write(header.offMeshBase);
-        writer.Write(header.walkableHeight);
-        writer.Write(header.walkableRadius);
-        writer.Write(header.walkableClimb);
-        writer.Write(header.bmin.X);
-        writer.Write(header.bmin.Y);
-        writer.Write(header.bmin.Z);
-        writer.Write(header.bmax.X);
-        writer.Write(header.bmax.Y);
-        writer.Write(header.bmax.Z);
-        writer.Write(header.bvQuantFactor);
-
-        // Write vertices
-        foreach (float v in tile.data.verts)
-        {
-            writer.Write(v);
-        }
-
-        // Write polygons
-        foreach (var poly in tile.data.polys)
-        {
-            writer.Write(poly.firstLink);
-            for (int i = 0; i < poly.verts.Length; i++)
-            {
-                writer.Write(poly.verts[i]);
-            }
-            for (int i = 0; i < poly.neis.Length; i++)
-            {
-                writer.Write(poly.neis[i]);
-            }
-            writer.Write(poly.flags);
-            writer.Write(poly.vertCount);
-            writer.Write((byte)poly.areaAndtype);
-        }
-
-        return ms.ToArray();
-    }
-
-    private static DtMeshData? DeserializeTile(byte[] data)
-    {
-        // Simplified deserialization - full implementation would use DtNavMeshDataReader
-        using var ms = new MemoryStream(data);
-        using var reader = new BinaryReader(ms);
-
-        var meshData = new DtMeshData
-        {
-            header = new DtMeshHeader()
-        };
-
-        meshData.header.magic = reader.ReadInt32();
-        meshData.header.version = reader.ReadInt32();
-        meshData.header.x = reader.ReadInt32();
-        meshData.header.y = reader.ReadInt32();
-        meshData.header.layer = reader.ReadInt32();
-        meshData.header.userId = reader.ReadInt32();
-        meshData.header.polyCount = reader.ReadInt32();
-        meshData.header.vertCount = reader.ReadInt32();
-        meshData.header.maxLinkCount = reader.ReadInt32();
-        meshData.header.detailMeshCount = reader.ReadInt32();
-        meshData.header.detailVertCount = reader.ReadInt32();
-        meshData.header.detailTriCount = reader.ReadInt32();
-        meshData.header.bvNodeCount = reader.ReadInt32();
-        meshData.header.offMeshConCount = reader.ReadInt32();
-        meshData.header.offMeshBase = reader.ReadInt32();
-        meshData.header.walkableHeight = reader.ReadSingle();
-        meshData.header.walkableRadius = reader.ReadSingle();
-        meshData.header.walkableClimb = reader.ReadSingle();
-        meshData.header.bmin = new RcVec3f(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-        meshData.header.bmax = new RcVec3f(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle());
-        meshData.header.bvQuantFactor = reader.ReadSingle();
-
-        // Read vertices
-        meshData.verts = new float[meshData.header.vertCount * 3];
-        for (int i = 0; i < meshData.verts.Length; i++)
-        {
-            meshData.verts[i] = reader.ReadSingle();
-        }
-
-        // Read polygons
-        meshData.polys = new DtPoly[meshData.header.polyCount];
-        for (int i = 0; i < meshData.header.polyCount; i++)
-        {
-            int firstLink = reader.ReadInt32();
-
-            // Read vert indices
-            ushort[] verts = new ushort[6];
-            for (int j = 0; j < 6; j++)
-            {
-                verts[j] = reader.ReadUInt16();
-            }
-
-            // Read neighbor indices
-            ushort[] neis = new ushort[6];
-            for (int j = 0; j < 6; j++)
-            {
-                neis[j] = reader.ReadUInt16();
-            }
-
-            int flags = reader.ReadInt32();
-            byte vertCount = reader.ReadByte();
-            byte areaAndtype = reader.ReadByte();
-
-            var poly = new DtPoly(i, 6)
-            {
-                firstLink = firstLink,
-                flags = flags,
-                vertCount = vertCount,
-                areaAndtype = areaAndtype
-            };
-            Array.Copy(verts, poly.verts, 6);
-            Array.Copy(neis, poly.neis, 6);
-            meshData.polys[i] = poly;
-        }
-
-        return meshData;
+        using var meshStream = new MemoryStream(meshSet);
+        using var meshReader = new BinaryReader(meshStream);
+        return new DtMeshSetReader().Read(meshReader, maxVertsPerPoly);
     }
 
     private static IDtQueryFilter CreateFilter(NavAreaMask areaMask)
