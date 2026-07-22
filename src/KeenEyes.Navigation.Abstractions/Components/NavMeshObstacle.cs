@@ -70,7 +70,7 @@ public struct NavMeshObstacle : IComponent
     public bool Carving;
 
     /// <summary>
-    /// The time in seconds to wait before carving after the obstacle moves.
+    /// The distance the obstacle must move before the carved area is updated.
     /// </summary>
     /// <remarks>
     /// Higher values reduce carving updates for moving obstacles but

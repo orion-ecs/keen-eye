@@ -25,6 +25,11 @@ public sealed partial class World
     /// When no hooks are registered, there is minimal performance overhead (empty check only).
     /// With hooks registered, overhead scales linearly with the number of hooks.
     /// </para>
+    /// <para>
+    /// To unregister the hook, call <see cref="EventSubscription.Dispose"/> on the returned
+    /// subscription. Subscriptions are idempotent: disposing the same subscription multiple
+    /// times has no additional effect.
+    /// </para>
     /// </remarks>
     /// <example>
     /// <code>

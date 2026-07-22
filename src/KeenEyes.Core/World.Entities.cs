@@ -242,6 +242,22 @@ public sealed partial class World
     /// </example>
     public ref T Get<T>(Entity entity) where T : struct, IComponent
     {
+        ValidateComponentAccess<T>(entity);
+        return ref archetypeManager.Get<T>(entity);
+    }
+
+    /// <summary>
+    /// Validates that an entity is alive, the component type is registered, and the
+    /// entity has the component, throwing if any check fails.
+    /// </summary>
+    /// <typeparam name="T">The component type being accessed.</typeparam>
+    /// <param name="entity">The entity to validate.</param>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the entity is not alive, the component type is not registered,
+    /// or the entity does not have the specified component.
+    /// </exception>
+    private void ValidateComponentAccess<T>(Entity entity) where T : struct, IComponent
+    {
         if (!IsAlive(entity))
         {
             throw new InvalidOperationException($"Entity {entity} is not alive.");
@@ -259,8 +275,6 @@ public sealed partial class World
             throw new InvalidOperationException(
                 $"Entity {entity} does not have component {typeof(T).Name}.");
         }
-
-        return ref archetypeManager.Get<T>(entity);
     }
 
     /// <summary>
@@ -290,24 +304,7 @@ public sealed partial class World
     /// </example>
     public ref readonly T GetReadonly<T>(Entity entity) where T : struct, IComponent
     {
-        if (!IsAlive(entity))
-        {
-            throw new InvalidOperationException($"Entity {entity} is not alive.");
-        }
-
-        var info = Components.Get<T>();
-        if (info is null)
-        {
-            throw new InvalidOperationException(
-                $"Component type {typeof(T).Name} is not registered in this world.");
-        }
-
-        if (!archetypeManager.Has<T>(entity))
-        {
-            throw new InvalidOperationException(
-                $"Entity {entity} does not have component {typeof(T).Name}.");
-        }
-
+        ValidateComponentAccess<T>(entity);
         return ref archetypeManager.GetReadonly<T>(entity);
     }
 

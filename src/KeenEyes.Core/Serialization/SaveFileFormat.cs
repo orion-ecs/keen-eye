@@ -80,6 +80,11 @@ public static class SaveFileFormat
     private const long MaxDecompressedSize = 500_000_000;
 
     /// <summary>
+    /// Size of the temporary copy buffer (80KB), matching the default used by <see cref="Stream.CopyTo(Stream)"/>.
+    /// </summary>
+    private const int CopyBufferSize = 81920;
+
+    /// <summary>
     /// File format flags.
     /// </summary>
     [Flags]
@@ -510,7 +515,7 @@ public static class SaveFileFormat
     /// </exception>
     private static void CopyWithLimit(Stream source, Stream destination, long maxSize)
     {
-        var buffer = new byte[81920];
+        var buffer = new byte[CopyBufferSize];
         long totalRead = 0;
         int bytesRead;
 
