@@ -335,7 +335,7 @@ void RunRaycastingDemo()
     Console.WriteLine("  Ray 1: Forward (+X direction)");
     if (physics.Raycast(origin, Vector3.UnitX, 50f, out var hit1))
     {
-        var hitName = GetTargetName(targets, hit1.Entity);
+        var hitName = GetTargetName(world, targets, hit1.Entity);
         Console.WriteLine($"    HIT: {hitName}");
         Console.WriteLine($"    Position: ({hit1.Position.X:F2}, {hit1.Position.Y:F2}, {hit1.Position.Z:F2})");
         Console.WriteLine($"    Normal: ({hit1.Normal.X:F2}, {hit1.Normal.Y:F2}, {hit1.Normal.Z:F2})");
@@ -351,7 +351,7 @@ void RunRaycastingDemo()
     Console.WriteLine("  Ray 2: Upward (+Y direction)");
     if (physics.Raycast(origin, Vector3.UnitY, 50f, out var hit2))
     {
-        var hitName = GetTargetName(targets, hit2.Entity);
+        var hitName = GetTargetName(world, targets, hit2.Entity);
         Console.WriteLine($"    HIT: {hitName}");
         Console.WriteLine($"    Position: ({hit2.Position.X:F2}, {hit2.Position.Y:F2}, {hit2.Position.Z:F2})");
         Console.WriteLine($"    Distance: {hit2.Distance:F2}");
@@ -367,7 +367,7 @@ void RunRaycastingDemo()
     var diagonalDir = Vector3.Normalize(new Vector3(5, 0, 5));
     if (physics.Raycast(origin, diagonalDir, 50f, out var hit3))
     {
-        var hitName = GetTargetName(targets, hit3.Entity);
+        var hitName = GetTargetName(world, targets, hit3.Entity);
         Console.WriteLine($"    HIT: {hitName}");
         Console.WriteLine($"    Distance: {hit3.Distance:F2}");
     }
@@ -397,7 +397,7 @@ void RunRaycastingDemo()
     Console.WriteLine($"  Found {overlapping.Count()} entities in sphere:");
     foreach (var entity in overlapping)
     {
-        var name = GetTargetName(targets, entity);
+        var name = GetTargetName(world, targets, entity);
         Console.WriteLine($"    - {name}");
     }
 
@@ -418,7 +418,7 @@ void PrintEntityPosition(World world, Entity entity, string prefix)
     }
 }
 
-string GetTargetName(List<(Entity entity, string name, Vector3 position)> targets, Entity entity)
+string GetTargetName(World world, List<(Entity entity, string name, Vector3 position)> targets, Entity entity)
 {
     foreach (var (e, name, _) in targets)
     {
@@ -428,6 +428,12 @@ string GetTargetName(List<(Entity entity, string name, Vector3 position)> target
         }
     }
 
-    // Check if it's the ground
-    return entity.Id == 1 ? "Ground" : $"Entity {entity.Id}";
+    // Identify the ground by its GroundTag component rather than a hard-coded ID -
+    // entity IDs are an implementation detail and are not stable across runs.
+    if (world.Has<GroundTag>(entity))
+    {
+        return "Ground";
+    }
+
+    return $"Entity {entity.Id}";
 }

@@ -10,10 +10,10 @@ namespace KeenEyes.Sample.MassSimulation;
 public class MovementSystem : SystemBase
 {
     /// <summary>World bounds width.</summary>
-    public float WorldWidth { get; set; } = 100f;
+    public float WorldWidth { get; init; } = 100f;
 
     /// <summary>World bounds height.</summary>
-    public float WorldHeight { get; set; } = 50f;
+    public float WorldHeight { get; init; } = 50f;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -129,16 +129,16 @@ public class CleanupSystem : SystemBase
 public class SpawnerSystem : SystemBase
 {
     /// <summary>Target number of active particles.</summary>
-    public int TargetCount { get; set; } = 100_000;
+    public int TargetCount { get; init; } = 100_000;
 
     /// <summary>Maximum particles to spawn per frame.</summary>
-    public int MaxSpawnPerFrame { get; set; } = 5_000;
+    public int MaxSpawnPerFrame { get; init; } = 5_000;
 
     /// <summary>World width for spawn positions.</summary>
-    public float WorldWidth { get; set; } = 100f;
+    public float WorldWidth { get; init; } = 100f;
 
     /// <summary>World height for spawn positions.</summary>
-    public float WorldHeight { get; set; } = 50f;
+    public float WorldHeight { get; init; } = 50f;
 
     /// <summary>Number of entities spawned in the last update.</summary>
     public int LastSpawnCount { get; private set; }

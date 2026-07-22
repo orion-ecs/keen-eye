@@ -133,10 +133,24 @@ ref var playerGold = ref world.Get<Gold>(player);
 playerGold.Amount -= 500;
 Console.WriteLine($"Player spent gold, now has: {playerGold.Amount}");
 
-// Kill an enemy
-var firstEnemy = world.Query<Health>().With<Enemy>().First();
-world.Despawn(firstEnemy);
-Console.WriteLine($"Enemy {firstEnemy} was defeated!");
+// Kill an enemy. Query results are never guaranteed, so look the first match up
+// explicitly and report a miss instead of letting First() throw on an empty query.
+Entity? firstEnemy = null;
+foreach (var candidate in world.Query<Health>().With<Enemy>())
+{
+    firstEnemy = candidate;
+    break;
+}
+
+if (firstEnemy is Entity enemyToDefeat)
+{
+    world.Despawn(enemyToDefeat);
+    Console.WriteLine($"Enemy {enemyToDefeat} was defeated!");
+}
+else
+{
+    Console.WriteLine("No enemies found to defeat.");
+}
 
 PrintWorldState(world, "After Gameplay");
 
@@ -161,6 +175,10 @@ try
 }
 catch (Exception ex)
 {
+    // Loading a save file is an application entry point handling external, possibly
+    // corrupt data: deserialization can surface JsonException, NotSupportedException,
+    // and others. A demo like this recovers by reporting the failure and exiting rather
+    // than crashing, so a catch-all is appropriate here.
     Console.WriteLine($"Failed to load snapshot: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
     return;

@@ -121,10 +121,17 @@ Console.WriteLine($"  Frames recorded: {recorder.RecordedFrameCount}");
 Console.WriteLine($"  Snapshots captured: {recorder.SnapshotCount}");
 Console.WriteLine($"  Elapsed time: {recorder.ElapsedTime.TotalSeconds:F2}s");
 
-// Stop recording and get data
+// Stop recording and get data. StopRecording returns null if no recording was
+// active, so guard against it rather than assuming success with the null-forgiving operator.
 var replayData = recorder.StopRecording();
+if (replayData is null)
+{
+    Console.WriteLine("\nNo active recording to stop - nothing was captured. Exiting.");
+    return;
+}
+
 Console.WriteLine($"\nRecording complete!");
-Console.WriteLine($"  Total frames: {replayData!.FrameCount}");
+Console.WriteLine($"  Total frames: {replayData.FrameCount}");
 Console.WriteLine($"  Total snapshots: {replayData.Snapshots.Count}");
 Console.WriteLine($"  Duration: {replayData.Duration.TotalSeconds:F2}s");
 Console.WriteLine($"  Average FPS: {replayData.AverageFrameRate:F1}");
@@ -271,8 +278,14 @@ for (int frame = 0; frame < 100; frame++)
 
 // Simulate crash - get the buffer contents
 var crashData = crashRecorder.StopRecording();
+if (crashData is null)
+{
+    Console.WriteLine("\nNo active crash recording to stop - nothing was captured. Exiting.");
+    return;
+}
+
 Console.WriteLine($"\nRing buffer captured:");
-Console.WriteLine($"  Frames in buffer: {crashData!.FrameCount}");
+Console.WriteLine($"  Frames in buffer: {crashData.FrameCount}");
 Console.WriteLine($"  First frame number: {crashData.Frames[0].FrameNumber}");
 Console.WriteLine($"  Last frame number: {crashData.Frames[^1].FrameNumber}");
 Console.WriteLine($"  Buffer duration: {crashData.Duration.TotalSeconds:F2}s");
