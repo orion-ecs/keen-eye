@@ -48,6 +48,8 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
     private readonly EditorLogProvider _logProvider;
     private readonly AssetDatabase _assetDatabase;
     private readonly EditorComponentSerializer _serializer;
+    private readonly KeenEyes.Editor.Plugins.EditorPluginManager _pluginManager;
+    private readonly KeenEyes.Editor.Plugins.Capabilities.ViewportCapability _viewportCapability;
     private PlayModeManager? _playMode;
     private HotReloadService? _hotReload;
     private ReplayPlaybackMode? _replayPlayback;
@@ -176,6 +178,21 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         {
             _shortcuts.Load(EditorSettings.ShortcutsFilePath);
         }
+
+        // Set up the editor plugin host and register the viewport capability, then install
+        // the built-in gizmo plugins. The plugins register their debug gizmo renderers through
+        // the viewport capability; disposing the plugin manager on shutdown uninstalls them and
+        // removes those renderers again (see Dispose).
+        _viewportCapability = new KeenEyes.Editor.Plugins.Capabilities.ViewportCapability();
+        _pluginManager = new KeenEyes.Editor.Plugins.EditorPluginManager(
+            _worldManager,
+            _selection,
+            _undoRedo,
+            _assetDatabase,
+            _editorWorld,
+            _logProvider);
+        _pluginManager.RegisterCapability<KeenEyes.Editor.Abstractions.Capabilities.IViewportCapability>(_viewportCapability);
+        KeenEyes.Editor.Plugins.BuiltIn.BuiltInGizmoPlugins.Install(_pluginManager);
     }
 
     /// <summary>
@@ -2218,6 +2235,9 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             _sceneTestBridge.DisposeAsync().AsTask().GetAwaiter().GetResult();
             _sceneTestBridge = null;
         }
+
+        // Uninstall built-in plugins (removes their gizmo renderers from the viewport capability)
+        _pluginManager.Dispose();
 
         _hotReload?.Dispose();
         _replayPlayback?.Dispose();
