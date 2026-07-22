@@ -594,7 +594,7 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
         var graphicsContext = _editorWorld.GetExtension<IGraphicsContext>();
         var inputContext = _editorWorld.GetExtension<IInputContext>();
         _viewportPanel = ViewportPanel.Create(_editorWorld, topPane, _defaultFont, _worldManager,
-            graphicsContext!, inputContext!);
+            graphicsContext!, inputContext!, _viewportCapability);
 
         // Right panel: Inspector
         _inspectorPanel = InspectorPanel.Create(_editorWorld, topPane, _defaultFont, _worldManager);
