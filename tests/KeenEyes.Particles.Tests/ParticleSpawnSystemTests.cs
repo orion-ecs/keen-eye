@@ -541,6 +541,131 @@ public class ParticleSpawnSystemTests : IDisposable
         }
     }
 
+    [Fact]
+    public void SpawnSystem_EdgeShape_SpawnsAlongSegment()
+    {
+        world = new World();
+        world.InstallPlugin(new ParticlesPlugin());
+
+        var center = new Vector2(100f, 100f);
+        var length = 200f;
+        var emitter = ParticleEmitter.Burst(100, 1f) with
+        {
+            Shape = EmissionShape.Edge(length), // Horizontal segment on the X axis
+            StartSpeedMin = 0f,
+            StartSpeedMax = 0f
+        };
+        var entity = world.Spawn()
+            .With(new Transform2D(center, 0f, Vector2.One))
+            .With(emitter)
+            .Build();
+
+        world.Update(1f / 60f);
+
+        var manager = world.GetExtension<ParticleManager>();
+        var pool = manager.GetPool(entity);
+        Assert.NotNull(pool);
+
+        var alive = FindAllAlive(pool);
+        Assert.Equal(100, alive.Count);
+
+        var halfLength = length / 2f;
+        foreach (var idx in alive)
+        {
+            var dx = pool.PositionsX[idx] - center.X;
+            var dy = pool.PositionsY[idx] - center.Y;
+
+            // Within the segment bounds on X
+            Assert.InRange(dx, -halfLength - 1f, halfLength + 1f);
+            // Collinear: all points lie on the horizontal line through the emitter
+            Assert.True(MathF.Abs(dy).IsApproximatelyZero(0.001f),
+                $"Particle Y offset {dy} is not collinear with the horizontal edge");
+        }
+    }
+
+    [Fact]
+    public void SpawnSystem_CircleShape_SpawnsOnRingPerimeter()
+    {
+        world = new World();
+        world.InstallPlugin(new ParticlesPlugin());
+
+        var center = new Vector2(150f, 150f);
+        var radius = 60f;
+        var emitter = ParticleEmitter.Burst(100, 1f) with
+        {
+            Shape = EmissionShape.Circle(radius),
+            StartSpeedMin = 0f,
+            StartSpeedMax = 0f
+        };
+        var entity = world.Spawn()
+            .With(new Transform2D(center, 0f, Vector2.One))
+            .With(emitter)
+            .Build();
+
+        world.Update(1f / 60f);
+
+        var manager = world.GetExtension<ParticleManager>();
+        var pool = manager.GetPool(entity);
+        Assert.NotNull(pool);
+
+        var alive = FindAllAlive(pool);
+        Assert.Equal(100, alive.Count);
+
+        // Every particle sits on the ring perimeter (distance == radius, not merely <= radius)
+        foreach (var idx in alive)
+        {
+            var dx = pool.PositionsX[idx] - center.X;
+            var dy = pool.PositionsY[idx] - center.Y;
+            var dist = MathF.Sqrt(dx * dx + dy * dy);
+            Assert.True(dist.ApproximatelyEquals(radius, 0.01f),
+                $"Particle distance {dist} is not on the ring of radius {radius}");
+        }
+    }
+
+    [Fact]
+    public void SpawnSystem_HemisphereShape_SpawnsWithinSemicircle()
+    {
+        world = new World();
+        world.InstallPlugin(new ParticlesPlugin());
+
+        var center = Vector2.Zero;
+        var radius = 50f;
+        // Default hemisphere direction is +Y, so emission spans the arc where sin(angle) >= 0.
+        var emitter = ParticleEmitter.Burst(200, 1f) with
+        {
+            Shape = EmissionShape.Hemisphere(radius),
+            StartSpeedMin = 50f,
+            StartSpeedMax = 50f
+        };
+        var entity = world.Spawn()
+            .With(new Transform2D(center, 0f, Vector2.One))
+            .With(emitter)
+            .Build();
+
+        world.Update(1f / 60f);
+
+        var manager = world.GetExtension<ParticleManager>();
+        var pool = manager.GetPool(entity);
+        Assert.NotNull(pool);
+
+        var alive = FindAllAlive(pool);
+        Assert.Equal(200, alive.Count);
+
+        foreach (var idx in alive)
+        {
+            // Positions lie within the half-disc on the +Y side.
+            var dx = pool.PositionsX[idx] - center.X;
+            var dy = pool.PositionsY[idx] - center.Y;
+            var dist = MathF.Sqrt(dx * dx + dy * dy);
+            Assert.True(dist <= radius + 1f, $"Particle distance {dist} exceeds radius {radius}");
+            Assert.True(dy >= -0.01f, $"Particle Y offset {dy} falls outside the +Y semicircle");
+
+            // Initial direction stays within the same 180-degree arc (velocity Y >= 0).
+            Assert.True(pool.VelocitiesY[idx] >= -0.01f,
+                $"Particle velocity Y {pool.VelocitiesY[idx]} points outside the hemisphere arc");
+        }
+    }
+
     #endregion
 
     #region Edge Cases

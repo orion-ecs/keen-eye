@@ -270,6 +270,17 @@ public interface I2DRenderer : IDisposable
     /// <param name="tint">Optional color tint (default: white/no tint).</param>
     void DrawTextureRotated(TextureHandle texture, in Rectangle destRect, float rotation, Vector2 origin, Vector4? tint = null);
 
+    /// <summary>
+    /// Draws a rotated region of a texture (for rotated sprite-sheet/atlas frames).
+    /// </summary>
+    /// <param name="texture">The texture handle.</param>
+    /// <param name="destRect">The destination rectangle on screen.</param>
+    /// <param name="sourceRect">The source rectangle in texture coordinates (0-1 range).</param>
+    /// <param name="rotation">The rotation angle in radians.</param>
+    /// <param name="origin">The rotation origin (relative to destRect, 0-1 range).</param>
+    /// <param name="tint">Optional color tint (default: white/no tint).</param>
+    void DrawTextureRotated(TextureHandle texture, in Rectangle destRect, in Rectangle sourceRect, float rotation, Vector2 origin, Vector4? tint = null);
+
     #endregion
 
     #region Clipping

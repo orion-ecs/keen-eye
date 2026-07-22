@@ -96,10 +96,13 @@ public sealed class ParticleSpawnSystem : SystemBase
                 }
             }
 
-            // Spawn particles
+            // Spawn particles. In Local space, positions are stored relative to the
+            // emitter (origin zero) and translated by the emitter position at render time;
+            // in World space, positions are anchored at the emitter's current position.
+            var origin = emitter.Space == ParticleSpace.Local ? Vector2.Zero : transform.Position;
             for (var i = 0; i < toSpawn; i++)
             {
-                SpawnParticle(pool, in emitter, in transform, pm.Config.MaxParticlesPerEmitter);
+                SpawnParticle(pool, in emitter, origin, pm.Config.MaxParticlesPerEmitter);
             }
         }
 
@@ -164,14 +167,15 @@ public sealed class ParticleSpawnSystem : SystemBase
                 }
             }
 
+            var origin = emitter.Space == ParticleSpace.Local ? Vector2.Zero : transform.Position;
             for (var i = 0; i < toSpawn; i++)
             {
-                SpawnParticle(pool, in emitter, in transform, pm.Config.MaxParticlesPerEmitter);
+                SpawnParticle(pool, in emitter, origin, pm.Config.MaxParticlesPerEmitter);
             }
         }
     }
 
-    private void SpawnParticle(ParticlePool pool, in ParticleEmitter emitter, in Transform2D transform, int maxParticles)
+    private void SpawnParticle(ParticlePool pool, in ParticleEmitter emitter, Vector2 origin, int maxParticles)
     {
         var index = pool.Allocate();
         if (index < 0)
@@ -188,8 +192,8 @@ public sealed class ParticleSpawnSystem : SystemBase
         // Calculate spawn position and direction based on shape
         var (posOffset, direction) = CalculateSpawnPosition(emitter.Shape);
 
-        pool.PositionsX[index] = transform.Position.X + posOffset.X;
-        pool.PositionsY[index] = transform.Position.Y + posOffset.Y;
+        pool.PositionsX[index] = origin.X + posOffset.X;
+        pool.PositionsY[index] = origin.Y + posOffset.Y;
 
         // Calculate velocity
         var speed = Lerp(emitter.StartSpeedMin, emitter.StartSpeedMax, World.NextFloat());
@@ -244,6 +248,30 @@ public sealed class ParticleSpawnSystem : SystemBase
                 var x = Lerp(-shape.Size.X / 2, shape.Size.X / 2, World.NextFloat());
                 var y = Lerp(-shape.Size.Y / 2, shape.Size.Y / 2, World.NextFloat());
                 return (new Vector2(x, y), RandomDirection());
+
+            case EmissionShapeType.Hemisphere:
+                // 2D interpretation: a filled half-disc. Directions (and positions) span the
+                // 180-degree arc centered on the shape direction, mirroring how Sphere fills a disc.
+                var hemiBase = shape.Direction;
+                if (hemiBase == Vector2.Zero)
+                {
+                    hemiBase = Vector2.UnitY;
+                }
+                var hemiBaseAngle = MathF.Atan2(hemiBase.Y, hemiBase.X);
+                var hemiAngle = hemiBaseAngle + Lerp(-MathF.PI / 2f, MathF.PI / 2f, World.NextFloat());
+                var hemiDir = new Vector2(MathF.Cos(hemiAngle), MathF.Sin(hemiAngle));
+                var hemiDist = World.NextFloat() * shape.Radius;
+                return (hemiDir * hemiDist, hemiDir);
+
+            case EmissionShapeType.Edge:
+                // Uniformly sample a point along the segment spanning -Size/2 .. +Size/2.
+                var edgeT = World.NextFloat() - 0.5f;
+                return (shape.Size * edgeT, RandomDirection());
+
+            case EmissionShapeType.Circle:
+                // Ring perimeter: position lies exactly on the circle, direction points outward.
+                var circleDir = RandomDirection();
+                return (circleDir * shape.Radius, circleDir);
 
             default:
                 return (Vector2.Zero, Vector2.UnitY);

@@ -17,7 +17,24 @@ public enum EmissionShapeType
     Cone,
 
     /// <summary>Particles emit from within a rectangular box.</summary>
-    Box
+    Box,
+
+    /// <summary>
+    /// Particles emit from within a half-disc.
+    /// </summary>
+    /// <remarks>
+    /// The particle pool is 2D (X/Y only), so a "hemisphere" is interpreted as the 2D
+    /// flattening of a hemisphere: a filled half-disc. Emission is restricted to the
+    /// 180-degree arc centered on <see cref="EmissionShape.Direction"/>, mirroring the way
+    /// <see cref="EmissionShapeType.Sphere"/> flattens a sphere to a filled disc.
+    /// </remarks>
+    Hemisphere,
+
+    /// <summary>Particles emit along a straight line segment.</summary>
+    Edge,
+
+    /// <summary>Particles emit on the perimeter of a circle (a ring, not a filled disc).</summary>
+    Circle
 }
 
 /// <summary>
@@ -105,5 +122,84 @@ public readonly record struct EmissionShape
     {
         Type = EmissionShapeType.Box,
         Size = new Vector2(width, height)
+    };
+
+    /// <summary>
+    /// Creates a hemisphere emission shape pointing along the default upward direction.
+    /// </summary>
+    /// <param name="radius">The radius of the hemisphere.</param>
+    /// <returns>A hemisphere emission shape.</returns>
+    /// <remarks>
+    /// In the 2D particle pool this emits from a filled half-disc: positions and initial
+    /// directions are sampled across the 180-degree arc centered on
+    /// <see cref="Direction"/> (defaulting to <see cref="Vector2.UnitY"/>), consistent with
+    /// how <see cref="Sphere"/> flattens a sphere to a filled disc.
+    /// </remarks>
+    public static EmissionShape Hemisphere(float radius) => new()
+    {
+        Type = EmissionShapeType.Hemisphere,
+        Radius = radius,
+        Direction = Vector2.UnitY
+    };
+
+    /// <summary>
+    /// Creates a hemisphere emission shape oriented along a custom direction.
+    /// </summary>
+    /// <param name="radius">The radius of the hemisphere.</param>
+    /// <param name="direction">The direction the flat side of the hemisphere faces away from (will be normalized).</param>
+    /// <returns>A hemisphere emission shape.</returns>
+    /// <remarks>
+    /// In the 2D particle pool this emits from a filled half-disc: positions and initial
+    /// directions are sampled across the 180-degree arc centered on <paramref name="direction"/>.
+    /// </remarks>
+    public static EmissionShape Hemisphere(float radius, Vector2 direction) => new()
+    {
+        Type = EmissionShapeType.Hemisphere,
+        Radius = radius,
+        Direction = Vector2.Normalize(direction)
+    };
+
+    /// <summary>
+    /// Creates an edge (line segment) emission shape along the X axis.
+    /// </summary>
+    /// <param name="length">The full length of the segment; particles spawn between <c>-length/2</c> and <c>+length/2</c> on the X axis, relative to the emitter.</param>
+    /// <returns>An edge emission shape.</returns>
+    /// <remarks>
+    /// The segment extent is stored in <see cref="Size"/> as <c>(length, 0)</c>. Particles
+    /// spawn uniformly along the segment with a random initial direction.
+    /// </remarks>
+    public static EmissionShape Edge(float length) => new()
+    {
+        Type = EmissionShapeType.Edge,
+        Size = new Vector2(length, 0f)
+    };
+
+    /// <summary>
+    /// Creates an edge (line segment) emission shape spanning the given extent vector.
+    /// </summary>
+    /// <param name="extent">The full segment vector; particles spawn between <c>-extent/2</c> and <c>+extent/2</c>, relative to the emitter.</param>
+    /// <returns>An edge emission shape.</returns>
+    /// <remarks>
+    /// Particles spawn uniformly along the segment with a random initial direction.
+    /// </remarks>
+    public static EmissionShape Edge(Vector2 extent) => new()
+    {
+        Type = EmissionShapeType.Edge,
+        Size = extent
+    };
+
+    /// <summary>
+    /// Creates a circle (ring perimeter) emission shape.
+    /// </summary>
+    /// <param name="radius">The radius of the ring.</param>
+    /// <returns>A circle emission shape.</returns>
+    /// <remarks>
+    /// Particles spawn exactly on the ring's perimeter (distance <paramref name="radius"/>
+    /// from the emitter), not within a filled disc, with an outward radial initial direction.
+    /// </remarks>
+    public static EmissionShape Circle(float radius) => new()
+    {
+        Type = EmissionShapeType.Circle,
+        Radius = radius
     };
 }
