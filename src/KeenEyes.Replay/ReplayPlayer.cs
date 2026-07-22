@@ -1676,10 +1676,21 @@ public sealed class ReplayPlayer : IDisposable
     /// </summary>
     private SnapshotMarker? FindNearestSnapshot(int targetFrame)
     {
+        var index = FindNearestSnapshotIndex(targetFrame);
+        return index >= 0 ? replayData!.Snapshots[index] : null;
+    }
+
+    /// <summary>
+    /// Finds the index of the nearest snapshot marker at or before the specified frame
+    /// using binary search, or -1 when none exists.
+    /// Must be called while holding the lock.
+    /// </summary>
+    private int FindNearestSnapshotIndex(int targetFrame)
+    {
         var snapshots = replayData!.Snapshots;
         if (snapshots.Count == 0)
         {
-            return null;
+            return -1;
         }
 
         // Binary search for the snapshot at or before the target frame
@@ -1703,7 +1714,7 @@ public sealed class ReplayPlayer : IDisposable
             }
         }
 
-        return resultIndex >= 0 ? snapshots[resultIndex] : null;
+        return resultIndex;
     }
 
     /// <summary>
@@ -1729,10 +1740,30 @@ public sealed class ReplayPlayer : IDisposable
             return;
         }
 
-        var marker = FindNearestSnapshot(targetFrame);
-        if (marker is null)
+        var targetIndex = FindNearestSnapshotIndex(targetFrame);
+        if (targetIndex < 0)
         {
             return; // No snapshot to restore from - leave the world untouched.
+        }
+
+        var snapshots = replayData!.Snapshots;
+
+        // Walk back to the nearest full keyframe: the target marker may be a delta whose
+        // reconstruction requires restoring the keyframe and replaying intervening deltas.
+        var keyframeIndex = targetIndex;
+        while (keyframeIndex >= 0 && !snapshots[keyframeIndex].IsKeyframe)
+        {
+            keyframeIndex--;
+        }
+
+        if (keyframeIndex < 0)
+        {
+            // A delta chain with no preceding keyframe cannot be reconstructed.
+            throw new ReplayStateRestorationException(
+                targetFrame,
+                snapshots[targetIndex].FrameNumber,
+                new InvalidOperationException(
+                    "No full keyframe snapshot precedes the target delta marker."));
         }
 
         // Back up the current world state so a failed restore can roll back. This keeps
@@ -1747,12 +1778,36 @@ public sealed class ReplayPlayer : IDisposable
         {
             // Broad catch: any failure capturing the backup means we cannot guarantee a
             // safe rollback, so we must not mutate the world at all.
-            throw new ReplayStateRestorationException(targetFrame, marker.FrameNumber, ex);
+            throw new ReplayStateRestorationException(targetFrame, snapshots[keyframeIndex].FrameNumber, ex);
         }
+
+        // Track the frame whose restore/apply is in progress so a failure reports the
+        // exact marker that could not be applied.
+        var failingFrame = snapshots[keyframeIndex].FrameNumber;
 
         try
         {
-            SnapshotManager.RestoreSnapshot(validationWorld, marker.Snapshot, validationSerializer);
+            // Restore the keyframe, then apply the chain of deltas up to the target marker.
+            var entityMap = SnapshotManager.RestoreSnapshot(
+                validationWorld,
+                snapshots[keyframeIndex].Snapshot!,
+                validationSerializer);
+
+            for (var i = keyframeIndex + 1; i <= targetIndex; i++)
+            {
+                var deltaMarker = snapshots[i];
+                if (deltaMarker.Delta is null)
+                {
+                    continue;
+                }
+
+                failingFrame = deltaMarker.FrameNumber;
+                entityMap = DeltaRestorer.ApplyDelta(
+                    validationWorld,
+                    deltaMarker.Delta,
+                    validationSerializer,
+                    entityMap);
+            }
         }
         catch (Exception ex)
         {
@@ -1766,13 +1821,13 @@ public sealed class ReplayPlayer : IDisposable
             catch (Exception rollbackEx)
             {
                 throw new ReplayStateRestorationException(
-                    $"Failed to restore world state from the snapshot at frame {marker.FrameNumber} " +
+                    $"Failed to restore world state from the snapshot at frame {failingFrame} " +
                     $"while seeking to frame {targetFrame}, and rolling back to the previous state also " +
                     "failed. The world may be in an inconsistent state.",
                     rollbackEx);
             }
 
-            throw new ReplayStateRestorationException(targetFrame, marker.FrameNumber, ex);
+            throw new ReplayStateRestorationException(targetFrame, failingFrame, ex);
         }
     }
 

@@ -107,6 +107,12 @@ public sealed class GhostExtractor
 
         foreach (var snapshotMarker in replay.Snapshots)
         {
+            // Ghost extraction reads full entity state; delta markers carry no snapshot.
+            if (snapshotMarker.Snapshot is null)
+            {
+                continue;
+            }
+
             // Skip if we haven't passed the minimum interval
             if (MinFrameInterval > TimeSpan.Zero &&
                 snapshotMarker.ElapsedTime - lastFrameTime < MinFrameInterval)
@@ -211,6 +217,12 @@ public sealed class GhostExtractor
 
         foreach (var snapshotMarker in replay.Snapshots)
         {
+            // Ghost extraction reads full entity state; delta markers carry no snapshot.
+            if (snapshotMarker.Snapshot is null)
+            {
+                continue;
+            }
+
             // Skip if we haven't passed the minimum interval
             if (MinFrameInterval > TimeSpan.Zero &&
                 snapshotMarker.ElapsedTime - lastFrameTime < MinFrameInterval)
@@ -311,9 +323,11 @@ public sealed class GhostExtractor
             return result;
         }
 
-        // Find all unique entity names with transforms
+        // Find all unique entity names with transforms. Delta markers carry no full
+        // snapshot, so only keyframe markers contribute entity names here.
         var entityNames = replay.Snapshots
-            .SelectMany(s => s.Snapshot.Entities)
+            .Where(s => s.Snapshot is not null)
+            .SelectMany(s => s.Snapshot!.Entities)
             .Where(e => e.Name is not null &&
                         e.Components.Any(c => c.TypeName.StartsWith(Transform3DTypeName, StringComparison.Ordinal)))
             .Select(e => e.Name!)
