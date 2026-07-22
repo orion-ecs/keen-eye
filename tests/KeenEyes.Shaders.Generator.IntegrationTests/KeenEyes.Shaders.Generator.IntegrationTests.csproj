@@ -8,20 +8,32 @@
     <IsTestProject>true</IsTestProject>
   </PropertyGroup>
 
-  <!-- Reference the shader generator as an analyzer -->
+  <!--
+    Reference the generator and its compiler as ordinary assemblies (not analyzers).
+    The integration tests drive the KESL source generator explicitly in-process via
+    CSharpGeneratorDriver (see GeneratorIntegrationTests), rather than relying on
+    build-time generator output. This mirrors tests/KeenEyes.Generators.Tests and,
+    critically, lets MSBuildWorkspace (dotnet format) load the project: a build-time
+    generator referenced as an analyzer-via-ProjectReference is not materialized by
+    the workspace, which previously produced CS0246 on the generated types and broke
+    solution-wide `dotnet format` verification (issue #1026).
+  -->
   <ItemGroup>
     <ProjectReference Include="..\..\editor\KeenEyes.Shaders.Generator\KeenEyes.Shaders.Generator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
-    <!-- Also reference the compiler so the generator can load it -->
+                      OutputItemType="None"
+                      ReferenceOutputAssembly="true" />
     <ProjectReference Include="..\..\editor\KeenEyes.Shaders.Compiler\KeenEyes.Shaders.Compiler.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
+                      OutputItemType="None"
+                      ReferenceOutputAssembly="true" />
   </ItemGroup>
 
-  <!-- Include .kesl files as AdditionalFiles for the generator -->
   <ItemGroup>
-    <AdditionalFiles Include="Shaders\*.kesl" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+  </ItemGroup>
+
+  <!-- The KESL source is embedded so the tests can feed it to the generator at runtime. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Shaders\Physics.kesl" LogicalName="Physics.kesl" />
   </ItemGroup>
 
 </Project>
