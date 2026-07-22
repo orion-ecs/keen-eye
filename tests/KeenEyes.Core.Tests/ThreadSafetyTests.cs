@@ -71,11 +71,7 @@ public class ThreadSafetyTests
         // Run multiple concurrent iterations
         Parallel.For(0, 10, _ =>
         {
-            var count = 0;
-            foreach (var entity in world.Query<Position>())
-            {
-                count++;
-            }
+            var count = world.Query<Position>().Count();
             results.Add(count);
         });
 
@@ -93,7 +89,7 @@ public class ThreadSafetyTests
         for (int i = 0; i < TestConstants.LargeBatchSize; i++)
         {
             world.Spawn()
-                .With(new Position { X = i, Y = i * 2 })
+                .With(new Position { X = i, Y = i * 2f })
                 .With(new Velocity { X = 1, Y = 0.5f })
                 .Build();
         }
@@ -317,11 +313,8 @@ public class ThreadSafetyTests
             try
             {
                 // Access the world state concurrently (read-only)
-                var count = 0;
-                foreach (var entity in world.Query<Position>())
-                {
-                    count++;
-                }
+                var count = world.Query<Position>().Count();
+                Assert.True(count >= 0);
             }
             catch (Exception ex)
             {
@@ -387,7 +380,7 @@ public class ThreadSafetyTests
         for (int i = 0; i < TestConstants.LargeBatchSize; i++)
         {
             var entity = world.Spawn()
-                .With(new Position { X = i, Y = i * 2 })
+                .With(new Position { X = i, Y = i * 2f })
                 .With(new Health { Current = 100, Max = 100 })
                 .Build();
             entities.Add(entity);
@@ -589,7 +582,7 @@ public class ThreadSafetyTests
                                 try
                                 {
                                     ref readonly var pos = ref world.Get<Position>(e);
-                                    var _ = pos.X + pos.Y;
+                                    _ = pos.X + pos.Y;
                                 }
                                 catch (InvalidOperationException)
                                 {
@@ -709,9 +702,11 @@ public class ThreadSafetyTests
                 world.Query<Position, Velocity>().ForEachParallel(
                     (Entity entity, ref Position pos, ref Velocity vel) =>
                     {
-                        // Simple read operation
-                        var _ = pos.X + vel.X;
-                        Interlocked.Increment(ref totalProcessed);
+                        // Reading the components exercises concurrent access.
+                        if (!float.IsNaN(pos.X + vel.X))
+                        {
+                            Interlocked.Increment(ref totalProcessed);
+                        }
                     },
                     minEntityCount: 0
                 );
@@ -792,15 +787,13 @@ public class ThreadSafetyTests
                 if (i % 2 == 0)
                 {
                     // Subscribe
-                    var sub = world.Events.Subscribe<TestEvent>(evt =>
+                    using var sub = world.Events.Subscribe<TestEvent>(evt =>
                     {
                         Interlocked.Increment(ref receivedCount);
                     });
 
                     // Small delay to allow some publishing to occur
                     Thread.Sleep(TestConstants.ThreadSleepShortMs);
-
-                    sub.Dispose();
                 }
                 else
                 {
@@ -1025,7 +1018,7 @@ public class ThreadSafetyTests
                         break;
                     case 3:
                         // Check handler count
-                        var _ = world.Events.HasHandlers<TestEvent>();
+                        _ = world.Events.HasHandlers<TestEvent>();
                         break;
                 }
             }

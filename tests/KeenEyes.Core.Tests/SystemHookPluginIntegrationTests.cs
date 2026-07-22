@@ -278,7 +278,7 @@ public class SystemHookPluginIntegrationTests
         world.InstallPlugin(plugin);
 
         // Register hook for Update phase only
-        var hookSub = world.AddSystemHook(
+        using var hookSub = world.AddSystemHook(
             beforeHook: (system, dt) => updatePhaseCount++,
             afterHook: null,
             phase: SystemPhase.Update
@@ -289,8 +289,6 @@ public class SystemHookPluginIntegrationTests
         world.Update(0.016f);
 
         Assert.Equal(1, updatePhaseCount); // Only Update phase system
-
-        hookSub.Dispose();
     }
 
     #endregion

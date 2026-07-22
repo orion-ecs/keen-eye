@@ -23,7 +23,7 @@ public class WorldTests
     [Fact]
     public void World_Dispose_CanBeCalledMultipleTimes()
     {
-        var world = new World();
+        using var world = new World();
 
         world.Dispose();
         world.Dispose(); // Should not throw

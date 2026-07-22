@@ -1712,7 +1712,7 @@ public class PoolingTests
     public void ArchetypeChunk_Dispose_CleansUp()
     {
         var archetypeId = new ArchetypeId([typeof(TestPosition)]);
-        var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
+        using var chunk = new ArchetypeChunk(archetypeId, [testPositionInfo]);
         chunk.AddEntity(new Entity(1, 1));
         chunk.AddComponent(new TestPosition());
 

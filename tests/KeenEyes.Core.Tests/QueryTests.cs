@@ -644,13 +644,11 @@ public class QueryBuilderTests
             .Build();
 
         IEnumerable<Entity> query = world.Query<TestPosition>();
-        var enumerator = query.GetEnumerator();
+        using var enumerator = query.GetEnumerator();
 
         Assert.True(enumerator.MoveNext());
         Assert.True(enumerator.Current.IsValid);
         Assert.False(enumerator.MoveNext());
-
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -711,15 +709,13 @@ public class QueryEnumeratorTests
             .With(new TestPosition { X = 1f, Y = 1f })
             .Build();
 
-        var enumerator = world.Query<TestPosition>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition>().GetEnumerator();
         Assert.True(enumerator.MoveNext());
         Assert.False(enumerator.MoveNext()); // Exhausted
 
         // Archetype-based enumerators support Reset
         enumerator.Reset();
         Assert.True(enumerator.MoveNext()); // Can iterate again after reset
-
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -743,11 +739,10 @@ public class QueryEnumeratorTests
             .With(new TestVelocity { X = 1f, Y = 1f })
             .Build();
 
-        var enumerator = world.Query<TestPosition, TestVelocity>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition, TestVelocity>().GetEnumerator();
         enumerator.MoveNext();
 
         Assert.Equal(entity, enumerator.Current);
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -761,11 +756,10 @@ public class QueryEnumeratorTests
             .With(new TestHealth { Current = 100, Max = 100 })
             .Build();
 
-        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition, TestVelocity, TestHealth>().GetEnumerator();
         enumerator.MoveNext();
 
         Assert.Equal(entity, enumerator.Current);
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -780,11 +774,10 @@ public class QueryEnumeratorTests
             .With(new TestRotation { Angle = 45f })
             .Build();
 
-        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().GetEnumerator();
         enumerator.MoveNext();
 
         Assert.Equal(entity, enumerator.Current);
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -817,7 +810,7 @@ public class QueryEnumeratorTests
             .With(new TestPosition { X = 3f, Y = 3f })
             .Build();
 
-        var enumerator = world.Query<TestPosition>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition>().GetEnumerator();
         var entities = new List<Entity>();
 
         while (enumerator.MoveNext())
@@ -829,8 +822,6 @@ public class QueryEnumeratorTests
         Assert.Contains(entity1, entities);
         Assert.Contains(entity2, entities);
         Assert.Contains(entity3, entities);
-
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -839,19 +830,19 @@ public class QueryEnumeratorTests
         using var world = new World();
 
         // Create entities with different archetypes but all have TestPosition
-        var entity1 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestPosition { X = 1f, Y = 1f })
             .Build();
-        var entity2 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestPosition { X = 2f, Y = 2f })
             .With(new TestVelocity { X = 1f, Y = 1f })
             .Build();
-        var entity3 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestPosition { X = 3f, Y = 3f })
             .With(new TestHealth { Current = 100, Max = 100 })
             .Build();
 
-        var enumerator = world.Query<TestPosition>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition>().GetEnumerator();
         var count = 0;
 
         while (enumerator.MoveNext())
@@ -860,8 +851,6 @@ public class QueryEnumeratorTests
         }
 
         Assert.Equal(3, count);
-
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -878,7 +867,7 @@ public class QueryEnumeratorTests
             .With(new TestVelocity { X = 2f, Y = 2f })
             .Build();
 
-        var enumerator = world.Query<TestPosition, TestVelocity>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition, TestVelocity>().GetEnumerator();
         var count = 0;
 
         while (enumerator.MoveNext())
@@ -888,8 +877,6 @@ public class QueryEnumeratorTests
         }
 
         Assert.Equal(2, count);
-
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -903,13 +890,11 @@ public class QueryEnumeratorTests
             .With(new TestHealth { Current = 100, Max = 100 })
             .Build();
 
-        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition, TestVelocity, TestHealth>().GetEnumerator();
 
         Assert.True(enumerator.MoveNext());
         Assert.NotEqual(Entity.Null, enumerator.Current);
         Assert.False(enumerator.MoveNext());
-
-        enumerator.Dispose();
     }
 
     [Fact]
@@ -924,13 +909,11 @@ public class QueryEnumeratorTests
             .With(new TestRotation { Angle = 45f })
             .Build();
 
-        var enumerator = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().GetEnumerator();
+        using var enumerator = world.Query<TestPosition, TestVelocity, TestHealth, TestRotation>().GetEnumerator();
 
         Assert.True(enumerator.MoveNext());
         Assert.NotEqual(Entity.Null, enumerator.Current);
         Assert.False(enumerator.MoveNext());
-
-        enumerator.Dispose();
     }
 }
 
@@ -956,7 +939,7 @@ public class QueryStringTagFilteringTests
             .Build();
         world.AddTag(entity2, "enemy");
 
-        var entity3 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestPosition { X = 3f, Y = 3f })
             .Build();
 
@@ -1097,7 +1080,7 @@ public class QueryStringTagFilteringTests
             .Build();
         world.AddTag(entity1, "moving");
 
-        var entity2 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestPosition { X = 2f, Y = 2f })
             .With(new TestVelocity { X = 0f, Y = 0f })
             .Build();
@@ -1146,7 +1129,7 @@ public class QueryStringTagFilteringTests
             .Build();
         world.AddTag(entity1, "alive");
 
-        var entity2 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestPosition { X = 2f, Y = 2f })
             .With(new TestVelocity { X = 2f, Y = 2f })
             .With(new TestHealth { Current = 0, Max = 100 })
@@ -1199,7 +1182,7 @@ public class QueryStringTagFilteringTests
             .Build();
         world.AddTag(entity1, "rotatable");
 
-        var entity2 = world.Spawn()
+        _ = world.Spawn()
             .With(new TestPosition { X = 2f, Y = 2f })
             .With(new TestVelocity { X = 2f, Y = 2f })
             .With(new TestHealth { Current = 100, Max = 100 })

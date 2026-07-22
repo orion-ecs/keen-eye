@@ -300,7 +300,7 @@ public class ParallelQueryTests
         for (int i = 0; i < 100; i++)
         {
             world.Spawn()
-                .With(new Position { X = i, Y = i * 2 })
+                .With(new Position { X = i, Y = i * 2f })
                 .With(new Velocity { X = 1, Y = 0.5f })
                 .Build();
         }

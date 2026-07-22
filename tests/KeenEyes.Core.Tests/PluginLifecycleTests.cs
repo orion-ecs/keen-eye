@@ -198,7 +198,7 @@ public class PluginDisposeTests
     public void Dispose_UninstallsAllPlugins()
     {
         var plugin = new TestSimplePlugin();
-        var world = new World();
+        using var world = new World();
         world.InstallPlugin(plugin);
 
         world.Dispose();
@@ -209,7 +209,7 @@ public class PluginDisposeTests
     [Fact]
     public void Dispose_DisposesPluginSystems()
     {
-        var world = new World();
+        using var world = new World();
         var plugin = new TestSystemPlugin();
         world.InstallPlugin(plugin);
 

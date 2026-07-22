@@ -68,7 +68,7 @@ public partial class StatisticsManagerTests
         using var world = new World();
 
         var entity1 = world.Spawn().With(new Position()).Build();
-        var entity2 = world.Spawn().With(new Position()).Build();
+        _ = world.Spawn().With(new Position()).Build();
 
         world.Despawn(entity1);
 
@@ -183,7 +183,7 @@ public partial class StatisticsManagerTests
         using var world = new World();
 
         var entity1 = world.Spawn().With(new Position()).Build();
-        var entity2 = world.Spawn().With(new Position()).Build();
+        _ = world.Spawn().With(new Position()).Build();
 
         var statsBefore = world.GetMemoryStats();
         Assert.Equal(2, statsBefore.EntitiesActive);
