@@ -86,16 +86,17 @@ public sealed class ClientPredictionSystem(
         }
 
         // Compare predicted vs server state
-        var mispredicted = DetectMisprediction(predictedStates, serverStates);
+        var correctionMagnitude = ComputeCorrectionMagnitude(predictedStates, serverStates);
 
-        if (mispredicted)
+        if (correctionMagnitude > 0f)
         {
             predState.MispredictionDetected = true;
-            Reconcile(entity, serverTick, serverStates);
+            Reconcile(entity, serverTick, serverStates, correctionMagnitude);
         }
         else
         {
             predState.MispredictionDetected = false;
+            predState.LastCorrectionMagnitude = 0f;
         }
 
         // Update confirmed tick and clean up old predictions
@@ -136,27 +137,45 @@ public sealed class ClientPredictionSystem(
         predState.LastPredictedTick = tick;
     }
 
-    private bool DetectMisprediction(
+    /// <summary>
+    /// Computes the correction magnitude as the fraction of server-confirmed component
+    /// states that diverged from the prediction beyond the misprediction threshold.
+    /// </summary>
+    /// <param name="predicted">The predicted component states saved for the confirmed tick.</param>
+    /// <param name="server">The authoritative component states received from the server.</param>
+    /// <returns>
+    /// A value in [0, 1]: 0 when every compared component matched the prediction,
+    /// 1 when every compared component had to be corrected. A component with no
+    /// saved prediction counts as corrected.
+    /// </returns>
+    /// <remarks>
+    /// Component mismatch uses the same comparison as misprediction detection (the
+    /// serializer's epsilon-based dirty mask when delta encoding is supported, exact
+    /// equality otherwise). The abstractions cannot measure spatial distance without
+    /// reflection - the interpolator only blends values and the serializer only reports
+    /// which fields changed - so the normalized mismatch fraction is the most honest
+    /// measurable definition of correction size.
+    /// </remarks>
+    private float ComputeCorrectionMagnitude(
         IReadOnlyDictionary<Type, object> predicted,
         IReadOnlyDictionary<Type, object> server)
     {
         var threshold = plugin.Config.MispredictionThreshold;
+        var comparedCount = 0;
+        var correctedCount = 0;
 
         foreach (var (type, serverValue) in server)
         {
-            if (!predicted.TryGetValue(type, out var predictedValue))
-            {
-                // We don't have a prediction for this component, misprediction
-                return true;
-            }
+            comparedCount++;
 
-            if (!ValuesApproximatelyEqual(predictedValue, serverValue, threshold))
+            if (!predicted.TryGetValue(type, out var predictedValue) ||
+                !ValuesApproximatelyEqual(predictedValue, serverValue, threshold))
             {
-                return true;
+                correctedCount++;
             }
         }
 
-        return false;
+        return comparedCount == 0 ? 0f : (float)correctedCount / comparedCount;
     }
 
     private bool ValuesApproximatelyEqual(object predicted, object server, float threshold)
@@ -194,7 +213,8 @@ public sealed class ClientPredictionSystem(
     private void Reconcile(
         Entity entity,
         uint serverTick,
-        IReadOnlyDictionary<Type, object> serverStates)
+        IReadOnlyDictionary<Type, object> serverStates,
+        float correctionMagnitude)
     {
         // Step 1: Apply server state (rollback)
         ApplyServerState(entity, serverStates);
@@ -212,13 +232,10 @@ public sealed class ClientPredictionSystem(
             }
         }
 
-        // Calculate correction magnitude for smoothing
+        // Record the correction magnitude (fraction of compared components corrected,
+        // see ComputeCorrectionMagnitude) for smoothing consumers
         ref var predState = ref World.Get<PredictionState>(entity);
-
-        // If we have an interpolator, we could use it for smooth corrections
-        // For now, just set to a fixed value - a proper implementation would
-        // calculate the actual distance between old and new positions
-        predState.LastCorrectionMagnitude = 1.0f;
+        predState.LastCorrectionMagnitude = correctionMagnitude;
 
         // Store interpolator availability for potential future smoothing
         predState.SmoothingAvailable = smoothingInterpolator is not null;

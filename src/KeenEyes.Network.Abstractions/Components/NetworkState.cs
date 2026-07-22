@@ -94,8 +94,25 @@ public record struct PredictionState : IComponent
     public bool MispredictionDetected { get; set; }
 
     /// <summary>
-    /// Gets or sets the magnitude of the last correction (for smoothing).
+    /// Gets or sets the magnitude of the last reconciliation correction, expressed as
+    /// the fraction of compared replicated components whose server-confirmed value
+    /// diverged from the client prediction beyond the misprediction threshold.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The value is normalized to [0, 1]: 0 means the last server confirmation matched
+    /// the prediction (no correction was applied), and 1 means every compared component
+    /// was corrected. A component that was confirmed by the server but had no saved
+    /// prediction counts as corrected.
+    /// </para>
+    /// <para>
+    /// Divergence per component is determined with the same comparison used for
+    /// misprediction detection: the serializer's epsilon-based dirty mask when the
+    /// component supports delta encoding, exact equality otherwise. The magnitude
+    /// therefore measures how broadly the prediction diverged across components, not
+    /// a spatial distance. Smoothing consumers can use it as a normalized weight.
+    /// </para>
+    /// </remarks>
     public float LastCorrectionMagnitude { get; set; }
 
     /// <summary>
