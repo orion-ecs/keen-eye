@@ -16,7 +16,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
+        var (_, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
         // Click header to expand
         SimulateClick(world, headers[0]);
@@ -33,7 +33,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
+        var (_, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
         // Expand first
         SimulateClick(world, headers[0]);
@@ -54,7 +54,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
+        var (_, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
         // Click header to expand
         SimulateClick(world, headers[0]);
@@ -72,7 +72,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
+        var (_, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
         // Expand first
         SimulateClick(world, headers[0]);
@@ -94,7 +94,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
+        var (_, _, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
         // Find arrow element
         Entity arrow = Entity.Null;
@@ -122,7 +122,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
+        var (_, _, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
         // Find arrow element
         Entity arrow = Entity.Null;
@@ -156,7 +156,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: false);
+        var (_, sections, headers) = CreateAccordion(world, 3, allowMultiple: false);
 
         // Expand first section
         SimulateClick(world, headers[0]);
@@ -180,7 +180,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
+        var (_, sections, headers) = CreateAccordion(world, 3, allowMultiple: true);
 
         // Expand first section
         SimulateClick(world, headers[0]);
@@ -449,7 +449,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 3, allowMultiple: false);
+        var (_, sections, headers) = CreateAccordion(world, 3, allowMultiple: false);
 
         // Expand first section
         SimulateClick(world, headers[0]);
@@ -620,7 +620,7 @@ public class UIAccordionSystemTests
         var system = new UIAccordionSystem();
         world.AddSystem(system);
 
-        var (accordion, sections, headers) = CreateAccordion(world, 1, allowMultiple: true);
+        var (_, sections, _) = CreateAccordion(world, 1, allowMultiple: true);
 
         // Don't simulate click
         system.Update(0);
@@ -658,7 +658,7 @@ public class UIAccordionSystemTests
             // Create header
             headers[i] = world.Spawn()
                 .With(UIElement.Default)
-                .With(UIRect.Fixed(0, i * 40, 300, 40))
+                .With(UIRect.Fixed(0, i * 40f, 300, 40))
                 .With(new UIAccordionHeaderTag())
                 .With(UIInteractable.Clickable())
                 .Build();

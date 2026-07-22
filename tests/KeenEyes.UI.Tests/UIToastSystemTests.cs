@@ -106,15 +106,13 @@ public class UIToastSystemTests
             .Build();
 
         UIToastDismissedEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
 
         toastSystem.DismissToast(toast, wasManual: true);
 
         Assert.NotNull(receivedEvent);
         Assert.Equal(toast, receivedEvent.Value.Toast);
         Assert.True(receivedEvent.Value.WasManual);
-
-        subscription.Dispose();
     }
 
     #endregion
@@ -163,7 +161,7 @@ public class UIToastSystemTests
             .Build();
 
         UIToastDismissedEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
 
         // Advance time past duration
         toastSystem.Update(1.5f);
@@ -172,8 +170,6 @@ public class UIToastSystemTests
         Assert.Equal(toast, receivedEvent.Value.Toast);
         Assert.False(receivedEvent.Value.WasManual);
         Assert.False(world.IsAlive(toast));
-
-        subscription.Dispose();
     }
 
     [Fact]
@@ -251,14 +247,12 @@ public class UIToastSystemTests
             .Build();
 
         UIToastDismissedEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
 
         world.Send(new UIClickEvent(toast, new Vector2(50, 50), MouseButton.Left));
 
         Assert.NotNull(receivedEvent);
         Assert.True(receivedEvent.Value.WasManual);
-
-        subscription.Dispose();
     }
 
     [Fact]
@@ -279,14 +273,12 @@ public class UIToastSystemTests
             .Build();
 
         UIToastDismissedEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
 
         world.Send(new UIClickEvent(toast, new Vector2(50, 50), MouseButton.Left));
 
         Assert.Null(receivedEvent);
         Assert.True(world.IsAlive(toast));
-
-        subscription.Dispose();
     }
 
     [Fact]
@@ -312,14 +304,12 @@ public class UIToastSystemTests
             .Build();
 
         UIToastDismissedEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
 
         world.Send(new UIClickEvent(closeButton, new Vector2(10, 10), MouseButton.Left));
 
         Assert.NotNull(receivedEvent);
         Assert.True(receivedEvent.Value.WasManual);
-
-        subscription.Dispose();
     }
 
     #endregion
@@ -417,14 +407,12 @@ public class UIToastSystemTests
             .Build();
 
         UIToastShownEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastShownEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastShownEvent>(e => receivedEvent = e);
 
         toastSystem.ShowToast(toast);
 
         Assert.NotNull(receivedEvent);
         Assert.Equal(toast, receivedEvent.Value.Toast);
-
-        subscription.Dispose();
     }
 
     #endregion
@@ -617,15 +605,13 @@ public class UIToastSystemTests
             .Build();
 
         UIToastDismissedEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
 
         world.Send(new UIClickEvent(toast, new Vector2(50, 50), MouseButton.Left));
 
         // Should be null because toast is already closing
         Assert.Null(receivedEvent);
         Assert.True(world.IsAlive(toast));
-
-        subscription.Dispose();
     }
 
     [Fact]
@@ -682,15 +668,13 @@ public class UIToastSystemTests
         toastSystem.Dispose();
 
         UIToastDismissedEvent? receivedEvent = null;
-        var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
+        using var subscription = world.Subscribe<UIToastDismissedEvent>(e => receivedEvent = e);
 
         // Click should not dismiss toast anymore (subscription disposed)
         world.Send(new UIClickEvent(toast, new Vector2(50, 50), MouseButton.Left));
 
         Assert.Null(receivedEvent);
         Assert.True(world.IsAlive(toast));
-
-        subscription.Dispose();
     }
 
     #endregion

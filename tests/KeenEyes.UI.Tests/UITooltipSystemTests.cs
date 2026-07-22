@@ -43,7 +43,7 @@ public class UITooltipSystemTests
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
 
-        var canvas = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Stretch())
             .With(new UIRootTag())
@@ -98,7 +98,7 @@ public class UITooltipSystemTests
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
 
-        var canvas = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Stretch())
             .With(new UIRootTag())
@@ -135,7 +135,7 @@ public class UITooltipSystemTests
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
 
-        var canvas = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Stretch())
             .With(new UIRootTag())
@@ -174,7 +174,7 @@ public class UITooltipSystemTests
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
 
-        var canvas = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Stretch())
             .With(new UIRootTag())
@@ -633,7 +633,7 @@ public class UITooltipSystemTests
         tooltipSystem.Dispose();
 
         // System should be inactive after dispose
-        var canvas = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Stretch())
             .With(new UIRootTag())
@@ -659,7 +659,7 @@ public class UITooltipSystemTests
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
 
-        var canvas = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Stretch())
             .With(new UIRootTag())
@@ -698,7 +698,7 @@ public class UITooltipSystemTests
         var tooltipSystem = new UITooltipSystem();
         world.AddSystem(tooltipSystem);
 
-        var canvas = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIRect.Stretch())
             .With(new UIRootTag())

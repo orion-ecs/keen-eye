@@ -412,7 +412,7 @@ public class WidgetFactoryInputAdvancedTests
         var parent = CreateRootEntity(world);
         var config = new DatePickerConfig(Mode: DatePickerMode.Date);
 
-        var picker = WidgetFactory.CreateDatePicker(world, parent, testFont, "DatePicker", config);
+        _ = WidgetFactory.CreateDatePicker(world, parent, testFont, "DatePicker", config);
 
         // Should have prev and next buttons in the header
         // Find by searching for entities with name pattern
@@ -441,7 +441,7 @@ public class WidgetFactoryInputAdvancedTests
         var parent = CreateRootEntity(world);
         var config = new DatePickerConfig(Mode: DatePickerMode.Date);
 
-        var picker = WidgetFactory.CreateDatePicker(world, parent, testFont, "DatePicker", config);
+        _ = WidgetFactory.CreateDatePicker(world, parent, testFont, "DatePicker", config);
 
         // Find prev button and verify it's clickable
         Entity prevButton = Entity.Null;

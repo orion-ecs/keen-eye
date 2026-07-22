@@ -788,7 +788,7 @@ public class UIMenuSystemTests
         ref var parentMenuState = ref world.Get<UIMenu>(parentMenu);
         parentMenuState.OpenSubmenu = submenu1;
 
-        var menuItem1 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIMenuItem { Menu = parentMenu, IsEnabled = true, Submenu = submenu1 })
             .Build();
@@ -909,7 +909,7 @@ public class UIMenuSystemTests
         world.AddSystem(menuSystem);
 
         // Menu without UIElement
-        var menu = world.Spawn()
+        _ = world.Spawn()
             .With(new UIMenu { IsOpen = true })
             .Build();
 
@@ -931,7 +931,7 @@ public class UIMenuSystemTests
         var menuSystem = new UIMenuSystem();
         world.AddSystem(menuSystem);
 
-        var menu = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = true })
             .With(new UIMenu { IsOpen = true })
             .With(new UIHiddenTag())

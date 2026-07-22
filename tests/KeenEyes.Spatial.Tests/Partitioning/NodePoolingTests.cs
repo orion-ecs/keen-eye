@@ -30,7 +30,7 @@ public class NodePoolingTests
         for (int i = 0; i < 20; i++)
         {
             var entity = new Entity(i + 1, 0);
-            partitioner.Update(entity, new Vector3(i * 10, 0, i * 10));
+            partitioner.Update(entity, new Vector3(i * 10f, 0, i * 10f));
             entities.Add(entity);
         }
 
@@ -67,7 +67,7 @@ public class NodePoolingTests
         for (int i = 0; i < 20; i++)
         {
             var entity = new Entity(i + 1, 0);
-            partitioner.Update(entity, new Vector3(i * 10, 0, i * 10));
+            partitioner.Update(entity, new Vector3(i * 10f, 0, i * 10f));
             entities.Add(entity);
         }
 
@@ -102,7 +102,7 @@ public class NodePoolingTests
         // Add entities to trigger subdivision
         for (int i = 0; i < 20; i++)
         {
-            partitioner.Update(new Entity(i + 1, 0), new Vector3(i * 10, 0, i * 10));
+            partitioner.Update(new Entity(i + 1, 0), new Vector3(i * 10f, 0, i * 10f));
         }
 
         Assert.Equal(20, partitioner.EntityCount);
@@ -115,7 +115,7 @@ public class NodePoolingTests
         // Add new entities - should reuse pooled nodes
         for (int i = 0; i < 20; i++)
         {
-            partitioner.Update(new Entity(i + 100, 0), new Vector3(i * 10, 0, i * 10));
+            partitioner.Update(new Entity(i + 100, 0), new Vector3(i * 10f, 0, i * 10f));
         }
 
         Assert.Equal(20, partitioner.EntityCount);
@@ -139,12 +139,10 @@ public class NodePoolingTests
         for (int cycle = 0; cycle < 5; cycle++)
         {
             // Add entities to trigger subdivision
-            var entities = new List<Entity>();
             for (int i = 0; i < 20; i++)
             {
                 var entity = new Entity(cycle * 100 + i + 1, 0);
-                partitioner.Update(entity, new Vector3(i * 10, 0, i * 10));
-                entities.Add(entity);
+                partitioner.Update(entity, new Vector3(i * 10f, 0, i * 10f));
             }
 
             Assert.Equal(20, partitioner.EntityCount);
@@ -181,7 +179,7 @@ public class NodePoolingTests
         {
             var entity = new Entity(i + 1, 0);
             // Cluster entities in a small area to force deep tree
-            partitioner.Update(entity, new Vector3(i * 2, 0, i * 2));
+            partitioner.Update(entity, new Vector3(i * 2f, 0, i * 2f));
             entities.Add(entity);
         }
 
@@ -222,7 +220,7 @@ public class NodePoolingTests
         for (int i = 0; i < 20; i++)
         {
             var entity = new Entity(i + 1, 0);
-            partitioner.Update(entity, new Vector3(i * 10, i * 10, i * 10));
+            partitioner.Update(entity, new Vector3(i * 10f, i * 10f, i * 10f));
             entities.Add(entity);
         }
 
@@ -259,7 +257,7 @@ public class NodePoolingTests
         for (int i = 0; i < 20; i++)
         {
             var entity = new Entity(i + 1, 0);
-            partitioner.Update(entity, new Vector3(i * 10, i * 10, i * 10));
+            partitioner.Update(entity, new Vector3(i * 10f, i * 10f, i * 10f));
             entities.Add(entity);
         }
 
@@ -294,7 +292,7 @@ public class NodePoolingTests
         // Add entities to trigger subdivision
         for (int i = 0; i < 20; i++)
         {
-            partitioner.Update(new Entity(i + 1, 0), new Vector3(i * 10, i * 10, i * 10));
+            partitioner.Update(new Entity(i + 1, 0), new Vector3(i * 10f, i * 10f, i * 10f));
         }
 
         Assert.Equal(20, partitioner.EntityCount);
@@ -307,7 +305,7 @@ public class NodePoolingTests
         // Add new entities - should reuse pooled nodes
         for (int i = 0; i < 20; i++)
         {
-            partitioner.Update(new Entity(i + 100, 0), new Vector3(i * 10, i * 10, i * 10));
+            partitioner.Update(new Entity(i + 100, 0), new Vector3(i * 10f, i * 10f, i * 10f));
         }
 
         Assert.Equal(20, partitioner.EntityCount);
@@ -331,12 +329,10 @@ public class NodePoolingTests
         for (int cycle = 0; cycle < 5; cycle++)
         {
             // Add entities to trigger subdivision
-            var entities = new List<Entity>();
             for (int i = 0; i < 20; i++)
             {
                 var entity = new Entity(cycle * 100 + i + 1, 0);
-                partitioner.Update(entity, new Vector3(i * 10, i * 10, i * 10));
-                entities.Add(entity);
+                partitioner.Update(entity, new Vector3(i * 10f, i * 10f, i * 10f));
             }
 
             Assert.Equal(20, partitioner.EntityCount);
@@ -373,7 +369,7 @@ public class NodePoolingTests
         {
             var entity = new Entity(i + 1, 0);
             // Cluster entities in a small area to force deep tree
-            partitioner.Update(entity, new Vector3(i * 2, i * 2, i * 2));
+            partitioner.Update(entity, new Vector3(i * 2f, i * 2f, i * 2f));
             entities.Add(entity);
         }
 

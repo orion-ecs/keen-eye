@@ -110,7 +110,7 @@ public class GridPartitionerAdditionalTests
         for (int i = 0; i < 20; i++)
         {
             var entity = new Entity(i, 0);
-            partitioner.Update(entity, new Vector3(i * 5, i * 5, i * 5));
+            partitioner.Update(entity, new Vector3(i * 5f, i * 5f, i * 5f));
         }
 
         // Act - Small result buffer to trigger overflow

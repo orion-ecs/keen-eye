@@ -1426,8 +1426,8 @@ public class UIDataGridSystemTests
             new DataGridColumnDef("ID"),
             new DataGridColumnDef("Name"));
         var grid = WidgetFactory.CreateDataGrid(world, config);
-        var row1 = WidgetFactory.AddDataGridRow(world, grid, ["1", "Alice"]);
-        var row2 = WidgetFactory.AddDataGridRow(world, grid, ["2", "Bob"]);
+        _ = WidgetFactory.AddDataGridRow(world, grid, ["1", "Alice"]);
+        _ = WidgetFactory.AddDataGridRow(world, grid, ["2", "Bob"]);
 
         // Select first row
         system.SelectRowByIndex(grid, 0);
@@ -1709,13 +1709,11 @@ public class UIDataGridSystemTests
         var grid = WidgetFactory.CreateDataGrid(world, "ID", "Name");
 
         // Find and despawn the sort indicator
-        Entity columnEntity = Entity.Null;
         foreach (var col in world.Query<UIDataGridColumn>())
         {
             ref readonly var column = ref world.Get<UIDataGridColumn>(col);
             if (column.DataGrid == grid && column.ColumnIndex == 0)
             {
-                columnEntity = col;
                 if (world.IsAlive(column.SortIndicator))
                 {
                     world.Despawn(column.SortIndicator);

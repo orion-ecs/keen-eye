@@ -275,7 +275,7 @@ public class UISliderSystemTests
     public void Slider_ClickOnNonSlider_DoesNothing()
     {
         using var world = new World();
-        var layout = SetupLayout(world);
+        _ = SetupLayout(world);
         var system = new UISliderSystem();
         world.AddSystem(system);
 
@@ -294,7 +294,7 @@ public class UISliderSystemTests
     public void Slider_DragOnNonSlider_DoesNothing()
     {
         using var world = new World();
-        var layout = SetupLayout(world);
+        _ = SetupLayout(world);
         var system = new UISliderSystem();
         world.AddSystem(system);
 

@@ -309,7 +309,7 @@ public class UIPropertyGridSystemTests
         var propertyGridSystem = new UIPropertyGridSystem();
         world.AddSystem(propertyGridSystem);
 
-        var nonCategoryElement = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(UIInteractable.Clickable())
             .Build();

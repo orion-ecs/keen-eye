@@ -296,7 +296,7 @@ public class UIHitTesterTests
         var hitTester = new UIHitTester(world);
 
         // Create an invisible root canvas
-        var invisibleRoot = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = false, RaycastTarget = true })
             .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 1280, 720) })
             .With(new UIRootTag())
@@ -314,7 +314,7 @@ public class UIHitTesterTests
         var hitTester = new UIHitTester(world);
 
         // Create a hidden root canvas
-        var hiddenRoot = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 1280, 720) })
             .With(new UIRootTag())
@@ -333,7 +333,7 @@ public class UIHitTesterTests
         var hitTester = new UIHitTester(world);
 
         // Create an invisible root canvas
-        var invisibleRoot = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = false, RaycastTarget = true })
             .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 1280, 720) })
             .With(new UIRootTag())
@@ -351,7 +351,7 @@ public class UIHitTesterTests
         var hitTester = new UIHitTester(world);
 
         // Create a hidden root canvas
-        var hiddenRoot = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 1280, 720) })
             .With(new UIRootTag())
@@ -530,7 +530,7 @@ public class UIHitTesterTests
         var hitTester = new UIHitTester(world);
 
         // First root
-        var root1 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIRect { ComputedBounds = new Rectangle(0, 0, 500, 500), LocalZIndex = 0 })
             .With(new UIRootTag())
@@ -587,7 +587,7 @@ public class UIHitTesterTests
         using var world = new World();
         var hitTester = new UIHitTester(world);
 
-        var root = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIRect { ComputedBounds = new Rectangle(100, 100, 200, 200) })
             .With(new UIRootTag())
