@@ -17,7 +17,7 @@ public class UITabSystemTests
         var system = new UITabSystem();
         world.AddSystem(system);
 
-        var (tabView, tabButtons, panels) = CreateTabView(world, 3);
+        var (tabView, tabButtons, _) = CreateTabView(world, 3);
 
         // Click second tab
         SimulateClick(world, tabButtons[1]);
@@ -34,7 +34,7 @@ public class UITabSystemTests
         var system = new UITabSystem();
         world.AddSystem(system);
 
-        var (tabView, tabButtons, panels) = CreateTabView(world, 3);
+        var (_, tabButtons, panels) = CreateTabView(world, 3);
 
         // Click third tab
         SimulateClick(world, tabButtons[2]);
@@ -53,7 +53,7 @@ public class UITabSystemTests
         var system = new UITabSystem();
         world.AddSystem(system);
 
-        var (tabView, tabButtons, panels) = CreateTabView(world, 3, initialTab: 0);
+        var (_, tabButtons, panels) = CreateTabView(world, 3, initialTab: 0);
 
         // First panel should be visible initially
         Assert.True(world.Get<UIElement>(panels[0]).Visible);
@@ -74,7 +74,7 @@ public class UITabSystemTests
         var system = new UITabSystem();
         world.AddSystem(system);
 
-        var (tabView, tabButtons, panels) = CreateTabView(world, 2, initialTab: 0);
+        var (_, tabButtons, panels) = CreateTabView(world, 2, initialTab: 0);
 
         // Second panel should have hidden tag initially
         Assert.True(world.Has<UIHiddenTag>(panels[1]));
@@ -116,7 +116,7 @@ public class UITabSystemTests
         var system = new UITabSystem();
         world.AddSystem(system);
 
-        var (tabView, tabButtons, panels) = CreateTabView(world, 2);
+        var (_, tabButtons, _) = CreateTabView(world, 2);
 
         // Click second tab
         SimulateClick(world, tabButtons[1]);
@@ -142,7 +142,7 @@ public class UITabSystemTests
         var system = new UITabSystem();
         world.AddSystem(system);
 
-        var (tabView, tabButtons, panels) = CreateTabView(world, 2, initialTab: 0);
+        var (_, tabButtons, _) = CreateTabView(world, 2, initialTab: 0);
 
         // Click second tab
         SimulateClick(world, tabButtons[1]);
@@ -172,7 +172,7 @@ public class UITabSystemTests
         var system = new UITabSystem();
         world.AddSystem(system);
 
-        var (tabView, tabButtons, panels) = CreateTabView(world, 2);
+        var (tabView, tabButtons, _) = CreateTabView(world, 2);
 
         // Delete tab view
         world.Despawn(tabView);
@@ -222,7 +222,7 @@ public class UITabSystemTests
         {
             tabButtons[i] = world.Spawn()
                 .With(UIElement.Default)
-                .With(UIRect.Fixed(i * 100, 0, 100, 30))
+                .With(UIRect.Fixed(i * 100f, 0, 100, 30))
                 .With(new UITabButton(i, tabView))
                 .With(UIInteractable.Clickable())
                 .With(new UIStyle())

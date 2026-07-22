@@ -196,7 +196,7 @@ public class UIScrollbarSystemTests
         world.AddSystem(system);
 
         var layout = SetupLayout(world);
-        var (scrollView, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
+        var (_, thumb) = CreateVerticalScrollView(world, 200, 400, 800);
         layout.Update(0);
 
         // Delete thumb entity
@@ -215,7 +215,7 @@ public class UIScrollbarSystemTests
         var system = new UIScrollbarSystem();
         world.AddSystem(system);
 
-        var layout = SetupLayout(world);
+        _ = SetupLayout(world);
 
         // Create an element without UIScrollbarThumb component
         var element = world.Spawn()

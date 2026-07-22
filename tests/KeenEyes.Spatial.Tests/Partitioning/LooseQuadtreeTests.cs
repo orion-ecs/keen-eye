@@ -89,7 +89,7 @@ public class LooseQuadtreeTests : IDisposable
         // Perform multiple small updates
         for (int i = 1; i <= 10; i++)
         {
-            loosePartitioner.Update(entity1, new Vector3(i * 2, 0, i * 2));
+            loosePartitioner.Update(entity1, new Vector3(i * 2f, 0, i * 2f));
         }
 
         // Entity should still be queryable
@@ -151,7 +151,7 @@ public class LooseQuadtreeTests : IDisposable
         // Update entity1 multiple times
         for (int i = 0; i < 5; i++)
         {
-            loosePartitioner.Update(entity1, new Vector3(i * 10, 0, i * 10));
+            loosePartitioner.Update(entity1, new Vector3(i * 10f, 0, i * 10f));
         }
 
         // Final position should be (40, 0, 40)
@@ -170,7 +170,7 @@ public class LooseQuadtreeTests : IDisposable
         for (int i = 0; i < 20; i++)
         {
             var entity = new Entity(100 + i, 0);
-            loosePartitioner.Update(entity, new Vector3(i * 10, 0, i * 10));
+            loosePartitioner.Update(entity, new Vector3(i * 10f, 0, i * 10f));
         }
 
         Assert.Equal(20, loosePartitioner.EntityCount);
@@ -208,9 +208,8 @@ public class LooseQuadtreeTests : IDisposable
             LoosenessFactor = 2.5f
         };
 
-        var p = new QuadtreePartitioner(config);
+        using var p = new QuadtreePartitioner(config);
         Assert.NotNull(p);
-        p.Dispose();
     }
 
     #endregion

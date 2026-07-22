@@ -293,7 +293,7 @@ public class UIRadialMenuSystemTests
             .With(new UIRadialMenu { IsOpen = true, SelectedIndex = 0, SliceCount = 4 })
             .Build();
 
-        var slice = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIRadialSlice(radialMenu, 0) { IsEnabled = false })
             .Build();
@@ -330,7 +330,7 @@ public class UIRadialMenuSystemTests
             })
             .Build();
 
-        var slice = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIRadialSlice(radialMenu, 0)
             {

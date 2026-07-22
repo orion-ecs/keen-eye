@@ -574,7 +574,7 @@ public class WidgetFactoryDisplayTests
         var parent = CreateRootEntity(world);
         var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
 
-        var (tabView, contentPanels) = WidgetFactory.CreateTabView(world, parent, "MyTabs", tabs, testFont);
+        var (tabView, _) = WidgetFactory.CreateTabView(world, parent, "MyTabs", tabs, testFont);
 
         // Find tab bar by name
         var children = world.GetChildren(tabView).ToList();
@@ -593,7 +593,7 @@ public class WidgetFactoryDisplayTests
         var parent = CreateRootEntity(world);
         var tabs = new[] { new TabConfig("Tab1"), new TabConfig("Tab2") };
 
-        var (tabView, contentPanels) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
+        var (_, contentPanels) = WidgetFactory.CreateTabView(world, parent, tabs, testFont);
 
         // First panel should be visible, second should be hidden
         ref readonly var panel0Element = ref world.Get<UIElement>(contentPanels[0]);
@@ -989,7 +989,7 @@ public class WidgetFactoryDisplayTests
         var parent = CreateRootEntity(world);
         var config = new ScrollViewConfig(ShowVerticalScrollbar: true);
 
-        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+        _ = WidgetFactory.CreateScrollView(world, parent, config);
 
         // Find thumb
         var thumbs = world.Query<UIScrollbarThumb>().ToList();
@@ -1008,7 +1008,7 @@ public class WidgetFactoryDisplayTests
         var parent = CreateRootEntity(world);
         var config = new ScrollViewConfig(ShowVerticalScrollbar: true, ShowHorizontalScrollbar: true);
 
-        var (scrollView, _) = WidgetFactory.CreateScrollView(world, parent, config);
+        _ = WidgetFactory.CreateScrollView(world, parent, config);
 
         // Find thumbs
         var thumbs = world.Query<UIScrollbarThumb>().ToList();

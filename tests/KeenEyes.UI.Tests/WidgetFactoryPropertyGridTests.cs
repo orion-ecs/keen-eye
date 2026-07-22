@@ -410,7 +410,7 @@ public class WidgetFactoryPropertyGridTests
             })
         };
 
-        var grid = WidgetFactory.CreatePropertyGridWithCategories(world, parent, testFont, categories);
+        _ = WidgetFactory.CreatePropertyGridWithCategories(world, parent, testFont, categories);
 
         // Find categories and verify expanded state
         var categoryCount = 0;
@@ -465,7 +465,7 @@ public class WidgetFactoryPropertyGridTests
             new PropertyDef("id", "ID", PropertyType.String, IsReadOnly: true)
         };
 
-        var grid = WidgetFactory.CreatePropertyGridFlat(world, parent, testFont, properties);
+        _ = WidgetFactory.CreatePropertyGridFlat(world, parent, testFont, properties);
 
         foreach (var entity in world.Query<UIPropertyRow>())
         {

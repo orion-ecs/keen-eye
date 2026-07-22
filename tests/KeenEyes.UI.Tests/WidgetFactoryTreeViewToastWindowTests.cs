@@ -660,7 +660,7 @@ public class WidgetFactoryTreeViewToastWindowTests
         using var world = new World();
         var parent = CreateRootEntity(world);
 
-        var (window, contentPanel) = WidgetFactory.CreateWindow(world, parent, "Test Window", testFont);
+        var (window, _) = WidgetFactory.CreateWindow(world, parent, "Test Window", testFont);
 
         Assert.True(world.Has<UIElement>(window));
         Assert.True(world.Has<UIRect>(window));
@@ -675,7 +675,7 @@ public class WidgetFactoryTreeViewToastWindowTests
         using var world = new World();
         var parent = CreateRootEntity(world);
 
-        var (window, contentPanel) = WidgetFactory.CreateWindow(world, parent, "Test Window", testFont);
+        var (_, contentPanel) = WidgetFactory.CreateWindow(world, parent, "Test Window", testFont);
 
         Assert.True(contentPanel.IsValid);
         Assert.True(world.IsAlive(contentPanel));
@@ -816,7 +816,7 @@ public class WidgetFactoryTreeViewToastWindowTests
         using var world = new World();
         var parent = CreateRootEntity(world);
 
-        var (container, firstPane, secondPane) = WidgetFactory.CreateSplitter(world, parent);
+        var (container, _, _) = WidgetFactory.CreateSplitter(world, parent);
 
         Assert.True(world.Has<UIElement>(container));
         Assert.True(world.Has<UIRect>(container));
@@ -829,7 +829,7 @@ public class WidgetFactoryTreeViewToastWindowTests
         using var world = new World();
         var parent = CreateRootEntity(world);
 
-        var (container, firstPane, secondPane) = WidgetFactory.CreateSplitter(world, parent);
+        var (_, firstPane, secondPane) = WidgetFactory.CreateSplitter(world, parent);
 
         Assert.True(firstPane.IsValid);
         Assert.True(secondPane.IsValid);

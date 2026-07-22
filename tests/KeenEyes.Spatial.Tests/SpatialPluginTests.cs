@@ -587,9 +587,9 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_RegistersSpatialQueryApiExtension()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new SpatialPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -601,9 +601,9 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_RegistersSpatialUpdateSystem()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new SpatialPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -614,9 +614,9 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_RegistersSpatialIndexedComponent()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new SpatialPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -626,9 +626,9 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_SpatialUpdateSystem_HasNegativeOrder()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new SpatialPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -641,10 +641,10 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_WithGridStrategy_CreatesSpatialQueryApi()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var config = new SpatialConfig { Strategy = SpatialStrategy.Grid };
         var plugin = new SpatialPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -655,10 +655,10 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_WithQuadtreeStrategy_CreatesSpatialQueryApi()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var config = new SpatialConfig { Strategy = SpatialStrategy.Quadtree };
         var plugin = new SpatialPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -669,10 +669,10 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_WithOctreeStrategy_CreatesSpatialQueryApi()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var config = new SpatialConfig { Strategy = SpatialStrategy.Octree };
         var plugin = new SpatialPlugin(config);
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -683,9 +683,9 @@ public class SpatialPluginTests : IDisposable
     [Fact]
     public void Install_RegistersExactlyOneSystem()
     {
-        using var world = new World();
+        using var pluginWorld = new World();
         var plugin = new SpatialPlugin();
-        var context = new MockPluginContext(plugin, world);
+        var context = new MockPluginContext(plugin, pluginWorld);
 
         plugin.Install(context);
 
@@ -699,10 +699,10 @@ public class SpatialPluginTests : IDisposable
 
         foreach (var strategy in strategies)
         {
-            using var world = new World();
+            using var pluginWorld = new World();
             var config = new SpatialConfig { Strategy = strategy };
             var plugin = new SpatialPlugin(config);
-            var context = new MockPluginContext(plugin, world);
+            var context = new MockPluginContext(plugin, pluginWorld);
 
             plugin.Install(context);
 

@@ -473,19 +473,19 @@ public class OctreePartitionerTests : IDisposable
             MaxDepth = 1,  // Shallow tree to keep entities in one node
             MaxEntitiesPerNode = 100  // Allow many entities per node
         };
-        using var partitioner = new OctreePartitioner(config);
+        using var simdPartitioner = new OctreePartitioner(config);
 
         var entities = new List<Entity>();
         for (int i = 0; i < 50; i++)
         {
             var entity = new Entity(i + 1, 0);
-            var pos = new Vector3(i * 2, 0, 0);  // Spread entities along X axis
-            partitioner.Update(entity, pos);
+            var pos = new Vector3(i * 2f, 0, 0);  // Spread entities along X axis
+            simdPartitioner.Update(entity, pos);
             entities.Add(entity);
         }
 
         // Query a bounds that includes all entities
-        var results = partitioner.QueryBounds(new Vector3(-10, -10, -10), new Vector3(200, 10, 10)).ToList();
+        var results = simdPartitioner.QueryBounds(new Vector3(-10, -10, -10), new Vector3(200, 10, 10)).ToList();
 
         // Should find all 50 entities
         Assert.Equal(50, results.Count);
@@ -506,19 +506,19 @@ public class OctreePartitionerTests : IDisposable
             MaxDepth = 1,  // Shallow tree to keep entities in one node
             MaxEntitiesPerNode = 200  // Allow many entities per node
         };
-        using var partitioner = new OctreePartitioner(config);
+        using var simdPartitioner = new OctreePartitioner(config);
 
         var entities = new List<Entity>();
         for (int i = 0; i < 150; i++)
         {
             var entity = new Entity(i + 1, 0);
-            var pos = new Vector3(i * 2, 0, 0);  // Spread entities along X axis
-            partitioner.Update(entity, pos);
+            var pos = new Vector3(i * 2f, 0, 0);  // Spread entities along X axis
+            simdPartitioner.Update(entity, pos);
             entities.Add(entity);
         }
 
         // Query a bounds that includes all entities
-        var results = partitioner.QueryBounds(new Vector3(-10, -10, -10), new Vector3(400, 10, 10)).ToList();
+        var results = simdPartitioner.QueryBounds(new Vector3(-10, -10, -10), new Vector3(400, 10, 10)).ToList();
 
         // Should find all 150 entities
         Assert.Equal(150, results.Count);

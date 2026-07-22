@@ -268,7 +268,7 @@ public class SpatialQueryApiEnhancedTests : IDisposable
         tempWorld.InstallPlugin(new SpatialPlugin());
         var tempSpatial = tempWorld.GetExtension<SpatialQueryApi>();
 
-        var entity = tempWorld.Spawn()
+        _ = tempWorld.Spawn()
             .With(new Transform3D(Vector3.Zero, Quaternion.Identity, Vector3.One))
             .WithTag<SpatialIndexed>()
             .Build();

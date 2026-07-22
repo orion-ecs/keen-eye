@@ -103,7 +103,7 @@ public class UIFocusSystemTests
 
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
-        var button2 = CreateButton(world, canvas, 1);
+        _ = CreateButton(world, canvas, 1);
 
         // Press Tab with no focus
         input.PressKey(Key.Tab);
@@ -196,7 +196,7 @@ public class UIFocusSystemTests
         world.AddSystem(system);
 
         // No focusable elements
-        var canvas = uiContext.CreateCanvas();
+        _ = uiContext.CreateCanvas();
 
         // Press Tab
         input.PressKey(Key.Tab);
@@ -500,7 +500,7 @@ public class UIFocusSystemTests
         world.AddSystem(system);
 
         var canvas = uiContext.CreateCanvas();
-        var button1 = CreateButton(world, canvas, 0);
+        _ = CreateButton(world, canvas, 0);
         var button2 = CreateButton(world, canvas, 1);
 
         // Press Shift+Tab with no focus (should focus last element)
@@ -550,7 +550,7 @@ public class UIFocusSystemTests
         var canvas = uiContext.CreateCanvas();
         var button1 = CreateButton(world, canvas, 0);
         var button2 = CreateButton(world, canvas, 1);
-        var button3 = CreateButton(world, canvas, 2);
+        _ = CreateButton(world, canvas, 2);
 
         // Press Tab
         input.PressKey(Key.Tab);

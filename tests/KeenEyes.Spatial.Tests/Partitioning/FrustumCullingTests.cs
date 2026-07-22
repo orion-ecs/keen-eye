@@ -265,7 +265,7 @@ public class FrustumCullingTests
         for (int i = 0; i < 10; i++)
         {
             var entity = new Entity(i + 1, 0);
-            partitioner.Update(entity, new Vector3(50, 0, i * 5));
+            partitioner.Update(entity, new Vector3(50, 0, i * 5f));
         }
 
         // Create a frustum pointing to the LEFT side (won't overlap entities on right)

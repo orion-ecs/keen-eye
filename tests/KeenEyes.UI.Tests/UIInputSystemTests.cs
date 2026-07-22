@@ -198,7 +198,7 @@ public class UIInputSystemTests
         var system = new UIInputSystem();
         world.AddSystem(system);
 
-        var button = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
+        _ = CreateButton(world, uiContext.CreateCanvas(), 100, 100, 200, 100);
         layoutSystem.Update(0); // Compute bounds after creating elements
 
         UIClickEvent? receivedEvent = null;

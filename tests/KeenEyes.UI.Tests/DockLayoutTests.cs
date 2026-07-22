@@ -43,10 +43,9 @@ public sealed class DockLayoutTests
         world.InstallPlugin(new UIPlugin());
 
         var container = CreateDockContainer(world);
-        ref readonly var dockContainer = ref world.Get<UIDockContainer>(container);
 
         // Create a panel docked to the left zone
-        var panel = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = true })
             .With(new UIRect())
             .With(new UIDockPanel
@@ -63,8 +62,7 @@ public sealed class DockLayoutTests
         var layout = DockLayout.CaptureLayout(world, container);
 
         Assert.NotNull(layout);
-        Assert.True(layout.Zones.ContainsKey(DockZone.Left));
-        var leftZone = layout.Zones[DockZone.Left];
+        Assert.True(layout.Zones.TryGetValue(DockZone.Left, out var leftZone));
         Assert.Single(leftZone.Panels);
         Assert.Equal("TestPanel", leftZone.Panels[0].PanelId);
     }
@@ -78,7 +76,7 @@ public sealed class DockLayoutTests
         var container = CreateDockContainer(world);
 
         // Create a floating panel
-        var panel = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = true })
             .With(new UIRect())
             .With(new UIDockPanel
@@ -112,7 +110,7 @@ public sealed class DockLayoutTests
 
         var container = CreateDockContainer(world);
 
-        var panel = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = true })
             .With(new UIRect())
             .With(new UIDockPanel
@@ -127,8 +125,7 @@ public sealed class DockLayoutTests
         var layout = DockLayout.CaptureLayout(world, container, entity => $"custom_{entity.Id}");
 
         Assert.NotNull(layout);
-        Assert.True(layout.Zones.ContainsKey(DockZone.Left));
-        var leftZone = layout.Zones[DockZone.Left];
+        Assert.True(layout.Zones.TryGetValue(DockZone.Left, out var leftZone));
         Assert.Single(leftZone.Panels);
         Assert.StartsWith("custom_", leftZone.Panels[0].PanelId);
     }
@@ -415,7 +412,7 @@ public sealed class DockLayoutTests
         var container = CreateDockContainer(world);
 
         // Create panels in different states
-        var dockedPanel = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = true })
             .With(new UIRect())
             .With(new UIDockPanel
@@ -429,7 +426,7 @@ public sealed class DockLayoutTests
             })
             .Build();
 
-        var floatingPanel = world.Spawn()
+        _ = world.Spawn()
             .With(new UIElement { Visible = true })
             .With(new UIRect())
             .With(new UIDockPanel
@@ -489,8 +486,8 @@ public sealed class DockLayoutTests
         var layout = DockLayout.CaptureLayout(world, container);
 
         Assert.NotNull(layout);
-        Assert.True(layout.Zones.ContainsKey(DockZone.Center));
-        Assert.Equal(3, layout.Zones[DockZone.Center].Panels.Count);
+        Assert.True(layout.Zones.TryGetValue(DockZone.Center, out var centerZone));
+        Assert.Equal(3, centerZone.Panels.Count);
     }
 
     [Fact]

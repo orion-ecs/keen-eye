@@ -81,7 +81,7 @@ public class SimdHelpersTests
         var positions = new Vector3[20];
         for (int i = 0; i < 20; i++)
         {
-            positions[i] = new Vector3(i * 2, 0, 0);
+            positions[i] = new Vector3(i * 2f, 0, 0);
         }
 
         Span<int> results = stackalloc int[20];

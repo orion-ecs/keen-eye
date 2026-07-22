@@ -1521,7 +1521,7 @@ public class UIDatePickerSystemTests
         world.AddSystem(system);
 
         var initialDate = new DateTime(2024, 6, 15);
-        var picker = CreateDatePickerWithDays(world, initialDate);
+        _ = CreateDatePickerWithDays(world, initialDate);
         layout.Update(0);
 
         UIDateChangedEvent? receivedEvent = null;
@@ -1558,7 +1558,7 @@ public class UIDatePickerSystemTests
         world.AddSystem(system);
 
         var initialDate = new DateTime(2024, 6, 15);
-        var picker = CreateDatePickerWithDays(world, initialDate);
+        _ = CreateDatePickerWithDays(world, initialDate);
         layout.Update(0);
 
         UIDateChangedEvent? receivedEvent = null;
@@ -1690,7 +1690,7 @@ public class UIDatePickerSystemTests
         world.AddSystem(system);
 
         var initialDate = new DateTime(2024, 6, 15);
-        var picker = CreateDatePickerWithStyledDays(world, initialDate);
+        _ = CreateDatePickerWithStyledDays(world, initialDate);
         layout.Update(0);
 
         // Count initially selected days
@@ -1749,7 +1749,7 @@ public class UIDatePickerSystemTests
         world.AddSystem(system);
 
         var initialDate = new DateTime(2024, 6, 15);
-        var picker = CreateDatePickerWithStyledDays(world, initialDate);
+        _ = CreateDatePickerWithStyledDays(world, initialDate);
         layout.Update(0);
 
         // Find the currently selected day
@@ -2154,7 +2154,7 @@ public class UIDatePickerSystemTests
         {
             var dayCell = world.Spawn()
                 .With(UIElement.Default)
-                .With(UIRect.Fixed((day % 7) * 32, (day / 7) * 32, 32, 32))
+                .With(UIRect.Fixed((day % 7) * 32f, (day / 7) * 32f, 32, 32))
                 .With(new UICalendarDay(picker, day, initialValue.Month, initialValue.Year)
                 {
                     IsCurrentMonth = true,
@@ -2298,7 +2298,7 @@ public class UIDatePickerSystemTests
         {
             var dayCell = world.Spawn()
                 .With(UIElement.Default)
-                .With(UIRect.Fixed((day % 7) * 32, (day / 7) * 32, 32, 32))
+                .With(UIRect.Fixed((day % 7) * 32f, (day / 7) * 32f, 32, 32))
                 .With(new UICalendarDay(picker, day, initialValue.Month, initialValue.Year)
                 {
                     IsCurrentMonth = true,

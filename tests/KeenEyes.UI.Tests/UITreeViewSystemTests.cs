@@ -17,7 +17,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
+        var (_, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
         // Click expand arrow
         SimulateClick(world, arrows[0]);
@@ -34,7 +34,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
+        var (_, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
         // Expand first
         SimulateClick(world, arrows[0]);
@@ -55,7 +55,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
+        var (_, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
         // Click to expand
         SimulateClick(world, arrows[0]);
@@ -73,7 +73,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
+        var (_, nodes, arrows) = CreateTreeView(world, hasChildren: true);
 
         // Expand then collapse
         SimulateClick(world, arrows[0]);
@@ -93,7 +93,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
+        var (_, _, arrows) = CreateTreeView(world, hasChildren: true);
 
         // Click to expand
         SimulateClick(world, arrows[0]);
@@ -110,7 +110,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: true);
+        var (_, _, arrows) = CreateTreeView(world, hasChildren: true);
 
         // Expand then collapse
         SimulateClick(world, arrows[0]);
@@ -129,7 +129,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (_, nodes, arrows) = CreateTreeView(world, hasChildren: false);
 
         // Click arrow on node without children
         SimulateClick(world, arrows[0]);
@@ -150,7 +150,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (_, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         // Click node to select
         SimulateClick(world, nodes[0]);
@@ -167,7 +167,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (treeView, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         // Click node to select
         SimulateClick(world, nodes[0]);
@@ -184,7 +184,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (_, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         // Select first node
         SimulateClick(world, nodes[0]);
@@ -208,7 +208,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (_, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         // Click to select
         SimulateClick(world, nodes[0]);
@@ -226,7 +226,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (_, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         // Select first then second (deselects first)
         SimulateClick(world, nodes[0]);
@@ -294,7 +294,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (treeView, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         UITreeNodeSelectedEvent? receivedEvent = null;
         world.Subscribe<UITreeNodeSelectedEvent>(e => receivedEvent = e);
@@ -314,7 +314,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (treeView, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         UITreeNodeDoubleClickedEvent? receivedEvent = null;
         world.Subscribe<UITreeNodeDoubleClickedEvent>(e => receivedEvent = e);
@@ -554,7 +554,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (_, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         // Select first node
         SimulateClick(world, nodes[0]);
@@ -575,7 +575,7 @@ public class UITreeViewSystemTests
         var system = new UITreeViewSystem();
         world.AddSystem(system);
 
-        var (treeView, nodes, arrows) = CreateTreeView(world, hasChildren: false);
+        var (_, nodes, _) = CreateTreeView(world, hasChildren: false);
 
         // Select first node
         SimulateClick(world, nodes[0]);
@@ -751,7 +751,7 @@ public class UITreeViewSystemTests
             // Create node
             nodes[i] = world.Spawn()
                 .With(UIElement.Default)
-                .With(UIRect.Fixed(0, i * 30, 300, 30))
+                .With(UIRect.Fixed(0, i * 30f, 300, 30))
                 .With(new UITreeNode(treeView, Entity.Null, 0, $"Node {i + 1}")
                 {
                     HasChildren = hasChildren,

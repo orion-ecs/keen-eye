@@ -371,12 +371,12 @@ public class UIDockSystemTests
             .With(new UIHiddenTag())
             .Build();
 
-        var tab0 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIDockTab(panel0, tabGroup) { Index = 0 })
             .Build();
 
-        var tab1 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIDockTab(panel1, tabGroup) { Index = 1 })
             .Build();
@@ -2025,12 +2025,12 @@ public class UIDockSystemTests
             .With(new UIHiddenTag())
             .Build();
 
-        var tab0 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIDockTab(panel0, tabGroup) { Index = 0 })
             .Build();
 
-        var tab1 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIDockTab(panel1, tabGroup) { Index = 1 })
             .Build();
@@ -2401,12 +2401,12 @@ public class UIDockSystemTests
             // No UIElement
             .Build();
 
-        var tab0 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIDockTab(panel0, tabGroup) { Index = 0 })
             .Build();
 
-        var tab1 = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIDockTab(panel1, tabGroup) { Index = 1 })
             .Build();
@@ -2434,7 +2434,7 @@ public class UIDockSystemTests
             .With(UIElement.Default)
             .Build();
 
-        var tab = world.Spawn()
+        _ = world.Spawn()
             .With(UIElement.Default)
             .With(new UIDockTab(panel, tabGroup) { Index = 1 })
             .Build();

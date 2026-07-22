@@ -402,14 +402,12 @@ public partial class SpatialQueryApiExtendedTests : IDisposable
 
         var spatial = world.GetExtension<SpatialQueryApi>();
 
-        var entities = new List<Entity>();
         for (int i = 0; i < 10; i++)
         {
-            var entity = world.Spawn()
+            _ = world.Spawn()
                 .With(new Transform3D(new Vector3(i * 100f, 0, 0), Quaternion.Identity, Vector3.One))
                 .WithTag<SpatialIndexed>()
                 .Build();
-            entities.Add(entity);
         }
 
         world.Update(0.016f);
