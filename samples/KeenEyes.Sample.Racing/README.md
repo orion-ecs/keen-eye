@@ -87,7 +87,7 @@ world.InstallPlugin(new ReplayPlugin(serializer, recordingOptions));
 new ReplayOptions
 {
     SnapshotInterval = TimeSpan.FromSeconds(0.05), // ~20 Hz snapshots
-    KeyframeInterval = 1,                          // every snapshot is a full keyframe
+    // KeyframeInterval left at its default (10) - delta compression stays on.
     RecordSystemEvents = false,
     RecordComponentEvents = false,
     RecordEntityEvents = false,
@@ -99,14 +99,16 @@ Two settings matter for ghost fidelity, and they interact:
 - **`SnapshotInterval`** controls how often the world state is captured. Ghost frames
   come from snapshots, so a short interval means a smoother ghost.
 - **`KeyframeInterval`** controls how many snapshots are stored as full *keyframes*
-  versus space-saving *deltas*. **The ghost extractor only reads keyframes** - delta
-  markers carry no snapshot. With the default `KeyframeInterval = 10`, only every
-  tenth snapshot would be usable and the ghost would be jerky. Setting it to `1`
-  makes every snapshot a keyframe, so all ~100+ frames per lap feed the ghost.
+  versus space-saving *deltas*. **The ghost extractor reconstructs state at delta
+  markers** by replaying the delta chain from the governing keyframe, so *every*
+  snapshot feeds the ghost regardless of this setting. With the default
+  `KeyframeInterval = 10`, roughly one snapshot in ten is a full keyframe and the rest
+  are compact deltas - yet all ~100+ frames per lap still produce ghost frames.
 
-The trade-off: `KeyframeInterval = 1` disables delta compression, so the replay is
-larger. That is the right call here - a single-car time-trial recording is tiny
-(a few kilobytes) and fidelity is what matters for a good ghost.
+That is why this sample leaves `KeyframeInterval` at its default: the ghost is smooth
+*and* the recording stays small. (Earlier versions had to force `KeyframeInterval = 1`
+because the extractor read only keyframes; that workaround is no longer needed - see
+issue #1035.)
 
 ### Distance-synced comparison
 
