@@ -109,10 +109,15 @@ internal sealed class MessageManager
         }
 
         var handlerList = (List<Action<T>>)handlersObj;
-        // Iterate in reverse to allow handlers to unsubscribe during iteration
-        for (int i = handlerList.Count - 1; i >= 0; i--)
+
+        // Snapshot the handler list before dispatch. This lets a handler safely
+        // unsubscribe itself or any other handler during delivery without shifting
+        // the set of handlers seen by the current dispatch (a live reverse-iteration
+        // would re-invoke a just-run handler when an earlier one is removed).
+        var snapshot = handlerList.ToArray();
+        for (int i = 0; i < snapshot.Length; i++)
         {
-            handlerList[i](message);
+            snapshot[i](message);
         }
     }
 
@@ -151,14 +156,25 @@ internal sealed class MessageManager
     /// different message types are processed is not guaranteed.
     /// </para>
     /// <para>
-    /// After processing, all message queues are cleared. If a handler throws an exception,
-    /// remaining messages in that type's queue will not be processed, but the queue will
-    /// be cleared.
+    /// After processing, the queues that existed at the start of the call are drained.
+    /// If a handler queues a message of a type that was not already present, that message
+    /// is delivered on the next <see cref="ProcessQueuedMessages"/> call rather than the
+    /// current one. If a handler throws an exception, remaining messages in that type's
+    /// queue will not be processed.
     /// </para>
     /// </remarks>
     internal void ProcessQueuedMessages()
     {
-        foreach (var kvp in messageQueues)
+        // Snapshot the queue set before dispatch. Handlers may queue a never-before-seen
+        // message type mid-dispatch, which adds a key to messageQueues via
+        // GetOrCreateMessageQueueWrapper; enumerating the live dictionary would then throw
+        // "Collection was modified". Messages for newly-added types are left in place and
+        // delivered on the next drain. Draining each wrapper (rather than a trailing
+        // clear-all pass) also avoids silently discarding messages a handler just queued.
+        var snapshot = new KeyValuePair<Type, IMessageQueueWrapper>[messageQueues.Count];
+        ((ICollection<KeyValuePair<Type, IMessageQueueWrapper>>)messageQueues).CopyTo(snapshot, 0);
+
+        foreach (var kvp in snapshot)
         {
             var messageType = kvp.Key;
             var wrapper = kvp.Value;
@@ -173,12 +189,6 @@ internal sealed class MessageManager
 
             // Process the queue using the typed wrapper (no reflection needed)
             wrapper.Process(handlersObj);
-        }
-
-        // Clear all queues after processing
-        foreach (var wrapper in messageQueues.Values)
-        {
-            wrapper.Clear();
         }
     }
 
@@ -211,14 +221,17 @@ internal sealed class MessageManager
 
         var handlerList = (List<Action<T>>)handlersObj;
 
+        // Snapshot the handler list before dispatch so a handler can safely unsubscribe
+        // itself or another handler without perturbing the current dispatch.
+        var snapshot = handlerList.ToArray();
+
         while (typedWrapper.Queue.Count > 0)
         {
             var message = typedWrapper.Queue.Dequeue();
 
-            // Dispatch to handlers in reverse order for safe unsubscription
-            for (int i = handlerList.Count - 1; i >= 0; i--)
+            for (int i = 0; i < snapshot.Length; i++)
             {
-                handlerList[i](message);
+                snapshot[i](message);
             }
         }
     }
@@ -365,14 +378,17 @@ internal sealed class MessageManager
         {
             var handlerList = (List<Action<T>>)handlersObj;
 
+            // Snapshot the handler list before dispatch so a handler can safely unsubscribe
+            // itself or another handler without perturbing the current dispatch.
+            var snapshot = handlerList.ToArray();
+
             while (Queue.Count > 0)
             {
                 var message = Queue.Dequeue();
 
-                // Dispatch to handlers in reverse order for safe unsubscription
-                for (int i = handlerList.Count - 1; i >= 0; i--)
+                for (int i = 0; i < snapshot.Length; i++)
                 {
-                    handlerList[i](message);
+                    snapshot[i](message);
                 }
             }
         }

@@ -247,9 +247,10 @@ public sealed class EventBus
                 snapshot = [.. list];
             }
 
-            // Invoke in reverse order to match original behavior
-            // (allows handlers to unsubscribe during iteration)
-            for (int i = snapshot.Length - 1; i >= 0; i--)
+            // Invoke in registration order, as documented. The snapshot taken under
+            // lock lets handlers subscribe or unsubscribe during iteration without
+            // affecting the current dispatch.
+            for (int i = 0; i < snapshot.Length; i++)
             {
                 ((Action<T>)(object)snapshot[i])(evt);
             }

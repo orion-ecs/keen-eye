@@ -825,6 +825,94 @@ public class MessagingTests
 
     #endregion
 
+    #region Reentrancy And Unsubscribe-During-Dispatch Tests
+
+    [Fact]
+    public void ProcessQueuedMessages_HandlerQueuesNewMessageType_DoesNotThrowAndDeliversOnNextDrain()
+    {
+        // Regression for #1108: a handler that queues a never-before-seen message type
+        // mid-dispatch adds a key to the queue dictionary. Enumerating the live dictionary
+        // would throw "Collection was modified"; the new type must be delivered on the
+        // next drain instead.
+        using var world = new World();
+
+        var deathHandled = 0;
+        var lootHandled = 0;
+
+        using var deathSub = world.Subscribe<DeathMessage>(_ =>
+        {
+            deathHandled++;
+
+            // Queue a message type that has never been queued before this point.
+            world.QueueMessage(new LootMessage(EntityId: 7));
+        });
+
+        using var lootSub = world.Subscribe<LootMessage>(_ => lootHandled++);
+
+        world.QueueMessage(new DeathMessage(EntityId: 7));
+
+        // First drain: must not throw, delivers the death message, defers the loot message.
+        world.ProcessQueuedMessages();
+
+        Assert.Equal(1, deathHandled);
+        Assert.Equal(0, lootHandled);
+        Assert.Equal(1, world.GetQueuedMessageCount<LootMessage>());
+
+        // Second drain: the deferred loot message is delivered now.
+        world.ProcessQueuedMessages();
+
+        Assert.Equal(1, deathHandled);
+        Assert.Equal(1, lootHandled);
+        Assert.Equal(0, world.GetQueuedMessageCount<LootMessage>());
+    }
+
+    [Fact]
+    public void Send_HandlerUnsubscribesEarlierHandler_EachHandlerRunsExactlyOnce()
+    {
+        // Regression for #1109: reverse-iterating the live handler list re-invokes the
+        // just-run handler when it removes an earlier-indexed handler. Snapshotting before
+        // dispatch guarantees each handler runs exactly once.
+        using var world = new World();
+
+        var firstHandlerCount = 0;
+        var secondHandlerCount = 0;
+
+        // Subscribe the first (earlier-indexed) handler.
+        var firstSubscription = world.Subscribe<DamageMessage>(_ => firstHandlerCount++);
+
+        // The second handler disposes the first (earlier) handler during dispatch.
+        using var secondSubscription = world.Subscribe<DamageMessage>(_ =>
+        {
+            secondHandlerCount++;
+            firstSubscription.Dispose();
+        });
+
+        world.Send(new DamageMessage(1, 10));
+
+        Assert.Equal(1, firstHandlerCount);
+        Assert.Equal(1, secondHandlerCount);
+    }
+
+    [Fact]
+    public void Send_WithMultipleSubscribers_DeliversInRegistrationOrder()
+    {
+        // Regression for #1113: dispatch must honor the documented "registration order"
+        // contract rather than invoking handlers in reverse.
+        using var world = new World();
+
+        var invocationOrder = new List<int>();
+
+        using var first = world.Subscribe<DamageMessage>(_ => invocationOrder.Add(1));
+        using var second = world.Subscribe<DamageMessage>(_ => invocationOrder.Add(2));
+        using var third = world.Subscribe<DamageMessage>(_ => invocationOrder.Add(3));
+
+        world.Send(new DamageMessage(1, 10));
+
+        Assert.Equal([1, 2, 3], invocationOrder);
+    }
+
+    #endregion
+
     #region Test Message Types
 
     private readonly record struct DamageMessage(int TargetId, int Amount);
@@ -832,6 +920,10 @@ public class MessagingTests
     private readonly record struct CollisionMessage(Entity Entity1, Entity Entity2, float PenetrationDepth);
 
     private readonly record struct SpawnMessage(int EntityId);
+
+    private readonly record struct DeathMessage(int EntityId);
+
+    private readonly record struct LootMessage(int EntityId);
 
     private readonly record struct RecordStructMessage(string Name, int Value);
 
