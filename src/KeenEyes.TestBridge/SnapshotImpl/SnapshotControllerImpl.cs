@@ -513,20 +513,137 @@ internal sealed class SnapshotControllerImpl(World world) : ISnapshotController
         return instance;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "TestBridge uses reflection for debugging purposes")]
     private static object? ConvertJsonElement(JsonElement element, Type targetType)
     {
-        return element.ValueKind switch
+        switch (element.ValueKind)
         {
-            JsonValueKind.Number when targetType == typeof(int) => element.GetInt32(),
-            JsonValueKind.Number when targetType == typeof(long) => element.GetInt64(),
-            JsonValueKind.Number when targetType == typeof(float) => element.GetSingle(),
-            JsonValueKind.Number when targetType == typeof(double) => element.GetDouble(),
-            JsonValueKind.Number when targetType == typeof(decimal) => element.GetDecimal(),
-            JsonValueKind.String when targetType == typeof(string) => element.GetString(),
-            JsonValueKind.String when targetType.IsEnum => Enum.Parse(targetType, element.GetString()!),
-            JsonValueKind.True or JsonValueKind.False when targetType == typeof(bool) => element.GetBoolean(),
-            _ => null
-        };
+            case JsonValueKind.Null:
+            case JsonValueKind.Undefined:
+                return null;
+
+            case JsonValueKind.Number:
+                return ConvertJsonNumber(element, targetType);
+
+            case JsonValueKind.String when targetType.IsEnum:
+                return Enum.Parse(targetType, element.GetString()!);
+
+            case JsonValueKind.String:
+                return element.GetString();
+
+            case JsonValueKind.True:
+            case JsonValueKind.False:
+                return element.GetBoolean();
+
+            case JsonValueKind.Object:
+                // Rebuild the native dictionary representation used by in-memory
+                // snapshots so nested-struct fields reach ConvertDictToStruct. Each
+                // property value stays a JsonElement and is converted per-field
+                // (recursing through ConvertFromSerializable) using its target type.
+                var dict = new Dictionary<string, object?>();
+                foreach (var property in element.EnumerateObject())
+                {
+                    dict[property.Name] = property.Value;
+                }
+                return ConvertFromSerializable(dict, targetType);
+
+            case JsonValueKind.Array:
+                return ConvertJsonArray(element, targetType);
+
+            default:
+                return null;
+        }
+    }
+
+    private static object? ConvertJsonNumber(JsonElement element, Type targetType)
+    {
+        if (targetType == typeof(int))
+        {
+            return element.GetInt32();
+        }
+
+        if (targetType == typeof(long))
+        {
+            return element.GetInt64();
+        }
+
+        if (targetType == typeof(float))
+        {
+            return element.GetSingle();
+        }
+
+        if (targetType == typeof(double))
+        {
+            return element.GetDouble();
+        }
+
+        if (targetType == typeof(decimal))
+        {
+            return element.GetDecimal();
+        }
+
+        if (targetType == typeof(byte))
+        {
+            return element.GetByte();
+        }
+
+        if (targetType == typeof(sbyte))
+        {
+            return element.GetSByte();
+        }
+
+        if (targetType == typeof(short))
+        {
+            return element.GetInt16();
+        }
+
+        if (targetType == typeof(ushort))
+        {
+            return element.GetUInt16();
+        }
+
+        if (targetType == typeof(uint))
+        {
+            return element.GetUInt32();
+        }
+
+        if (targetType == typeof(ulong))
+        {
+            return element.GetUInt64();
+        }
+
+        return null;
+    }
+
+    [UnconditionalSuppressMessage("Trimming", "IL2070", Justification = "TestBridge uses reflection for debugging purposes")]
+    [UnconditionalSuppressMessage("AOT", "IL3050", Justification = "TestBridge uses reflection for debugging purposes")]
+    private static object? ConvertJsonArray(JsonElement element, Type targetType)
+    {
+        if (!targetType.IsArray)
+        {
+            return null;
+        }
+
+        var elementType = targetType.GetElementType();
+        if (elementType == null)
+        {
+            return null;
+        }
+
+        var array = Array.CreateInstance(elementType, element.GetArrayLength());
+        var index = 0;
+        foreach (var item in element.EnumerateArray())
+        {
+            var converted = ConvertFromSerializable(item, elementType);
+            if (converted != null)
+            {
+                array.SetValue(converted, index);
+            }
+
+            index++;
+        }
+
+        return array;
     }
 
     private static bool IsNumericType(Type type)
