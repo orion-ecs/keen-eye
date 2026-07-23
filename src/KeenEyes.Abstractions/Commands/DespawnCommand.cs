@@ -7,19 +7,15 @@ namespace KeenEyes;
 /// If the target is a placeholder entity (negative ID), it will be resolved
 /// to the real entity through the entity map during execution.
 /// </remarks>
-internal sealed class DespawnCommand : ICommand
+internal sealed class DespawnCommand : PlaceholderResolvingCommand
 {
-    private readonly Entity targetEntity;
-    private readonly int? placeholderId;
-
     /// <summary>
     /// Creates a despawn command for an existing entity.
     /// </summary>
     /// <param name="entity">The entity to despawn.</param>
     public DespawnCommand(Entity entity)
+        : base(entity)
     {
-        targetEntity = entity;
-        placeholderId = null;
     }
 
     /// <summary>
@@ -27,29 +23,17 @@ internal sealed class DespawnCommand : ICommand
     /// </summary>
     /// <param name="placeholderId">The placeholder ID of the entity to despawn.</param>
     public DespawnCommand(int placeholderId)
+        : base(placeholderId)
     {
-        targetEntity = Entity.Null;
-        this.placeholderId = placeholderId;
     }
 
     /// <inheritdoc />
-    public void Execute(IWorld world, Dictionary<int, Entity> entityMap)
+    public override void Execute(IWorld world, Dictionary<int, Entity> entityMap)
     {
         var entity = ResolveEntity(entityMap);
         if (entity.IsValid)
         {
             world.Despawn(entity);
         }
-    }
-
-    private Entity ResolveEntity(Dictionary<int, Entity> entityMap)
-    {
-        if (placeholderId.HasValue)
-        {
-            return entityMap.TryGetValue(placeholderId.Value, out var resolved)
-                ? resolved
-                : Entity.Null;
-        }
-        return targetEntity;
     }
 }

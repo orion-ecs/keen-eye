@@ -127,20 +127,26 @@ public sealed partial class World
     /// </summary>
     internal Entity CreateEntity(List<(ComponentInfo Info, object Data)> components, string? name = null)
     {
-        // Validate name uniqueness before creating the entity
-        entityNamingManager.ValidateName(name);
-
         // Validate component constraints (dependencies and conflicts) before creating entity
         validationManager.ValidateBuild(components);
 
         // Acquire entity from pool
         var entity = entityPool.Acquire();
 
+        // Validate and register the entity name in a single atomic operation.
+        // Release the pooled entity on failure so nothing leaks.
+        try
+        {
+            entityNamingManager.RegisterName(entity.Id, name);
+        }
+        catch (ArgumentException)
+        {
+            entityPool.Release(entity);
+            throw;
+        }
+
         // Add to archetype
         archetypeManager.AddEntity(entity, components);
-
-        // Register the entity name if provided
-        entityNamingManager.RegisterName(entity.Id, name);
 
         // Run custom validators after entity is created (they need access to entity)
         validationManager.ValidateBuildCustom(entity, components);

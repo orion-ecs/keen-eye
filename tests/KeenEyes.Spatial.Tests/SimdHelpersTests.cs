@@ -9,12 +9,14 @@ namespace KeenEyes.Spatial.Tests;
 public class SimdHelpersTests
 {
     [Fact]
-    public void IsHardwareAccelerated_ReturnsBoolean()
+    public void IsHardwareAccelerated_ReadMultipleTimes_ReturnsConsistentValue()
     {
-        // Simply verify the property is accessible
-        // On modern x64 hardware, this should be true
-        _ = SimdHelpers.IsHardwareAccelerated;
-        Assert.True(true); // Property accessed successfully
+        // The property reports a hardware capability, so it must be gate-free:
+        // reading it must not throw and must return the same value on every read.
+        var exception = Record.Exception(() => _ = SimdHelpers.IsHardwareAccelerated);
+        Assert.Null(exception);
+
+        Assert.Equal(SimdHelpers.IsHardwareAccelerated, SimdHelpers.IsHardwareAccelerated);
     }
 
     [Fact]

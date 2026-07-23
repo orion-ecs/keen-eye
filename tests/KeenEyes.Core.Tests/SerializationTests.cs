@@ -478,6 +478,105 @@ public class SerializationTests
         Assert.Contains("version", ex.Message.ToLower());
     }
 
+    /// <summary>
+    /// Builds a crafted binary snapshot payload with a valid header (no string table)
+    /// and the given entity/singleton counts, followed by optional body content.
+    /// </summary>
+    private static byte[] CreateCraftedBinarySnapshot(
+        int entityCount, int singletonCount, Action<BinaryWriter>? writeBody = null)
+    {
+        using var stream = new MemoryStream();
+        using (var writer = new BinaryWriter(stream))
+        {
+            writer.Write("KEEN"u8);       // Magic bytes
+            writer.Write((ushort)2);      // Binary format version
+            writer.Write((ushort)0);      // Flags: no string table, no metadata
+            writer.Write(entityCount);
+            writer.Write(singletonCount);
+            writer.Write(0L);             // Timestamp (unix ms)
+            writer.Write(1);              // Snapshot version
+            writeBody?.Invoke(writer);
+        }
+
+        return stream.ToArray();
+    }
+
+    [Fact]
+    public void FromBinary_WithComponentDataLengthIntMinValue_ThrowsInvalidDataException()
+    {
+        // A crafted component data length of int.MinValue must not surface as an
+        // unhandled OverflowException from Math.Abs.
+        var crafted = CreateCraftedBinarySnapshot(entityCount: 1, singletonCount: 0, writer =>
+        {
+            writer.Write(1);               // Entity ID
+            writer.Write(-1);              // Parent ID (none)
+            writer.Write("Crafted");       // Entity name
+            writer.Write((ushort)1);       // Component count
+            writer.Write("FakeComponent"); // Component type name (inline, no string table)
+            writer.Write(false);           // IsTag
+            writer.Write((short)1);        // Component schema version
+            writer.Write(int.MinValue);    // Component data length
+        });
+
+        Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(crafted, testSerializer));
+    }
+
+    [Fact]
+    public void FromBinary_WithSingletonDataLengthIntMinValue_ThrowsInvalidDataException()
+    {
+        // A crafted singleton data length of int.MinValue must not surface as an
+        // unhandled OverflowException from Math.Abs.
+        var crafted = CreateCraftedBinarySnapshot(entityCount: 0, singletonCount: 1, writer =>
+        {
+            writer.Write("FakeSingleton"); // Singleton type name (inline, no string table)
+            writer.Write(int.MinValue);    // Singleton data length
+        });
+
+        Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(crafted, testSerializer));
+    }
+
+    [Fact]
+    public void FromBinary_WithEntityCountIntMaxValue_ThrowsInvalidDataException()
+    {
+        // A header claiming int.MaxValue entities must be rejected before any
+        // list allocation is attempted.
+        var crafted = CreateCraftedBinarySnapshot(entityCount: int.MaxValue, singletonCount: 0);
+
+        Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(crafted, testSerializer));
+    }
+
+    [Fact]
+    public void FromBinary_WithNegativeEntityCount_ThrowsInvalidDataException()
+    {
+        var crafted = CreateCraftedBinarySnapshot(entityCount: -1, singletonCount: 0);
+
+        Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(crafted, testSerializer));
+    }
+
+    [Fact]
+    public void FromBinary_WithSingletonCountIntMaxValue_ThrowsInvalidDataException()
+    {
+        // A header claiming int.MaxValue singletons must be rejected before any
+        // list allocation is attempted.
+        var crafted = CreateCraftedBinarySnapshot(entityCount: 0, singletonCount: int.MaxValue);
+
+        Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(crafted, testSerializer));
+    }
+
+    [Fact]
+    public void FromBinary_WithNegativeSingletonCount_ThrowsInvalidDataException()
+    {
+        var crafted = CreateCraftedBinarySnapshot(entityCount: 0, singletonCount: -1);
+
+        Assert.Throws<InvalidDataException>(() =>
+            SnapshotManager.FromBinary(crafted, testSerializer));
+    }
+
     [Fact]
     public void ToBinary_ThrowsOnNullSnapshot()
     {

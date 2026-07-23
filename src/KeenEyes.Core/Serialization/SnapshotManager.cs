@@ -401,6 +401,16 @@ public static class SnapshotManager
     private const int MaxDataLength = 100_000_000;
 
     /// <summary>
+    /// Maximum allowed entity or singleton count in a binary snapshot header to prevent
+    /// DoS via memory exhaustion.
+    /// </summary>
+    /// <remarks>
+    /// A crafted header claiming a huge count would otherwise trigger an enormous list
+    /// allocation before any per-entity validation runs.
+    /// </remarks>
+    private const int MaxEntityCount = 1_000_000;
+
+    /// <summary>
     /// Binary format flags.
     /// </summary>
     [Flags]
@@ -757,6 +767,19 @@ public static class SnapshotManager
         var entityCount = reader.ReadInt32();
         var singletonCount = reader.ReadInt32();
 
+        // Validate counts before using them as list capacities to prevent DoS via memory exhaustion
+        if (entityCount < 0 || entityCount > MaxEntityCount)
+        {
+            throw new InvalidDataException(
+                $"Entity count {entityCount} is invalid or exceeds the maximum allowed count ({MaxEntityCount}).");
+        }
+
+        if (singletonCount < 0 || singletonCount > MaxEntityCount)
+        {
+            throw new InvalidDataException(
+                $"Singleton count {singletonCount} is invalid or exceeds the maximum allowed count ({MaxEntityCount}).");
+        }
+
         // Read timestamp
         var unixMs = reader.ReadInt64();
         var timestamp = DateTimeOffset.FromUnixTimeMilliseconds(unixMs);
@@ -827,8 +850,9 @@ public static class SnapshotManager
                     var dataLength = reader.ReadInt32();
                     if (dataLength != 0)
                     {
-                        // Validate data length to prevent DoS via memory exhaustion
-                        var absoluteLength = Math.Abs(dataLength);
+                        // Validate data length to prevent DoS via memory exhaustion.
+                        // Widen to long before Math.Abs: Math.Abs(int.MinValue) throws OverflowException.
+                        var absoluteLength = Math.Abs((long)dataLength);
                         if (absoluteLength > MaxDataLength)
                         {
                             throw new InvalidDataException(
@@ -905,8 +929,9 @@ public static class SnapshotManager
             var dataLength = reader.ReadInt32();
             JsonElement data;
 
-            // Validate data length to prevent DoS via memory exhaustion
-            var absoluteLength = Math.Abs(dataLength);
+            // Validate data length to prevent DoS via memory exhaustion.
+            // Widen to long before Math.Abs: Math.Abs(int.MinValue) throws OverflowException.
+            var absoluteLength = Math.Abs((long)dataLength);
             if (absoluteLength > MaxDataLength)
             {
                 throw new InvalidDataException(
