@@ -111,6 +111,30 @@ public class AutoSaveSystemTests : IDisposable
         Assert.Equal(60f, system.Config.AutoSaveIntervalSeconds);
     }
 
+    [Fact]
+    public void OnInitialize_WithExistingBaselineOnDisk_DoesNotWipeLiveWorld()
+    {
+        var config = new AutoSaveConfig { AutoSaveIntervalSeconds = 10f };
+
+        // Session 1: persist a baseline slot containing an "OldBaseline" entity.
+        using (var baselineWorld = new World { SaveDirectory = testSaveDirectory })
+        {
+            baselineWorld.Spawn("OldBaseline").With(new SerializablePosition { X = 1, Y = 2 }).Build();
+            baselineWorld.SaveToSlot(config.BaselineSlotName, serializer);
+        }
+
+        // Session 2: a live world with a "Player" scene attaches the auto-save system.
+        using var world = new World { SaveDirectory = testSaveDirectory };
+        world.Spawn("Player").With(new SerializablePosition { X = 10, Y = 20 }).Build();
+
+        world.AddSystem(new AutoSaveSystem<TestComponentSerializer>(serializer, config));
+
+        // Attaching auto-save must not destroy the current scene: the live "Player"
+        // entity survives and the baseline's "OldBaseline" entity is never introduced.
+        Assert.NotEqual(Entity.Null, world.GetEntityByName("Player"));
+        Assert.Equal(Entity.Null, world.GetEntityByName("OldBaseline"));
+    }
+
     #endregion
 
     #region Auto-Save Trigger Tests

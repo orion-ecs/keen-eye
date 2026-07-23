@@ -146,22 +146,71 @@ internal sealed class SaveManager
         var (slotInfo, snapshotData) = SaveFileFormat.Read(fileData, validateChecksum);
 
         // Deserialize snapshot
-        WorldSnapshot snapshot;
-        if (slotInfo.Format == SaveFormat.Binary)
-        {
-            snapshot = SnapshotManager.FromBinary(snapshotData, serializer);
-        }
-        else
-        {
-            var json = System.Text.Encoding.UTF8.GetString(snapshotData);
-            snapshot = SnapshotManager.FromJson(json)
-                ?? throw new InvalidDataException("Failed to deserialize JSON snapshot.");
-        }
+        var snapshot = DeserializeSnapshot(slotInfo, snapshotData, serializer);
 
         // Restore snapshot
         var entityMap = SnapshotManager.RestoreSnapshot(world, snapshot, serializer);
 
         return (slotInfo, entityMap);
+    }
+
+    /// <summary>
+    /// Reads and deserializes a save slot into a detached <see cref="WorldSnapshot"/> without
+    /// restoring it into the live world.
+    /// </summary>
+    /// <typeparam name="TSerializer">The serializer type that implements both interfaces.</typeparam>
+    /// <param name="slotName">The name of the save slot to read.</param>
+    /// <param name="serializer">The component serializer for AOT-compatible deserialization.</param>
+    /// <param name="validateChecksum">Whether to validate the checksum if present.</param>
+    /// <returns>The deserialized snapshot. The live world is left untouched.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the save slot doesn't exist.</exception>
+    /// <exception cref="InvalidDataException">Thrown when the save file is corrupted.</exception>
+    /// <remarks>
+    /// Unlike <see cref="Load{TSerializer}"/>, this does not call <c>world.Clear()</c> or
+    /// restore any entities. It is intended for callers that only need the saved state as
+    /// data (for example, a delta-diffing baseline).
+    /// </remarks>
+    internal WorldSnapshot ReadSnapshot<TSerializer>(
+        string slotName,
+        TSerializer serializer,
+        bool validateChecksum = true)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(slotName);
+        ArgumentNullException.ThrowIfNull(serializer);
+
+        var filePath = GetSlotFilePath(slotName);
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"Save slot '{slotName}' not found.", filePath);
+        }
+
+        // Read save file
+        var fileData = File.ReadAllBytes(filePath);
+        var (slotInfo, snapshotData) = SaveFileFormat.Read(fileData, validateChecksum);
+
+        // Deserialize snapshot only - do not restore into the world
+        return DeserializeSnapshot(slotInfo, snapshotData, serializer);
+    }
+
+    /// <summary>
+    /// Deserializes raw snapshot bytes into a <see cref="WorldSnapshot"/> using the format
+    /// recorded in the slot info.
+    /// </summary>
+    private static WorldSnapshot DeserializeSnapshot<TSerializer>(
+        SaveSlotInfo slotInfo,
+        byte[] snapshotData,
+        TSerializer serializer)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
+    {
+        if (slotInfo.Format == SaveFormat.Binary)
+        {
+            return SnapshotManager.FromBinary(snapshotData, serializer);
+        }
+
+        var json = System.Text.Encoding.UTF8.GetString(snapshotData);
+        return SnapshotManager.FromJson(json)
+            ?? throw new InvalidDataException("Failed to deserialize JSON snapshot.");
     }
 
     /// <summary>
@@ -620,17 +669,7 @@ internal sealed class SaveManager
         var (slotInfo, snapshotData) = SaveFileFormat.Read(fileData, validateChecksum);
 
         // Deserialize snapshot (synchronous - CPU bound)
-        WorldSnapshot snapshot;
-        if (slotInfo.Format == SaveFormat.Binary)
-        {
-            snapshot = SnapshotManager.FromBinary(snapshotData, serializer);
-        }
-        else
-        {
-            var json = System.Text.Encoding.UTF8.GetString(snapshotData);
-            snapshot = SnapshotManager.FromJson(json)
-                ?? throw new InvalidDataException("Failed to deserialize JSON snapshot.");
-        }
+        var snapshot = DeserializeSnapshot(slotInfo, snapshotData, serializer);
 
         // Restore snapshot (synchronous - CPU bound)
         var entityMap = SnapshotManager.RestoreSnapshot(world, snapshot, serializer);

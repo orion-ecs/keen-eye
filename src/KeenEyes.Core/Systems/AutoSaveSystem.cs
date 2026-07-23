@@ -109,9 +109,10 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
                 var info = saveLoad.GetSaveSlotInfo(config.BaselineSlotName);
                 if (info is not null)
                 {
-                    // Load the baseline snapshot for delta comparison
-                    saveLoad.LoadFromSlot(config.BaselineSlotName, serializer);
-                    baselineSnapshot = saveLoad.CreateSnapshot(serializer);
+                    // Read the baseline snapshot for delta comparison WITHOUT mutating the
+                    // live world. Using LoadFromSlot here would clear the current scene and
+                    // replace it with the baseline's entities (see issue #1131).
+                    baselineSnapshot = saveLoad.ReadSnapshotFromSlot(config.BaselineSlotName, serializer);
 
                     // Find the highest existing delta sequence
                     currentDeltaSequence = FindHighestDeltaSequence(saveLoad);

@@ -319,6 +319,35 @@ public sealed partial class World
     }
 
     /// <summary>
+    /// Reads a save slot into a detached <see cref="WorldSnapshot"/> without modifying the world.
+    /// </summary>
+    /// <typeparam name="TSerializer">
+    /// The serializer type that implements both <see cref="IComponentSerializer"/>
+    /// and <see cref="IBinaryComponentSerializer"/>.
+    /// </typeparam>
+    /// <param name="slotName">The name of the save slot to read.</param>
+    /// <param name="serializer">The component serializer for AOT-compatible deserialization.</param>
+    /// <param name="validateChecksum">Whether to validate the checksum if present. Defaults to true.</param>
+    /// <returns>The deserialized snapshot. The current world state is left unchanged.</returns>
+    /// <exception cref="FileNotFoundException">Thrown when the save slot doesn't exist.</exception>
+    /// <exception cref="InvalidDataException">Thrown when the save file is corrupted.</exception>
+    /// <remarks>
+    /// <para>
+    /// Unlike <see cref="LoadFromSlot{TSerializer}"/>, this method does not clear the world or
+    /// restore any entities. It is intended for callers that only need the saved state as data,
+    /// such as obtaining a baseline for delta comparison.
+    /// </para>
+    /// </remarks>
+    public WorldSnapshot ReadSnapshotFromSlot<TSerializer>(
+        string slotName,
+        TSerializer serializer,
+        bool validateChecksum = true)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer
+    {
+        return GetSaveManager().ReadSnapshot(slotName, serializer, validateChecksum);
+    }
+
+    /// <summary>
     /// Creates a delta snapshot by comparing the current world state to a baseline.
     /// </summary>
     /// <typeparam name="TSerializer">
