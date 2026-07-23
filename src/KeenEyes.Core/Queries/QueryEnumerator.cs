@@ -15,7 +15,8 @@ public struct QueryEnumerator : IEnumerator<Entity>
     private readonly IReadOnlyList<string> withoutStringTags;
     private readonly bool hasStringTagFilters;
     private int archetypeIndex;
-    private int entityIndex;
+    private int chunkIndex;
+    private int indexInChunk;
 
     internal QueryEnumerator(World world, QueryDescription description)
     {
@@ -25,7 +26,8 @@ public struct QueryEnumerator : IEnumerator<Entity>
         withoutStringTags = description.WithoutStringTags;
         hasStringTagFilters = description.HasStringTagFilters;
         archetypeIndex = 0;
-        entityIndex = -1;
+        chunkIndex = 0;
+        indexInChunk = -1;
     }
 
     /// <inheritdoc />
@@ -36,7 +38,11 @@ public struct QueryEnumerator : IEnumerator<Entity>
         {
             if (archetypeIndex < archetypes.Count)
             {
-                return archetypes[archetypeIndex].GetEntity(entityIndex);
+                var chunks = archetypes[archetypeIndex].Chunks;
+                if (chunkIndex < chunks.Count)
+                {
+                    return chunks[chunkIndex].GetEntity(indexInChunk);
+                }
             }
             return Entity.Null;
         }
@@ -45,31 +51,46 @@ public struct QueryEnumerator : IEnumerator<Entity>
     readonly object IEnumerator.Current => Current;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Iteration walks each archetype chunk by its live <see cref="ArchetypeChunk.Count"/> and
+    /// advances chunk-by-chunk, so entities in later chunks are never skipped and holes left by
+    /// swap-back removal in earlier chunks are never yielded (see issue #1092).
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool MoveNext()
     {
         while (archetypeIndex < archetypes.Count)
         {
-            var archetype = archetypes[archetypeIndex];
-            entityIndex++;
+            var chunks = archetypes[archetypeIndex].Chunks;
 
-            if (entityIndex < archetype.Count)
+            while (chunkIndex < chunks.Count)
             {
-                // Check string tag filters if any
-                if (hasStringTagFilters)
+                var chunk = chunks[chunkIndex];
+                indexInChunk++;
+
+                if (indexInChunk < chunk.Count)
                 {
-                    var entity = archetype.GetEntity(entityIndex);
-                    if (!MatchesStringTags(entity))
+                    // Check string tag filters if any
+                    if (hasStringTagFilters)
                     {
-                        continue; // Skip this entity, try next
+                        var entity = chunk.GetEntity(indexInChunk);
+                        if (!MatchesStringTags(entity))
+                        {
+                            continue; // Skip this entity, try next slot in this chunk
+                        }
                     }
+                    return true;
                 }
-                return true;
+
+                // Move to the next chunk in this archetype
+                chunkIndex++;
+                indexInChunk = -1;
             }
 
-            // Move to next archetype
+            // Move to the next archetype
             archetypeIndex++;
-            entityIndex = -1;
+            chunkIndex = 0;
+            indexInChunk = -1;
         }
 
         return false;
@@ -102,7 +123,8 @@ public struct QueryEnumerator : IEnumerator<Entity>
     public void Reset()
     {
         archetypeIndex = 0;
-        entityIndex = -1;
+        chunkIndex = 0;
+        indexInChunk = -1;
     }
 
     /// <inheritdoc />
