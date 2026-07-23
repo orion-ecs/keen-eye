@@ -525,7 +525,8 @@
         "dependencies": {
           "KeenEyes.TestBridge.Client": "[1.0.0, )",
           "Microsoft.Extensions.Hosting": "[10.0.10, )",
-          "ModelContextProtocol": "[1.4.1, )"
+          "ModelContextProtocol": "[1.4.1, )",
+          "ModelContextProtocol.AspNetCore": "[1.4.1, )"
         }
       },
       "keeneyes.navigation": {
@@ -651,6 +652,15 @@
           "Microsoft.Extensions.Caching.Abstractions": "10.0.7",
           "Microsoft.Extensions.Hosting.Abstractions": "10.0.7",
           "ModelContextProtocol.Core": "1.4.1"
+        }
+      },
+      "ModelContextProtocol.AspNetCore": {
+        "type": "CentralTransitive",
+        "requested": "[1.4.1, )",
+        "resolved": "1.4.1",
+        "contentHash": "AoI+00fRxb0GAMMabMUgpV5QhNoa/F7I9oiVGHfJKtBZ4g/DEyoDdTS9Rp/m4e3MnXhhvSBeu2wTafhesdf52w==",
+        "dependencies": {
+          "ModelContextProtocol": "1.4.1"
         }
       },
       "StbImageWriteSharp": {

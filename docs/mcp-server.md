@@ -78,6 +78,10 @@ Or with a published executable:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+**Server → game hop** (how the MCP server reaches the game):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
 | `KEENEYES_PIPE_NAME` | Named pipe name for IPC | `KeenEyes.TestBridge` |
 | `KEENEYES_HOST` | TCP host for network connections | `127.0.0.1` |
 | `KEENEYES_PORT` | TCP port for network connections | `19283` |
@@ -87,15 +91,83 @@ Or with a published executable:
 | `KEENEYES_MAX_PING_FAILURES` | Max consecutive ping failures | `3` |
 | `KEENEYES_TIMEOUT` | Connection timeout in ms | `30000` |
 
+**Client → server hop** (how an MCP client such as Claude Code reaches this server):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `KEENEYES_MCP_TRANSPORT` | Client transport: `stdio` or `http` | `stdio` |
+| `KEENEYES_MCP_URL` | URL the HTTP transport binds to (only when `http`) | `http://127.0.0.1:19284/` |
+| `KEENEYES_MCP_TOKEN` | Bearer token required by the HTTP endpoint; unset = unauthenticated | *(unset)* |
+
+`KEENEYES_MCP_*` is orthogonal to the `KEENEYES_TRANSPORT`/pipe/tcp settings: the former chooses how a client reaches this server, the latter how this server reaches the game.
+
 ### Command-Line Arguments
 
 | Argument | Description |
 |----------|-------------|
-| `--pipe <name>` | Named pipe name |
-| `--host <host>` | TCP host address |
-| `--port <port>` | TCP port number |
-| `--transport <mode>` | Transport: `pipe` or `tcp` |
+| `--pipe <name>` | Named pipe name (server → game) |
+| `--host <host>` | TCP host address (server → game) |
+| `--port <port>` | TCP port number (server → game) |
+| `--transport <mode>` | Server → game transport: `pipe` or `tcp` |
 | `--timeout <ms>` | Connection timeout in milliseconds |
+| `--mcp-transport <mode>` | Client → server transport: `stdio` or `http` |
+| `--mcp-url <url>` | URL the HTTP transport binds to (only when `http`) |
+
+## Remote TestBridge over HTTP
+
+By default the server speaks MCP over **stdio**: Claude Code launches it as a local subprocess, and the standard local `.mcp.json` entry relies on this. To let Claude Code on **one machine** drive a game running on **another**, switch the client-facing transport to **HTTP**.
+
+### Topology
+
+```
+Claude Code (host A) --HTTP/LAN--> KeenEyes.Mcp.TestBridge (host B, HTTP server)
+                                        └-- loopback named-pipe IPC --> game (host B)
+```
+
+The powerful game-control channel (input injection, world mutation, memory read) stays on **loopback** on the game's machine. Only the MCP protocol — a first-class, auth-capable transport — crosses the network. This is cleaner and safer than exposing the raw TCP IPC channel across the network.
+
+### Host B — game + MCP server
+
+Run the game with the TestBridge IPC server on a **loopback named pipe** (no game code change; this is the default), then launch the MCP server bound to host B's LAN address with a bearer token:
+
+```bash
+# Bind to host B's LAN IP (e.g. 192.168.1.50); keep the game hop on the loopback pipe.
+export KEENEYES_MCP_TRANSPORT=http
+export KEENEYES_MCP_URL=http://192.168.1.50:19284/
+export KEENEYES_MCP_TOKEN=$(openssl rand -hex 32)
+export KEENEYES_TRANSPORT=pipe
+export KEENEYES_PIPE_NAME=KeenEyes.TestBridge
+
+./KeenEyes.Mcp.TestBridge         # or: dotnet run --project tools/KeenEyes.Mcp.TestBridge
+echo "token: $KEENEYES_MCP_TOKEN"  # copy this to host A
+```
+
+### Host A — Claude Code
+
+Add an `http` entry to `.mcp.json` pointing at host B, carrying the bearer token:
+
+```json
+{
+  "mcpServers": {
+    "keeneyes-remote": {
+      "type": "http",
+      "url": "http://192.168.1.50:19284/",
+      "headers": {
+        "Authorization": "Bearer <paste KEENEYES_MCP_TOKEN here>"
+      }
+    }
+  }
+}
+```
+
+### Security
+
+An HTTP endpoint that controls a game process **must not be left open**.
+
+- **Bearer token (required in practice):** set `KEENEYES_MCP_TOKEN`. The endpoint then requires `Authorization: Bearer <token>` and returns **401** for missing or wrong tokens. If the token is unset, the server logs a prominent warning and serves **unauthenticated** — only ever acceptable on loopback.
+- **Bind narrowly:** point `KEENEYES_MCP_URL` at a specific loopback or LAN IP. **Never bind to `0.0.0.0`** or a public interface. The default (`http://127.0.0.1:19284/`) is loopback-only.
+- **Trusted networks only:** restrict with a host firewall to host A's address; treat the endpoint as you would an SSH port.
+- **Token vs mTLS:** a bearer token authenticates the client but leaves the channel in cleartext on plain HTTP — anyone who can read LAN traffic can capture the token. For hardened deployments, terminate TLS at a reverse proxy in front of the server (set `KEENEYES_MCP_URL` behind it) or use **mutual TLS (mTLS)**, which additionally authenticates the client with a certificate and encrypts the channel. mTLS is stronger but needs certificate provisioning on both hosts; the built-in bearer-token check is the minimum bar and is sufficient on a trusted LAN.
 
 ## Available Tools
 

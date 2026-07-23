@@ -188,6 +188,44 @@ Publish the MCP server:
 dotnet publish tools/KeenEyes.Mcp.TestBridge -c Release -o .mcp
 ```
 
+### Remote TestBridge over HTTP
+
+The MCP server speaks **stdio** by default (local subprocess, as above). To let Claude Code on one machine drive a game on another, switch the client-facing transport to **HTTP** — the game-control channel stays on loopback, and only the auth-capable MCP protocol crosses the network:
+
+```
+Claude Code (host A) --HTTP/LAN--> KeenEyes.Mcp.TestBridge (host B, HTTP server)
+                                        └-- loopback named-pipe IPC --> game (host B)
+```
+
+**Host B (game + MCP server):** keep the game's TestBridge IPC on a loopback named pipe (default; no game code change), and launch the MCP server bound to host B's LAN IP with a bearer token:
+
+```bash
+export KEENEYES_MCP_TRANSPORT=http
+export KEENEYES_MCP_URL=http://192.168.1.50:19284/   # host B's LAN IP, never 0.0.0.0
+export KEENEYES_MCP_TOKEN=$(openssl rand -hex 32)
+export KEENEYES_TRANSPORT=pipe                        # server -> game hop stays loopback
+export KEENEYES_PIPE_NAME=MyGame.TestBridge
+./KeenEyes.Mcp.TestBridge
+```
+
+**Host A (Claude Code):** add an `http` entry to `.mcp.json` carrying the token:
+
+```json
+{
+  "mcpServers": {
+    "keeneyes-remote": {
+      "type": "http",
+      "url": "http://192.168.1.50:19284/",
+      "headers": {
+        "Authorization": "Bearer <paste KEENEYES_MCP_TOKEN here>"
+      }
+    }
+  }
+}
+```
+
+**Security:** the HTTP endpoint controls a game process, so it must not be open. When `KEENEYES_MCP_TOKEN` is set, the server requires `Authorization: Bearer <token>` and returns **401** for missing/wrong tokens; when unset it serves unauthenticated and logs a prominent warning (only acceptable on loopback). Bind to a specific loopback/LAN IP (the default `http://127.0.0.1:19284/` is loopback-only), firewall it to host A, and treat it like an SSH port. A bearer token authenticates the client but leaves plain HTTP in cleartext; for hardened setups terminate TLS at a reverse proxy or use mutual TLS (mTLS), which also encrypts the channel and authenticates the client by certificate. See [docs/mcp-server.md](mcp-server.md#remote-testbridge-over-http) for the full reference.
+
 ## IPC Protocol Specification
 
 The IPC layer uses a simple request/response protocol over named pipes or TCP.

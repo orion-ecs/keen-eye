@@ -1,8 +1,7 @@
 using KeenEyes.Mcp.TestBridge;
 using KeenEyes.Mcp.TestBridge.Connection;
-using KeenEyes.Mcp.TestBridge.Prompts;
-using KeenEyes.Mcp.TestBridge.Resources;
-using KeenEyes.Mcp.TestBridge.Tools;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -11,158 +10,112 @@ using ModelContextProtocol.Server;
 // Parse configuration from environment variables and command line
 var config = ConfigurationParser.Parse(args);
 
-// Build and run the MCP server
-var builder = Microsoft.Extensions.Hosting.Host.CreateApplicationBuilder(args);
-
-// CRITICAL: Disable all console logging - stdout must only contain MCP JSON-RPC messages
-builder.Logging.ClearProviders();
-
-// Register the connection manager as singleton
-builder.Services.AddSingleton<BridgeConnectionManager>(sp =>
+// Select the client-facing transport (how Claude Code reaches this server).
+// The pipe/tcp settings above are orthogonal: they choose how this server reaches the GAME.
+if (config.ClientTransport == McpClientTransport.Http)
 {
-    return new BridgeConnectionManager
-    {
-        HeartbeatInterval = TimeSpan.FromMilliseconds(config.HeartbeatInterval),
-        PingTimeout = TimeSpan.FromMilliseconds(config.HeartbeatTimeout),
-        MaxPingFailures = config.MaxPingFailures,
-        ConnectionTimeout = TimeSpan.FromMilliseconds(config.ConnectionTimeout)
-    };
-});
+    await RunHttpServerAsync(config, args);
+}
+else
+{
+    await RunStdioServerAsync(config, args);
+}
 
-// Configure MCP server
-builder.Services
-    .AddMcpServer(options =>
+// Runs the default stdio transport - preserves the local-subprocess flow that .mcp.json relies on.
+static async Task RunStdioServerAsync(McpConfiguration config, string[] args)
+{
+    var builder = Host.CreateApplicationBuilder(args);
+
+    // CRITICAL: Disable all console logging - stdout must only contain MCP JSON-RPC messages
+    builder.Logging.ClearProviders();
+
+    McpServerServices.AddSharedTestBridgeServices(builder.Services, config)
+        .WithStdioServerTransport();
+
+    var app = builder.Build();
+
+    // Wire up connection state change notifications for the single long-lived stdio server.
+    var connectionManager = app.Services.GetRequiredService<BridgeConnectionManager>();
+    var mcpServer = app.Services.GetRequiredService<McpServer>();
+
+    connectionManager.ConnectionStateChanged += async () =>
     {
-        options.ServerInfo = new()
+        try
         {
-            Name = "KeenEyes TestBridge",
-            Version = "1.0.0"
-        };
-        options.Capabilities = new()
-        {
-            Tools = new() { ListChanged = true },
-            Resources = new() { ListChanged = true, Subscribe = true },
-            Prompts = new() { ListChanged = true }
-        };
-    })
-    .WithStdioServerTransport()
-    .WithTools<GameTools>()
-    .WithTools<InputTools>()
-    .WithTools<StateTools>()
-    .WithTools<CaptureTools>()
-    .WithResources<ConnectionResources>()
-    .WithResources<WorldResources>()
-    .WithResources<ExtensionResources>()
-    .WithResources<CaptureResources>()
-    .WithPrompts<WorkflowPrompts>();
-
-var app = builder.Build();
-
-// Wire up connection state change notifications
-var connectionManager = app.Services.GetRequiredService<BridgeConnectionManager>();
-var mcpServer = app.Services.GetRequiredService<McpServer>();
-
-connectionManager.ConnectionStateChanged += async () =>
-{
-    try
-    {
-        await mcpServer.SendNotificationAsync("notifications/tools/list_changed");
-        await mcpServer.SendNotificationAsync("notifications/resources/list_changed");
-    }
-    catch
-    {
-        // Ignore notification errors
-    }
-};
-
-// Handle graceful shutdown
-var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
-
-lifetime.ApplicationStopping.Register(() =>
-{
-    Console.Error.WriteLine("Shutting down MCP TestBridge Server...");
-});
-
-// Handle Ctrl+C / SIGTERM
-Console.CancelKeyPress += (_, e) =>
-{
-    e.Cancel = true;
-    lifetime.StopApplication();
-};
-
-// Log to stderr (stdout is for MCP protocol)
-Console.Error.WriteLine($"KeenEyes MCP TestBridge Server starting...");
-Console.Error.WriteLine($"Default pipe: {config.PipeName}");
-Console.Error.WriteLine($"Default transport: {config.Transport}");
-Console.Error.WriteLine($"Heartbeat interval: {config.HeartbeatInterval}ms");
-
-await app.RunAsync();
-
-// Cleanup
-await connectionManager.DisposeAsync();
-
-namespace KeenEyes.Mcp.TestBridge
-{
-    internal static class ConfigurationParser
-    {
-        public static McpConfiguration Parse(string[] args)
-        {
-            var pipeName = Environment.GetEnvironmentVariable("KEENEYES_PIPE_NAME") ?? "KeenEyes.TestBridge";
-            var tcpHost = Environment.GetEnvironmentVariable("KEENEYES_HOST") ?? "127.0.0.1";
-            var port = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_PORT"), out var p) ? p : 19283;
-            var transport = Environment.GetEnvironmentVariable("KEENEYES_TRANSPORT") ?? "pipe";
-            var heartbeatInterval = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_HEARTBEAT_INTERVAL"), out var hi) ? hi : 5000;
-            var heartbeatTimeout = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_HEARTBEAT_TIMEOUT"), out var ht) ? ht : 10000;
-            var maxPingFailures = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_MAX_PING_FAILURES"), out var mpf) ? mpf : 3;
-            var connectionTimeout = int.TryParse(Environment.GetEnvironmentVariable("KEENEYES_TIMEOUT"), out var ct) ? ct : 30000;
-
-            // Parse command line arguments
-            var i = 0;
-            while (i < args.Length)
-            {
-                var arg = args[i];
-                if (arg == "--pipe" && i + 1 < args.Length)
-                {
-                    pipeName = args[i + 1];
-                    i += 2;
-                }
-                else if (arg == "--host" && i + 1 < args.Length)
-                {
-                    tcpHost = args[i + 1];
-                    i += 2;
-                }
-                else if (arg == "--port" && i + 1 < args.Length)
-                {
-                    port = int.Parse(args[i + 1]);
-                    i += 2;
-                }
-                else if (arg == "--transport" && i + 1 < args.Length)
-                {
-                    transport = args[i + 1];
-                    i += 2;
-                }
-                else if (arg == "--timeout" && i + 1 < args.Length)
-                {
-                    connectionTimeout = int.Parse(args[i + 1]);
-                    i += 2;
-                }
-                else
-                {
-                    i++;
-                }
-            }
-
-            return new McpConfiguration(pipeName, tcpHost, port, transport, heartbeatInterval, heartbeatTimeout, maxPingFailures, connectionTimeout);
+            await mcpServer.SendNotificationAsync("notifications/tools/list_changed");
+            await mcpServer.SendNotificationAsync("notifications/resources/list_changed");
         }
+        catch
+        {
+            // Ignore notification errors
+        }
+    };
+
+    var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+    lifetime.ApplicationStopping.Register(() =>
+    {
+        Console.Error.WriteLine("Shutting down MCP TestBridge Server...");
+    });
+
+    Console.CancelKeyPress += (_, e) =>
+    {
+        e.Cancel = true;
+        lifetime.StopApplication();
+    };
+
+    // Log to stderr (stdout is for MCP protocol)
+    Console.Error.WriteLine("KeenEyes MCP TestBridge Server starting (stdio transport)...");
+    Console.Error.WriteLine($"Default pipe: {config.PipeName}");
+    Console.Error.WriteLine($"Game transport: {config.Transport}");
+    Console.Error.WriteLine($"Heartbeat interval: {config.HeartbeatInterval}ms");
+
+    await app.RunAsync();
+
+    await connectionManager.DisposeAsync();
+}
+
+// Runs the HTTP transport - lets a remote MCP client connect over the network.
+static async Task RunHttpServerAsync(McpConfiguration config, string[] args)
+{
+    var builder = WebApplication.CreateBuilder(args);
+
+    // Log to stderr so stdout stays clean and nothing leaks to a captured stdout channel.
+    builder.Logging.ClearProviders();
+    builder.Logging.AddConsole(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+
+    builder.WebHost.UseUrls(config.HttpUrl);
+
+    McpServerServices.AddSharedTestBridgeServices(builder.Services, config)
+        .WithHttpTransport();
+
+    var app = builder.Build();
+
+    // Security: require a bearer token when one is configured; otherwise warn loudly.
+    if (config.AuthToken is not null)
+    {
+        app.UseMiddleware<BearerTokenAuthenticationMiddleware>(config.AuthToken);
+    }
+    else
+    {
+        app.Logger.LogWarning(
+            "KEENEYES_MCP_TOKEN is not set: the HTTP MCP endpoint is UNAUTHENTICATED. " +
+            "This endpoint can control a game process - bind it to loopback or a trusted LAN address only, " +
+            "never to 0.0.0.0 or a public interface.");
     }
 
-    internal sealed record McpConfiguration(
-        string PipeName,
-        string TcpHost,
-        int Port,
-        string Transport,
-        int HeartbeatInterval,
-        int HeartbeatTimeout,
-        int MaxPingFailures,
-        int ConnectionTimeout);
+    app.MapMcp();
+
+    var connectionManager = app.Services.GetRequiredService<BridgeConnectionManager>();
+
+    app.Lifetime.ApplicationStopping.Register(() =>
+    {
+        app.Logger.LogInformation("Shutting down MCP TestBridge Server (HTTP transport)...");
+    });
+
+    app.Logger.LogInformation("KeenEyes MCP TestBridge Server starting (HTTP transport) on {Url}", config.HttpUrl);
+    app.Logger.LogInformation("Game transport: {Transport}, default pipe: {Pipe}", config.Transport, config.PipeName);
+
+    await app.RunAsync();
+
+    await connectionManager.DisposeAsync();
 }
