@@ -443,7 +443,6 @@ World (facade)
 ├── QueryManager               - Query caching
 ├── ComponentRegistry          - Component type registry
 ├── ComponentValidationManager - Component constraint enforcement
-├── PrefabManager              - Entity prefab templates
 ├── SaveManager                - World persistence orchestration
 ├── SnapshotManager            - World state serialization (static utility class)
 ├── SceneManager               - Scene loading and management
