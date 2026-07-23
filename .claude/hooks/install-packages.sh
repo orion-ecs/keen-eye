@@ -151,6 +151,14 @@ download_pkg "DotRecast.Core" "2024.4.1"
 download_pkg "DotRecast.Detour" "2024.4.1"
 download_pkg "DotRecast.Recast" "2024.4.1"
 
+# MCP server packages (KeenEyes.Mcp.TestBridge dependencies)
+# Harvested from packages.lock.json normally; listed explicitly per the web-session maintenance rule.
+# ModelContextProtocol.AspNetCore adds the HTTP transport; it only pulls the shared
+# Microsoft.AspNetCore.App framework (not a NuGet package), so no extra transitive deps to list.
+download_pkg "ModelContextProtocol" "1.4.1"
+download_pkg "ModelContextProtocol.Core" "1.4.1"
+download_pkg "ModelContextProtocol.AspNetCore" "1.4.1"
+
 # Localization packages (ICU MessageFormat support)
 download_pkg "MessageFormat" "7.1.3"
 # MessageFormat transitive dependencies
