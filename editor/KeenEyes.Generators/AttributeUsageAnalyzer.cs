@@ -47,7 +47,7 @@ public sealed class AttributeUsageAnalyzer : DiagnosticAnalyzer
 
     #endregion
 
-    #region Component Diagnostics (KEEN015-016)
+    #region Component Diagnostics (KEEN015-017)
 
     /// <summary>
     /// KEEN015: [Component] or [TagComponent] must be applied to a struct.
@@ -72,6 +72,18 @@ public sealed class AttributeUsageAnalyzer : DiagnosticAnalyzer
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Component structs must be declared as 'partial' to allow source generators to implement the IComponent interface.");
+
+    /// <summary>
+    /// KEEN017: A type cannot have both [Component] and [TagComponent].
+    /// </summary>
+    public static readonly DiagnosticDescriptor ComponentAndTagComponentConflict = new(
+        id: "KEEN017",
+        title: "Component cannot also be a tag component",
+        messageFormat: "Type '{0}' is marked with both [Component] and [TagComponent]; use exactly one of the two attributes",
+        category: "KeenEyes.Component",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "The [Component] and [TagComponent] attributes are mutually exclusive. A type carrying both is processed by both generator pipelines, which silently corrupts generated metadata such as the declared component Version.");
 
     #endregion
 
@@ -110,6 +122,7 @@ public sealed class AttributeUsageAnalyzer : DiagnosticAnalyzer
             SystemMustBePartial,
             ComponentMustBeStruct,
             ComponentMustBePartial,
+            ComponentAndTagComponentConflict,
             QueryMustBeStruct,
             QueryMustBePartial);
 
@@ -126,12 +139,18 @@ public sealed class AttributeUsageAnalyzer : DiagnosticAnalyzer
     {
         var typeSymbol = (INamedTypeSymbol)context.Symbol;
 
+        var hasComponent = false;
+        var hasTagComponent = false;
+
         foreach (var attribute in typeSymbol.GetAttributes())
         {
             var attributeName = attribute.AttributeClass?.ToDisplayString();
 
             if (attributeName == ComponentAttribute || attributeName == TagComponentAttribute)
             {
+                hasComponent |= attributeName == ComponentAttribute;
+                hasTagComponent |= attributeName == TagComponentAttribute;
+
                 AnalyzeComponentAttribute(context, typeSymbol, attributeName);
             }
             else if (attributeName == SystemAttribute)
@@ -141,6 +160,21 @@ public sealed class AttributeUsageAnalyzer : DiagnosticAnalyzer
             else if (attributeName == QueryAttribute)
             {
                 AnalyzeQueryAttribute(context, typeSymbol);
+            }
+        }
+
+        // KEEN017: [Component] and [TagComponent] are mutually exclusive. Both providers
+        // would pick up the type and the tag branch silently overwrites the declared
+        // Version in the generated migration metadata.
+        if (hasComponent && hasTagComponent)
+        {
+            var location = typeSymbol.Locations.FirstOrDefault();
+            if (location != null)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(
+                    ComponentAndTagComponentConflict,
+                    location,
+                    typeSymbol.Name));
             }
         }
     }

@@ -46,7 +46,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     diag.Descriptor,
                     diag.Location,
-                    diag.MessageArgs));
+                    diag.MessageArgs.ToArray()));
             }
 
             // Only generate code for valid bundles
@@ -157,7 +157,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             diagnostics.Add(new DiagnosticInfo(
                 Diagnostics.BundleNestingDepthExceeded,
                 errorLocation,
-                [bundleType.Name, MaxNestingDepth]));
+                ImmutableArray.Create(bundleType.Name, MaxNestingDepth.ToString())));
             return flattenedFields;
         }
 
@@ -168,7 +168,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             diagnostics.Add(new DiagnosticInfo(
                 Diagnostics.BundleCircularReference,
                 errorLocation,
-                [bundleType.Name, "nested"]));
+                ImmutableArray.Create(bundleType.Name, "nested")));
             return flattenedFields;
         }
 
@@ -271,7 +271,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleExceedsQueryLimit,
                     location,
-                    [typeSymbol.Name, flattenedComponentTypes.Count]));
+                    ImmutableArray.Create(typeSymbol.Name, flattenedComponentTypes.Count.ToString())));
             }
         }
 
@@ -316,7 +316,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleMustBeStruct,
                     location,
-                    [typeSymbol.Name]));
+                    ImmutableArray.Create(typeSymbol.Name)));
             }
             return false;
         }
@@ -382,7 +382,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleCircularReference,
                     location,
-                    [bundleType.Name, field.Name]));
+                    ImmutableArray.Create(bundleType.Name, field.Name)));
             }
             return null;
         }
@@ -426,7 +426,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleOptionalFieldMustBeNullable,
                     location,
-                    [field.Name, bundleType.Name]));
+                    ImmutableArray.Create(field.Name, bundleType.Name)));
             }
             return false;
         }
@@ -485,7 +485,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleFieldMustBeComponent,
                     location,
-                    [field.Name, bundleType.Name, underlyingType.ToDisplayString()]));
+                    ImmutableArray.Create(field.Name, bundleType.Name, underlyingType.ToDisplayString())));
             }
             return false;
         }
@@ -505,7 +505,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 diagnostics.Add(new DiagnosticInfo(
                     Diagnostics.BundleMustHaveFields,
                     location,
-                    [typeSymbol.Name]));
+                    ImmutableArray.Create(typeSymbol.Name)));
             }
             return false;
         }
@@ -1203,9 +1203,9 @@ public sealed class BundleGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<ComponentFieldInfo> Fields,
-        ImmutableArray<string> FlattenedComponentTypes,
-        ImmutableArray<DiagnosticInfo> Diagnostics,
+        EquatableArray<ComponentFieldInfo> Fields,
+        EquatableArray<string> FlattenedComponentTypes,
+        EquatableArray<DiagnosticInfo> Diagnostics,
         bool IsValid)
     {
         /// <summary>
@@ -1226,7 +1226,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
     private sealed record DiagnosticInfo(
         DiagnosticDescriptor Descriptor,
         Location Location,
-        object[] MessageArgs);
+        EquatableArray<string> MessageArgs);
 }
 
 /// <summary>

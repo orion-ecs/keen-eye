@@ -67,7 +67,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
                     ctx.ReportDiagnostic(Diagnostic.Create(
                         diag.Descriptor,
                         diag.Location,
-                        diag.MessageArgs));
+                        diag.MessageArgs.ToArray()));
                 }
 
                 // Only generate code for valid mixins
@@ -123,7 +123,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
                     diagnostics.Add(new DiagnosticInfo(
                         Diagnostics.MixinMustBeStruct,
                         location,
-                        [mixinType.ToDisplayString(), typeSymbol.Name]));
+                        ImmutableArray.Create(mixinType.ToDisplayString(), typeSymbol.Name)));
                 }
                 continue;
             }
@@ -137,7 +137,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
                     diagnostics.Add(new DiagnosticInfo(
                         Diagnostics.MixinTypeNotAccessible,
                         location,
-                        [mixinType.ToDisplayString(), typeSymbol.Name]));
+                        ImmutableArray.Create(mixinType.ToDisplayString(), typeSymbol.Name)));
                 }
                 continue;
             }
@@ -195,7 +195,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
                     diagnostics.Add(new DiagnosticInfo(
                         Diagnostics.MixinFieldConflict,
                         location,
-                        [group.Key, typeSymbol.Name, sources]));
+                        ImmutableArray.Create(group.Key, typeSymbol.Name, sources)));
                 }
             }
         }
@@ -218,7 +218,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
                     diagnostics.Add(new DiagnosticInfo(
                         Diagnostics.MixinFieldConflict,
                         location,
-                        [field.Name, typeSymbol.Name, $"{field.SourceMixin} and {typeSymbol.Name}"]));
+                        ImmutableArray.Create(field.Name, typeSymbol.Name, $"{field.SourceMixin} and {typeSymbol.Name}")));
                 }
             }
         }
@@ -251,7 +251,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
             diagnostics.Add(new DiagnosticInfo(
                 Diagnostics.MixinCircularReference,
                 errorLocation,
-                [targetType.Name, string.Join(" -> ", currentPath)]));
+                ImmutableArray.Create(targetType.Name, string.Join(" -> ", currentPath))));
             return fields;
         }
 
@@ -264,7 +264,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
             diagnostics.Add(new DiagnosticInfo(
                 Diagnostics.MixinCircularReference,
                 errorLocation,
-                [targetType.Name, string.Join(" -> ", currentPath.Append(mixinTypeName))]));
+                ImmutableArray.Create(targetType.Name, string.Join(" -> ", currentPath.Append(mixinTypeName)))));
             return fields;
         }
 
@@ -366,14 +366,14 @@ public sealed class MixinGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<MixinTypeInfo> MixinTypes,
-        ImmutableArray<DiagnosticInfo> Diagnostics,
+        EquatableArray<MixinTypeInfo> MixinTypes,
+        EquatableArray<DiagnosticInfo> Diagnostics,
         bool IsValid);
 
     private sealed record MixinTypeInfo(
         string Name,
         string FullName,
-        ImmutableArray<MixinFieldInfo> Fields);
+        EquatableArray<MixinFieldInfo> Fields);
 
     private sealed record MixinFieldInfo(
         string Name,
@@ -383,7 +383,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
     private sealed record DiagnosticInfo(
         DiagnosticDescriptor Descriptor,
         Location Location,
-        object[] MessageArgs);
+        EquatableArray<string> MessageArgs);
 }
 
 /// <summary>

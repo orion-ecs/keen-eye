@@ -437,7 +437,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         string Namespace,
         string FullName,
         bool IsTag,
-        ImmutableArray<FieldInfo> Fields,
+        EquatableArray<FieldInfo> Fields,
         string? ContainingTypeName,
         bool IsPublic);
 

@@ -56,8 +56,8 @@ public sealed class EditorExtensionGenerator : IIncrementalGenerator
                 {
                     ctx.ReportDiagnostic(Diagnostic.Create(
                         diag.Descriptor,
-                        diag.Location,
-                        diag.Args));
+                        diag.Location?.ToLocation() ?? Location.None,
+                        diag.Args.ToArray()));
                 }
             }
 
@@ -97,8 +97,8 @@ public sealed class EditorExtensionGenerator : IIncrementalGenerator
             // Report error for null property name
             var diagnostics = ImmutableArray.Create(new DiagnosticInfo(
                 NullPropertyName,
-                context.TargetNode.GetLocation(),
-                [typeSymbol.Name]));
+                LocationInfo.From(context.TargetNode.GetLocation()),
+                ImmutableArray.Create(typeSymbol.Name)));
 
             return new ExtensionInfo(
                 typeSymbol.Name,
@@ -126,7 +126,7 @@ public sealed class EditorExtensionGenerator : IIncrementalGenerator
             typeSymbol.ToDisplayString(),
             propertyName,
             isNullable,
-            ImmutableArray<DiagnosticInfo>.Empty,
+            EquatableArray<DiagnosticInfo>.Empty,
             IsValid: true);
     }
 
@@ -138,7 +138,7 @@ public sealed class EditorExtensionGenerator : IIncrementalGenerator
             string.Empty,
             string.Empty,
             false,
-            ImmutableArray<DiagnosticInfo>.Empty,
+            EquatableArray<DiagnosticInfo>.Empty,
             IsValid: false);
     }
 
@@ -200,8 +200,8 @@ public sealed class EditorExtensionGenerator : IIncrementalGenerator
     /// </summary>
     private sealed record DiagnosticInfo(
         DiagnosticDescriptor Descriptor,
-        Location Location,
-        object[] Args);
+        LocationInfo? Location,
+        EquatableArray<string> Args);
 
     /// <summary>
     /// Information about an editor extension class.
@@ -212,6 +212,6 @@ public sealed class EditorExtensionGenerator : IIncrementalGenerator
         string FullName,
         string PropertyName,
         bool IsNullable,
-        ImmutableArray<DiagnosticInfo> Diagnostics,
+        EquatableArray<DiagnosticInfo> Diagnostics,
         bool IsValid);
 }

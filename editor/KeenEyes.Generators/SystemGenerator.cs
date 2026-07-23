@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using KeenEyes.Generators.Utilities;
@@ -109,8 +110,8 @@ public sealed class SystemGenerator : IIncrementalGenerator
             phase,
             order,
             group,
-            runsBefore,
-            runsAfter);
+            runsBefore.ToImmutableArray(),
+            runsAfter.ToImmutableArray());
     }
 
     private static string GenerateSystemPartial(SystemInfo info)
@@ -232,17 +233,17 @@ public sealed class SystemGenerator : IIncrementalGenerator
     /// <param name="useCollectionExpression">If true, uses [] syntax; otherwise uses new Type[] { } syntax.</param>
     /// <param name="baseIndent">Base indentation for multi-line arrays (e.g., "    " for 4 spaces).</param>
     /// <returns>The generated type array literal.</returns>
-    private static string GenerateTypeArray(List<string> types, bool useCollectionExpression, string baseIndent = "    ")
+    private static string GenerateTypeArray(EquatableArray<string> types, bool useCollectionExpression, string baseIndent = "    ")
     {
-        if (types.Count == 0)
+        if (types.Length == 0)
         {
             return useCollectionExpression ? "[]" : "global::System.Array.Empty<global::System.Type>()";
         }
 
-        var typeofs = types.Select(t => $"typeof(global::{t})").ToList();
+        var typeofs = types.AsImmutableArray().Select(t => $"typeof(global::{t})").ToList();
 
         // Single-line for arrays below the threshold
-        if (types.Count < MultiLineArrayThreshold)
+        if (types.Length < MultiLineArrayThreshold)
         {
             var joined = string.Join(", ", typeofs);
             return useCollectionExpression
@@ -298,6 +299,6 @@ public sealed class SystemGenerator : IIncrementalGenerator
         SystemPhase Phase,
         int Order,
         string? Group,
-        List<string> RunsBefore,
-        List<string> RunsAfter);
+        EquatableArray<string> RunsBefore,
+        EquatableArray<string> RunsAfter);
 }

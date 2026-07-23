@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -95,8 +96,8 @@ public sealed class ComponentValidationGenerator : IIncrementalGenerator
             typeSymbol.Name,
             typeSymbol.ContainingNamespace.ToDisplayString(),
             typeSymbol.ToDisplayString(),
-            [.. requires],
-            [.. conflicts]);
+            requires.ToImmutableArray(),
+            conflicts.ToImmutableArray());
     }
 
     private static string GenerateValidationMetadata(ImmutableArray<ValidationInfo> components)
@@ -191,8 +192,8 @@ public sealed class ComponentValidationGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<string> RequiredComponents,
-        ImmutableArray<string> ConflictingComponents)
+        EquatableArray<string> RequiredComponents,
+        EquatableArray<string> ConflictingComponents)
     {
         public bool HasConstraints => RequiredComponents.Length > 0 || ConflictingComponents.Length > 0;
     }
