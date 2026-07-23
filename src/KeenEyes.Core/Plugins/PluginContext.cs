@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace KeenEyes;
 
 /// <summary>
@@ -139,7 +141,7 @@ public sealed class PluginContext : IPluginContext
     }
 
     /// <inheritdoc />
-    public bool TryGetExtension<T>(out T? extension) where T : class
+    public bool TryGetExtension<T>([MaybeNullWhen(false)] out T extension) where T : class
     {
         var result = World.TryGetExtension<T>(out var ext);
         extension = ext;
@@ -177,7 +179,7 @@ public sealed class PluginContext : IPluginContext
     }
 
     /// <inheritdoc />
-    public bool TryGetCapability<T>(out T? capability) where T : class
+    public bool TryGetCapability<T>([MaybeNullWhen(false)] out T capability) where T : class
     {
         // Check if World directly implements the capability
         if (World is T worldCapability)

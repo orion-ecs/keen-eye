@@ -36,7 +36,7 @@ public sealed class ParticleUpdateSystem : SystemBase
         var pm = manager;
         if (pm == null)
         {
-            if (!World.TryGetExtension(out pm) || pm is null)
+            if (!World.TryGetExtension<ParticleManager>(out pm) || pm is null)
             {
                 return;
             }

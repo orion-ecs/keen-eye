@@ -29,7 +29,7 @@ internal sealed class NavMeshStreamingSystem : SystemBase
     /// <inheritdoc/>
     protected override void OnInitialize()
     {
-        if (!World.TryGetExtension(out NavMeshStreamingManager? streamingManager) || streamingManager is null)
+        if (!World.TryGetExtension<NavMeshStreamingManager>(out var streamingManager) || streamingManager is null)
         {
             throw new InvalidOperationException("NavMeshStreamingSystem requires the NavMeshStreamingManager extension.");
         }

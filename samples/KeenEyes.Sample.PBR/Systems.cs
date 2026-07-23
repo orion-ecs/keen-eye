@@ -103,7 +103,7 @@ public class CameraZoomSystem : SystemBase
     /// <inheritdoc />
     protected override void OnInitialize()
     {
-        if (World.TryGetExtension<IInputContext>(out var ctx) && ctx is not null)
+        if (World.TryGetExtension<IInputContext>(out var ctx))
         {
             input = ctx;
             scrollHandler = args =>

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace KeenEyes;
 
 /// <summary>
@@ -370,7 +372,7 @@ public interface IWorld : IDisposable
     /// <typeparam name="T">The extension type.</typeparam>
     /// <param name="extension">When this method returns, contains the extension if found.</param>
     /// <returns>True if the extension is registered; false otherwise.</returns>
-    bool TryGetExtension<T>(out T? extension) where T : class;
+    bool TryGetExtension<T>([MaybeNullWhen(false)] out T extension) where T : class;
 
     /// <summary>
     /// Checks if an extension of the specified type is registered.

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace KeenEyes;
 
 /// <summary>
@@ -133,7 +135,7 @@ public interface IPluginContext
     /// <typeparam name="T">The extension type.</typeparam>
     /// <param name="extension">When this method returns, contains the extension if found.</param>
     /// <returns>True if the extension is registered; false otherwise.</returns>
-    bool TryGetExtension<T>(out T? extension) where T : class;
+    bool TryGetExtension<T>([MaybeNullWhen(false)] out T extension) where T : class;
 
     /// <summary>
     /// Sets an extension value that can be retrieved by other code.
@@ -201,7 +203,7 @@ public interface IPluginContext
     /// For required capabilities, use <see cref="GetCapability{T}"/> which throws if unavailable.
     /// </para>
     /// </remarks>
-    bool TryGetCapability<T>(out T? capability) where T : class;
+    bool TryGetCapability<T>([MaybeNullWhen(false)] out T capability) where T : class;
 
     /// <summary>
     /// Checks if a capability is available in this context.

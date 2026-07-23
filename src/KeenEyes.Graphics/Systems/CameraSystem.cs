@@ -31,7 +31,7 @@ public sealed class CameraSystem : ISystem
     {
         this.world = world;
 
-        world.TryGetExtension(out graphics);
+        world.TryGetExtension<IGraphicsContext>(out graphics);
 
         if (world.TryGetExtension<ILoopProvider>(out loopProvider) && loopProvider is not null)
         {

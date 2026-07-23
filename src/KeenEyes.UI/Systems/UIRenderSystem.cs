@@ -103,7 +103,7 @@ public sealed class UIRenderSystem : SystemBase
     private void TryInitializeRenderers()
     {
         // Try getting I2DRenderer directly as extension first, fall back to provider
-        if (!World.TryGetExtension(out renderer2D) &&
+        if (!World.TryGetExtension<I2DRenderer>(out renderer2D) &&
             World.TryGetExtension<I2DRendererProvider>(out var provider) &&
             provider is not null)
         {
@@ -111,7 +111,7 @@ public sealed class UIRenderSystem : SystemBase
         }
 
         // Try getting ITextRenderer directly as extension first, fall back to provider
-        if (!World.TryGetExtension(out textRenderer) &&
+        if (!World.TryGetExtension<ITextRenderer>(out textRenderer) &&
             World.TryGetExtension<ITextRendererProvider>(out var textProvider) &&
             textProvider is not null)
         {

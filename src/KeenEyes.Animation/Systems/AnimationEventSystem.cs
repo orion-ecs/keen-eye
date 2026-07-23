@@ -31,7 +31,7 @@ public sealed class AnimationEventSystem : SystemBase
     /// <inheritdoc />
     protected override void OnInitialize()
     {
-        World.TryGetExtension(out manager);
+        World.TryGetExtension<AnimationManager>(out manager);
     }
 
     /// <inheritdoc />

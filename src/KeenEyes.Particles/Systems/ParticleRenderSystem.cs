@@ -47,7 +47,7 @@ public sealed class ParticleRenderSystem : SystemBase
         var pm = manager;
         if (pm == null)
         {
-            if (!World.TryGetExtension(out pm) || pm is null)
+            if (!World.TryGetExtension<ParticleManager>(out pm) || pm is null)
             {
                 return;
             }
@@ -57,7 +57,7 @@ public sealed class ParticleRenderSystem : SystemBase
         var r = renderer;
         if (r == null)
         {
-            if (!World.TryGetExtension(out r) || r is null)
+            if (!World.TryGetExtension<I2DRenderer>(out r) || r is null)
             {
                 return;
             }

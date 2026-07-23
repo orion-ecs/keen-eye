@@ -81,7 +81,7 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
     public override void Update(float deltaTime)
     {
         // Get renderer
-        if (renderer is null && !World.TryGetExtension(out renderer))
+        if (renderer is null && !World.TryGetExtension<I2DRenderer>(out renderer))
         {
             return;
         }
@@ -89,11 +89,11 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         // Text renderer is optional
         if (textRenderer is null)
         {
-            World.TryGetExtension(out textRenderer);
+            World.TryGetExtension<ITextRenderer>(out textRenderer);
         }
 
         // Get port registry
-        if (portRegistry is null && !World.TryGetExtension(out portRegistry))
+        if (portRegistry is null && !World.TryGetExtension<PortRegistry>(out portRegistry))
         {
             return;
         }
@@ -101,11 +101,11 @@ public sealed class GraphRenderSystem : SystemBase, IGraphRenderer
         // Get node type registry
         if (nodeTypeRegistry is null)
         {
-            World.TryGetExtension(out nodeTypeRegistry);
+            World.TryGetExtension<NodeTypeRegistry>(out nodeTypeRegistry);
         }
 
         // Get port position cache
-        if (portCache is null && !World.TryGetExtension(out portCache))
+        if (portCache is null && !World.TryGetExtension<PortPositionCache>(out portCache))
         {
             return;
         }

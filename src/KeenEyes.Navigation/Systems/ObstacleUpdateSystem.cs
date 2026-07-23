@@ -41,7 +41,7 @@ internal sealed class ObstacleUpdateSystem : SystemBase
     /// <inheritdoc/>
     protected override void OnInitialize()
     {
-        if (!World.TryGetExtension(out NavigationContext? ctx) || ctx is null)
+        if (!World.TryGetExtension<NavigationContext>(out var ctx) || ctx is null)
         {
             throw new InvalidOperationException("ObstacleUpdateSystem requires NavigationContext extension.");
         }
