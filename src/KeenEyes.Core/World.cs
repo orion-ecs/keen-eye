@@ -1,5 +1,3 @@
-#pragma warning disable CS0618 // Type or member is obsolete - World implements deprecated IPrefabCapability for backwards compatibility
-
 using KeenEyes.Capabilities;
 using KeenEyes.Events;
 
@@ -33,7 +31,6 @@ public sealed partial class World : IWorld,
     IHierarchyCapability,
     IValidationCapability,
     ITagCapability,
-    IPrefabCapability,
     IStatisticsCapability,
     IInspectionCapability,
     ISerializationCapability
@@ -51,7 +48,6 @@ public sealed partial class World : IWorld,
     private readonly MessageManager messageManager = new();
     private readonly ChangeTracker changeTracker;
     private readonly ExtensionManager extensionManager = new();
-    private readonly PrefabManager prefabManager;
     private readonly TagManager tagManager = new();
     private readonly ComponentValidationManager validationManager;
     private readonly ComponentArrayPoolManager arrayPoolManager = new();
@@ -186,7 +182,6 @@ public sealed partial class World : IWorld,
         systemManager = new SystemManager(this, systemHookManager);
         pluginManager = new PluginManager(this, systemManager);
         changeTracker = new ChangeTracker(entityPool);
-        prefabManager = new PrefabManager(this);
         validationManager = new ComponentValidationManager(this);
         statisticsManager = new StatisticsManager(entityPool, archetypeManager, Components, systemManager, queryManager);
         threadLocalBuilder = new ThreadLocal<EntityBuilder>(() => new EntityBuilder(this), trackAllValues: false);

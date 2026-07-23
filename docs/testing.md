@@ -123,27 +123,6 @@ Assert.Equal(1024 * 1024, memStats.TotalAllocatedBytes);
 Assert.Equal(500, memStats.EntityCount);
 ```
 
-### MockPrefabCapability
-
-Tests prefab registration and spawning:
-
-```csharp
-var prefabs = new MockPrefabCapability();
-
-var enemyPrefab = new EntityPrefab()
-    .With(new Health { Current = 100, Max = 100 })
-    .With(new Position { X = 0, Y = 0 });
-
-prefabs.RegisterPrefab("Enemy", enemyPrefab);
-
-// Verify registration
-Assert.True(prefabs.HasPrefab("Enemy"));
-Assert.Contains("Enemy", prefabs.RegistrationOrder);
-
-// Track spawning (requires World for actual spawns)
-// prefabs.SpawnFromPrefab("Enemy"); // Would log to SpawnLog
-```
-
 ### MockInspectionCapability
 
 Tests entity inspection for debugging tools:
@@ -212,20 +191,20 @@ public void MyPlugin_RegistersSystems()
 
 ```csharp
 [Fact]
-public void CombatPlugin_RegistersPrefabs()
+public void CombatPlugin_TagsEntities()
 {
     // Arrange
-    var mockPrefabs = new MockPrefabCapability();
+    var mockTags = new MockTagCapability();
     var mockContext = new MockPluginContext("TestWorld")
-        .WithCapability<IPrefabCapability>(mockPrefabs);
+        .WithCapability<ITagCapability>(mockTags);
 
     // Act
     var plugin = new CombatPlugin();
     plugin.Install(mockContext);
 
     // Assert
-    Assert.Contains("Sword", mockPrefabs.RegistrationOrder);
-    Assert.Contains("Arrow", mockPrefabs.RegistrationOrder);
+    Assert.Contains(mockTags.OperationLog, e => e.Tag == "Sword");
+    Assert.Contains(mockTags.OperationLog, e => e.Tag == "Arrow");
 }
 ```
 
@@ -345,7 +324,7 @@ Assert.Equal(100, mockInput.MouseX);
 public void SetParent_WithValidEntities_UpdatesHierarchy() { }
 
 [Fact]
-public void RegisterPrefab_WithDuplicateName_ThrowsArgumentException() { }
+public void AddTag_WithDuplicateTag_ReturnsFalse() { }
 
 [Fact]
 public void Update_WhenDisabled_SkipsExecution() { }

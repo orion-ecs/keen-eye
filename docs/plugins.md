@@ -399,15 +399,15 @@ Plugins can access World features through **capability interfaces** rather than 
 public void Install(IPluginContext context)
 {
     var world = (World)context.World;  // Requires concrete World
-    world.RegisterPrefab("Enemy", prefab);
+    world.SetParent(child, parent);
 }
 
 // ✅ NEW: Request specific capability (easy to mock)
 public void Install(IPluginContext context)
 {
-    if (context.TryGetCapability<IPrefabCapability>(out var prefabs))
+    if (context.TryGetCapability<IHierarchyCapability>(out var hierarchy))
     {
-        prefabs.RegisterPrefab("Enemy", prefab);
+        hierarchy.SetParent(child, parent);
     }
 }
 ```
@@ -422,7 +422,6 @@ public void Install(IPluginContext context)
 | `IValidationCapability` | Component constraint validation | `RegisterValidator<T>()`, `ValidationMode` |
 | `ITagCapability` | String-based entity tagging | `AddTag()`, `RemoveTag()`, `HasTag()`, `QueryByTag()` |
 | `IStatisticsCapability` | Memory and performance statistics | `GetMemoryStats()` |
-| `IPrefabCapability` | Entity prefab templates | `RegisterPrefab()`, `SpawnFromPrefab()`, `HasPrefab()` |
 | `ISnapshotCapability` | World state serialization | `GetComponents()`, `GetAllSingletons()`, `SetSingleton()`, `Clear()` |
 | `IInspectionCapability` | Entity debugging and inspection | `GetName()`, `HasComponent()`, `GetRegisteredComponents()` |
 
@@ -438,8 +437,8 @@ public void Install(IPluginContext context)
     }
 
     // Required capability - throws if unavailable
-    var prefabs = context.GetCapability<IPrefabCapability>();
-    prefabs.RegisterPrefab("Player", playerPrefab);
+    var tags = context.GetCapability<ITagCapability>();
+    tags.AddTag(player, "Player");
 }
 ```
 
@@ -452,19 +451,19 @@ using KeenEyes.Testing;
 using KeenEyes.Testing.Capabilities;
 
 [Fact]
-public void Plugin_RegistersPrefabs()
+public void Plugin_TagsEntities()
 {
     // Arrange - create mock capability
-    var mockPrefabs = new MockPrefabCapability();
+    var mockTags = new MockTagCapability();
     var mockContext = new MockPluginContext("TestWorld")
-        .WithCapability<IPrefabCapability>(mockPrefabs);
+        .WithCapability<ITagCapability>(mockTags);
 
     // Act
     var plugin = new EnemyPlugin();
     plugin.Install(mockContext);
 
     // Assert - verify behavior without real World
-    Assert.Contains("Enemy", mockPrefabs.RegistrationOrder);
+    Assert.Contains(mockTags.OperationLog, e => e.Tag == "Enemy");
 }
 ```
 
@@ -476,7 +475,6 @@ public void Plugin_RegistersPrefabs()
 | `MockValidationCapability` | `RegisteredValidators`, `ValidationMode` |
 | `MockTagCapability` | `EntityTags`, `OperationLog` |
 | `MockStatisticsCapability` | Configurable `TotalAllocatedBytes`, `EntityCount`, etc. |
-| `MockPrefabCapability` | `RegistrationOrder`, `SpawnLog` |
 
 See [Testing Guide](testing.md) for more testing patterns.
 

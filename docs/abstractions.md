@@ -536,7 +536,7 @@ public void Initialize(IWorld world)
     // Cast to access full API when needed
     if (world is World concreteWorld)
     {
-        var prefab = concreteWorld.CreatePrefab()
+        var entity = concreteWorld.Spawn()
             .With(new Position { X = 0, Y = 0 })
             .With(new Velocity { X = 1, Y = 0 })
             .Build();
@@ -733,8 +733,8 @@ This pattern enables the KeenEyes ecosystem where users can mix and match subsys
 The `KeenEyes.Abstractions` package includes:
 
 - **Interfaces**: `IWorld`, `IWorldPlugin`, `IPluginContext`, `ISystem`, `ISystemLifecycle`, `IComponent`, `ITagComponent`, `IBundle`, `ICommandBuffer`, `IEntityBuilder`, `IEntityBuilder<TSelf>`, `IQueryBuilder`
-- **Capability Interfaces**: `ISystemHookCapability`, `IPersistenceCapability`, `IHierarchyCapability`, `IValidationCapability`, `ITagCapability`, `IStatisticsCapability`, `IPrefabCapability`, `ISnapshotCapability`, `IInspectionCapability`
-- **Types**: `Entity`, `EntityCommands`, `SystemGroup`, `SystemBase`, `EventSubscription`, `MemoryStats`, `EntityPrefab`
+- **Capability Interfaces**: `ISystemHookCapability`, `IPersistenceCapability`, `IHierarchyCapability`, `IValidationCapability`, `ITagCapability`, `IStatisticsCapability`, `ISnapshotCapability`, `IInspectionCapability`
+- **Types**: `Entity`, `EntityCommands`, `SystemGroup`, `SystemBase`, `EventSubscription`, `MemoryStats`
 - **Enums**: `SystemPhase`, `ValidationMode`
 - **Attributes**: `[Component]`, `[TagComponent]`, `[System]`, `[Bundle]`, `[Query]`, `[RunBefore]`, `[RunAfter]`, `[PluginExtension]`, and more
 - **Internal**: `ICommand` (command execution interface)
