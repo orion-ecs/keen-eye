@@ -106,7 +106,12 @@ if (!File.Exists(v2SavePath))
 
 Console.WriteLine($"  Loading: {v2SavePath}");
 var v2Json = File.ReadAllText(v2SavePath);
-var v2Snapshot = SnapshotManager.FromJson(v2Json)!;
+var v2Snapshot = SnapshotManager.FromJson(v2Json);
+if (v2Snapshot == null)
+{
+    Console.WriteLine("  ERROR: Failed to parse v2 snapshot");
+    return;
+}
 
 // Show what versions are in the save
 Console.WriteLine("\n  Component versions in save file:");
