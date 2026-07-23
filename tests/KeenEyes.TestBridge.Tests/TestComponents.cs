@@ -33,6 +33,25 @@ public struct TestHealth : IComponent
 public struct TestTag : ITagComponent;
 
 /// <summary>
+/// Nested value type used to verify struct-typed component fields survive snapshot round-trips.
+/// </summary>
+public struct TestNested
+{
+    public int A;
+    public int B;
+}
+
+/// <summary>
+/// Test component combining a flat field, a nested-struct field, and an array field.
+/// </summary>
+public struct TestComplexComponent : IComponent
+{
+    public int Flat;
+    public TestNested Nested;
+    public int[] Values;
+}
+
+/// <summary>
 /// Test system that counts updates.
 /// </summary>
 public class TestCountingSystem : SystemBase
