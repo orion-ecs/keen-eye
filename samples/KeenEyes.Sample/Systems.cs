@@ -210,9 +210,9 @@ public class DebugStatsSystem : SystemBase
     public override void Update(float deltaTime)
     {
         // Access the extension set by our plugin
-        if (World.TryGetExtension<DebugStats>(out var stats))
+        if (World.TryGetExtension<DebugStats>(out var stats) && stats is not null)
         {
-            stats!.EntitiesProcessed = World.EntityCount;
+            stats.EntitiesProcessed = World.EntityCount;
             Console.WriteLine($"  DebugStatsSystem: {stats.EntitiesProcessed} entities");
         }
     }
