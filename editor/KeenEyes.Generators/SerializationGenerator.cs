@@ -1310,9 +1310,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<SerializableFieldInfo> Fields,
+        EquatableArray<SerializableFieldInfo> Fields,
         int Version,
-        ImmutableArray<MigrationMethodInfo> Migrations);
+        EquatableArray<MigrationMethodInfo> Migrations);
 
     private sealed record SerializableFieldInfo(
         string Name,

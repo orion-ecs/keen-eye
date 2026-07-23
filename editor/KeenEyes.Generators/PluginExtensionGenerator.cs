@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
@@ -29,6 +30,18 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
         isEnabledByDefault: true,
         description: "The [PluginExtension] attribute requires a non-null property name to generate the World extension property.");
 
+    /// <summary>
+    /// KEEN009: Duplicate PluginExtension property name.
+    /// </summary>
+    public static readonly DiagnosticDescriptor DuplicatePropertyName = new(
+        id: "KEEN009",
+        title: "Duplicate PluginExtension property name",
+        messageFormat: "The property name '{0}' is declared by [PluginExtension] on both '{1}' and '{2}'; property names must be unique, so no extension property is generated for '{2}'",
+        category: "KeenEyes.Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Each [PluginExtension] property name must be unique across the compilation. Duplicate names would generate conflicting extension members on IWorld.");
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -52,19 +65,40 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
                 {
                     ctx.ReportDiagnostic(Diagnostic.Create(
                         diag.Descriptor,
-                        diag.Location,
-                        diag.Args));
+                        diag.Location?.ToLocation() ?? Location.None,
+                        diag.Args.ToArray()));
                 }
             }
 
-            // Generate code only for valid extensions
-            var validExtensions = extensions.Where(static e => e.IsValid).ToImmutableArray();
-            if (validExtensions.Length == 0)
+            // Generate code only for valid extensions with unique property names.
+            // Duplicates would emit two same-named extension members (an opaque CS0111
+            // in generated code), so report KEEN009 and skip everything after the first.
+            var validExtensions = ImmutableArray.CreateBuilder<ExtensionInfo>();
+            var firstByPropertyName = new Dictionary<string, ExtensionInfo>();
+
+            foreach (var ext in extensions.Where(static e => e.IsValid))
+            {
+                if (firstByPropertyName.TryGetValue(ext.PropertyName, out var first))
+                {
+                    ctx.ReportDiagnostic(Diagnostic.Create(
+                        DuplicatePropertyName,
+                        ext.Location?.ToLocation() ?? Location.None,
+                        ext.PropertyName,
+                        first.FullName,
+                        ext.FullName));
+                    continue;
+                }
+
+                firstByPropertyName.Add(ext.PropertyName, ext);
+                validExtensions.Add(ext);
+            }
+
+            if (validExtensions.Count == 0)
             {
                 return;
             }
 
-            var source = GenerateWorldExtensions(validExtensions);
+            var source = GenerateWorldExtensions(validExtensions.ToImmutable());
             ctx.AddSource("World.PluginExtensions.g.cs", SourceText.From(source, Encoding.UTF8));
         });
     }
@@ -86,6 +120,8 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             return CreateInvalidExtensionInfo();
         }
 
+        var location = LocationInfo.From(context.TargetNode.GetLocation());
+
         // Get property name from constructor argument
         if (attributeData.ConstructorArguments.Length == 0 ||
             attributeData.ConstructorArguments[0].Value is not string propertyName)
@@ -93,8 +129,8 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             // Report error for null property name
             var diagnostics = ImmutableArray.Create(new DiagnosticInfo(
                 NullPropertyName,
-                context.TargetNode.GetLocation(),
-                [typeSymbol.Name]));
+                location,
+                ImmutableArray.Create(typeSymbol.Name)));
 
             return new ExtensionInfo(
                 typeSymbol.Name,
@@ -102,6 +138,7 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
                 typeSymbol.ToDisplayString(),
                 string.Empty,
                 false,
+                location,
                 diagnostics,
                 IsValid: false);
         }
@@ -122,7 +159,8 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             typeSymbol.ToDisplayString(),
             propertyName,
             isNullable,
-            ImmutableArray<DiagnosticInfo>.Empty,
+            location,
+            EquatableArray<DiagnosticInfo>.Empty,
             IsValid: true);
     }
 
@@ -134,7 +172,8 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
             string.Empty,
             string.Empty,
             false,
-            ImmutableArray<DiagnosticInfo>.Empty,
+            null,
+            EquatableArray<DiagnosticInfo>.Empty,
             IsValid: false);
     }
 
@@ -196,8 +235,8 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
     /// </summary>
     private sealed record DiagnosticInfo(
         DiagnosticDescriptor Descriptor,
-        Location Location,
-        object[] Args);
+        LocationInfo? Location,
+        EquatableArray<string> Args);
 
     /// <summary>
     /// Information about a plugin extension class.
@@ -208,6 +247,7 @@ public sealed class PluginExtensionGenerator : IIncrementalGenerator
         string FullName,
         string PropertyName,
         bool IsNullable,
-        ImmutableArray<DiagnosticInfo> Diagnostics,
+        LocationInfo? Location,
+        EquatableArray<DiagnosticInfo> Diagnostics,
         bool IsValid);
 }

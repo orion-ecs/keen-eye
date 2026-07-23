@@ -319,6 +319,61 @@ public class PluginExtensionGeneratorTests
         Assert.Contains(diagnostics, d => d.GetMessage().Contains("TestExtension"));
     }
 
+    [Fact]
+    public void PluginExtensionGenerator_WithDuplicatePropertyNames_ReportsKeen009AndSkipsDuplicate()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [PluginExtension("Physics")]
+            public class PhysicsWorld { }
+
+            [PluginExtension("Physics")]
+            public class AlternatePhysicsWorld { }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        // Should report KEEN009 naming both conflicting types
+        var diagnostic = Assert.Single(diagnostics, d => d.Id == "KEEN009");
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Contains("Physics", diagnostic.GetMessage());
+        Assert.Contains("TestApp.PhysicsWorld", diagnostic.GetMessage());
+        Assert.Contains("TestApp.AlternatePhysicsWorld", diagnostic.GetMessage());
+
+        // Only the first declaration generates a property - no CS0111 from a duplicate member
+        var generated = Assert.Single(generatedTrees);
+        Assert.Contains("global::TestApp.PhysicsWorld Physics =>", generated);
+        Assert.DoesNotContain("AlternatePhysicsWorld Physics", generated);
+    }
+
+    [Fact]
+    public void PluginExtensionGenerator_WithDistinctPropertyNames_DoesNotReportKeen009()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [PluginExtension("Physics")]
+            public class PhysicsWorld { }
+
+            [PluginExtension("Audio")]
+            public class AudioWorld { }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Id == "KEEN009");
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        var generated = Assert.Single(generatedTrees);
+        Assert.Contains("global::TestApp.PhysicsWorld Physics =>", generated);
+        Assert.Contains("global::TestApp.AudioWorld Audio =>", generated);
+    }
+
     private static (IReadOnlyList<Diagnostic> Diagnostics, IReadOnlyList<string> GeneratedSources) RunGenerator(string source)
     {
         var attributesAssembly = typeof(PluginExtensionAttribute).Assembly;

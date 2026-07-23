@@ -45,7 +45,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
                 ctx.ReportDiagnostic(Diagnostic.Create(
                     diag.Descriptor,
                     diag.Location,
-                    diag.MessageArgs));
+                    diag.MessageArgs.ToArray()));
             }
 
             // Only generate code if no errors
@@ -111,7 +111,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
                     diagnostics.Add(new QueryDiagnosticInfo(
                         QueryDiagnostics.ConflictingQueryAttributes,
                         location,
-                        [field.Name, typeSymbol.Name, "[With]", "[Without]"]));
+                        ImmutableArray.Create(field.Name, typeSymbol.Name, "[With]", "[Without]")));
                     hasErrors = true;
                 }
             }
@@ -124,7 +124,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
                     diagnostics.Add(new QueryDiagnosticInfo(
                         QueryDiagnostics.ConflictingQueryAttributes,
                         location,
-                        [field.Name, typeSymbol.Name, "[With]", "[Optional]"]));
+                        ImmutableArray.Create(field.Name, typeSymbol.Name, "[With]", "[Optional]")));
                     hasErrors = true;
                 }
             }
@@ -137,7 +137,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
                     diagnostics.Add(new QueryDiagnosticInfo(
                         QueryDiagnostics.ConflictingQueryAttributes,
                         location,
-                        [field.Name, typeSymbol.Name, "[Without]", "[Optional]"]));
+                        ImmutableArray.Create(field.Name, typeSymbol.Name, "[Without]", "[Optional]")));
                     hasErrors = true;
                 }
             }
@@ -240,8 +240,8 @@ public sealed class QueryGenerator : IIncrementalGenerator
         string Name,
         string Namespace,
         string FullName,
-        ImmutableArray<QueryFieldInfo> Fields,
-        ImmutableArray<QueryDiagnosticInfo> Diagnostics,
+        EquatableArray<QueryFieldInfo> Fields,
+        EquatableArray<QueryDiagnosticInfo> Diagnostics,
         bool IsValid);
 
     private sealed record QueryFieldInfo(
@@ -252,7 +252,7 @@ public sealed class QueryGenerator : IIncrementalGenerator
     private sealed record QueryDiagnosticInfo(
         DiagnosticDescriptor Descriptor,
         Location Location,
-        object[] MessageArgs);
+        EquatableArray<string> MessageArgs);
 }
 
 /// <summary>

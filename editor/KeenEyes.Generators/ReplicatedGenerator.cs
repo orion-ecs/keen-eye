@@ -822,7 +822,7 @@ internal sealed record ReplicatedComponentInfo(
     bool GeneratePrediction,
     byte Priority,
     int Frequency,
-    ImmutableArray<ReplicatedFieldInfo> Fields,
+    EquatableArray<ReplicatedFieldInfo> Fields,
     Location? Location);
 
 internal sealed record ReplicatedFieldInfo(
