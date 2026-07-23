@@ -49,6 +49,22 @@ public partial struct EntityReferenceComponent
     public Entity Target;
 }
 
+/// <summary>
+/// A nested value-type field carried by <see cref="WeaponComponent"/>.
+/// </summary>
+public struct DamageInfo
+{
+    public int Amount;
+    public string? Element;
+}
+
+[Component]
+public partial struct WeaponComponent
+{
+    public DamageInfo Damage;
+    public float Cooldown;
+}
+
 #endregion
 
 public class SceneRoundTripTests : IDisposable
@@ -283,6 +299,45 @@ public class SceneRoundTripTests : IDisposable
         ref readonly var vel = ref newManager.World.Get<VelocityComponent>(loadedEntity);
         Assert.Equal(1.5f, vel.VelX);
         Assert.Equal(-2.0f, vel.VelY);
+    }
+
+    [Fact]
+    public void SaveAndLoad_PreservesComponentData_NestedStructFields()
+    {
+        // Arrange - a component whose field is itself a struct carrying non-default values.
+        using var manager = new EditorWorldManager();
+        var entity = manager.CreateEntity("Sword");
+        manager.World.Add(entity, new WeaponComponent
+        {
+            Damage = new DamageInfo { Amount = 5, Element = "fire" },
+            Cooldown = 1.5f
+        });
+
+        var filePath = Path.Combine(tempDir, "nested.kescene");
+
+        // Act
+        manager.SaveSceneAs(filePath);
+
+        using var newManager = new EditorWorldManager();
+        newManager.LoadScene(filePath);
+
+        // Assert
+        var loadedEntity = newManager.World.GetAllEntities()
+            .Where(e => !newManager.World.Has<SceneRootTag>(e))
+            .First(e => newManager.World.GetName(e) == "Sword");
+
+        Assert.True(newManager.World.Has<WeaponComponent>(loadedEntity));
+
+        ref readonly var weapon = ref newManager.World.Get<WeaponComponent>(loadedEntity);
+
+        // Top-level field survives (regressed before the fix only for nested fields).
+        Assert.Equal(1.5f, weapon.Cooldown);
+
+        // Nested-struct fields must survive too. Before the fix these came back as
+        // defaults (Amount == 0, Element == null) because the on-disk keys were PascalCase
+        // while the load path looked them up in camelCase.
+        Assert.Equal(5, weapon.Damage.Amount);
+        Assert.Equal("fire", weapon.Damage.Element);
     }
 
     #endregion

@@ -405,11 +405,14 @@ public sealed class SceneSerializer
         // Handle nested structs/objects
         if (type.IsValueType || type.IsClass)
         {
+            // Use camelCase keys to match the deserialization lookup, which resolves nested
+            // fields via GetJsonPropertyName(field.Name). Writing raw PascalCase keys here
+            // would make every nested-struct field miss on load and silently reset to default.
             var nested = new Dictionary<string, object?>();
             foreach (var field in ComponentIntrospector.GetEditableFields(type))
             {
                 var fieldValue = ComponentIntrospector.GetFieldValue(value, field);
-                nested[field.Name] = SerializeFieldValue(fieldValue);
+                nested[GetJsonPropertyName(field.Name)] = SerializeFieldValue(fieldValue);
             }
             return nested;
         }
