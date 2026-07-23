@@ -4,7 +4,28 @@ This document outlines the features needed to achieve parity with [OrionECS](htt
 
 ## Current Status
 
-KeenEyes has basic ECS scaffolding in place:
+KeenEyes is well past parity scaffolding. The engine core (Phases 1-11), developer
+experience (Phases 12-14), production/performance work (Phases 16-17), and the
+deterministic replay system (Phase 18) are all substantially complete, along with
+the companion plugin ecosystem (Spatial, Physics, Persistence, Parallelism, Graphics,
+AI, Navigation, Localization, Network, Replay, Animation, Particles) and the KESL
+shader language (Phase 20) except for a small unchecked residue tracked below.
+
+Recently landed (week of 2026-07-21): owner-authoritative sync, server reconciliation,
+lag compensation, and interest management (networking); IK solvers, look-at
+constraints, and root motion (animation); Particles Tier 1 (texture-sheet animation,
+emission shapes); tiled navmesh build, crowd simulation, off-mesh links, and tile
+streaming (navigation); snapshot state restoration, delta compression, ghost trails,
+and playtest session bundles (replay); and editor entity-scale benchmarks. A
+security/quality hardening pass (CodeQL alert remediation across src, editor, tests,
+samples, and tools) landed 2026-07-22/23.
+
+The largest remaining gaps: Phase 19 (IDE Extension) has not been started; multi-world
+cross-world references and world cloning, cloud-save synchronization, and a concrete
+asset-import pipeline in the editor remain unbuilt. The desktop scene editor is under
+active development.
+
+The foundational scaffolding remains in place:
 - `World` container with isolated state
 - `Entity` as `readonly record struct` with version tracking
 - `EntityBuilder` with fluent `With<T>()` / `WithTag<T>()` API
@@ -177,6 +198,11 @@ Decoupled communication between systems.
 
 Entity templates for content creation.
 
+> Note: The runtime prefab API below is being removed in favor of build-time `.keprefab`
+> source generation (see issue [#1079](https://github.com/orion-ecs/keen-eye/issues/1079)).
+> Prefabs are now defined as `.keprefab` files and compiled into typed spawn methods by the
+> `SceneGenerator`, rather than registered/spawned through the runtime `PrefabManager`.
+
 - [x] `PrefabManager`
 - [x] `World.RegisterPrefab(name, config)`
 - [x] `World.SpawnFromPrefab(name)`
@@ -306,7 +332,7 @@ Utilities for testing ECS code. **Status: 75-80% Complete** (KeenEyes.Testing pa
 ### 14.4 Snapshot Testing
 - [x] World state snapshots for comparison (`SnapshotComparer`)
 - [x] Entity snapshot assertions (`SnapshotAssertions`)
-- [ ] Advanced component data diffing (partial implementation)
+- [x] Advanced component data diffing (`SnapshotComparer` field-level `FieldAdded`/`FieldRemoved`/`FieldChanged`)
 - [x] Snapshot serialization format (uses Core's `SnapshotManager`)
 
 ### 14.5 Test Fixtures
@@ -365,29 +391,29 @@ World (facade, ~300-400 lines)
 Features for shipping production games.
 
 ### 16.1 Multi-World Support
-- [ ] Multiple independent worlds in one process
-- [ ] World isolation guarantees
+- [x] Multiple independent worlds in one process
+- [x] World isolation guarantees
 - [ ] Cross-world entity references (optional)
 - [ ] World templates/cloning
 
 ### 16.2 Component Schema Evolution
-- [ ] Component versioning
-- [ ] Migration handlers for schema changes
-- [ ] Backward compatibility utilities
-- [ ] Data upgrade pipelines
+- [x] Component versioning
+- [x] Migration handlers for schema changes
+- [x] Backward compatibility utilities
+- [x] Data upgrade pipelines
 
 ### 16.3 Enhanced Save/Load System
 Beyond basic serialization:
-- [ ] Multiple save slots with metadata
-- [ ] Save slot management (create, delete, copy)
-- [ ] Compression (gzip, brotli)
-- [ ] Optional encryption (AES-256)
-- [ ] Checksum validation & corruption detection
+- [x] Multiple save slots with metadata
+- [x] Save slot management (create, delete, copy)
+- [x] Compression (gzip, brotli)
+- [x] Optional encryption (AES-256)
+- [x] Checksum validation & corruption detection
 - [ ] Cloud save synchronization
 - [ ] Conflict resolution for cloud saves
-- [ ] Auto-save with configurable triggers
-- [ ] Incremental/delta saves
-- [ ] Thumbnails and custom metadata
+- [x] Auto-save with configurable triggers
+- [x] Incremental/delta saves
+- [x] Thumbnails and custom metadata
 - [ ] Import/export for cross-platform
 
 ### 16.4 Network Synchronization
@@ -462,8 +488,8 @@ Record and replay gameplay for debugging and playtesting.
 ### 18.4 Playtesting Infrastructure
 - [x] Session recording for playtesters
 - [ ] Web distribution of test builds
-- [ ] Crash reporting integration
-- [ ] Player feedback collection
+- [x] Crash reporting integration
+- [x] Player feedback collection
 - [x] Debug visualization during replay
 
 ---
@@ -505,8 +531,8 @@ Custom shader language with visual graph editor integration.
 - [x] Parser and AST generation
 - [x] GLSL code generation
 - [x] C# binding generation
-- [ ] HLSL backend for DirectX
-- [ ] Improved error messages with source locations
+- [x] HLSL backend for DirectX
+- [x] Improved error messages with source locations
 
 ### 20.2 Visual Graph Editor
 - [x] Node-based graph editor UI
@@ -514,12 +540,12 @@ Custom shader language with visual graph editor integration.
 - [x] Extensible node type system
 - [x] Undo/redo support
 - [x] Context menus
-- [ ] Hot-reload support
+- [x] Hot-reload support
 - [ ] IDE syntax highlighting
 
 ### 20.3 Runtime
-- [ ] Runtime shader abstractions
-- [ ] Shader parameter binding
+- [x] Runtime shader abstractions
+- [x] Shader parameter binding
 - [ ] Shader variant compilation
 
 ---
@@ -541,7 +567,7 @@ A native desktop game editor using Silk.NET/OpenGL, similar to Unity/Godot.
 - [x] 3D viewport with OpenGL rendering
 - [x] Transform gizmos (translate, rotate, scale)
 - [x] Entity hierarchy panel
-- [ ] Multi-select and group operations
+- [x] Multi-select and group operations
 - [x] Undo/redo system (command pattern)
 
 ### Inspector & Properties Panel
@@ -555,7 +581,7 @@ A native desktop game editor using Silk.NET/OpenGL, similar to Unity/Godot.
 - [x] Project panel (asset browser)
 - [x] Console panel (logs and messages)
 - [ ] Asset import pipeline
-- [ ] Scene file format (.kescene)
+- [x] Scene file format (.kescene)
 
 ### Play Mode
 - [x] Run game in editor
@@ -652,22 +678,22 @@ Optional packages that extend KeenEyes:
 | Built-in Log Providers | 4 | ✅ Complete |
 | Logging Features | 6 | ✅ Complete |
 | ECS-Specific Logging | 5 | ✅ Complete |
-| Debug Mode | 3 | Pending |
-| Profiling | 4 | Pending |
-| Visualization | 3 | Pending |
-| Test World Builder | 5 | Pending |
-| Assertion Helpers | 6 | Pending |
-| Mock Utilities | 4 | Pending |
-| Snapshot Testing | 4 | Pending |
-| Test Fixtures | 4 | Pending |
-| **Subtotal** | **~52** | Partial |
+| Debug Mode | 3 | ✅ Complete |
+| Profiling | 4 | ✅ Complete |
+| Visualization | 3 | ✅ Complete |
+| Test World Builder | 5 | ✅ Complete |
+| Assertion Helpers | 6 | Partial (5/6) |
+| Mock Utilities | 4 | ✅ Complete |
+| Snapshot Testing | 4 | ✅ Complete |
+| Test Fixtures | 4 | ✅ Complete |
+| **Subtotal** | **~52** | Mostly Complete |
 
 ### Production & Advanced (Phases 16-17)
 | Category | Features | Status |
 |----------|----------|--------|
-| Multi-World Support | 4 | Pending |
+| Multi-World Support | 4 | Partial (2/4) |
 | Schema Evolution | 4 | ✅ Complete |
-| Enhanced Save/Load | 11 | Partial (KeenEyes.Persistence) |
+| Enhanced Save/Load | 11 | Mostly Complete (8/11, cloud sync + import/export pending) |
 | Network Sync | 9 | ✅ Complete (KeenEyes.Network) |
 | Parallelization | 5 | ✅ Complete |
 | Native AOT | 4 | ✅ Complete |
@@ -681,23 +707,23 @@ Optional packages that extend KeenEyes:
 | Replay Recording | 6 | ✅ Complete |
 | Replay Playback | 5 | ✅ Complete |
 | Timeline Controls | 5 | ✅ Complete |
-| Playtesting Infrastructure | 5 | Partial (3/5) |
+| Playtesting Infrastructure | 5 | Partial (4/5) |
 | IDE Code Navigation | 3 | Pending |
 | IDE Refactoring | 3 | Pending |
 | IDE Visualization | 4 | Pending |
 | IDE Debugging | 4 | Pending |
-| KESL Compiler | 6 | Partial (4/6) |
-| KESL Graph Editor | 7 | Partial (5/7) |
-| KESL Runtime | 3 | Pending |
+| KESL Compiler | 6 | ✅ Complete |
+| KESL Graph Editor | 7 | Partial (6/7) |
+| KESL Runtime | 3 | Partial (2/3) |
 | **Subtotal** | **~51** | Partial |
 
 ### Desktop Scene Editor
 | Category | Features | Status |
 |----------|----------|--------|
 | Editor Infrastructure | 5 | ✅ Complete |
-| Scene Editor | 5 | Partial (4/5) |
+| Scene Editor | 5 | ✅ Complete |
 | Inspector Panel | 5 | Partial (3/5) |
-| Project Management | 4 | Partial (2/4) |
+| Project Management | 4 | Partial (3/4) |
 | Play Mode | 5 | Partial (3/5) |
 | Plugin System | 5 | ✅ Complete |
 | **Subtotal** | **~29** | Active Development |
