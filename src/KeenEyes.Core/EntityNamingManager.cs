@@ -14,8 +14,11 @@ namespace KeenEyes;
 /// need human-readable identifiers.
 /// </para>
 /// <para>
-/// This class is thread-safe: all naming operations can be called concurrently
-/// from multiple threads.
+/// Each operation on this class acquires an internal lock, so individual calls are safe
+/// from multiple threads, and name uniqueness is checked and enforced atomically within
+/// <see cref="RegisterName"/> and <see cref="SetName"/>. Sequences of separate calls are
+/// not atomic as a whole; per the threading model documented on <see cref="World"/>,
+/// world operations are expected to run on a single thread.
 /// </para>
 /// </remarks>
 internal sealed class EntityNamingManager
@@ -29,13 +32,15 @@ internal sealed class EntityNamingManager
     private readonly Dictionary<string, int> namesToEntityIds = [];
 
     /// <summary>
-    /// Validates that a name is available for use.
+    /// Validates name availability and registers the name for an entity in a single
+    /// atomic operation.
     /// </summary>
-    /// <param name="name">The name to validate.</param>
+    /// <param name="entityId">The entity ID to register the name for.</param>
+    /// <param name="name">The name to register. If null, no registration occurs.</param>
     /// <exception cref="ArgumentException">
     /// Thrown when the name is already assigned to another entity.
     /// </exception>
-    internal void ValidateName(string? name)
+    internal void RegisterName(int entityId, string? name)
     {
         if (name is null)
         {
@@ -49,28 +54,7 @@ internal sealed class EntityNamingManager
                 throw new ArgumentException(
                     $"An entity with the name '{name}' already exists in this world.", nameof(name));
             }
-        }
-    }
 
-    /// <summary>
-    /// Registers a name for an entity.
-    /// </summary>
-    /// <param name="entityId">The entity ID to register the name for.</param>
-    /// <param name="name">The name to register. If null, no registration occurs.</param>
-    /// <remarks>
-    /// <para>
-    /// Call <see cref="ValidateName"/> before this method to ensure the name is available.
-    /// </para>
-    /// </remarks>
-    internal void RegisterName(int entityId, string? name)
-    {
-        if (name is null)
-        {
-            return;
-        }
-
-        lock (syncRoot)
-        {
             entityNames[entityId] = name;
             namesToEntityIds[name] = entityId;
         }

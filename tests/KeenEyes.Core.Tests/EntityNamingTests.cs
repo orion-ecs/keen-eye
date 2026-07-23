@@ -76,6 +76,23 @@ public class EntityNamingTests
     }
 
     [Fact]
+    public void Spawn_WithDuplicateName_DoesNotLeakEntity()
+    {
+        using var world = new World();
+
+        world.Spawn("Player")
+            .With(new NamingTestPosition { X = 0f, Y = 0f })
+            .Build();
+
+        Assert.Throws<ArgumentException>(() =>
+            world.Spawn("Player")
+                .With(new NamingTestPosition { X = 1f, Y = 1f })
+                .Build());
+
+        Assert.Equal(1, world.EntityCount);
+    }
+
+    [Fact]
     public void Spawn_WithEmptyName_AllowsEmptyStringAsName()
     {
         using var world = new World();

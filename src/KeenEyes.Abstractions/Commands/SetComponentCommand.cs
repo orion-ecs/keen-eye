@@ -7,10 +7,8 @@ namespace KeenEyes;
 /// If the target is a placeholder entity (negative ID), it will be resolved
 /// to the real entity through the entity map during execution.
 /// </remarks>
-internal sealed class SetComponentCommand : ICommand
+internal sealed class SetComponentCommand : PlaceholderResolvingCommand
 {
-    private readonly Entity targetEntity;
-    private readonly int? placeholderId;
     private readonly Action<IWorld, Entity> setAction;
 
     /// <summary>
@@ -19,9 +17,8 @@ internal sealed class SetComponentCommand : ICommand
     /// <param name="entity">The entity to set the component on.</param>
     /// <param name="setAction">Delegate that sets the component on the world.</param>
     public SetComponentCommand(Entity entity, Action<IWorld, Entity> setAction)
+        : base(entity)
     {
-        targetEntity = entity;
-        placeholderId = null;
         this.setAction = setAction;
     }
 
@@ -31,14 +28,13 @@ internal sealed class SetComponentCommand : ICommand
     /// <param name="placeholderId">The placeholder ID of the entity.</param>
     /// <param name="setAction">Delegate that sets the component on the world.</param>
     public SetComponentCommand(int placeholderId, Action<IWorld, Entity> setAction)
+        : base(placeholderId)
     {
-        targetEntity = Entity.Null;
-        this.placeholderId = placeholderId;
         this.setAction = setAction;
     }
 
     /// <inheritdoc />
-    public void Execute(IWorld world, Dictionary<int, Entity> entityMap)
+    public override void Execute(IWorld world, Dictionary<int, Entity> entityMap)
     {
         var entity = ResolveEntity(entityMap);
         if (!entity.IsValid || !world.IsAlive(entity))
@@ -48,16 +44,5 @@ internal sealed class SetComponentCommand : ICommand
 
         // Invoke the stored delegate (no reflection)
         setAction(world, entity);
-    }
-
-    private Entity ResolveEntity(Dictionary<int, Entity> entityMap)
-    {
-        if (placeholderId.HasValue)
-        {
-            return entityMap.TryGetValue(placeholderId.Value, out var resolved)
-                ? resolved
-                : Entity.Null;
-        }
-        return targetEntity;
     }
 }
