@@ -354,6 +354,38 @@ public class JobSchedulerTests
     }
 
     [Fact]
+    public void JobHandle_CombineDependencies_WithSlowJobs_CompletesWithoutDeadlock()
+    {
+        // Regression test for #1153: CombinedJobCompletionSource used to hide Wait()
+        // with `new` instead of `override`. Because JobHandle.source is base-typed, the
+        // non-virtual base Wait() ran through it and never awaited the child jobs, so a
+        // combined handle whose children finished AFTER construction blocked until timeout.
+        // The jobs here are deliberately slow so they cannot finish before the combined
+        // source is constructed (defeating its early-complete fast path).
+        using var scheduler = new JobScheduler();
+
+        var handle1 = scheduler.Schedule(new SlowJob { DelayMs = 250 });
+        var handle2 = scheduler.Schedule(new SlowJob { DelayMs = 250 });
+
+        var combined = JobHandle.CombineDependencies(handle1, handle2);
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var completed = combined.Wait(TimeSpan.FromSeconds(5));
+        stopwatch.Stop();
+
+        // On the old code this returned false only after the full 5s timeout.
+        Assert.True(completed);
+        Assert.True(combined.IsCompleted);
+        Assert.True(handle1.IsCompleted);
+        Assert.True(handle2.IsCompleted);
+
+        // Completion must reflect actual job time (~250ms), not the timeout ceiling.
+        Assert.True(
+            stopwatch.Elapsed < TimeSpan.FromSeconds(2),
+            $"Combined wait took {stopwatch.ElapsedMilliseconds}ms; expected well under 2s.");
+    }
+
+    [Fact]
     public void JobHandle_CombineDependencies_EmptyArray_ReturnsCompleted()
     {
         var combined = JobHandle.CombineDependencies();

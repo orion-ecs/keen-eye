@@ -184,7 +184,7 @@ internal class JobCompletionSource : IDisposable
 
     public static JobCompletionSource CompletedSource { get; } = CreateCompleted();
 
-    public bool IsCompleted => isCompleted;
+    public virtual bool IsCompleted => isCompleted;
     public bool IsFaulted => isFaulted;
     public Exception? Exception => exception;
 
@@ -215,7 +215,7 @@ internal class JobCompletionSource : IDisposable
         }
     }
 
-    public void Wait()
+    public virtual void Wait()
     {
         if (isCompleted || isDisposed)
         {
@@ -225,7 +225,7 @@ internal class JobCompletionSource : IDisposable
         completionEvent.Wait();
     }
 
-    public bool Wait(TimeSpan timeout)
+    public virtual bool Wait(TimeSpan timeout)
     {
         if (isCompleted || isDisposed)
         {
@@ -267,17 +267,49 @@ internal sealed class CombinedJobCompletionSource : JobCompletionSource
         }
     }
 
-    public new void Wait()
+    public override bool IsCompleted
     {
+        get
+        {
+            if (base.IsCompleted)
+            {
+                return true;
+            }
+
+            foreach (var handle in handles)
+            {
+                if (!handle.IsCompleted)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    public override void Wait()
+    {
+        if (IsCompleted)
+        {
+            return;
+        }
+
         foreach (var handle in handles)
         {
             handle.Complete();
         }
+
         SetCompleted();
     }
 
-    public new bool Wait(TimeSpan timeout)
+    public override bool Wait(TimeSpan timeout)
     {
+        if (IsCompleted)
+        {
+            return true;
+        }
+
         var deadline = DateTime.UtcNow + timeout;
 
         foreach (var handle in handles)
