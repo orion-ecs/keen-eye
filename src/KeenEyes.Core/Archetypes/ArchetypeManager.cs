@@ -27,7 +27,7 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
 {
     private readonly Lock syncRoot = new();
     private readonly Dictionary<ArchetypeId, Archetype> archetypes = [];
-    private readonly Dictionary<int, (Archetype Archetype, int Index)> entityLocations = [];
+    private readonly Dictionary<int, Archetype> entityLocations = [];
     private readonly List<Archetype> archetypeList = [];
     private readonly ChunkPool chunkPool = chunkPool ?? new ChunkPool();
 
@@ -206,18 +206,19 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
             {
                 var archetype = GetOrCreateArchetypeNoLock(GetTypesSpan(componentArray, componentCount));
 
-                // Add entity to archetype
-                var index = archetype.AddEntity(entity);
+                // Add entity to archetype and write its components into the SAME chunk so the
+                // entity and its component data stay co-located (see issue #1092).
+                var chunk = archetype.AddEntityReturningChunk(entity, out _);
 
-                // Add all component values
+                // Add all component values to the entity's chunk
                 for (int i = 0; i < componentCount; i++)
                 {
                     var (info, data) = componentArray[i];
-                    archetype.AddComponentBoxed(info.Type, data);
+                    chunk.AddComponentBoxed(info.Type, data);
                 }
 
-                // Track entity location
-                entityLocations[entity.Id] = (archetype, index);
+                // Track entity location (archetype is the single source of truth for the slot)
+                entityLocations[entity.Id] = archetype;
             }
         }
         finally
@@ -243,22 +244,15 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var archetype))
             {
                 return false;
             }
 
-            var (archetype, _) = location;
-
-            // Remove from archetype (swap-back)
-            var swappedEntity = archetype.RemoveEntity(entity);
-
-            // Update swapped entity's index if one was swapped
-            if (swappedEntity.HasValue)
-            {
-                var swappedIndex = archetype.GetEntityIndex(swappedEntity.Value);
-                entityLocations[swappedEntity.Value.Id] = (archetype, swappedIndex);
-            }
+            // Remove from archetype (swap-back). The archetype owns per-entity slot bookkeeping,
+            // including any swap or chunk-removal shifts, so the manager stores only the archetype
+            // and never a cached index to reconcile (see issue #1092).
+            archetype.RemoveEntity(entity);
 
             entityLocations.Remove(entity.Id);
             return true;
@@ -275,12 +269,10 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var currentArchetype))
             {
                 throw new InvalidOperationException($"Entity {entity} is not tracked by this archetype manager.");
             }
-
-            var (currentArchetype, currentIndex) = location;
 
             // Check if already has the component
             if (currentArchetype.Has<T>())
@@ -293,11 +285,9 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
             var newId = currentArchetype.Id.With<T>();
             var newArchetype = GetOrCreateArchetypeNoLock(newId);
 
-            // Migrate entity
-            MigrateEntity(entity, currentArchetype, currentIndex, newArchetype);
-
-            // Add the new component
-            newArchetype.AddComponent(in component);
+            // Migrate entity, then write the new component into the entity's destination chunk
+            var destChunk = MigrateEntity(entity, currentArchetype, newArchetype);
+            destChunk.AddComponent(in component);
         }
     }
 
@@ -311,12 +301,10 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var currentArchetype))
             {
                 throw new InvalidOperationException($"Entity {entity} is not tracked by this archetype manager.");
             }
-
-            var (currentArchetype, currentIndex) = location;
 
             // Check if already has the component
             if (currentArchetype.Has(componentType))
@@ -329,11 +317,9 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
             var newId = currentArchetype.Id.With(componentType);
             var newArchetype = GetOrCreateArchetypeNoLock(newId);
 
-            // Migrate entity
-            MigrateEntity(entity, currentArchetype, currentIndex, newArchetype);
-
-            // Add the new component
-            newArchetype.AddComponentBoxed(componentType, value);
+            // Migrate entity, then write the new component into the entity's destination chunk
+            var destChunk = MigrateEntity(entity, currentArchetype, newArchetype);
+            destChunk.AddComponentBoxed(componentType, value);
         }
     }
 
@@ -347,19 +333,17 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var currentArchetype))
             {
                 return false;
             }
-
-            var (currentArchetype, currentIndex) = location;
 
             // Get or create target archetype
             var newId = currentArchetype.Id.Without<T>();
             var newArchetype = GetOrCreateArchetypeNoLock(newId);
 
             // Migrate entity (copies shared components, excludes removed one)
-            MigrateEntity(entity, currentArchetype, currentIndex, newArchetype);
+            MigrateEntity(entity, currentArchetype, newArchetype);
 
             return true;
         }
@@ -379,8 +363,8 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            var (archetype, index) = GetEntityLocationNoLock(entity);
-            return ref archetype.Get<T>(index);
+            var archetype = GetArchetypeNoLock(entity);
+            return ref archetype.GetByEntity<T>(entity);
         }
     }
 
@@ -400,8 +384,8 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            var (archetype, index) = GetEntityLocationNoLock(entity);
-            return ref archetype.GetReadonly<T>(index);
+            var archetype = GetArchetypeNoLock(entity);
+            return ref archetype.GetReadonlyByEntity<T>(entity);
         }
     }
 
@@ -415,11 +399,11 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var archetype))
             {
                 return false;
             }
-            return location.Archetype.Has<T>();
+            return archetype.Has<T>();
         }
     }
 
@@ -433,11 +417,11 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var archetype))
             {
                 return false;
             }
-            return location.Archetype.Has(componentType);
+            return archetype.Has(componentType);
         }
     }
 
@@ -451,8 +435,8 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            var (archetype, index) = GetEntityLocationNoLock(entity);
-            archetype.Set(index, in component);
+            var archetype = GetArchetypeNoLock(entity);
+            archetype.SetByEntity(entity, in component);
         }
     }
 
@@ -466,8 +450,8 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            var (archetype, index) = GetEntityLocationNoLock(entity);
-            archetype.SetBoxed(componentType, index, value);
+            var archetype = GetArchetypeNoLock(entity);
+            archetype.SetBoxedByEntity(componentType, entity, value);
         }
     }
 
@@ -481,12 +465,10 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var currentArchetype))
             {
                 return false;
             }
-
-            var (currentArchetype, currentIndex) = location;
 
             if (!currentArchetype.Has(componentType))
             {
@@ -498,7 +480,7 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
             var newArchetype = GetOrCreateArchetypeNoLock(newId);
 
             // Migrate entity (copies shared components, excludes removed one)
-            MigrateEntity(entity, currentArchetype, currentIndex, newArchetype);
+            MigrateEntity(entity, currentArchetype, newArchetype);
 
             return true;
         }
@@ -528,10 +510,10 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (entityLocations.TryGetValue(entity.Id, out var location))
+            if (entityLocations.TryGetValue(entity.Id, out var found))
             {
-                archetype = location.Archetype;
-                index = location.Index;
+                archetype = found;
+                index = found.GetEntityIndex(entity);
                 return true;
             }
 
@@ -573,12 +555,12 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
     {
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var archetype))
             {
                 return [];
             }
             // Return a copy since ComponentTypes is immutable array
-            return location.Archetype.ComponentTypes;
+            return archetype.ComponentTypes;
         }
     }
 
@@ -593,16 +575,15 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
         List<(Type Type, object Value)> result;
         lock (syncRoot)
         {
-            if (!entityLocations.TryGetValue(entity.Id, out var location))
+            if (!entityLocations.TryGetValue(entity.Id, out var archetype))
             {
                 return [];
             }
 
-            var (archetype, index) = location;
             result = [];
             foreach (var type in archetype.ComponentTypes)
             {
-                result.Add((type, archetype.GetBoxed(type, index)));
+                result.Add((type, archetype.GetBoxedByEntity(type, entity)));
             }
         }
         return result;
@@ -621,27 +602,26 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
         }
     }
 
-    // Called from within a lock - do not acquire lock here
-    private void MigrateEntity(Entity entity, Archetype source, int sourceIndex, Archetype destination)
+    // Called from within a lock - do not acquire lock here.
+    // Returns the destination chunk the entity was placed in so callers can write any
+    // newly-added component into the SAME chunk as the entity (see issue #1092).
+    private ArchetypeChunk MigrateEntity(Entity entity, Archetype source, Archetype destination)
     {
-        // Add entity to new archetype
-        var newIndex = destination.AddEntity(entity);
+        // Add entity to the new archetype, capturing the chunk it landed in
+        var destChunk = destination.AddEntityReturningChunk(entity, out _);
 
-        // Copy shared components
-        source.CopySharedComponentsTo(sourceIndex, destination);
+        // Copy shared components into the entity's actual destination chunk
+        source.CopySharedComponentsToChunk(entity, destChunk);
 
-        // Remove from old archetype
-        var swappedEntity = source.RemoveEntity(entity);
+        // Remove from old archetype. The source archetype owns its own slot bookkeeping
+        // (including swap shifts and chunk removal), so no manager-side index reconciliation
+        // is needed for the swapped entity.
+        source.RemoveEntity(entity);
 
-        // Update swapped entity's index
-        if (swappedEntity.HasValue)
-        {
-            var swappedIndex = source.GetEntityIndex(swappedEntity.Value);
-            entityLocations[swappedEntity.Value.Id] = (source, swappedIndex);
-        }
+        // Update entity location (archetype only; the archetype resolves the slot)
+        entityLocations[entity.Id] = destination;
 
-        // Update entity location
-        entityLocations[entity.Id] = (destination, newIndex);
+        return destChunk;
     }
 
     private static bool MatchesQuery(Archetype archetype, QueryDescription description)
@@ -705,14 +685,22 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
         return archetype;
     }
 
-    // Lock-free version for use within locked sections
+    // Lock-free version for use within locked sections. The returned index is the archetype's
+    // sparse global index, derived on demand from the archetype's authoritative location map.
     private (Archetype Archetype, int Index) GetEntityLocationNoLock(Entity entity)
     {
-        if (!entityLocations.TryGetValue(entity.Id, out var location))
+        var archetype = GetArchetypeNoLock(entity);
+        return (archetype, archetype.GetEntityIndex(entity));
+    }
+
+    // Lock-free archetype lookup for use within locked sections.
+    private Archetype GetArchetypeNoLock(Entity entity)
+    {
+        if (!entityLocations.TryGetValue(entity.Id, out var archetype))
         {
             throw new InvalidOperationException($"Entity {entity} is not tracked by this archetype manager.");
         }
-        return location;
+        return archetype;
     }
 
     /// <summary>

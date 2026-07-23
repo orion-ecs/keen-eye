@@ -95,16 +95,40 @@ public sealed class Archetype : IDisposable
     /// </summary>
     /// <param name="entity">The entity to add.</param>
     /// <returns>The index of the entity in this archetype (global index across all chunks).</returns>
+    /// <remarks>
+    /// The returned global index is <b>sparse</b>: once any non-last chunk holds fewer than
+    /// <see cref="ArchetypeChunk.DefaultCapacity"/> entities (for example after a swap-back
+    /// removal), a gap exists between chunks. The value must not be treated as a dense position
+    /// or a stable handle. Resolve component data through the entity-keyed accessors
+    /// (<see cref="GetByEntity{T}"/> and friends) instead.
+    /// </remarks>
     internal int AddEntity(Entity entity)
     {
-        var chunk = GetOrCreateChunkWithSpace();
-        var chunkIndex = chunks.IndexOf(chunk);
-        var indexInChunk = chunk.AddEntity(entity);
+        var chunk = AddEntityReturningChunk(entity, out var chunkIndex);
+        return (chunkIndex * ArchetypeChunk.DefaultCapacity) + chunk.GetEntityIndex(entity);
+    }
 
-        entityLocations[entity.Id] = (chunkIndex, indexInChunk);
+    /// <summary>
+    /// Adds an entity to this archetype and returns the chunk it was placed in.
+    /// </summary>
+    /// <param name="entity">The entity to add.</param>
+    /// <param name="chunkIndex">The index of the chunk the entity was placed in.</param>
+    /// <returns>The chunk the entity was placed in.</returns>
+    /// <remarks>
+    /// Component data for the entity must be written to the returned chunk at the entity's slot
+    /// so the entity and its components stay co-located. Writing components to a different chunk
+    /// (such as the last chunk) corrupts storage once a non-last chunk has a hole from a prior
+    /// swap-back removal.
+    /// </remarks>
+    internal ArchetypeChunk AddEntityReturningChunk(Entity entity, out int chunkIndex)
+    {
+        var chunk = GetOrCreateChunkWithSpace(out chunkIndex);
+        chunk.AddEntity(entity);
+
+        entityLocations[entity.Id] = (chunkIndex, chunk.GetEntityIndex(entity));
         totalCount++;
 
-        return (chunkIndex * ArchetypeChunk.DefaultCapacity) + indexInChunk;
+        return chunk;
     }
 
     /// <summary>
@@ -112,6 +136,12 @@ public sealed class Archetype : IDisposable
     /// </summary>
     /// <typeparam name="T">The component type.</typeparam>
     /// <param name="component">The component value.</param>
+    /// <remarks>
+    /// This writes to the last chunk and is only correct when the most recently added entity
+    /// was placed there. Production callers that add an entity with
+    /// <see cref="AddEntityReturningChunk"/> must write components to the returned chunk
+    /// directly to keep the entity and its components co-located.
+    /// </remarks>
     internal void AddComponent<T>(in T component) where T : struct, IComponent
     {
         if (chunks.Count == 0)
@@ -127,6 +157,12 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Adds a component value from a boxed object.
     /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="value">The boxed component value.</param>
+    /// <remarks>
+    /// This writes to the last chunk. See <see cref="AddComponent{T}"/> for the co-location
+    /// constraint that production callers must observe.
+    /// </remarks>
     internal void AddComponentBoxed(Type type, object value)
     {
         if (chunks.Count == 0)
@@ -193,6 +229,11 @@ public sealed class Archetype : IDisposable
     /// <typeparam name="T">The component type.</typeparam>
     /// <param name="globalIndex">The global index of the entity within this archetype.</param>
     /// <returns>A reference to the component data.</returns>
+    /// <remarks>
+    /// The global index is <b>sparse</b> across chunk boundaries once a non-last chunk has a
+    /// hole. Prefer <see cref="GetByEntity{T}"/> for entity-addressed access; this overload is
+    /// intended for chunk-local test and diagnostic use where the index is known to be dense.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref T Get<T>(int globalIndex) where T : struct, IComponent
     {
@@ -214,11 +255,65 @@ public sealed class Archetype : IDisposable
     }
 
     /// <summary>
+    /// Gets a readonly reference to a component for an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="entity">The entity to get the component for.</param>
+    /// <returns>A readonly reference to the component data.</returns>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal ref readonly T GetReadonlyByEntity<T>(Entity entity) where T : struct, IComponent
+    {
+        var (chunkIndex, indexInChunk) = entityLocations[entity.Id];
+        return ref chunks[chunkIndex].GetReadonly<T>(indexInChunk);
+    }
+
+    /// <summary>
+    /// Sets a component value for an entity.
+    /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="entity">The entity to set the component for.</param>
+    /// <param name="component">The component value to set.</param>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal void SetByEntity<T>(Entity entity, in T component) where T : struct, IComponent
+    {
+        var (chunkIndex, indexInChunk) = entityLocations[entity.Id];
+        chunks[chunkIndex].Set(indexInChunk, in component);
+    }
+
+    /// <summary>
+    /// Gets the boxed component value for an entity.
+    /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="entity">The entity to get the component for.</param>
+    /// <returns>The boxed component value.</returns>
+    internal object GetBoxedByEntity(Type type, Entity entity)
+    {
+        var (chunkIndex, indexInChunk) = entityLocations[entity.Id];
+        return chunks[chunkIndex].GetBoxed(type, indexInChunk);
+    }
+
+    /// <summary>
+    /// Sets a component value for an entity from a boxed object.
+    /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="entity">The entity to set the component for.</param>
+    /// <param name="value">The boxed component value.</param>
+    internal void SetBoxedByEntity(Type type, Entity entity, object value)
+    {
+        var (chunkIndex, indexInChunk) = entityLocations[entity.Id];
+        chunks[chunkIndex].SetBoxed(type, indexInChunk, value);
+    }
+
+    /// <summary>
     /// Gets a readonly reference to a component.
     /// </summary>
     /// <typeparam name="T">The component type.</typeparam>
     /// <param name="globalIndex">The global index of the entity within this archetype.</param>
     /// <returns>A readonly reference to the component data.</returns>
+    /// <remarks>
+    /// The global index is sparse across chunk boundaries; see <see cref="Get{T}(int)"/>.
+    /// Prefer <see cref="GetReadonlyByEntity{T}"/> for entity-addressed access.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ref readonly T GetReadonly<T>(int globalIndex) where T : struct, IComponent
     {
@@ -232,6 +327,10 @@ public sealed class Archetype : IDisposable
     /// <typeparam name="T">The component type.</typeparam>
     /// <param name="globalIndex">The global index of the entity within this archetype.</param>
     /// <param name="component">The component value to set.</param>
+    /// <remarks>
+    /// The global index is sparse across chunk boundaries; see <see cref="Get{T}(int)"/>.
+    /// Prefer <see cref="SetByEntity{T}"/> for entity-addressed access.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Set<T>(int globalIndex, in T component) where T : struct, IComponent
     {
@@ -240,8 +339,12 @@ public sealed class Archetype : IDisposable
     }
 
     /// <summary>
-    /// Sets a component value from a boxed object.
+    /// Sets a component value from a boxed object at the specified global index.
     /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="globalIndex">The global index of the entity within this archetype.</param>
+    /// <param name="value">The boxed component value.</param>
+    /// <remarks>The global index is sparse across chunk boundaries; see <see cref="Get{T}(int)"/>.</remarks>
     internal void SetBoxed(Type type, int globalIndex, object value)
     {
         var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
@@ -251,6 +354,10 @@ public sealed class Archetype : IDisposable
     /// <summary>
     /// Gets the boxed component value at the specified global index.
     /// </summary>
+    /// <param name="type">The component type.</param>
+    /// <param name="globalIndex">The global index of the entity within this archetype.</param>
+    /// <returns>The boxed component value.</returns>
+    /// <remarks>The global index is sparse across chunk boundaries; see <see cref="Get{T}(int)"/>.</remarks>
     internal object GetBoxed(Type type, int globalIndex)
     {
         var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
@@ -368,6 +475,10 @@ public sealed class Archetype : IDisposable
     /// </summary>
     /// <param name="entity">The entity to locate.</param>
     /// <returns>The global index of the entity, or -1 if the entity is not found in this archetype.</returns>
+    /// <remarks>
+    /// The returned index is sparse across chunk boundaries; see <see cref="Get{T}(int)"/>. It
+    /// is derived on demand from the authoritative per-entity location map.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int GetEntityIndex(Entity entity)
     {
@@ -394,6 +505,11 @@ public sealed class Archetype : IDisposable
     /// </summary>
     /// <param name="globalIndex">The global index within this archetype.</param>
     /// <returns>The entity at the specified index.</returns>
+    /// <remarks>
+    /// The global index is sparse across chunk boundaries; see <see cref="Get{T}(int)"/>. To
+    /// iterate live entities, walk <see cref="Chunks"/> using each chunk's
+    /// <see cref="ArchetypeChunk.Count"/> instead of a dense global range.
+    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public Entity GetEntity(int globalIndex)
     {
@@ -402,15 +518,19 @@ public sealed class Archetype : IDisposable
     }
 
     /// <summary>
-    /// Copies all shared components from one entity to another archetype.
+    /// Copies all shared components for an entity into a specific destination chunk.
     /// </summary>
-    internal void CopySharedComponentsTo(int globalIndex, Archetype destination)
+    /// <param name="entity">The source entity whose components are copied.</param>
+    /// <param name="destinationChunk">The destination chunk the entity was placed in.</param>
+    /// <remarks>
+    /// The destination chunk must be the chunk the entity was added to in the destination
+    /// archetype (see <see cref="AddEntityReturningChunk"/>) so components land at the entity's
+    /// slot rather than an unrelated chunk.
+    /// </remarks>
+    internal void CopySharedComponentsToChunk(Entity entity, ArchetypeChunk destinationChunk)
     {
-        var (chunkIndex, indexInChunk) = GetChunkLocation(globalIndex);
-        var sourceChunk = chunks[chunkIndex];
-        var destChunk = destination.chunks[^1]; // Destination's last chunk
-
-        sourceChunk.CopyComponentsTo(indexInChunk, destChunk);
+        var (chunkIndex, indexInChunk) = entityLocations[entity.Id];
+        chunks[chunkIndex].CopyComponentsTo(indexInChunk, destinationChunk);
     }
 
     /// <inheritdoc />
@@ -447,14 +567,16 @@ public sealed class Archetype : IDisposable
         return (chunkIndex, indexInChunk);
     }
 
-    private ArchetypeChunk GetOrCreateChunkWithSpace()
+    private ArchetypeChunk GetOrCreateChunkWithSpace(out int chunkIndex)
     {
-        // Find a chunk with space
-        foreach (var chunk in chunks)
+        // Find the first chunk with space. Refilling holes in earlier chunks is intentional:
+        // it keeps storage compact and avoids fragmentation across chunks.
+        for (var i = 0; i < chunks.Count; i++)
         {
-            if (!chunk.IsFull)
+            if (!chunks[i].IsFull)
             {
-                return chunk;
+                chunkIndex = i;
+                return chunks[i];
             }
         }
 
@@ -470,6 +592,7 @@ public sealed class Archetype : IDisposable
         }
 
         chunks.Add(newChunk);
+        chunkIndex = chunks.Count - 1;
         return newChunk;
     }
 
