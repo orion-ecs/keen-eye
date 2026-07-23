@@ -145,6 +145,27 @@ public interface ISaveLoadCapability : IPersistenceCapability
         where TSerializer : IComponentSerializer;
 
     /// <summary>
+    /// Reads a save slot into a detached <see cref="WorldSnapshot"/> without modifying the world.
+    /// </summary>
+    /// <typeparam name="TSerializer">
+    /// The serializer type that implements both <see cref="IComponentSerializer"/>
+    /// and <see cref="IBinaryComponentSerializer"/>.
+    /// </typeparam>
+    /// <param name="slotName">The name of the save slot to read.</param>
+    /// <param name="serializer">The component serializer.</param>
+    /// <param name="validateChecksum">Whether to validate the checksum if present.</param>
+    /// <returns>The deserialized snapshot. The current world state is left unchanged.</returns>
+    /// <remarks>
+    /// Unlike <see cref="LoadFromSlot{TSerializer}"/>, this does not clear the world or restore
+    /// any entities. It is intended for callers that need the saved state only as diff input.
+    /// </remarks>
+    WorldSnapshot ReadSnapshotFromSlot<TSerializer>(
+        string slotName,
+        TSerializer serializer,
+        bool validateChecksum = true)
+        where TSerializer : IComponentSerializer, IBinaryComponentSerializer;
+
+    /// <summary>
     /// Creates a delta snapshot by comparing the current world state to a baseline.
     /// </summary>
     /// <typeparam name="TSerializer">
