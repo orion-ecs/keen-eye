@@ -39,7 +39,7 @@ public sealed class LocalizedTextSystem : SystemBase
     /// <inheritdoc />
     protected override void OnInitialize()
     {
-        World.TryGetExtension(out localization);
+        World.TryGetExtension<LocalizationManager>(out localization);
 
         // Subscribe to locale changes
         localeChangedSubscription = World.Subscribe<LocaleChangedEvent>(OnLocaleChanged);
@@ -51,7 +51,7 @@ public sealed class LocalizedTextSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        if (localization == null && !World.TryGetExtension(out localization))
+        if (localization == null && !World.TryGetExtension<LocalizationManager>(out localization))
         {
             return;
         }

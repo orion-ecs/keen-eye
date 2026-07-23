@@ -31,6 +31,7 @@
     <Project Path="samples/KeenEyes.Sample.Showcase/KeenEyes.Sample.Showcase.csproj" />
     <Project Path="samples/KeenEyes.Sample.Simulation/KeenEyes.Sample.Simulation.csproj" />
     <Project Path="samples/KeenEyes.Sample.StringTags/KeenEyes.Sample.StringTags.csproj" />
+    <Project Path="samples/KeenEyes.Sample.PBR/KeenEyes.Sample.PBR.csproj" />
     <Project Path="samples/KeenEyes.Sample.UI/KeenEyes.Sample.UI.csproj" />
     <Project Path="samples/KeenEyes.Sample.Voxel/KeenEyes.Sample.Voxel.csproj" />
     <Project Path="samples/KeenEyes.Sample/KeenEyes.Sample.csproj" />

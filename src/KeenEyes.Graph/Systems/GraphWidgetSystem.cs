@@ -32,12 +32,12 @@ public sealed class GraphWidgetSystem : SystemBase
     public override void Update(float deltaTime)
     {
         // Lazy initialization
-        if (inputContext is null && !World.TryGetExtension(out inputContext))
+        if (inputContext is null && !World.TryGetExtension<IInputContext>(out inputContext))
         {
             return;
         }
 
-        if (graphContext is null && !World.TryGetExtension(out graphContext))
+        if (graphContext is null && !World.TryGetExtension<GraphContext>(out graphContext))
         {
             return;
         }

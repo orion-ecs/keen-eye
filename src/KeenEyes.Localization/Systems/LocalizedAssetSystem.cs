@@ -36,8 +36,8 @@ public sealed class LocalizedAssetSystem : SystemBase
     /// <inheritdoc />
     protected override void OnInitialize()
     {
-        World.TryGetExtension(out localization);
-        World.TryGetExtension(out resolver);
+        World.TryGetExtension<LocalizationManager>(out localization);
+        World.TryGetExtension<ILocalizedAssetResolver>(out resolver);
 
         // Subscribe to locale changes
         localeChangedSubscription = World.Subscribe<LocaleChangedEvent>(OnLocaleChanged);
@@ -49,12 +49,12 @@ public sealed class LocalizedAssetSystem : SystemBase
     /// <inheritdoc />
     public override void Update(float deltaTime)
     {
-        if (localization == null && !World.TryGetExtension(out localization))
+        if (localization == null && !World.TryGetExtension<LocalizationManager>(out localization))
         {
             return;
         }
 
-        if (resolver == null && !World.TryGetExtension(out resolver))
+        if (resolver == null && !World.TryGetExtension<ILocalizedAssetResolver>(out resolver))
         {
             return;
         }

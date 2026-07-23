@@ -54,14 +54,14 @@ public sealed class UITextInputSystem : SystemBase
     public override void Update(float deltaTime)
     {
         // Lazy initialization of input context
-        if (inputContext is null && World.TryGetExtension(out inputContext))
+        if (inputContext is null && World.TryGetExtension<IInputContext>(out inputContext))
         {
             SubscribeToInput();
         }
 
         if (uiContext is null)
         {
-            World.TryGetExtension(out uiContext);
+            World.TryGetExtension<UIContext>(out uiContext);
         }
     }
 

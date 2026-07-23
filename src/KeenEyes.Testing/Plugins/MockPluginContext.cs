@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace KeenEyes.Testing.Plugins;
 
 /// <summary>
@@ -297,7 +299,7 @@ public sealed class MockPluginContext : IPluginContext
     }
 
     /// <inheritdoc />
-    public bool TryGetExtension<T>(out T? extension) where T : class
+    public bool TryGetExtension<T>([MaybeNullWhen(false)] out T extension) where T : class
     {
         if (extensions.TryGetValue(typeof(T), out var ext))
         {
@@ -343,7 +345,7 @@ public sealed class MockPluginContext : IPluginContext
     }
 
     /// <inheritdoc />
-    public bool TryGetCapability<T>(out T? capability) where T : class
+    public bool TryGetCapability<T>([MaybeNullWhen(false)] out T capability) where T : class
     {
         // First check mock capabilities
         if (capabilities.TryGetValue(typeof(T), out var cap))

@@ -35,7 +35,7 @@ public sealed class UIModalSystem : SystemBase
         clickSubscription = World.Subscribe<UIClickEvent>(OnClick);
 
         // Try to get input context for keyboard handling
-        World.TryGetExtension(out inputContext);
+        World.TryGetExtension<IInputContext>(out inputContext);
     }
 
     /// <inheritdoc />
@@ -56,7 +56,7 @@ public sealed class UIModalSystem : SystemBase
         // Handle Escape key for open modals
         if (inputContext == null)
         {
-            World.TryGetExtension(out inputContext);
+            World.TryGetExtension<IInputContext>(out inputContext);
             if (inputContext == null)
             {
                 return;

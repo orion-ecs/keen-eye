@@ -100,7 +100,7 @@ try
             {
                 if (args.Key == Key.Escape)
                 {
-                    Environment.Exit(0);
+                    System.Environment.Exit(0);
                 }
             };
 

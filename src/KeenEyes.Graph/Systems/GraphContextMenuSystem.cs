@@ -26,24 +26,24 @@ public sealed class GraphContextMenuSystem : SystemBase
     public override void Update(float deltaTime)
     {
         // Lazy initialization
-        if (inputContext is null && !World.TryGetExtension(out inputContext))
+        if (inputContext is null && !World.TryGetExtension<IInputContext>(out inputContext))
         {
             return;
         }
 
-        if (graphContext is null && !World.TryGetExtension(out graphContext))
+        if (graphContext is null && !World.TryGetExtension<GraphContext>(out graphContext))
         {
             return;
         }
 
-        if (portRegistry is null && !World.TryGetExtension(out portRegistry))
+        if (portRegistry is null && !World.TryGetExtension<PortRegistry>(out portRegistry))
         {
             return;
         }
 
         if (nodeTypeRegistry is null)
         {
-            World.TryGetExtension(out nodeTypeRegistry);
+            World.TryGetExtension<NodeTypeRegistry>(out nodeTypeRegistry);
         }
 
         var keyboard = inputContext!.Keyboard;

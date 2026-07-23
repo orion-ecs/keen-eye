@@ -48,7 +48,7 @@ public sealed class RootMotionSystem : SystemBase
     /// <inheritdoc />
     protected override void OnInitialize()
     {
-        World.TryGetExtension(out manager);
+        World.TryGetExtension<AnimationManager>(out manager);
     }
 
     /// <inheritdoc />

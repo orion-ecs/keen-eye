@@ -51,7 +51,7 @@ public sealed class IKSolverSystem : SystemBase
     /// <inheritdoc />
     protected override void OnInitialize()
     {
-        World.TryGetExtension(out manager);
+        World.TryGetExtension<IKManager>(out manager);
     }
 
     /// <inheritdoc />

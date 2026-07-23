@@ -41,7 +41,7 @@ public sealed class PhysicsStepSystem : SystemBase
         var pw = physicsWorld;
         if (pw == null)
         {
-            if (!World.TryGetExtension(out pw))
+            if (!World.TryGetExtension<PhysicsWorld>(out pw))
             {
                 return;
             }

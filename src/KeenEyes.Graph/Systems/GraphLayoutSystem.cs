@@ -62,12 +62,12 @@ public sealed class GraphLayoutSystem : SystemBase
     public override void Update(float deltaTime)
     {
         // Lazy initialization
-        if (portRegistry is null && !World.TryGetExtension(out portRegistry))
+        if (portRegistry is null && !World.TryGetExtension<PortRegistry>(out portRegistry))
         {
             return;
         }
 
-        if (portCache is null && !World.TryGetExtension(out portCache))
+        if (portCache is null && !World.TryGetExtension<PortPositionCache>(out portCache))
         {
             return;
         }
