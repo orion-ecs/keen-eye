@@ -384,13 +384,13 @@ public static class WorldPluginExtensions
 ```bash
 dotnet restore
 dotnet build                                  # Zero warnings (TreatWarningsAsErrors)
-dotnet test --max-parallel-test-modules 1     # Full suite
+dotnet test                                   # Full suite (parallel test modules)
 dotnet format --verify-no-changes             # Check formatting (auto-fix: dotnet format)
 ```
 
 The solution file is `KeenEyes.slnx` (not `.sln`). `dotnet build`/`test` with no argument operate on it.
 
-**Important:** Always use `--max-parallel-test-modules 1` when running tests. This prevents test assemblies from running in parallel, which causes ThreadPool contention and intermittent hangs in the Parallelism, Network, and Debugging test suites.
+**Parallel test execution is enabled.** Tests run with default parallel test-module scheduling (~5× faster than serial). This previously caused intermittent CI hangs, but the root cause was a `JobHandle.CombineDependencies` deadlock (`new`-hid `Wait()` on a base-typed field — fixed in #1153), not inherent ThreadPool contention: a combined handle whose children completed after construction blocked forever, and under parallel load that hung the Parallelism module (and starved the concurrently-running Network/Debugging modules, making them appear to hang too). With that fixed, the full suite completes cleanly under `--max-parallel-test-modules 32` across repeated runs. If you ever need to rule out a concurrency interaction while debugging, `--max-parallel-test-modules 1` forces serial execution, but it is no longer required.
 
 ### Running a Single Test or Project
 
@@ -398,7 +398,7 @@ Tests use **xUnit.net v3 on Microsoft Testing Platform** (MTP), not VSTest — c
 
 ```bash
 # Run one test project (fastest inner loop)
-dotnet test tests/KeenEyes.Core.Tests --max-parallel-test-modules 1
+dotnet test tests/KeenEyes.Core.Tests
 
 # Run a single test method (glob patterns supported)
 dotnet test tests/KeenEyes.Core.Tests -- --filter-method "*Spawn_CreatesEntity*"

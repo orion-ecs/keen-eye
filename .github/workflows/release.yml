@@ -45,7 +45,7 @@ jobs:
 
       - name: Test
         timeout-minutes: 10
-        run: dotnet test --no-build --configuration Release --verbosity normal --max-parallel-test-modules 1
+        run: dotnet test --no-build --configuration Release --verbosity normal
 
       - name: Pack
         run: dotnet pack --no-build --configuration Release -p:Version=${{ steps.version.outputs.VERSION }} --output ./nupkg
