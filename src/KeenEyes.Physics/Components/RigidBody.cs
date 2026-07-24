@@ -59,7 +59,13 @@ public readonly struct ActivityDescription(float sleepThreshold = 0.01f, byte mi
     /// <summary>
     /// Settings for bodies that should never sleep (always active).
     /// </summary>
-    public static ActivityDescription NeverSleep => new(float.MaxValue, byte.MaxValue);
+    /// <remarks>
+    /// BepuPhysics treats a negative <see cref="SleepThreshold"/> as "never a sleep candidate",
+    /// so the body cannot go to sleep without an explicit user action. A large positive threshold
+    /// (such as <see cref="float.MaxValue"/>) has the opposite effect: every velocity falls below
+    /// it, so the body sleeps as soon as it becomes a candidate.
+    /// </remarks>
+    public static ActivityDescription NeverSleep => new(-1f);
 }
 
 /// <summary>

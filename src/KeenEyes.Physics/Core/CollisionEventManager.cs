@@ -77,7 +77,7 @@ internal struct CollisionData
 /// This implementation is designed for zero allocations in hot paths (RecordCollision, PublishEvents).
 /// </para>
 /// </remarks>
-internal sealed class CollisionEventManager(IWorld world)
+internal sealed class CollisionEventManager(IWorld world, Func<Entity, bool>? isEntityAsleep = null)
 {
     // Current frame's collision data (collected during narrow phase)
     // Using regular Dictionary + lock since we need to update existing values atomically
@@ -92,6 +92,15 @@ internal sealed class CollisionEventManager(IWorld world)
 
     // Reusable list for entity removal (avoids allocation during RemoveEntity)
     private readonly List<CollisionPairKey> removalBuffer = [with(16)];
+
+    // Reusable list for resting pairs whose bodies fell asleep. The narrow phase stops
+    // reporting contacts for a sleeping island, so these pairs must be persisted rather
+    // than treated as ended (avoids spurious CollisionEndedEvent for still-touching bodies).
+    private readonly List<CollisionPairKey> sleepingRestingPairs = [with(16)];
+
+    // Predicate that reports whether an entity's body is currently asleep. Null when no
+    // simulation is attached (e.g. isolated unit tests), in which case nothing is asleep.
+    private readonly Func<Entity, bool>? isEntityAsleep = isEntityAsleep;
 
     /// <summary>
     /// Records a collision from the narrow phase callback.
@@ -198,10 +207,22 @@ internal sealed class CollisionEventManager(IWorld world)
         }
 
         // Find collisions that ended (were in previous frame but not current)
+        sleepingRestingPairs.Clear();
         foreach (var key in previousFramePairs)
         {
             if (!currentFrameCollisions.ContainsKey(key))
             {
+                // A pair can disappear from the narrow phase either because the bodies truly
+                // separated or because their island went to sleep while still touching. Only
+                // the former is a genuine "ended". For the latter, persist the resting contact
+                // so no spurious CollisionEndedEvent fires and a real separation after waking
+                // is still detected.
+                if (IsPairSleeping(key))
+                {
+                    sleepingRestingPairs.Add(key);
+                    continue;
+                }
+
                 // Collision ended
                 pairTriggerStatus.TryGetValue(key, out bool wasTrigger);
 
@@ -221,8 +242,27 @@ internal sealed class CollisionEventManager(IWorld world)
             previousFramePairs.Add(key);
         }
 
+        // Retain resting pairs whose bodies are asleep so they are re-evaluated once the
+        // bodies wake up (their trigger status is intentionally left in pairTriggerStatus).
+        foreach (var key in sleepingRestingPairs)
+        {
+            previousFramePairs.Add(key);
+        }
+
         // Clear current frame for next step
         currentFrameCollisions.Clear();
+    }
+
+    private bool IsPairSleeping(CollisionPairKey key)
+    {
+        if (isEntityAsleep is null)
+        {
+            return false;
+        }
+
+        // If either body is asleep the pair will not be re-reported by the narrow phase,
+        // so the contact should be treated as resting rather than ended.
+        return isEntityAsleep(key.EntityA) || isEntityAsleep(key.EntityB);
     }
 
     /// <summary>

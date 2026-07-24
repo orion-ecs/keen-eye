@@ -24,10 +24,6 @@ public sealed class PhysicsSyncSystem : SystemBase
 {
     private PhysicsWorld? physicsWorld;
 
-    // Previous frame state for interpolation
-    private readonly Dictionary<Entity, Vector3> previousPositions = [];
-    private readonly Dictionary<Entity, Quaternion> previousRotations = [];
-
     /// <inheritdoc/>
     protected override void OnInitialize()
     {
@@ -68,63 +64,17 @@ public sealed class PhysicsSyncSystem : SystemBase
                 continue;
             }
 
+            // Interpolate between the last two raw physics poses. Reading the raw poses from
+            // the physics world (rather than the current Transform3D) avoids feeding the
+            // previously displayed, already-interpolated value back in as input.
+            if (!pw.TryGetInterpolationPoses(entity, out var prevPos, out var prevRot, out var currentPos, out var currentRot))
+            {
+                continue;
+            }
+
             ref var transform = ref World.Get<Transform3D>(entity);
-
-            // Store current as previous for next frame
-            var currentPos = transform.Position;
-            var currentRot = transform.Rotation;
-
-            // Get previous values (or use current if first frame)
-            if (!previousPositions.TryGetValue(entity, out var prevPos))
-            {
-                prevPos = currentPos;
-            }
-
-            if (!previousRotations.TryGetValue(entity, out var prevRot))
-            {
-                prevRot = currentRot;
-            }
-
-            // Interpolate for smooth rendering
             transform.Position = Vector3.Lerp(prevPos, currentPos, alpha);
             transform.Rotation = Quaternion.Slerp(prevRot, currentRot, alpha);
-
-            // Update previous state tracking
-            previousPositions[entity] = currentPos;
-            previousRotations[entity] = currentRot;
         }
-
-        // Clean up any entities that no longer exist
-        CleanupStaleEntries();
-    }
-
-    private void CleanupStaleEntries()
-    {
-        var entitiesToRemove = new List<Entity>();
-
-        foreach (var entity in previousPositions.Keys)
-        {
-            if (!World.IsAlive(entity))
-            {
-                entitiesToRemove.Add(entity);
-            }
-        }
-
-        foreach (var entity in entitiesToRemove)
-        {
-            previousPositions.Remove(entity);
-            previousRotations.Remove(entity);
-        }
-    }
-
-    /// <inheritdoc/>
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            previousPositions.Clear();
-            previousRotations.Clear();
-        }
-        base.Dispose(disposing);
     }
 }
