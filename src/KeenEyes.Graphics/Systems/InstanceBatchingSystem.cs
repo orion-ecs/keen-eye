@@ -39,6 +39,12 @@ public sealed class PreparedBatch
     public InstanceBufferHandle InstanceBuffer { get; set; }
 
     /// <summary>
+    /// The allocated capacity (in instances) of <see cref="InstanceBuffer"/> on the GPU.
+    /// Tracked per batch so growth decisions are independent of any shared staging array.
+    /// </summary>
+    internal int Capacity { get; set; }
+
+    /// <summary>
     /// The number of instances in this batch.
     /// </summary>
     public int InstanceCount { get; set; }
@@ -189,31 +195,39 @@ public sealed class InstanceBatchingSystem : ISystem
             // Get or create prepared batch
             if (!preparedBatches.TryGetValue(key, out var prepared))
             {
-                // Create new batch with initial buffer
+                // Create new batch with a buffer sized to fit the current instances
                 int capacity = Math.Max(InitialBufferCapacity, instances.Count);
                 var buffer = graphics.CreateInstanceBuffer(capacity);
 
                 prepared = new PreparedBatch
                 {
                     Mesh = new MeshHandle(key.MeshId),
-                    InstanceBuffer = buffer
+                    InstanceBuffer = buffer,
+                    Capacity = capacity,
                 };
                 preparedBatches[key] = prepared;
             }
 
-            // Check if buffer needs to grow
-            var currentBuffer = prepared.InstanceBuffer;
-            // We need to track capacity - for now, recreate if count exceeds uploadBuffer
+            // Ensure the reusable CPU staging buffer is large enough to hold this batch.
+            // This array is shared across all batches, so it only ever grows.
             if (instances.Count > uploadBuffer.Length)
             {
-                // Grow upload buffer
-                int newCapacity = (int)(instances.Count * BufferGrowthFactor);
-                uploadBuffer = new InstanceData[newCapacity];
+                uploadBuffer = new InstanceData[(int)(instances.Count * BufferGrowthFactor)];
+            }
 
-                // Recreate GPU buffer with new capacity
+            // Grow this batch's GPU buffer when it can no longer hold the instances.
+            // Capacity is tracked per batch (not via the shared staging array) so that a
+            // batch which grows after another batch already enlarged the staging buffer
+            // still resizes its own GPU buffer (see #1184).
+            var currentBuffer = prepared.InstanceBuffer;
+            if (instances.Count > prepared.Capacity)
+            {
+                int newCapacity = (int)(instances.Count * BufferGrowthFactor);
+
                 graphics.DeleteInstanceBuffer(currentBuffer);
                 currentBuffer = graphics.CreateInstanceBuffer(newCapacity);
                 prepared.InstanceBuffer = currentBuffer;
+                prepared.Capacity = newCapacity;
             }
 
             // Copy to upload buffer

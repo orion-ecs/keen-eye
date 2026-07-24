@@ -53,6 +53,7 @@ public sealed class Silk2DRenderer : I2DRenderer
     private uint currentTexture;
     private bool isBatching;
     private Matrix4x4 screenProjection;
+    private Matrix4x4 activeProjection;
     private Vector2 screenSize;
     private bool disposed;
 
@@ -310,6 +311,10 @@ public sealed class Silk2DRenderer : I2DRenderer
         indexCount = 0;
         currentTexture = whiteTexture;
 
+        // Remember the caller-supplied projection so Flush/FlushRoundedRects re-bind
+        // it (rather than the internal screen projection) before every draw call.
+        activeProjection = projection;
+
         device.UseProgram(shaderProgram);
         device.UniformMatrix4(projectionLocation, projection);
         device.Uniform1(textureLocation, 0);
@@ -343,7 +348,7 @@ public sealed class Silk2DRenderer : I2DRenderer
 
         // Ensure our shader and state are active (may have been changed by other renderers)
         device.UseProgram(shaderProgram);
-        device.UniformMatrix4(projectionLocation, screenProjection);
+        device.UniformMatrix4(projectionLocation, activeProjection);
         device.Uniform1(textureLocation, 0);
         device.Enable(RenderCapability.Blend);
         device.BlendFunc(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha);
@@ -550,22 +555,30 @@ public sealed class Silk2DRenderer : I2DRenderer
     {
         SetTexture(whiteTexture);
 
+        var center = new Vector2(centerX, centerY);
+
         for (int i = 0; i < segments; i++)
         {
             float angle1 = MathF.PI * 2 * i / segments;
             float angle2 = MathF.PI * 2 * (i + 1) / segments;
 
-            float x1 = centerX + MathF.Cos(angle1) * radiusX;
-            float y1 = centerY + MathF.Sin(angle1) * radiusY;
-            float x2 = centerX + MathF.Cos(angle2) * radiusX;
-            float y2 = centerY + MathF.Sin(angle2) * radiusY;
+            var p1 = new Vector2(centerX + MathF.Cos(angle1) * radiusX, centerY + MathF.Sin(angle1) * radiusY);
+            var p2 = new Vector2(centerX + MathF.Cos(angle2) * radiusX, centerY + MathF.Sin(angle2) * radiusY);
 
-            EnsureCapacity(3, 3);
+            // The batch shares a single quad-patterned index buffer (v+0, v+1, v+2,
+            // v+2, v+3, v+0), so each wedge must be emitted as four vertices to stay
+            // aligned with it. Duplicating p2 as the fourth vertex makes the second
+            // triangle (p2, p2, center) degenerate, leaving exactly one visible
+            // wedge triangle (center, p1, p2) per segment. Emitting three vertices
+            // here instead would desynchronize the fan from the quad indices and
+            // corrupt the shape (see #1183).
+            EnsureCapacity(4, 6);
 
-            vertices[vertexCount++] = new Vertex2D(new Vector2(centerX, centerY), Vector2.Zero, color);
-            vertices[vertexCount++] = new Vertex2D(new Vector2(x1, y1), Vector2.Zero, color);
-            vertices[vertexCount++] = new Vertex2D(new Vector2(x2, y2), Vector2.Zero, color);
-            indexCount += 3;
+            vertices[vertexCount++] = new Vertex2D(center, Vector2.Zero, color);
+            vertices[vertexCount++] = new Vertex2D(p1, Vector2.Zero, color);
+            vertices[vertexCount++] = new Vertex2D(p2, Vector2.Zero, color);
+            vertices[vertexCount++] = new Vertex2D(p2, Vector2.Zero, color);
+            indexCount += 6;
         }
     }
 
@@ -743,7 +756,7 @@ public sealed class Silk2DRenderer : I2DRenderer
 
         // Setup rounded rect shader
         device.UseProgram(roundedRectShaderProgram);
-        device.UniformMatrix4(roundedRectProjectionLocation, screenProjection);
+        device.UniformMatrix4(roundedRectProjectionLocation, activeProjection);
         device.Enable(RenderCapability.Blend);
         device.BlendFunc(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha);
 
@@ -765,7 +778,7 @@ public sealed class Silk2DRenderer : I2DRenderer
 
         // Restore regular shader for subsequent draws
         device.UseProgram(shaderProgram);
-        device.UniformMatrix4(projectionLocation, screenProjection);
+        device.UniformMatrix4(projectionLocation, activeProjection);
         device.Uniform1(textureLocation, 0);
     }
 
