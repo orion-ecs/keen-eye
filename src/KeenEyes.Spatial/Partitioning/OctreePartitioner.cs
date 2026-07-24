@@ -36,6 +36,10 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     // Track entity positions for redistribution during subdivision
     private readonly Dictionary<Entity, Vector3> entityPositions = [];
 
+    // Track each entity's world-space AABB so bounded queries can test against the
+    // entity's footprint rather than only its center point.
+    private readonly Dictionary<Entity, (Vector3 Min, Vector3 Max)> entityBounds = [];
+
     // Pool for child node arrays (8 elements for octree)
     private readonly ArrayPool<OctreeNode>? nodePool;
 
@@ -66,6 +70,12 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     /// <inheritdoc/>
     public int EntityCount => entityCount;
 
+    // The looseness factor to expand node bounds by during query traversal.
+    // Entities are stored in a node while they remain within its loose bounds,
+    // so traversal must prune against those same loose bounds (a factor of 1.0
+    // leaves node bounds unchanged for tight octrees).
+    private float QueryLoosenessFactor => config.UseLooseBounds ? config.LoosenessFactor : 1.0f;
+
     /// <inheritdoc/>
     public void Update(Entity entity, Vector3 position)
     {
@@ -89,6 +99,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         node.Entities.Remove(entity);
         entityNodes.Remove(entity);
         entityPositions.Remove(entity);
+        entityBounds.Remove(entity);
         entityCount--;
     }
 
@@ -100,7 +111,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         var max = center + radiusVec;
 
         var results = new HashSet<Entity>();
-        root.QueryBounds(min, max, results, entityPositions);
+        root.QueryBounds(min, max, results, entityBounds, QueryLoosenessFactor);
         return MaybeSortResults(results);
     }
 
@@ -108,7 +119,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     public IEnumerable<Entity> QueryBounds(Vector3 min, Vector3 max)
     {
         var results = new HashSet<Entity>();
-        root.QueryBounds(min, max, results, entityPositions);
+        root.QueryBounds(min, max, results, entityBounds, QueryLoosenessFactor);
         return MaybeSortResults(results);
     }
 
@@ -139,7 +150,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
 
         int count = 0;
         bool overflow = false;
-        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityBounds, QueryLoosenessFactor);
 
         if (config.DeterministicMode && count > 0)
         {
@@ -154,7 +165,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     {
         int count = 0;
         bool overflow = false;
-        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityBounds, QueryLoosenessFactor);
 
         if (config.DeterministicMode && count > 0)
         {
@@ -247,6 +258,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         root.Clear(nodePool);
         entityNodes.Clear();
         entityPositions.Clear();
+        entityBounds.Clear();
         entityCount = 0;
     }
 
@@ -275,11 +287,13 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
     /// </summary>
     private void UpdateInternal(Entity entity, Vector3 position, (Vector3 min, Vector3 max)? bounds)
     {
-        // bounds reserved for future bounded entity support
-        _ = bounds;
-
         // Store entity position for potential redistribution during subdivision
         entityPositions[entity] = position;
+
+        // Store the entity's world-space AABB. Point entities (no bounds) get a
+        // degenerate box collapsed onto their position so queries can treat every
+        // entity uniformly as bounds instead of a bare center point.
+        entityBounds[entity] = bounds ?? (position, position);
 
         // Check if entity is already indexed and still fits in its current node
         if (entityNodes.TryGetValue(entity, out var oldNode))
@@ -425,100 +439,27 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         /// <summary>
         /// Queries all entities within the given bounds, recursively traversing children.
         /// </summary>
-        public void QueryBounds(Vector3 min, Vector3 max, HashSet<Entity> results, Dictionary<Entity, Vector3> entityPositions)
+        public void QueryBounds(Vector3 min, Vector3 max, HashSet<Entity> results, Dictionary<Entity, (Vector3 Min, Vector3 Max)> entityBounds, float loosenessFactor)
         {
-            // Check if this node intersects the query bounds
-            if (!Intersects(min, max))
+            // Check if this node (expanded by the looseness factor) intersects the
+            // query bounds. Entities are stored while within loose bounds, so pruning
+            // must honour those same loose bounds to avoid false negatives.
+            if (!Intersects(min, max, loosenessFactor))
             {
                 return;
             }
 
-            // Add entities from this node that are actually within bounds
-            // Use SIMD for bulk filtering when there are enough entities (threshold: 16)
-            var count = Entities.Count;
-            if (count >= 16 && count <= 128)
+            // Add entities from this node whose footprint (AABB) overlaps the query
+            // box. Testing the stored bounds rather than the center point keeps large
+            // entities visible when the query box lies inside their footprint.
+            foreach (var entity in Entities)
             {
-                // Stack allocation for small-medium arrays (zero heap allocation)
-                Span<Entity> entitySpan = stackalloc Entity[count];
-                Span<Vector3> positionSpan = stackalloc Vector3[count];
-
-                // Copy entities to span
-                int idx = 0;
-                foreach (var entity in Entities)
+                if (entityBounds.TryGetValue(entity, out var b) &&
+                    b.Max.X >= min.X && b.Min.X <= max.X &&
+                    b.Max.Y >= min.Y && b.Min.Y <= max.Y &&
+                    b.Max.Z >= min.Z && b.Min.Z <= max.Z)
                 {
-                    entitySpan[idx++] = entity;
-                }
-
-                // Extract positions
-                for (int i = 0; i < count; i++)
-                {
-                    if (entityPositions.TryGetValue(entitySpan[i], out var pos))
-                    {
-                        positionSpan[i] = pos;
-                    }
-                }
-
-                // SIMD-accelerated AABB filtering (zero-allocation with stackalloc)
-                Span<int> indices = stackalloc int[count];
-                int matchCount = SimdHelpers.FilterByAABBSIMD(positionSpan, min, max, indices);
-
-                // Add filtered entities
-                for (int i = 0; i < matchCount; i++)
-                {
-                    results.Add(entitySpan[indices[i]]);
-                }
-            }
-            else if (count > 128)
-            {
-                // ArrayPool for large arrays (reusable, zero allocation amortized)
-                var rentedEntities = ArrayPool<Entity>.Shared.Rent(count);
-                var rentedPositions = ArrayPool<Vector3>.Shared.Rent(count);
-                var rentedIndices = ArrayPool<int>.Shared.Rent(count);
-
-                try
-                {
-                    Entities.CopyTo(rentedEntities, 0);
-                    var entitySpan = rentedEntities.AsSpan(0, count);
-                    var positionSpan = rentedPositions.AsSpan(0, count);
-                    var indicesSpan = rentedIndices.AsSpan(0, count);
-
-                    // Extract positions
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (entityPositions.TryGetValue(entitySpan[i], out var pos))
-                        {
-                            positionSpan[i] = pos;
-                        }
-                    }
-
-                    // SIMD-accelerated AABB filtering (zero-allocation with pooled arrays)
-                    int matchCount = SimdHelpers.FilterByAABBSIMD(positionSpan, min, max, indicesSpan);
-
-                    // Add filtered entities
-                    for (int i = 0; i < matchCount; i++)
-                    {
-                        results.Add(entitySpan[indicesSpan[i]]);
-                    }
-                }
-                finally
-                {
-                    ArrayPool<Entity>.Shared.Return(rentedEntities);
-                    ArrayPool<Vector3>.Shared.Return(rentedPositions);
-                    ArrayPool<int>.Shared.Return(rentedIndices);
-                }
-            }
-            else
-            {
-                // Scalar path for small entity counts (< 16)
-                foreach (var entity in Entities)
-                {
-                    if (entityPositions.TryGetValue(entity, out var pos) &&
-                        pos.X >= min.X && pos.X <= max.X &&
-                        pos.Y >= min.Y && pos.Y <= max.Y &&
-                        pos.Z >= min.Z && pos.Z <= max.Z)
-                    {
-                        results.Add(entity);
-                    }
+                    results.Add(entity);
                 }
             }
 
@@ -528,7 +469,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
                 // Only iterate over the first 8 children (pooled arrays may be larger)
                 for (int i = 0; i < 8; i++)
                 {
-                    Children![i].QueryBounds(min, max, results, entityPositions);
+                    Children![i].QueryBounds(min, max, results, entityBounds, loosenessFactor);
                 }
             }
         }
@@ -567,21 +508,21 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         /// <summary>
         /// Queries all entities within the given bounds into a span (zero-allocation).
         /// </summary>
-        public void QueryBoundsSpan(Vector3 min, Vector3 max, Span<Entity> results, ref int count, ref bool overflow, Dictionary<Entity, Vector3> entityPositions)
+        public void QueryBoundsSpan(Vector3 min, Vector3 max, Span<Entity> results, ref int count, ref bool overflow, Dictionary<Entity, (Vector3 Min, Vector3 Max)> entityBounds, float loosenessFactor)
         {
-            // Check if this node intersects the query bounds
-            if (!Intersects(min, max))
+            // Check if this node (expanded by the looseness factor) intersects the query bounds
+            if (!Intersects(min, max, loosenessFactor))
             {
                 return;
             }
 
-            // Add entities from this node that are actually within bounds
+            // Add entities from this node whose footprint (AABB) overlaps the query box
             foreach (var entity in Entities)
             {
-                if (entityPositions.TryGetValue(entity, out var pos) &&
-                    pos.X >= min.X && pos.X <= max.X &&
-                    pos.Y >= min.Y && pos.Y <= max.Y &&
-                    pos.Z >= min.Z && pos.Z <= max.Z &&
+                if (entityBounds.TryGetValue(entity, out var b) &&
+                    b.Max.X >= min.X && b.Min.X <= max.X &&
+                    b.Max.Y >= min.Y && b.Min.Y <= max.Y &&
+                    b.Max.Z >= min.Z && b.Min.Z <= max.Z &&
                     !SpanContainsEntity(results, count, entity))
                 {
                     if (count < results.Length)
@@ -600,7 +541,7 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
             {
                 for (int i = 0; i < 8; i++)
                 {
-                    Children![i].QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+                    Children![i].QueryBoundsSpan(min, max, results, ref count, ref overflow, entityBounds, loosenessFactor);
                 }
             }
         }
@@ -659,13 +600,17 @@ internal sealed class OctreePartitioner : ISpatialPartitioner
         }
 
         /// <summary>
-        /// Checks if this node's bounds intersect with the given bounds.
+        /// Checks if this node's bounds, expanded by the looseness factor, intersect
+        /// with the given bounds. A factor of 1.0 tests the strict node bounds.
         /// </summary>
-        private bool Intersects(Vector3 min, Vector3 max)
+        private bool Intersects(Vector3 min, Vector3 max, float loosenessFactor)
         {
-            return !(Max.X < min.X || Min.X > max.X ||
-                    Max.Y < min.Y || Min.Y > max.Y ||
-                    Max.Z < min.Z || Min.Z > max.Z);
+            var expansion = ((Max - Min) * (loosenessFactor - 1.0f)) * 0.5f;
+            var looseMin = Min - expansion;
+            var looseMax = Max + expansion;
+            return !(looseMax.X < min.X || looseMin.X > max.X ||
+                    looseMax.Y < min.Y || looseMin.Y > max.Y ||
+                    looseMax.Z < min.Z || looseMin.Z > max.Z);
         }
 
         /// <summary>
