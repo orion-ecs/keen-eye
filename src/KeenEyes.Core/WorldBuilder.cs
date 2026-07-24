@@ -43,6 +43,7 @@ public sealed class WorldBuilder
 {
     private readonly List<PluginRegistration> plugins = [];
     private readonly List<SystemRegistration> systems = [];
+    private bool built;
 
     /// <summary>
     /// Adds a plugin to be installed when the world is built.
@@ -167,6 +168,13 @@ public sealed class WorldBuilder
     /// <para>
     /// Use this overload when you need to pass a pre-configured system instance.
     /// </para>
+    /// <para>
+    /// Because the same instance is shared, a builder holding a system instance can only
+    /// build a single world; calling <see cref="Build"/> a second time throws
+    /// <see cref="InvalidOperationException"/> rather than rebind the instance to a new
+    /// world. Use the generic <see cref="WithSystem{T}(SystemPhase, int)"/> overload for
+    /// reusable builders.
+    /// </para>
     /// </remarks>
     public WorldBuilder WithSystem(ISystem system, SystemPhase phase = SystemPhase.Update, int order = 0)
     {
@@ -203,6 +211,12 @@ public sealed class WorldBuilder
     /// <param name="phase">The execution phase for this group. Defaults to <see cref="SystemPhase.Update"/>.</param>
     /// <param name="order">The execution order within the phase. Lower values execute first. Defaults to 0.</param>
     /// <returns>This builder for method chaining.</returns>
+    /// <remarks>
+    /// Because the group and its systems are shared instances, a builder holding a system
+    /// group can only build a single world; calling <see cref="Build"/> a second time throws
+    /// <see cref="InvalidOperationException"/> rather than rebind the shared systems to a new
+    /// world.
+    /// </remarks>
     /// <example>
     /// <code>
     /// var gameplayGroup = new SystemGroup("Gameplay")
@@ -236,9 +250,18 @@ public sealed class WorldBuilder
     /// </para>
     /// <para>
     /// After calling Build(), the builder can be reused to create additional
-    /// world instances with the same configuration.
+    /// world instances with the same configuration, provided it holds only generic/factory
+    /// registrations. A builder that holds system instances (added via
+    /// <see cref="WithSystem(ISystem, SystemPhase, int)"/> or
+    /// <see cref="WithSystemGroup(SystemGroup, SystemPhase, int)"/>) can build only once;
+    /// a second call throws <see cref="InvalidOperationException"/>.
     /// </para>
     /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when the builder holds system instances and <see cref="Build"/> has already
+    /// been called, since reusing a shared system instance would corrupt the previously
+    /// built world.
+    /// </exception>
     /// <example>
     /// <code>
     /// var world = new WorldBuilder()
@@ -252,6 +275,22 @@ public sealed class WorldBuilder
     /// </example>
     public World Build()
     {
+        // A builder that holds system instances (via WithSystem(ISystem) or WithSystemGroup)
+        // cannot be reused: World.AddSystem calls ISystem.Initialize(world), which rebinds the
+        // shared instance to the new world. Building a second world would therefore re-point a
+        // system already owned by an earlier world, corrupting that earlier world's systems.
+        // Factory/generic registrations are safe to reuse because each Build() creates a fresh
+        // instance, so only guard when instances are present.
+        if (built && systems.Exists(static registration => registration.Instance is not null))
+        {
+            throw new InvalidOperationException(
+                "This WorldBuilder holds one or more system instances (added via WithSystem(ISystem) " +
+                "or WithSystemGroup) and has already built a world. Building again would re-initialize " +
+                "the shared instance against the new world, corrupting the previously built world's " +
+                "systems. Use the generic WithSystem<T>() overload for reusable builders, or create a " +
+                "new WorldBuilder.");
+        }
+
         var world = new World();
 
         // Install all plugins first
@@ -273,6 +312,7 @@ public sealed class WorldBuilder
                 registration.RunsAfter);
         }
 
+        built = true;
         return world;
     }
 

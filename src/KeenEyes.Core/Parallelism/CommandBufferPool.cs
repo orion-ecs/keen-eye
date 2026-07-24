@@ -16,9 +16,12 @@ namespace KeenEyes;
 /// safely rent and return buffers concurrently.
 /// </para>
 /// <para>
-/// <strong>Placeholder Resolution:</strong> When merging buffers, placeholder IDs
-/// are remapped to avoid conflicts between buffers. Cross-buffer entity references
-/// are resolved during the merge operation.
+/// <strong>Placeholder Resolution:</strong> Buffers are flushed in order against a shared
+/// placeholder-to-entity map, so a buffer flushed later can resolve placeholders for entities
+/// created by a buffer flushed earlier. Because local placeholder IDs are only unique within a
+/// single buffer (each buffer numbers its own placeholders starting at -1), when two buffers
+/// reuse the same local ID the most recently flushed spawn wins for that ID. The returned map
+/// keys each spawned entity by a globally unique ID via <see cref="GetGlobalPlaceholderId"/>.
 /// </para>
 /// </remarks>
 /// <example>
@@ -141,10 +144,14 @@ public sealed class CommandBufferPool
 
         var globalEntityMap = new Dictionary<long, Entity>();
 
+        // Shared placeholder map threaded across all buffers so that a buffer flushed later
+        // can resolve placeholders created by a buffer flushed earlier (cross-buffer references).
+        var sharedEntityMap = new Dictionary<int, Entity>();
+
         foreach (var tracked in sortedBuffers)
         {
-            // Flush buffer and get local entity map
-            var localEntityMap = tracked.Buffer.Flush(world);
+            // Flush buffer against the shared map and get the entities this buffer spawned
+            var localEntityMap = tracked.Buffer.Flush(world, sharedEntityMap);
 
             // Remap placeholder IDs to global scope using buffer ID as prefix
             foreach (var (placeholderId, entity) in localEntityMap)
@@ -188,6 +195,10 @@ public sealed class CommandBufferPool
     {
         var globalEntityMap = new Dictionary<long, Entity>();
 
+        // Shared placeholder map threaded across every batch so that systems in later batches
+        // can resolve placeholders for entities created by systems in earlier batches.
+        var sharedEntityMap = new Dictionary<int, Entity>();
+
         foreach (var batch in systemIdBatches)
         {
             // Sort systems within batch for deterministic ordering
@@ -197,7 +208,7 @@ public sealed class CommandBufferPool
             {
                 if (activeBuffers.TryGetValue(systemId, out var tracked))
                 {
-                    var localEntityMap = tracked.Buffer.Flush(world);
+                    var localEntityMap = tracked.Buffer.Flush(world, sharedEntityMap);
 
                     foreach (var (placeholderId, entity) in localEntityMap)
                     {

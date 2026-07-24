@@ -93,6 +93,53 @@ public sealed class CommandBuffer : ICommandBuffer
         return entityMap;
     }
 
+    /// <summary>
+    /// Executes all queued commands against a shared placeholder-to-entity map, enabling
+    /// resolution of placeholders created by buffers flushed earlier in the same batch.
+    /// </summary>
+    /// <param name="world">The world to execute commands on.</param>
+    /// <param name="sharedEntityMap">
+    /// A placeholder-to-entity map shared across buffers. Spawn commands add this buffer's
+    /// new entities to it (making them resolvable by later buffers), and placeholder
+    /// references are resolved against it.
+    /// </param>
+    /// <returns>The entities spawned by this buffer, keyed by their local placeholder ID.</returns>
+    /// <remarks>
+    /// Used by the command buffer pool to thread cross-buffer placeholder resolution
+    /// across a staged flush. Placeholder IDs are only unique within a single buffer, so when
+    /// two buffers reuse the same local ID the most recently flushed spawn wins for that ID.
+    /// </remarks>
+    internal Dictionary<int, Entity> Flush(IWorld world, Dictionary<int, Entity> sharedEntityMap)
+    {
+        // This buffer allocates placeholder IDs contiguously starting at -1 (see Spawn), so at
+        // flush time the IDs it created are exactly the range (nextPlaceholderId, -1]. Capture
+        // the boundary before Clear() resets it so we can report this buffer's own spawns.
+        var lowestPlaceholderId = nextPlaceholderId;
+
+        try
+        {
+            foreach (var command in commands)
+            {
+                command.Execute(world, sharedEntityMap);
+            }
+        }
+        finally
+        {
+            Clear();
+        }
+
+        var localEntityMap = new Dictionary<int, Entity>();
+        for (var placeholderId = -1; placeholderId > lowestPlaceholderId; placeholderId--)
+        {
+            if (sharedEntityMap.TryGetValue(placeholderId, out var entity))
+            {
+                localEntityMap[placeholderId] = entity;
+            }
+        }
+
+        return localEntityMap;
+    }
+
     /// <inheritdoc/>
     public void Clear()
     {

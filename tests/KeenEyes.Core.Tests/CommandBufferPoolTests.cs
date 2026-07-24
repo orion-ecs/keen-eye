@@ -301,6 +301,40 @@ public class CommandBufferPoolTests
         Assert.Equal(2, world.GetAllEntities().Count());
     }
 
+    [Fact]
+    public void FlushBatches_LaterBatchReferencesEarlierBatchPlaceholder_ResolvesEntity()
+    {
+        // Regression test for #1151: a command in a later batch that references a placeholder
+        // for an entity spawned in an earlier batch must resolve to that entity. Previously
+        // each buffer flushed against its own fresh map, so the reference was a silent no-op.
+        using var world = new World();
+        var pool = new CommandBufferPool();
+
+        var buffer1 = pool.Rent(systemId: 1);
+        var buffer2 = pool.Rent(systemId: 2);
+
+        var bufferId1 = pool.GetBufferId(1);
+
+        // Batch 1: spawn a parent entity.
+        var parentCmd = buffer1.Spawn().With(new Position { X = 1, Y = 2 });
+
+        // Batch 2: add a component to the parent spawned in batch 1, referenced by placeholder ID.
+        buffer2.AddComponent(parentCmd.PlaceholderId, new Velocity { X = 3, Y = 4 });
+
+        var batches = new[]
+        {
+            new[] { 1 },
+            new[] { 2 }
+        };
+
+        var entityMap = pool.FlushBatches(world, batches);
+
+        var parent = entityMap[CommandBufferPool.GetGlobalPlaceholderId(bufferId1, parentCmd.PlaceholderId)];
+        Assert.True(world.IsAlive(parent));
+        Assert.True(world.Has<Velocity>(parent));
+        Assert.Equal(3, world.Get<Velocity>(parent).X);
+    }
+
     #endregion
 
     #region Global Placeholder ID Tests

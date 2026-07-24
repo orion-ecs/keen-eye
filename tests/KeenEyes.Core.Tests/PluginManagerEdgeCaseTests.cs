@@ -41,6 +41,75 @@ public class PluginManagerEdgeCaseTests
         public void Uninstall(IPluginContext context) { }
     }
 
+    private sealed class ThrowingUninstallPlugin : IWorldPlugin
+    {
+        public string Name => "ThrowingUninstall";
+
+        public TestPluginSystem? System { get; private set; }
+
+        public void Install(IPluginContext context)
+        {
+            System = context.AddSystem<TestPluginSystem>();
+        }
+
+        public void Uninstall(IPluginContext context)
+        {
+            throw new InvalidOperationException("Uninstall failed deliberately.");
+        }
+    }
+
+    private sealed class ThrowingInstallPlugin : IWorldPlugin
+    {
+        public string Name => "ThrowingInstall";
+
+        public TestPluginSystem? System { get; private set; }
+
+        public void Install(IPluginContext context)
+        {
+            System = context.AddSystem<TestPluginSystem>();
+            throw new InvalidOperationException("Install failed deliberately.");
+        }
+
+        public void Uninstall(IPluginContext context) { }
+    }
+
+    #endregion
+
+    #region Lifecycle Failure Tests
+
+    [Fact]
+    public void UninstallPlugin_WhenUninstallThrows_StillRemovesRegisteredSystems()
+    {
+        // Regression test for #1150: a throwing Uninstall must not leave the plugin's systems
+        // orphaned. The registry entry is removed before Uninstall runs, so without guaranteed
+        // cleanup the system would remain registered with no way to remove it.
+        using var world = new World();
+        var plugin = new ThrowingUninstallPlugin();
+        world.InstallPlugin(plugin);
+
+        Assert.NotNull(world.GetSystem<TestPluginSystem>());
+
+        Assert.Throws<InvalidOperationException>(() => world.UninstallPlugin<ThrowingUninstallPlugin>());
+
+        Assert.Null(world.GetSystem<TestPluginSystem>());
+        Assert.True(plugin.System!.Disposed);
+    }
+
+    [Fact]
+    public void InstallPlugin_WhenInstallThrows_RollsBackRegisteredSystems()
+    {
+        // Regression test for #1150: if Install registers systems and then throws, those
+        // systems must be rolled back rather than left orphaned in the world.
+        using var world = new World();
+        var plugin = new ThrowingInstallPlugin();
+
+        Assert.Throws<InvalidOperationException>(() => world.InstallPlugin(plugin));
+
+        Assert.Null(world.GetSystem<TestPluginSystem>());
+        Assert.False(world.HasPlugin<ThrowingInstallPlugin>());
+        Assert.True(plugin.System!.Disposed);
+    }
+
     #endregion
 
     #region GetPlugin<T> Tests
