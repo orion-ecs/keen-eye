@@ -79,7 +79,7 @@ public static class Program
                 new Vector3(0, 200, 500),
                 Quaternion.Identity,
                 Vector3.One))
-            .With(new Camera())
+            .WithTag<Camera>()
             .Build();
 
         // Create stats tracker
@@ -148,13 +148,10 @@ public partial struct Renderable
 }
 
 /// <summary>
-/// Component representing a camera.
+/// Tag component marking an entity as a camera.
 /// </summary>
-[Component]
-public partial struct Camera
-{
-    public bool IsActive;
-}
+[TagComponent]
+public partial struct Camera;
 
 /// <summary>
 /// System that orbits the camera around the origin.

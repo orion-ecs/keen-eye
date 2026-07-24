@@ -17,6 +17,7 @@
 // ============================================================================
 
 using KeenEyes;
+using KeenEyes.Sample.Aot;
 
 Console.WriteLine("KeenEyes Native AOT Sample");
 Console.WriteLine(new string('=', 40));
@@ -114,105 +115,3 @@ Console.WriteLine($"\nGame settings (singleton): TimeScale = {settings.TimeScale
 
 Console.WriteLine("\n" + new string('=', 40));
 Console.WriteLine("Native AOT sample completed successfully!");
-
-// ============================================================================
-// Component Definitions (AOT-compatible)
-// ============================================================================
-// Note: There are TWO ways to define components in KeenEyes:
-//
-// 1. [Component] attribute (RECOMMENDED):
-//    [Component]
-//    public partial struct Position { public float X, Y; }
-//
-//    The source generator will implement IComponent automatically and
-//    generate fluent builder methods like WithPosition().
-//
-// 2. Explicit IComponent (shown below):
-//    public struct Position : IComponent { public float X, Y; }
-//
-//    This is also AOT-compatible and demonstrates that no reflection is
-//    used. Useful when you want full control or minimal generated code.
-//
-// Both approaches are equally AOT-compatible. The [Component] attribute is
-// recommended for most use cases as it generates helpful extension methods.
-// ============================================================================
-
-/// <summary>Position component for 2D coordinates.</summary>
-public struct Position : IComponent
-{
-    /// <summary>X coordinate.</summary>
-    public float X;
-
-    /// <summary>Y coordinate.</summary>
-    public float Y;
-}
-
-/// <summary>Velocity component for movement speed.</summary>
-public struct Velocity : IComponent
-{
-    /// <summary>Horizontal velocity.</summary>
-    public float Dx;
-
-    /// <summary>Vertical velocity.</summary>
-    public float Dy;
-}
-
-/// <summary>Health component for entity health tracking.</summary>
-public struct Health : IComponent
-{
-    /// <summary>Current health value.</summary>
-    public int Current;
-
-    /// <summary>Maximum health value.</summary>
-    public int Max;
-}
-
-/// <summary>Tag component marking enemy entities.</summary>
-public struct EnemyTag : ITagComponent;
-
-/// <summary>Singleton for game-wide settings.</summary>
-public struct GameSettings
-{
-    /// <summary>Time scale multiplier.</summary>
-    public float TimeScale;
-}
-
-// ============================================================================
-// System Definitions (AOT-compatible)
-// ============================================================================
-
-/// <summary>System that updates entity positions based on velocity.</summary>
-public class MovementSystem : SystemBase
-{
-    /// <inheritdoc />
-    public override void Update(float deltaTime)
-    {
-        foreach (var entity in World.Query<Position, Velocity>())
-        {
-            ref var pos = ref World.Get<Position>(entity);
-            ref readonly var vel = ref World.Get<Velocity>(entity);
-
-            pos.X += vel.Dx * deltaTime;
-            pos.Y += vel.Dy * deltaTime;
-        }
-    }
-}
-
-/// <summary>System that regenerates health for non-enemy entities.</summary>
-public class HealthRegenSystem : SystemBase
-{
-    /// <inheritdoc />
-    public override void Update(float deltaTime)
-    {
-        foreach (var entity in World.Query<Health>())
-        {
-            ref var health = ref World.Get<Health>(entity);
-
-            // Regenerate 1 health per second for non-enemies
-            if (!World.Has<EnemyTag>(entity) && health.Current < health.Max)
-            {
-                health.Current = Math.Min(health.Current + (int)(10 * deltaTime), health.Max);
-            }
-        }
-    }
-}

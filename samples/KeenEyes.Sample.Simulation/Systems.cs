@@ -416,6 +416,7 @@ public partial class SpawnerSystem : SystemBase
         char symbol;
         ConsoleColor color;
         int health;
+        bool ranged = false;
 
         int type = World.NextInt(EnemyTypeCount);
         switch (type)
@@ -432,23 +433,35 @@ public partial class SpawnerSystem : SystemBase
                 color = ConsoleColor.Red;
                 health = 2;
                 break;
-            default: // Slow, tough
+            default: // Slow, tough - fires projectiles back at the player
                 symbol = '@';
                 color = ConsoleColor.Magenta;
                 health = 3;
+                ranged = true;
                 vx *= SlowEnemySpeedMultiplier;
                 vy *= SlowEnemySpeedMultiplier;
                 break;
         }
 
-        World.Spawn()
+        var builder = World.Spawn()
             .WithPosition(x: x, y: y)
             .WithVelocity(x: vx, y: vy)
             .WithHealth(current: health, max: health)
             .WithCollider(radius: EnemyColliderRadius)
             .WithRenderable(symbol: symbol, color: color)
-            .WithEnemy()
-            .Build();
+            .WithEnemy();
+
+        // Tough enemies shoot back. The behavior is driven by the semantic
+        // RangedAttacker tag (queried by EnemyShootingSystem) rather than the
+        // rendered symbol, and the Cooldown component gives them a fire-rate timer.
+        if (ranged)
+        {
+            builder = builder
+                .WithCooldown(remaining: 0)
+                .WithRangedAttacker();
+        }
+
+        builder.Build();
     }
 }
 
@@ -590,23 +603,13 @@ public partial class EnemyShootingSystem : SystemBase
 
         ref readonly var playerPos = ref World.Get<Position>(player.Value);
 
-        // Iterate directly - CommandBuffer defers projectile spawns
-        foreach (var entity in World.Query<Position, Cooldown>().With<Enemy>().Without<Dead>())
+        // Iterate directly - CommandBuffer defers projectile spawns.
+        // Query on the semantic RangedAttacker tag rather than the rendered symbol:
+        // systems should filter on what an entity is, not on how it is drawn.
+        foreach (var entity in World.Query<Position, Cooldown>().With<Enemy>().With<RangedAttacker>().Without<Dead>())
         {
             ref readonly var pos = ref World.Get<Position>(entity);
             ref var cooldown = ref World.Get<Cooldown>(entity);
-
-            // Only tough enemies (@) shoot back
-            if (!World.Has<Renderable>(entity))
-            {
-                continue;
-            }
-
-            ref readonly var render = ref World.Get<Renderable>(entity);
-            if (render.Symbol != '@')
-            {
-                continue;
-            }
 
             if (cooldown.Remaining <= 0)
             {

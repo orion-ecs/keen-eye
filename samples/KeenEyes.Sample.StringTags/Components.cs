@@ -25,18 +25,6 @@ public partial struct Health
 }
 
 /// <summary>
-/// AI behavior component.
-/// </summary>
-[Component]
-public partial struct AIBehavior
-{
-    /// <summary>Current AI state name.</summary>
-    public string State;
-    /// <summary>State timer in seconds.</summary>
-    public float Timer;
-}
-
-/// <summary>
 /// Loot drop table.
 /// </summary>
 [Component]

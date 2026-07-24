@@ -78,7 +78,6 @@ while (stopwatch.Elapsed < warmupEnd)
 {
     var frameStart = stopwatch.Elapsed.TotalMilliseconds;
     world.Update(FixedDeltaTime);
-    _ = stopwatch.Elapsed.TotalMilliseconds - frameStart;  // Timing captured but unused
 
     // Print progress every 0.5 seconds
     if (frameCount % 30 == 0)
