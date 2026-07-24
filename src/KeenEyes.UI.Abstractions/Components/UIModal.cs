@@ -48,6 +48,13 @@ public struct UIModal(string title, bool closeOnBackdropClick = true, bool close
     /// Reference to the content container entity.
     /// </summary>
     public Entity ContentContainer = Entity.Null;
+
+    /// <summary>
+    /// Monotonic open-order stamp identifying how recently the modal was opened.
+    /// Higher values were opened later and are therefore considered closer to the
+    /// top of the modal stack. Used to dismiss the topmost modal on Escape.
+    /// </summary>
+    public long OpenOrder = 0;
 }
 
 /// <summary>

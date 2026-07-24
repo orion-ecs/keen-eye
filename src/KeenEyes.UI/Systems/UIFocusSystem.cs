@@ -27,6 +27,8 @@ public sealed class UIFocusSystem : SystemBase
     private IInputContext? inputContext;
     private bool tabWasDown;
     private bool escapeWasDown;
+    private bool enterWasDown;
+    private bool spaceWasDown;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -65,31 +67,35 @@ public sealed class UIFocusSystem : SystemBase
         }
         escapeWasDown = escapeIsDown;
 
-        // Handle Enter/Space on focused element
-        if (ui.HasFocus)
+        // Handle Enter/Space on the focused element. These are edge-triggered:
+        // holding the key down must fire Submit/Click exactly once per press, not
+        // every frame the key remains held (see #1193). Previous-frame state is
+        // tracked unconditionally so the edge is detected regardless of focus.
+        bool enterIsDown = keyboard.IsKeyDown(Key.Enter) || keyboard.IsKeyDown(Key.KeypadEnter);
+        bool spaceIsDown = keyboard.IsKeyDown(Key.Space);
+        bool enterPressed = enterIsDown && !enterWasDown;
+        bool spacePressed = spaceIsDown && !spaceWasDown;
+        enterWasDown = enterIsDown;
+        spaceWasDown = spaceIsDown;
+
+        if (ui.HasFocus && (enterPressed || spacePressed))
         {
             var focused = ui.FocusedEntity;
             if (World.IsAlive(focused) && World.Has<UIInteractable>(focused))
             {
-                bool enterPressed = keyboard.IsKeyDown(Key.Enter) || keyboard.IsKeyDown(Key.KeypadEnter);
-                bool spacePressed = keyboard.IsKeyDown(Key.Space);
+                ref var interactable = ref World.Get<UIInteractable>(focused);
 
-                if (enterPressed || spacePressed)
+                if (enterPressed)
                 {
-                    ref var interactable = ref World.Get<UIInteractable>(focused);
+                    interactable.PendingEvents |= UIEventType.Submit;
+                    World.Send(new UISubmitEvent(focused));
+                }
 
-                    if (enterPressed)
-                    {
-                        interactable.PendingEvents |= UIEventType.Submit;
-                        World.Send(new UISubmitEvent(focused));
-                    }
-
-                    if (spacePressed && interactable.CanClick)
-                    {
-                        interactable.PendingEvents |= UIEventType.Click;
-                        var rect = World.Get<UIRect>(focused);
-                        World.Send(new UIClickEvent(focused, rect.ComputedBounds.Center, MouseButton.Left));
-                    }
+                if (spacePressed && interactable.CanClick)
+                {
+                    interactable.PendingEvents |= UIEventType.Click;
+                    var rect = World.Get<UIRect>(focused);
+                    World.Send(new UIClickEvent(focused, rect.ComputedBounds.Center, MouseButton.Left));
                 }
             }
         }

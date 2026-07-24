@@ -27,6 +27,7 @@ public sealed class UIModalSystem : SystemBase
     private EventSubscription? clickSubscription;
     private IInputContext? inputContext;
     private bool escapeWasDown;
+    private long nextOpenOrder = 1;
 
     /// <inheritdoc />
     protected override void OnInitialize()
@@ -76,16 +77,27 @@ public sealed class UIModalSystem : SystemBase
 
     private void HandleEscapeKey()
     {
-        // Find the topmost open modal that allows Escape to close
+        // Find the topmost open modal that allows Escape to close. "Topmost" is the
+        // most recently opened modal (highest OpenOrder), not the first one found in
+        // query order, which would otherwise dismiss an arbitrary background modal
+        // while a dialog stacked above it stays open (see #1195).
+        Entity topmost = Entity.Null;
+        long topmostOrder = long.MinValue;
+
         foreach (var entity in World.Query<UIModal>())
         {
             ref readonly var modal = ref World.Get<UIModal>(entity);
 
-            if (modal.IsOpen && modal.CloseOnEscape)
+            if (modal.IsOpen && modal.CloseOnEscape && modal.OpenOrder > topmostOrder)
             {
-                CloseModal(entity, ModalResult.Cancel);
-                break; // Only close the topmost modal
+                topmostOrder = modal.OpenOrder;
+                topmost = entity;
             }
+        }
+
+        if (topmost.IsValid)
+        {
+            CloseModal(topmost, ModalResult.Cancel);
         }
     }
 
@@ -181,6 +193,9 @@ public sealed class UIModalSystem : SystemBase
         var backdrop = modalComponent.Backdrop;
 
         modalComponent.IsOpen = true;
+
+        // Stamp the open-order so Escape can identify the topmost (most recent) modal.
+        modalComponent.OpenOrder = nextOpenOrder++;
 
         // Show the modal
         if (World.Has<UIElement>(modal))
