@@ -94,15 +94,28 @@ public sealed class AudioSourceSystem : ISystem
                 // Handle state transitions
                 if (source.State == AudioPlayState.Playing && actualState == AudioPlayState.Stopped)
                 {
-                    if (!source.Loop)
+                    if (source.CurrentSound.IsValid)
                     {
-                        // Non-looping sound finished naturally
-                        source.State = AudioPlayState.Stopped;
-                        source.CurrentSound = SoundHandle.Invalid;
+                        // A tracked playback reached the end of the backend source.
+                        if (source.Loop)
+                        {
+                            // Looping sound stopped unexpectedly, restart
+                            device.PlaySource(backendId);
+                        }
+                        else
+                        {
+                            // Non-looping sound finished naturally
+                            source.State = AudioPlayState.Stopped;
+                            source.CurrentSound = SoundHandle.Invalid;
+                        }
                     }
                     else
                     {
-                        // Looping sound stopped unexpectedly, restart
+                        // State was set back to Playing after the backend source stopped
+                        // (a replay request per the AudioSource.State contract). Restart
+                        // playback from the beginning with a fresh sound handle.
+                        source.CurrentSound = new SoundHandle(nextSoundId++);
+                        device.SetSourceLooping(backendId, source.Loop);
                         device.PlaySource(backendId);
                     }
                 }

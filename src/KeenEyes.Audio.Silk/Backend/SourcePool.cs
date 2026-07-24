@@ -56,7 +56,12 @@ internal sealed class SourcePool : IDisposable
         for (int i = playingSources.Count - 1; i >= 0; i--)
         {
             uint source = playingSources[i];
-            if (device.GetSourceState(source) != AudioPlayState.Playing)
+
+            // Only recycle sources that have actually finished (Stopped). A Paused
+            // source is still active — Pause/PauseAll leaves it in the pool expecting
+            // a later Resume, so recycling it here would stop it and detach its buffer,
+            // silently killing paused one-shots on the next frame.
+            if (device.GetSourceState(source) == AudioPlayState.Stopped)
             {
                 // Reset source state
                 device.StopSource(source);

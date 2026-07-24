@@ -99,6 +99,8 @@
     <Project Path="tests/KeenEyes.AotCompatibility.Tests/KeenEyes.AotCompatibility.Tests.csproj" />
     <Project Path="tests/KeenEyes.Assets.Tests/KeenEyes.Assets.Tests.csproj" />
     <Project Path="tests/KeenEyes.Audio.Abstractions.Tests/KeenEyes.Audio.Abstractions.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Audio.Silk.Tests/KeenEyes.Audio.Silk.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Audio.Tests/KeenEyes.Audio.Tests.csproj" />
     <Project Path="tests/KeenEyes.Cli.Tests/KeenEyes.Cli.Tests.csproj" />
     <Project Path="tests/KeenEyes.Common.Tests/KeenEyes.Common.Tests.csproj" />
     <Project Path="tests/KeenEyes.Core.Tests/KeenEyes.Core.Tests.csproj" />
