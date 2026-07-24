@@ -119,12 +119,20 @@ internal sealed class BodyLookup
     /// <summary>
     /// Gets all entities with dynamic or kinematic bodies.
     /// </summary>
-    public IEnumerable<Entity> DynamicEntities => entityToBody.Keys;
+    /// <remarks>
+    /// Returns the concrete <see cref="Dictionary{TKey, TValue}.KeyCollection"/> so callers
+    /// enumerate via its value-type enumerator without boxing on every fixed step.
+    /// </remarks>
+    public Dictionary<Entity, BodyHandle>.KeyCollection DynamicEntities => entityToBody.Keys;
 
     /// <summary>
     /// Gets all entities with static bodies.
     /// </summary>
-    public IEnumerable<Entity> StaticEntities => entityToStatic.Keys;
+    /// <remarks>
+    /// Returns the concrete <see cref="Dictionary{TKey, TValue}.KeyCollection"/> so callers
+    /// enumerate via its value-type enumerator without boxing on every fixed step.
+    /// </remarks>
+    public Dictionary<Entity, StaticHandle>.KeyCollection StaticEntities => entityToStatic.Keys;
 
     /// <summary>
     /// Gets the total number of tracked bodies (dynamic + static).

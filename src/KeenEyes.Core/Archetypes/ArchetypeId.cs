@@ -18,6 +18,12 @@ namespace KeenEyes;
 /// </remarks>
 public readonly struct ArchetypeId : IEquatable<ArchetypeId>
 {
+    // Ordinal comparison of Type.FullName, cached to avoid a per-sort delegate allocation.
+    // Must match the ordering used by the IEnumerable ctor (StringComparer.Ordinal on FullName)
+    // and the CompareOrdinal-based binary search in Has() so archetype identity stays stable.
+    private static readonly Comparison<Type> typeFullNameComparison =
+        static (a, b) => StringComparer.Ordinal.Compare(a.FullName, b.FullName);
+
     private readonly int hashCode;
     private readonly ImmutableArray<Type> componentTypes;
 
@@ -57,6 +63,38 @@ public readonly struct ArchetypeId : IEquatable<ArchetypeId>
     {
         componentTypes = sortedTypes;
         hashCode = precomputedHash;
+    }
+
+    /// <summary>
+    /// Creates an <see cref="ArchetypeId"/> from an unsorted span of component types, sorting
+    /// in place and computing the identity hash without any LINQ or iterator allocation.
+    /// </summary>
+    /// <param name="types">
+    /// The component types. The span is sorted in place (the caller must not rely on the
+    /// original ordering afterwards); a copy is taken for the immutable identity.
+    /// </param>
+    /// <returns>The archetype identifier for those component types.</returns>
+    /// <remarks>
+    /// This is the allocation-lean equivalent of <see cref="ArchetypeId(IEnumerable{Type})"/>
+    /// used on the entity-creation hot path. It produces a bit-for-bit identical identity: the
+    /// same ordinal sort order over <see cref="Type.FullName"/> and the same
+    /// <see cref="HashCode"/> accumulation over the sorted types.
+    /// </remarks>
+    internal static ArchetypeId FromUnsortedTypes(Span<Type> types)
+    {
+        // Sort in place with the same ordinal FullName ordering the IEnumerable ctor uses.
+        // FullNames are unique within an archetype, so sort stability does not affect the result.
+        types.Sort(typeFullNameComparison);
+
+        var sorted = ImmutableArray.Create((ReadOnlySpan<Type>)types);
+
+        var hash = new HashCode();
+        foreach (var type in sorted)
+        {
+            hash.Add(type);
+        }
+
+        return new ArchetypeId(sorted, hash.ToHashCode());
     }
 
     /// <summary>

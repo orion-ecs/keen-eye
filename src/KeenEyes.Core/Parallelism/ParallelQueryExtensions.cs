@@ -503,7 +503,22 @@ public static class ParallelQueryExtensions
 
     private static List<ArchetypeChunk> CollectChunks(IReadOnlyList<Archetype> archetypes)
     {
-        var chunks = new List<ArchetypeChunk>();
+        // Pre-size the buffer to the exact non-empty chunk count so the list never reallocates
+        // its backing array while filling. A fresh list per call is required for thread-safety:
+        // parallel queries may run concurrently, so a shared reused field would be unsafe.
+        var capacity = 0;
+        foreach (var archetype in archetypes)
+        {
+            foreach (var chunk in archetype.Chunks)
+            {
+                if (chunk.Count > 0)
+                {
+                    capacity++;
+                }
+            }
+        }
+
+        var chunks = new List<ArchetypeChunk>(capacity);
         foreach (var archetype in archetypes)
         {
             foreach (var chunk in archetype.Chunks)
