@@ -1,3 +1,5 @@
+using System.Reflection;
+
 using KeenEyes.Editor.HotReload;
 
 namespace KeenEyes.Editor.Tests.HotReload;
@@ -339,6 +341,79 @@ public class HotReloadManagerTests
 
             manager.Dispose();
             manager.Dispose(); // Should not throw
+        }
+        finally
+        {
+            CleanupTempProject(tempProject);
+        }
+    }
+
+    #endregion
+
+    #region Debounce Concurrency Tests
+
+    [Fact]
+    public async Task HandleFileChange_ConcurrentInvocations_NeverThrowObjectDisposedException()
+    {
+        var tempProject = CreateTempProjectFile();
+        try
+        {
+            using var world = new World();
+            // A long debounce keeps every invocation parked at the delay until a
+            // newer swap cancels it, so no invocation ever reaches an actual build.
+            var manager = new HotReloadManager(tempProject, world, TimeSpan.FromSeconds(30));
+
+            var handleFileChange = typeof(HotReloadManager).GetMethod(
+                "HandleFileChangeAsync",
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+
+            var sourcePath = Path.Combine(Path.GetDirectoryName(tempProject)!, "Concurrent.cs");
+
+            const int workers = 8;
+            const int perWorker = 3000;
+            var returned = new Task[workers * perWorker];
+
+            // Hammer the debounce-CTS swap from many threads concurrently. On the
+            // pre-fix code the unsynchronized Cancel/Dispose/assign + Token read
+            // races and throws ObjectDisposedException; the fix serializes the swap
+            // under a lock so it never does (#1182).
+            var workerTasks = new Task[workers];
+            for (var w = 0; w < workers; w++)
+            {
+                var offset = w * perWorker;
+                workerTasks[w] = Task.Run(() =>
+                {
+                    for (var i = 0; i < perWorker; i++)
+                    {
+                        returned[offset + i] = (Task)handleFileChange.Invoke(manager, [sourcePath])!;
+                    }
+                }, TestContext.Current.CancellationToken);
+            }
+
+            await Task.WhenAll(workerTasks);
+
+            // Dispose cancels the final pending debounce timer; earlier ones were
+            // cancelled by subsequent swaps. Every parked delay then unblocks.
+            manager.Dispose();
+
+            var objectDisposedCount = 0;
+            foreach (var task in returned)
+            {
+                try
+                {
+                    await task;
+                }
+                catch (ObjectDisposedException)
+                {
+                    objectDisposedCount++;
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected: debounce cancelled by a newer swap or by disposal.
+                }
+            }
+
+            Assert.Equal(0, objectDisposedCount);
         }
         finally
         {

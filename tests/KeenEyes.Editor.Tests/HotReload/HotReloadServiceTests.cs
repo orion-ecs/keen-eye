@@ -319,7 +319,78 @@ public class HotReloadServiceTests : IDisposable
 
     #endregion
 
+    #region PlayMode Deferred Reload Tests
+
+    [Fact]
+    public void PlayModeExit_WithSourceEditDuringPlayMode_TriggersDeferredReload()
+    {
+        var tempProject = CreateTempProjectWithSource(out var sourceFile);
+        try
+        {
+            using var world = new World();
+            using var service = new HotReloadService(world);
+            var serializer = new EditorComponentSerializer();
+            var playMode = new PlayModeManager(world, serializer);
+
+            EditorSettings.GameProjectPath = tempProject;
+            service.Initialize();
+            service.ConnectPlayMode(playMode);
+
+            var buildingObserved = false;
+            using var terminalReached = new ManualResetEventSlim(false);
+            service.StatusChanged += (_, e) =>
+            {
+                if (e.Status == HotReloadStatus.Building)
+                {
+                    buildingObserved = true;
+                }
+                else if (e.Status is HotReloadStatus.Ready or HotReloadStatus.Failed)
+                {
+                    terminalReached.Set();
+                }
+            };
+
+            // Enter play mode: the file watcher is disabled for the whole duration.
+            Assert.True(playMode.Play());
+
+            // Simulate an edit made while in play mode. The write time is
+            // deterministically after the moment play mode was entered, so no
+            // reliance on wall-clock timing or the (disabled) watcher.
+            File.SetLastWriteTimeUtc(sourceFile, DateTime.UtcNow.AddMinutes(1));
+
+            // Exit play mode: the deferred-reload path must detect the queued edit
+            // and initiate a reload. Before #1178 this path was unreachable.
+            Assert.True(playMode.Stop());
+
+            // The reload is kicked off synchronously as play mode exits, so the
+            // status transitions to Building within the Stop() call chain.
+            Assert.True(buildingObserved);
+
+            // Let the fire-and-forget reload finish (the stub project build fails
+            // fast) so disposal does not race an in-flight reload.
+            terminalReached.Wait(TimeSpan.FromSeconds(60), TestContext.Current.CancellationToken);
+        }
+        finally
+        {
+            CleanupTempProject(tempProject);
+        }
+    }
+
+    #endregion
+
     #region Helpers
+
+    private static string CreateTempProjectWithSource(out string sourceFile)
+    {
+        var tempDir = Path.Combine(Path.GetTempPath(), "HotReloadServiceTests_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        var projectPath = Path.Combine(tempDir, "TestProject.csproj");
+        File.WriteAllText(projectPath, "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>");
+
+        sourceFile = Path.Combine(tempDir, "Game.cs");
+        File.WriteAllText(sourceFile, "// game source");
+        return projectPath;
+    }
 
     private static string CreateTempProjectFile()
     {

@@ -39,6 +39,10 @@ public sealed class HotReloadManager : IDisposable
     private GameAssemblyContext? _gameContext;
     private Assembly? _gameAssembly;
     private FileSystemWatcher? _sourceWatcher;
+
+    // Synchronizes the debounce CTS swap/dispose so a concurrently-dispatched
+    // watcher event cannot dispose the source between creation and token read (#1182).
+    private readonly Lock _debounceLock = new();
     private CancellationTokenSource? _debounceCts;
     private bool _isReloading;
     private bool _disposed;
@@ -158,9 +162,17 @@ public sealed class HotReloadManager : IDisposable
             _sourceWatcher = null;
         }
 
-        _debounceCts?.Cancel();
-        _debounceCts?.Dispose();
-        _debounceCts = null;
+        // Detach and dispose the pending debounce source under the lock so a
+        // concurrent watcher callback never races the swap (#1182).
+        CancellationTokenSource? pending;
+        lock (_debounceLock)
+        {
+            pending = _debounceCts;
+            _debounceCts = null;
+        }
+
+        pending?.Cancel();
+        pending?.Dispose();
     }
 
     /// <summary>
@@ -413,19 +425,31 @@ public sealed class HotReloadManager : IDisposable
 
         SourceFileChanged?.Invoke(filePath);
 
-        // Cancel any pending debounce
-        _debounceCts?.Cancel();
-        _debounceCts?.Dispose();
-        _debounceCts = new CancellationTokenSource();
+        // Cancel any pending debounce and start a fresh one. The swap and the
+        // token read happen under a lock so a concurrently-dispatched watcher
+        // event cannot dispose the source between creation and token read (#1182).
+        CancellationToken token;
+        lock (_debounceLock)
+        {
+            _debounceCts?.Cancel();
+            _debounceCts?.Dispose();
+            _debounceCts = new CancellationTokenSource();
+            token = _debounceCts.Token;
+        }
 
         try
         {
-            await Task.Delay(_debounceDelay, _debounceCts.Token);
+            await Task.Delay(_debounceDelay, token);
             await ReloadAsync();
         }
         catch (OperationCanceledException)
         {
-            // Debounce was cancelled by a newer change
+            // Debounce was cancelled by a newer change.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The debounce source was disposed by a concurrent swap or by
+            // StopWatching while this delay was pending; treat as cancellation.
         }
     }
 
