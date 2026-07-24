@@ -17,7 +17,7 @@ namespace KeenEyes.Animation.Systems;
 /// <list type="number">
 ///   <item><description>Reads world transforms from bone entities</description></item>
 ///   <item><description>Gets inverse bind matrices from the SkinnedMesh component</description></item>
-///   <item><description>Computes: boneMatrix = boneWorldTransform × inverseBindMatrix</description></item>
+///   <item><description>Computes: boneMatrix = inverseBindMatrix × boneWorldTransform (row-vector order)</description></item>
 ///   <item><description>Stores results in a <see cref="BoneMatrixBuffer"/> for GPU upload</description></item>
 /// </list>
 /// <para>
@@ -29,6 +29,11 @@ namespace KeenEyes.Animation.Systems;
 public sealed class SkinnedMeshBoneSystem : SystemBase
 {
     private readonly Dictionary<int, BoneMatrixBuffer> boneBuffers = [];
+
+    // Rebuilt each frame: maps entity id -> the live entity handle (with its current
+    // version) so bone ids stored on the SkinnedMesh component can be resolved without
+    // fabricating a Version-0 handle (which IsAlive always rejects).
+    private readonly Dictionary<int, Entity> entityLookup = [];
     private ulong currentGeneration;
 
     /// <summary>
@@ -46,6 +51,13 @@ public sealed class SkinnedMeshBoneSystem : SystemBase
     {
         // Increment generation for dirty tracking
         currentGeneration++;
+
+        // Resolve bone ids to live entity handles (with correct versions) for this frame.
+        entityLookup.Clear();
+        foreach (var entity in World.Query<Transform3D>())
+        {
+            entityLookup[entity.Id] = entity;
+        }
 
         // Track which entities we've seen this frame
         var activeEntities = new HashSet<int>();
@@ -106,9 +118,12 @@ public sealed class SkinnedMeshBoneSystem : SystemBase
             // Get world transform of the bone entity
             var boneWorldMatrix = GetBoneWorldMatrix(boneEntityId);
 
-            // Compute final bone matrix: worldTransform * inverseBindMatrix
+            // Compute final skinning matrix. System.Numerics uses the row-vector convention
+            // (v' = v * M), so a vertex is first pulled into bone space by the inverse bind
+            // matrix, then pushed to the animated pose by the bone's world matrix:
+            // finalMatrix = inverseBindMatrix * boneWorldMatrix.
             var inverseBindMatrix = skinnedMesh.InverseBindMatrices[i];
-            var finalMatrix = boneWorldMatrix * inverseBindMatrix;
+            var finalMatrix = inverseBindMatrix * boneWorldMatrix;
 
             // Store in buffer with current generation for dirty tracking
             buffer.SetBoneMatrix(i, finalMatrix, currentGeneration);
@@ -117,9 +132,14 @@ public sealed class SkinnedMeshBoneSystem : SystemBase
 
     private Matrix4x4 GetBoneWorldMatrix(int boneEntityId)
     {
-        // Try to get the entity
-        var entity = new Entity(boneEntityId, 0); // Version 0 for lookup
+        // Resolve the id to the live entity handle (correct version) for this frame.
+        return entityLookup.TryGetValue(boneEntityId, out var entity)
+            ? GetBoneWorldMatrix(entity)
+            : Matrix4x4.Identity;
+    }
 
+    private Matrix4x4 GetBoneWorldMatrix(Entity entity)
+    {
         // Check if entity is alive
         if (!World.IsAlive(entity))
         {
@@ -139,11 +159,12 @@ public sealed class SkinnedMeshBoneSystem : SystemBase
                          Matrix4x4.CreateFromQuaternion(transform.Rotation) *
                          Matrix4x4.CreateTranslation(transform.Position);
 
-        // If entity has a parent, multiply by parent's world matrix
+        // If entity has a parent, compose with the parent's world matrix. GetParent returns
+        // a live handle, so recursion keeps the correct version without an id round-trip.
         var parentEntity = World.GetParent(entity);
         if (parentEntity.IsValid)
         {
-            var parentWorld = GetBoneWorldMatrix(parentEntity.Id);
+            var parentWorld = GetBoneWorldMatrix(parentEntity);
             return localMatrix * parentWorld;
         }
 

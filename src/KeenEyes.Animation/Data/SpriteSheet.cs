@@ -122,17 +122,10 @@ public sealed class SpriteSheet
         return mode switch
         {
             WrapMode.Once => Math.Clamp(time, 0f, TotalDuration),
-            WrapMode.Loop => time >= 0f ? time % TotalDuration : TotalDuration + (time % TotalDuration),
-            WrapMode.PingPong => WrapPingPong(time),
+            WrapMode.Loop => WrapMath.Repeat(time, TotalDuration),
+            WrapMode.PingPong => WrapMath.PingPong(time, TotalDuration),
             WrapMode.ClampForever => Math.Max(time, 0f),
             _ => time
         };
-    }
-
-    private float WrapPingPong(float time)
-    {
-        var cycles = (int)(time / TotalDuration);
-        var t = time % TotalDuration;
-        return (cycles % 2 == 1) ? TotalDuration - t : t;
     }
 }

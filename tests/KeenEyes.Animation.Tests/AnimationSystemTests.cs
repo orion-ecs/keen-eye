@@ -1813,4 +1813,228 @@ public class AnimationSystemTests : IDisposable
     }
 
     #endregion
+
+    #region Bug Cluster Regression Tests (#1116-#1121)
+
+    [Fact]
+    public void AnimationPlayerSystem_ReverseLoopingPlayback_WrapsIntoRangeInsteadOfGoingNegative()
+    {
+        // Issue #1120: C#'s signed remainder left reverse (negative) loop time negative,
+        // so playback ran unboundedly negative and froze at the clamped first keyframe.
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "LoopClip", Duration = 1f, WrapMode = WrapMode.Loop };
+        var clipId = manager.RegisterClip(clip);
+
+        var entity = world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId) with { Time = 0.5f, Speed = -1f })
+            .Build();
+
+        var system = new AnimationPlayerSystem();
+        world.AddSystem(system);
+
+        // Raw time = 0.5 + (0.75 * -1) = -0.25 -> should wrap to 0.75, not stay -0.25.
+        system.Update(0.75f);
+
+        ref readonly var player = ref world.Get<AnimationPlayer>(entity);
+        player.Time.ApproximatelyEquals(0.75f, 0.0001f).ShouldBeTrue();
+        player.IsPlaying.ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AnimationPlayerSystem_PingPongPlayback_SweepsFullyBackToStart()
+    {
+        // Issue #1118: storing the reflected time back into Time destroyed the half-cycle
+        // parity, so playback bounced near the clip end instead of sweeping back to 0.
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "PingPongClip", Duration = 1f, WrapMode = WrapMode.PingPong };
+        var clipId = manager.RegisterClip(clip);
+
+        var entity = world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId))
+            .Build();
+
+        var system = new AnimationPlayerSystem();
+        world.AddSystem(system);
+
+        // Four 0.5s steps (raw time 2.0 = one full ping-pong period) should return to 0.
+        // The old code got stuck oscillating at 0.5<->1.0 and reported 1.0 here.
+        system.Update(0.5f);
+        system.Update(0.5f);
+        system.Update(0.5f);
+        system.Update(0.5f);
+
+        ref readonly var player = ref world.Get<AnimationPlayer>(entity);
+        player.Time.ApproximatelyEquals(0f, 0.0001f).ShouldBeTrue();
+    }
+
+    [Fact]
+    public void AnimationEventSystem_FinalFrameEventOfOnceClip_IsStillFired()
+    {
+        // Issue #1117: the player system clears IsPlaying on the completion frame before the
+        // event system runs, so the event in the final advanced range used to be dropped.
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "OnceClip", Duration = 1f, WrapMode = WrapMode.Once };
+        clip.Events.AddEvent(0.95f, "finale");
+        var clipId = manager.RegisterClip(clip);
+
+        world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId))
+            .Build();
+
+        var playerSystem = new AnimationPlayerSystem();
+        var eventSystem = new AnimationEventSystem();
+        world.AddSystem(playerSystem);
+        world.AddSystem(eventSystem);
+
+        var receivedEvents = new List<AnimationEventTriggeredEvent>();
+        using var subscription = world.Subscribe<AnimationEventTriggeredEvent>(e => receivedEvents.Add(e));
+
+        // Advance to 0.75 (before the event), then step past the end (completes this frame).
+        playerSystem.Update(0.75f);
+        eventSystem.Update(0.75f);
+        receivedEvents.Count.ShouldBe(0);
+
+        playerSystem.Update(0.25f);
+        eventSystem.Update(0.25f);
+
+        receivedEvents.Count.ShouldBe(1);
+        receivedEvents[0].EventName.ShouldBe("finale");
+
+        // A completed, stopped clip must not re-fire the same event on later frames.
+        playerSystem.Update(0.25f);
+        eventSystem.Update(0.25f);
+        receivedEvents.Count.ShouldBe(1);
+    }
+
+    [Fact]
+    public void TweenSystem_LoopPingPong_PlaysReversePhaseAfterFirstCycle()
+    {
+        // Issue #1119: ComputeProgress mutated ElapsedTime by ref (elapsed %= duration),
+        // destroying cycle parity so the tween ascended every cycle (sawtooth) instead of
+        // reversing (triangle wave).
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var entity = world.Spawn()
+            .With(TweenFloat.Create(0f, 10f, 1f, EaseType.Linear) with { Loop = true, PingPong = true })
+            .Build();
+
+        var system = new TweenSystem();
+        world.AddSystem(system);
+
+        // Raw elapsed 1.25 sits in the reverse half-cycle: progress 0.75 -> value 7.5.
+        // The old ref-mutating code reported 2.5 (ascending) here.
+        system.Update(0.5f);
+        system.Update(0.5f);
+        system.Update(0.25f);
+
+        ref readonly var tween = ref world.Get<TweenFloat>(entity);
+        tween.CurrentValue.ApproximatelyEquals(7.5f, 0.001f).ShouldBeTrue();
+        tween.IsComplete.ShouldBeFalse();
+    }
+
+    [Fact]
+    public void AnimatorSystem_ZeroDurationTransitionOnZeroDeltaFrame_CompletesInsteadOfWedgingInNaN()
+    {
+        // Issue #1121: TransitionProgress += dt/0 is NaN on a dt=0 frame; NaN >= 1 is false and
+        // NaN + x stays NaN, so the animator was poisoned and never left the source state.
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+        var clipA = new AnimationClip { Name = "ClipA", Duration = 1f };
+        var clipB = new AnimationClip { Name = "ClipB", Duration = 1f };
+        var clipAId = manager.RegisterClip(clipA);
+        var clipBId = manager.RegisterClip(clipB);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var stateA = new AnimatorState { Name = "A", ClipId = clipAId };
+        var stateB = new AnimatorState { Name = "B", ClipId = clipBId };
+        stateA.AddTransition("B", 0f); // zero-duration (instantaneous) transition
+        controller.AddState(stateA, isDefault: true);
+        controller.AddState(stateB);
+        var controllerId = manager.RegisterController(controller);
+
+        var entity = world.Spawn()
+            .With(Animator.ForController(controllerId))
+            .Build();
+
+        var system = new AnimatorSystem();
+        world.AddSystem(system);
+
+        var stateBHash = Animator.GetStateHash("B");
+
+        ref var animator = ref world.Get<Animator>(entity);
+        animator.TriggerStateHash = stateBHash;
+
+        // dt=0 frame while the zero-duration transition is armed.
+        system.Update(0f);
+        system.Update(0.1f);
+        system.Update(0.1f);
+        system.Update(0.1f);
+
+        ref readonly var after = ref world.Get<Animator>(entity);
+        float.IsNaN(after.TransitionProgress).ShouldBeFalse();
+        after.CurrentStateHash.ShouldBe(stateBHash);
+        after.NextStateHash.ShouldBe(0);
+    }
+
+    [Fact]
+    public void SkeletonPoseSystem_LoopingAnimatorStatePastClipEnd_WrapsSampleInsteadOfFreezing()
+    {
+        // Issue #1116: Animator StateTime accumulates unbounded and the pose was sampled at the
+        // raw time; a looping clip's curve clamps past its last keyframe, freezing the pose.
+        world = new World();
+        world.InstallPlugin(new AnimationPlugin());
+
+        var manager = world.GetExtension<AnimationManager>();
+
+        var positionCurve = new Vector3Curve();
+        positionCurve.AddKeyframe(0f, Vector3.Zero);
+        positionCurve.AddKeyframe(1f, new Vector3(10f, 0f, 0f));
+        var boneTrack = new BoneTrack { BoneName = "bone1", PositionCurve = positionCurve };
+
+        var clip = new AnimationClip { Name = "LoopClip", Duration = 1f, WrapMode = WrapMode.Loop };
+        clip.AddBoneTrack(boneTrack);
+        var clipId = manager.RegisterClip(clip);
+
+        var controller = new AnimatorController { Name = "TestController" };
+        var idleState = new AnimatorState { Name = "Idle", ClipId = clipId };
+        controller.AddState(idleState, isDefault: true);
+        var controllerId = manager.RegisterController(controller);
+
+        var skeletonRoot = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(Animator.ForController(controllerId))
+            .Build();
+
+        var boneEntity = world.Spawn()
+            .With(Transform3D.Identity)
+            .With(BoneReference.Create("bone1", skeletonRoot.Id))
+            .Build();
+
+        var animatorSystem = new AnimatorSystem();
+        var poseSystem = new SkeletonPoseSystem();
+        world.AddSystem(animatorSystem);
+        world.AddSystem(poseSystem);
+
+        // StateTime advances to 1.5s of a 1s clip; wrapped sample is at 0.5 -> X == 5,
+        // not the frozen last keyframe X == 10.
+        animatorSystem.Update(1.5f);
+        poseSystem.Update(1.5f);
+
+        ref readonly var boneTransform = ref world.Get<Transform3D>(boneEntity);
+        boneTransform.Position.X.ApproximatelyEquals(5f, 0.001f).ShouldBeTrue();
+    }
+
+    #endregion
 }

@@ -71,6 +71,17 @@ public partial struct AnimationPlayer
     public bool IsComplete;
 
     /// <summary>
+    /// Whether ping-pong playback is currently travelling in reverse.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Time"/> stores the reflected (displayed) time, which is not monotonic,
+    /// so the direction of travel cannot be recovered from it alone. This flag preserves
+    /// the ping-pong half-cycle across frames so the timeline sweeps fully in both directions.
+    /// </remarks>
+    [BuilderIgnore]
+    public bool PingPongReversed;
+
+    /// <summary>
     /// Creates a default animation player.
     /// </summary>
     public static AnimationPlayer Default => new()
@@ -82,7 +93,8 @@ public partial struct AnimationPlayer
         IsPlaying = false,
         WrapModeOverride = null,
         Weight = 1f,
-        IsComplete = false
+        IsComplete = false,
+        PingPongReversed = false
     };
 
     /// <summary>
