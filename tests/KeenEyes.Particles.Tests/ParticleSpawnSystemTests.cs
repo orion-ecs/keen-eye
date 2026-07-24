@@ -392,16 +392,21 @@ public class ParticleSpawnSystemTests : IDisposable
     [Fact]
     public void SpawnSystem_ConeShape_SpawnsInConeDirection()
     {
-        world = new World();
+        // Seeded so the spawn distribution is reproducible run-to-run; the assertion
+        // below holds for any seed by construction, but seeding removes any dependence
+        // on wall-clock RNG state under parallel load.
+        world = new World(seed: 12345);
         world.InstallPlugin(new ParticlesPlugin());
 
         var center = Vector2.Zero;
-        // Cone pointing right
+        // Cone pointing right (+X)
         var direction = new Vector2(1f, 0f);
-        var coneAngle = MathF.PI / 4f; // 45 degrees
+        var coneAngle = MathF.PI / 4f; // 45 degree total spread => +/-22.5 degrees from the axis
+        var radius = 10f;
         var emitter = ParticleEmitter.Burst(100, 1f) with
         {
-            Shape = EmissionShape.Cone(coneAngle, 10f, direction),
+            // EmissionShape.Cone(radius, angle, direction) - argument order matters.
+            Shape = EmissionShape.Cone(radius, coneAngle, direction),
             StartSpeedMin = 50f,
             StartSpeedMax = 50f
         };
@@ -419,20 +424,22 @@ public class ParticleSpawnSystemTests : IDisposable
         var alive = FindAllAlive(pool);
         Assert.Equal(100, alive.Count);
 
-        // Most velocities should be pointing roughly rightward
-        // Note: With a 45-degree cone angle, particles spread ±22.5° from horizontal
-        // Some particles will have negative X velocity at the cone edges
-        var rightwardCount = 0;
+        // Every particle spawned from a rightward 45-degree cone must travel within
+        // +/-22.5 degrees of the +X axis. This directly verifies the cone constraint:
+        // if the spawn system ignored the cone direction/angle, particles would spread
+        // outside the half-angle and this would fail. A small epsilon absorbs the
+        // floating-point error from the trig round-trip.
+        var halfAngle = coneAngle / 2f;
+        const float epsilon = 1e-4f;
         foreach (var idx in alive)
         {
-            if (pool.VelocitiesX[idx] > 0)
-            {
-                rightwardCount++;
-            }
+            var vx = pool.VelocitiesX[idx];
+            var vy = pool.VelocitiesY[idx];
+            var angleFromAxis = MathF.Atan2(vy, vx); // axis is +X, so this is the deviation
+            Assert.True(
+                MathF.Abs(angleFromAxis) <= halfAngle + epsilon,
+                $"Particle velocity ({vx}, {vy}) deviates {angleFromAxis} rad from the cone axis, exceeding half-angle {halfAngle} rad");
         }
-        // Majority should be rightward given cone direction (allowing for random variance)
-        // With random distribution, we expect at least 25% to point rightward
-        Assert.True(rightwardCount >= 25, $"Expected >=25 rightward, got {rightwardCount}");
     }
 
     [Fact]
