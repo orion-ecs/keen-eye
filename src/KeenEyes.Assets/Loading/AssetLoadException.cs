@@ -52,4 +52,16 @@ public sealed class AssetLoadException(
     /// <returns>A new exception instance.</returns>
     public static AssetLoadException ParseError(string assetPath, Type assetType, Exception innerException)
         => new(assetPath, assetType, $"Failed to parse asset: {assetPath}", innerException);
+
+    /// <summary>
+    /// Creates a new asset load exception for a path that escapes the asset root directory.
+    /// </summary>
+    /// <param name="assetPath">The offending path (e.g. one containing <c>..</c> segments or an absolute path).</param>
+    /// <returns>A new exception instance.</returns>
+    /// <remarks>
+    /// Thrown when a caller-supplied path resolves outside the configured root directory,
+    /// guarding against path-traversal escapes when assets originate from untrusted sources.
+    /// </remarks>
+    public static AssetLoadException PathEscapesRoot(string assetPath)
+        => new(assetPath, typeof(object), $"Asset path '{assetPath}' resolves outside the asset root directory and was rejected.");
 }
