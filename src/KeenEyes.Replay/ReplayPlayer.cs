@@ -50,7 +50,7 @@ public sealed class ReplayPlayer : IDisposable
 {
     private readonly Lock syncRoot = new();
     private readonly Dictionary<InputEventType, List<Action<InputEvent>>> inputHandlers = [];
-    private readonly Dictionary<string, List<Delegate>> customInputHandlers = [];
+    private readonly Dictionary<string, List<Action<object>>> customInputHandlers = [];
 
     private ReplayData? replayData;
     private ReplayFileInfo? fileInfo;
@@ -1992,6 +1992,17 @@ public sealed class ReplayPlayer : IDisposable
         ArgumentNullException.ThrowIfNull(handler);
         ThrowIfDisposed();
 
+        // Wrap the typed handler in a type-checking Action<object> closing over T.
+        // This lets dispatch perform a typed check without reflection: data that is
+        // not assignable to T is silently skipped, matching the previous behavior.
+        void TypedHandler(object data)
+        {
+            if (data is T typed)
+            {
+                handler(typed);
+            }
+        }
+
         lock (syncRoot)
         {
             if (!customInputHandlers.TryGetValue(customType, out var handlers))
@@ -2000,7 +2011,7 @@ public sealed class ReplayPlayer : IDisposable
                 customInputHandlers[customType] = handlers;
             }
 
-            handlers.Add(handler);
+            handlers.Add(TypedHandler);
         }
     }
 
@@ -2106,7 +2117,7 @@ public sealed class ReplayPlayer : IDisposable
 
         IReadOnlyList<InputEvent> inputEvents;
         Dictionary<InputEventType, List<Action<InputEvent>>>? handlersCopy;
-        Dictionary<string, List<Delegate>>? customHandlersCopy;
+        Dictionary<string, List<Action<object>>>? customHandlersCopy;
 
         lock (syncRoot)
         {
@@ -2192,7 +2203,7 @@ public sealed class ReplayPlayer : IDisposable
 
         IReadOnlyList<InputEvent> inputEvents;
         Dictionary<InputEventType, List<Action<InputEvent>>>? handlersCopy;
-        Dictionary<string, List<Delegate>>? customHandlersCopy;
+        Dictionary<string, List<Action<object>>>? customHandlersCopy;
 
         lock (syncRoot)
         {
@@ -2308,28 +2319,17 @@ public sealed class ReplayPlayer : IDisposable
         }
     }
 
-    private static void InvokeCustomHandler(Delegate handler, object? data)
+    private static void InvokeCustomHandler(Action<object> handler, object? data)
     {
         if (data is null)
         {
             return;
         }
 
-        try
-        {
-            // Get the handler's expected parameter type
-            var parameterType = handler.Method.GetParameters()[0].ParameterType;
-
-            // Check if the data is assignable to the parameter type
-            if (parameterType.IsInstanceOfType(data))
-            {
-                handler.DynamicInvoke(data);
-            }
-        }
-        catch (Exception)
-        {
-            // Ignore type mismatch errors - handler simply won't be invoked
-        }
+        // The handler is a type-checking wrapper (see RegisterInputHandler{T}):
+        // it silently skips data that is not assignable to the expected type,
+        // so no reflection is needed here.
+        handler(data);
     }
 
     #endregion
