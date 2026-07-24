@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Particles.Components;
 using KeenEyes.Particles.Data;
 
@@ -72,7 +73,7 @@ public class ParticleEffectsTests
 
         Assert.True(emitter.EmissionRate > 0);
         Assert.True(emitter.LifetimeMin > 0);
-        Assert.Equal(BlendMode.Transparent, emitter.BlendMode);
+        Assert.Equal(BlendMode.Alpha, emitter.BlendMode);
         Assert.True(emitter.IsPlaying);
     }
 

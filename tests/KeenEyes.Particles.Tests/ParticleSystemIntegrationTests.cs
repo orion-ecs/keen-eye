@@ -1,5 +1,6 @@
 using System.Numerics;
 using KeenEyes.Common;
+using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Particles.Components;
 using KeenEyes.Particles.Data;
 using KeenEyes.Particles.Systems;
@@ -684,7 +685,7 @@ public class ParticleSystemIntegrationTests : IDisposable
                 Shape = EmissionShape.Point,
                 Texture = default,
                 StartColor = new Vector4(1f, 1f, 1f, 1f),
-                BlendMode = BlendMode.Transparent,
+                BlendMode = BlendMode.Alpha,
                 IsPlaying = true
             })
             .Build();

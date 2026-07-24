@@ -1,17 +1,16 @@
 using KeenEyes.Graphics.Abstractions;
-using KeenEyes.Particles.Data;
 
-namespace KeenEyes.Particles.Tests;
+namespace KeenEyes.Graphics.Tests;
 
 /// <summary>
-/// Tests for the BlendModeExtensions class.
+/// Tests for the <see cref="BlendModeExtensions"/> class.
 /// </summary>
 public class BlendModeExtensionsTests
 {
     [Fact]
-    public void ToBlendFactors_Transparent_ReturnsSrcAlphaAndOneMinusSrcAlpha()
+    public void ToBlendFactors_Alpha_ReturnsSrcAlphaAndOneMinusSrcAlpha()
     {
-        var (src, dst) = BlendMode.Transparent.ToBlendFactors();
+        var (src, dst) = BlendMode.Alpha.ToBlendFactors();
 
         Assert.Equal(BlendFactor.SrcAlpha, src);
         Assert.Equal(BlendFactor.OneMinusSrcAlpha, dst);
@@ -27,12 +26,12 @@ public class BlendModeExtensionsTests
     }
 
     [Fact]
-    public void ToBlendFactors_Multiply_ReturnsDstColorAndZero()
+    public void ToBlendFactors_Multiply_ReturnsDstColorAndOneMinusSrcAlpha()
     {
         var (src, dst) = BlendMode.Multiply.ToBlendFactors();
 
         Assert.Equal(BlendFactor.DstColor, src);
-        Assert.Equal(BlendFactor.Zero, dst);
+        Assert.Equal(BlendFactor.OneMinusSrcAlpha, dst);
     }
 
     [Fact]
@@ -45,20 +44,20 @@ public class BlendModeExtensionsTests
     }
 
     [Fact]
-    public void ToBlendFactors_UnknownValue_ReturnsDefaultTransparent()
+    public void ToBlendFactors_UnknownValue_ReturnsDefaultAlpha()
     {
         // Cast an invalid value to BlendMode
         var invalidMode = (BlendMode)999;
 
         var (src, dst) = invalidMode.ToBlendFactors();
 
-        // Should default to Transparent
+        // Should default to standard alpha blending
         Assert.Equal(BlendFactor.SrcAlpha, src);
         Assert.Equal(BlendFactor.OneMinusSrcAlpha, dst);
     }
 
     [Theory]
-    [InlineData(BlendMode.Transparent)]
+    [InlineData(BlendMode.Alpha)]
     [InlineData(BlendMode.Additive)]
     [InlineData(BlendMode.Multiply)]
     [InlineData(BlendMode.Premultiplied)]

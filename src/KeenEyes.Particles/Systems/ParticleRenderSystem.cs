@@ -65,8 +65,8 @@ public sealed class ParticleRenderSystem : SystemBase
         }
 
         // Group emitters by blend mode for efficient batching
-        // We'll render transparent first, then additive (so glow effects overlay)
-        var transparentEmitters = new List<RenderEntry>();
+        // We'll render alpha-blended first, then additive (so glow effects overlay)
+        var alphaEmitters = new List<RenderEntry>();
         var additiveEmitters = new List<RenderEntry>();
         var multiplyEmitters = new List<RenderEntry>();
         var premultipliedEmitters = new List<RenderEntry>();
@@ -90,8 +90,8 @@ public sealed class ParticleRenderSystem : SystemBase
 
             switch (emitter.BlendMode)
             {
-                case BlendMode.Transparent:
-                    transparentEmitters.Add(entry);
+                case BlendMode.Alpha:
+                    alphaEmitters.Add(entry);
                     break;
                 case BlendMode.Additive:
                     additiveEmitters.Add(entry);
@@ -105,15 +105,15 @@ public sealed class ParticleRenderSystem : SystemBase
             }
         }
 
-        // Render in order: multiply -> transparent -> premultiplied -> additive
+        // Render in order: multiply -> alpha -> premultiplied -> additive
         // (This is a common ordering but can be adjusted based on desired visual results)
-        RenderBatch(r, multiplyEmitters);
-        RenderBatch(r, transparentEmitters);
-        RenderBatch(r, premultipliedEmitters);
-        RenderBatch(r, additiveEmitters);
+        RenderBatch(r, multiplyEmitters, BlendMode.Multiply);
+        RenderBatch(r, alphaEmitters, BlendMode.Alpha);
+        RenderBatch(r, premultipliedEmitters, BlendMode.Premultiplied);
+        RenderBatch(r, additiveEmitters, BlendMode.Additive);
     }
 
-    private static void RenderBatch(I2DRenderer renderer, List<RenderEntry> emitters)
+    private static void RenderBatch(I2DRenderer renderer, List<RenderEntry> emitters, BlendMode blendMode)
     {
         if (emitters.Count == 0)
         {
@@ -128,6 +128,7 @@ public sealed class ParticleRenderSystem : SystemBase
         }
 
         renderer.Begin();
+        renderer.SetBlendMode(blendMode);
         renderer.SetBatchHint(totalParticles);
 
         foreach (var entry in emitters)
@@ -136,6 +137,12 @@ public sealed class ParticleRenderSystem : SystemBase
         }
 
         renderer.End();
+
+        // Leave the renderer in the default state for whoever draws next.
+        if (blendMode != BlendMode.Alpha)
+        {
+            renderer.SetBlendMode(BlendMode.Alpha);
+        }
     }
 
     private static void RenderPool(I2DRenderer renderer, ParticlePool pool, in ParticleEmitter emitter, Vector2 offset)

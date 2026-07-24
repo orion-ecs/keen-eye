@@ -735,7 +735,9 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
             BoundProgram,
             BoundVAO,
             BoundTextures.Values.ToList(),
-            InstanceCount: 1));
+            InstanceCount: 1,
+            RenderState.BlendSrcFactor,
+            RenderState.BlendDstFactor));
     }
 
     /// <inheritdoc />
@@ -748,7 +750,9 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
             BoundProgram,
             BoundVAO,
             BoundTextures.Values.ToList(),
-            InstanceCount: 1));
+            InstanceCount: 1,
+            RenderState.BlendSrcFactor,
+            RenderState.BlendDstFactor));
     }
 
     /// <inheritdoc />
@@ -761,7 +765,9 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
             BoundProgram,
             BoundVAO,
             BoundTextures.Values.ToList(),
-            instanceCount));
+            instanceCount,
+            RenderState.BlendSrcFactor,
+            RenderState.BlendDstFactor));
     }
 
     /// <inheritdoc />
@@ -774,7 +780,9 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
             BoundProgram,
             BoundVAO,
             BoundTextures.Values.ToList(),
-            instanceCount));
+            instanceCount,
+            RenderState.BlendSrcFactor,
+            RenderState.BlendDstFactor));
     }
 
     /// <inheritdoc />
@@ -1030,6 +1038,8 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
 /// <param name="VAO">The VAO used, if any.</param>
 /// <param name="Textures">The textures bound during the draw.</param>
 /// <param name="InstanceCount">The number of instances drawn (1 for non-instanced).</param>
+/// <param name="BlendSrcFactor">The source blend factor active when the draw was issued.</param>
+/// <param name="BlendDstFactor">The destination blend factor active when the draw was issued.</param>
 public sealed record DrawCall(
     PrimitiveType PrimitiveType,
     int VertexCount,
@@ -1037,7 +1047,9 @@ public sealed record DrawCall(
     uint? Program,
     uint? VAO,
     List<uint> Textures,
-    uint InstanceCount = 1);
+    uint InstanceCount = 1,
+    BlendFactor BlendSrcFactor = BlendFactor.Zero,
+    BlendFactor BlendDstFactor = BlendFactor.Zero);
 
 /// <summary>
 /// Tracks buffer state.
