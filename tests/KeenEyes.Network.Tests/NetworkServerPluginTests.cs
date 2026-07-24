@@ -705,4 +705,37 @@ public sealed class NetworkServerPluginTests
     }
 
     #endregion
+
+    #region Malformed Message Handling
+
+    [Fact]
+    public async Task OnDataReceived_WithTruncatedPacket_DropsMessageWithoutThrowing()
+    {
+        var (server, client) = LocalTransport.CreatePair();
+        using var world = new World();
+
+        await server.ListenAsync(7777);
+        var plugin = new NetworkServerPlugin(server);
+        world.InstallPlugin(plugin);
+
+        await client.ConnectAsync("localhost", 7777);
+        server.Update(); // Drain the connect event so the client is registered.
+
+        // A truncated 1-byte packet cannot hold the full 5-byte header, so parsing
+        // reads past the end of the buffer. Draining it from the transport must not
+        // crash the per-frame loop or take down the server (remote DoS guard).
+        byte[] truncated = [0x22];
+        client.Send(0, truncated, DeliveryMode.Unreliable);
+
+        var ex = Record.Exception(() => server.Update());
+
+        Assert.Null(ex);
+        Assert.Equal(1, plugin.ClientCount);
+
+        world.UninstallPlugin("NetworkServer");
+        client.Dispose();
+        server.Dispose();
+    }
+
+    #endregion
 }

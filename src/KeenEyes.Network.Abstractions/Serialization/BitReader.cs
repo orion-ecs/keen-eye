@@ -72,6 +72,12 @@ public ref struct BitReader
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool ReadBool()
     {
+        if (bytePosition >= buffer.Length)
+        {
+            throw new NetworkProtocolException(
+                "Attempted to read past the end of the buffer while reading a boolean.");
+        }
+
         var value = (buffer[bytePosition] >> bitOffset) & 1;
         AdvanceBits(1);
         return value == 1;
@@ -90,6 +96,12 @@ public ref struct BitReader
         if (bits < 1 || bits > 32)
         {
             throw new ArgumentOutOfRangeException(nameof(bits), "Bits must be between 1 and 32.");
+        }
+
+        if (bits > BitsRemaining)
+        {
+            throw new NetworkProtocolException(
+                $"Attempted to read {bits} bits but only {BitsRemaining} remain in the buffer.");
         }
 
         uint value = 0;
@@ -209,8 +221,22 @@ public ref struct BitReader
     /// </summary>
     /// <param name="count">The number of bytes to read.</param>
     /// <returns>A new byte array containing the read data.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when count is negative.</exception>
+    /// <exception cref="NetworkProtocolException">
+    /// Thrown when count exceeds the number of bytes remaining in the buffer.
+    /// </exception>
     public byte[] ReadBytes(int count)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+
+        // Validate against the remaining buffer BEFORE allocating so an
+        // attacker-controlled length cannot drive a large speculative allocation.
+        if ((long)count * 8 > BitsRemaining)
+        {
+            throw new NetworkProtocolException(
+                $"Attempted to read {count} bytes but only {BitsRemaining / 8} remain in the buffer.");
+        }
+
         var result = new byte[count];
         ReadBytes(result);
         return result;

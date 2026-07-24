@@ -553,4 +553,43 @@ public sealed class NetworkClientPluginTests
     }
 
     #endregion
+
+    #region Malformed Message Handling
+
+    [Fact]
+    public async Task OnDataReceived_WithTruncatedPacket_DropsMessageWithoutThrowing()
+    {
+        var (server, client) = LocalTransport.CreatePair();
+        using var world = new World();
+        using var serverWorld = new World();
+
+        await server.ListenAsync(7777);
+        var serverPlugin = new NetworkServerPlugin(server);
+        serverWorld.InstallPlugin(serverPlugin);
+
+        var config = new ClientNetworkConfig { ServerAddress = "localhost", ServerPort = 7777 };
+        var plugin = new NetworkClientPlugin(client, config);
+        world.InstallPlugin(plugin);
+
+        await plugin.ConnectAsync();
+        server.Update();
+        client.Update();
+        Assert.True(plugin.IsConnected); // Established before the malformed packet arrives.
+
+        // A truncated packet cannot hold the full header, so parsing reads past the
+        // end of the buffer. The client must drop it rather than let the exception
+        // crash the transport drain loop and disconnect the still-valid session.
+        byte[] truncated = [0x16];
+        server.SendToAll(truncated, DeliveryMode.Unreliable);
+
+        var ex = Record.Exception(() => client.Update());
+
+        Assert.Null(ex);
+        Assert.True(plugin.IsConnected);
+
+        client.Dispose();
+        server.Dispose();
+    }
+
+    #endregion
 }
