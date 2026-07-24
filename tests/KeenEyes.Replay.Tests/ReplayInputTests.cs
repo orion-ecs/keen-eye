@@ -1010,6 +1010,43 @@ public class ReplayInputTests
         Assert.Equal(InputEventType.KeyUp, allEvents[1].Type);
     }
 
+    [Fact]
+    public void ApplyInputFrame_WithCustomEvent_InvokesMatchingTypeAndSkipsMismatchedType()
+    {
+        // Arrange - record a single custom event carrying TestGestureData
+        using var world = new World();
+        var serializer = new MockComponentSerializer();
+        var recorder = new ReplayRecorder(world, serializer);
+
+        var gestureData = new TestGestureData("Pinch", 1.5f);
+        recorder.StartRecording();
+        recorder.BeginFrame(0.016f);
+        recorder.RecordCustomInput("GestureData", gestureData);
+        recorder.EndFrame(0.016f);
+        var replayData = recorder.StopRecording();
+
+        using var player = new ReplayPlayer();
+        player.LoadReplay(replayData!);
+
+        // Register two handlers for the SAME custom-type name but different payload types.
+        // Only the handler whose type matches the recorded payload must be invoked.
+        TestGestureData? capturedGesture = null;
+        var mismatchedHandlerCalled = false;
+        player.RegisterInputHandler<TestGestureData>("GestureData", data => capturedGesture = data);
+        player.RegisterInputHandler<TestClickData>("GestureData", _ => mismatchedHandlerCalled = true);
+
+        // Act
+        player.ApplyInputFrame();
+
+        // Assert - matching type fired with the correct typed payload
+        Assert.NotNull(capturedGesture);
+        Assert.Equal("Pinch", capturedGesture.GestureType);
+        Assert.Equal(1.5f, capturedGesture.Scale);
+
+        // Assert - the non-matching type handler was NOT invoked
+        Assert.False(mismatchedHandlerCalled);
+    }
+
     #endregion
 }
 
@@ -1017,3 +1054,8 @@ public class ReplayInputTests
 /// Test data class for custom input events.
 /// </summary>
 public record TestGestureData(string GestureType, float Scale);
+
+/// <summary>
+/// Second, distinct test data class used to verify type-based handler dispatch.
+/// </summary>
+public record TestClickData(int Button);
