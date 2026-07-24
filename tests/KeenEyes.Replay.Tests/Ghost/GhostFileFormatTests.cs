@@ -297,6 +297,37 @@ public class GhostFileFormatTests
     }
 
     [Fact]
+    public void Read_WithDataLengthExceedingStream_ThrowsInvalidDataException()
+    {
+        // Arrange
+        var ghostData = CreateTestGhostData();
+        var bytes = GhostFileFormat.Write(ghostData);
+
+        // Overwrite the dataLength header field (offset 12, after the 4-byte magic,
+        // 2-byte version, 2-byte flags, and 4-byte metadataLength) with a value far
+        // larger than the file. It must be rejected before a multi-gigabyte allocation.
+        BitConverter.GetBytes(int.MaxValue).CopyTo(bytes, 12);
+
+        // Act & Assert
+        Assert.Throws<InvalidDataException>(() => GhostFileFormat.Read(bytes));
+    }
+
+    [Fact]
+    public void Read_WithMetadataLengthExceedingStream_ThrowsInvalidDataException()
+    {
+        // Arrange
+        var ghostData = CreateTestGhostData();
+        var bytes = GhostFileFormat.Write(ghostData);
+
+        // Overwrite the metadataLength header field (offset 8) with a value far larger
+        // than the file. It must be rejected before a multi-gigabyte allocation.
+        BitConverter.GetBytes(int.MaxValue).CopyTo(bytes, 8);
+
+        // Act & Assert
+        Assert.Throws<InvalidDataException>(() => GhostFileFormat.Read(bytes));
+    }
+
+    [Fact]
     public void Read_AllCompressionModes_RoundTrips()
     {
         // Arrange

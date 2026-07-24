@@ -474,37 +474,49 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
             return;
         }
 
-        var reader = new NetworkMessageReader(data);
-        reader.ReadHeader(out var messageType, out var tick);
-
-        switch (messageType)
+        // Guard the per-message dispatch: this runs every frame from the transport
+        // drain loop (TcpTransport.Update()/UdpTransport.Update()), so one malformed
+        // or truncated packet from any client must be dropped, not allowed to crash
+        // the loop and take down the server (remote DoS).
+        try
         {
-            case MessageType.ClientAck:
-                clientState.LastAckedTick = tick;
-                break;
+            var reader = new NetworkMessageReader(data);
+            reader.ReadHeader(out var messageType, out var tick);
 
-            case MessageType.ClientInput:
-                // Notify listeners with remaining data as input payload
-                // The remaining bytes in the message after the header contain the input
-                var inputPayload = data[5..]; // Skip header (1 byte type + 4 bytes tick)
-                ClientInputReceived?.Invoke(clientId, tick, inputPayload);
-                break;
+            switch (messageType)
+            {
+                case MessageType.ClientAck:
+                    clientState.LastAckedTick = tick;
+                    break;
 
-            case MessageType.OwnerStateUpdate:
-                HandleOwnerStateUpdate(clientId, ref reader);
-                break;
+                case MessageType.ClientInput:
+                    // Notify listeners with remaining data as input payload
+                    // The remaining bytes in the message after the header contain the input
+                    var inputPayload = data[5..]; // Skip header (1 byte type + 4 bytes tick)
+                    ClientInputReceived?.Invoke(clientId, tick, inputPayload);
+                    break;
 
-            case MessageType.OwnershipRequest:
-                HandleOwnershipRequest(clientId, ref reader);
-                break;
+                case MessageType.OwnerStateUpdate:
+                    HandleOwnerStateUpdate(clientId, ref reader);
+                    break;
 
-            case MessageType.Ping:
-                // Respond with pong
-                Span<byte> pongBuffer = stackalloc byte[8];
-                var pongWriter = new NetworkMessageWriter(pongBuffer);
-                pongWriter.WriteHeader(MessageType.Pong, tick);
-                transport.Send(clientId, pongWriter.GetWrittenSpan(), DeliveryMode.Unreliable);
-                break;
+                case MessageType.OwnershipRequest:
+                    HandleOwnershipRequest(clientId, ref reader);
+                    break;
+
+                case MessageType.Ping:
+                    // Respond with pong
+                    Span<byte> pongBuffer = stackalloc byte[8];
+                    var pongWriter = new NetworkMessageWriter(pongBuffer);
+                    pongWriter.WriteHeader(MessageType.Pong, tick);
+                    transport.Send(clientId, pongWriter.GetWrittenSpan(), DeliveryMode.Unreliable);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[NetworkServer] Dropped malformed message from client {clientId}: {ex.GetType().Name}: {ex.Message}");
         }
     }
 

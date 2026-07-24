@@ -458,6 +458,16 @@ public static class GhostFileFormat
             throw new InvalidDataException("Invalid ghost file: invalid metadata or data length.");
         }
 
+        // Bound declared lengths against the bytes actually remaining in the stream
+        // before they are fed to ReadBytes. A corrupted or malicious header could
+        // otherwise force a multi-gigabyte allocation for data that is not present.
+        var remaining = reader.BaseStream.Length - reader.BaseStream.Position;
+        if ((long)metadataLength + dataLength > remaining)
+        {
+            throw new InvalidDataException(
+                "Invalid ghost file: declared metadata/data length exceeds the remaining stream size.");
+        }
+
         return (flags, metadataLength, dataLength);
     }
 

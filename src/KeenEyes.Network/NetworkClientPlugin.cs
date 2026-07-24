@@ -383,74 +383,86 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
     private void OnDataReceived(int connectionId, ReadOnlySpan<byte> data)
     {
-        var reader = new NetworkMessageReader(data);
-        reader.ReadHeader(out var messageType, out var tick);
-
-        UpdateTick(tick);
-
-        switch (messageType)
+        // Guard the per-message dispatch: this runs every frame from the transport
+        // drain loop (TcpTransport.Update()/UdpTransport.Update()), so one malformed
+        // or truncated packet from the server must be dropped, not allowed to crash
+        // the loop and take down the client.
+        try
         {
-            case MessageType.ConnectionAccepted:
-                localClientId = reader.ReadSignedBits(16);
-                isConnected = true;
-                Connected?.Invoke();
-                break;
+            var reader = new NetworkMessageReader(data);
+            reader.ReadHeader(out var messageType, out var tick);
 
-            case MessageType.ConnectionRejected:
-                HandleConnectionRejected(ref reader);
-                break;
+            UpdateTick(tick);
 
-            case MessageType.EntitySpawn:
-                reader.ReadEntitySpawn(out var spawnNetworkId, out var ownerId);
-                // Dedupe: a fresh client can receive both a FullSnapshot and the
-                // NeedsFullSync EntitySpawn broadcast for the same network ID in one tick.
-                // Spawning unconditionally created a second ghost and orphaned the first
-                // (RegisterMapping overwrites), so reuse the existing entity if present (#1101).
-                if (!networkIdManager.TryGetLocalEntity(spawnNetworkId, out var spawnedEntity))
-                {
-                    spawnedEntity = SpawnNetworkedEntity(spawnNetworkId, ownerId);
-                }
+            switch (messageType)
+            {
+                case MessageType.ConnectionAccepted:
+                    localClientId = reader.ReadSignedBits(16);
+                    isConnected = true;
+                    Connected?.Invoke();
+                    break;
 
-                // Read and apply initial components
-                ApplyComponentUpdates(spawnedEntity, ref reader);
-                break;
+                case MessageType.ConnectionRejected:
+                    HandleConnectionRejected(ref reader);
+                    break;
 
-            case MessageType.EntityDespawn:
-                reader.ReadEntityDespawn(out var despawnNetworkId);
-                DespawnNetworkedEntity(despawnNetworkId);
-                break;
+                case MessageType.EntitySpawn:
+                    reader.ReadEntitySpawn(out var spawnNetworkId, out var ownerId);
+                    // Dedupe: a fresh client can receive both a FullSnapshot and the
+                    // NeedsFullSync EntitySpawn broadcast for the same network ID in one tick.
+                    // Spawning unconditionally created a second ghost and orphaned the first
+                    // (RegisterMapping overwrites), so reuse the existing entity if present (#1101).
+                    if (!networkIdManager.TryGetLocalEntity(spawnNetworkId, out var spawnedEntity))
+                    {
+                        spawnedEntity = SpawnNetworkedEntity(spawnNetworkId, ownerId);
+                    }
 
-            case MessageType.FullSnapshot:
-                HandleFullSnapshot(ref reader);
-                break;
+                    // Read and apply initial components
+                    ApplyComponentUpdates(spawnedEntity, ref reader);
+                    break;
 
-            case MessageType.DeltaSnapshot:
-                HandleDeltaSnapshot(ref reader);
-                break;
+                case MessageType.EntityDespawn:
+                    reader.ReadEntityDespawn(out var despawnNetworkId);
+                    DespawnNetworkedEntity(despawnNetworkId);
+                    break;
 
-            case MessageType.ComponentUpdate:
-                HandleComponentUpdate(ref reader);
-                break;
+                case MessageType.FullSnapshot:
+                    HandleFullSnapshot(ref reader);
+                    break;
 
-            case MessageType.ComponentDelta:
-                HandleComponentDelta(ref reader);
-                break;
+                case MessageType.DeltaSnapshot:
+                    HandleDeltaSnapshot(ref reader);
+                    break;
 
-            case MessageType.Pong:
-                HandlePong();
-                break;
+                case MessageType.ComponentUpdate:
+                    HandleComponentUpdate(ref reader);
+                    break;
 
-            case MessageType.OwnershipTransfer:
-                HandleOwnershipTransfer(ref reader);
-                break;
+                case MessageType.ComponentDelta:
+                    HandleComponentDelta(ref reader);
+                    break;
 
-            case MessageType.HierarchyChange:
-                HandleHierarchyChange(ref reader);
-                break;
+                case MessageType.Pong:
+                    HandlePong();
+                    break;
+
+                case MessageType.OwnershipTransfer:
+                    HandleOwnershipTransfer(ref reader);
+                    break;
+
+                case MessageType.HierarchyChange:
+                    HandleHierarchyChange(ref reader);
+                    break;
+            }
+
+            // Acknowledge received tick
+            AcknowledgeTick(tick);
         }
-
-        // Acknowledge received tick
-        AcknowledgeTick(tick);
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine(
+                $"[NetworkClient] Dropped malformed message from connection {connectionId}: {ex.GetType().Name}: {ex.Message}");
+        }
     }
 
     private void HandleFullSnapshot(ref NetworkMessageReader reader)

@@ -331,4 +331,92 @@ public class BitReaderTests
 
         Assert.InRange(result, 99f, 101f);
     }
+
+    [Fact]
+    public void ReadBool_PastEndOfBuffer_ThrowsNetworkProtocolException()
+    {
+        // A single byte holds 8 bits; the 9th ReadBool must fail cleanly rather
+        // than indexing past the buffer with an IndexOutOfRangeException.
+        var ex = Record.Exception(() =>
+        {
+            byte[] data = [0xFF];
+            var reader = new BitReader(data);
+            for (var i = 0; i < 9; i++)
+            {
+                reader.ReadBool();
+            }
+        });
+
+        Assert.IsType<NetworkProtocolException>(ex);
+    }
+
+    [Fact]
+    public void ReadBits_PastEndOfBuffer_ThrowsNetworkProtocolException()
+    {
+        // Two bytes hold 16 bits; requesting a further 8 bits must be rejected.
+        var ex = Record.Exception(() =>
+        {
+            byte[] data = [0x01, 0x02];
+            var reader = new BitReader(data);
+            reader.ReadBits(16);
+            reader.ReadBits(8);
+        });
+
+        Assert.IsType<NetworkProtocolException>(ex);
+    }
+
+    [Fact]
+    public void ReadBits_TruncatedBuffer_DoesNotThrowIndexOutOfRange()
+    {
+        // Regression guard: the failure mode for truncated input must be the
+        // defined NetworkProtocolException, never a raw IndexOutOfRangeException.
+        var ex = Record.Exception(() =>
+        {
+            byte[] data = [0x01];
+            var reader = new BitReader(data);
+            reader.ReadBits(32);
+        });
+
+        Assert.IsType<NetworkProtocolException>(ex);
+        Assert.IsNotType<IndexOutOfRangeException>(ex);
+    }
+
+    [Fact]
+    public void ReadBytes_CountExceedingBuffer_ThrowsNetworkProtocolException()
+    {
+        // An attacker-controlled length must be rejected before allocating the array.
+        var ex = Record.Exception(() =>
+        {
+            byte[] data = [0x01, 0x02, 0x03, 0x04];
+            var reader = new BitReader(data);
+            reader.ReadBytes(int.MaxValue);
+        });
+
+        Assert.IsType<NetworkProtocolException>(ex);
+    }
+
+    [Fact]
+    public void ReadBytes_NegativeCount_ThrowsArgumentOutOfRangeException()
+    {
+        var ex = Record.Exception(() =>
+        {
+            byte[] data = [0x01, 0x02, 0x03, 0x04];
+            var reader = new BitReader(data);
+            reader.ReadBytes(-1);
+        });
+
+        Assert.IsType<ArgumentOutOfRangeException>(ex);
+    }
+
+    [Fact]
+    public void ReadBytes_CountWithinBuffer_ReturnsData()
+    {
+        // Positive case: a valid length still round-trips correctly.
+        byte[] data = [0x0A, 0x0B, 0x0C, 0x0D];
+        var reader = new BitReader(data);
+
+        var result = reader.ReadBytes(4);
+
+        Assert.Equal(data, result);
+    }
 }
