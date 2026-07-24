@@ -1,4 +1,5 @@
 using System.Numerics;
+using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Particles.Components;
 using KeenEyes.Particles.Data;
 
@@ -107,7 +108,7 @@ public static class ParticleEffects
             StartRotationMin = 0f,
             StartRotationMax = MathF.PI * 2f,
             StartColor = new Vector4(0.4f, 0.4f, 0.4f, 0.6f), // Gray
-            BlendMode = BlendMode.Transparent,
+            BlendMode = BlendMode.Alpha,
             Shape = EmissionShape.Cone(MathF.PI / 4f, 8f, new Vector2(0, -1)), // Wide upward cone
             IsPlaying = true
         };
@@ -324,7 +325,7 @@ public static class ParticleEffects
             StartRotationMin = 0f,
             StartRotationMax = MathF.PI * 2f,
             StartColor = new Vector4(0.6f, 0f, 0f, 1f), // Dark red
-            BlendMode = BlendMode.Transparent,
+            BlendMode = BlendMode.Alpha,
             Shape = EmissionShape.Cone(MathF.PI / 3f, 5f, new Vector2(0, -1)), // Upward spray
             IsPlaying = true
         };
@@ -380,7 +381,7 @@ public static class ParticleEffects
             StartRotationMin = 0f,
             StartRotationMax = 0f, // No rotation - rain falls straight
             StartColor = new Vector4(0.7f, 0.8f, 0.9f, 0.6f), // Light blue-gray
-            BlendMode = BlendMode.Transparent,
+            BlendMode = BlendMode.Alpha,
             Shape = EmissionShape.Box(400f, 10f), // Wide emission area
             IsPlaying = true
         };
@@ -425,7 +426,7 @@ public static class ParticleEffects
             StartRotationMin = 0f,
             StartRotationMax = MathF.PI * 2f,
             StartColor = new Vector4(1f, 1f, 1f, 0.9f), // White
-            BlendMode = BlendMode.Transparent,
+            BlendMode = BlendMode.Alpha,
             Shape = EmissionShape.Box(400f, 10f), // Wide emission area
             IsPlaying = true
         };

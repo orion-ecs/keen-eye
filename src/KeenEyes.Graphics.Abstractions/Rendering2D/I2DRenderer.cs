@@ -78,6 +78,27 @@ public interface I2DRenderer : IDisposable
 
     #endregion
 
+    #region Blend State
+
+    /// <summary>
+    /// Gets the blend mode applied to subsequent draw calls.
+    /// </summary>
+    BlendMode CurrentBlendMode { get; }
+
+    /// <summary>
+    /// Sets the blend mode for subsequent draw calls.
+    /// </summary>
+    /// <param name="mode">The blend mode to apply.</param>
+    /// <remarks>
+    /// Setting a mode different from <see cref="CurrentBlendMode"/> flushes the current
+    /// batch so already-queued geometry is drawn with the previous mode; draws issued
+    /// afterwards use the new mode. Setting the same mode is a no-op.
+    /// <see cref="Begin()"/> resets the blend mode to <see cref="BlendMode.Alpha"/>.
+    /// </remarks>
+    void SetBlendMode(BlendMode mode);
+
+    #endregion
+
     #region Rectangles
 
     /// <summary>

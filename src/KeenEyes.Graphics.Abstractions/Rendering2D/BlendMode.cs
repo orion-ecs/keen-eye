@@ -1,19 +1,22 @@
-using KeenEyes.Graphics.Abstractions;
-
-namespace KeenEyes.Particles.Data;
+namespace KeenEyes.Graphics.Abstractions;
 
 /// <summary>
-/// Blend modes for particle rendering.
+/// Blend modes for 2D rendering.
 /// </summary>
+/// <remarks>
+/// Each mode maps to a fixed pair of <see cref="BlendFactor"/> values applied by the
+/// renderer when a batch is flushed. Use <see cref="I2DRenderer.SetBlendMode"/> to
+/// switch modes between draws.
+/// </remarks>
 public enum BlendMode
 {
     /// <summary>Standard alpha blending (SrcAlpha, OneMinusSrcAlpha).</summary>
-    Transparent,
+    Alpha,
 
     /// <summary>Additive blending for glow effects (SrcAlpha, One).</summary>
     Additive,
 
-    /// <summary>Multiply blending (DstColor, Zero).</summary>
+    /// <summary>Multiply blending (DstColor, OneMinusSrcAlpha).</summary>
     Multiply,
 
     /// <summary>Pre-multiplied alpha (One, OneMinusSrcAlpha).</summary>
@@ -32,9 +35,8 @@ public static class BlendModeExtensions
     /// <returns>A tuple containing the source and destination blend factors.</returns>
     public static (BlendFactor Src, BlendFactor Dst) ToBlendFactors(this BlendMode mode) => mode switch
     {
-        BlendMode.Transparent => (BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha),
         BlendMode.Additive => (BlendFactor.SrcAlpha, BlendFactor.One),
-        BlendMode.Multiply => (BlendFactor.DstColor, BlendFactor.Zero),
+        BlendMode.Multiply => (BlendFactor.DstColor, BlendFactor.OneMinusSrcAlpha),
         BlendMode.Premultiplied => (BlendFactor.One, BlendFactor.OneMinusSrcAlpha),
         _ => (BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha)
     };

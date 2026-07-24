@@ -257,6 +257,10 @@ public sealed class EditorFrameCompositionTests
         {
         }
 
+        public BlendMode CurrentBlendMode { get; private set; } = BlendMode.Alpha;
+
+        public void SetBlendMode(BlendMode mode) => CurrentBlendMode = mode;
+
         public void FillRect(float x, float y, float width, float height, Vector4 color)
             => callLog.Add("UI:FillRect");
 

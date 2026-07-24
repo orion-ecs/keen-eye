@@ -136,6 +136,118 @@ public class Silk2DRendererTests : IDisposable
 
     #endregion
 
+    #region Blend modes
+
+    /// <summary>
+    /// Switching the blend mode mid-batch must flush exactly at the boundary: geometry queued
+    /// before the switch draws with the old factors, geometry queued after draws with the new ones.
+    /// </summary>
+    [Fact]
+    public void SetBlendMode_MidBatch_FlushesAtBoundaryAndSecondDrawUsesNewFactors()
+    {
+        renderer.Begin();
+        renderer.FillRect(0f, 0f, 10f, 10f, new Vector4(1f, 0f, 0f, 1f));
+
+        Assert.Empty(device.DrawCalls);
+
+        renderer.SetBlendMode(BlendMode.Additive);
+
+        // The pending quad must have been flushed exactly at the mode switch.
+        Assert.Single(device.DrawCalls);
+
+        renderer.FillRect(20f, 0f, 10f, 10f, new Vector4(0f, 1f, 0f, 1f));
+        renderer.End();
+
+        Assert.Equal(2, device.DrawCalls.Count);
+
+        // First batch drew with alpha blending, second with additive.
+        Assert.Equal(BlendFactor.SrcAlpha, device.DrawCalls[0].BlendSrcFactor);
+        Assert.Equal(BlendFactor.OneMinusSrcAlpha, device.DrawCalls[0].BlendDstFactor);
+        Assert.Equal(BlendFactor.SrcAlpha, device.DrawCalls[1].BlendSrcFactor);
+        Assert.Equal(BlendFactor.One, device.DrawCalls[1].BlendDstFactor);
+    }
+
+    /// <summary>
+    /// Setting the mode that is already active must not flush the batch.
+    /// </summary>
+    [Fact]
+    public void SetBlendMode_SameMode_DoesNotFlush()
+    {
+        renderer.Begin();
+        renderer.FillRect(0f, 0f, 10f, 10f, new Vector4(1f, 0f, 0f, 1f));
+
+        renderer.SetBlendMode(BlendMode.Alpha);
+
+        Assert.Empty(device.DrawCalls);
+        renderer.End();
+        Assert.Single(device.DrawCalls);
+    }
+
+    /// <summary>
+    /// <c>Begin()</c> must reset the blend mode to <see cref="BlendMode.Alpha"/> even if a
+    /// previous batch left a different mode active.
+    /// </summary>
+    [Fact]
+    public void Begin_AfterAdditiveBatch_ResetsBlendModeToAlpha()
+    {
+        renderer.Begin();
+        renderer.SetBlendMode(BlendMode.Additive);
+        renderer.FillRect(0f, 0f, 10f, 10f, new Vector4(1f, 1f, 1f, 1f));
+        renderer.End();
+
+        Assert.Equal(BlendMode.Additive, renderer.CurrentBlendMode);
+
+        renderer.Begin();
+        Assert.Equal(BlendMode.Alpha, renderer.CurrentBlendMode);
+
+        renderer.FillRect(0f, 0f, 10f, 10f, new Vector4(1f, 1f, 1f, 1f));
+        renderer.End();
+
+        var lastDraw = device.DrawCalls[^1];
+        Assert.Equal(BlendFactor.SrcAlpha, lastDraw.BlendSrcFactor);
+        Assert.Equal(BlendFactor.OneMinusSrcAlpha, lastDraw.BlendDstFactor);
+    }
+
+    /// <summary>
+    /// Every blend mode must map to its documented GL blend factor pair at draw time.
+    /// </summary>
+    [Theory]
+    [InlineData(BlendMode.Alpha, BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha)]
+    [InlineData(BlendMode.Additive, BlendFactor.SrcAlpha, BlendFactor.One)]
+    [InlineData(BlendMode.Multiply, BlendFactor.DstColor, BlendFactor.OneMinusSrcAlpha)]
+    [InlineData(BlendMode.Premultiplied, BlendFactor.One, BlendFactor.OneMinusSrcAlpha)]
+    public void SetBlendMode_Mode_DrawsWithMappedFactors(BlendMode mode, BlendFactor expectedSrc, BlendFactor expectedDst)
+    {
+        renderer.Begin();
+        renderer.SetBlendMode(mode);
+        renderer.FillRect(0f, 0f, 10f, 10f, new Vector4(1f, 1f, 1f, 1f));
+        renderer.End();
+
+        Assert.Equal(mode, renderer.CurrentBlendMode);
+
+        var draw = Assert.Single(device.DrawCalls);
+        Assert.Equal(expectedSrc, draw.BlendSrcFactor);
+        Assert.Equal(expectedDst, draw.BlendDstFactor);
+    }
+
+    /// <summary>
+    /// The rounded-rect flush path must honor the active blend mode too.
+    /// </summary>
+    [Fact]
+    public void FillRoundedRect_WithAdditiveBlendMode_DrawsWithAdditiveFactors()
+    {
+        renderer.Begin();
+        renderer.SetBlendMode(BlendMode.Additive);
+        renderer.FillRoundedRect(0f, 0f, 40f, 40f, 8f, new Vector4(1f, 1f, 1f, 1f));
+        renderer.End();
+
+        var roundedDraw = device.DrawCalls[0];
+        Assert.Equal(BlendFactor.SrcAlpha, roundedDraw.BlendSrcFactor);
+        Assert.Equal(BlendFactor.One, roundedDraw.BlendDstFactor);
+    }
+
+    #endregion
+
     #region Helpers
 
     /// <summary>

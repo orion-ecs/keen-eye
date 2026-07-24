@@ -80,6 +80,9 @@ public sealed class Mock2DRenderer : I2DRenderer
     /// </summary>
     public int? BatchHint { get; private set; }
 
+    /// <inheritdoc />
+    public BlendMode CurrentBlendMode { get; private set; } = BlendMode.Alpha;
+
     #endregion
 
     #region Clipping
@@ -115,6 +118,7 @@ public sealed class Mock2DRenderer : I2DRenderer
         isInBatch = true;
         currentProjection = projection;
         CurrentBatchSize = 0;
+        CurrentBlendMode = BlendMode.Alpha;
         BeginCount++;
     }
 
@@ -134,6 +138,20 @@ public sealed class Mock2DRenderer : I2DRenderer
     public void Flush()
     {
         FlushCount++;
+    }
+
+    /// <inheritdoc />
+    public void SetBlendMode(BlendMode mode)
+    {
+        if (mode == CurrentBlendMode)
+        {
+            return;
+        }
+
+        // Match the real renderer contract: switching modes flushes queued geometry.
+        FlushCount++;
+        CurrentBlendMode = mode;
+        RecordCommand(new SetBlendModeCommand(mode));
     }
 
     #endregion
@@ -324,6 +342,7 @@ public sealed class Mock2DRenderer : I2DRenderer
         EndCount = 0;
         FlushCount = 0;
         CurrentBatchSize = 0;
+        CurrentBlendMode = BlendMode.Alpha;
         BatchHint = null;
     }
 
@@ -514,5 +533,11 @@ public sealed record PopClipCommand : Draw2DCommand;
 /// A clear clip command.
 /// </summary>
 public sealed record ClearClipCommand : Draw2DCommand;
+
+/// <summary>
+/// A blend mode change command.
+/// </summary>
+/// <param name="Mode">The blend mode applied to subsequent draws.</param>
+public sealed record SetBlendModeCommand(BlendMode Mode) : Draw2DCommand;
 
 #endregion

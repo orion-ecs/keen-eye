@@ -51,6 +51,7 @@ public sealed class Silk2DRenderer : I2DRenderer
     private int vertexCount;
     private int indexCount;
     private uint currentTexture;
+    private BlendMode currentBlendMode = BlendMode.Alpha;
     private bool isBatching;
     private Matrix4x4 screenProjection;
     private Matrix4x4 activeProjection;
@@ -89,6 +90,24 @@ public sealed class Silk2DRenderer : I2DRenderer
     {
         screenSize = new Vector2(width, height);
         UpdateProjection();
+    }
+
+    /// <inheritdoc />
+    public BlendMode CurrentBlendMode => currentBlendMode;
+
+    /// <inheritdoc />
+    public void SetBlendMode(BlendMode mode)
+    {
+        if (mode == currentBlendMode)
+        {
+            return;
+        }
+
+        // Draw everything queued so far with the previous mode before switching.
+        // (Rounded rects flush immediately on submission, so only the quad batch
+        // can hold pending geometry here.)
+        Flush();
+        currentBlendMode = mode;
     }
 
     private void InitializeBuffers()
@@ -310,6 +329,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         vertexCount = 0;
         indexCount = 0;
         currentTexture = whiteTexture;
+        currentBlendMode = BlendMode.Alpha;
 
         // Remember the caller-supplied projection so Flush/FlushRoundedRects re-bind
         // it (rather than the internal screen projection) before every draw call.
@@ -320,8 +340,14 @@ public sealed class Silk2DRenderer : I2DRenderer
         device.Uniform1(textureLocation, 0);
 
         device.Enable(RenderCapability.Blend);
-        device.BlendFunc(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha);
+        ApplyBlendFunc();
         device.Disable(RenderCapability.DepthTest);
+    }
+
+    private void ApplyBlendFunc()
+    {
+        var (src, dst) = currentBlendMode.ToBlendFactors();
+        device.BlendFunc(src, dst);
     }
 
     /// <inheritdoc />
@@ -351,7 +377,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         device.UniformMatrix4(projectionLocation, activeProjection);
         device.Uniform1(textureLocation, 0);
         device.Enable(RenderCapability.Blend);
-        device.BlendFunc(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha);
+        ApplyBlendFunc();
 
         device.BindVertexArray(vao);
         device.BindBuffer(BufferTarget.ArrayBuffer, vbo);
@@ -758,7 +784,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         device.UseProgram(roundedRectShaderProgram);
         device.UniformMatrix4(roundedRectProjectionLocation, activeProjection);
         device.Enable(RenderCapability.Blend);
-        device.BlendFunc(BlendFactor.SrcAlpha, BlendFactor.OneMinusSrcAlpha);
+        ApplyBlendFunc();
 
         device.BindVertexArray(roundedRectVao);
         device.BindBuffer(BufferTarget.ArrayBuffer, roundedRectVbo);

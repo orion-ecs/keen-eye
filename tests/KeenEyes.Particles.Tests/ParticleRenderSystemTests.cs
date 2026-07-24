@@ -39,7 +39,7 @@ public class ParticleRenderSystemTests : IDisposable
 
         var emitter = ParticleEmitter.Burst(5, 1f) with
         {
-            BlendMode = BlendMode.Transparent
+            BlendMode = BlendMode.Alpha
         };
         world!.Spawn()
             .With(new Transform2D(Vector2.Zero, 0f, Vector2.One))
@@ -125,13 +125,13 @@ public class ParticleRenderSystemTests : IDisposable
     #region Blend Mode Tests
 
     [Fact]
-    public void RenderSystem_TransparentBlend_DrawsParticles()
+    public void RenderSystem_AlphaBlend_DrawsParticles()
     {
         SetupWorldWithMockRenderer();
 
         var emitter = ParticleEmitter.Burst(5, 1f) with
         {
-            BlendMode = BlendMode.Transparent
+            BlendMode = BlendMode.Alpha
         };
         world!.Spawn()
             .With(new Transform2D(Vector2.Zero, 0f, Vector2.One))
@@ -208,7 +208,7 @@ public class ParticleRenderSystemTests : IDisposable
         // Create emitters with different blend modes
         world!.Spawn()
             .With(new Transform2D(new Vector2(0, 0), 0f, Vector2.One))
-            .With(ParticleEmitter.Burst(2, 1f) with { BlendMode = BlendMode.Transparent })
+            .With(ParticleEmitter.Burst(2, 1f) with { BlendMode = BlendMode.Alpha })
             .Build();
 
         world.Spawn()
@@ -262,9 +262,68 @@ public class ParticleRenderSystemTests : IDisposable
         Assert.Equal(2, circles.Count);
 
         // Multiply (red) should be rendered before Additive (blue)
-        // Order: Multiply -> Transparent -> Premultiplied -> Additive
+        // Order: Multiply -> Alpha -> Premultiplied -> Additive
         Assert.Equal(1f, circles[0].Color.X); // First is red (Multiply)
         Assert.Equal(1f, circles[1].Color.Z); // Second is blue (Additive)
+    }
+
+    [Fact]
+    public void RenderSystem_MixedBlendModes_SetsAdditiveForAdditiveGroupAndRestoresAlpha()
+    {
+        SetupWorldWithMockRenderer();
+
+        world!.Spawn()
+            .With(new Transform2D(Vector2.Zero, 0f, Vector2.One))
+            .With(ParticleEmitter.Burst(2, 1f) with
+            {
+                BlendMode = BlendMode.Alpha,
+                StartColor = new Vector4(1, 0, 0, 1) // Red = Alpha group
+            })
+            .Build();
+
+        world.Spawn()
+            .With(new Transform2D(new Vector2(100, 0), 0f, Vector2.One))
+            .With(ParticleEmitter.Burst(3, 1f) with
+            {
+                BlendMode = BlendMode.Additive,
+                StartColor = new Vector4(0, 0, 1, 1) // Blue = Additive group
+            })
+            .Build();
+
+        world.Update(1f / 60f);
+
+        var commands = mockRenderer!.Commands;
+
+        // The additive group must be preceded by an explicit switch to Additive.
+        var additiveSwitch = Assert.Single(
+            commands.OfType<SetBlendModeCommand>(), c => c.Mode == BlendMode.Additive);
+        var additiveSwitchIndex = commands.IndexOf(additiveSwitch);
+
+        for (var i = 0; i < commands.Count; i++)
+        {
+            if (commands[i] is not FillCircleCommand circle)
+            {
+                continue;
+            }
+
+            if (circle.Color.Z > 0.5f)
+            {
+                // Blue (additive) particles draw only after the Additive switch.
+                Assert.True(i > additiveSwitchIndex,
+                    "Additive particle drawn before SetBlendMode(Additive)");
+            }
+            else
+            {
+                // Red (alpha) particles draw before the Additive switch.
+                Assert.True(i < additiveSwitchIndex,
+                    "Alpha particle drawn after SetBlendMode(Additive)");
+            }
+        }
+
+        // After rendering, the blend mode must be restored to Alpha.
+        var lastSwitch = commands.OfType<SetBlendModeCommand>().Last();
+        Assert.Equal(BlendMode.Alpha, lastSwitch.Mode);
+        Assert.Equal(BlendMode.Alpha, mockRenderer.CurrentBlendMode);
     }
 
     #endregion
