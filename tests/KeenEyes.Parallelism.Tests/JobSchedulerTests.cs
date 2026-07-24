@@ -87,6 +87,21 @@ public class JobSchedulerTests
         }
     }
 
+    /// <summary>
+    /// A job that blocks until an externally controlled gate is opened. This makes
+    /// completion deterministic (rather than time-based), so waits against it cannot
+    /// race a sleeping job under ThreadPool contention.
+    /// </summary>
+    private readonly struct GatedJob : IJob
+    {
+        public ManualResetEventSlim Gate { get; init; }
+
+        public readonly void Execute()
+        {
+            Gate.Wait();
+        }
+    }
+
     private readonly struct ThreadTrackingJob : IJob
     {
         public ConcurrentBag<int> ThreadIds { get; init; }
@@ -326,12 +341,24 @@ public class JobSchedulerTests
     public void JobHandle_Wait_TimeoutReturnsCorrectly()
     {
         using var scheduler = new JobScheduler();
+        using var gate = new ManualResetEventSlim(false);
 
-        // Use 100ms delay - long enough to reliably test 10ms timeout, but fast enough to not slow tests
-        var handle = scheduler.Schedule(new SlowJob { DelayMs = 100 });
-        var completed = handle.Wait(TimeSpan.FromMilliseconds(10));
+        // The gated job cannot complete until we open the gate, so the outcome is
+        // deterministic and does not race a sleeping job against a short timeout.
+        // This mirrors the #1053 approach: assert the timeout *behavior*, not a tight
+        // wall-clock window that drifts under ThreadPool contention.
+        var handle = scheduler.Schedule(new GatedJob { Gate = gate });
 
-        Assert.False(completed);
+        // While the gate is closed the job genuinely cannot finish, so Wait must time
+        // out and report the job as not completed - regardless of scheduling delays.
+        var timedOut = handle.Wait(TimeSpan.FromMilliseconds(50));
+        Assert.False(timedOut);
+        Assert.False(handle.IsCompleted);
+
+        // Once the gate opens the job completes, and Wait must now report success.
+        gate.Set();
+        Assert.True(handle.Wait(TimeSpan.FromSeconds(5)));
+        Assert.True(handle.IsCompleted);
     }
 
     [Fact]

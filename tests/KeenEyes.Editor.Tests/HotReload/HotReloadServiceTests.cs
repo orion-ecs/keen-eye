@@ -7,33 +7,20 @@ namespace KeenEyes.Editor.Tests.HotReload;
 
 public class HotReloadServiceTests : IDisposable
 {
-    private readonly string originalGameProjectPath;
-    private readonly bool originalHotReloadEnabled;
-    private readonly int originalDebounceMs;
-    private readonly bool originalAutoReload;
-
     public HotReloadServiceTests()
     {
-        // Save original settings
-        originalGameProjectPath = EditorSettings.GameProjectPath;
-        originalHotReloadEnabled = EditorSettings.HotReloadEnabled;
-        originalDebounceMs = EditorSettings.HotReloadDebounceMs;
-        originalAutoReload = EditorSettings.HotReloadAutoReload;
-
-        // Reset settings for tests
-        EditorSettings.GameProjectPath = string.Empty;
-        EditorSettings.HotReloadEnabled = true;
-        EditorSettings.HotReloadDebounceMs = 500;
-        EditorSettings.HotReloadAutoReload = true;
+        // EditorSettings is process-global static state that HotReloadService reads/writes and
+        // subscribes to (SettingChanged). Reset it to defaults and detach any leaked
+        // subscribers so this class starts from clean, isolated state regardless of what other
+        // editor tests ran before it (see #1203). Defaults already match the values these
+        // tests expect (empty GameProjectPath, HotReload enabled, 500ms debounce, auto-reload).
+        EditorSettings.ResetForTesting();
     }
 
     public void Dispose()
     {
-        // Restore original settings
-        EditorSettings.GameProjectPath = originalGameProjectPath;
-        EditorSettings.HotReloadEnabled = originalHotReloadEnabled;
-        EditorSettings.HotReloadDebounceMs = originalDebounceMs;
-        EditorSettings.HotReloadAutoReload = originalAutoReload;
+        // Leave no global state (or leaked SettingChanged subscriptions) behind for the next test.
+        EditorSettings.ResetForTesting();
     }
 
     #region Constructor Tests

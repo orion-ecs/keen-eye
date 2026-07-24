@@ -3,8 +3,21 @@ using KeenEyes.Editor.Settings;
 namespace KeenEyes.Editor.Tests.Settings;
 
 [Collection("EditorSettings")]
-public class EditorSettingsTests
+public class EditorSettingsTests : IDisposable
 {
+    public EditorSettingsTests()
+    {
+        // EditorSettings is process-global static state; start every test from clean, isolated
+        // state and with no leaked SettingChanged subscribers (see #1203).
+        EditorSettings.ResetForTesting();
+    }
+
+    public void Dispose()
+    {
+        // Leave no global state (or leaked SettingChanged subscriptions) behind for the next test.
+        EditorSettings.ResetForTesting();
+    }
+
     #region General Settings Tests
 
     [Fact]
@@ -484,8 +497,8 @@ public class EditorSettingsTests
 
     private static void ResetSettingsForTest()
     {
-        // Force reset by loading defaults
-        EditorSettings.ResetToDefaults();
+        // Reset in-memory state without touching disk or leaking SettingChanged subscribers.
+        EditorSettings.ResetForTesting();
     }
 
     private static string GetTestSettingsPath()

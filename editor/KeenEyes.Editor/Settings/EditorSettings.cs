@@ -588,6 +588,27 @@ public static class EditorSettings
     }
 
     /// <summary>
+    /// Resets all process-global settings state for test isolation.
+    /// </summary>
+    /// <remarks>
+    /// Clears the in-memory settings back to their defaults, forgets the current settings
+    /// file path, marks settings as not loaded (so subsequent mutations are not persisted to
+    /// disk), and detaches every <see cref="SettingChanged"/> subscriber. Because
+    /// <see cref="EditorSettings"/> is a process-global static, concurrently- or
+    /// sequentially-executing editor tests can otherwise observe each other's writes and
+    /// leaked event subscriptions; calling this in test setup/teardown makes that bleed
+    /// impossible. Unlike <see cref="ResetToDefaults"/>, this never writes to disk and never
+    /// raises <see cref="SettingChanged"/>.
+    /// </remarks>
+    internal static void ResetForTesting()
+    {
+        CopySettings(new SettingsData(), _data);
+        _settingsPath = null;
+        _isLoaded = false;
+        SettingChanged = null;
+    }
+
+    /// <summary>
     /// Resets settings for a specific category to their defaults.
     /// </summary>
     /// <param name="category">The category to reset.</param>
