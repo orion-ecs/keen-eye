@@ -541,11 +541,13 @@ internal sealed class SaveManager
         var fileData = File.ReadAllBytes(filePath);
         var (slotInfo, snapshotData) = SaveFileFormat.Read(fileData, validateChecksum);
 
-        // Check if this is a delta
+        // Check if this is a delta. CustomMetadata is IReadOnlyDictionary<string, object>,
+        // and the source-generated JSON deserializer round-trips the boxed bool as a
+        // JsonElement rather than a bool, so the stored flag must be interpreted in both
+        // forms (in-memory bool before a round-trip, JsonElement after).
         if (slotInfo.CustomMetadata is null ||
-            !slotInfo.CustomMetadata.TryGetValue("isDelta", out var isDeltatObj) ||
-            isDeltatObj is not bool isDelta ||
-            !isDelta)
+            !slotInfo.CustomMetadata.TryGetValue("isDelta", out var isDeltaObj) ||
+            !IsTrueFlag(isDeltaObj))
         {
             throw new InvalidDataException($"Save slot '{slotName}' is not a delta snapshot.");
         }
@@ -557,6 +559,17 @@ internal sealed class SaveManager
 
         return delta;
     }
+
+    /// <summary>
+    /// Interprets a custom-metadata value as a boolean flag, tolerating both a live boxed
+    /// <see cref="bool"/> and a <see cref="JsonElement"/> produced by a JSON round-trip.
+    /// </summary>
+    private static bool IsTrueFlag(object? value) => value switch
+    {
+        bool b => b,
+        JsonElement { ValueKind: JsonValueKind.True } => true,
+        _ => false
+    };
 
     #endregion
 

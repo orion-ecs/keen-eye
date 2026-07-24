@@ -174,17 +174,26 @@ public static class DeltaDiffer
         IComponentSerializer serializer)
     {
         string? newName = null;
+        var nameRemoved = false;
         int? newParentId = null;
         var parentRemoved = false;
         var addedComponents = new List<SerializedComponent>();
         var removedComponentTypes = new List<string>();
         var modifiedComponents = new List<SerializedComponent>();
 
-        // Check name change
+        // Check name change. A null NewName means "unchanged", so a cleared name must be
+        // signalled explicitly via NameRemoved (mirroring NewParentId / ParentRemoved).
         var currentName = world.GetName(entity);
         if (currentName != baseline.Name)
         {
-            newName = currentName; // null means name was removed
+            if (currentName is not null)
+            {
+                newName = currentName;
+            }
+            else
+            {
+                nameRemoved = true;
+            }
         }
 
         // Check parent change
@@ -252,6 +261,7 @@ public static class DeltaDiffer
         {
             EntityId = entity.Id,
             NewName = newName,
+            NameRemoved = nameRemoved,
             NewParentId = newParentId,
             ParentRemoved = parentRemoved,
             AddedComponents = addedComponents,

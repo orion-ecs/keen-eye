@@ -816,4 +816,77 @@ public class DeltaRestorerTests
     }
 
     #endregion
+
+    #region Cumulative Chain Tests (#1133)
+
+    [Fact]
+    public void ApplyDelta_ReplayingSameCreationOnCumulativeChain_DoesNotDuplicateEntity()
+    {
+        using var world = new World();
+        world.Components.Register<SerializablePosition>();
+
+        // A baseline entity plus its mapping, as produced by restoring a baseline snapshot.
+        var baselineEntity = world.Spawn().With(new SerializablePosition { X = 1, Y = 2 }).Build();
+        var entityMap = new Dictionary<int, Entity> { [baselineEntity.Id] = baselineEntity };
+
+        // Cumulative (fixed-baseline) deltas replay the same creation record in every delta.
+        var delta = new DeltaSnapshot
+        {
+            BaselineSlotName = "baseline",
+            SequenceNumber = 1,
+            CreatedEntities =
+            [
+                new SerializedEntity
+                {
+                    Id = 999,
+                    Name = null,
+                    Components = []
+                }
+            ]
+        };
+
+        // Apply the same creation twice, as happens when d1 then d2 (both diffed against the
+        // same baseline) are applied in sequence.
+        var mapAfterFirst = DeltaRestorer.ApplyDelta(world, delta, serializer, entityMap);
+        DeltaRestorer.ApplyDelta(world, delta, serializer, mapAfterFirst);
+
+        // Expect exactly two entities (baseline + the single created one), not three.
+        Assert.Equal(2, world.GetAllEntities().Count());
+    }
+
+    #endregion
+
+    #region Name-Clear Delta Tests (#1134)
+
+    [Fact]
+    public void ApplyDelta_WithNameClearedAndReused_RestoresNamesWithoutThrowing()
+    {
+        // Author the change in a source world, diff it, then restore into a fresh world.
+        using var sourceWorld = new World();
+        sourceWorld.Components.Register<SerializablePosition>();
+
+        var a = sourceWorld.Spawn("Boss").With(new SerializablePosition { X = 1, Y = 1 }).Build();
+        var b = sourceWorld.Spawn("Bob").With(new SerializablePosition { X = 2, Y = 2 }).Build();
+
+        var baseline = SnapshotManager.CreateSnapshot(sourceWorld, serializer);
+
+        // Clear A's name, then hand "Boss" to B. This must be representable in a delta.
+        sourceWorld.SetName(a, null);
+        sourceWorld.SetName(b, "Boss");
+
+        var delta = DeltaDiffer.CreateDelta(sourceWorld, baseline, serializer, "baseline", 1);
+
+        // Restore the baseline into a fresh world and apply the delta.
+        using var targetWorld = new World();
+        targetWorld.Components.Register<SerializablePosition>();
+        var entityMap = SnapshotManager.RestoreSnapshot(targetWorld, baseline, serializer);
+
+        // Applying must not throw "name 'Boss' already exists".
+        DeltaRestorer.ApplyDelta(targetWorld, delta, serializer, entityMap);
+
+        Assert.Null(targetWorld.GetName(entityMap[a.Id]));
+        Assert.Equal("Boss", targetWorld.GetName(entityMap[b.Id]));
+    }
+
+    #endregion
 }

@@ -115,9 +115,23 @@ public sealed record EntityDelta
     public required int EntityId { get; init; }
 
     /// <summary>
-    /// Gets whether the entity's name changed.
+    /// Gets the new name assigned to the entity, or <c>null</c> when the name is unchanged.
     /// </summary>
+    /// <remarks>
+    /// A <c>null</c> value means "no change"; to represent clearing an entity's name, use
+    /// <see cref="NameRemoved"/>. This mirrors how <see cref="NewParentId"/> and
+    /// <see cref="ParentRemoved"/> distinguish "reparent" from "orphan".
+    /// </remarks>
     public string? NewName { get; init; }
+
+    /// <summary>
+    /// Gets whether the entity's name was explicitly cleared (removed).
+    /// </summary>
+    /// <remarks>
+    /// Distinct from a <c>null</c> <see cref="NewName"/>, which means the name is unchanged.
+    /// When <c>true</c>, the entity's name is removed during restoration.
+    /// </remarks>
+    public bool NameRemoved { get; init; }
 
     /// <summary>
     /// Gets whether the entity's parent changed.
@@ -150,6 +164,7 @@ public sealed record EntityDelta
     [JsonIgnore]
     public bool IsEmpty =>
         NewName is null &&
+        !NameRemoved &&
         NewParentId is null &&
         !ParentRemoved &&
         AddedComponents.Count == 0 &&

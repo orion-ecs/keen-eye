@@ -413,4 +413,56 @@ public class SaveManagerAdditionalTests
     }
 
     #endregion
+
+    #region SaveDelta / LoadDelta Round-Trip (#1132)
+
+    [Fact]
+    public void LoadDelta_AfterSaveDelta_RoundTripsSuccessfully()
+    {
+        var saveDir = "test-saves-loaddelta-roundtrip";
+
+        try
+        {
+            Directory.CreateDirectory(saveDir);
+
+            using var world = new World();
+            world.Components.Register<SerializablePosition>();
+            world.SaveDirectory = saveDir;
+
+            var serializer = new TestComponentSerializer()
+                .WithComponent<SerializablePosition>();
+
+            var manager = new SaveManager(world, saveDir);
+
+            var delta = new DeltaSnapshot
+            {
+                BaselineSlotName = "baseline",
+                SequenceNumber = 3,
+                CreatedEntities =
+                [
+                    new SerializedEntity { Id = 1, Name = "Created", Components = [] }
+                ]
+            };
+
+            // Persist the delta, then read it back through the only load API.
+            manager.SaveDelta("delta1", delta, serializer);
+            var loaded = manager.LoadDelta("delta1");
+
+            // The engine's own delta file must be loadable: the isDelta flag round-trips as a
+            // JsonElement, so the guard must accept it rather than rejecting every delta.
+            Assert.Equal(3, loaded.SequenceNumber);
+            Assert.Equal("baseline", loaded.BaselineSlotName);
+            Assert.Single(loaded.CreatedEntities);
+            Assert.Equal(1, loaded.CreatedEntities[0].Id);
+        }
+        finally
+        {
+            if (Directory.Exists(saveDir))
+            {
+                Directory.Delete(saveDir, true);
+            }
+        }
+    }
+
+    #endregion
 }

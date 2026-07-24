@@ -201,6 +201,59 @@ public class AutoSaveSystemTests : IDisposable
         Assert.True(system.TimeSinceLastSave < 1f); // Timer reset
     }
 
+    [Fact]
+    public void Update_AfterChangeThresholdReached_TriggersSave()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        // Time trigger disabled; only the change threshold can drive a save.
+        var config = new AutoSaveConfig { AutoSaveIntervalSeconds = 0f, ChangeThreshold = 2 };
+        var system = new AutoSaveSystem<TestComponentSerializer>(serializer, config);
+        world.AddSystem(system);
+
+        // Two entity creations meet the threshold of 2.
+        world.Spawn().With(new SerializablePosition()).Build();
+        world.Spawn().With(new SerializablePosition()).Build();
+
+        world.Update(0.001f);
+
+        Assert.True(world.SaveSlotExists(config.BaselineSlotName));
+    }
+
+    [Fact]
+    public void Update_BelowChangeThreshold_DoesNotSave()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        var config = new AutoSaveConfig { AutoSaveIntervalSeconds = 0f, ChangeThreshold = 5 };
+        var system = new AutoSaveSystem<TestComponentSerializer>(serializer, config);
+        world.AddSystem(system);
+
+        // Only two changes; threshold is five.
+        world.Spawn().With(new SerializablePosition()).Build();
+        world.Spawn().With(new SerializablePosition()).Build();
+
+        world.Update(0.001f);
+
+        Assert.False(world.SaveSlotExists(config.BaselineSlotName));
+    }
+
+    [Fact]
+    public void Update_AfterChangeTriggeredSave_ResetsChangeCount()
+    {
+        using var world = new World { SaveDirectory = testSaveDirectory };
+
+        var config = new AutoSaveConfig { AutoSaveIntervalSeconds = 0f, ChangeThreshold = 2 };
+        var system = new AutoSaveSystem<TestComponentSerializer>(serializer, config);
+        world.AddSystem(system);
+
+        world.Spawn().With(new SerializablePosition()).Build();
+        world.Spawn().With(new SerializablePosition()).Build();
+        world.Update(0.001f);
+
+        Assert.Equal(0, system.ChangesSinceLastSave);
+    }
+
     #endregion
 
     #region Manual Save Tests
