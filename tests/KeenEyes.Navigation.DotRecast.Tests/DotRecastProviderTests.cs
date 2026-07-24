@@ -437,9 +437,9 @@ public class DotRecastProviderTests : IDisposable
         // but the provider never consulted it, so obstacles added through it had zero
         // effect on pathfinding. With the wiring in place, an obstacle straddling the
         // straight corridor must push the path around the excluded polygons.
-        var navMesh = TestHelper.BuildTestNavMesh();
+        var testNavMesh = TestHelper.BuildTestNavMesh();
         using var world = new World();
-        world.InstallPlugin(new DotRecastNavigationPlugin(navMesh, TestHelper.CreateTestConfig()));
+        world.InstallPlugin(new DotRecastNavigationPlugin(testNavMesh, TestHelper.CreateTestConfig()));
 
         var pathProvider = world.GetExtension<DotRecastProvider>();
         var obstacles = world.GetExtension<NavMeshObstacleManager>();
