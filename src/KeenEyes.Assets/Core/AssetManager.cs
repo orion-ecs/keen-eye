@@ -256,7 +256,7 @@ public sealed class AssetManager : IDisposable
 
         entry.State = AssetState.Loading;
 
-        var fullPath = Path.Combine(config.RootPath, path);
+        var fullPath = ResolveAndValidatePath(path);
         if (!File.Exists(fullPath))
         {
             entry.State = AssetState.Failed;
@@ -457,7 +457,7 @@ public sealed class AssetManager : IDisposable
             return;
         }
 
-        var fullPath = Path.Combine(config.RootPath, path);
+        var fullPath = ResolveAndValidatePath(path);
         if (!File.Exists(fullPath))
         {
             return;
@@ -511,7 +511,7 @@ public sealed class AssetManager : IDisposable
         var loader = loaders.GetLoader<T>(extension)
             ?? throw AssetLoadException.UnsupportedFormat(path, typeof(T), extension);
 
-        var fullPath = Path.Combine(config.RootPath, path);
+        var fullPath = ResolveAndValidatePath(path);
         if (!File.Exists(fullPath))
         {
             throw AssetLoadException.FileNotFound(path, typeof(T));
@@ -543,7 +543,7 @@ public sealed class AssetManager : IDisposable
         var loader = loaders.GetLoader<T>(extension)
             ?? throw AssetLoadException.UnsupportedFormat(path, typeof(T), extension);
 
-        var fullPath = Path.Combine(config.RootPath, path);
+        var fullPath = ResolveAndValidatePath(path);
         if (!File.Exists(fullPath))
         {
             throw AssetLoadException.FileNotFound(path, typeof(T));
@@ -607,5 +607,37 @@ public sealed class AssetManager : IDisposable
     private void ThrowIfDisposed()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
+    }
+
+    /// <summary>
+    /// Resolves a caller-supplied asset path against the configured root and verifies the
+    /// resolved location is contained within that root.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="Path.Combine(string, string)"/> passes rooted/absolute arguments through
+    /// unchanged and does not collapse <c>..</c> segments, so an unchecked path such as
+    /// <c>"../../secrets.txt"</c> or an absolute path would otherwise escape the root. This
+    /// normalizes with <see cref="Path.GetFullPath(string)"/> and rejects any result that does
+    /// not sit under the root, guarding against path traversal when assets originate from
+    /// untrusted sources.
+    /// </remarks>
+    /// <param name="path">The caller-supplied path, expected to be relative to the root.</param>
+    /// <returns>The validated, fully-qualified path within the root.</returns>
+    /// <exception cref="AssetLoadException">Thrown when the path resolves outside the root.</exception>
+    private string ResolveAndValidatePath(string path)
+    {
+        var rootFull = Path.GetFullPath(config.RootPath);
+        var rootPrefix = rootFull.EndsWith(Path.DirectorySeparatorChar)
+            ? rootFull
+            : rootFull + Path.DirectorySeparatorChar;
+
+        var fullPath = Path.GetFullPath(Path.Combine(config.RootPath, path));
+
+        if (!fullPath.StartsWith(rootPrefix, StringComparison.Ordinal))
+        {
+            throw AssetLoadException.PathEscapesRoot(path);
+        }
+
+        return fullPath;
     }
 }

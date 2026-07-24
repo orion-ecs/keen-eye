@@ -78,6 +78,81 @@ public class AssetManagerTests : IDisposable
 
     #endregion
 
+    #region Path Containment Tests
+
+    [Fact]
+    public void Load_WithParentTraversalPath_ThrowsContainmentException()
+    {
+        // A real file placed outside the root, reachable via "../" traversal. Before the fix
+        // Path.Combine let this escape and the file loaded; now it must be rejected.
+        var outsideName = $"KeenEyes_Traversal_{Guid.NewGuid():N}.txt";
+        var outsidePath = Path.Combine(Path.GetDirectoryName(testDir.RootPath)!, outsideName);
+        File.WriteAllText(outsidePath, "escaped");
+        try
+        {
+            var traversalPath = Path.Combine("..", outsideName);
+
+            var ex = Assert.Throws<AssetLoadException>(() => manager.Load<TestAsset>(traversalPath));
+            Assert.Contains("outside the asset root", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(outsidePath);
+        }
+    }
+
+    [Fact]
+    public void Load_WithAbsolutePath_ThrowsContainmentException()
+    {
+        // An absolute path outside the root. Path.Combine passes rooted arguments through
+        // unchanged, so before the fix this loaded the arbitrary file directly.
+        var outsidePath = Path.Combine(Path.GetTempPath(), $"KeenEyes_Absolute_{Guid.NewGuid():N}.txt");
+        File.WriteAllText(outsidePath, "escaped");
+        try
+        {
+            var ex = Assert.Throws<AssetLoadException>(() => manager.Load<TestAsset>(outsidePath));
+            Assert.Contains("outside the asset root", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(outsidePath);
+        }
+    }
+
+    [Fact]
+    public async Task LoadAsync_WithParentTraversalPath_ThrowsContainmentException()
+    {
+        var outsideName = $"KeenEyes_Traversal_{Guid.NewGuid():N}.txt";
+        var outsidePath = Path.Combine(Path.GetDirectoryName(testDir.RootPath)!, outsideName);
+        await File.WriteAllTextAsync(outsidePath, "escaped");
+        try
+        {
+            var traversalPath = Path.Combine("..", outsideName);
+
+            var ex = await Assert.ThrowsAsync<AssetLoadException>(
+                () => manager.LoadAsync<TestAsset>(traversalPath));
+            Assert.Contains("outside the asset root", ex.Message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.Delete(outsidePath);
+        }
+    }
+
+    [Fact]
+    public void Load_WithNormalInRootRelativePath_LoadsSuccessfully()
+    {
+        // Legitimate in-root paths, including nested subdirectories, must still load unchanged.
+        var path = testDir.CreateFile(Path.Combine("nested", "asset.txt"), "In-root content");
+
+        using var handle = manager.Load<TestAsset>(path);
+
+        Assert.True(handle.IsLoaded);
+        Assert.Equal("In-root content", handle.Asset!.Content);
+    }
+
+    #endregion
+
     #region LoadAsync Tests
 
     [Fact]
