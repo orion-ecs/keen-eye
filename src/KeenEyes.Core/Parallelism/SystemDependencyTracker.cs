@@ -14,7 +14,10 @@ namespace KeenEyes;
 /// <list type="number">
 ///   <item>Explicit declaration via <see cref="ISystemDependencyProvider"/></item>
 ///   <item>Manual registration via <see cref="RegisterDependencies"/></item>
-///   <item>Assumed full access if not declared (conservative)</item>
+///   <item>Assumed empty (no component access) if not declared — an optimistic default.
+///   Such systems never register a conflict, so they may be batched to run concurrently
+///   with any other system. Declare dependencies explicitly for systems that touch shared
+///   component data.</item>
 /// </list>
 /// </para>
 /// </remarks>

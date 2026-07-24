@@ -461,6 +461,24 @@ public class JobSchedulerTests
     }
 
     [Fact]
+    public void Schedule_WithDependencyFromDifferentScheduler_ThrowsInsteadOfHanging()
+    {
+        using var schedulerA = new JobScheduler();
+        using var schedulerB = new JobScheduler();
+
+        var foreignHandle = schedulerA.Schedule(new IncrementJob { Counter = new int[1] });
+        foreignHandle.Complete();
+
+        // A dependency owned by another scheduler is never drained by schedulerB's queue
+        // processing (a JobHandle carries no owning-scheduler drainer), so a job waiting on it
+        // would hang permanently after the retry budget is exhausted. It must be rejected
+        // eagerly with a clear error instead (issue #1157). On the old code this call returned
+        // a handle without throwing.
+        Assert.Throws<InvalidOperationException>(() =>
+            schedulerB.Schedule(new IncrementJob { Counter = new int[1] }, foreignHandle));
+    }
+
+    [Fact]
     public void Schedule_AfterDispose_ThrowsObjectDisposedException()
     {
         var scheduler = new JobScheduler();

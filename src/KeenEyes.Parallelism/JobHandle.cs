@@ -50,6 +50,12 @@ public readonly struct JobHandle : IEquatable<JobHandle>
     public bool IsValid => source != null;
 
     /// <summary>
+    /// Gets the scheduler that produced this handle, or null for scheduler-agnostic
+    /// handles (the completed sentinel and combined handles).
+    /// </summary>
+    internal JobScheduler? OwningScheduler => source?.Owner;
+
+    /// <summary>
     /// Gets whether the job has completed execution.
     /// </summary>
     public bool IsCompleted => source?.IsCompleted ?? true;
@@ -183,6 +189,13 @@ internal class JobCompletionSource : IDisposable
     private Exception? exception;
 
     public static JobCompletionSource CompletedSource { get; } = CreateCompleted();
+
+    /// <summary>
+    /// The scheduler that owns this completion source, or null if it is scheduler-agnostic
+    /// (the shared completed sentinel or a combined source). Used to reject cross-scheduler
+    /// job dependencies, which would otherwise hang permanently (issue #1157).
+    /// </summary>
+    public JobScheduler? Owner { get; set; }
 
     public virtual bool IsCompleted => isCompleted;
     public bool IsFaulted => isFaulted;

@@ -60,7 +60,7 @@ public sealed class ParallelSystemPlugin(ParallelSystemOptions? options = null) 
             MaxDegreeOfParallelism = options.MaxDegreeOfParallelism
         };
 
-        scheduler = new ParallelSystemScheduler(world, parallelOptions);
+        scheduler = new ParallelSystemScheduler(world, parallelOptions, options.MinBatchSizeForParallel);
         context.SetExtension(scheduler);
     }
 
