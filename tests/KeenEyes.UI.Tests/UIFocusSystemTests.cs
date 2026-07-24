@@ -294,6 +294,83 @@ public class UIFocusSystemTests
     }
 
     [Fact]
+    public void EnterKey_HeldDownAcrossFrames_FiresSubmitOnce()
+    {
+        // Regression for #1193: Enter/Space must be edge-triggered. Holding Enter
+        // across multiple Updates must fire exactly one UISubmitEvent, not one per frame.
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 0);
+
+        int submitCount = 0;
+        world.Subscribe<UISubmitEvent>(_ => submitCount++);
+
+        uiContext.RequestFocus(button);
+
+        // Press Enter and hold it across two frames.
+        input.PressKey(Key.Enter);
+        system.Update(0);
+        system.Update(0);
+
+        Assert.Equal(1, submitCount);
+    }
+
+    [Fact]
+    public void SpaceKey_HeldDownAcrossFrames_FiresClickOnce()
+    {
+        // Regression for #1193: holding Space must fire exactly one UIClickEvent.
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 0);
+
+        int clickCount = 0;
+        world.Subscribe<UIClickEvent>(_ => clickCount++);
+
+        uiContext.RequestFocus(button);
+
+        // Press Space and hold it across two frames.
+        input.PressKey(Key.Space);
+        system.Update(0);
+        system.Update(0);
+
+        Assert.Equal(1, clickCount);
+    }
+
+    [Fact]
+    public void EnterKey_ReleasedAndPressedAgain_FiresSubmitEachPress()
+    {
+        // Edge-triggering must still allow a fresh Submit on each distinct press.
+        using var world = CreateWorldWithInput(out var input, out var uiContext);
+        var system = new UIFocusSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var button = CreateButton(world, canvas, 0);
+
+        int submitCount = 0;
+        world.Subscribe<UISubmitEvent>(_ => submitCount++);
+
+        uiContext.RequestFocus(button);
+
+        input.PressKey(Key.Enter);
+        system.Update(0);
+
+        input.ReleaseKey(Key.Enter);
+        system.Update(0);
+
+        input.PressKey(Key.Enter);
+        system.Update(0);
+
+        Assert.Equal(2, submitCount);
+    }
+
+    [Fact]
     public void KeypadEnter_OnFocusedElement_FiresSubmitEvent()
     {
         using var world = CreateWorldWithInput(out var input, out var uiContext);

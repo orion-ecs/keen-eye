@@ -548,6 +548,44 @@ public class UIModalSystemTests
     }
 
     [Fact]
+    public void Modal_EscapeKey_ClosesTopmostModalNotFirstOpened()
+    {
+        // Regression for #1195: with two stacked modals, Escape must close the
+        // topmost (most recently opened) modal, not an arbitrary creation-order-first one.
+        using var world = new World();
+        var mockInput = new MockInputContext();
+        world.SetExtension<IInputContext>(mockInput);
+
+        var modalSystem = new UIModalSystem();
+        world.AddSystem(modalSystem);
+
+        // Settings modal is created and opened first (background).
+        var settings = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIModal("Settings", closeOnEscape: true) { IsOpen = false })
+            .Build();
+
+        // Confirm modal is created and opened second (on top).
+        var confirm = world.Spawn()
+            .With(new UIElement { Visible = false })
+            .With(new UIModal("Confirm", closeOnEscape: true) { IsOpen = false })
+            .Build();
+
+        modalSystem.OpenModal(settings);
+        modalSystem.OpenModal(confirm);
+
+        // Initialize escape state (not pressed), then press escape.
+        mockInput.MockKeyboard.SetKeyUp(Key.Escape);
+        modalSystem.Update(0);
+        mockInput.MockKeyboard.SetKeyDown(Key.Escape);
+        modalSystem.Update(0);
+
+        // Topmost (confirm) closes; the background (settings) stays open.
+        Assert.False(world.Get<UIModal>(confirm).IsOpen);
+        Assert.True(world.Get<UIModal>(settings).IsOpen);
+    }
+
+    [Fact]
     public void Modal_EscapeKey_FiresCancelResult()
     {
         using var world = new World();

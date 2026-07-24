@@ -187,7 +187,6 @@ public sealed class UIInputSystem : SystemBase
                     // End drag
                     interactable.State &= ~UIInteractionState.Dragging;
                     interactable.PendingEvents |= UIEventType.DragEnd;
-                    isDragging = false;
 
                     World.Send(new UIDragEndEvent(pressedEntity, mousePos));
                 }
@@ -208,7 +207,12 @@ public sealed class UIInputSystem : SystemBase
                 }
             }
 
+            // Reset drag/press state unconditionally. If the pressed entity died
+            // mid-drag, the block above is skipped, but the drag flag must still be
+            // cleared or it leaks into the next press and swallows the next click by
+            // routing the release down the DragEnd path instead of Click (see #1196).
             pressedEntity = Entity.Null;
+            isDragging = false;
         }
     }
 

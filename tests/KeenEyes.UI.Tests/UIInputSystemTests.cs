@@ -557,6 +557,49 @@ public class UIInputSystemTests
     }
 
     [Fact]
+    public void Release_AfterPressedEntityDiesMidDrag_DoesNotSwallowNextClick()
+    {
+        // Regression for #1196: if the dragged entity dies mid-drag, the release
+        // cleanup block is skipped, so isDragging must still be reset. Otherwise the
+        // leaked drag flag routes the next release down the DragEnd path and swallows
+        // the following click.
+        using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
+        var system = new UIInputSystem();
+        world.AddSystem(system);
+
+        var canvas = uiContext.CreateCanvas();
+        var draggable = CreateDraggable(world, canvas, 100, 100, 200, 100);
+        var button = CreateButton(world, canvas, 100, 300, 200, 100);
+        layoutSystem.Update(0);
+
+        // Press the draggable and move far enough to begin dragging.
+        input.SetMousePosition(150, 150);
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+        input.SetMousePosition(160, 150);
+        system.Update(0);
+        Assert.True(world.Get<UIInteractable>(draggable).IsDragging);
+
+        // The dragged entity dies mid-drag, then the button is released.
+        world.Despawn(draggable);
+        input.SetMouseButton(MouseButton.Left, false);
+        system.Update(0);
+
+        // Now a plain click on the button must fire a UIClickEvent.
+        UIClickEvent? receivedEvent = null;
+        world.Subscribe<UIClickEvent>(e => receivedEvent = e);
+
+        input.SetMousePosition(150, 350); // Inside button
+        input.SetMouseButton(MouseButton.Left, true);
+        system.Update(0);
+        input.SetMouseButton(MouseButton.Left, false);
+        system.Update(0);
+
+        Assert.NotNull(receivedEvent);
+        Assert.Equal(button, receivedEvent.Value.Element);
+    }
+
+    [Fact]
     public void Hover_OnNonInteractableElement_DoesNotSetHovered()
     {
         using var world = CreateWorldWithInput(out var input, out var uiContext, out var layoutSystem);
