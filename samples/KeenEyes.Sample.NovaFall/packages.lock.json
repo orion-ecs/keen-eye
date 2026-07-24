@@ -103,6 +103,53 @@
       "keeneyes.abstractions": {
         "type": "Project"
       },
+      "keeneyes.animation": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.assets": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Animation": "[1.0.0, )",
+          "KeenEyes.Audio.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "NLayer": "[2.0.1, )",
+          "NVorbis": "[0.10.5, )",
+          "Pfim": "[0.11.4, )",
+          "SharpGLTF.Core": "[1.0.6, )",
+          "StbImageSharp": "[2.30.15, )"
+        }
+      },
+      "keeneyes.audio": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Audio.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )"
+        }
+      },
+      "keeneyes.audio.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.audio.silk": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Audio": "[1.0.0, )",
+          "KeenEyes.Audio.Abstractions": "[1.0.0, )",
+          "KeenEyes.Platform.Silk.Abstractions": "[1.0.0, )",
+          "Silk.NET.OpenAL": "[2.23.0, )"
+        }
+      },
       "keeneyes.common": {
         "type": "Project",
         "dependencies": {
@@ -165,6 +212,24 @@
           "Silk.NET.Input": "[2.23.0, )"
         }
       },
+      "keeneyes.localization": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Assets": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.UI.Abstractions": "[1.0.0, )",
+          "MessageFormat": "[8.0.0, )"
+        }
+      },
+      "keeneyes.particles": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )"
+        }
+      },
       "keeneyes.platform.silk": {
         "type": "Project",
         "dependencies": {
@@ -193,6 +258,26 @@
           "KeenEyes.Common": "[1.0.0, )"
         }
       },
+      "keeneyes.ui": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Common": "[1.0.0, )",
+          "KeenEyes.Core": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )",
+          "KeenEyes.Localization": "[1.0.0, )",
+          "KeenEyes.UI.Abstractions": "[1.0.0, )"
+        }
+      },
+      "keeneyes.ui.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )",
+          "KeenEyes.Graphics.Abstractions": "[1.0.0, )",
+          "KeenEyes.Input.Abstractions": "[1.0.0, )"
+        }
+      },
       "FontStashSharp.PlatformAgnostic": {
         "type": "CentralTransitive",
         "requested": "[1.5.6, )",
@@ -204,6 +289,36 @@
           "FontStashSharp.Rasterizers.StbTrueTypeSharp": "1.2.3",
           "StbImageSharp": "2.30.15"
         }
+      },
+      "MessageFormat": {
+        "type": "CentralTransitive",
+        "requested": "[8.0.0, )",
+        "resolved": "8.0.0",
+        "contentHash": "+nmYgGQVhGXmvQd+AMYILZGTxOP4J9tOR3KbjoxMDDICRrSzHYB9v1aRRVnXkD1ZeBapscFWIf5B/ck3p9R1mg=="
+      },
+      "NLayer": {
+        "type": "CentralTransitive",
+        "requested": "[2.0.1, )",
+        "resolved": "2.0.1",
+        "contentHash": "0nhnDRx98u7zXXbPIF11QYYupOOOQ9W22eqoyQyXn/gitRXbf9zAK8YfxyqS1Ix+TSqJv8EPNSk3VkDb7fChKw=="
+      },
+      "NVorbis": {
+        "type": "CentralTransitive",
+        "requested": "[0.10.5, )",
+        "resolved": "0.10.5",
+        "contentHash": "o+IptCG4Avze39HrGeztC+xIp6fOOwGVAwkoa1J++4Ji1WmZ+KIKlFl5wsgxsXqBkmdpfs/vFSUproiLKYa2bw=="
+      },
+      "Pfim": {
+        "type": "CentralTransitive",
+        "requested": "[0.11.4, )",
+        "resolved": "0.11.4",
+        "contentHash": "B3KDFyxY1NTqbeqGEaOM9uE+G71GG2TxWqVSs57e1pWYPf2vNLMIxk+x55MXdkon0iGeaekolFTlLS2CkgktYg=="
+      },
+      "SharpGLTF.Core": {
+        "type": "CentralTransitive",
+        "requested": "[1.0.6, )",
+        "resolved": "1.0.6",
+        "contentHash": "m3qIvUnpvRRfQ0fp0TFfpPk+vsHkCIOf/uIVJ19fe9dwa29KCO/PeHVXKAph8nsFxFLXitTIIqCa5W8JGLMhBg=="
       },
       "Silk.NET.Input": {
         "type": "CentralTransitive",
@@ -220,6 +335,15 @@
         "requested": "[2.23.0, )",
         "resolved": "2.23.0",
         "contentHash": "r8PdIVzME8EH0qAgbmRPO87I4GfgR2j8TofT7EMuRJDf1QluoQwnVypDoFJjQ2ZBSRsGYk5unYxxogI05Ogsmw=="
+      },
+      "Silk.NET.OpenAL": {
+        "type": "CentralTransitive",
+        "requested": "[2.23.0, )",
+        "resolved": "2.23.0",
+        "contentHash": "O8EaDRWGOcKniZ2VxKD/xOmugzUJz747KpqGRw3cezDsz8nD66OZW217o1rT06cG76f8eYigy/yY6eRdhRqHHQ==",
+        "dependencies": {
+          "Silk.NET.Core": "2.23.0"
+        }
       },
       "Silk.NET.OpenGL": {
         "type": "CentralTransitive",

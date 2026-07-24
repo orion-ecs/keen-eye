@@ -1,3 +1,7 @@
+using System.Numerics;
+using KeenEyes.Common;
+using KeenEyes.Spatial;
+
 namespace KeenEyes.Sample.NovaFall;
 
 /// <summary>
@@ -11,6 +15,13 @@ namespace KeenEyes.Sample.NovaFall;
 /// a pure function of the run seed and the floor index (see <see cref="FloorLayout"/>),
 /// so the layout is identical for every replay of a seed regardless of frame rate
 /// or window size.
+/// </para>
+/// <para>
+/// Floors also carry a <c>Transform3D</c> mirrored from their gameplay
+/// <see cref="Position2D"/> plus the <c>SpatialIndexed</c> tag, which keeps them in
+/// the quadtree that <see cref="GrazeDetectionSystem"/> queries. The mirror is
+/// updated in the same loop that scrolls the floor, so the index is never more
+/// than one frame behind.
 /// </para>
 /// <para>
 /// Spawning and despawning run in every phase so the shaft is already populated on
@@ -41,10 +52,14 @@ public sealed class FloorScrollSystem : SystemBase
             var rise = scroll.Speed * dt;
             scroll.Depth += rise / Tuning.UnitsPerMeter;
 
-            foreach (var entity in World.Query<Floor, Position2D>())
+            foreach (var entity in World.Query<Floor, Position2D, Transform3D>())
             {
                 ref var position = ref World.Get<Position2D>(entity);
                 position.Y -= rise;
+
+                // Mirror into the spatial index's position source.
+                ref var transform = ref World.Get<Transform3D>(entity);
+                transform.Position = new Vector3(Tuning.ShaftWidth / 2f, position.Y, 0f);
             }
         }
 
@@ -97,6 +112,8 @@ public sealed class FloorScrollSystem : SystemBase
                 Thickness = Tuning.FloorThickness,
             })
             .With(new Position2D { X = 0f, Y = y })
+            .With(new Transform3D(new Vector3(Tuning.ShaftWidth / 2f, y, 0f), Quaternion.Identity, Vector3.One))
+            .WithTag<SpatialIndexed>()
             .Build();
     }
 }

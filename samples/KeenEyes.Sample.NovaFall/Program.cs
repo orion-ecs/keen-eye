@@ -10,28 +10,51 @@
 // death resets it. Score is meters fallen times the current multiplier, ticking
 // continuously.
 //
+// PHASE B — the juice pass. Heat is now spectacle and power, not just a number:
+//   - Comet trail ribbon + additive cone particles, length/density by tier
+//   - Concentric additive glow under the ball, sine-pulsed by heat
+//   - The world palette itself tweens through four tier moods
+//   - FLOOR SMASH: at Plasma+, landings shatter the floor (fragments, hitstop,
+//     camera kick) at the cost of one heat tier
+//   - GRAZE SPARKS: thread within 12 units of a floor edge for score, heat,
+//     and a rising-pitch ting
+//   - A hand-rolled camera: trauma shake, smash kick, speed zoom-out, crush
+//     zoom-in — composed into the projection matrix each frame
+//   - Three synced music stems cross-faded by tier, wind pitched by fall speed
+//   - UI-kit HUD: heat bar with tier notches, combo toasts, death score card
+//
 // Controls:
 //   A / Left Arrow / Left Stick   - Steer left
 //   D / Right Arrow / Left Stick  - Steer right
 //   Any steer key                 - Start / restart
+//   J                             - Toggle all juice (the A/B readability demo)
 //   Escape                        - Exit
 //
 // Command line:
 //   --seed <n>        Pin the run seed (same layout every run)
 //   --simulate <n>    Headless determinism check: run n frames without a window
-//                     and print the procedural layout and final depth
+//                     and print the procedural layout, event counts, and final
+//                     state
 //
-// NOTE: The windowed mode requires a display; --simulate does not.
+// NOTE: The windowed mode requires a display; --simulate does not, and installs
+// no graphics, audio, particle, animation, or UI plugins at all — every juice
+// system no-ops without its extension.
 
 using System.Globalization;
 using System.Numerics;
 using KeenEyes;
+using KeenEyes.Animation;
+using KeenEyes.Audio.Silk;
 using KeenEyes.Graphics.Silk;
 using KeenEyes.Input.Abstractions;
 using KeenEyes.Input.Silk;
+using KeenEyes.Particles;
+using KeenEyes.Particles.Systems;
 using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
 using KeenEyes.Sample.NovaFall;
+using KeenEyes.Spatial;
+using KeenEyes.UI;
 
 // --- Parse arguments ---
 
@@ -64,11 +87,13 @@ Console.WriteLine("NOVAFALL");
 Console.WriteLine("========");
 Console.WriteLine();
 Console.WriteLine("Steer into the gaps. Do not touch the Furnace.");
+Console.WriteLine("Burn hot enough and the floors break before you do.");
 Console.WriteLine();
 Console.WriteLine("Controls:");
 Console.WriteLine("  A / Left Arrow / Left Stick   - Steer left");
 Console.WriteLine("  D / Right Arrow / Left Stick  - Steer right");
 Console.WriteLine("  Any steer key                 - Start / restart");
+Console.WriteLine("  J                             - Toggle juice on/off");
 Console.WriteLine("  Escape                        - Exit");
 Console.WriteLine();
 
@@ -103,15 +128,28 @@ var inputConfig = new SilkInputConfig
 
 using var world = new World();
 
-// Install plugins (order matters: window first, then graphics and input).
+// Install plugins (order matters: window first, then graphics and input, then
+// the gameplay/juice plugins that build on them).
 world.InstallPlugin(new SilkWindowPlugin(windowConfig));
 world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
 world.InstallPlugin(new SilkInputPlugin(inputConfig));
+InstallSimulationPlugins(world);
+world.InstallPlugin(new ParticlesPlugin());
+world.InstallPlugin(new AnimationPlugin());
+world.InstallPlugin(new SilkAudioPlugin());
+world.InstallPlugin(new UIPlugin());
+
+// NOVAFALL draws the particle pools itself, inside its own camera pass, so the
+// readability contract (particles UNDER floors) and the camera shake apply to
+// them. The stock render pass would draw the same pools a second time in plain
+// window coordinates, so it is switched off. Spawning and simulation of the
+// particles remain entirely the plugin's.
+world.GetSystem<ParticleRenderSystem>()!.Enabled = false;
 
 // A new seed per run unless one is pinned on the command line.
 var seed = pinnedSeed ?? (ulong)Environment.TickCount64;
 
-GameSetup.InitializeSingletons(world, seed, pinSeed: pinnedSeed is not null);
+GameSetup.InitializeSingletons(world, seed, pinSeed: pinnedSeed is not null, presentation: true);
 RegisterSystems(world, fontPath);
 GameSetup.StartRun(world, seed);
 
@@ -133,12 +171,20 @@ try
                 }
             };
 
-            Console.WriteLine("Ready. Press A/D to dive.");
+            // The UI layout system needs to know the pixel canvas size.
+            if (world.TryGetExtension<KeenEyes.Graphics.Abstractions.IGraphicsContext>(out var graphics)
+                && graphics is not null)
+            {
+                world.GetSystem<UILayoutSystem>()?.SetScreenSize(graphics.Width, graphics.Height);
+            }
+
+            Console.WriteLine("Ready. Press A/D to dive. Press J to compare with the juice off.");
         })
         .OnResize((width, height) =>
         {
-            // Gameplay lives in a fixed design space; the render system rescales
-            // automatically, so a resize only needs acknowledging, not handling.
+            // Gameplay lives in a fixed design space and the render system maps
+            // it through the camera matrix, so only the UI needs the new size.
+            world.GetSystem<UILayoutSystem>()?.SetScreenSize(width, height);
             Console.WriteLine($"Window resized to {width}x{height}");
         })
         .Run();
@@ -155,31 +201,65 @@ catch (Exception ex)
 
 Console.WriteLine("Sample complete!");
 
+// Installs the plugins the SIMULATION itself depends on — shared by the windowed
+// game and the headless mode so gameplay (graze detection's quadtree queries)
+// behaves identically in both. Keep juice plugins out of here.
+static void InstallSimulationPlugins(World world)
+{
+    world.InstallPlugin(new SpatialPlugin(new SpatialConfig
+    {
+        Strategy = SpatialStrategy.Quadtree,
+    }));
+}
+
 // Registers every game system with explicit phases and orders. Shared by the
-// windowed game and the headless simulation so both run the same pipeline.
+// windowed game and the headless simulation so both run the same pipeline —
+// juice systems are registered everywhere and no-op when their extension (or
+// presentation entirely) is absent.
 static void RegisterSystems(World world, string? fontPath)
 {
+    // EarlyUpdate: react to LAST frame's events, then clear them.
+    world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate, order: 0);
+    world.AddSystem<HitstopSystem>(SystemPhase.EarlyUpdate, order: 10);
+    world.AddSystem<FrameEventsClearSystem>(SystemPhase.EarlyUpdate, order: 50);
+
+    // Update: simulation first (input → motion → collision → scoring → flow)...
     world.AddSystem<InputSteerSystem>(SystemPhase.Update, order: 0);
+    world.AddSystem<JuiceToggleSystem>(SystemPhase.Update, order: 2);
     world.AddSystem<BallMovementSystem>(SystemPhase.Update, order: 10);
     world.AddSystem<FloorScrollSystem>(SystemPhase.Update, order: 20);
+    world.AddSystem<GrazeDetectionSystem>(SystemPhase.Update, order: 28);
     world.AddSystem<CollisionSystem>(SystemPhase.Update, order: 30);
     world.AddSystem<HeatSystem>(SystemPhase.Update, order: 40);
     world.AddSystem<ScoreSystem>(SystemPhase.Update, order: 50);
     world.AddSystem<CrushSystem>(SystemPhase.Update, order: 60);
     world.AddSystem<GameFlowSystem>(SystemPhase.Update, order: 70);
+
+    // ...then the juice, consuming this frame's events. (The animation plugin's
+    // TweenSystem runs at order 60, so tween values are fresh here.)
+    world.AddSystem<PaletteSystem>(SystemPhase.Update, order: 76);
+    world.AddSystem<SquashStretchSystem>(SystemPhase.Update, order: 77);
+    world.AddSystem<TrailSystem>(SystemPhase.Update, order: 78);
+    world.AddSystem<DeathSequenceSystem>(SystemPhase.Update, order: 79);
+    world.AddSystem<VfxSystem>(SystemPhase.Update, order: 80);
+    world.AddSystem<NovaFallAudioSystem>(SystemPhase.Update, order: 84);
+    world.AddSystem(new HudSystem(fontPath), SystemPhase.Update, order: 88, runsBefore: [], runsAfter: []);
+
     world.AddSystem(new NovaFallRenderSystem(fontPath), SystemPhase.Render, order: 0, runsBefore: [], runsAfter: []);
 }
 
-// Headless determinism harness: builds the world with no window, graphics, or
-// input plugins (every system that needs one no-ops), steps a fixed number of
-// frames at a fixed timestep, and prints the procedural layout plus final state.
-// Running this twice with the same seed must produce byte-identical output — the
-// CI-safe determinism hook for a later phase's replay tests.
+// Headless determinism harness: builds the world with no window, graphics,
+// audio, particle, animation, or UI plugins (every juice system no-ops), steps
+// a fixed number of frames at a fixed timestep, and prints the procedural
+// layout, deterministic event counters, and final state. Running this twice
+// with the same seed must produce byte-identical output — the CI-safe
+// determinism hook for a later phase's replay tests.
 static void RunHeadlessSimulation(int frames, ulong seed)
 {
     using var world = new World();
 
-    GameSetup.InitializeSingletons(world, seed, pinSeed: true);
+    InstallSimulationPlugins(world);
+    GameSetup.InitializeSingletons(world, seed, pinSeed: true, presentation: false);
     RegisterSystems(world, fontPath: null);
     GameSetup.StartRun(world, seed);
 
@@ -202,6 +282,11 @@ static void RunHeadlessSimulation(int frames, ulong seed)
             CultureInfo.InvariantCulture,
             $"floor {i}: gapCenter={gapCenterX:F3} gapWidth={gapWidth:F3}"));
     }
+
+    var counters = world.GetSingleton<RunEventCounters>();
+    Console.WriteLine(string.Create(
+        CultureInfo.InvariantCulture,
+        $"events: smashes={counters.Smashes} grazes={counters.Grazes}"));
 
     var scroll = world.GetSingleton<ScrollState>();
     var score = world.GetSingleton<ScoreState>();
