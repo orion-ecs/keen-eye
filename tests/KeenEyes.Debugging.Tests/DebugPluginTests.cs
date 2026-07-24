@@ -1,5 +1,6 @@
 using KeenEyes.Capabilities;
 using KeenEyes.Debugging.Timeline;
+using KeenEyes.Logging.Providers;
 using KeenEyes.Testing.Capabilities;
 using KeenEyes.Testing.Plugins;
 
@@ -218,6 +219,77 @@ public partial class DebugPluginTests
         // Assert
         var hasTimeline = world.TryGetExtension<TimelineRecorder>(out _);
         Assert.False(hasTimeline);
+    }
+
+    #endregion
+
+    #region Log Capture Auto-Start Tests (Issue #1167)
+
+    [Fact]
+    public void Install_WithInitialDebugModeAndAutoStartLogCapture_StartsCaptureImmediately()
+    {
+        // Regression for #1167: when the plugin is installed already in debug mode,
+        // auto-start log capture must fire on install (the DebugController constructor
+        // does not raise DebugModeChanged).
+        using var world = new World();
+        using var logProvider = new TestLogProvider();
+        var options = new DebugOptions
+        {
+            InitialDebugMode = true,
+            EnableLogCapture = true,
+            AutoStartLogCaptureOnDebugMode = true,
+            LogQueryable = logProvider,
+        };
+
+        world.InstallPlugin(new DebugPlugin(options));
+
+        var logCapture = world.GetExtension<LogCapture>();
+        Assert.NotNull(logCapture);
+        Assert.True(logCapture.IsCapturing);
+    }
+
+    [Fact]
+    public void Install_WithoutInitialDebugMode_DoesNotStartCaptureUntilDebugEnabled()
+    {
+        using var world = new World();
+        using var logProvider = new TestLogProvider();
+        var options = new DebugOptions
+        {
+            InitialDebugMode = false,
+            EnableLogCapture = true,
+            AutoStartLogCaptureOnDebugMode = true,
+            LogQueryable = logProvider,
+        };
+
+        world.InstallPlugin(new DebugPlugin(options));
+
+        var logCapture = world.GetExtension<LogCapture>();
+        Assert.NotNull(logCapture);
+        Assert.False(logCapture.IsCapturing);
+
+        // Enabling debug mode at runtime should start capture via the event subscription.
+        world.GetExtension<DebugController>().IsDebugMode = true;
+        Assert.True(logCapture.IsCapturing);
+    }
+
+    [Fact]
+    public void Install_WithInitialDebugModeButAutoStartDisabled_DoesNotStartCapture()
+    {
+        using var world = new World();
+        using var logProvider = new TestLogProvider();
+        var options = new DebugOptions
+        {
+            InitialDebugMode = true,
+            EnableLogCapture = true,
+            AutoStartLogCaptureOnDebugMode = false,
+            LogQueryable = logProvider,
+        };
+
+        world.InstallPlugin(new DebugPlugin(options));
+
+        var logCapture = world.GetExtension<LogCapture>();
+        Assert.NotNull(logCapture);
+        Assert.False(logCapture.IsCapturing);
     }
 
     #endregion

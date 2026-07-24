@@ -35,6 +35,7 @@ public sealed class MockHierarchyCapability : IHierarchyCapability
 
         if (!parent.IsValid)
         {
+            RemoveFromCurrentParent(child);
             parents.Remove(child);
             return;
         }
@@ -45,6 +46,9 @@ public sealed class MockHierarchyCapability : IHierarchyCapability
             throw new InvalidOperationException(
                 $"Setting {parent} as parent of {child} would create a circular reference.");
         }
+
+        // Detach from the previous parent so the parent/children maps stay consistent.
+        RemoveFromCurrentParent(child);
 
         parents[child] = parent;
 
@@ -191,6 +195,15 @@ public sealed class MockHierarchyCapability : IHierarchyCapability
             }
 
             childSet.Add(child);
+        }
+    }
+
+    private void RemoveFromCurrentParent(Entity child)
+    {
+        if (parents.TryGetValue(child, out var currentParent) &&
+            children.TryGetValue(currentParent, out var childSet))
+        {
+            childSet.Remove(child);
         }
     }
 

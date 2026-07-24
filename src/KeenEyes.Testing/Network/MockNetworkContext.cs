@@ -33,10 +33,15 @@ namespace KeenEyes.Testing.Network;
 /// network.TryReceive&lt;ServerResponse&gt;(out var response).Should().BeTrue();
 /// </code>
 /// </example>
-public sealed class MockNetworkContext : INetworkContext
+/// <param name="packetLossSeed">
+/// Optional seed for the deterministic generator that drives packet-loss decisions.
+/// Provide a seed to make packet loss reproducible in tests; when <see langword="null"/>,
+/// a time-based seed is used.
+/// </param>
+public sealed class MockNetworkContext(int? packetLossSeed = null) : INetworkContext
 {
     private readonly Queue<ReceivedMessage> receiveQueue = new();
-    private int packetLossCounter;
+    private ulong packetLossState = SeedToState(packetLossSeed);
     private NetworkConnectionState connectionState = NetworkConnectionState.Disconnected;
     private string? connectedEndpoint;
     private bool disposed;
@@ -44,6 +49,12 @@ public sealed class MockNetworkContext : INetworkContext
     /// <summary>
     /// Gets or sets the network options.
     /// </summary>
+    /// <remarks>
+    /// The <see cref="Latency"/> and <see cref="PacketLoss"/> properties reflect the
+    /// corresponding values on this options object, so configuring options directly
+    /// (for example via <see cref="KeenEyes.Testing.TestWorldBuilder.WithMockNetwork"/>) affects
+    /// simulated behavior just as the SimulateXxx helpers do.
+    /// </remarks>
     public NetworkOptions Options { get; set; } = new();
 
     /// <summary>
@@ -85,10 +96,10 @@ public sealed class MockNetworkContext : INetworkContext
     public bool IsConnected => connectionState == NetworkConnectionState.Connected;
 
     /// <inheritdoc />
-    public float Latency { get; private set; }
+    public float Latency => Options.SimulatedLatency;
 
     /// <inheritdoc />
-    public float PacketLoss { get; private set; }
+    public float PacketLoss => Options.SimulatedPacketLoss;
 
     /// <inheritdoc />
     public string? ConnectedEndpoint => connectedEndpoint;
@@ -171,16 +182,16 @@ public sealed class MockNetworkContext : INetworkContext
     /// <inheritdoc />
     public void SendTo<T>(string endpoint, T data, bool reliable = true, int channel = 0) where T : notnull
     {
-        // Simulate packet loss for unreliable messages using deterministic counter
-        if (!reliable && PacketLoss > 0)
+        // Simulate packet loss for unreliable messages. The loss probability is read
+        // from Options.SimulatedPacketLoss (exposed via PacketLoss) so both the
+        // SimulatePacketLoss helper and directly-configured options are honored.
+        // Loss is probabilistic (correct across the full 0..1 range, unlike an integer
+        // interval which breaks above 0.5) and driven by the seedable RNG for
+        // deterministic tests.
+        var loss = PacketLoss;
+        if (!reliable && loss > 0f && NextPacketLossSample() < loss)
         {
-            packetLossCounter++;
-            // Deterministic packet loss: lose every Nth packet where N = 1/PacketLoss
-            var lossInterval = (int)(1f / PacketLoss);
-            if (lossInterval > 0 && packetLossCounter % lossInterval == 0)
-            {
-                return; // Message "lost"
-            }
+            return; // Message "lost"
         }
 
         SentMessages.Add(new SentMessage(
@@ -199,19 +210,27 @@ public sealed class MockNetworkContext : INetworkContext
     /// <inheritdoc />
     public bool TryReceive<T>(out T? data) where T : class
     {
-        while (receiveQueue.Count > 0)
+        data = default;
+        var found = false;
+
+        // Cycle through the queue exactly once, removing only the first message that
+        // matches T. Non-matching messages (and any after the match) are re-enqueued in
+        // their original order so they remain available to later receive calls.
+        var count = receiveQueue.Count;
+        for (var i = 0; i < count; i++)
         {
             var message = receiveQueue.Dequeue();
-            if (message.Data is T typedData)
+            if (!found && message.Data is T typedData)
             {
                 data = typedData;
-                return true;
+                found = true;
+                continue;
             }
-            // Put back non-matching messages? For simplicity, we'll discard them
+
+            receiveQueue.Enqueue(message);
         }
 
-        data = default;
-        return false;
+        return found;
     }
 
     /// <inheritdoc />
@@ -302,7 +321,6 @@ public sealed class MockNetworkContext : INetworkContext
     /// <param name="latencyMs">The latency in milliseconds.</param>
     public void SimulateLatency(float latencyMs)
     {
-        Latency = latencyMs;
         Options.SimulatedLatency = latencyMs;
     }
 
@@ -312,8 +330,7 @@ public sealed class MockNetworkContext : INetworkContext
     /// <param name="ratio">The packet loss ratio (0 to 1).</param>
     public void SimulatePacketLoss(float ratio)
     {
-        PacketLoss = Math.Clamp(ratio, 0f, 1f);
-        Options.SimulatedPacketLoss = PacketLoss;
+        Options.SimulatedPacketLoss = Math.Clamp(ratio, 0f, 1f);
     }
 
     #endregion
@@ -332,8 +349,6 @@ public sealed class MockNetworkContext : INetworkContext
         ConnectAttemptCount = 0;
         DisconnectCount = 0;
         UpdateCount = 0;
-        Latency = 0;
-        PacketLoss = 0;
         AutoConnect = false;
         AutoFail = false;
         Options = new NetworkOptions();
@@ -373,6 +388,36 @@ public sealed class MockNetworkContext : INetworkContext
     }
 
     private sealed record ReceivedMessage(object Data, string SenderEndpoint, int Channel);
+
+    /// <summary>
+    /// Derives a well-distributed non-zero 64-bit state from the seed (or the system
+    /// clock when unseeded) using a SplitMix64 mixing step.
+    /// </summary>
+    private static ulong SeedToState(int? seed)
+    {
+        var value = (ulong)(seed ?? Environment.TickCount64);
+        value += 0x9E3779B97F4A7C15UL;
+        value = (value ^ (value >> 30)) * 0xBF58476D1CE4E5B9UL;
+        value = (value ^ (value >> 27)) * 0x94D049BB133111EBUL;
+        value ^= value >> 31;
+        return value == 0 ? 0x9E3779B97F4A7C15UL : value;
+    }
+
+    /// <summary>
+    /// Returns the next deterministic sample in [0, 1) for packet-loss decisions,
+    /// using a xorshift64 generator seeded via the constructor.
+    /// </summary>
+    private double NextPacketLossSample()
+    {
+        var x = packetLossState;
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        packetLossState = x;
+
+        // Map the top 53 bits into the unit interval.
+        return (x >> 11) * (1.0 / 9007199254740992.0);
+    }
 }
 
 /// <summary>

@@ -163,6 +163,13 @@ public sealed class DebugPlugin(DebugOptions? options = null) : IWorldPlugin
                             logCapture.StopCapture();
                         }
                     };
+
+                    // The DebugController constructor sets the initial mode without raising
+                    // DebugModeChanged, so honor the initial state explicitly at install time.
+                    if (controller.IsDebugMode && !logCapture.IsCapturing)
+                    {
+                        logCapture.StartCapture();
+                    }
                 }
             }
         }

@@ -47,6 +47,37 @@ public class MockHierarchyCapabilityTests
     }
 
     [Fact]
+    public void SetParent_Reparenting_RemovesChildFromOldParent()
+    {
+        // Regression for #1162: reparenting must detach the child from its previous
+        // parent so the parent/children maps stay consistent.
+        var capability = new MockHierarchyCapability();
+        var oldParent = new Entity(1, 0);
+        var newParent = new Entity(2, 0);
+        var child = new Entity(3, 0);
+
+        capability.SetParent(child, oldParent);
+        capability.SetParent(child, newParent);
+
+        Assert.DoesNotContain(child, capability.GetChildren(oldParent));
+        Assert.Contains(child, capability.GetChildren(newParent));
+        Assert.Equal(newParent, capability.GetParent(child));
+    }
+
+    [Fact]
+    public void SetParent_WithNullParent_RemovesChildFromOldParentChildren()
+    {
+        var capability = new MockHierarchyCapability();
+        var parent = new Entity(1, 0);
+        var child = new Entity(2, 0);
+        capability.SetParent(child, parent);
+
+        capability.SetParent(child, Entity.Null);
+
+        Assert.DoesNotContain(child, capability.GetChildren(parent));
+    }
+
+    [Fact]
     public void SetParent_WithThrowOnInvalidOperation_ThrowsOnCircularReference()
     {
         var capability = new MockHierarchyCapability { ThrowOnInvalidOperation = true };
