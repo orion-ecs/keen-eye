@@ -132,6 +132,17 @@ public partial struct Player;
 [TagComponent]
 public partial struct Enemy;
 
+/// <summary>
+/// Marks an enemy as capable of firing projectiles at the player.
+/// </summary>
+/// <remarks>
+/// This semantic tag drives shooting behavior instead of inspecting presentation
+/// data (the rendered symbol), keeping Separation of Concerns intact: systems query
+/// on what an entity <em>is</em>, not on how it happens to be drawn.
+/// </remarks>
+[TagComponent]
+public partial struct RangedAttacker;
+
 /// <summary>Marks an entity as a projectile.</summary>
 [TagComponent]
 public partial struct Projectile;

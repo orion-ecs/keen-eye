@@ -33,7 +33,7 @@ public sealed class NumberNode : INodeTypeDefinition
     /// <inheritdoc />
     public void Initialize(Entity node, IWorld world)
     {
-        // Could add component for storing the value
+        // No per-node state to initialize; the constant value lives in the output port default.
     }
 
     /// <inheritdoc />

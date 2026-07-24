@@ -164,7 +164,6 @@ Console.WriteLine("\n[5] Dynamic State Management with Tags\n");
 var patrollingGuard = world.Spawn()
     .WithPosition(x: 0, y: 0)
     .WithHealth(current: 100, max: 100)
-    .WithAIBehavior(state: "Patrol", timer: 0)
     .WithTag("Guard")
     .WithTag("State:Patrol")
     .Build();
