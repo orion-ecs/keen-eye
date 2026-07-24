@@ -19,13 +19,11 @@ namespace KeenEyes.TestBridge.Ipc.Transport;
 /// </remarks>
 public sealed class TcpIpcTransport : IIpcTransport
 {
-    private const int HeaderSize = 4;
-    private const int MaxMessageSize = 16 * 1024 * 1024; // 16MB for screenshots
-
     private readonly string bindAddress;
     private readonly int port;
     private readonly bool isServer;
     private readonly Lock stateLock = new();
+    private readonly SemaphoreSlim sendLock = new(1, 1);
 
     private TcpListener? listener;
     private TcpClient? client;
@@ -175,30 +173,7 @@ public sealed class TcpIpcTransport : IIpcTransport
             networkStream = stream;
         }
 
-        if (data.Length > MaxMessageSize)
-        {
-            throw new ArgumentException($"Message size {data.Length} exceeds maximum {MaxMessageSize}.", nameof(data));
-        }
-
-        // Create framed message: [4-byte length][payload]
-        var frameSize = HeaderSize + data.Length;
-        var buffer = ArrayPool<byte>.Shared.Rent(frameSize);
-
-        try
-        {
-            // Write length header (little-endian)
-            BitConverter.TryWriteBytes(buffer.AsSpan(0, HeaderSize), data.Length);
-
-            // Write payload
-            data.Span.CopyTo(buffer.AsSpan(HeaderSize));
-
-            await networkStream.WriteAsync(buffer.AsMemory(0, frameSize), cancellationToken).ConfigureAwait(false);
-            await networkStream.FlushAsync(cancellationToken).ConfigureAwait(false);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(buffer);
-        }
+        await IpcFrameProtocol.WriteFrameAsync(networkStream, sendLock, data, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
@@ -243,17 +218,22 @@ public sealed class TcpIpcTransport : IIpcTransport
         readCts?.Cancel();
         Cleanup();
         readCts?.Dispose();
+        sendLock.Dispose();
     }
 
     private void StartReadLoop()
     {
+        // Dispose the previous token source so reconnects do not leak one CTS
+        // per accepted connection. The prior read loop has already exited by
+        // the time a new connection is accepted on this point-to-point transport.
+        readCts?.Dispose();
         readCts = new CancellationTokenSource();
         readTask = ReadLoopAsync(readCts.Token);
     }
 
     private async Task ReadLoopAsync(CancellationToken cancellationToken)
     {
-        var headerBuffer = new byte[HeaderSize];
+        var headerBuffer = new byte[IpcFrameProtocol.HeaderSize];
 
         try
         {
@@ -271,7 +251,7 @@ public sealed class TcpIpcTransport : IIpcTransport
 
                 // Read header
                 var headerBytesRead = await ReadExactAsync(networkStream, headerBuffer, cancellationToken).ConfigureAwait(false);
-                if (headerBytesRead < HeaderSize)
+                if (headerBytesRead < IpcFrameProtocol.HeaderSize)
                 {
                     // Connection closed
                     break;
@@ -279,7 +259,7 @@ public sealed class TcpIpcTransport : IIpcTransport
 
                 // Parse message length
                 var messageLength = BitConverter.ToInt32(headerBuffer, 0);
-                if (messageLength <= 0 || messageLength > MaxMessageSize)
+                if (messageLength <= 0 || messageLength > IpcFrameProtocol.MaxMessageSize)
                 {
                     // Invalid message, disconnect
                     break;
@@ -322,18 +302,10 @@ public sealed class TcpIpcTransport : IIpcTransport
             // Stream disposed
         }
 
-        // Handle disconnection
-        bool wasConnected;
-        lock (stateLock)
-        {
-            wasConnected = isConnected;
-            isConnected = false;
-        }
-
-        if (wasConnected)
-        {
-            ConnectionChanged?.Invoke(false);
-        }
+        // Handle disconnection: dispose the socket/stream here so a reconnect
+        // does not leak the previous TcpClient/NetworkStream. Mirrors the
+        // named-pipe transport, which calls CleanupAsync on read-loop exit.
+        Cleanup();
     }
 
     private static async Task<int> ReadExactAsync(NetworkStream stream, Memory<byte> buffer, CancellationToken cancellationToken)
