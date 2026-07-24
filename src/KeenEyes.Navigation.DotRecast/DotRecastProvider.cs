@@ -30,6 +30,7 @@ public sealed class DotRecastProvider : ICrowdNavigationProvider
     private readonly Lock requestLock = new();
     private readonly float[] areaCosts = new float[32];
 
+    private int nextRequestId;
     private NavMeshData? activeMesh;
     private NavMeshQueryPool? queryPool;
     private DotRecastCrowdManager? crowdManager;
@@ -242,7 +243,7 @@ public sealed class DotRecastProvider : ICrowdNavigationProvider
     {
         ThrowIfDisposed();
 
-        var request = new DotRecastPathRequest(start, end, agent, areaMask);
+        var request = new DotRecastPathRequest(Interlocked.Increment(ref nextRequestId), start, end, agent, areaMask);
 
         lock (requestLock)
         {

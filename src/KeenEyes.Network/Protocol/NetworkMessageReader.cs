@@ -44,12 +44,15 @@ public ref struct NetworkMessageReader(ReadOnlySpan<byte> data)
     /// </summary>
     /// <returns>The message type.</returns>
     /// <remarks>
-    /// Note: This is a simplified approach that consumes the byte.
-    /// In production you'd want proper peek support.
+    /// The reader position is restored after reading, so subsequent reads
+    /// (such as <see cref="ReadHeader"/>) observe the message type byte again.
     /// </remarks>
-    public MessageType PeekMessageType()
+    public readonly MessageType PeekMessageType()
     {
-        return (MessageType)reader.ReadByte();
+        // BitReader is a value type; copy it, read from the copy, and leave
+        // the underlying reader position untouched so this is a true peek.
+        var peek = reader;
+        return (MessageType)peek.ReadByte();
     }
 
     /// <summary>

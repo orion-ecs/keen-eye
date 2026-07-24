@@ -44,15 +44,22 @@ public interface IEntityBuilder<TSelf> : IEntityBuilder where TSelf : IEntityBui
     /// <summary>
     /// Adds a component to the entity being built.
     /// </summary>
+    /// <typeparam name="T">The component type.</typeparam>
+    /// <param name="component">The component data.</param>
+    /// <returns>This builder for chaining.</returns>
     new TSelf With<T>(T component) where T : struct, IComponent;
 
     /// <summary>
     /// Adds a tag component to the entity being built.
     /// </summary>
+    /// <typeparam name="T">The tag component type.</typeparam>
+    /// <returns>This builder for chaining.</returns>
     new TSelf WithTag<T>() where T : struct, ITagComponent;
 
     /// <summary>
     /// Sets the parent entity for the entity being built.
     /// </summary>
+    /// <param name="parent">The parent entity.</param>
+    /// <returns>This builder for chaining.</returns>
     new TSelf WithParent(Entity parent);
 }

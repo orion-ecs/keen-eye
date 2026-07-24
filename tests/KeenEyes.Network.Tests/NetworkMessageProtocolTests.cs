@@ -250,6 +250,28 @@ public class NetworkMessageProtocolTests
         Assert.Equal(MessageType.EntitySpawn, peekedType);
     }
 
+    [Fact]
+    public void PeekMessageType_DoesNotAdvanceReader()
+    {
+        Span<byte> buffer = stackalloc byte[16];
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.EntitySpawn, 42);
+
+        var reader = new NetworkMessageReader(writer.GetWrittenSpan());
+        var bitsBeforePeek = reader.BitsRemaining;
+
+        var peekedType = reader.PeekMessageType();
+
+        // A true peek must leave the reader position untouched...
+        Assert.Equal(MessageType.EntitySpawn, peekedType);
+        Assert.Equal(bitsBeforePeek, reader.BitsRemaining);
+
+        // ...so the full header (including the message type byte) reads back correctly.
+        reader.ReadHeader(out var type, out var tick);
+        Assert.Equal(MessageType.EntitySpawn, type);
+        Assert.Equal(42u, tick);
+    }
+
     #endregion
 
     #region Writer Properties Tests

@@ -6,20 +6,19 @@ namespace KeenEyes.Navigation.Grid;
 /// <summary>
 /// Represents an asynchronous path computation request for grid navigation.
 /// </summary>
+/// <param name="id">The per-provider unique request identifier.</param>
 /// <param name="start">The starting position.</param>
 /// <param name="end">The destination position.</param>
 /// <param name="agent">The agent settings.</param>
 /// <param name="areaMask">The area mask for filtering.</param>
-internal sealed class GridPathRequest(Vector3 start, Vector3 end, AgentSettings agent, NavAreaMask areaMask) : IPathRequest
+internal sealed class GridPathRequest(int id, Vector3 start, Vector3 end, AgentSettings agent, NavAreaMask areaMask) : IPathRequest
 {
-    private static int nextId;
-
     private readonly TaskCompletionSource<NavPath> taskSource = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private PathRequestStatus status = PathRequestStatus.Pending;
     private NavPath result = NavPath.Empty;
 
     /// <inheritdoc/>
-    public int Id { get; } = Interlocked.Increment(ref nextId);
+    public int Id { get; } = id;
 
     /// <inheritdoc/>
     public PathRequestStatus Status => status;

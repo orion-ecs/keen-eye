@@ -153,6 +153,34 @@ public class GridNavigationProviderTests : IDisposable
     }
 
     [Fact]
+    public void RequestPath_MultipleRequests_ProduceUniqueIds()
+    {
+        using var request1 = provider.RequestPath(Vector3.Zero, new Vector3(5, 0, 5), AgentSettings.Default);
+        using var request2 = provider.RequestPath(Vector3.Zero, new Vector3(6, 0, 6), AgentSettings.Default);
+        using var request3 = provider.RequestPath(Vector3.Zero, new Vector3(7, 0, 7), AgentSettings.Default);
+
+        Assert.NotEqual(request1.Id, request2.Id);
+        Assert.NotEqual(request2.Id, request3.Id);
+        Assert.NotEqual(request1.Id, request3.Id);
+    }
+
+    [Fact]
+    public void RequestPath_SeparateProviders_UseIndependentIdCounters()
+    {
+        // Request IDs are per-provider (instance) state, not process-wide.
+        // A freshly constructed provider must restart its own counter regardless
+        // of how many requests any other provider has issued.
+        using var providerA = new GridNavigationProvider(config);
+        using var requestA1 = providerA.RequestPath(Vector3.Zero, new Vector3(5, 0, 5), AgentSettings.Default);
+        _ = providerA.RequestPath(Vector3.Zero, new Vector3(6, 0, 6), AgentSettings.Default);
+
+        using var providerB = new GridNavigationProvider(config);
+        using var requestB1 = providerB.RequestPath(Vector3.Zero, new Vector3(5, 0, 5), AgentSettings.Default);
+
+        Assert.Equal(requestA1.Id, requestB1.Id);
+    }
+
+    [Fact]
     public void RequestPath_AfterUpdate_CompletesPath()
     {
         using var request = provider.RequestPath(
