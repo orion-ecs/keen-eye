@@ -2,7 +2,8 @@ namespace KeenEyes.Sample.NovaFall;
 
 /// <summary>
 /// Resolves ball-versus-floor collisions: landing, resting (being carried upward),
-/// slipping into a gap, and clean gap-through detection.
+/// slipping into a gap, clean gap-through detection, and — at Plasma tier and
+/// above — the Floor Smash.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -17,11 +18,22 @@ namespace KeenEyes.Sample.NovaFall;
 /// partitioning earns its keep when BOTH sides of the test are numerous — hundreds
 /// of projectiles against hundreds of colliders — because it turns an O(n*m)
 /// pairing into O(n log m). With m = 15, the constant factors dominate and the
-/// simplest code wins. Measure before you partition.
+/// simplest code wins. Measure before you partition. (For the counterpoint, see
+/// <see cref="GrazeDetectionSystem"/>, which uses the quadtree.)
 /// </para>
 /// <para>
-/// The system publishes landing and gap-through events into the
-/// <see cref="FrameEvents"/> singleton, which <see cref="HeatSystem"/> consumes.
+/// FLOOR SMASH — at Plasma or Nova tier, what would have been a landing instead
+/// shatters the floor: the ball keeps falling (at reduced speed), the floor
+/// entity despawns, and downstream systems charge one full heat tier, award the
+/// score bonus, and fire the hitstop/camera/particle payoff. A smash can never
+/// trigger on two consecutive floors, so the flow keeps a rhythm of
+/// smash → thread → smash. Smashing is a pure function of simulation state, so
+/// the headless <c>--simulate</c> mode replays it identically.
+/// </para>
+/// <para>
+/// The system publishes its events into the <see cref="FrameEvents"/> singleton,
+/// which <see cref="HeatSystem"/>, <see cref="ScoreSystem"/>, and the juice
+/// systems consume.
 /// </para>
 /// </remarks>
 public sealed class CollisionSystem : SystemBase
@@ -60,9 +72,14 @@ public sealed class CollisionSystem : SystemBase
             return;
         }
 
-        // Airborne: row-scan the floors for landings and clean gap-throughs.
+        var tier = World.GetSingleton<HeatState>().Tier;
+        ref var smashState = ref World.GetSingleton<SmashState>();
+
+        // Airborne: row-scan the floors for landings, smashes, and gap-throughs.
         var landedOn = default(Entity);
         var landed = false;
+        var smashedFloor = default(Entity);
+        var smashed = false;
 
         foreach (var floorEntity in World.Query<Floor, Position2D>())
         {
@@ -70,15 +87,40 @@ public sealed class CollisionSystem : SystemBase
             var floorTop = World.Get<Position2D>(floorEntity).Y;
             var ballBottom = position.Y + radius;
 
-            // Landing: the ball's bottom is within the floor slab (plus a small
+            // Contact: the ball's bottom is within the floor slab (plus a small
             // tolerance for fast frames) while falling, and not over the gap.
-            if (!landed
+            if (!landed && !smashed
                 && velocity.Y >= 0f
                 && ballBottom >= floorTop
                 && ballBottom <= floorTop + floor.Thickness + Tuning.LandingTolerance
                 && !IsOverGap(position.X, radius, in floor))
             {
+                // Hot enough to smash, and not the floor immediately after the
+                // last smashed one? The impact shatters the floor instead of
+                // stopping the fall.
+                if (tier >= Tuning.SmashMinTier
+                    && floor.Index != smashState.LastSmashedFloorIndex + 1)
+                {
+                    events.Smashed = true;
+                    events.SmashX = position.X;
+                    events.SmashY = floorTop;
+                    events.SmashImpactSpeed = velocity.Y;
+                    events.SmashGapCenterX = floor.GapCenterX;
+                    events.SmashGapWidth = floor.GapWidth;
+
+                    smashState.LastSmashedFloorIndex = floor.Index;
+                    World.GetSingleton<RunEventCounters>().Smashes++;
+
+                    // Brief fall-speed relief: punch through, don't free-fall.
+                    velocity.Y *= Tuning.SmashFallRetention;
+
+                    smashedFloor = floorEntity;
+                    smashed = true;
+                    continue;
+                }
+
                 position.Y = floorTop - radius;
+                events.LandingSpeed = velocity.Y;
                 velocity.Y = 0f;
                 landedOn = floorEntity;
                 landed = true;
@@ -96,10 +138,17 @@ public sealed class CollisionSystem : SystemBase
             }
         }
 
-        // Structural change (component add) deferred until iteration is done.
+        // Structural changes (component add, despawn) deferred until iteration
+        // is done.
         if (landed)
         {
             World.Add(ballEntity, new RestingOn { FloorEntity = landedOn });
+        }
+
+        if (smashed)
+        {
+            // The floor is gone; VfxSystem turns the event into fragments.
+            World.Despawn(smashedFloor);
         }
     }
 

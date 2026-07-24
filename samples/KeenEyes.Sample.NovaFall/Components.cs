@@ -189,9 +189,15 @@ public struct TimeScale
 }
 
 /// <summary>
-/// Per-frame collision events published by <see cref="CollisionSystem"/> and
-/// consumed (then cleared) by <see cref="HeatSystem"/>.
+/// Per-frame gameplay events published by the simulation systems.
 /// </summary>
+/// <remarks>
+/// Events published during one frame's Update phase are consumed by simulation
+/// systems the same frame (heat, score) and by juice systems either the same
+/// frame (particles, audio) or at the start of the next frame (camera trauma,
+/// hitstop). <see cref="FrameEventsClearSystem"/> zeroes the struct in the next
+/// frame's EarlyUpdate, after every consumer has seen it exactly once.
+/// </remarks>
 public struct FrameEvents
 {
     /// <summary>Number of floors the ball passed cleanly through this frame.</summary>
@@ -199,4 +205,89 @@ public struct FrameEvents
 
     /// <summary>True if the ball landed on a floor this frame.</summary>
     public bool Landed;
+
+    /// <summary>Fall speed at the moment of landing, for squash scaling.</summary>
+    public float LandingSpeed;
+
+    /// <summary>True if the ball smashed through a floor this frame.</summary>
+    public bool Smashed;
+
+    /// <summary>Ball X at the moment of the smash.</summary>
+    public float SmashX;
+
+    /// <summary>Top Y of the smashed floor.</summary>
+    public float SmashY;
+
+    /// <summary>Fall speed at the moment of the smash, for crunch pitch and kick.</summary>
+    public float SmashImpactSpeed;
+
+    /// <summary>Gap center X of the smashed floor, for fragment placement.</summary>
+    public float SmashGapCenterX;
+
+    /// <summary>Gap width of the smashed floor, for fragment placement.</summary>
+    public float SmashGapWidth;
+
+    /// <summary>Number of grazes scored this frame (0 or 1 in practice).</summary>
+    public int Grazes;
+
+    /// <summary>Ball X at the moment of the last graze this frame.</summary>
+    public float GrazeX;
+
+    /// <summary>Ball Y at the moment of the last graze this frame.</summary>
+    public float GrazeY;
+
+    /// <summary>True if the heat tier changed this frame.</summary>
+    public bool TierChanged;
+
+    /// <summary>Tier before the change (valid when <see cref="TierChanged"/>).</summary>
+    public int TierFrom;
+
+    /// <summary>Tier after the change (valid when <see cref="TierChanged"/>).</summary>
+    public int TierTo;
+}
+
+/// <summary>
+/// Floor Smash bookkeeping: which floor was smashed last, so a smash can never
+/// trigger on two consecutive floors.
+/// </summary>
+public struct SmashState
+{
+    /// <summary>Index of the most recently smashed floor, or a large negative value.</summary>
+    public int LastSmashedFloorIndex;
+}
+
+/// <summary>
+/// Combo tracking: consecutive clean gap-throughs without a landing, plus the
+/// current consecutive-graze chain that drives the rising ting pitch.
+/// </summary>
+public struct ComboState
+{
+    /// <summary>Consecutive clean gap-throughs since the last landing.</summary>
+    public int Combo;
+
+    /// <summary>Consecutive grazes since the last landing.</summary>
+    public int ConsecutiveGrazes;
+}
+
+/// <summary>
+/// Deterministic per-run event counters, printed by the headless
+/// <c>--simulate</c> mode as part of the determinism guard.
+/// </summary>
+public struct RunEventCounters
+{
+    /// <summary>Total Floor Smashes this run.</summary>
+    public int Smashes;
+
+    /// <summary>Total grazes this run.</summary>
+    public int Grazes;
+}
+
+/// <summary>
+/// Hitstop bookkeeping owned by <see cref="HitstopSystem"/>. Counted in frames
+/// (real time), not scaled time — a frozen clock cannot be used to unfreeze itself.
+/// </summary>
+public struct HitstopState
+{
+    /// <summary>Frames of hitstop remaining; the system restores time at zero.</summary>
+    public int FramesRemaining;
 }
