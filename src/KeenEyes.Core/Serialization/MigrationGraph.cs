@@ -257,30 +257,86 @@ public sealed class MigrationGraph(string componentTypeName, int currentVersion 
 
     private bool ComputeHasPath(int from, int to)
     {
-        // For linear chains (v → v+1 → v+2), use simple iteration
-        for (var v = from; v < to; v++)
+        // Breadth-first search over the actual edge set so that non-adjacent edges
+        // (e.g. a direct v1 → v3 migration) are honored, not just consecutive v → v+1 steps.
+        var visited = new HashSet<int> { from };
+        var queue = new Queue<int>();
+        queue.Enqueue(from);
+
+        while (queue.Count > 0)
         {
-            if (!adjacencyList.TryGetValue(v, out var targets) || !targets.Contains(v + 1))
+            var current = queue.Dequeue();
+            if (!adjacencyList.TryGetValue(current, out var targets))
             {
-                return false;
+                continue;
+            }
+
+            foreach (var next in targets)
+            {
+                if (next == to)
+                {
+                    return true;
+                }
+
+                if (visited.Add(next))
+                {
+                    queue.Enqueue(next);
+                }
             }
         }
-        return true;
+
+        return false;
     }
 
     private IReadOnlyList<MigrationStep> ComputeMigrationChain(int from, int to)
     {
-        // For linear chains, build the step list directly
-        var chain = new List<MigrationStep>();
-        for (var v = from; v < to; v++)
+        // Breadth-first search yields the fewest-hop path across the edge set, then the
+        // predecessor map is walked back to build the ordered migration steps. Returns an
+        // empty chain when no path exists.
+        var predecessors = new Dictionary<int, int>();
+        var visited = new HashSet<int> { from };
+        var queue = new Queue<int>();
+        queue.Enqueue(from);
+        var found = false;
+
+        while (queue.Count > 0 && !found)
         {
-            if (!adjacencyList.TryGetValue(v, out var targets) || !targets.Contains(v + 1))
+            var current = queue.Dequeue();
+            if (!adjacencyList.TryGetValue(current, out var targets))
             {
-                // Gap found - return empty chain
-                return [];
+                continue;
             }
-            chain.Add(new MigrationStep(v, v + 1));
+
+            foreach (var next in targets)
+            {
+                if (!visited.Add(next))
+                {
+                    continue;
+                }
+
+                predecessors[next] = current;
+                if (next == to)
+                {
+                    found = true;
+                    break;
+                }
+
+                queue.Enqueue(next);
+            }
         }
+
+        if (!found)
+        {
+            return [];
+        }
+
+        var chain = new List<MigrationStep>();
+        for (var node = to; node != from; node = predecessors[node])
+        {
+            chain.Add(new MigrationStep(predecessors[node], node));
+        }
+
+        chain.Reverse();
         return chain;
     }
 

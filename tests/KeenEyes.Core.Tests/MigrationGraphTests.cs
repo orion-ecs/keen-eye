@@ -467,6 +467,87 @@ public class MigrationGraphTests
     }
 
     #endregion
+
+    #region Non-Adjacent Edge Tests (#1136)
+
+    [Fact]
+    public void HasPath_WithDirectNonAdjacentEdge_ReturnsTrue()
+    {
+        var graph = new MigrationGraph("TestComponent", 3);
+
+        // A single direct v1 -> v3 migration, no intermediate v2 step.
+        graph.AddEdge(1, 3);
+
+        Assert.True(graph.HasPath(1, 3));
+    }
+
+    [Fact]
+    public void GetMigrationChain_WithDirectNonAdjacentEdge_ReturnsSingleStep()
+    {
+        var graph = new MigrationGraph("TestComponent", 3);
+        graph.AddEdge(1, 3);
+
+        var chain = graph.GetMigrationChain(1, 3);
+
+        Assert.Single(chain);
+        Assert.Equal(new MigrationStep(1, 3), chain[0]);
+    }
+
+    [Fact]
+    public void HasPath_AcrossChainedNonAdjacentEdges_ReturnsTrue()
+    {
+        var graph = new MigrationGraph("TestComponent", 5);
+
+        // v1 -> v3 -> v5, skipping v2 and v4 entirely.
+        graph.AddEdge(1, 3);
+        graph.AddEdge(3, 5);
+
+        Assert.True(graph.HasPath(1, 5));
+    }
+
+    [Fact]
+    public void GetMigrationChain_AcrossChainedNonAdjacentEdges_ReturnsOrderedSteps()
+    {
+        var graph = new MigrationGraph("TestComponent", 5);
+        graph.AddEdge(1, 3);
+        graph.AddEdge(3, 5);
+
+        var chain = graph.GetMigrationChain(1, 5);
+
+        Assert.Equal(2, chain.Count);
+        Assert.Equal(new MigrationStep(1, 3), chain[0]);
+        Assert.Equal(new MigrationStep(3, 5), chain[1]);
+    }
+
+    [Fact]
+    public void GetMigrationChain_PrefersFewerHopsWhenDirectEdgeExists()
+    {
+        var graph = new MigrationGraph("TestComponent", 3);
+
+        // Both a direct edge and a two-step route from v1 to v3 exist; BFS must pick the direct one.
+        graph.AddEdge(1, 2);
+        graph.AddEdge(2, 3);
+        graph.AddEdge(1, 3);
+
+        var chain = graph.GetMigrationChain(1, 3);
+
+        Assert.Single(chain);
+        Assert.Equal(new MigrationStep(1, 3), chain[0]);
+    }
+
+    [Fact]
+    public void HasPath_WhenNoRouteExists_ReturnsFalse()
+    {
+        var graph = new MigrationGraph("TestComponent", 4);
+
+        // v1 -> v2 exists but there is no way to reach v4.
+        graph.AddEdge(1, 2);
+
+        Assert.False(graph.HasPath(1, 4));
+        Assert.Empty(graph.GetMigrationChain(1, 4));
+    }
+
+    #endregion
 }
 
 /// <summary>

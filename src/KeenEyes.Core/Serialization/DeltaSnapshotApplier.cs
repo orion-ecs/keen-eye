@@ -126,7 +126,7 @@ public static class DeltaSnapshotApplier
     /// </summary>
     private static SerializedEntity ApplyEntityDelta(SerializedEntity entity, EntityDelta delta)
     {
-        var name = delta.NewName ?? entity.Name;
+        var name = delta.NameRemoved ? null : (delta.NewName ?? entity.Name);
 
         int? parentId = entity.ParentId;
         if (delta.ParentRemoved)

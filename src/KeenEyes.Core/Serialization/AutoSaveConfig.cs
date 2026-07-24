@@ -36,8 +36,9 @@ public sealed record AutoSaveConfig
     /// Gets or sets the number of entity changes that trigger an auto-save.
     /// </summary>
     /// <remarks>
-    /// Set to 0 or negative to disable change-based auto-save.
-    /// Default is 1000 changes.
+    /// A "change" is an entity creation or destruction accumulated since the last auto-save;
+    /// once the running count reaches this threshold, an auto-save is performed and the count
+    /// resets. Set to 0 or negative to disable change-based auto-save. Default is 1000 changes.
     /// </remarks>
     public int ChangeThreshold { get; init; } = 1000;
 

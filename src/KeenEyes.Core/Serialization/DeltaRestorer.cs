@@ -94,6 +94,16 @@ public static class DeltaRestorer
         // 2. Create new entities
         foreach (var created in delta.CreatedEntities)
         {
+            // Guard against re-creating an entity that already exists and is alive. Cumulative
+            // delta chains (fixed-baseline, AutoSave-style) replay the same creation records in
+            // every delta, so without this guard applying a second delta would spawn a duplicate
+            // of every entity created since the baseline. Mirrors the id-collision handling in
+            // DeltaSnapshotApplier, which treats the surviving entity as authoritative.
+            if (newEntityMap.TryGetValue(created.Id, out var existing) && world.IsAlive(existing))
+            {
+                continue;
+            }
+
             var entity = CreateEntity(world, created, serializer);
             newEntityMap[created.Id] = entity;
         }
@@ -113,7 +123,25 @@ public static class DeltaRestorer
             }
         }
 
-        // 4. Apply modifications to existing entities
+        // 4. Clear removed names up front, before any name assignments in step 5. This lets a
+        //    name freed by one entity be reused by another within the same delta (for example,
+        //    entity A drops "Boss" and entity B is renamed to "Boss"), which would otherwise
+        //    throw because the old owner still holds the name when the new owner claims it.
+        foreach (var modification in delta.ModifiedEntities)
+        {
+            if (!modification.NameRemoved)
+            {
+                continue;
+            }
+
+            if (newEntityMap.TryGetValue(modification.EntityId, out var namedEntity) &&
+                world.IsAlive(namedEntity))
+            {
+                world.SetName(namedEntity, null);
+            }
+        }
+
+        // 5. Apply modifications to existing entities
         foreach (var modification in delta.ModifiedEntities)
         {
             if (!newEntityMap.TryGetValue(modification.EntityId, out var entity))
@@ -129,7 +157,7 @@ public static class DeltaRestorer
             ApplyEntityDelta(world, entity, modification, serializer, newEntityMap);
         }
 
-        // 5. Update singletons
+        // 6. Update singletons
         foreach (var singleton in delta.ModifiedSingletons)
         {
             var type = serializer.GetType(singleton.TypeName);
@@ -145,7 +173,7 @@ public static class DeltaRestorer
             }
         }
 
-        // 6. Remove deleted singletons
+        // 7. Remove deleted singletons
         foreach (var removedType in delta.RemovedSingletonTypes)
         {
             var type = serializer.GetType(removedType);
@@ -216,7 +244,8 @@ public static class DeltaRestorer
         IComponentSerializer serializer,
         Dictionary<int, Entity> entityMap)
     {
-        // Apply name change
+        // Apply name change. Name clears are handled in a dedicated earlier pass (see
+        // ApplyDelta) so a freed name is available before any entity here claims it.
         if (delta.NewName is not null)
         {
             world.SetName(entity, delta.NewName);

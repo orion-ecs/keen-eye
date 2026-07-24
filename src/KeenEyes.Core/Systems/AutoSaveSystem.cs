@@ -42,9 +42,12 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     private AutoSaveConfig config;
 
     private float timeSinceLastSave;
+    private int changesSinceLastSave;
     private int currentDeltaSequence;
     private WorldSnapshot? baselineSnapshot;
     private bool isInitialized;
+    private EventSubscription? entityCreatedSubscription;
+    private EventSubscription? entityDestroyedSubscription;
 
     /// <summary>
     /// Creates a new auto-save system with the specified serializer.
@@ -77,6 +80,15 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     public float TimeSinceLastSave => timeSinceLastSave;
 
     /// <summary>
+    /// Gets the number of tracked entity changes (creations and destructions) since the last save.
+    /// </summary>
+    /// <remarks>
+    /// This is the value compared against <see cref="AutoSaveConfig.ChangeThreshold"/> to drive
+    /// the change-based auto-save trigger. It resets to zero after each successful save.
+    /// </remarks>
+    public int ChangesSinceLastSave => changesSinceLastSave;
+
+    /// <summary>
     /// Gets the current delta sequence number (0 if no saves have occurred).
     /// </summary>
     public int CurrentDeltaSequence => currentDeltaSequence;
@@ -100,6 +112,12 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     protected override void OnInitialize()
     {
         isInitialized = true;
+
+        // Subscribe to entity lifecycle events to drive the change-based trigger. Entity
+        // creations and destructions since the last save are counted and compared against
+        // AutoSaveConfig.ChangeThreshold in Update.
+        entityCreatedSubscription = World.OnEntityCreated((_, _) => changesSinceLastSave++);
+        entityDestroyedSubscription = World.OnEntityDestroyed(_ => changesSinceLastSave++);
 
         // Try to load existing baseline if it exists
         if (World is ISaveLoadCapability saveLoad && saveLoad.SaveSlotExists(config.BaselineSlotName))
@@ -146,6 +164,12 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
             shouldSave = true;
         }
 
+        // Change-based trigger
+        if (config.ChangeThreshold > 0 && changesSinceLastSave >= config.ChangeThreshold)
+        {
+            shouldSave = true;
+        }
+
         if (shouldSave)
         {
             PerformAutoSave(saveLoad);
@@ -186,6 +210,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     public void Reset()
     {
         timeSinceLastSave = 0;
+        changesSinceLastSave = 0;
         currentDeltaSequence = 0;
         baselineSnapshot = null;
     }
@@ -214,8 +239,9 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
                 info = SaveBaseline(saveLoad);
             }
 
-            // Reset timer
+            // Reset trigger accumulators
             timeSinceLastSave = 0;
+            changesSinceLastSave = 0;
 
             // Clear dirty flags if configured
             if (config.ClearDirtyFlagsAfterSave)
@@ -308,5 +334,19 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
             }
         }
         return highest;
+    }
+
+    /// <inheritdoc />
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            entityCreatedSubscription?.Dispose();
+            entityDestroyedSubscription?.Dispose();
+            entityCreatedSubscription = null;
+            entityDestroyedSubscription = null;
+        }
+
+        base.Dispose(disposing);
     }
 }
