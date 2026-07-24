@@ -179,10 +179,10 @@ public class MouseVisualizerSystem : SystemBase
                 .With(new Material
                 {
                     ShaderId = graphics.LitShader.Id,
-                    TextureId = graphics.WhiteTexture.Id,
-                    Color = color,
-                    Metallic = 0.8f,
-                    Roughness = 0.2f
+                    BaseColorTextureId = graphics.WhiteTexture.Id,
+                    BaseColorFactor = color,
+                    MetallicFactor = 0.8f,
+                    RoughnessFactor = 0.2f
                 })
                 .WithTag<ClickMarkerTag>()
                 .With(new FadeOut { TimeRemaining = ClickMarkerDuration, TotalDuration = ClickMarkerDuration })
@@ -216,7 +216,7 @@ public class KeyboardVisualizerSystem : SystemBase
 
             bool isPressed = keyboard.IsKeyDown(binding.Key);
 
-            material.Color = isPressed
+            material.BaseColorFactor = isPressed
                 ? new Vector4(0.2f, 1f, 0.2f, 1f)
                 : new Vector4(0.4f, 0.4f, 0.4f, 1f);
         }
@@ -269,7 +269,7 @@ public class GamepadVisualizerSystem : SystemBase
 
             bool isPressed = cachedGamepad.IsButtonDown(binding.Button);
 
-            material.Color = isPressed
+            material.BaseColorFactor = isPressed
                 ? new Vector4(1f, 0.8f, 0.2f, 1f)
                 : new Vector4(0.3f, 0.3f, 0.3f, 1f);
         }
@@ -321,7 +321,7 @@ public class FadeOutSystem : SystemBase
             else
             {
                 float alpha = fadeOut.TimeRemaining / fadeOut.TotalDuration;
-                material.Color = new Vector4(material.Color.X, material.Color.Y, material.Color.Z, alpha);
+                material.BaseColorFactor = new Vector4(material.BaseColorFactor.X, material.BaseColorFactor.Y, material.BaseColorFactor.Z, alpha);
             }
         }
 

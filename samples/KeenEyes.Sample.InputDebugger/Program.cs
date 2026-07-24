@@ -182,7 +182,9 @@ void SetupInputEvents(IInputContext input)
         if (args.Key == Key.Escape)
         {
             Console.WriteLine("Escape pressed - closing...");
-            Environment.Exit(0);
+            // Fully qualify System.Environment: KeenEyes.Graphics.Abstractions also
+            // defines an Environment component, so the unqualified name is ambiguous here.
+            System.Environment.Exit(0);
         }
     };
 
@@ -245,10 +247,10 @@ void CreateDebugScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.2f, 0.25f, 0.2f, 1f),
-            Metallic = 0f,
-            Roughness = 0.95f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.2f, 0.25f, 0.2f, 1f),
+            MetallicFactor = 0f,
+            RoughnessFactor = 0.95f
         })
         .Build();
 
@@ -259,10 +261,10 @@ void CreateDebugScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(1f, 1f, 0f, 1f),
-            Metallic = 0.5f,
-            Roughness = 0.3f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(1f, 1f, 0f, 1f),
+            MetallicFactor = 0.5f,
+            RoughnessFactor = 0.3f
         })
         .WithTag<MouseMarkerTag>()
         .Build();
@@ -285,10 +287,10 @@ void CreateDebugScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.5f, 0.5f, 0.5f, 1f),
-            Metallic = 0f,
-            Roughness = 0.9f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.5f, 0.5f, 0.5f, 1f),
+            MetallicFactor = 0f,
+            RoughnessFactor = 0.9f
         })
         .Build();
 
@@ -300,10 +302,10 @@ void CreateDebugScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.25f, 0.25f, 0.3f, 1f),
-            Metallic = 0f,
-            Roughness = 0.9f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.25f, 0.25f, 0.3f, 1f),
+            MetallicFactor = 0f,
+            RoughnessFactor = 0.9f
         })
         .Build();
 
@@ -314,10 +316,10 @@ void CreateDebugScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.3f, 0.7f, 1f, 1f),
-            Metallic = 0.6f,
-            Roughness = 0.3f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.3f, 0.7f, 1f, 1f),
+            MetallicFactor = 0.6f,
+            RoughnessFactor = 0.3f
         })
         .WithTag<LeftStickMarkerTag>()
         .Build();
@@ -329,10 +331,10 @@ void CreateDebugScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.25f, 0.25f, 0.3f, 1f),
-            Metallic = 0f,
-            Roughness = 0.9f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.25f, 0.25f, 0.3f, 1f),
+            MetallicFactor = 0f,
+            RoughnessFactor = 0.9f
         })
         .Build();
 
@@ -343,10 +345,10 @@ void CreateDebugScene(World world, IGraphicsContext graphics)
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(1f, 0.5f, 0.3f, 1f),
-            Metallic = 0.6f,
-            Roughness = 0.3f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(1f, 0.5f, 0.3f, 1f),
+            MetallicFactor = 0.6f,
+            RoughnessFactor = 0.3f
         })
         .WithTag<RightStickMarkerTag>()
         .Build();
@@ -376,10 +378,10 @@ void CreateKeyVisualizer(World world, IGraphicsContext graphics, MeshHandle mesh
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.4f, 0.4f, 0.4f, 1f),
-            Metallic = 0.2f,
-            Roughness = 0.6f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.4f, 0.4f, 0.4f, 1f),
+            MetallicFactor = 0.2f,
+            RoughnessFactor = 0.6f
         })
         .WithTag<KeyVisualizerTag>()
         .With(new KeyBinding { Key = key })
@@ -394,10 +396,10 @@ void CreateGamepadButtonVisualizer(World world, IGraphicsContext graphics, MeshH
         .With(new Material
         {
             ShaderId = graphics.LitShader.Id,
-            TextureId = graphics.WhiteTexture.Id,
-            Color = new Vector4(0.3f, 0.3f, 0.3f, 1f),
-            Metallic = 0.2f,
-            Roughness = 0.6f
+            BaseColorTextureId = graphics.WhiteTexture.Id,
+            BaseColorFactor = new Vector4(0.3f, 0.3f, 0.3f, 1f),
+            MetallicFactor = 0.2f,
+            RoughnessFactor = 0.6f
         })
         .WithTag<GamepadButtonTag>()
         .With(new GamepadButtonBinding { Button = button })
