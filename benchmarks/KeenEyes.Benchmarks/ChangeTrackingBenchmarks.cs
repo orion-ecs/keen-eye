@@ -95,7 +95,6 @@ public class ChangeTrackingBenchmarks
     /// Measures the cost of clearing dirty flags.
     /// </summary>
     [Benchmark]
-    [IterationSetup(Target = nameof(ClearDirtyFlags))]
     public void ClearDirtyFlags()
     {
         world.ClearDirtyFlags<Position>();

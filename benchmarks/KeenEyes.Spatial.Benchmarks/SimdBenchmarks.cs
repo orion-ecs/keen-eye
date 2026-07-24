@@ -13,6 +13,7 @@ namespace KeenEyes.Spatial.Benchmarks;
 public class SimdBenchmarks
 {
     private Vector3[] positions = [];
+    private int[] resultBuffer = [];
     private Vector3 queryCenter;
     private Vector3 aabbMin;
     private Vector3 aabbMax;
@@ -26,6 +27,12 @@ public class SimdBenchmarks
     {
         var random = new Random(42);
         positions = new Vector3[EntityCount];
+
+        // Result buffer must hold every possible match, so size it to the full
+        // dataset. A fixed-size buffer would overrun once matches exceed its
+        // length, and would make the SIMD path a different workload than the
+        // scalar baseline (which uses a growable list).
+        resultBuffer = new int[EntityCount];
 
         // Create random positions in clustered distribution
         var clusterCount = 10;
@@ -78,8 +85,7 @@ public class SimdBenchmarks
     [Benchmark]
     public int DistanceFilter_SIMD()
     {
-        Span<int> results = stackalloc int[1000];
-        int count = SimdHelpers.FilterByDistanceSIMD(positions, queryCenter, radiusSquared, results);
+        int count = SimdHelpers.FilterByDistanceSIMD(positions, queryCenter, radiusSquared, resultBuffer);
         return count;
     }
 
@@ -107,8 +113,7 @@ public class SimdBenchmarks
     [Benchmark]
     public int AABBFilter_SIMD()
     {
-        Span<int> results = stackalloc int[1000];
-        int count = SimdHelpers.FilterByAABBSIMD(positions, aabbMin, aabbMax, results);
+        int count = SimdHelpers.FilterByAABBSIMD(positions, aabbMin, aabbMax, resultBuffer);
         return count;
     }
 
@@ -147,14 +152,13 @@ public class SimdBenchmarks
     public int MultipleDistanceQueries_SIMD()
     {
         int totalCount = 0;
-        Span<int> results = stackalloc int[1000];
 
         // Perform 10 queries at different positions
         for (int q = 0; q < 10; q++)
         {
             var center = new Vector3(q * 200f, q * 200f, q * 200f);
 
-            int count = SimdHelpers.FilterByDistanceSIMD(positions, center, radiusSquared, results);
+            int count = SimdHelpers.FilterByDistanceSIMD(positions, center, radiusSquared, resultBuffer);
             totalCount += count;
         }
 
