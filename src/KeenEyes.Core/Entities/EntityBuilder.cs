@@ -261,18 +261,32 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     /// <returns>The created entity.</returns>
     public Entity Build()
     {
-        var entity = world.CreateEntity(components, name);
+        // Snapshot builder state before creating the entity. Entity creation fires
+        // synchronous lifecycle callbacks (ComponentAdded / EntityCreated) that may
+        // re-enter Spawn() on this thread, which resets this pooled, thread-local
+        // builder and clears its backing lists. Copying first isolates the in-flight
+        // build from any nested Spawn/Build so its components, tags, name, and parent
+        // are not corrupted mid-construction.
+        var componentsCopy = new List<(ComponentInfo Info, object Data)>(components);
+        var tagsCopy = stringTags.Count > 0 ? new List<string>(stringTags) : null;
+        var entityName = name;
+        var parent = parentEntity;
+
+        var entity = world.CreateEntity(componentsCopy, entityName);
 
         // Apply string tags after entity creation
-        foreach (var tag in stringTags)
+        if (tagsCopy is not null)
         {
-            world.AddTag(entity, tag);
+            foreach (var tag in tagsCopy)
+            {
+                world.AddTag(entity, tag);
+            }
         }
 
         // Establish parent-child relationship if parent was specified
-        if (parentEntity.HasValue && parentEntity.Value.IsValid)
+        if (parent.HasValue && parent.Value.IsValid)
         {
-            world.SetParent(entity, parentEntity.Value);
+            world.SetParent(entity, parent.Value);
         }
 
         return entity;

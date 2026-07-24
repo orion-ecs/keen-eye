@@ -121,6 +121,27 @@ public sealed class QueryDescription
     public void AddWithoutStringTag(string tag) => withoutStringTags.Add(tag);
 
     /// <summary>
+    /// Creates a deep copy of this description with independent filter collections.
+    /// </summary>
+    /// <remarks>
+    /// Used by <see cref="QueryBuilder"/> to implement copy-on-write branching so that
+    /// adding a filter to one branch does not leak into sibling branches that share a
+    /// common base builder.
+    /// </remarks>
+    /// <returns>A new <see cref="QueryDescription"/> with the same filters as this one.</returns>
+    internal QueryDescription Clone()
+    {
+        var clone = new QueryDescription();
+        clone.read.AddRange(read);
+        clone.write.AddRange(write);
+        clone.with.AddRange(with);
+        clone.without.AddRange(without);
+        clone.withStringTags.AddRange(withStringTags);
+        clone.withoutStringTags.AddRange(withoutStringTags);
+        return clone;
+    }
+
+    /// <summary>
     /// Checks if an entity with the given components matches this query.
     /// </summary>
     /// <param name="entityComponents">The component types present on the entity.</param>
@@ -187,8 +208,11 @@ public readonly struct QueryBuilder : IQueryBuilder
     /// <returns>This builder for chaining.</returns>
     public QueryBuilder With<TWith>() where TWith : struct, IComponent
     {
-        description.AddWith<TWith>();
-        return new QueryBuilder(world, description);
+        // Copy-on-write: clone the description so branching from a shared base builder
+        // does not leak this filter into sibling queries.
+        var next = description.Clone();
+        next.AddWith<TWith>();
+        return new QueryBuilder(world, next);
     }
 
     /// <summary>Excludes entities that have this component.</summary>
@@ -196,8 +220,9 @@ public readonly struct QueryBuilder : IQueryBuilder
     /// <returns>This builder for chaining.</returns>
     public QueryBuilder Without<TWithout>() where TWithout : struct, IComponent
     {
-        description.AddWithout<TWithout>();
-        return new QueryBuilder(world, description);
+        var next = description.Clone();
+        next.AddWithout<TWithout>();
+        return new QueryBuilder(world, next);
     }
 
     /// <summary>Requires the entity to have this string tag.</summary>
@@ -208,8 +233,9 @@ public readonly struct QueryBuilder : IQueryBuilder
     public QueryBuilder WithTag(string tag)
     {
         ValidateTag(tag);
-        description.AddWithStringTag(tag);
-        return new QueryBuilder(world, description);
+        var next = description.Clone();
+        next.AddWithStringTag(tag);
+        return new QueryBuilder(world, next);
     }
 
     /// <summary>Excludes entities that have this string tag.</summary>
@@ -220,8 +246,9 @@ public readonly struct QueryBuilder : IQueryBuilder
     public QueryBuilder WithoutTag(string tag)
     {
         ValidateTag(tag);
-        description.AddWithoutStringTag(tag);
-        return new QueryBuilder(world, description);
+        var next = description.Clone();
+        next.AddWithoutStringTag(tag);
+        return new QueryBuilder(world, next);
     }
 
     /// <summary>Gets the query description.</summary>

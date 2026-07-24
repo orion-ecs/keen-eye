@@ -148,8 +148,20 @@ public sealed partial class World
         // Add to archetype
         archetypeManager.AddEntity(entity, components);
 
-        // Run custom validators after entity is created (they need access to entity)
-        validationManager.ValidateBuildCustom(entity, components);
+        // Run custom validators after entity is created (they need access to entity).
+        // If validation fails (or the validator itself throws), roll back everything so
+        // no half-initialized entity stays alive and no name remains permanently reserved.
+        try
+        {
+            validationManager.ValidateBuildCustom(entity, components);
+        }
+        catch
+        {
+            archetypeManager.RemoveEntity(entity);
+            entityNamingManager.UnregisterName(entity.Id);
+            entityPool.Release(entity);
+            throw;
+        }
 
         // Fire component added events for each component
         foreach (var (info, data) in components)
@@ -642,8 +654,16 @@ public sealed partial class World
         entityNamingManager.Clear();
         hierarchyManager.Clear();
         singletonManager.Clear();
-        changeTracker.Clear();
-        messageManager.Clear();
+        tagManager.Clear();
+
+        // Reset dirty-flag values but preserve auto-tracking configuration: Clear() is a
+        // state-only snapshot-restore entry point, so per-type tracking opt-ins registered
+        // by systems must survive the reset (ClearAll clears flags, Clear would wipe config).
+        changeTracker.ClearAll();
+
+        // Drop transient queued messages but keep handler subscriptions registered by
+        // systems, consistent with this method preserving event subscriptions.
+        messageManager.ClearQueuedMessages();
 
         // Invalidate query cache since all entities are gone
         queryManager.InvalidateCache();

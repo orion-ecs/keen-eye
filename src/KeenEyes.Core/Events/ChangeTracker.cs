@@ -28,8 +28,11 @@ internal sealed class ChangeTracker
     private readonly Lock syncRoot = new();
     private readonly EntityPool entityPool;
 
-    // Component type -> set of dirty entity IDs
-    private readonly Dictionary<Type, HashSet<int>> dirtyEntities = [];
+    // Component type -> map of dirty entity ID to the entity version at the time it was
+    // marked. The version guards against recycled IDs: if an entity is despawned and its
+    // ID reused for a brand-new entity, the stored version no longer matches and the new
+    // entity is not mistakenly reported as dirty.
+    private readonly Dictionary<Type, Dictionary<int, int>> dirtyEntities = [];
 
     // Component types with auto-tracking enabled
     private readonly HashSet<Type> autoTrackedTypes = [];
@@ -80,13 +83,14 @@ internal sealed class ChangeTracker
     {
         lock (syncRoot)
         {
-            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entityMap))
             {
-                entitySet = [];
-                dirtyEntities[typeof(T)] = entitySet;
+                entityMap = [];
+                dirtyEntities[typeof(T)] = entityMap;
             }
 
-            entitySet.Add(entity.Id);
+            // Record (or refresh) the version this entity was dirtied at.
+            entityMap[entity.Id] = entity.Version;
         }
     }
 
@@ -107,30 +111,41 @@ internal sealed class ChangeTracker
     /// </remarks>
     public IEnumerable<Entity> GetDirtyEntities<T>(Func<Entity, bool> isAlive) where T : struct, IComponent
     {
-        int[] entityIdsCopy;
+        (int Id, int Version)[] entitiesCopy;
         lock (syncRoot)
         {
-            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entityMap))
             {
                 return [];
             }
-            entityIdsCopy = [.. entitySet];
+
+            entitiesCopy = new (int, int)[entityMap.Count];
+            var index = 0;
+            foreach (var pair in entityMap)
+            {
+                entitiesCopy[index++] = (pair.Key, pair.Value);
+            }
         }
 
-        return GetDirtyEntitiesCore(entityIdsCopy, isAlive);
+        return GetDirtyEntitiesCore(entitiesCopy, isAlive);
     }
 
-    private IEnumerable<Entity> GetDirtyEntitiesCore(int[] entityIds, Func<Entity, bool> isAlive)
+    private IEnumerable<Entity> GetDirtyEntitiesCore((int Id, int Version)[] entities, Func<Entity, bool> isAlive)
     {
-        foreach (var entityId in entityIds)
+        foreach (var (entityId, markedVersion) in entities)
         {
-            var version = entityPool.GetVersion(entityId);
-            if (version < 0)
+            var currentVersion = entityPool.GetVersion(entityId);
+
+            // Skip IDs that never existed, or that were despawned/recycled since being
+            // marked dirty. Comparing against the marked version ensures a recycled ID
+            // reused by a new entity (possibly during this lazy enumeration) is never
+            // reported as dirty on the new entity's behalf.
+            if (currentVersion < 0 || currentVersion != markedVersion)
             {
                 continue;
             }
 
-            var entity = new Entity(entityId, version);
+            var entity = new Entity(entityId, markedVersion);
             if (isAlive(entity))
             {
                 yield return entity;
@@ -152,9 +167,9 @@ internal sealed class ChangeTracker
     {
         lock (syncRoot)
         {
-            if (dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            if (dirtyEntities.TryGetValue(typeof(T), out var entityMap))
             {
-                entitySet.Clear();
+                entityMap.Clear();
             }
         }
     }
@@ -178,12 +193,15 @@ internal sealed class ChangeTracker
 
         lock (syncRoot)
         {
-            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entityMap))
             {
                 return false;
             }
 
-            return entitySet.Contains(entity.Id);
+            // Only report dirty when the marked version matches the queried entity's
+            // version, so a recycled ID is not treated as dirty for the new entity.
+            return entityMap.TryGetValue(entity.Id, out var markedVersion)
+                && markedVersion == entity.Version;
         }
     }
 
@@ -253,12 +271,12 @@ internal sealed class ChangeTracker
     {
         lock (syncRoot)
         {
-            if (!dirtyEntities.TryGetValue(typeof(T), out var entitySet))
+            if (!dirtyEntities.TryGetValue(typeof(T), out var entityMap))
             {
                 return 0;
             }
 
-            return entitySet.Count;
+            return entityMap.Count;
         }
     }
 
@@ -273,9 +291,9 @@ internal sealed class ChangeTracker
     {
         lock (syncRoot)
         {
-            foreach (var entitySet in dirtyEntities.Values)
+            foreach (var entityMap in dirtyEntities.Values)
             {
-                entitySet.Clear();
+                entityMap.Clear();
             }
         }
     }
@@ -287,9 +305,9 @@ internal sealed class ChangeTracker
     {
         lock (syncRoot)
         {
-            foreach (var entitySet in dirtyEntities.Values)
+            foreach (var entityMap in dirtyEntities.Values)
             {
-                entitySet.Remove(entityId);
+                entityMap.Remove(entityId);
             }
         }
     }
