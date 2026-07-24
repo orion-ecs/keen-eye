@@ -48,6 +48,17 @@ internal static class WavDecoder
             var chunkId = Encoding.ASCII.GetString(data.Slice(offset, 4));
             var chunkSize = BinaryPrimitives.ReadInt32LittleEndian(data.Slice(offset + 4, 4));
 
+            // Validate the declared chunk size against the bytes actually present.
+            // A negative size would leave the offset unadvanced and spin the loop
+            // forever; an oversized size would slice past the end of the buffer.
+            // Either indicates a malformed (or untrusted/corrupt) file.
+            int remaining = data.Length - (offset + 8);
+            if (chunkSize < 0 || chunkSize > remaining)
+            {
+                throw new AudioLoadException(
+                    $"Invalid WAV file: chunk '{chunkId}' declares {chunkSize} bytes but only {remaining} remain");
+            }
+
             if (chunkId == "fmt ")
             {
                 var formatTag = BinaryPrimitives.ReadInt16LittleEndian(data.Slice(offset + 8, 2));

@@ -421,9 +421,19 @@ public sealed class SilkAudioContext : IAudioContext
 
     private float ComputeEffectiveVolume(float baseVolume, AudioChannel channel)
     {
-        var masterChannelVol = channelVolumes[AudioChannel.Master];
+        // The master volume and the Master channel volume are applied globally via the
+        // listener gain (see the MasterVolume setter, SetChannelVolume and HandleWindowLoad).
+        // OpenAL's final gain is source gain x listener gain, so applying them here as well
+        // would square them. The per-source gain therefore carries only the base volume and
+        // the sound's own (non-master) channel volume. Sounds on the Master channel are driven
+        // entirely by the listener gain.
+        if (channel == AudioChannel.Master)
+        {
+            return baseVolume;
+        }
+
         var channelVol = channelVolumes.TryGetValue(channel, out var vol) ? vol : 1f;
-        return baseVolume * masterChannelVol * channelVol * masterVolume;
+        return baseVolume * channelVol;
     }
 
     #endregion
