@@ -154,6 +154,13 @@ public sealed class AssetManager : IDisposable
         {
             await LoadAssetAsync<T>(entry, path, cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            // Cancellation is not a terminal failure: evict the entry so a later load with a
+            // fresh token starts over instead of rethrowing the stale cancellation (issue #1192).
+            cache.Evict(entry.Id);
+            throw;
+        }
         catch (Exception ex)
         {
             entry.State = AssetState.Failed;
@@ -256,7 +263,20 @@ public sealed class AssetManager : IDisposable
             throw AssetLoadException.FileNotFound(path, assetType);
         }
 
-        await loadSemaphore.WaitAsync(cancellationToken);
+        // The semaphore wait must be inside a try that handles cancellation: a cancelled token
+        // throws here before the load body runs, and previously left the entry stuck in Loading
+        // forever, hanging every later load of the same path (issue #1191). It has its own try so
+        // a wait that never acquires the semaphore does not reach the release in the finally below.
+        try
+        {
+            await loadSemaphore.WaitAsync(cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            cache.Evict(entry.Id);
+            throw;
+        }
+
         try
         {
             await using var stream = File.OpenRead(fullPath);
@@ -270,7 +290,9 @@ public sealed class AssetManager : IDisposable
         }
         catch (OperationCanceledException)
         {
-            entry.State = AssetState.Failed;
+            // Cancellation is not a terminal failure: evict so a later load starts over instead
+            // of leaving a stuck/poisoned entry (issues #1191, #1192).
+            cache.Evict(entry.Id);
             throw;
         }
         catch (Exception ex)

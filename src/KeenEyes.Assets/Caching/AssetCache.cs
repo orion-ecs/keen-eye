@@ -49,7 +49,10 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
     {
         if (entriesByPath.TryGetValue(path, out var existing))
         {
-            existing.AddRef();
+            // Cache hit: reference the entry AND its dependencies. Release recurses into
+            // dependencies, so acquisition must be symmetric or a shared dependency can be
+            // released below zero and disposed while a parent still holds it (issue #1190).
+            AddRefWithDependencies(existing);
             Interlocked.Increment(ref cacheHits);
             wasCreated = false;
             return existing;
@@ -70,7 +73,7 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
         // Another thread added it first
         wasCreated = false;
         var actualEntry = entriesByPath[path];
-        actualEntry.AddRef();
+        AddRefWithDependencies(actualEntry);
         Interlocked.Increment(ref cacheHits);
         return actualEntry;
     }
@@ -104,12 +107,28 @@ internal sealed class AssetCache(CachePolicy policy, long maxSizeBytes)
     {
         if (entriesById.TryGetValue(id, out var entry))
         {
-            entry.AddRef();
+            AddRefWithDependencies(entry);
+        }
+    }
 
-            // Also add refs to dependencies
-            foreach (var depId in entry.Dependencies)
+    /// <summary>
+    /// Increments the reference count of an entry and, recursively, all of its dependencies.
+    /// </summary>
+    /// <param name="entry">The entry to reference.</param>
+    /// <remarks>
+    /// This is the symmetric counterpart to <see cref="Release"/>, which recursively releases
+    /// dependencies. Both cache-hit acquisition and explicit acquisition go through here so a
+    /// dependency's reference count always matches the number of parents holding it.
+    /// </remarks>
+    private void AddRefWithDependencies(AssetEntry entry)
+    {
+        entry.AddRef();
+
+        foreach (var depId in entry.Dependencies)
+        {
+            if (entriesById.TryGetValue(depId, out var dependency))
             {
-                AddRef(depId);
+                AddRefWithDependencies(dependency);
             }
         }
     }
