@@ -260,6 +260,24 @@ public class MockKeyboardTests
         Assert.True(keyboard.Modifiers.HasFlag(KeyModifiers.Shift));
     }
 
+    [Fact]
+    public void SimulateKeyDown_AfterHeldModifier_PreservesModifierState()
+    {
+        // Regression for #1164: pressing a non-modifier key must not wipe a
+        // previously-held modifier.
+        var keyboard = new MockKeyboard();
+        KeyEventArgs? receivedArgs = null;
+        keyboard.OnKeyDown += args => receivedArgs = args;
+
+        keyboard.SimulateKeyDown(Key.LeftShift);
+        keyboard.SimulateKeyDown(Key.A);
+
+        Assert.True(keyboard.IsKeyDown(Key.LeftShift));
+        Assert.True(keyboard.Modifiers.HasFlag(KeyModifiers.Shift));
+        Assert.NotNull(receivedArgs);
+        Assert.True(receivedArgs.Value.Modifiers.HasFlag(KeyModifiers.Shift));
+    }
+
     #endregion
 
     #region SimulateKeyUp
@@ -303,6 +321,24 @@ public class MockKeyboardTests
         keyboard.SimulateKeyUp(Key.LeftShift);
 
         Assert.False(keyboard.Modifiers.HasFlag(KeyModifiers.Shift));
+    }
+
+    [Fact]
+    public void SimulateKeyUp_NonModifierKey_PreservesHeldModifier()
+    {
+        // Regression for #1164: releasing a non-modifier key must not wipe a
+        // still-held modifier.
+        var keyboard = new MockKeyboard();
+        keyboard.SimulateKeyDown(Key.LeftShift);
+        keyboard.SimulateKeyDown(Key.A);
+        KeyEventArgs? receivedArgs = null;
+        keyboard.OnKeyUp += args => receivedArgs = args;
+
+        keyboard.SimulateKeyUp(Key.A);
+
+        Assert.True(keyboard.Modifiers.HasFlag(KeyModifiers.Shift));
+        Assert.NotNull(receivedArgs);
+        Assert.True(receivedArgs.Value.Modifiers.HasFlag(KeyModifiers.Shift));
     }
 
     #endregion

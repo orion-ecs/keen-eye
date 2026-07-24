@@ -222,4 +222,65 @@ public class TestLogProviderTests
 
         provider.MessageCount.ShouldBe(100);
     }
+
+    #region CategoryPattern Wildcard Query (Issue #1163)
+
+    [Fact]
+    public void Query_ByCategoryPattern_Exact_ReturnsMatchingEntries()
+    {
+        using var provider = new TestLogProvider();
+        provider.Log(LogLevel.Info, "CategoryA", "Message A", null);
+        provider.Log(LogLevel.Info, "CategoryB", "Message B", null);
+
+        var results = provider.Query(new LogQuery { CategoryPattern = "CategoryA" });
+
+        results.Count.ShouldBe(1);
+        results[0].Category.ShouldBe("CategoryA");
+    }
+
+    [Fact]
+    public void Query_ByCategoryPattern_TrailingWildcard_ReturnsMatchingEntries()
+    {
+        using var provider = new TestLogProvider();
+        provider.Log(LogLevel.Info, "KeenEyes.Core", "Core message", null);
+        provider.Log(LogLevel.Info, "KeenEyes.Physics", "Physics message", null);
+        provider.Log(LogLevel.Info, "Other.System", "Other message", null);
+
+        var results = provider.Query(new LogQuery { CategoryPattern = "KeenEyes.*" });
+
+        results.Count.ShouldBe(2);
+        results.ShouldAllBe(e => e.Category.StartsWith("KeenEyes"));
+    }
+
+    [Fact]
+    public void Query_ByCategoryPattern_LeadingWildcard_ReturnsMatchingEntries()
+    {
+        // Regression for #1163: a leading '*' must match a suffix. The old prefix-based
+        // logic kept the '*' in the search text and never matched.
+        using var provider = new TestLogProvider();
+        provider.Log(LogLevel.Info, "KeenEyes.Physics", "Physics message", null);
+        provider.Log(LogLevel.Info, "KeenEyes.Core", "Core message", null);
+
+        var results = provider.Query(new LogQuery { CategoryPattern = "*Physics" });
+
+        results.Count.ShouldBe(1);
+        results[0].Category.ShouldBe("KeenEyes.Physics");
+    }
+
+    [Fact]
+    public void Query_ByCategoryPattern_QuestionMark_MatchesSingleCharacter()
+    {
+        using var provider = new TestLogProvider();
+        provider.Log(LogLevel.Info, "Log1", "One", null);
+        provider.Log(LogLevel.Info, "Log2", "Two", null);
+        provider.Log(LogLevel.Info, "Log42", "FortyTwo", null);
+
+        var results = provider.Query(new LogQuery { CategoryPattern = "Log?" });
+
+        results.Count.ShouldBe(2);
+        results.ShouldContain(e => e.Category == "Log1");
+        results.ShouldContain(e => e.Category == "Log2");
+    }
+
+    #endregion
 }

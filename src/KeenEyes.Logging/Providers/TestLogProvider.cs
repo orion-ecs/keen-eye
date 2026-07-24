@@ -205,20 +205,12 @@ public sealed class TestLogProvider : ILogProvider, ILogQueryable
                 result = result.Where(e => e.Level <= query.MaxLevel.Value);
             }
 
-            // Apply category filter (simple contains for TestLogProvider)
+            // Apply category filter using the documented wildcard semantics
+            // (shared with RingBufferLogProvider via LogCategoryPattern).
             if (!string.IsNullOrEmpty(query.CategoryPattern))
             {
-                var pattern = query.CategoryPattern;
-                if (pattern.Contains('*') || pattern.Contains('?'))
-                {
-                    // Simple wildcard - just check prefix for "Pattern.*"
-                    var prefix = pattern.TrimEnd('*', '?', '.');
-                    result = result.Where(e => e.Category.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-                }
-                else
-                {
-                    result = result.Where(e => e.Category.Equals(pattern, StringComparison.OrdinalIgnoreCase));
-                }
+                var pattern = LogCategoryPattern.ToRegex(query.CategoryPattern);
+                result = result.Where(e => pattern.IsMatch(e.Category));
             }
 
             // Apply message filter

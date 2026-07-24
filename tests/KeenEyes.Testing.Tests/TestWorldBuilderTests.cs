@@ -61,6 +61,36 @@ public class TestWorldBuilderTests
         testWorld.HasDeterministicIds.ShouldBeFalse();
     }
 
+    [Fact]
+    public void WithDeterministicIds_AfterDespawn_DoesNotRecycleId()
+    {
+        // Regression for #1160: deterministic mode must assign IDs sequentially
+        // without recycling, so a despawn followed by a spawn yields a fresh ID.
+        using var testWorld = new TestWorldBuilder()
+            .WithDeterministicIds()
+            .Build();
+
+        var first = testWorld.World.Spawn().Build();
+        testWorld.World.Despawn(first);
+        var second = testWorld.World.Spawn().Build();
+
+        first.Id.ShouldBe(0);
+        second.Id.ShouldBe(1);
+    }
+
+    [Fact]
+    public void WithoutDeterministicIds_AfterDespawn_RecyclesId()
+    {
+        // Default worlds still recycle IDs (contrast for #1160).
+        using var testWorld = new TestWorldBuilder().Build();
+
+        var first = testWorld.World.Spawn().Build();
+        testWorld.World.Despawn(first);
+        var second = testWorld.World.Spawn().Build();
+
+        second.Id.ShouldBe(first.Id);
+    }
+
     #endregion
 
     #region WithManualTime Tests

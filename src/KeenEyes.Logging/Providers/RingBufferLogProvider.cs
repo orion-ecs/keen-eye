@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Text.RegularExpressions;
 
 namespace KeenEyes.Logging.Providers;
 
@@ -146,7 +145,7 @@ public sealed class RingBufferLogProvider : ILogProvider, ILogQueryable
         // Apply category filter
         if (!string.IsNullOrEmpty(query.CategoryPattern))
         {
-            var pattern = WildcardToRegex(query.CategoryPattern);
+            var pattern = LogCategoryPattern.ToRegex(query.CategoryPattern);
             result = result.Where(e => pattern.IsMatch(e.Category));
         }
 
@@ -297,22 +296,5 @@ public sealed class RingBufferLogProvider : ILogProvider, ILogQueryable
                     break;
             }
         }
-    }
-
-    private static Regex WildcardToRegex(string pattern)
-    {
-        // Escape regex special characters except * and ?
-        var escaped = Regex.Escape(pattern);
-
-        // Replace wildcard characters with regex equivalents
-        // * matches any sequence of characters
-        // ? matches any single character
-        var regexPattern = escaped
-            .Replace("\\*", ".*")
-            .Replace("\\?", ".");
-
-        // Timeout guards against pathological patterns (S6444); wildcard-derived
-        // patterns are simple, so 100ms is far beyond any legitimate match time.
-        return new Regex($"^{regexPattern}$", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(100));
     }
 }

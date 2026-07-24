@@ -337,7 +337,8 @@ public class MockNetworkContextTests
     [Fact]
     public void SendUnreliable_WithPacketLoss_DropsMessages()
     {
-        using var network = new MockNetworkContext();
+        // Seed the RNG so packet-loss decisions are deterministic and this test is stable.
+        using var network = new MockNetworkContext(packetLossSeed: 12345);
         network.SimulatePacketLoss(0.5f); // 50% loss
 
         // Send 10 unreliable messages
@@ -346,8 +347,9 @@ public class MockNetworkContextTests
             network.SendTo("peer", new TestMessage(), reliable: false);
         }
 
-        // With 50% loss and deterministic behavior, every other message should be dropped
+        // With 50% loss some messages are dropped, but not all (unlike reliable sends).
         network.SentMessages.Count.ShouldBeLessThan(10);
+        network.SentMessages.Count.ShouldBeGreaterThan(0);
     }
 
     [Fact]
@@ -557,6 +559,112 @@ public class MockNetworkContextTests
         var msg2 = new SentMessage("endpoint2", data, typeof(TestMessage), true, 0, timestamp);
 
         msg1.ShouldNotBe(msg2);
+    }
+
+    #endregion
+
+    #region Options Honoring (Issue #1161)
+
+    [Fact]
+    public void PacketLoss_ReflectsOptions()
+    {
+        using var network = new MockNetworkContext();
+
+        network.Options = new NetworkOptions { SimulatedPacketLoss = 0.3f };
+
+        network.PacketLoss.ShouldBe(0.3f);
+    }
+
+    [Fact]
+    public void Latency_ReflectsOptions()
+    {
+        using var network = new MockNetworkContext();
+
+        network.Options = new NetworkOptions { SimulatedLatency = 42f };
+
+        network.Latency.ShouldBe(42f);
+    }
+
+    [Fact]
+    public void SendUnreliable_WithPacketLossSetViaOptions_DropsMessages()
+    {
+        // Configuring Options directly (as WithMockNetwork(options) does) must affect
+        // packet loss. Full loss (1.0) drops every unreliable message deterministically.
+        using var network = new MockNetworkContext();
+        network.Options = new NetworkOptions { SimulatedPacketLoss = 1.0f };
+
+        for (int i = 0; i < 20; i++)
+        {
+            network.SendTo("peer", new TestMessage(), reliable: false);
+        }
+
+        network.SentMessages.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public void SendUnreliable_WithHighPacketLoss_DeliversProportionalFraction()
+    {
+        // Above 0.5 the old integer-interval math dropped 100% of packets. Probabilistic
+        // loss must instead deliver roughly (1 - ratio) of them. Seeded for determinism.
+        using var network = new MockNetworkContext(packetLossSeed: 20240724);
+        network.SimulatePacketLoss(0.75f);
+
+        const int total = 1000;
+        for (int i = 0; i < total; i++)
+        {
+            network.SendTo("peer", new TestMessage(), reliable: false);
+        }
+
+        // Expect ~25% delivered; a generous band keeps the seeded test stable while
+        // still failing the old behavior (which delivered 0).
+        network.SentMessages.Count.ShouldBeInRange(180, 320);
+    }
+
+    #endregion
+
+    #region TryReceive Requeue (Issue #1165)
+
+    [Fact]
+    public void TryReceive_WithNonMatchingMessageQueued_DoesNotDiscardIt()
+    {
+        using var network = new MockNetworkContext();
+        network.SimulateReceive(new OtherMessage { Text = "chat" }, "peer");
+        network.SimulateReceive(new TestMessage { Value = 7 }, "peer");
+
+        // Receiving the TestMessage must not drop the earlier queued OtherMessage.
+        network.TryReceive<TestMessage>(out var moved).ShouldBeTrue();
+        moved!.Value.ShouldBe(7);
+
+        network.TryReceive<OtherMessage>(out var chat).ShouldBeTrue();
+        chat!.Text.ShouldBe("chat");
+    }
+
+    [Fact]
+    public void TryReceive_WithMultipleMatchingMessages_ReturnsInFifoOrder()
+    {
+        using var network = new MockNetworkContext();
+        network.SimulateReceive(new TestMessage { Value = 1 }, "peer");
+        network.SimulateReceive(new TestMessage { Value = 2 }, "peer");
+
+        network.TryReceive<TestMessage>(out var first).ShouldBeTrue();
+        first!.Value.ShouldBe(1);
+
+        network.TryReceive<TestMessage>(out var second).ShouldBeTrue();
+        second!.Value.ShouldBe(2);
+    }
+
+    [Fact]
+    public void TryReceive_WithNoMatch_LeavesQueueIntact()
+    {
+        using var network = new MockNetworkContext();
+        network.SimulateReceive(new TestMessage { Value = 5 }, "peer");
+
+        network.TryReceive<OtherMessage>(out _).ShouldBeFalse();
+
+        // The non-matching message is still available.
+        network.ReceiveQueueCount.ShouldBe(1);
+        network.TryReceive<TestMessage>(out var kept).ShouldBeTrue();
+        kept!.Value.ShouldBe(5);
     }
 
     #endregion

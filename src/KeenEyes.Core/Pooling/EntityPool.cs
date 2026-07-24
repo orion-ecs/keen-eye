@@ -22,12 +22,28 @@ namespace KeenEyes;
 /// simultaneously.
 /// </para>
 /// </remarks>
-public sealed class EntityPool
+/// <param name="recyclingEnabled">
+/// When <see langword="true"/> (the default), released IDs are returned to the pool
+/// and reused by later <see cref="Acquire"/> calls. When <see langword="false"/>, IDs
+/// are never reused: <see cref="Acquire"/> always allocates the next sequential ID
+/// starting from 0, giving deterministic, non-recycling ID assignment for testing.
+/// </param>
+public sealed class EntityPool(bool recyclingEnabled = true)
 {
     private readonly ConcurrentStack<int> recycledIds = new();
     private readonly ConcurrentDictionary<int, int> versions = new();
     private int nextNewId;
     private long recycleCount;
+    private long retiredCount;
+
+    /// <summary>
+    /// Gets a value indicating whether released IDs are recycled for reuse.
+    /// </summary>
+    /// <remarks>
+    /// When <see langword="false"/>, <see cref="Acquire"/> assigns IDs sequentially from 0
+    /// without ever reusing a released ID.
+    /// </remarks>
+    public bool RecyclingEnabled => recyclingEnabled;
 
     /// <summary>
     /// Gets the number of entity IDs currently available for reuse.
@@ -42,7 +58,7 @@ public sealed class EntityPool
     /// <summary>
     /// Gets the number of entities currently in use.
     /// </summary>
-    public int ActiveCount => nextNewId - recycledIds.Count;
+    public int ActiveCount => nextNewId - recycledIds.Count - (int)Interlocked.Read(ref retiredCount);
 
     /// <summary>
     /// Gets the number of times entity IDs have been recycled.
@@ -61,7 +77,7 @@ public sealed class EntityPool
         int id;
         int version;
 
-        if (recycledIds.TryPop(out id))
+        if (recyclingEnabled && recycledIds.TryPop(out id))
         {
             // Reuse recycled ID - version was already incremented on release
             version = versions[id];
@@ -114,8 +130,17 @@ public sealed class EntityPool
             return false;
         }
 
-        // Add to recycled pool
-        recycledIds.Push(entity.Id);
+        if (recyclingEnabled)
+        {
+            // Add to recycled pool for reuse
+            recycledIds.Push(entity.Id);
+        }
+        else
+        {
+            // Non-recycling mode: the ID is retired permanently. Track it so
+            // ActiveCount still reflects the number of alive entities.
+            Interlocked.Increment(ref retiredCount);
+        }
 
         return true;
     }
@@ -164,5 +189,6 @@ public sealed class EntityPool
         versions.Clear();
         Interlocked.Exchange(ref nextNewId, 0);
         Interlocked.Exchange(ref recycleCount, 0);
+        Interlocked.Exchange(ref retiredCount, 0);
     }
 }

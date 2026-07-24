@@ -428,7 +428,9 @@ public sealed class TestWorldBuilder
     /// <returns>A new test world with all configured plugins, systems, and settings.</returns>
     public TestWorld Build()
     {
-        var world = new World();
+        // When deterministic IDs are requested, disable ID recycling so entity IDs
+        // are assigned sequentially from 0 without reuse (see TestWorld.HasDeterministicIds).
+        var world = new World(recycleEntityIds: !deterministicIds);
 
         // Install all plugins first
         foreach (var registration in plugins)

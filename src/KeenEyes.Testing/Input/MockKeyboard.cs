@@ -98,7 +98,9 @@ public sealed class MockKeyboard : IKeyboard
     public void SimulateKeyDown(Key key, KeyModifiers modifiers = KeyModifiers.None, bool isRepeat = false)
     {
         keysDown.Add(key);
-        this.modifiers = modifiers;
+        // Merge (rather than overwrite) so modifiers held from earlier key events are
+        // preserved. The explicit parameter augments the currently-held modifier state.
+        this.modifiers |= modifiers;
         UpdateModifiersFromKey(key, true);
         OnKeyDown?.Invoke(new KeyEventArgs(key, this.modifiers, isRepeat));
     }
@@ -111,7 +113,9 @@ public sealed class MockKeyboard : IKeyboard
     public void SimulateKeyUp(Key key, KeyModifiers modifiers = KeyModifiers.None)
     {
         keysDown.Remove(key);
-        this.modifiers = modifiers;
+        // Merge (rather than overwrite) so modifiers held from earlier key events are
+        // preserved. UpdateModifiersFromKey then clears the bit for the released key.
+        this.modifiers |= modifiers;
         UpdateModifiersFromKey(key, false);
         OnKeyUp?.Invoke(new KeyEventArgs(key, this.modifiers, IsRepeat: false));
     }
