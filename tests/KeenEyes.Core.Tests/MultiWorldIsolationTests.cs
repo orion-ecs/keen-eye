@@ -24,6 +24,12 @@ public partial class MultiWorldIsolationTests
     [TagComponent]
     public partial struct TestTag;
 
+    [Component]
+    public partial struct UpdateMarker
+    {
+        public int Count;
+    }
+
     #endregion
 
     [Fact]
@@ -104,15 +110,24 @@ public partial class MultiWorldIsolationTests
         using var world1 = builder.Build();
         using var world2 = builder.Build();
 
-        // Each world should have its own system instance
-        // Verify worlds are different instances
-        Assert.NotEqual(world1.Id, world2.Id);
+        // Give each world its own entity for the system to process.
+        var entity1 = world1.Spawn().With(new UpdateMarker()).Build();
+        var entity2 = world2.Spawn().With(new UpdateMarker()).Build();
 
-        // Update one world and verify the other is unaffected
+        // Run the system in world1 only, twice.
+        world1.Update(1.0f);
         world1.Update(1.0f);
 
-        // Both worlds should still exist independently
-        Assert.NotEqual(world1.Id, world2.Id);
+        // world1's system instance mutated only world1's data; world2's separate instance
+        // never ran, so its marker is untouched. A shared system/state would leak the count.
+        Assert.Equal(2, world1.Get<UpdateMarker>(entity1).Count);
+        Assert.Equal(0, world2.Get<UpdateMarker>(entity2).Count);
+
+        // Running world2 advances only world2's state, confirming full independence.
+        world2.Update(1.0f);
+
+        Assert.Equal(2, world1.Get<UpdateMarker>(entity1).Count);
+        Assert.Equal(1, world2.Get<UpdateMarker>(entity2).Count);
     }
 
     [Fact]
@@ -249,7 +264,11 @@ public partial class MultiWorldIsolationTests
     {
         public override void Update(float deltaTime)
         {
-            // Simple system for testing
+            foreach (var entity in World.Query<UpdateMarker>())
+            {
+                ref var marker = ref World.Get<UpdateMarker>(entity);
+                marker.Count++;
+            }
         }
     }
 

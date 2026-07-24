@@ -431,14 +431,23 @@ public class PhysicsCoverageImprovementTests : IDisposable
         world = new World();
         // Don't install physics plugin
 
+        // Spawn a dynamic body whose Transform3D the sync system would interpolate if a
+        // physics world were present. With no physics world, Update must return early and
+        // leave the transform exactly as authored.
+        var authoredPosition = new Vector3(3f, 7f, 11f);
+        var entity = world.Spawn()
+            .With(new Transform3D(authoredPosition, Quaternion.Identity, Vector3.One))
+            .With(RigidBody.Dynamic(1f))
+            .Build();
+
         var system = new KeenEyes.Physics.Systems.PhysicsSyncSystem();
         world.AddSystem(system, SystemPhase.LateUpdate);
 
-        // Should not throw when physics world is not available
+        // Should return early (no physics world) without touching any transform.
         system.Update(1f / 60f);
 
-        // Just verify no exception occurred
-        Assert.NotNull(system);
+        ref readonly var transform = ref world.Get<Transform3D>(entity);
+        Assert.Equal(authoredPosition, transform.Position);
     }
 
     #endregion
