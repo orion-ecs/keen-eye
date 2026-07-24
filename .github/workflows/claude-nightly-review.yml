@@ -59,189 +59,40 @@ jobs:
           echo "::notice::Skipping nightly review - no changes in the last 24 hours"
           exit 0
 
+      - name: Load review guide
+        id: load-guide
+        if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          # Load the review guide from the checked-in markdown file into a multiline env var
+          # using the GITHUB_ENV heredoc delimiter form (safe for arbitrary markdown content).
+          {
+            echo 'REVIEW_GUIDE<<REVIEW_GUIDE_EOF'
+            cat .github/nightly-review-prompt.md
+            echo 'REVIEW_GUIDE_EOF'
+          } >> "$GITHUB_ENV"
+
       - name: Run Claude Nightly Code Review
         if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # The review instructions live in .github/nightly-review-prompt.md (loaded above).
+          # Only the dynamic run context (trigger type + focus area) is inlined here.
           prompt: |
-            # Nightly Code Review - Full Repository Analysis
+            # Nightly Code Review — run context
 
-            You are conducting a comprehensive nightly code review of the KeenEyes ECS repository.
-            Focus area: ${{ github.event.inputs.focus_area || 'all' }}
+            - Focus area: ${{ github.event.inputs.focus_area || 'all' }}
+            - This run was triggered by: ${{ github.event_name }} (workflow_dispatch = on-demand, schedule = nightly)
 
-            ## Project Philosophy & Requirements
+            Follow the review guide below exactly, including its verification discipline
+            (§0) and the known false-positive patterns you must not report (§1).
 
-            **CRITICAL**: KeenEyes is a **high-performance C# ECS framework for .NET 10**. All reviews MUST enforce:
+            ---
 
-            ### Type Safety (Highest Priority)
-            - **Nullable reference types enabled** - No null reference warnings
-            - **No object boxing** - Use generics to avoid boxing value types
-            - **Ref returns** - Use `ref` and `ref readonly` for zero-copy component access
-            - **Struct components** - Components must be value types (structs)
-            - **Readonly where possible** - Use `readonly struct` and `readonly record struct`
-            - **Generic constraints** - Enforce `where T : struct, IComponent` appropriately
+            ${{ env.REVIEW_GUIDE }}
 
-            ### ECS Architecture Principles (Critical)
-            - **No static state** - All state must be instance-based per World
-            - **Composition over inheritance** - Entities are composition of components
-            - **Data-oriented design** - Components are pure data (structs), systems are pure logic
-            - **No behavior in components** - Components should not have methods (except property accessors)
-            - **Systems query for intent** - Use component presence to express intent, not fields
-            - **World isolation** - Each World is completely independent (component IDs are per-world)
-            - **Explicit registration** - Users explicitly add systems to worlds, no auto-registration
-            - **Manager facade pattern** - World delegates to internal managers
-
-            ### Anti-Patterns to Flag
-            - Components with business logic methods
-            - Systems that don't use queries (operating on single entities)
-            - Tight coupling between components
-            - God entities with too many components
-            - Static or module-level mutable state
-            - Inheritance hierarchies in entities
-            - Object allocations in hot paths
-            - Boxing of value types
-            - Missing `ref` returns for component access
-            - Logic in World.cs that should be in managers
-
-            ## Review Scope
-
-            Analyze the entire codebase looking for:
-
-            ### 1. Type Safety Violations (CRITICAL)
-            - Nullable reference type warnings
-            - Missing generic constraints
-            - Object boxing in component operations
-            - Missing `ref` or `ref readonly` for performance
-            - Unsafe casts or conversions
-
-            ### 2. ECS Architecture Violations (HIGH)
-            - Components with methods (behavior in data)
-            - Static state anywhere in the codebase
-            - Systems not using the query system
-            - Entity-specific logic instead of component queries
-            - Inheritance hierarchies instead of composition
-            - World.cs containing logic that belongs in managers
-
-            ### 3. Code Smells
-            - Dead code or unused members
-            - Overly complex methods (high cyclomatic complexity)
-            - Code duplication
-            - Long parameter lists
-            - Classes doing too much (violating SRP)
-            - Magic numbers without constants
-            - Poor naming conventions
-            - Missing XML documentation on public APIs
-
-            ### 4. Potential Bugs
-            - Null/undefined reference risks
-            - Off-by-one errors
-            - Race conditions in async code
-            - Uncaught exceptions
-            - Incorrect loop conditions
-            - Memory leaks (event subscriptions, disposables)
-            - Entity staleness (using despawned entities)
-
-            ### 5. Security Issues
-            - Input validation gaps
-            - Injection vulnerabilities
-            - Unsafe deserialization
-            - Exposed sensitive data
-
-            ### 6. Performance Issues
-            - Unnecessary allocations in hot paths
-            - Missing struct readonly modifiers
-            - Inefficient LINQ in performance-critical code
-            - Missing pooling for frequently created objects
-            - Cache-unfriendly data layouts
-            - Redundant computations
-
-            ### 7. Architecture & Design
-            - SOLID principle violations
-            - Circular dependencies
-            - Tight coupling between managers
-            - Missing abstractions
-            - Inconsistent patterns across codebase
-
-            ### 8. Documentation & Maintainability
-            - Missing XML documentation on public APIs
-            - Complex code without explanation
-            - Outdated comments
-
-            ## Checking for Existing Issues
-
-            Before creating a new issue for any finding, you MUST check if a similar issue already exists:
-
-            1. **Search existing issues** using `gh issue search` or `gh issue list`:
-               - `gh issue list --state open --label "code-review"` - List open review issues
-               - `gh issue search "keyword" --state open` - Search for specific terms
-               - `gh issue view <issue-number>` - View details of a specific issue
-
-            2. **If a matching issue exists**:
-               - Reference the existing issue number in your report (e.g., "See existing issue #123")
-               - Do NOT create a duplicate issue for the same problem
-               - You may add a comment to the existing issue if you have new information
-
-            3. **Only create new issues for**:
-               - Findings that have no existing open issue
-               - Significantly different manifestations of a known problem
-               - New occurrences in different files/locations (if not covered by existing issue)
-
-            This prevents issue sprawl and keeps the repository clean.
-
-            ## Output Format
-
-            Create a GitHub issue with your findings using `gh issue create`. The issue should:
-
-            1. **Title**: Use one of the following formats based on trigger type:
-               - For scheduled runs: "Nightly Code Review - [DATE]"
-               - For on-demand runs: "On-Demand Code Review - [DATE]"
-               This run was triggered by: ${{ github.event_name }} (workflow_dispatch = on-demand, schedule = nightly)
-            2. **Labels**: `code-review`, `automated`
-            3. **Body** should include:
-               - Executive summary (1-2 paragraphs)
-               - **Related Existing Issues** section (if any findings match existing issues)
-                 - List issue numbers with brief description
-                 - Note if you added comments to any existing issues
-               - Findings organized by severity (Critical, High, Medium, Low)
-               - Each finding should include:
-                 - File path and line number(s)
-                 - Description of the issue
-                 - Suggested fix or improvement
-                 - Code snippet if helpful
-                 - Reference to existing issue if applicable (e.g., "Related: #123")
-               - Metrics summary (files reviewed, issues found by category, existing issues referenced)
-
-            **IMPORTANT - How to Create the Issue:**
-            To avoid shell escaping issues with backticks and code blocks:
-            1. Use the `Write` tool to create a file (e.g., `review-report.md`) with the full markdown report
-            2. Use `gh issue create --title "..." --label "code-review,automated" --body-file review-report.md`
-            3. DO NOT try to embed markdown with code blocks directly in the command
-            4. Always use `--body-file` for the report content
-
-            ## Guidelines
-
-            - **CRITICAL**: Prioritize ECS architecture violations and performance issues
-            - Use the repository's CLAUDE.md for project-specific conventions
-            - Focus on actionable findings with clear remediation steps
-            - Prioritize issues that could cause bugs or performance problems
-            - Skip obj/, bin/, and other build artifacts
-            - Be specific - include file paths and line numbers
-            - Group related issues together
-            - **Samples matter**: Flag anti-patterns in samples/ as HIGH priority (users will copy these)
-            - If no significant issues are found, still create an issue with a brief "all clear" summary
-
-            ## Key Directories to Review
-
-            - `src/KeenEyes.Core/` - Core ECS runtime framework
-            - `editor/KeenEyes.Generators/` - Roslyn source generators
-            - `src/KeenEyes.Abstractions/` - Component/system attributes and core contracts
-            - `tests/` - Unit and integration tests
-            - `samples/` - Example code (check for anti-patterns users might copy)
-            - `benchmarks/` - Performance benchmarks
-
-          claude_args: '--allowed-tools "Write,WebFetch,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue search:*),Bash(gh issue comment:*),Bash(gh label create:*)"'
+          claude_args: '--allowed-tools "Write,WebFetch,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue search:*),Bash(gh issue comment:*),Bash(gh label create:*),Bash(dotnet build:*),Bash(git log:*),Bash(git grep:*),Bash(grep:*),Bash(rg:*)"'
 
       - name: Ensure labels exist
         if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
