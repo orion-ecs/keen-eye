@@ -66,11 +66,15 @@ public sealed class NovaFallRenderSystem(string? fontPath) : SystemBase
     private I2DRenderer? renderer;
     private ITextRenderer? textRenderer;
     private FontHandle font;
+    private FontHandle menuFont;
     private bool fontLoaded;
     private bool fontLoadAttempted;
     private int framesSinceTitleUpdate;
     private float pulseClock;
     private Vector2[] trailScratch = [];
+    private readonly Vector2[] crackScratch = new Vector2[CrackPoints];
+
+    private const int CrackPoints = 7;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -106,6 +110,7 @@ public sealed class NovaFallRenderSystem(string? fontPath) : SystemBase
             // particle and glow, at full opacity, with a contrast outline.
             DrawFloors(in palette);
             DrawBall(in palette);
+            DrawAdrenalineVignette(viewMin, viewSize);
             DrawDeathFlash(viewMin, viewSize);
         }
         finally
@@ -217,6 +222,13 @@ public sealed class NovaFallRenderSystem(string? fontPath) : SystemBase
         }
 
         var width = Tuning.TrailBaseWidth + tier * Tuning.TrailWidthPerTier;
+        if (World.GetSingleton<AdrenalineState>().Active)
+        {
+            // Slow motion thickens the comet: the one steer that matters
+            // deserves the heaviest ink in the game.
+            width *= 1.6f;
+        }
+
         var color = palette.Trail;
 
         renderer!.SetBlendMode(BlendMode.Additive);
@@ -327,37 +339,187 @@ public sealed class NovaFallRenderSystem(string? fontPath) : SystemBase
         }
     }
 
+    /// <summary>
+    /// Draws every floor with its personality on its face: Brittle floors are
+    /// ash-gray with hairline fractures (and a growing white crack once landed
+    /// on), Bumpers carry an accent-bright coil line and wobble after a launch,
+    /// and Pulse floors physically breathe — their slabs are drawn at the same
+    /// EFFECTIVE gap the collision system uses, so the shrinking-edges close
+    /// telegraph is the hitbox, not a decoration over it.
+    /// </summary>
     private void DrawFloors(in Palette palette)
     {
         const float cornerRadius = 6f;
         const float outlineThickness = 2f;
+        var musicSeconds = World.GetSingleton<MusicClock>().Seconds;
 
         foreach (var entity in World.Query<Floor, Position2D>())
         {
             ref readonly var floor = ref World.Get<Floor>(entity);
             ref readonly var position = ref World.Get<Position2D>(entity);
 
-            var gapLeft = floor.GapCenterX - floor.GapWidth / 2f;
-            var gapRight = floor.GapCenterX + floor.GapWidth / 2f;
+            var gapWidth = FloorLayout.EffectiveGapWidth(in floor, musicSeconds);
+            var gapLeft = floor.GapCenterX - gapWidth / 2f;
+            var gapRight = floor.GapCenterX + gapWidth / 2f;
+
+            var fill = palette.FloorFill;
+            var outline = palette.FloorOutline;
+            var y = position.Y;
+            var thickness = floor.Thickness;
+
+            switch (floor.Kind)
+            {
+                case FloorKind.Brittle:
+                    // Ash-gray fill: visibly not load-bearing.
+                    fill = Vector4.Lerp(fill, new Vector4(0.42f, 0.42f, 0.46f, 1f), 0.45f);
+                    break;
+
+                case FloorKind.Bumper:
+                    // Accent outline: reads as "springy", not "solid".
+                    outline = palette.UiAccent;
+                    if (floor.WobbleSeconds > 0f)
+                    {
+                        // Bounce-ease wobble: a decaying sine on the slab height.
+                        var energy = floor.WobbleSeconds / Tuning.BumperWobbleSeconds;
+                        var wobble = MathF.Sin((1f - energy) * MathF.PI * 3f) * energy;
+                        var stretch = 1f + 0.30f * wobble;
+                        thickness = floor.Thickness * stretch;
+                        y -= thickness - floor.Thickness;
+                    }
+
+                    break;
+
+                case FloorKind.Pulse:
+                case FloorKind.Standard:
+                default:
+                    break;
+            }
 
             // Each floor is two slabs: wall → gap-left and gap-right → wall.
-            DrawSlab(0f, position.Y, gapLeft, floor.Thickness, cornerRadius, outlineThickness, in palette);
-            DrawSlab(gapRight, position.Y, Tuning.ShaftWidth - gapRight, floor.Thickness,
-                cornerRadius, outlineThickness, in palette);
+            // For a fully closed Pulse gap the two slabs meet in the middle.
+            DrawSlab(0f, y, gapLeft, thickness, cornerRadius, outlineThickness, fill, outline);
+            DrawSlab(gapRight, y, Tuning.ShaftWidth - gapRight, thickness,
+                cornerRadius, outlineThickness, fill, outline);
+
+            if (floor.Kind == FloorKind.Brittle)
+            {
+                DrawBrittleCracks(in floor, y);
+            }
+            else if (floor.Kind == FloorKind.Pulse)
+            {
+                DrawPulseEdges(in floor, y, gapLeft, gapRight, musicSeconds, in palette);
+            }
         }
     }
 
     private void DrawSlab(
         float x, float y, float width, float height,
-        float cornerRadius, float outlineThickness, in Palette palette)
+        float cornerRadius, float outlineThickness, Vector4 fill, Vector4 outline)
     {
         if (width < 1f)
         {
             return;
         }
 
-        renderer!.FillRoundedRect(x, y, width, height, cornerRadius, palette.FloorFill);
-        renderer.DrawRoundedRect(x, y, width, height, cornerRadius, palette.FloorOutline, outlineThickness);
+        renderer!.FillRoundedRect(x, y, width, height, cornerRadius, fill);
+        renderer.DrawRoundedRect(x, y, width, height, cornerRadius, outline, outlineThickness);
+    }
+
+    /// <summary>
+    /// Brittle floor fractures: faint hairlines always (the "don't trust me"
+    /// tell), plus a jagged line-strip crack that grows across the slab over
+    /// the crumble delay once the floor has been landed on — the visible half
+    /// of the telegraph contract.
+    /// </summary>
+    private void DrawBrittleCracks(in Floor floor, float y)
+    {
+        // Hairlines: two short deterministic fissures per floor, derived from
+        // the floor index so they never flicker frame to frame.
+        var rng = SeededGenerator.ForFloor((ulong)floor.Index, floor.Index);
+        var hairColor = new Vector4(0.15f, 0.15f, 0.18f, 0.8f);
+        for (var i = 0; i < 2; i++)
+        {
+            var x = rng.NextRange(30f, Tuning.ShaftWidth - 30f);
+            var drift = rng.NextRange(-10f, 10f);
+            renderer!.DrawLine(x, y + 3f, x + drift, y + floor.Thickness - 3f, hairColor, 1.5f);
+        }
+
+        if (!floor.Cracking)
+        {
+            return;
+        }
+
+        // The growing crack: a jagged strip spreading from the gap's left edge
+        // across the left slab, whitening as the crumble approaches.
+        var progress = Math.Clamp(floor.CrackSeconds / Tuning.BrittleCrumbleDelaySeconds, 0f, 1f);
+        var gapLeft = floor.GapCenterX - floor.GapWidth / 2f;
+        var reach = Math.Max(gapLeft, Tuning.ShaftWidth - (floor.GapCenterX + floor.GapWidth / 2f));
+        var length = reach * progress;
+
+        var crackRng = SeededGenerator.ForFloor((ulong)floor.Index * 31UL, floor.Index);
+        for (var i = 0; i < CrackPoints; i++)
+        {
+            var t = i / (float)(CrackPoints - 1);
+            crackScratch[i] = new Vector2(
+                gapLeft - length * t,
+                y + floor.Thickness * (0.5f + (crackRng.NextFloat() - 0.5f) * 0.7f));
+        }
+
+        var heat = 0.4f + 0.6f * progress;
+        renderer!.DrawLineStrip(
+            crackScratch.AsSpan(0, CrackPoints),
+            new Vector4(1f, 0.95f + 0.05f * heat, 0.9f, heat),
+            1.5f + 2f * progress);
+    }
+
+    /// <summary>
+    /// Pulse floor gap edges: bright ticks marking the moving edge of the
+    /// breathing gap. While the gap shrinks toward a close the ticks brighten —
+    /// the shrinking edges themselves ARE the &gt;= 0.6 s telegraph, because the
+    /// drawn slabs already track the effective gap.
+    /// </summary>
+    private void DrawPulseEdges(
+        in Floor floor, float y, float gapLeft, float gapRight, float musicSeconds, in Palette palette)
+    {
+        var openness = FloorLayout.PulseOpenness(musicSeconds);
+        var closing = openness < 1f;
+        var alpha = closing ? 1f : 0.6f;
+        var color = palette.UiAccent with { W = alpha };
+
+        if (openness > 0.01f)
+        {
+            renderer!.DrawLine(gapLeft, y - 3f, gapLeft, y + floor.Thickness + 3f, color, 3f);
+            renderer.DrawLine(gapRight, y - 3f, gapRight, y + floor.Thickness + 3f, color, 3f);
+        }
+        else
+        {
+            // Fully closed: a seam glows where the gap will reopen.
+            renderer!.DrawLine(
+                floor.GapCenterX - 8f, y + floor.Thickness / 2f,
+                floor.GapCenterX + 8f, y + floor.Thickness / 2f,
+                color, 2f);
+        }
+    }
+
+    /// <summary>
+    /// Adrenaline Save vignette: translucent edge bands darken the frame while
+    /// the world runs at 20% — tunnel vision for the one steer that matters.
+    /// </summary>
+    private void DrawAdrenalineVignette(Vector2 viewMin, Vector2 viewSize)
+    {
+        if (!World.GetSingleton<AdrenalineState>().Active)
+        {
+            return;
+        }
+
+        var shade = new Vector4(0f, 0f, 0.02f, 0.45f);
+        var bandX = viewSize.X * 0.16f;
+        var bandY = viewSize.Y * 0.12f;
+
+        renderer!.FillRect(viewMin.X, viewMin.Y, viewSize.X, bandY, shade);
+        renderer.FillRect(viewMin.X, viewMin.Y + viewSize.Y - bandY, viewSize.X, bandY, shade);
+        renderer.FillRect(viewMin.X, viewMin.Y + bandY, bandX, viewSize.Y - 2f * bandY, shade);
+        renderer.FillRect(viewMin.X + viewSize.X - bandX, viewMin.Y + bandY, bandX, viewSize.Y - 2f * bandY, shade);
     }
 
     private void DrawBall(in Palette palette)
@@ -454,11 +616,7 @@ public sealed class NovaFallRenderSystem(string? fontPath) : SystemBase
 
                 if (phase == GamePhase.Ready)
                 {
-                    textRenderer.DrawTextOutlined(
-                        font, "Press A/D or LEFT/RIGHT to dive".AsSpan(),
-                        (Tuning.ShaftWidth / 2f) * scaleX, (Tuning.ShaftHeight / 2f) * scaleY,
-                        hudColor, hudOutline, 1.5f,
-                        TextAlignH.Center, TextAlignV.Middle);
+                    DrawReadyMenu(scaleX, scaleY);
                 }
             }
             finally
@@ -481,6 +639,70 @@ public sealed class NovaFallRenderSystem(string? fontPath) : SystemBase
                 framesSinceTitleUpdate = 0;
             }
         }
+    }
+
+    /// <summary>
+    /// The Ready-screen menu: mode row (name, description, and — for Daily
+    /// Inferno — today's medal and remaining attempts), cosmetic style row, and
+    /// the control hints. The active row wears the angle brackets, keeping the
+    /// one-axis input grammar legible even in a menu.
+    /// </summary>
+    private void DrawReadyMenu(float scaleX, float scaleY)
+    {
+        var menu = World.GetSingleton<MenuState>();
+        var profileState = World.GetSingleton<ProfileState>();
+        var mode = menu.SelectedMode;
+        var centerX = (Tuning.ShaftWidth / 2f) * scaleX;
+        var lineY = Tuning.ShaftHeight * 0.40f;
+        const float lineSpacing = 34f;
+
+        var modeLine = menu.Row == MenuRow.Mode
+            ? $"< {ModeCatalog.NameOf(mode)} >"
+            : ModeCatalog.NameOf(mode);
+        textRenderer!.DrawTextOutlined(
+            font, modeLine.AsSpan(), centerX, lineY * scaleY,
+            hudColor, hudOutline, 2f, TextAlignH.Center, TextAlignV.Middle);
+        lineY += lineSpacing * 1.4f;
+
+        textRenderer.DrawTextOutlined(
+            menuFont, ModeCatalog.DescriptionOf(mode).AsSpan(), centerX, lineY * scaleY,
+            hudColor with { W = 0.85f }, hudOutline, 1.5f, TextAlignH.Center, TextAlignV.Middle);
+        lineY += lineSpacing;
+
+        if (profileState.Profile is { } profile)
+        {
+            var best = profile.ModeBests[(int)mode];
+            var infoLine = string.Create(
+                CultureInfo.InvariantCulture, $"best {best.BestScore:F0} pts - {best.BestDepth:F0}m");
+
+            if (mode == GameMode.DailyInferno)
+            {
+                var index = profile.DailyRecordIndexFor(profileState.TodayKey);
+                var record = profile.DailyHistory[index];
+                var attemptsLeft = Math.Max(Tuning.DailyAttemptsPerDay - record.AttemptsUsed, 0);
+                infoLine = string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"today: {DailySchedule.MedalName(record.Medal)} - {attemptsLeft} attempts left");
+            }
+
+            textRenderer.DrawTextOutlined(
+                menuFont, infoLine.AsSpan(), centerX, lineY * scaleY,
+                hudColor with { W = 0.85f }, hudOutline, 1.5f, TextAlignH.Center, TextAlignV.Middle);
+            lineY += lineSpacing;
+
+            var style = CosmeticStyles.All[Math.Clamp(profile.SelectedStyle, 0, CosmeticStyles.All.Length - 1)];
+            var styleLine = menu.Row == MenuRow.Cosmetics
+                ? $"STYLE  < {style.Name} >"
+                : $"STYLE  {style.Name}";
+            textRenderer.DrawTextOutlined(
+                menuFont, styleLine.AsSpan(), centerX, lineY * scaleY,
+                hudColor with { W = 0.85f }, hudOutline, 1.5f, TextAlignH.Center, TextAlignV.Middle);
+            lineY += lineSpacing;
+        }
+
+        textRenderer.DrawTextOutlined(
+            menuFont, "A/D cycle - TAB row - SPACE dive".AsSpan(), centerX, (lineY + 10f) * scaleY,
+            hudColor with { W = 0.6f }, hudOutline, 1.5f, TextAlignH.Center, TextAlignV.Middle);
     }
 
     private void EnsureFontLoaded()
@@ -507,6 +729,7 @@ public sealed class NovaFallRenderSystem(string? fontPath) : SystemBase
         try
         {
             font = fontManager.LoadFont(fontPath, 34f);
+            menuFont = fontManager.LoadFont(fontPath, 20f);
             fontLoaded = true;
         }
         catch (Exception ex) when (ex is IOException or ArgumentException)

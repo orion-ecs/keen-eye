@@ -2,8 +2,9 @@ namespace KeenEyes.Sample.NovaFall;
 
 /// <summary>
 /// Resolves ball-versus-floor collisions: landing, resting (being carried upward),
-/// slipping into a gap, clean gap-through detection, and — at Plasma tier and
-/// above — the Floor Smash.
+/// slipping into a gap, clean gap-through detection, floor personalities
+/// (Brittle crack starts, Bumper launches, Pulse gap phasing), and — at Plasma
+/// tier and above, or at any tier during a Flashover Surge — the Floor Smash.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -25,10 +26,21 @@ namespace KeenEyes.Sample.NovaFall;
 /// FLOOR SMASH — at Plasma or Nova tier, what would have been a landing instead
 /// shatters the floor: the ball keeps falling (at reduced speed), the floor
 /// entity despawns, and downstream systems charge one full heat tier, award the
-/// score bonus, and fire the hitstop/camera/particle payoff. A smash can never
-/// trigger on two consecutive floors, so the flow keeps a rhythm of
-/// smash → thread → smash. Smashing is a pure function of simulation state, so
-/// the headless <c>--simulate</c> mode replays it identically.
+/// score bonus, and fire the hitstop/camera/particle payoff. Outside a surge a
+/// smash can never trigger on two consecutive floors, so the flow keeps a rhythm
+/// of smash → thread → smash; during a Flashover Surge every floor is smashable
+/// at any tier and the rhythm restriction lifts — scheduled catharsis. Smashing
+/// is a pure function of simulation state, so the headless <c>--simulate</c>
+/// mode replays it identically.
+/// </para>
+/// <para>
+/// PERSONALITIES — contact dispatches on <see cref="Floor.Kind"/>: a Bumper
+/// launches the ball back up instead of catching it; a Brittle floor lands like
+/// a Standard one but starts its crack telegraph (crumbling is
+/// <see cref="FloorPersonalitySystem"/>'s job); a Pulse floor's gap width comes
+/// from <see cref="FloorLayout.EffectiveGapWidth"/>, so a closed gap is simply
+/// solid slab here — the same function rendering uses, keeping eyes and physics
+/// in perfect agreement.
 /// </para>
 /// <para>
 /// The system publishes its events into the <see cref="FrameEvents"/> singleton,
@@ -62,17 +74,19 @@ public sealed class CollisionSystem : SystemBase
         }
 
         var radius = World.Get<Ball>(ballEntity).Radius;
+        var musicSeconds = World.GetSingleton<MusicClock>().Seconds;
         ref var position = ref World.Get<Position2D>(ballEntity);
         ref var velocity = ref World.Get<Velocity2D>(ballEntity);
         ref var events = ref World.GetSingleton<FrameEvents>();
 
         if (World.Has<RestingOn>(ballEntity))
         {
-            UpdateResting(ballEntity, radius, ref position, ref velocity);
+            UpdateResting(ballEntity, radius, musicSeconds, ref position, ref velocity);
             return;
         }
 
         var tier = World.GetSingleton<HeatState>().Tier;
+        var surgeActive = World.GetSingleton<SurgeState>().Active;
         ref var smashState = ref World.GetSingleton<SmashState>();
 
         // Airborne: row-scan the floors for landings, smashes, and gap-throughs.
@@ -80,6 +94,7 @@ public sealed class CollisionSystem : SystemBase
         var landed = false;
         var smashedFloor = default(Entity);
         var smashed = false;
+        var bumped = false;
 
         foreach (var floorEntity in World.Query<Floor, Position2D>())
         {
@@ -89,17 +104,18 @@ public sealed class CollisionSystem : SystemBase
 
             // Contact: the ball's bottom is within the floor slab (plus a small
             // tolerance for fast frames) while falling, and not over the gap.
-            if (!landed && !smashed
+            if (!landed && !smashed && !bumped
                 && velocity.Y >= 0f
                 && ballBottom >= floorTop
                 && ballBottom <= floorTop + floor.Thickness + Tuning.LandingTolerance
-                && !IsOverGap(position.X, radius, in floor))
+                && !IsOverGap(position.X, radius, in floor, musicSeconds))
             {
-                // Hot enough to smash, and not the floor immediately after the
-                // last smashed one? The impact shatters the floor instead of
-                // stopping the fall.
-                if (tier >= Tuning.SmashMinTier
-                    && floor.Index != smashState.LastSmashedFloorIndex + 1)
+                // Hot enough to smash — or anything goes during a Flashover
+                // Surge? The impact shatters the floor instead of stopping the
+                // fall. The no-consecutive-floors rhythm rule also lifts during
+                // a surge.
+                if ((tier >= Tuning.SmashMinTier || surgeActive)
+                    && (surgeActive || floor.Index != smashState.LastSmashedFloorIndex + 1))
                 {
                     events.Smashed = true;
                     events.SmashX = position.X;
@@ -119,12 +135,44 @@ public sealed class CollisionSystem : SystemBase
                     continue;
                 }
 
+                // Bumper: an elastic launch upward instead of a landing. The
+                // Furnace is UP — the launch is the hazard, and the floor's
+                // distinct look is its warning.
+                if (floor.Kind == FloorKind.Bumper)
+                {
+                    events.Bumped = true;
+                    events.BumpX = position.X;
+                    events.BumpY = floorTop;
+                    events.BumpImpactSpeed = velocity.Y;
+
+                    position.Y = floorTop - radius;
+                    velocity.Y = -Tuning.BumperLaunchSpeed;
+                    floor.WobbleSeconds = Tuning.BumperWobbleSeconds;
+                    World.GetSingleton<RunEventCounters>().Bumps++;
+
+                    bumped = true;
+                    continue;
+                }
+
                 position.Y = floorTop - radius;
                 events.LandingSpeed = velocity.Y;
                 velocity.Y = 0f;
                 landedOn = floorEntity;
                 landed = true;
                 events.Landed = true;
+
+                // Brittle: landing starts the crack telegraph. The visual crack
+                // and the crackle SFX begin NOW, a full crumble delay (>= 0.6 s,
+                // the telegraph contract) before the floor gives way.
+                if (floor.Kind == FloorKind.Brittle && !floor.Cracking)
+                {
+                    floor.Cracking = true;
+                    floor.CrackSeconds = 0f;
+                    events.CrackStarted = true;
+                    events.CrackX = position.X;
+                    events.CrackY = floorTop;
+                }
+
                 continue;
             }
 
@@ -135,6 +183,11 @@ public sealed class CollisionSystem : SystemBase
             {
                 floor.Cleared = true;
                 events.GapsPassed++;
+
+                // Feed the Flashover schedule: surges trigger on cleared floor
+                // indexes, a pure function of the floor script.
+                ref var surge = ref World.GetSingleton<SurgeState>();
+                surge.DeepestClearedFloor = Math.Max(surge.DeepestClearedFloor, floor.Index);
             }
         }
 
@@ -152,14 +205,17 @@ public sealed class CollisionSystem : SystemBase
         }
     }
 
-    private void UpdateResting(Entity ballEntity, float radius, ref Position2D position, ref Velocity2D velocity)
+    private void UpdateResting(
+        Entity ballEntity, float radius, float musicSeconds,
+        ref Position2D position, ref Velocity2D velocity)
     {
         var restingOn = World.Get<RestingOn>(ballEntity);
         var floorEntity = restingOn.FloorEntity;
 
         if (!World.IsAlive(floorEntity) || !World.Has<Floor>(floorEntity))
         {
-            // The floor scrolled away and was despawned out from under us.
+            // The floor scrolled away (or a Brittle one crumbled) out from
+            // under us.
             World.Remove<RestingOn>(ballEntity);
             return;
         }
@@ -167,22 +223,33 @@ public sealed class CollisionSystem : SystemBase
         ref readonly var floor = ref World.Get<Floor>(floorEntity);
         var floorTop = World.Get<Position2D>(floorEntity).Y;
 
+        // Once the floor has been carried into the Furnace band there is
+        // nothing left to stand on: with the crusher on, death has already
+        // happened; without it (Ember Garden), the ball lets go and falls.
+        if (floorTop - radius < Tuning.CeilingY + radius)
+        {
+            World.Remove<RestingOn>(ballEntity);
+            return;
+        }
+
         // The floor carries the resting ball upward, toward the Furnace.
         position.Y = floorTop - radius;
         velocity.Y = 0f;
 
-        // Steered over the gap? Let go and fall.
-        if (IsOverGap(position.X, radius, in floor))
+        // Steered over the gap (or a Pulse gap reopened under us)? Let go and fall.
+        if (IsOverGap(position.X, radius, in floor, musicSeconds))
         {
             World.Remove<RestingOn>(ballEntity);
         }
     }
 
-    private static bool IsOverGap(float ballX, float radius, in Floor floor)
+    private static bool IsOverGap(float ballX, float radius, in Floor floor, float musicSeconds)
     {
-        // The ball only fits through when it is fully inside the gap.
-        var gapLeft = floor.GapCenterX - floor.GapWidth / 2f;
-        var gapRight = floor.GapCenterX + floor.GapWidth / 2f;
+        // The ball only fits through when it is fully inside the gap. Pulse
+        // floors shrink the effective gap as they phase closed.
+        var gapWidth = FloorLayout.EffectiveGapWidth(in floor, musicSeconds);
+        var gapLeft = floor.GapCenterX - gapWidth / 2f;
+        var gapRight = floor.GapCenterX + gapWidth / 2f;
         return ballX > gapLeft + radius && ballX < gapRight - radius;
     }
 }

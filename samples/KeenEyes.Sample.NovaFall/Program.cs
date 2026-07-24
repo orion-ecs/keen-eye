@@ -10,35 +10,44 @@
 // death resets it. Score is meters fallen times the current multiplier, ticking
 // continuously.
 //
-// PHASE B — the juice pass. Heat is now spectacle and power, not just a number:
-//   - Comet trail ribbon + additive cone particles, length/density by tier
-//   - Concentric additive glow under the ball, sine-pulsed by heat
-//   - The world palette itself tweens through four tier moods
-//   - FLOOR SMASH: at Plasma+, landings shatter the floor (fragments, hitstop,
-//     camera kick) at the cost of one heat tier
-//   - GRAZE SPARKS: thread within 12 units of a floor edge for score, heat,
-//     and a rising-pitch ting
-//   - A hand-rolled camera: trauma shake, smash kick, speed zoom-out, crush
-//     zoom-in — composed into the projection matrix each frame
-//   - Three synced music stems cross-faded by tier, wind pitched by fall speed
-//   - UI-kit HUD: heat bar with tier notches, combo toasts, death score card
+// PHASE C — modes and meta. The shaft gets personalities and the game gets a life
+// outside a single run:
+//   - FLOOR PERSONALITIES: Brittle (cracks on landing, crumbles 0.65s later —
+//     every hazard telegraphs >= 0.6s before it can kill), Bumper (elastic launch
+//     back up toward the Furnace), Pulse (gap breathes open/closed on the music
+//     beat, close telegraphed by shrinking edges)
+//   - FLASHOVER SURGE: every 40 cleared floors, 10 seconds where the scroll
+//     spikes, EVERY floor smashes at any tier, the shaft burns white-hot, and
+//     the lead stem swaps to its surge variant; 5+ smashes = +1000 Surge Sweep
+//   - ADRENALINE SAVE: once per run, the frame the Furnace would kill, time
+//     snaps to 20% for 1.5 real seconds — muffled audio, desaturated world,
+//     one last steer
+//   - MODES AS CONFIGURATION: FREEFALL / DAILY INFERNO (3-minute time attack on
+//     a date-hashed seed, 3 attempts, local medals) / EMBER GARDEN (no crusher,
+//     no death, pad-only mix) — the same systems, different RunConfig knobs
+//   - PERSISTENCE: per-mode bests, daily medals and attempts, and cosmetic
+//     styles, saved through KeenEyes.Persistence to the platform app-data dir
+//   - TESTBRIDGE: the running game is MCP-inspectable on the named pipe
+//     "KeenEyes.NovaFall.TestBridge", exactly like the editor
 //
 // Controls:
-//   A / Left Arrow / Left Stick   - Steer left
-//   D / Right Arrow / Left Stick  - Steer right
-//   Any steer key                 - Start / restart
+//   A / Left Arrow / Left Stick   - Steer left (in menus: cycle the active row)
+//   D / Right Arrow / Left Stick  - Steer right (in menus: cycle the active row)
+//   Tab                           - Ready screen: switch row (mode <-> style)
+//   Space / Enter                 - Ready screen: dive; death screen: back to menu
 //   J                             - Toggle all juice (the A/B readability demo)
 //   Escape                        - Exit
 //
 // Command line:
 //   --seed <n>        Pin the run seed (same layout every run)
+//   --mode <name>     Start in a mode: freefall (default), daily, ember
 //   --simulate <n>    Headless determinism check: run n frames without a window
 //                     and print the procedural layout, event counts, and final
 //                     state
 //
 // NOTE: The windowed mode requires a display; --simulate does not, and installs
 // no graphics, audio, particle, animation, or UI plugins at all — every juice
-// system no-ops without its extension.
+// system no-ops without its extension, and it never reads or writes save files.
 
 using System.Globalization;
 using System.Numerics;
@@ -53,13 +62,15 @@ using KeenEyes.Particles.Systems;
 using KeenEyes.Platform.Silk;
 using KeenEyes.Runtime;
 using KeenEyes.Sample.NovaFall;
-using KeenEyes.Spatial;
+using KeenEyes.TestBridge;
+using KeenEyes.TestBridge.Ipc;
 using KeenEyes.UI;
 
 // --- Parse arguments ---
 
 var pinnedSeed = default(ulong?);
 var simulateFrames = default(int?);
+var startMode = GameMode.Freefall;
 
 for (var i = 0; i < args.Length - 1; i++)
 {
@@ -71,13 +82,22 @@ for (var i = 0; i < args.Length - 1; i++)
     {
         simulateFrames = parsedFrames;
     }
+    else if (args[i] == "--mode")
+    {
+        startMode = args[i + 1].ToLowerInvariant() switch
+        {
+            "daily" => GameMode.DailyInferno,
+            "ember" => GameMode.EmberGarden,
+            _ => GameMode.Freefall,
+        };
+    }
 }
 
 // --- Headless determinism mode ---
 
 if (simulateFrames is int frames)
 {
-    RunHeadlessSimulation(frames, pinnedSeed ?? 0x5EEDF00DUL);
+    RunHeadlessSimulation(frames, pinnedSeed ?? 0x5EEDF00DUL, startMode);
     return;
 }
 
@@ -90,9 +110,10 @@ Console.WriteLine("Steer into the gaps. Do not touch the Furnace.");
 Console.WriteLine("Burn hot enough and the floors break before you do.");
 Console.WriteLine();
 Console.WriteLine("Controls:");
-Console.WriteLine("  A / Left Arrow / Left Stick   - Steer left");
-Console.WriteLine("  D / Right Arrow / Left Stick  - Steer right");
-Console.WriteLine("  Any steer key                 - Start / restart");
+Console.WriteLine("  A / Left Arrow / Left Stick   - Steer left / cycle menu row");
+Console.WriteLine("  D / Right Arrow / Left Stick  - Steer right / cycle menu row");
+Console.WriteLine("  Tab                           - Ready screen: switch row (mode <-> style)");
+Console.WriteLine("  Space / Enter                 - Dive / back to menu");
 Console.WriteLine("  J                             - Toggle juice on/off");
 Console.WriteLine("  Escape                        - Exit");
 Console.WriteLine();
@@ -133,7 +154,7 @@ using var world = new World();
 world.InstallPlugin(new SilkWindowPlugin(windowConfig));
 world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
 world.InstallPlugin(new SilkInputPlugin(inputConfig));
-InstallSimulationPlugins(world);
+GameSetup.InstallSimulationPlugins(world);
 world.InstallPlugin(new ParticlesPlugin());
 world.InstallPlugin(new AnimationPlugin());
 world.InstallPlugin(new SilkAudioPlugin());
@@ -146,15 +167,53 @@ world.InstallPlugin(new UIPlugin());
 // particles remain entirely the plugin's.
 world.GetSystem<ParticleRenderSystem>()!.Enabled = false;
 
-// A new seed per run unless one is pinned on the command line.
-var seed = pinnedSeed ?? (ulong)Environment.TickCount64;
+// The persistent profile lives in the platform app-data directory; loading is
+// corruption-tolerant (a bad file means fresh state, never a crash).
+var saveDirectory = Path.Combine(
+    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+    "KeenEyes.NovaFall", "Saves");
+var profile = ProfilePersistence.Load(saveDirectory);
+var today = DateOnly.FromDateTime(DateTime.Now);
 
-GameSetup.InitializeSingletons(world, seed, pinSeed: pinnedSeed is not null, presentation: true);
-RegisterSystems(world, fontPath);
+// Daily Inferno always plays today's shared, date-hashed seed.
+var seed = startMode == GameMode.DailyInferno
+    ? DailySchedule.SeedForDate(today)
+    : pinnedSeed ?? (ulong)Environment.TickCount64;
+
+GameSetup.InitializeSingletons(world, seed, pinSeed: pinnedSeed is not null, presentation: true, startMode);
+world.SetSingleton(new ProfileState
+{
+    Profile = profile,
+    SaveEnabled = true,
+    SaveDirectory = saveDirectory,
+    TodayKey = DailySchedule.DateKey(today),
+});
+GameSetup.RegisterSystems(world, fontPath);
 GameSetup.StartRun(world, seed);
 
 Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"Run seed: {seed}"));
+Console.WriteLine($"Mode: {ModeCatalog.NameOf(startMode)}");
 Console.WriteLine("Starting...");
+
+// TestBridge: expose the live game world to external tools (the MCP server)
+// over a named pipe, following the editor's integration pattern. Windowed
+// mode only — headless CI runs stay free of IPC endpoints.
+var bridgePlugin = new TestBridgePlugin(new TestBridgeOptions { EnableIpc = true });
+var bridgeServer = default(IpcBridgeServer);
+try
+{
+    world.InstallPlugin(bridgePlugin);
+    bridgeServer = new IpcBridgeServer(
+        world.GetExtension<ITestBridge>(),
+        new IpcOptions { PipeName = "KeenEyes.NovaFall.TestBridge" });
+    await bridgeServer.StartAsync();
+    Console.WriteLine("[TestBridge] IPC server started on pipe: KeenEyes.NovaFall.TestBridge");
+}
+catch (Exception ex)
+{
+    // The bridge is a debugging aid; the game must run fine without it.
+    Console.WriteLine($"[TestBridge] Unavailable: {ex.Message}");
+}
 
 try
 {
@@ -178,7 +237,7 @@ try
                 world.GetSystem<UILayoutSystem>()?.SetScreenSize(graphics.Width, graphics.Height);
             }
 
-            Console.WriteLine("Ready. Press A/D to dive. Press J to compare with the juice off.");
+            Console.WriteLine("Ready. A/D cycles the mode, Tab switches to styles, Space dives.");
         })
         .OnResize((width, height) =>
         {
@@ -198,69 +257,32 @@ catch (Exception ex)
     Console.WriteLine($"Error: {ex.Message}");
     Console.WriteLine("Windowed mode requires a display. Try --simulate 600 for the headless check.");
 }
+finally
+{
+    // TestBridge teardown mirrors the editor's: stop the pipe server before the
+    // world (and the bridge plugin inside it) is disposed.
+    if (bridgeServer is not null)
+    {
+        await bridgeServer.StopAsync();
+        bridgeServer.Dispose();
+    }
+}
 
 Console.WriteLine("Sample complete!");
-
-// Installs the plugins the SIMULATION itself depends on — shared by the windowed
-// game and the headless mode so gameplay (graze detection's quadtree queries)
-// behaves identically in both. Keep juice plugins out of here.
-static void InstallSimulationPlugins(World world)
-{
-    world.InstallPlugin(new SpatialPlugin(new SpatialConfig
-    {
-        Strategy = SpatialStrategy.Quadtree,
-    }));
-}
-
-// Registers every game system with explicit phases and orders. Shared by the
-// windowed game and the headless simulation so both run the same pipeline —
-// juice systems are registered everywhere and no-op when their extension (or
-// presentation entirely) is absent.
-static void RegisterSystems(World world, string? fontPath)
-{
-    // EarlyUpdate: react to LAST frame's events, then clear them.
-    world.AddSystem<CameraSystem>(SystemPhase.EarlyUpdate, order: 0);
-    world.AddSystem<HitstopSystem>(SystemPhase.EarlyUpdate, order: 10);
-    world.AddSystem<FrameEventsClearSystem>(SystemPhase.EarlyUpdate, order: 50);
-
-    // Update: simulation first (input → motion → collision → scoring → flow)...
-    world.AddSystem<InputSteerSystem>(SystemPhase.Update, order: 0);
-    world.AddSystem<JuiceToggleSystem>(SystemPhase.Update, order: 2);
-    world.AddSystem<BallMovementSystem>(SystemPhase.Update, order: 10);
-    world.AddSystem<FloorScrollSystem>(SystemPhase.Update, order: 20);
-    world.AddSystem<GrazeDetectionSystem>(SystemPhase.Update, order: 28);
-    world.AddSystem<CollisionSystem>(SystemPhase.Update, order: 30);
-    world.AddSystem<HeatSystem>(SystemPhase.Update, order: 40);
-    world.AddSystem<ScoreSystem>(SystemPhase.Update, order: 50);
-    world.AddSystem<CrushSystem>(SystemPhase.Update, order: 60);
-    world.AddSystem<GameFlowSystem>(SystemPhase.Update, order: 70);
-
-    // ...then the juice, consuming this frame's events. (The animation plugin's
-    // TweenSystem runs at order 60, so tween values are fresh here.)
-    world.AddSystem<PaletteSystem>(SystemPhase.Update, order: 76);
-    world.AddSystem<SquashStretchSystem>(SystemPhase.Update, order: 77);
-    world.AddSystem<TrailSystem>(SystemPhase.Update, order: 78);
-    world.AddSystem<DeathSequenceSystem>(SystemPhase.Update, order: 79);
-    world.AddSystem<VfxSystem>(SystemPhase.Update, order: 80);
-    world.AddSystem<NovaFallAudioSystem>(SystemPhase.Update, order: 84);
-    world.AddSystem(new HudSystem(fontPath), SystemPhase.Update, order: 88, runsBefore: [], runsAfter: []);
-
-    world.AddSystem(new NovaFallRenderSystem(fontPath), SystemPhase.Render, order: 0, runsBefore: [], runsAfter: []);
-}
 
 // Headless determinism harness: builds the world with no window, graphics,
 // audio, particle, animation, or UI plugins (every juice system no-ops), steps
 // a fixed number of frames at a fixed timestep, and prints the procedural
 // layout, deterministic event counters, and final state. Running this twice
-// with the same seed must produce byte-identical output — the CI-safe
-// determinism hook for a later phase's replay tests.
-static void RunHeadlessSimulation(int frames, ulong seed)
+// with the same seed and mode must produce byte-identical output. It never
+// touches save files: the profile stays in memory, keeping CI hermetic.
+static void RunHeadlessSimulation(int frames, ulong seed, GameMode mode)
 {
     using var world = new World();
 
-    InstallSimulationPlugins(world);
-    GameSetup.InitializeSingletons(world, seed, pinSeed: true, presentation: false);
-    RegisterSystems(world, fontPath: null);
+    GameSetup.InstallSimulationPlugins(world);
+    GameSetup.InitializeSingletons(world, seed, pinSeed: true, presentation: false, mode);
+    GameSetup.RegisterSystems(world, fontPath: null);
     GameSetup.StartRun(world, seed);
 
     // No input exists to press a start key, so the harness starts the run itself.
@@ -273,20 +295,23 @@ static void RunHeadlessSimulation(int frames, ulong seed)
     }
 
     Console.WriteLine(string.Create(
-        CultureInfo.InvariantCulture, $"NOVAFALL simulation: seed={seed} frames={frames}"));
+        CultureInfo.InvariantCulture,
+        $"NOVAFALL simulation: seed={seed} frames={frames} mode={ModeCatalog.NameOf(mode)}"));
 
     for (var i = 0; i < 10; i++)
     {
         var (gapCenterX, gapWidth) = FloorLayout.GapForFloor(seed, i);
+        var kind = FloorLayout.KindForFloor(seed, i);
         Console.WriteLine(string.Create(
             CultureInfo.InvariantCulture,
-            $"floor {i}: gapCenter={gapCenterX:F3} gapWidth={gapWidth:F3}"));
+            $"floor {i}: gapCenter={gapCenterX:F3} gapWidth={gapWidth:F3} kind={kind}"));
     }
 
     var counters = world.GetSingleton<RunEventCounters>();
     Console.WriteLine(string.Create(
         CultureInfo.InvariantCulture,
-        $"events: smashes={counters.Smashes} grazes={counters.Grazes}"));
+        $"events: smashes={counters.Smashes} grazes={counters.Grazes} crumbles={counters.Crumbles} " +
+        $"bumps={counters.Bumps} surges={counters.SurgeWindows} adrenalineSaves={counters.AdrenalineSavesUsed}"));
 
     var scroll = world.GetSingleton<ScrollState>();
     var score = world.GetSingleton<ScoreState>();

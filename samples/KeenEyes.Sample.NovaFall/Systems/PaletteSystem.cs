@@ -1,3 +1,4 @@
+using System.Numerics;
 using KeenEyes.Animation;
 using KeenEyes.Animation.Components;
 using KeenEyes.Animation.Tweening;
@@ -30,6 +31,13 @@ namespace KeenEyes.Sample.NovaFall;
 /// Without the animation plugin (headless mode) the system snaps the palette
 /// directly — same end state, no motion, nothing else to no-op.
 /// </para>
+/// <para>
+/// PHASE C OVERRIDE CHANNELS — after the tier tween resolves, three modifiers
+/// stack on top, in order: the Flashover Surge blends the whole palette toward
+/// white-hot, an active Adrenaline Save desaturates it, and the selected
+/// cosmetic style recolors the trail and ball. All three are presentation-only
+/// reads of simulation state; none of them feeds anything back.
+/// </para>
 /// </remarks>
 public sealed class PaletteSystem : SystemBase
 {
@@ -37,6 +45,7 @@ public sealed class PaletteSystem : SystemBase
 
     private bool channelsSpawned;
     private int lastTier;
+    private float surgeBlend;
 
     /// <inheritdoc />
     public override void Update(float deltaTime)
@@ -54,6 +63,7 @@ public sealed class PaletteSystem : SystemBase
             // No tween machinery: snap to the tier target. Headless never
             // renders, so this only exists to keep the state honest.
             palette = target;
+            ApplyOverrides(ref palette, deltaTime);
             return;
         }
 
@@ -89,6 +99,67 @@ public sealed class PaletteSystem : SystemBase
 
             SetChannel(ref palette, kind, tween.CurrentValue);
         }
+
+        ApplyOverrides(ref palette, deltaTime);
+    }
+
+    /// <summary>
+    /// Stacks the Phase C override channels onto the tier palette: surge
+    /// white-hot blend, adrenaline desaturation, then cosmetic recolors.
+    /// </summary>
+    private void ApplyOverrides(ref Palette palette, float deltaTime)
+    {
+        // Surge: blend toward white-hot, easing in and out on real time so the
+        // window's start and end read as a wave, not a light switch.
+        var surgeTarget = World.GetSingleton<SurgeState>().Active ? 1f : 0f;
+        var delta = Math.Clamp(surgeTarget - surgeBlend, -1f, 1f);
+        var maxStep = Tuning.SurgeBlendPerSecond * deltaTime;
+        surgeBlend += Math.Clamp(delta, -maxStep, maxStep);
+
+        if (surgeBlend > 0.001f)
+        {
+            var t = surgeBlend * Tuning.SurgePaletteStrength;
+            palette.Background = Vector4.Lerp(palette.Background, Tuning.SurgePalette.Background, t);
+            palette.FloorFill = Vector4.Lerp(palette.FloorFill, Tuning.SurgePalette.FloorFill, t);
+            palette.FloorOutline = Vector4.Lerp(palette.FloorOutline, Tuning.SurgePalette.FloorOutline, t);
+            palette.Ball = Vector4.Lerp(palette.Ball, Tuning.SurgePalette.Ball, t);
+            palette.Trail = Vector4.Lerp(palette.Trail, Tuning.SurgePalette.Trail, t);
+            palette.UiAccent = Vector4.Lerp(palette.UiAccent, Tuning.SurgePalette.UiAccent, t);
+        }
+
+        // Adrenaline: the world drains toward gray while the save window is open.
+        if (World.GetSingleton<AdrenalineState>().Active)
+        {
+            palette.Background = Desaturate(palette.Background);
+            palette.FloorFill = Desaturate(palette.FloorFill);
+            palette.FloorOutline = Desaturate(palette.FloorOutline);
+            palette.Ball = Desaturate(palette.Ball);
+            palette.Trail = Desaturate(palette.Trail);
+            palette.UiAccent = Desaturate(palette.UiAccent);
+        }
+
+        // Cosmetics: the selected style recolors the trail and ball only —
+        // floors and background stay tier-driven for readability.
+        if (World.GetSingleton<ProfileState>().Profile is { } profile)
+        {
+            var style = CosmeticStyles.All[Math.Clamp(profile.SelectedStyle, 0, CosmeticStyles.All.Length - 1)];
+            if (style.TrailOverride is { } trailColor)
+            {
+                palette.Trail = trailColor;
+            }
+
+            if (style.BallOverride is { } ballColor)
+            {
+                palette.Ball = ballColor;
+            }
+        }
+    }
+
+    private static Vector4 Desaturate(Vector4 color)
+    {
+        var luminance = 0.299f * color.X + 0.587f * color.Y + 0.114f * color.Z;
+        var gray = new Vector4(luminance, luminance, luminance, color.W);
+        return Vector4.Lerp(color, gray, Tuning.AdrenalineDesaturation);
     }
 
     private void SpawnChannelEntities(in Palette current)

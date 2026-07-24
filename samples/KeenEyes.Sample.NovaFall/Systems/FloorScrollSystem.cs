@@ -36,7 +36,9 @@ public sealed class FloorScrollSystem : SystemBase
     public override void Update(float deltaTime)
     {
         ref var scroll = ref World.GetSingleton<ScrollState>();
-        var seed = World.GetSingleton<RunConfig>().Seed;
+        var runConfig = World.GetSingleton<RunConfig>();
+        var seed = runConfig.Seed;
+        var settings = runConfig.Settings;
         var playing = World.GetSingleton<GameState>().Phase == GamePhase.Playing;
 
         if (playing)
@@ -44,10 +46,16 @@ public sealed class FloorScrollSystem : SystemBase
             var dt = deltaTime * World.GetSingleton<TimeScale>().Value;
 
             // Scroll speed escalates with depth: the deeper you are, the faster
-            // the Furnace chases you.
+            // the Furnace chases you. The curve is the mode's (Ember Garden's is
+            // flat), and a Flashover Surge spikes it.
             scroll.Speed = Math.Min(
-                Tuning.BaseScrollSpeed + scroll.Depth * Tuning.ScrollSpeedPerMeter,
-                Tuning.MaxScrollSpeed);
+                settings.BaseScrollSpeed + scroll.Depth * settings.ScrollSpeedPerMeter,
+                settings.MaxScrollSpeed);
+
+            if (World.GetSingleton<SurgeState>().Active)
+            {
+                scroll.Speed *= Tuning.SurgeScrollMultiplier;
+            }
 
             var rise = scroll.Speed * dt;
             scroll.Depth += rise / Tuning.UnitsPerMeter;
@@ -88,10 +96,11 @@ public sealed class FloorScrollSystem : SystemBase
             World.Despawn(entity);
         }
 
-        // Keep the shaft filled one floor beyond the bottom of the view.
-        while (!anyFloors || lowestY < Tuning.ShaftHeight + Tuning.FloorSpacing)
+        // Keep the shaft filled one floor beyond the bottom of the view. The
+        // spacing is a mode knob: Daily Inferno packs the shaft denser.
+        while (!anyFloors || lowestY < Tuning.ShaftHeight + settings.FloorSpacing)
         {
-            var y = anyFloors ? lowestY + Tuning.FloorSpacing : Tuning.FirstFloorY;
+            var y = anyFloors ? lowestY + settings.FloorSpacing : Tuning.FirstFloorY;
             SpawnFloor(seed, scroll.NextFloorIndex, y);
             scroll.NextFloorIndex++;
             lowestY = y;
@@ -110,6 +119,7 @@ public sealed class FloorScrollSystem : SystemBase
                 GapCenterX = gapCenterX,
                 GapWidth = gapWidth,
                 Thickness = Tuning.FloorThickness,
+                Kind = FloorLayout.KindForFloor(seed, floorIndex),
             })
             .With(new Position2D { X = 0f, Y = y })
             .With(new Transform3D(new Vector3(Tuning.ShaftWidth / 2f, y, 0f), Quaternion.Identity, Vector3.One))

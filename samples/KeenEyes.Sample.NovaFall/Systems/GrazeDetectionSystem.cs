@@ -49,6 +49,8 @@ public sealed class GrazeDetectionSystem : SystemBase
             return;
         }
 
+        var musicSeconds = World.GetSingleton<MusicClock>().Seconds;
+
         foreach (var ballEntity in World.Query<Ball, Position2D, Velocity2D>())
         {
             if (World.Has<RestingOn>(ballEntity))
@@ -79,8 +81,12 @@ public sealed class GrazeDetectionSystem : SystemBase
                     continue;
                 }
 
-                var gapLeft = floor.GapCenterX - floor.GapWidth / 2f;
-                var gapRight = floor.GapCenterX + floor.GapWidth / 2f;
+                // Pulse floors graze against their EFFECTIVE gap — the same
+                // width collision and rendering use — so a shrinking edge is
+                // exactly as grazable as it looks.
+                var gapWidth = FloorLayout.EffectiveGapWidth(in floor, musicSeconds);
+                var gapLeft = floor.GapCenterX - gapWidth / 2f;
+                var gapRight = floor.GapCenterX + gapWidth / 2f;
                 var clearance = Math.Min(
                     (position.X - radius) - gapLeft,
                     gapRight - (position.X + radius));
