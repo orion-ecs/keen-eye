@@ -23,6 +23,13 @@ namespace KeenEyes.Physics.Core;
 public readonly record struct RayHit(Entity Entity, Vector3 Position, Vector3 Normal, float Distance);
 
 /// <summary>
+/// A raw physics pose snapshot (position and rotation) captured directly from the simulation.
+/// </summary>
+/// <param name="Position">The world-space position.</param>
+/// <param name="Rotation">The world-space rotation.</param>
+internal readonly record struct InterpolationPose(Vector3 Position, Quaternion Rotation);
+
+/// <summary>
 /// Extension API for physics operations in a world.
 /// </summary>
 /// <remarks>
@@ -57,6 +64,12 @@ public sealed class PhysicsWorld : IDisposable
     private float accumulator;
     private float interpolationAlpha;
 
+    // Last two raw physics poses per dynamic body, captured straight from the simulation
+    // (never the interpolated/displayed value). Used by PhysicsSyncSystem to interpolate
+    // for rendering without feeding its own output back in as input.
+    private readonly Dictionary<Entity, InterpolationPose> interpolationPrevious = [];
+    private readonly Dictionary<Entity, InterpolationPose> interpolationCurrent = [];
+
     /// <summary>
     /// Gets the current interpolation alpha (0-1) for rendering.
     /// </summary>
@@ -73,9 +86,31 @@ public sealed class PhysicsWorld : IDisposable
     public Vector3 Gravity { get; set; }
 
     /// <summary>
-    /// Gets the number of physics bodies (dynamic + kinematic).
+    /// Gets the number of physics bodies (dynamic + kinematic), including bodies
+    /// that are currently asleep.
     /// </summary>
-    public int BodyCount => simulation.Bodies.ActiveSet.Count;
+    /// <remarks>
+    /// BepuPhysics stores bodies across multiple sets: the active set (index 0) plus
+    /// one set per sleeping island. Counting only the active set would omit any body
+    /// that has gone to sleep, so all allocated sets are summed here.
+    /// </remarks>
+    public int BodyCount
+    {
+        get
+        {
+            var total = 0;
+            var sets = simulation.Bodies.Sets;
+            for (var i = 0; i < sets.Length; i++)
+            {
+                if (sets[i].Allocated)
+                {
+                    total += sets[i].Count;
+                }
+            }
+
+            return total;
+        }
+    }
 
     /// <summary>
     /// Gets the number of static bodies.
@@ -108,7 +143,7 @@ public sealed class PhysicsWorld : IDisposable
         this.config = config;
         Gravity = config.Gravity;
         bodyLookup = new BodyLookup();
-        collisionEventManager = new CollisionEventManager(world);
+        collisionEventManager = new CollisionEventManager(world, IsBodyAsleep);
         bufferPool = new BufferPool();
         threadDispatcher = new ThreadDispatcher(Environment.ProcessorCount);
 
@@ -395,6 +430,60 @@ public sealed class PhysicsWorld : IDisposable
         return bodyLookup.HasBody(entity) || bodyLookup.HasStatic(entity);
     }
 
+    /// <summary>
+    /// Gets the last two raw physics poses recorded for a dynamic body, used for rendering
+    /// interpolation.
+    /// </summary>
+    /// <param name="entity">The entity whose poses to retrieve.</param>
+    /// <param name="previousPosition">The position captured one physics step before the current one.</param>
+    /// <param name="previousRotation">The rotation captured one physics step before the current one.</param>
+    /// <param name="currentPosition">The most recent raw physics position.</param>
+    /// <param name="currentRotation">The most recent raw physics rotation.</param>
+    /// <returns>True if pose data exists for the entity; false otherwise.</returns>
+    internal bool TryGetInterpolationPoses(
+        Entity entity,
+        out Vector3 previousPosition,
+        out Quaternion previousRotation,
+        out Vector3 currentPosition,
+        out Quaternion currentRotation)
+    {
+        if (interpolationCurrent.TryGetValue(entity, out var current))
+        {
+            currentPosition = current.Position;
+            currentRotation = current.Rotation;
+
+            if (interpolationPrevious.TryGetValue(entity, out var previous))
+            {
+                previousPosition = previous.Position;
+                previousRotation = previous.Rotation;
+            }
+            else
+            {
+                previousPosition = current.Position;
+                previousRotation = current.Rotation;
+            }
+
+            return true;
+        }
+
+        previousPosition = default;
+        previousRotation = Quaternion.Identity;
+        currentPosition = default;
+        currentRotation = Quaternion.Identity;
+        return false;
+    }
+
+    private bool IsBodyAsleep(Entity entity)
+    {
+        // Only dynamic/kinematic bodies can sleep; statics and unknown entities are never asleep.
+        if (bodyLookup.TryGetBody(entity, out var handle))
+        {
+            return !simulation.Bodies.GetBodyReference(handle).Awake;
+        }
+
+        return false;
+    }
+
     #endregion
 
     #region Configuration
@@ -403,9 +492,19 @@ public sealed class PhysicsWorld : IDisposable
     /// Sets the gravity vector for the simulation.
     /// </summary>
     /// <param name="newGravity">The new gravity vector.</param>
+    /// <remarks>
+    /// The pose integrator callbacks receive a copy of the gravity vector at simulation
+    /// creation, so updating <see cref="Gravity"/> alone would not affect the running
+    /// simulation. This method also writes the new value into the live integrator callbacks.
+    /// </remarks>
     public void SetGravity(Vector3 newGravity)
     {
         Gravity = newGravity;
+
+        // Propagate into the live pose integrator callbacks. The callbacks struct is stored
+        // by value on the concrete PoseIntegrator, so mutating the field there changes the
+        // gravity used by subsequent timesteps.
+        ((PoseIntegrator<PoseIntegratorCallbacks>)simulation.PoseIntegrator).Callbacks.Gravity = newGravity;
     }
 
     /// <summary>
@@ -446,9 +545,19 @@ public sealed class PhysicsWorld : IDisposable
             steps++;
         }
 
-        // Calculate interpolation alpha for rendering
+        // When the loop exits on the MaxStepsPerFrame cap, the accumulator can still hold
+        // more than a full timestep. Drain the excess so it neither grows unbounded (spiral
+        // of death) nor produces an interpolation alpha above 1. On a normal exit the loop
+        // already leaves the accumulator below one timestep, so this is a no-op.
+        if (accumulator > config.FixedTimestep)
+        {
+            accumulator = config.FixedTimestep;
+        }
+
+        // Calculate interpolation alpha for rendering, clamped to the [0, 1] range expected
+        // by Lerp/Slerp consumers.
         interpolationAlpha = config.EnableInterpolation
-            ? accumulator / config.FixedTimestep
+            ? Math.Clamp(accumulator / config.FixedTimestep, 0f, 1f)
             : 1f;
 
         return steps;
@@ -503,12 +612,28 @@ public sealed class PhysicsWorld : IDisposable
             if (rigidBody.BodyType == RigidBodyType.Dynamic && bodyLookup.TryGetBody(entity, out var handle))
             {
                 var bodyRef = simulation.Bodies.GetBodyReference(handle);
+                var rawPosition = bodyRef.Pose.Position;
+                var rawOrientation = bodyRef.Pose.Orientation;
+
+                // Track the last two raw physics poses for rendering interpolation. Shift the
+                // previously recorded pose into "previous" before overwriting "current" so the
+                // sync system always interpolates between two authentic simulation poses.
+                if (interpolationCurrent.TryGetValue(entity, out var lastCurrent))
+                {
+                    interpolationPrevious[entity] = lastCurrent;
+                }
+                else
+                {
+                    interpolationPrevious[entity] = new InterpolationPose(rawPosition, rawOrientation);
+                }
+
+                interpolationCurrent[entity] = new InterpolationPose(rawPosition, rawOrientation);
 
                 if (world.Has<Transform3D>(entity))
                 {
                     ref var transform = ref world.Get<Transform3D>(entity);
-                    transform.Position = bodyRef.Pose.Position;
-                    transform.Rotation = bodyRef.Pose.Orientation;
+                    transform.Position = rawPosition;
+                    transform.Rotation = rawOrientation;
                 }
 
                 if (world.Has<Velocity3D>(entity))
@@ -580,14 +705,33 @@ public sealed class PhysicsWorld : IDisposable
         // Remove from collision tracking first
         collisionEventManager.RemoveEntity(entity);
 
+        // Drop interpolation state so a recycled entity id doesn't inherit a stale pose.
+        interpolationPrevious.Remove(entity);
+        interpolationCurrent.Remove(entity);
+
         if (bodyLookup.TryGetBody(entity, out var bodyHandle))
         {
+            // Capture the shape before removing the body, then release it. Each body is
+            // created with its own shape via AddShape, so failing to remove it here would
+            // leak shape slots for the lifetime of the simulation.
+            var shape = simulation.Bodies[bodyHandle].Collidable.Shape;
             simulation.Bodies.Remove(bodyHandle);
+            if (shape.Exists)
+            {
+                simulation.Shapes.Remove(shape);
+            }
+
             bodyLookup.Unregister(entity);
         }
         else if (bodyLookup.TryGetStatic(entity, out var staticHandle))
         {
+            var shape = simulation.Statics[staticHandle].Shape;
             simulation.Statics.Remove(staticHandle);
+            if (shape.Exists)
+            {
+                simulation.Shapes.Remove(shape);
+            }
+
             bodyLookup.Unregister(entity);
         }
     }
@@ -631,6 +775,8 @@ public sealed class PhysicsWorld : IDisposable
         disposed = true;
 
         collisionEventManager.Clear();
+        interpolationPrevious.Clear();
+        interpolationCurrent.Clear();
         simulation.Dispose();
         threadDispatcher.Dispose();
         bufferPool.Clear();

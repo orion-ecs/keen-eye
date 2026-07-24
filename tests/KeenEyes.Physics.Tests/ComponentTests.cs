@@ -368,12 +368,14 @@ public class ComponentTests
     }
 
     [Fact]
-    public void ActivityDescription_NeverSleep_HasMaxValues()
+    public void ActivityDescription_NeverSleep_HasNegativeSleepThreshold()
     {
         var activity = ActivityDescription.NeverSleep;
 
-        Assert.Equal(float.MaxValue, activity.SleepThreshold);
-        Assert.Equal(byte.MaxValue, activity.MinimumTimestepsBeforeSleep);
+        // BepuPhysics treats a negative sleep threshold as "never a sleep candidate", so a
+        // never-sleep body must use a negative threshold (a large positive value would make
+        // the body sleep as soon as it becomes a candidate).
+        Assert.True(activity.SleepThreshold < 0f);
     }
 
     [Fact]
