@@ -17,6 +17,7 @@
     <Project Path="samples/KeenEyes.Sample.CollisionDetection/KeenEyes.Sample.CollisionDetection.csproj" />
     <Project Path="samples/KeenEyes.Sample.Graphics/KeenEyes.Sample.Graphics.csproj" />
     <Project Path="samples/KeenEyes.Sample.Input/KeenEyes.Sample.Input.csproj" />
+    <Project Path="samples/KeenEyes.Sample.InputDebugger/KeenEyes.Sample.InputDebugger.csproj" />
     <Project Path="samples/KeenEyes.Sample.MassSimulation/KeenEyes.Sample.MassSimulation.csproj" />
     <Project Path="samples/KeenEyes.Sample.Messaging/KeenEyes.Sample.Messaging.csproj" />
     <Project Path="samples/KeenEyes.Sample.Multiplayer/KeenEyes.Sample.Multiplayer.csproj" />
