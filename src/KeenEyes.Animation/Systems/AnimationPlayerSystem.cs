@@ -52,8 +52,8 @@ public sealed class AnimationPlayerSystem : SystemBase
             // Save previous time for event detection
             player.PreviousTime = player.Time;
 
-            // Advance time
-            player.Time += deltaTime * player.Speed * clip.Speed;
+            // Signed timeline step for this frame
+            var step = deltaTime * player.Speed * clip.Speed;
 
             // Get wrap mode
             var wrapMode = player.WrapModeOverride ?? clip.WrapMode;
@@ -65,22 +65,36 @@ public sealed class AnimationPlayerSystem : SystemBase
                 player.IsComplete = true;
                 player.IsPlaying = false;
             }
-            else if (wrapMode == WrapMode.Once && player.Time >= clip.Duration)
+            else if (wrapMode == WrapMode.PingPong)
             {
-                player.Time = clip.Duration;
-                player.IsComplete = true;
-                player.IsPlaying = false;
-            }
-            else if (wrapMode == WrapMode.ClampForever)
-            {
-                player.Time = Math.Max(player.Time, 0f);
-                player.IsComplete = player.Time >= clip.Duration;
+                // Ping-pong reflects the timeline, so the stored Time is not monotonic.
+                // Advance from the current reflected position using the tracked direction
+                // so the half-cycle parity survives across frames.
+                (player.Time, player.PingPongReversed) =
+                    AdvancePingPong(player.Time, player.PingPongReversed, step, clip.Duration);
+                player.IsComplete = false;
             }
             else
             {
-                // Wrap the time based on the effective wrap mode
-                player.Time = WrapTime(player.Time, clip.Duration, wrapMode);
-                player.IsComplete = false;
+                player.Time += step;
+
+                if (wrapMode == WrapMode.Once && player.Time >= clip.Duration)
+                {
+                    player.Time = clip.Duration;
+                    player.IsComplete = true;
+                    player.IsPlaying = false;
+                }
+                else if (wrapMode == WrapMode.ClampForever)
+                {
+                    player.Time = Math.Max(player.Time, 0f);
+                    player.IsComplete = player.Time >= clip.Duration;
+                }
+                else
+                {
+                    // Wrap the time based on the effective wrap mode
+                    player.Time = WrapTime(player.Time, clip.Duration, wrapMode);
+                    player.IsComplete = false;
+                }
             }
         }
     }
@@ -90,19 +104,25 @@ public sealed class AnimationPlayerSystem : SystemBase
         return wrapMode switch
         {
             WrapMode.Once => Math.Clamp(time, 0f, duration),
-            WrapMode.Loop => time % duration,
-            WrapMode.PingPong => WrapPingPong(time, duration),
+            WrapMode.Loop => WrapMath.Repeat(time, duration),
             WrapMode.ClampForever => Math.Max(time, 0f),
             _ => time
         };
     }
 
-    private static float WrapPingPong(float time, float duration)
+    /// <summary>
+    /// Advances a ping-pong timeline by a signed step, reflecting at both boundaries.
+    /// </summary>
+    /// <returns>The new reflected time and whether travel is now in reverse.</returns>
+    private static (float Time, bool Reversed) AdvancePingPong(float time, bool reversed, float step, float duration)
     {
-        var cycles = (int)(time / duration);
-        var t = time % duration;
+        var period = duration * 2f;
 
-        // Odd cycles play in reverse
-        return (cycles % 2 == 1) ? duration - t : t;
+        // Reconstruct the monotonic phase from the reflected position + direction,
+        // advance it, then fold back into a triangle wave.
+        var phase = reversed ? period - time : time;
+        var folded = WrapMath.Repeat(phase + step, period);
+
+        return folded <= duration ? (folded, false) : (period - folded, true);
     }
 }

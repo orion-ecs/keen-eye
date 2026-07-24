@@ -25,7 +25,7 @@ namespace KeenEyes.Animation.Rendering;
 /// for (int i = 0; i &lt; skeleton.BoneCount; i++)
 /// {
 ///     var worldTransform = GetBoneWorldTransform(i);
-///     var finalMatrix = worldTransform * skeleton.InverseBindMatrices[i];
+///     var finalMatrix = skeleton.InverseBindMatrices[i] * worldTransform;
 ///     buffer.SetBoneMatrix(i, finalMatrix, frameGeneration);
 /// }
 ///
@@ -89,7 +89,7 @@ public sealed class BoneMatrixBuffer : IDisposable
     /// Sets the matrix for a specific bone.
     /// </summary>
     /// <param name="boneIndex">The bone index.</param>
-    /// <param name="matrix">The bone's final skinning matrix (world * inverseBindMatrix).</param>
+    /// <param name="matrix">The bone's final skinning matrix (inverseBindMatrix * world, row-vector order).</param>
     /// <param name="generation">The generation counter for change tracking.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown when boneIndex is out of range.</exception>
     public void SetBoneMatrix(int boneIndex, Matrix4x4 matrix, ulong generation)

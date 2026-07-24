@@ -113,7 +113,18 @@ public sealed class AnimatorSystem : SystemBase
             // Update transition
             if (animator.NextStateHash != 0)
             {
-                animator.TransitionProgress += deltaTime / animator.TransitionDuration;
+                // A zero (or negative) duration is a valid instantaneous transition.
+                // Guard the division: dt/0 is +Infinity (completes by luck) and 0/0 is NaN,
+                // which never satisfies >= 1 and poisons the animator permanently.
+                if (animator.TransitionDuration <= 0f)
+                {
+                    animator.TransitionProgress = 1f;
+                }
+                else
+                {
+                    animator.TransitionProgress += deltaTime / animator.TransitionDuration;
+                }
+
                 animator.NextStateTime += deltaTime * speed;
 
                 if (animator.TransitionProgress >= 1f)

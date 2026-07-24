@@ -111,7 +111,13 @@ public sealed class SkeletonPoseSystem : SystemBase
                 manager.TryGetClip(nextState.ClipId, out nextClip);
             }
 
-            animatorCache[entity.Id] = (currentClip, animator.StateTime, nextClip, animator.NextStateTime, animator.TransitionProgress);
+            // Animator state times accumulate unbounded; wrap them through each clip's
+            // WrapMode before sampling so looping/ping-pong states do not freeze at the
+            // final keyframe (the curves clamp past their last key).
+            var currentTime = currentClip?.WrapTime(animator.StateTime) ?? animator.StateTime;
+            var nextTime = nextClip?.WrapTime(animator.NextStateTime) ?? animator.NextStateTime;
+
+            animatorCache[entity.Id] = (currentClip, currentTime, nextClip, nextTime, animator.TransitionProgress);
         }
     }
 

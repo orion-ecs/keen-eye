@@ -1,5 +1,6 @@
 using System.Numerics;
 using KeenEyes.Animation.Components;
+using KeenEyes.Animation.Data;
 using KeenEyes.Animation.Tweening;
 
 namespace KeenEyes.Animation.Systems;
@@ -41,7 +42,7 @@ public sealed class TweenSystem : SystemBase
 
             tween.ElapsedTime += deltaTime;
 
-            var t = ComputeProgress(ref tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
+            var t = ComputeProgress(tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
             tween.IsComplete = complete;
 
             if (complete && !tween.Loop)
@@ -67,7 +68,7 @@ public sealed class TweenSystem : SystemBase
 
             tween.ElapsedTime += deltaTime;
 
-            var t = ComputeProgress(ref tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
+            var t = ComputeProgress(tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
             tween.IsComplete = complete;
 
             if (complete && !tween.Loop)
@@ -93,7 +94,7 @@ public sealed class TweenSystem : SystemBase
 
             tween.ElapsedTime += deltaTime;
 
-            var t = ComputeProgress(ref tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
+            var t = ComputeProgress(tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
             tween.IsComplete = complete;
 
             if (complete && !tween.Loop)
@@ -119,7 +120,7 @@ public sealed class TweenSystem : SystemBase
 
             tween.ElapsedTime += deltaTime;
 
-            var t = ComputeProgress(ref tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
+            var t = ComputeProgress(tween.ElapsedTime, tween.Duration, tween.Loop, tween.PingPong, out var complete);
             tween.IsComplete = complete;
 
             if (complete && !tween.Loop)
@@ -132,7 +133,7 @@ public sealed class TweenSystem : SystemBase
         }
     }
 
-    private static float ComputeProgress(ref float elapsed, float duration, bool loop, bool pingPong, out bool complete)
+    private static float ComputeProgress(float elapsed, float duration, bool loop, bool pingPong, out bool complete)
     {
         complete = false;
 
@@ -146,25 +147,19 @@ public sealed class TweenSystem : SystemBase
         {
             if (loop)
             {
+                // Keep the accumulated time monotonic and derive the wrapped phase locally.
+                // Mutating elapsed here (elapsed %= duration) destroys cycle parity, which
+                // turned ping-pong into a forward-only sawtooth.
                 if (pingPong)
                 {
-                    // Ping-pong: calculate which cycle we're in and direction
-                    var cycles = (int)(elapsed / duration);
-                    elapsed %= duration;
-                    return (cycles % 2 == 0) ? elapsed / duration : 1f - elapsed / duration;
+                    return WrapMath.PingPong(elapsed, duration) / duration;
                 }
-                else
-                {
-                    elapsed %= duration;
-                    return elapsed / duration;
-                }
+
+                return WrapMath.Repeat(elapsed, duration) / duration;
             }
-            else
-            {
-                complete = true;
-                elapsed = duration;
-                return 1f;
-            }
+
+            complete = true;
+            return 1f;
         }
 
         return elapsed / duration;

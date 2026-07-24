@@ -45,9 +45,17 @@ public sealed class AnimationEventSystem : SystemBase
 
         foreach (var entity in World.Query<AnimationPlayer>())
         {
-            ref readonly var player = ref World.Get<AnimationPlayer>(entity);
+            ref var player = ref World.Get<AnimationPlayer>(entity);
 
-            if (!player.IsPlaying || player.ClipId < 0)
+            if (player.ClipId < 0)
+            {
+                continue;
+            }
+
+            // Process while playing, and also on the frame playback completes: the player
+            // system (which runs first) clears IsPlaying on the completion frame, so gating
+            // solely on IsPlaying would drop the final advanced range's events.
+            if (!player.IsPlaying && !player.IsComplete)
             {
                 continue;
             }
@@ -70,6 +78,14 @@ public sealed class AnimationEventSystem : SystemBase
                     evt.Parameter,
                     evt.Time,
                     player.ClipId));
+            }
+
+            // A completed, stopped player is no longer advanced by AnimationPlayerSystem,
+            // so its [PreviousTime, Time] window would repeat forever. Collapse it once the
+            // final events have been dispatched to prevent re-firing on subsequent frames.
+            if (player.IsComplete && !player.IsPlaying)
+            {
+                player.PreviousTime = player.Time;
             }
         }
     }

@@ -12,7 +12,7 @@ namespace KeenEyes.Animation.Components;
 /// </para>
 /// <para>
 /// The skinning system reads bone transforms from the bone entity hierarchy and computes
-/// the final bone matrices (boneWorldTransform * inverseBindMatrix) for GPU skinning.
+/// the final bone matrices (inverseBindMatrix * boneWorldTransform, row-vector order) for GPU skinning.
 /// </para>
 /// <para>
 /// Prerequisites for a skinned mesh entity:
@@ -56,7 +56,7 @@ public partial struct SkinnedMesh
     /// </para>
     /// <para>
     /// The skinning system reads world transforms from these entities
-    /// and multiplies by the inverse bind matrices to compute
+    /// and composes them with the inverse bind matrices to compute
     /// the final bone matrices for GPU upload.
     /// </para>
     /// </remarks>
@@ -68,7 +68,7 @@ public partial struct SkinnedMesh
     /// <remarks>
     /// Each inverse bind matrix transforms vertices from model space to the
     /// corresponding bone's local space. During rendering, the final skinning
-    /// matrix is computed as: boneWorldTransform * inverseBindMatrix.
+    /// matrix is computed as: inverseBindMatrix * boneWorldTransform (row-vector order).
     /// </remarks>
     public Matrix4x4[]? InverseBindMatrices;
 

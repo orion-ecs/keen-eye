@@ -114,19 +114,10 @@ public sealed class AnimationClip
         return WrapMode switch
         {
             WrapMode.Once => Math.Clamp(time, 0f, Duration),
-            WrapMode.Loop => time % Duration,
-            WrapMode.PingPong => WrapPingPong(time),
+            WrapMode.Loop => WrapMath.Repeat(time, Duration),
+            WrapMode.PingPong => WrapMath.PingPong(time, Duration),
             WrapMode.ClampForever => Math.Max(time, 0f),
             _ => time
         };
-    }
-
-    private float WrapPingPong(float time)
-    {
-        var cycles = (int)(time / Duration);
-        var t = time % Duration;
-
-        // Odd cycles play in reverse
-        return (cycles % 2 == 1) ? Duration - t : t;
     }
 }
