@@ -155,6 +155,36 @@ public class DotRecastProviderTests : IDisposable
 
     #region Async Request Tests
 
+    [Fact]
+    public void RequestPath_MultipleRequests_ProduceUniqueIds()
+    {
+        using var p = new DotRecastProvider(TestHelper.CreateTestConfig());
+
+        using var request1 = p.RequestPath(Vector3.Zero, new Vector3(5f, 0f, 5f), AgentSettings.Default);
+        using var request2 = p.RequestPath(Vector3.Zero, new Vector3(6f, 0f, 6f), AgentSettings.Default);
+        using var request3 = p.RequestPath(Vector3.Zero, new Vector3(7f, 0f, 7f), AgentSettings.Default);
+
+        Assert.NotEqual(request1.Id, request2.Id);
+        Assert.NotEqual(request2.Id, request3.Id);
+        Assert.NotEqual(request1.Id, request3.Id);
+    }
+
+    [Fact]
+    public void RequestPath_SeparateProviders_UseIndependentIdCounters()
+    {
+        // Request IDs are per-provider (instance) state, not process-wide.
+        // A freshly constructed provider must restart its own counter regardless
+        // of how many requests any other provider has issued.
+        using var providerA = new DotRecastProvider(TestHelper.CreateTestConfig());
+        using var requestA1 = providerA.RequestPath(Vector3.Zero, new Vector3(5f, 0f, 5f), AgentSettings.Default);
+        _ = providerA.RequestPath(Vector3.Zero, new Vector3(6f, 0f, 6f), AgentSettings.Default);
+
+        using var providerB = new DotRecastProvider(TestHelper.CreateTestConfig());
+        using var requestB1 = providerB.RequestPath(Vector3.Zero, new Vector3(5f, 0f, 5f), AgentSettings.Default);
+
+        Assert.Equal(requestA1.Id, requestB1.Id);
+    }
+
     [Fact(Skip = SkipReason)]
     public void RequestPath_ReturnsPathRequest()
     {

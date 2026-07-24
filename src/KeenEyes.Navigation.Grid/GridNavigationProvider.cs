@@ -24,6 +24,7 @@ public sealed class GridNavigationProvider : INavigationProvider
     private readonly AStarPathfinder pathfinder;
     private readonly Queue<GridPathRequest> pendingRequests;
     private readonly Lock requestLock = new();
+    private int nextRequestId;
     private bool disposed;
 
     /// <summary>
@@ -154,7 +155,7 @@ public sealed class GridNavigationProvider : INavigationProvider
     {
         ThrowIfDisposed();
 
-        var request = new GridPathRequest(start, end, agent, areaMask);
+        var request = new GridPathRequest(Interlocked.Increment(ref nextRequestId), start, end, agent, areaMask);
 
         lock (requestLock)
         {

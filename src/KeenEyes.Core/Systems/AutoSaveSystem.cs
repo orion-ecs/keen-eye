@@ -38,6 +38,11 @@ namespace KeenEyes.Systems;
 public sealed class AutoSaveSystem<TSerializer> : SystemBase
     where TSerializer : IComponentSerializer, IBinaryComponentSerializer
 {
+    // Extra delta slots scanned/cleaned beyond MaxDeltasBeforeBaseline. Provides a
+    // safety margin so stragglers written just before a baseline rollover are not
+    // missed by cleanup or highest-sequence discovery.
+    private const int BaselineRetentionMargin = 5;
+
     private readonly TSerializer serializer;
     private AutoSaveConfig config;
 
@@ -313,7 +318,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     private void CleanupOldDeltas(ISaveLoadCapability saveLoad)
     {
         // Remove old delta files when a new baseline is created
-        for (int i = 1; i <= config.MaxDeltasBeforeBaseline + 5; i++)
+        for (int i = 1; i <= config.MaxDeltasBeforeBaseline + BaselineRetentionMargin; i++)
         {
             var slotName = config.GetDeltaSlotName(i);
             if (saveLoad.SaveSlotExists(slotName))
@@ -326,7 +331,7 @@ public sealed class AutoSaveSystem<TSerializer> : SystemBase
     private int FindHighestDeltaSequence(ISaveLoadCapability saveLoad)
     {
         int highest = 0;
-        for (int i = 1; i <= config.MaxDeltasBeforeBaseline + 5; i++)
+        for (int i = 1; i <= config.MaxDeltasBeforeBaseline + BaselineRetentionMargin; i++)
         {
             if (saveLoad.SaveSlotExists(config.GetDeltaSlotName(i)))
             {
