@@ -37,6 +37,10 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     // Track entity positions for redistribution during subdivision
     private readonly Dictionary<Entity, Vector2> entityPositions = [];
 
+    // Track each entity's world-space AABB (X-Z plane) so bounded queries can
+    // test against the entity's footprint rather than only its center point.
+    private readonly Dictionary<Entity, (Vector2 Min, Vector2 Max)> entityBounds = [];
+
     // Pool for child node arrays (4 elements for quadtree)
     private readonly ArrayPool<QuadtreeNode>? nodePool;
 
@@ -70,6 +74,12 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     /// <inheritdoc/>
     public int EntityCount => entityCount;
 
+    // The looseness factor to expand node bounds by during query traversal.
+    // Entities are stored in a node while they remain within its loose bounds,
+    // so traversal must prune against those same loose bounds (a factor of 1.0
+    // leaves node bounds unchanged for tight quadtrees).
+    private float QueryLoosenessFactor => config.UseLooseBounds ? config.LoosenessFactor : 1.0f;
+
     /// <inheritdoc/>
     public void Update(Entity entity, Vector3 position)
     {
@@ -97,6 +107,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         node.Entities.Remove(entity);
         entityNodes.Remove(entity);
         entityPositions.Remove(entity);
+        entityBounds.Remove(entity);
         entityCount--;
     }
 
@@ -107,7 +118,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         var max = new Vector2(center.X + radius, center.Z + radius);
 
         var results = new HashSet<Entity>();
-        root.QueryBounds(min, max, results, entityPositions);
+        root.QueryBounds(min, max, results, entityBounds, QueryLoosenessFactor);
         return MaybeSortResults(results);
     }
 
@@ -118,7 +129,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         var max2D = new Vector2(max.X, max.Z);
 
         var results = new HashSet<Entity>();
-        root.QueryBounds(min2D, max2D, results, entityPositions);
+        root.QueryBounds(min2D, max2D, results, entityBounds, QueryLoosenessFactor);
         return MaybeSortResults(results);
     }
 
@@ -149,7 +160,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
 
         int count = 0;
         bool overflow = false;
-        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+        root.QueryBoundsSpan(min, max, results, ref count, ref overflow, entityBounds, QueryLoosenessFactor);
 
         if (config.DeterministicMode && count > 0)
         {
@@ -167,7 +178,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
 
         int count = 0;
         bool overflow = false;
-        root.QueryBoundsSpan(min2D, max2D, results, ref count, ref overflow, entityPositions);
+        root.QueryBoundsSpan(min2D, max2D, results, ref count, ref overflow, entityBounds, QueryLoosenessFactor);
 
         if (config.DeterministicMode && count > 0)
         {
@@ -261,6 +272,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         root.Clear(nodePool);
         entityNodes.Clear();
         entityPositions.Clear();
+        entityBounds.Clear();
         entityCount = 0;
     }
 
@@ -289,11 +301,13 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
     /// </summary>
     private void UpdateInternal(Entity entity, Vector2 position, (Vector2 min, Vector2 max)? bounds)
     {
-        // bounds reserved for future bounded entity support
-        _ = bounds;
-
         // Store entity position for potential redistribution during subdivision
         entityPositions[entity] = position;
+
+        // Store the entity's world-space AABB. Point entities (no bounds) get a
+        // degenerate box collapsed onto their position so queries can treat every
+        // entity uniformly as bounds instead of a bare center point.
+        entityBounds[entity] = bounds ?? (position, position);
 
         // Check if entity is already indexed and still fits in its current node
         if (entityNodes.TryGetValue(entity, out var oldNode))
@@ -425,103 +439,26 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         /// <summary>
         /// Queries all entities within the given bounds, recursively traversing children.
         /// </summary>
-        public void QueryBounds(Vector2 min, Vector2 max, HashSet<Entity> results, Dictionary<Entity, Vector2> entityPositions)
+        public void QueryBounds(Vector2 min, Vector2 max, HashSet<Entity> results, Dictionary<Entity, (Vector2 Min, Vector2 Max)> entityBounds, float loosenessFactor)
         {
-            // Check if this node intersects the query bounds
-            if (!Intersects(min, max))
+            // Check if this node (expanded by the looseness factor) intersects the
+            // query bounds. Entities are stored while within loose bounds, so pruning
+            // must honour those same loose bounds to avoid false negatives.
+            if (!Intersects(min, max, loosenessFactor))
             {
                 return;
             }
 
-            // Add entities from this node that are actually within bounds
-            // Use SIMD for bulk filtering when there are enough entities (threshold: 16)
-            var count = Entities.Count;
-            if (count >= 16 && count <= 128)
+            // Add entities from this node whose footprint (AABB) overlaps the query
+            // box. Testing the stored bounds rather than the center point keeps large
+            // entities visible when the query box lies inside their footprint.
+            foreach (var entity in Entities)
             {
-                // Stack allocation for small-medium arrays (zero heap allocation)
-                Span<Entity> entitySpan = stackalloc Entity[count];
-                Span<Vector3> positionSpan = stackalloc Vector3[count];
-
-                // Copy entities to span
-                int idx = 0;
-                foreach (var entity in Entities)
+                if (entityBounds.TryGetValue(entity, out var b) &&
+                    b.Max.X >= min.X && b.Min.X <= max.X &&
+                    b.Max.Y >= min.Y && b.Min.Y <= max.Y)
                 {
-                    entitySpan[idx++] = entity;
-                }
-
-                // Extract positions
-                for (int i = 0; i < count; i++)
-                {
-                    if (entityPositions.TryGetValue(entitySpan[i], out var pos2D))
-                    {
-                        positionSpan[i] = new Vector3(pos2D.X, 0, pos2D.Y);
-                    }
-                }
-
-                // SIMD-accelerated AABB filtering (zero-allocation with stackalloc)
-                Span<int> indices = stackalloc int[count];
-                var min3D = new Vector3(min.X, -1000, min.Y);
-                var max3D = new Vector3(max.X, 1000, max.Y);
-                int matchCount = SimdHelpers.FilterByAABBSIMD(positionSpan, min3D, max3D, indices);
-
-                // Add filtered entities
-                for (int i = 0; i < matchCount; i++)
-                {
-                    results.Add(entitySpan[indices[i]]);
-                }
-            }
-            else if (count > 128)
-            {
-                // ArrayPool for large arrays (reusable, zero allocation amortized)
-                var rentedEntities = ArrayPool<Entity>.Shared.Rent(count);
-                var rentedPositions = ArrayPool<Vector3>.Shared.Rent(count);
-                var rentedIndices = ArrayPool<int>.Shared.Rent(count);
-
-                try
-                {
-                    Entities.CopyTo(rentedEntities, 0);
-                    var entitySpan = rentedEntities.AsSpan(0, count);
-                    var positionSpan = rentedPositions.AsSpan(0, count);
-                    var indicesSpan = rentedIndices.AsSpan(0, count);
-
-                    // Extract positions
-                    for (int i = 0; i < count; i++)
-                    {
-                        if (entityPositions.TryGetValue(entitySpan[i], out var pos2D))
-                        {
-                            positionSpan[i] = new Vector3(pos2D.X, 0, pos2D.Y);
-                        }
-                    }
-
-                    // SIMD-accelerated AABB filtering (zero-allocation with pooled arrays)
-                    var min3D = new Vector3(min.X, -1000, min.Y);
-                    var max3D = new Vector3(max.X, 1000, max.Y);
-                    int matchCount = SimdHelpers.FilterByAABBSIMD(positionSpan, min3D, max3D, indicesSpan);
-
-                    // Add filtered entities
-                    for (int i = 0; i < matchCount; i++)
-                    {
-                        results.Add(entitySpan[indicesSpan[i]]);
-                    }
-                }
-                finally
-                {
-                    ArrayPool<Entity>.Shared.Return(rentedEntities);
-                    ArrayPool<Vector3>.Shared.Return(rentedPositions);
-                    ArrayPool<int>.Shared.Return(rentedIndices);
-                }
-            }
-            else
-            {
-                // Scalar path for small entity counts (< 16)
-                foreach (var entity in Entities)
-                {
-                    if (entityPositions.TryGetValue(entity, out var pos) &&
-                        pos.X >= min.X && pos.X <= max.X &&
-                        pos.Y >= min.Y && pos.Y <= max.Y)
-                    {
-                        results.Add(entity);
-                    }
+                    results.Add(entity);
                 }
             }
 
@@ -531,7 +468,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
                 // Only iterate over the first 4 children (pooled arrays may be larger)
                 for (int i = 0; i < 4; i++)
                 {
-                    Children![i].QueryBounds(min, max, results, entityPositions);
+                    Children![i].QueryBounds(min, max, results, entityBounds, loosenessFactor);
                 }
             }
         }
@@ -579,20 +516,20 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         /// <summary>
         /// Queries all entities within the given bounds into a span (zero-allocation).
         /// </summary>
-        public void QueryBoundsSpan(Vector2 min, Vector2 max, Span<Entity> results, ref int count, ref bool overflow, Dictionary<Entity, Vector2> entityPositions)
+        public void QueryBoundsSpan(Vector2 min, Vector2 max, Span<Entity> results, ref int count, ref bool overflow, Dictionary<Entity, (Vector2 Min, Vector2 Max)> entityBounds, float loosenessFactor)
         {
-            // Check if this node intersects the query bounds
-            if (!Intersects(min, max))
+            // Check if this node (expanded by the looseness factor) intersects the query bounds
+            if (!Intersects(min, max, loosenessFactor))
             {
                 return;
             }
 
-            // Add entities from this node that are actually within bounds
+            // Add entities from this node whose footprint (AABB) overlaps the query box
             foreach (var entity in Entities)
             {
-                if (entityPositions.TryGetValue(entity, out var pos) &&
-                    pos.X >= min.X && pos.X <= max.X &&
-                    pos.Y >= min.Y && pos.Y <= max.Y &&
+                if (entityBounds.TryGetValue(entity, out var b) &&
+                    b.Max.X >= min.X && b.Min.X <= max.X &&
+                    b.Max.Y >= min.Y && b.Min.Y <= max.Y &&
                     !SpanContainsEntity(results, count, entity))
                 {
                     if (count < results.Length)
@@ -611,7 +548,7 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
             {
                 for (int i = 0; i < 4; i++)
                 {
-                    Children![i].QueryBoundsSpan(min, max, results, ref count, ref overflow, entityPositions);
+                    Children![i].QueryBoundsSpan(min, max, results, ref count, ref overflow, entityBounds, loosenessFactor);
                 }
             }
         }
@@ -677,11 +614,15 @@ internal sealed class QuadtreePartitioner : ISpatialPartitioner
         }
 
         /// <summary>
-        /// Checks if this node's bounds intersect with the given bounds.
+        /// Checks if this node's bounds, expanded by the looseness factor, intersect
+        /// with the given bounds. A factor of 1.0 tests the strict node bounds.
         /// </summary>
-        private bool Intersects(Vector2 min, Vector2 max)
+        private bool Intersects(Vector2 min, Vector2 max, float loosenessFactor)
         {
-            return !(Max.X < min.X || Min.X > max.X || Max.Y < min.Y || Min.Y > max.Y);
+            var expansion = ((Max - Min) * (loosenessFactor - 1.0f)) * 0.5f;
+            var looseMin = Min - expansion;
+            var looseMax = Max + expansion;
+            return !(looseMax.X < min.X || looseMin.X > max.X || looseMax.Y < min.Y || looseMin.Y > max.Y);
         }
 
         /// <summary>
