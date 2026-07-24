@@ -11,6 +11,13 @@ public sealed partial class World
     /// </summary>
     /// <typeparam name="T">The extension type. Must be a reference type.</typeparam>
     /// <param name="extension">The extension instance to store.</param>
+    /// <param name="owned">
+    /// When <c>true</c> (the default) this world takes ownership of the instance and
+    /// disposes it (if it implements <see cref="IDisposable"/>) when it is replaced,
+    /// removed, or the world is disposed. Pass <c>false</c> to register an instance the
+    /// caller owns (for example a shared or externally-provided object) so it is never
+    /// disposed by the world.
+    /// </param>
     /// <remarks>
     /// <para>
     /// Extensions are typically set by plugins to expose custom APIs.
@@ -34,8 +41,8 @@ public sealed partial class World
     /// <seealso cref="GetExtension{T}"/>
     /// <seealso cref="TryGetExtension{T}"/>
     /// <seealso cref="HasExtension{T}"/>
-    public void SetExtension<T>(T extension) where T : class
-        => extensionManager.SetExtension(extension);
+    public void SetExtension<T>(T extension, bool owned = true) where T : class
+        => extensionManager.SetExtension(extension, owned);
 
     /// <summary>
     /// Gets an extension by type.

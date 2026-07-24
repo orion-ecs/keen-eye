@@ -130,6 +130,57 @@ public class NavigationPluginTests : IDisposable
         world.TryGetExtension<NavigationContext>(out _).ShouldBeFalse();
     }
 
+    [Fact]
+    public void Uninstall_WithCustomProvider_DoesNotDisposeCallerOwnedProvider()
+    {
+        // Regression test for #1171: a caller-supplied custom provider is owned by the
+        // caller. Uninstalling the plugin must remove the registration WITHOUT disposing
+        // the provider, which the caller still holds and may reuse.
+        world = new World();
+
+        var inner = new GridNavigationProvider(GridConfig.WithSize(100, 100, 1f));
+        var customProvider = new DisposalTrackingNavigationProvider(inner);
+
+        var config = new NavigationConfig
+        {
+            Strategy = NavigationStrategy.Custom,
+            CustomProvider = customProvider
+        };
+        world.InstallPlugin(new NavigationPlugin(config));
+
+        world.UninstallPlugin<NavigationPlugin>();
+
+        // Caller-owned: never disposed by the plugin/world.
+        customProvider.DisposeCount.ShouldBe(0);
+        // The registration this plugin added is removed.
+        world.TryGetExtension<INavigationProvider>(out _).ShouldBeFalse();
+
+        // The caller can still dispose it exactly once, itself.
+        customProvider.Dispose();
+        customProvider.DisposeCount.ShouldBe(1);
+    }
+
+    [Fact]
+    public void Uninstall_WithSharedProviderPlugin_LeavesProviderOwnedByOtherPluginRegistered()
+    {
+        // Regression test for #1171: when GridNavigationPlugin owns the provider and is
+        // still installed, uninstalling the consumer NavigationPlugin must not remove or
+        // dispose the shared provider.
+        world = new World();
+
+        world.InstallPlugin(new GridNavigationPlugin(GridConfig.WithSize(100, 100, 1f)));
+        world.InstallPlugin(new NavigationPlugin());
+
+        var provider = world.GetExtension<INavigationProvider>();
+
+        world.UninstallPlugin<NavigationPlugin>();
+
+        // The provider belongs to GridNavigationPlugin (still installed): its registration
+        // must survive and remain the same instance.
+        world.TryGetExtension<INavigationProvider>(out var stillRegistered).ShouldBeTrue();
+        stillRegistered.ShouldBeSameAs(provider);
+    }
+
     #endregion
 
     #region Component Registration Tests
@@ -299,4 +350,54 @@ public class NavigationPluginTests : IDisposable
     }
 
     #endregion
+}
+
+/// <summary>
+/// A caller-owned <see cref="INavigationProvider"/> that delegates to an inner provider
+/// and records how many times it is disposed. Used to verify that plugin uninstall does
+/// not dispose providers the caller owns (issue #1171).
+/// </summary>
+internal sealed class DisposalTrackingNavigationProvider(INavigationProvider inner) : INavigationProvider
+{
+    public int DisposeCount { get; private set; }
+
+    public NavigationStrategy Strategy => inner.Strategy;
+
+    public bool IsReady => inner.IsReady;
+
+    public INavigationMesh? ActiveMesh => inner.ActiveMesh;
+
+    public NavPath FindPath(Vector3 start, Vector3 end, AgentSettings agent, NavAreaMask areaMask = NavAreaMask.All)
+        => inner.FindPath(start, end, agent, areaMask);
+
+    public IPathRequest RequestPath(Vector3 start, Vector3 end, AgentSettings agent, NavAreaMask areaMask = NavAreaMask.All)
+        => inner.RequestPath(start, end, agent, areaMask);
+
+    public void CancelAllRequests() => inner.CancelAllRequests();
+
+    public bool Raycast(Vector3 start, Vector3 end, out Vector3 hitPosition)
+        => inner.Raycast(start, end, out hitPosition);
+
+    public bool Raycast(Vector3 start, Vector3 end, NavAreaMask areaMask, out Vector3 hitPosition, out NavAreaType hitAreaType)
+        => inner.Raycast(start, end, areaMask, out hitPosition, out hitAreaType);
+
+    public NavPoint? FindNearestPoint(Vector3 position, float searchRadius = 10f)
+        => inner.FindNearestPoint(position, searchRadius);
+
+    public bool IsNavigable(Vector3 position, AgentSettings agent) => inner.IsNavigable(position, agent);
+
+    public Vector3? ProjectToNavMesh(Vector3 position, float maxDistance = 5f)
+        => inner.ProjectToNavMesh(position, maxDistance);
+
+    public float GetAreaCost(NavAreaType areaType) => inner.GetAreaCost(areaType);
+
+    public void SetAreaCost(NavAreaType areaType, float cost) => inner.SetAreaCost(areaType, cost);
+
+    public void Update(float deltaTime) => inner.Update(deltaTime);
+
+    public void Dispose()
+    {
+        DisposeCount++;
+        inner.Dispose();
+    }
 }

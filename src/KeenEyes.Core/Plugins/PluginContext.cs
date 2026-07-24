@@ -149,9 +149,9 @@ public sealed class PluginContext : IPluginContext
     }
 
     /// <inheritdoc />
-    public void SetExtension<T>(T extension) where T : class
+    public void SetExtension<T>(T extension, bool owned = true) where T : class
     {
-        World.SetExtension(extension);
+        World.SetExtension(extension, owned);
     }
 
     /// <inheritdoc />
