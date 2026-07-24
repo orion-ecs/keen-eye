@@ -181,7 +181,9 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (field.IsStatic || field.IsConst)
+            // Skip compiler-generated fields (e.g. auto-property backing fields),
+            // whose names like <Foo>k__BackingField are not valid C# identifiers.
+            if (field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
             {
                 continue;
             }
@@ -332,7 +334,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
 
         foreach (var member in typeSymbol.GetMembers())
         {
-            if (member is not IFieldSymbol field || field.IsStatic || field.IsConst)
+            if (member is not IFieldSymbol field || field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
             {
                 continue;
             }
@@ -639,7 +641,26 @@ public sealed class BundleGenerator : IIncrementalGenerator
     /// </summary>
     private static void GenerateFieldAddition(StringBuilder sb, ComponentFieldInfo field, string bundleVar, string worldVar, string entityVar, string indent = "        ")
     {
-        if (field.IsOptional && field.IsNullable)
+        if (field.IsBundle)
+        {
+            // Nested bundles are not components; recurse into the generated
+            // Add{BundleName}(World, Entity, bundle) overload for that bundle type.
+            var nestedBundleName = GetSimpleTypeName(field.IsNullable && field.UnderlyingType is not null
+                ? field.UnderlyingType
+                : field.Type);
+            if (field.IsOptional && field.IsNullable)
+            {
+                sb.AppendLine($"{indent}if ({bundleVar}.{field.Name}.HasValue)");
+                sb.AppendLine($"{indent}{{");
+                sb.AppendLine($"{indent}    {worldVar}.Add{nestedBundleName}({entityVar}, {bundleVar}.{field.Name}.Value);");
+                sb.AppendLine($"{indent}}}");
+            }
+            else
+            {
+                sb.AppendLine($"{indent}{worldVar}.Add{nestedBundleName}({entityVar}, {bundleVar}.{field.Name});");
+            }
+        }
+        else if (field.IsOptional && field.IsNullable)
         {
             sb.AppendLine($"{indent}if ({bundleVar}.{field.Name}.HasValue)");
             sb.AppendLine($"{indent}{{");
@@ -650,6 +671,23 @@ public sealed class BundleGenerator : IIncrementalGenerator
         {
             sb.AppendLine($"{indent}{worldVar}.Add({entityVar}, {bundleVar}.{field.Name});");
         }
+    }
+
+    /// <summary>
+    /// Returns the underlying non-nullable component/bundle type for a field, stripping
+    /// any nullable (<c>T?</c>) wrapper. Used on the ref/Get side where <c>world.Get&lt;T&gt;</c>
+    /// requires a non-nullable <c>struct, IComponent</c> type argument.
+    /// </summary>
+    private static string GetComponentType(ComponentFieldInfo field)
+        => field.IsNullable && field.UnderlyingType is not null ? field.UnderlyingType : field.Type;
+
+    /// <summary>
+    /// Extracts the simple (unqualified) type name from a fully-qualified type string.
+    /// </summary>
+    private static string GetSimpleTypeName(string typeName)
+    {
+        var lastDot = typeName.LastIndexOf('.');
+        return lastDot >= 0 ? typeName.Substring(lastDot + 1) : typeName;
     }
 
     private static string GenerateEntityBuilderExtensions(ImmutableArray<BundleInfo?> bundles)
@@ -791,11 +829,12 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine($"public ref struct {info.Name}Ref");
         sb.AppendLine("{");
 
-        // Generate ref fields for each component
+        // Generate ref fields for each component (nullable wrappers stripped: a ref
+        // targets the live component storage, which holds the non-nullable value).
         foreach (var field in info.Fields)
         {
             sb.AppendLine($"    /// <summary>Reference to the {field.Name} component.</summary>");
-            sb.AppendLine($"    public ref {field.Type} {field.Name};");
+            sb.AppendLine($"    public ref {GetComponentType(field)} {field.Name};");
             sb.AppendLine();
         }
 
@@ -810,7 +849,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
         }
 
         var constructorParams = string.Join(", ", info.Fields.Select(f =>
-            $"ref {f.Type} {StringHelpers.ToCamelCase(f.Name)}"));
+            $"ref {GetComponentType(f)} {StringHelpers.ToCamelCase(f.Name)}"));
 
         sb.AppendLine($"    public {info.Name}Ref({constructorParams})");
         sb.AppendLine("    {");
@@ -883,7 +922,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"    {{");
             sb.AppendLine($"        return new {info.FullName}Ref(");
 
-            var refParams = info.Fields.Select(f => $"            ref world.Get<{f.Type}>(entity)");
+            var refParams = info.Fields.Select(f => $"            ref world.Get<{GetComponentType(f)}>(entity)");
             sb.AppendLine(string.Join(",\r\n", refParams));
 
             sb.AppendLine($"        );");
@@ -905,10 +944,17 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("namespace KeenEyes;");
         sb.AppendLine();
-        sb.AppendLine("public sealed partial class World");
+        sb.AppendLine("/// <summary>");
+        sb.AppendLine("/// Generated query-starter extension methods for bundles.");
+        sb.AppendLine("/// </summary>");
+        sb.AppendLine("public static partial class WorldBundleExtensions");
         sb.AppendLine("{");
 
-        // Generate Query<TBundle>() methods for 1-4 bundle parameters
+        // Generate a Query{BundleName}() extension per bundle. A single generic
+        // Query<TBundle>() cannot dispatch to a per-bundle component set, and emitting
+        // it into a consumer-side World partial does not compile (the defining partial
+        // and archetypeManager live only in KeenEyes.Core). Named extension methods on
+        // World avoid both problems and never collide across multiple bundles.
         foreach (var info in bundles)
         {
             if (info is null)
@@ -916,34 +962,32 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
-            // Generate Query<TBundle>() that expands to Query<C1, C2, ...>()
+            // Use flattened component types to handle nested bundles correctly.
+            // World.Query<T1..T4>() supports at most 4 component type arguments; larger
+            // bundles must be queried via QueryBuilder.With<>() for each component.
+            if (info.FlattenedComponentTypes.Length is 0 or > 4)
+            {
+                continue;
+            }
+
+            var componentTypeParams = string.Join(", ", info.FlattenedComponentTypes);
+
             sb.AppendLine($"    /// <summary>");
             sb.AppendLine($"    /// Creates a query for entities with all components in <see cref=\"{info.FullName}\"/>.");
             sb.AppendLine($"    /// </summary>");
-            sb.AppendLine($"    /// <typeparam name=\"T\">The bundle type.</typeparam>");
+            sb.AppendLine($"    /// <param name=\"world\">The world to query.</param>");
+            sb.AppendLine($"    /// <returns>A query builder for entities with all bundle components.</returns>");
             sb.AppendLine($"    /// <example>");
             sb.AppendLine($"    /// <code>");
-            sb.AppendLine($"    /// foreach (var entity in world.Query&lt;{info.Name}&gt;())");
+            sb.AppendLine($"    /// foreach (var entity in world.Query{info.Name}())");
             sb.AppendLine($"    /// {{");
             sb.AppendLine($"    ///     // Process entities with all bundle components");
             sb.AppendLine($"    /// }}");
             sb.AppendLine($"    /// </code>");
             sb.AppendLine($"    /// </example>");
-
-            // Use flattened component types to handle nested bundles correctly
-            var componentTypeParams = string.Join(", ", info.FlattenedComponentTypes);
-
-            // QueryBuilder is now non-generic; bundles with more than 4 components are still limited
-            // by the World.Query<T1..T4>() overloads
-            if (info.FlattenedComponentTypes.Length > 4)
-            {
-                // Skip bundles with more than 4 components (not supported by current World.Query<>)
-                continue;
-            }
-
-            sb.AppendLine($"    public QueryBuilder Query<T>() where T : struct, global::KeenEyes.IBundle");
+            sb.AppendLine($"    public static global::KeenEyes.QueryBuilder Query{info.Name}(this global::KeenEyes.World world)");
             sb.AppendLine($"    {{");
-            sb.AppendLine($"        return Query<{componentTypeParams}>();");
+            sb.AppendLine($"        return world.Query<{componentTypeParams}>();");
             sb.AppendLine($"    }}");
             sb.AppendLine();
         }
@@ -1031,8 +1075,13 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
-            // Generate Add method
+            // Generate Add method (individual component parameters)
             GenerateAddMethod(sb, info);
+            sb.AppendLine();
+
+            // Generate Add overload accepting a bundle instance (recursion target for
+            // nested bundles, and a convenience for adding an existing bundle value)
+            GenerateAddBundleInstanceMethod(sb, info);
             sb.AppendLine();
 
             // Generate Remove method
@@ -1096,6 +1145,32 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine("    }");
     }
 
+    private static void GenerateAddBundleInstanceMethod(StringBuilder sb, BundleInfo info)
+    {
+        // XML documentation
+        sb.AppendLine("    /// <summary>");
+        sb.AppendLine($"    /// Adds all components from an existing <see cref=\"{info.FullName}\"/> bundle value to an entity.");
+        sb.AppendLine("    /// </summary>");
+        sb.AppendLine("    /// <param name=\"world\">The world containing the entity.</param>");
+        sb.AppendLine("    /// <param name=\"entity\">The entity to add components to.</param>");
+        sb.AppendLine("    /// <param name=\"bundle\">The bundle value whose components are added.</param>");
+        sb.AppendLine("    /// <remarks>");
+        sb.AppendLine("    /// Nested bundle fields are added recursively via their own generated Add overloads.");
+        sb.AppendLine("    /// </remarks>");
+
+        // Method signature
+        sb.AppendLine($"    public static void Add{info.Name}(this global::KeenEyes.World world, global::KeenEyes.Entity entity, {info.FullName} bundle)");
+        sb.AppendLine("    {");
+
+        // Add each component (recursing into nested bundles)
+        foreach (var field in info.Fields)
+        {
+            GenerateFieldAddition(sb, field, "bundle", "world", "entity");
+        }
+
+        sb.AppendLine("    }");
+    }
+
     private static string GenerateBundleRegistry(ImmutableArray<BundleInfo?> bundles)
     {
         var sb = new StringBuilder();
@@ -1106,15 +1181,21 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine("namespace KeenEyes;");
         sb.AppendLine();
         sb.AppendLine("/// <summary>");
-        sb.AppendLine("/// Registry of all known bundle types for archetype pre-allocation.");
+        sb.AppendLine("/// Generated helper for pre-allocating archetypes for all bundles in this assembly.");
         sb.AppendLine("/// </summary>");
-        sb.AppendLine("internal static class BundleRegistry");
+        sb.AppendLine("public static partial class WorldBundleExtensions");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>");
-        sb.AppendLine("    /// Gets all known bundle component type arrays.");
-        sb.AppendLine("    /// Used by World initialization to pre-allocate archetypes.");
+        sb.AppendLine("    /// Pre-allocates archetypes for every bundle type defined in this assembly.");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    public static global::System.Collections.Generic.IReadOnlyList<global::System.Type[]> KnownBundles { get; } = new global::System.Type[][]");
+        sb.AppendLine("    /// <param name=\"world\">The world to pre-allocate archetypes in.</param>");
+        sb.AppendLine("    /// <remarks>");
+        sb.AppendLine("    /// Bundles are defined by consumer assemblies, so pre-allocation cannot run");
+        sb.AppendLine("    /// automatically inside <see cref=\"World\"/> (whose internals live in KeenEyes.Core).");
+        sb.AppendLine("    /// Call this once after creating a world to reduce archetype transitions when");
+        sb.AppendLine("    /// spawning many bundle entities. Uses the AOT-safe static <see cref=\"IBundle.ComponentTypes\"/>.");
+        sb.AppendLine("    /// </remarks>");
+        sb.AppendLine("    public static void PreallocateBundleArchetypes(this global::KeenEyes.World world)");
         sb.AppendLine("    {");
 
         foreach (var info in bundles)
@@ -1124,27 +1205,7 @@ public sealed class BundleGenerator : IIncrementalGenerator
                 continue;
             }
 
-            sb.AppendLine($"        {info.FullName}.ComponentTypes,");
-        }
-
-        sb.AppendLine("    };");
-        sb.AppendLine("}");
-        sb.AppendLine();
-        sb.AppendLine("/// <summary>");
-        sb.AppendLine("/// Partial World implementation for bundle archetype pre-allocation.");
-        sb.AppendLine("/// </summary>");
-        sb.AppendLine("public sealed partial class World");
-        sb.AppendLine("{");
-        sb.AppendLine("    partial void PreallocateBundleArchetypes()");
-        sb.AppendLine("    {");
-
-        if (bundles.Length > 0)
-        {
-            sb.AppendLine("        // Pre-allocate archetypes for all known bundles");
-            sb.AppendLine("        foreach (var componentTypes in BundleRegistry.KnownBundles)");
-            sb.AppendLine("        {");
-            sb.AppendLine("            archetypeManager.PreallocateArchetype(componentTypes);");
-            sb.AppendLine("        }");
+            sb.AppendLine($"        world.PreallocateArchetypeFor<{info.FullName}>();");
         }
 
         sb.AppendLine("    }");

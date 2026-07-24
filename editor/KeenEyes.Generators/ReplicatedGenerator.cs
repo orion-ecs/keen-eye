@@ -136,7 +136,9 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (field.IsStatic || field.IsConst)
+            // Skip compiler-generated fields (e.g. auto-property backing fields),
+            // whose names like <Foo>k__BackingField are not valid C# identifiers.
+            if (field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
             {
                 continue;
             }
@@ -349,6 +351,16 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
                 case FieldSerializationType.UInt32:
                     sb.AppendLine($"        writer.WriteUInt32({field.Name});");
                     break;
+                case FieldSerializationType.Int64:
+                    // BitWriter has no 64-bit primitive; write high then low 32 bits.
+                    sb.AppendLine($"        writer.WriteUInt32(unchecked((uint)((ulong){field.Name} >> 32)));");
+                    sb.AppendLine($"        writer.WriteUInt32(unchecked((uint)(ulong){field.Name}));");
+                    break;
+                case FieldSerializationType.UInt64:
+                    // BitWriter has no 64-bit primitive; write high then low 32 bits.
+                    sb.AppendLine($"        writer.WriteUInt32(unchecked((uint)({field.Name} >> 32)));");
+                    sb.AppendLine($"        writer.WriteUInt32(unchecked((uint){field.Name}));");
+                    break;
                 case FieldSerializationType.Float:
                     sb.AppendLine($"        writer.WriteFloat({field.Name});");
                     break;
@@ -416,6 +428,14 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
                     break;
                 case FieldSerializationType.UInt32:
                     sb.AppendLine($"        {field.Name} = reader.ReadUInt32();");
+                    break;
+                case FieldSerializationType.Int64:
+                    // Read high then low 32 bits (matching the write order).
+                    sb.AppendLine($"        {field.Name} = unchecked((long)(((ulong)reader.ReadUInt32() << 32) | reader.ReadUInt32()));");
+                    break;
+                case FieldSerializationType.UInt64:
+                    // Read high then low 32 bits (matching the write order).
+                    sb.AppendLine($"        {field.Name} = ((ulong)reader.ReadUInt32() << 32) | reader.ReadUInt32();");
                     break;
                 case FieldSerializationType.Float:
                     sb.AppendLine($"        {field.Name} = reader.ReadFloat();");

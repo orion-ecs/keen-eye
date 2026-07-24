@@ -157,9 +157,10 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify Query<T>() method returns non-generic QueryBuilder
+        // Verify per-bundle QueryTransformBundle() extension on World (not a consumer-side
+        // World partial, which would not compile and would collide across bundles).
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public QueryBuilder Query<T>()"));
+            t.Contains("public static global::KeenEyes.QueryBuilder QueryTransformBundle(this global::KeenEyes.World world)"));
     }
 
     [Fact]
@@ -312,9 +313,9 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify Query<T>() returns non-generic QueryBuilder
+        // Verify per-bundle query-starter extension for a single-component bundle
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public QueryBuilder Query<T>()"));
+            t.Contains("public static global::KeenEyes.QueryBuilder QuerySingleBundle(this global::KeenEyes.World world)"));
     }
 
     [Fact]
@@ -358,9 +359,9 @@ public class BundleQueryGeneratorTests
 
         Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
 
-        // Verify Query<T>() returns non-generic QueryBuilder
+        // Verify per-bundle query-starter extension for a three-component bundle
         Assert.Contains(generatedTrees, t =>
-            t.Contains("public QueryBuilder Query<T>()"));
+            t.Contains("public static global::KeenEyes.QueryBuilder QueryTransformBundle(this global::KeenEyes.World world)"));
     }
 
     [Fact]

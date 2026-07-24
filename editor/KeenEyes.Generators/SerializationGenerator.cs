@@ -241,7 +241,9 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (field.IsStatic || field.IsConst)
+            // Skip compiler-generated fields (e.g. auto-property backing fields),
+            // whose names like <Foo>k__BackingField are not valid C# identifiers.
+            if (field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
             {
                 continue;
             }
@@ -265,6 +267,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                 field.Type.ToDisplayString(),
                 GetJsonTypeName(field.Type),
                 isNullable,
+                field.Type.IsValueType,
                 defaultValueLiteral));
         }
 
@@ -297,6 +300,45 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "System.Numerics.Quaternion" => "Quaternion",
             _ => "Object" // For complex types, use generic deserialization
         };
+    }
+
+    /// <summary>
+    /// Builds a map from each component's full name to a unique, identifier-safe member
+    /// name used for generated members and locals (Deserialize_X, info_X, graph_X, ...).
+    /// When two components share a simple name, a namespace-derived suffix disambiguates
+    /// them so the generated identifiers do not collide.
+    /// </summary>
+    private static Dictionary<string, string> ComputeMemberNames(ImmutableArray<SerializableComponentInfo> components)
+    {
+        var result = new Dictionary<string, string>();
+        foreach (var group in components.GroupBy(c => c.Name))
+        {
+            if (group.Count() > 1)
+            {
+                foreach (var info in group)
+                {
+                    result[info.FullName] = $"{info.Name}_{GenerateNamespaceSuffix(info.Namespace)}";
+                }
+            }
+            else
+            {
+                result[group.First().FullName] = group.First().Name;
+            }
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Derives an identifier-safe suffix from a namespace by joining its parts.
+    /// </summary>
+    private static string GenerateNamespaceSuffix(string namespaceName)
+    {
+        if (!StringHelpers.IsValidNamespace(namespaceName))
+        {
+            return "Global";
+        }
+
+        return namespaceName.Replace(".", string.Empty);
     }
 
     /// <summary>
@@ -502,22 +544,29 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine("        MigrationGraphsByType = new Dictionary<Type, MigrationGraph>();");
         sb.AppendLine();
 
+        // Disambiguate generated identifiers when two components share a simple name
+        // (e.g. two 'Anchor' structs in different namespaces) - without this the
+        // Deserialize_/Serialize_/info_/migrations_/graph_ members collide (CS0111/CS0128).
+        var memberNames = ComputeMemberNames(components);
+
         foreach (var component in components)
         {
-            sb.AppendLine($"        var info_{component.Name} = new ComponentSerializationInfo(");
+            var member = memberNames[component.FullName];
+
+            sb.AppendLine($"        var info_{member} = new ComponentSerializationInfo(");
             sb.AppendLine($"            typeof({component.FullName}),");
-            sb.AppendLine($"            Deserialize_{component.Name},");
-            sb.AppendLine($"            value => Serialize_{component.Name}(({component.FullName})value),");
-            sb.AppendLine($"            DeserializeBinary_{component.Name},");
-            sb.AppendLine($"            (value, writer) => SerializeBinary_{component.Name}(({component.FullName})value, writer),");
+            sb.AppendLine($"            Deserialize_{member},");
+            sb.AppendLine($"            value => Serialize_{member}(({component.FullName})value),");
+            sb.AppendLine($"            DeserializeBinary_{member},");
+            sb.AppendLine($"            (value, writer) => SerializeBinary_{member}(({component.FullName})value, writer),");
             sb.AppendLine($"            (serialization, isTag) => (ComponentInfo)serialization.Components.Register<{component.FullName}>(isTag),");
             sb.AppendLine($"            (serialization, value) => serialization.SetSingleton(({component.FullName})value),");
             sb.AppendLine($"            static () => new {component.FullName}(),");
             sb.AppendLine($"            {component.Version});");
             sb.AppendLine();
-            sb.AppendLine($"        ComponentsByName[typeof({component.FullName}).AssemblyQualifiedName!] = info_{component.Name};");
-            sb.AppendLine($"        ComponentsByName[\"{component.FullName}\"] = info_{component.Name};");
-            sb.AppendLine($"        ComponentsByType[typeof({component.FullName})] = info_{component.Name};");
+            sb.AppendLine($"        ComponentsByName[typeof({component.FullName}).AssemblyQualifiedName!] = info_{member};");
+            sb.AppendLine($"        ComponentsByName[\"{component.FullName}\"] = info_{member};");
+            sb.AppendLine($"        ComponentsByType[typeof({component.FullName})] = info_{member};");
             sb.AppendLine();
 
             // Register migrations for this component (explicit + auto-generated)
@@ -530,7 +579,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
 
             if (needsMigrations)
             {
-                sb.AppendLine($"        var migrations_{component.Name} = new Dictionary<int, Func<JsonElement, object>>");
+                sb.AppendLine($"        var migrations_{member} = new Dictionary<int, Func<JsonElement, object>>");
                 sb.AppendLine("        {");
 
                 // Add explicit migrations
@@ -546,26 +595,38 @@ public sealed class SerializationGenerator : IIncrementalGenerator
                     {
                         if (!explicitVersions.Contains(v))
                         {
-                            sb.AppendLine($"            [{v}] = AutoMigrate_{component.Name},");
+                            sb.AppendLine($"            [{v}] = AutoMigrate_{member},");
                         }
                     }
                 }
 
                 sb.AppendLine("        };");
-                sb.AppendLine($"        MigrationsByType[typeof({component.FullName})] = migrations_{component.Name};");
-                sb.AppendLine($"        MigrationsByName[typeof({component.FullName}).AssemblyQualifiedName!] = migrations_{component.Name};");
-                sb.AppendLine($"        MigrationsByName[\"{component.FullName}\"] = migrations_{component.Name};");
+                sb.AppendLine($"        MigrationsByType[typeof({component.FullName})] = migrations_{member};");
+                sb.AppendLine($"        MigrationsByName[typeof({component.FullName}).AssemblyQualifiedName!] = migrations_{member};");
+                sb.AppendLine($"        MigrationsByName[\"{component.FullName}\"] = migrations_{member};");
                 sb.AppendLine();
 
-                // Create migration graph for diagnostics
-                sb.AppendLine($"        var graph_{component.Name} = new MigrationGraph(\"{component.FullName}\", {component.Version});");
+                // Create migration graph for diagnostics. The graph must mirror EVERY entry
+                // in the migrations dictionary - explicit AND auto-generated - or CanMigrate
+                // (which reads the dictionary) contradicts FindGaps (which reads the graph).
+                sb.AppendLine($"        var graph_{member} = new MigrationGraph(\"{component.FullName}\", {component.Version});");
                 foreach (var migration in component.Migrations.OrderBy(m => m.FromVersion))
                 {
-                    sb.AppendLine($"        graph_{component.Name}.AddEdge({migration.FromVersion}, {migration.FromVersion + 1});");
+                    sb.AppendLine($"        graph_{member}.AddEdge({migration.FromVersion}, {migration.FromVersion + 1});");
                 }
-                sb.AppendLine($"        MigrationGraphsByType[typeof({component.FullName})] = graph_{component.Name};");
-                sb.AppendLine($"        MigrationGraphsByName[typeof({component.FullName}).AssemblyQualifiedName!] = graph_{component.Name};");
-                sb.AppendLine($"        MigrationGraphsByName[\"{component.FullName}\"] = graph_{component.Name};");
+                if (hasFieldsWithDefaults)
+                {
+                    for (var v = 1; v < component.Version; v++)
+                    {
+                        if (!explicitVersions.Contains(v))
+                        {
+                            sb.AppendLine($"        graph_{member}.AddEdge({v}, {v + 1});");
+                        }
+                    }
+                }
+                sb.AppendLine($"        MigrationGraphsByType[typeof({component.FullName})] = graph_{member};");
+                sb.AppendLine($"        MigrationGraphsByName[typeof({component.FullName}).AssemblyQualifiedName!] = graph_{member};");
+                sb.AppendLine($"        MigrationGraphsByName[\"{component.FullName}\"] = graph_{member};");
                 sb.AppendLine();
             }
         }
@@ -682,7 +743,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         // Generate individual serialization/deserialization methods
         foreach (var component in components)
         {
-            GenerateComponentMethods(sb, component);
+            GenerateComponentMethods(sb, component, memberNames[component.FullName]);
         }
 
         // Shared System.Numerics JSON helpers, emitted only when a field needs them
@@ -748,10 +809,10 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         }
     }
 
-    private static void GenerateComponentMethods(StringBuilder sb, SerializableComponentInfo component)
+    private static void GenerateComponentMethods(StringBuilder sb, SerializableComponentInfo component, string member)
     {
         // Deserialize method
-        sb.AppendLine($"    private static object Deserialize_{component.Name}(JsonElement json)");
+        sb.AppendLine($"    private static object Deserialize_{member}(JsonElement json)");
         sb.AppendLine("    {");
         sb.AppendLine($"        var result = new {component.FullName}();");
 
@@ -769,7 +830,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // Serialize method
-        sb.AppendLine($"    private static JsonElement Serialize_{component.Name}({component.FullName} value)");
+        sb.AppendLine($"    private static JsonElement Serialize_{member}({component.FullName} value)");
         sb.AppendLine("    {");
         sb.AppendLine("        using var stream = new System.IO.MemoryStream();");
         sb.AppendLine("        using var writer = new Utf8JsonWriter(stream);");
@@ -810,13 +871,13 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // Binary deserialize method
-        sb.AppendLine($"    private static object DeserializeBinary_{component.Name}(BinaryReader reader)");
+        sb.AppendLine($"    private static object DeserializeBinary_{member}(BinaryReader reader)");
         sb.AppendLine("    {");
         sb.AppendLine($"        var result = new {component.FullName}();");
 
         foreach (var field in component.Fields)
         {
-            var binaryRead = GetBinaryReadMethod(field.JsonTypeName, field.Type, field.IsNullable);
+            var binaryRead = GetBinaryReadMethod(field.JsonTypeName, field.Type, field.IsNullable, field.IsValueType);
             sb.AppendLine($"        result.{field.Name} = {binaryRead};");
         }
 
@@ -825,7 +886,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
 
         // Binary serialize method
-        sb.AppendLine($"    private static void SerializeBinary_{component.Name}({component.FullName} value, BinaryWriter writer)");
+        sb.AppendLine($"    private static void SerializeBinary_{member}({component.FullName} value, BinaryWriter writer)");
         sb.AppendLine("    {");
 
         foreach (var field in component.Fields)
@@ -841,19 +902,20 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         var fieldsWithDefaults = component.Fields.Where(f => f.HasDefaultValue).ToList();
         if (fieldsWithDefaults.Count > 0 && component.Version > 1)
         {
-            GenerateAutoMigrationMethod(sb, component);
+            GenerateAutoMigrationMethod(sb, component, member);
         }
     }
 
     private static void GenerateAutoMigrationMethod(
         StringBuilder sb,
-        SerializableComponentInfo component)
+        SerializableComponentInfo component,
+        string member)
     {
         sb.AppendLine("    /// <summary>");
         sb.AppendLine($"    /// Auto-generated migration for {component.Name}.");
         sb.AppendLine("    /// Reads existing fields from JSON and applies default values for new fields.");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"    private static object AutoMigrate_{component.Name}(JsonElement json)");
+        sb.AppendLine($"    private static object AutoMigrate_{member}(JsonElement json)");
         sb.AppendLine("    {");
         sb.AppendLine($"        var result = new {component.FullName}();");
 
@@ -894,8 +956,12 @@ public sealed class SerializationGenerator : IIncrementalGenerator
     {
         if (field.JsonTypeName == "Object")
         {
-            // Complex type - use generic deserialization
-            if (field.IsNullable)
+            // Complex type - use generic deserialization.
+            // The '??' null-coalescing throw is only valid (and meaningful) for reference
+            // types. For non-nullable value types (enum, struct, char, Vector2, ...),
+            // JsonSerializer.Deserialize<T> returns a non-nullable T, so '??' would be a
+            // CS0019 compile error; deserialize directly instead.
+            if (field.IsNullable || field.IsValueType)
             {
                 sb.AppendLine($"            result.{field.Name} = JsonSerializer.Deserialize<{field.Type}>({camelFieldName}Elem.GetRawText());");
             }
@@ -1267,7 +1333,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         sb.AppendLine();
     }
 
-    private static string GetBinaryReadMethod(string jsonTypeName, string type, bool isNullable)
+    private static string GetBinaryReadMethod(string jsonTypeName, string type, bool isNullable, bool isValueType)
     {
         return jsonTypeName switch
         {
@@ -1286,7 +1352,10 @@ public sealed class SerializationGenerator : IIncrementalGenerator
             "String" => "reader.ReadString()", // BinaryReader.ReadString() never returns null
             "Vector3" => "new System.Numerics.Vector3(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle())",
             "Quaternion" => "new System.Numerics.Quaternion(reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle(), reader.ReadSingle())",
-            _ => isNullable
+            // Complex/Object types. The '??' throw is only valid for reference types;
+            // for non-nullable value types JsonSerializer.Deserialize<T> returns T and
+            // '??' would be a CS0019 compile error, so deserialize directly.
+            _ => isNullable || isValueType
                 ? $"JsonSerializer.Deserialize<{type}>(reader.ReadString())"
                 : $"JsonSerializer.Deserialize<{type}>(reader.ReadString()) ?? throw new InvalidDataException(\"Non-nullable field was null in binary data\")"
         };
@@ -1298,8 +1367,11 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         {
             "Int32" or "Int64" or "Int16" or "Byte" or
             "UInt32" or "UInt64" or "UInt16" or "SByte" or
-            "Single" or "Double" or "Decimal" or "Boolean" or "String"
+            "Single" or "Double" or "Decimal" or "Boolean"
                 => $"writer.Write({valueExpr});",
+            // BinaryWriter.Write(string) throws ArgumentNullException on null; a default
+            // struct leaves string fields null, so coalesce to empty (matches the JSON path).
+            "String" => $"writer.Write({valueExpr} ?? string.Empty);",
             "Vector3" => $"writer.Write({valueExpr}.X); writer.Write({valueExpr}.Y); writer.Write({valueExpr}.Z);",
             "Quaternion" => $"writer.Write({valueExpr}.X); writer.Write({valueExpr}.Y); writer.Write({valueExpr}.Z); writer.Write({valueExpr}.W);",
             _ => $"writer.Write(JsonSerializer.Serialize({valueExpr}));" // Complex types as JSON
@@ -1319,6 +1391,7 @@ public sealed class SerializationGenerator : IIncrementalGenerator
         string Type,
         string JsonTypeName,
         bool IsNullable,
+        bool IsValueType,
         string? DefaultValueLiteral = null)
     {
         /// <summary>

@@ -420,6 +420,12 @@
           "Microsoft.CodeAnalysis.CSharp": "[5.6.0, )"
         }
       },
+      "keeneyes.network.abstractions": {
+        "type": "Project",
+        "dependencies": {
+          "KeenEyes.Abstractions": "[1.0.0, )"
+        }
+      },
       "Microsoft.CodeAnalysis.Analyzers": {
         "type": "CentralTransitive",
         "requested": "[5.6.0, )",
