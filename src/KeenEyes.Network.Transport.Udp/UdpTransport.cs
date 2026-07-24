@@ -57,7 +57,12 @@ public sealed class UdpTransport : INetworkTransport
     private const byte PacketKeepalive = 5;
 
     private readonly ConcurrentDictionary<int, UdpConnection> connections = new();
-    private readonly ConcurrentQueue<PendingMessage> incomingMessages = new();
+
+    // Connection, disconnection, and data events are all enqueued here from the
+    // background receive loop and drained in order on the game-loop thread during
+    // Update(). Firing ClientConnected/ClientDisconnected directly from the receive
+    // thread would let consumers mutate World/plugin state off the loop (see #1098).
+    private readonly ConcurrentQueue<TransportEvent> events = new();
     private readonly Lock stateLock = new();
 
     private UdpClient? socket;
@@ -176,10 +181,15 @@ public sealed class UdpTransport : INetworkTransport
         try
         {
             socket = new UdpClient();
-            serverEndpoint = new IPEndPoint(IPAddress.Parse(address), port);
 
-            // For DNS names, resolve first
-            if (!IPAddress.TryParse(address, out _))
+            // Only parse literal IPs directly; hostnames must resolve via DNS first.
+            // Parsing a hostname (e.g. "localhost") with IPAddress.Parse throws
+            // FormatException, which previously made the DNS branch unreachable.
+            if (IPAddress.TryParse(address, out var literalAddress))
+            {
+                serverEndpoint = new IPEndPoint(literalAddress, port);
+            }
+            else
             {
                 var addresses = await Dns.GetHostAddressesAsync(address, cancellationToken);
                 if (addresses.Length == 0)
@@ -312,7 +322,8 @@ public sealed class UdpTransport : INetworkTransport
                     Interlocked.Add(ref bytesSent, ackPacket.Length);
                     Interlocked.Increment(ref packetsSent);
 
-                    ClientConnected?.Invoke(connectionId);
+                    // Defer to Update() so the consumer handles it on the game loop.
+                    events.Enqueue(new TransportEvent { Kind = TransportEventKind.Connected, ConnectionId = connectionId });
                 }
 
                 break;
@@ -338,7 +349,7 @@ public sealed class UdpTransport : INetworkTransport
                 if (connection is not null)
                 {
                     connection.LastReceiveTime = DateTime.UtcNow;
-                    ProcessAckPacket(connection, ack);
+                    ProcessAckPacket(connection, ack, flags);
                 }
 
                 break;
@@ -383,7 +394,7 @@ public sealed class UdpTransport : INetworkTransport
                 if (serverConnection is not null)
                 {
                     serverConnection.LastReceiveTime = DateTime.UtcNow;
-                    ProcessAckPacket(serverConnection, ack);
+                    ProcessAckPacket(serverConnection, ack, flags);
                 }
 
                 break;
@@ -425,26 +436,33 @@ public sealed class UdpTransport : INetworkTransport
 
             case DeliveryMode.ReliableUnordered:
                 // Send ack
-                SendAck(connection, sequence);
+                SendAck(connection, sequence, DeliveryMode.ReliableUnordered);
 
                 // Deliver if not duplicate
                 if (!connection.ReceivedSequences.Contains(sequence))
                 {
                     connection.ReceivedSequences.Add(sequence);
-                    CleanupOldSequences(connection);
+                    if (IsSequenceNewer(sequence, connection.HighestReceivedUnorderedSequence))
+                    {
+                        connection.HighestReceivedUnorderedSequence = sequence;
+                    }
+
+                    CleanupUnorderedSequences(connection);
                     EnqueueMessage(connection.Id, payload);
                 }
 
                 break;
 
             case DeliveryMode.ReliableOrdered:
-                // Send ack
-                SendAck(connection, sequence);
+                // Send ack (tagged as ordered so the sender clears the right pending map).
+                SendAck(connection, sequence, DeliveryMode.ReliableOrdered);
 
-                // Buffer and deliver in order
-                if (!connection.ReceivedSequences.Contains(sequence))
+                // ReliableOrdered uses a dedicated sequence space (see #1096): non-ordered
+                // packets no longer consume sequence numbers the ordered receiver waits on,
+                // so a non-ordered send between two ordered sends can never stall delivery.
+                if (!connection.OrderedReceivedSequences.Contains(sequence))
                 {
-                    connection.ReceivedSequences.Add(sequence);
+                    connection.OrderedReceivedSequences.Add(sequence);
                     connection.OrderedBuffer[sequence] = payload.ToArray();
                     DeliverOrderedMessages(connection);
                 }
@@ -462,14 +480,23 @@ public sealed class UdpTransport : INetworkTransport
             connection.NextExpectedSequence++;
         }
 
-        CleanupOldSequences(connection);
+        CleanupOrderedSequences(connection);
     }
 
-    private static void CleanupOldSequences(UdpConnection connection)
+    private static void CleanupUnorderedSequences(UdpConnection connection)
     {
-        // Remove sequences that are too old
-        var minSequence = (ushort)(connection.NextExpectedSequence - SequenceWindowSize);
+        // Remove reliable-unordered dedup entries that are too old relative to the
+        // highest received unordered sequence.
+        var minSequence = (ushort)(connection.HighestReceivedUnorderedSequence - SequenceWindowSize);
         connection.ReceivedSequences.RemoveWhere(s => !IsSequenceNewer(s, minSequence));
+    }
+
+    private static void CleanupOrderedSequences(UdpConnection connection)
+    {
+        // Remove ordered dedup entries that fall outside the sliding window behind the
+        // next expected ordered sequence.
+        var minSequence = (ushort)(connection.NextExpectedSequence - SequenceWindowSize);
+        connection.OrderedReceivedSequences.RemoveWhere(s => !IsSequenceNewer(s, minSequence));
     }
 
     private static bool IsSequenceNewer(ushort a, ushort b)
@@ -478,9 +505,16 @@ public sealed class UdpTransport : INetworkTransport
         return (short)(a - b) > 0;
     }
 
-    private static void ProcessAckPacket(UdpConnection connection, ushort ack)
+    private static void ProcessAckPacket(UdpConnection connection, ushort ack, ushort flags)
     {
-        if (connection.PendingReliable.TryRemove(ack, out var pending))
+        // ReliableOrdered and ReliableUnordered have independent sequence spaces, so the
+        // ack carries its delivery mode (in the flags field) to pick the right pending map.
+        var mode = (DeliveryMode)(flags & 0x03);
+        var pendingMap = mode == DeliveryMode.ReliableOrdered
+            ? connection.PendingReliableOrdered
+            : connection.PendingReliable;
+
+        if (pendingMap.TryRemove(ack, out var pending))
         {
             // Calculate RTT from this ack
             var rtt = (float)(DateTime.UtcNow - pending.SendTime).TotalMilliseconds;
@@ -488,12 +522,13 @@ public sealed class UdpTransport : INetworkTransport
         }
     }
 
-    private void SendAck(UdpConnection connection, ushort sequence)
+    private void SendAck(UdpConnection connection, ushort sequence, DeliveryMode mode)
     {
         var ackPacket = new byte[HeaderSize];
         ackPacket[0] = ProtocolVersion;
         ackPacket[1] = PacketAck;
         BitConverter.TryWriteBytes(ackPacket.AsSpan(4), sequence); // ack field
+        BitConverter.TryWriteBytes(ackPacket.AsSpan(6), (ushort)mode); // flags: which sequence space
 
         socket?.Send(ackPacket, connection.Endpoint);
         Interlocked.Add(ref bytesSent, ackPacket.Length);
@@ -502,8 +537,9 @@ public sealed class UdpTransport : INetworkTransport
 
     private void EnqueueMessage(int connectionId, ReadOnlySpan<byte> data)
     {
-        incomingMessages.Enqueue(new PendingMessage
+        events.Enqueue(new TransportEvent
         {
+            Kind = TransportEventKind.Data,
             ConnectionId = connectionId,
             Data = data.ToArray()
         });
@@ -555,7 +591,13 @@ public sealed class UdpTransport : INetworkTransport
             return;
         }
 
-        var sequence = connection.NextSendSequence++;
+        // ReliableOrdered draws from its own sequence space so that Unreliable/
+        // UnreliableSequenced sends interleaved with ordered sends do not consume
+        // sequence numbers the ordered receiver is waiting on (see #1096).
+        var sequence = mode == DeliveryMode.ReliableOrdered
+            ? connection.NextSendOrderedSequence++
+            : connection.NextSendSequence++;
+
         var packet = new byte[HeaderSize + data.Length];
         packet[0] = ProtocolVersion;
         packet[1] = PacketData;
@@ -570,8 +612,17 @@ public sealed class UdpTransport : INetworkTransport
         Interlocked.Add(ref bytesSent, packet.Length);
         Interlocked.Increment(ref packetsSent);
 
-        // Track for reliable modes
-        if (mode is DeliveryMode.ReliableUnordered or DeliveryMode.ReliableOrdered)
+        // Track for reliable modes in the pending map matching the sequence space.
+        if (mode == DeliveryMode.ReliableOrdered)
+        {
+            connection.PendingReliableOrdered[sequence] = new PendingReliablePacket
+            {
+                Data = packet,
+                SendTime = DateTime.UtcNow,
+                Attempts = 1
+            };
+        }
+        else if (mode == DeliveryMode.ReliableUnordered)
         {
             connection.PendingReliable[sequence] = new PendingReliablePacket
             {
@@ -693,7 +744,8 @@ public sealed class UdpTransport : INetworkTransport
         {
             if (connections.TryRemove(connectionId, out _))
             {
-                ClientDisconnected?.Invoke(connectionId);
+                // Defer to Update() so the consumer handles it on the game loop (see #1098).
+                events.Enqueue(new TransportEvent { Kind = TransportEventKind.Disconnected, ConnectionId = connectionId });
             }
         }
         else
@@ -712,10 +764,25 @@ public sealed class UdpTransport : INetworkTransport
 
         var now = DateTime.UtcNow;
 
-        // Process incoming messages
-        while (incomingMessages.TryDequeue(out var message))
+        // Drain connection, disconnection, and data events in the order they occurred.
+        // Dispatching here (rather than from the background receive loop) keeps consumer
+        // state mutations on the game-loop thread (see #1098).
+        while (events.TryDequeue(out var evt))
         {
-            DataReceived?.Invoke(message.ConnectionId, message.Data);
+            switch (evt.Kind)
+            {
+                case TransportEventKind.Connected:
+                    ClientConnected?.Invoke(evt.ConnectionId);
+                    break;
+
+                case TransportEventKind.Disconnected:
+                    ClientDisconnected?.Invoke(evt.ConnectionId);
+                    break;
+
+                case TransportEventKind.Data:
+                    DataReceived?.Invoke(evt.ConnectionId, evt.Data!);
+                    break;
+            }
         }
 
         // Handle reliable packet resends and timeouts
@@ -749,8 +816,23 @@ public sealed class UdpTransport : INetworkTransport
 
     private void UpdateConnection(UdpConnection connection, DateTime now)
     {
-        // Resend reliable packets
-        foreach (var kvp in connection.PendingReliable)
+        // Resend reliable packets from both sequence spaces.
+        ResendPending(connection, connection.PendingReliable, now);
+        ResendPending(connection, connection.PendingReliableOrdered, now);
+
+        // Send keepalive if needed
+        if ((now - connection.LastSendTime).TotalMilliseconds > KeepaliveIntervalMs)
+        {
+            SendKeepalive(connection);
+        }
+    }
+
+    private void ResendPending(
+        UdpConnection connection,
+        ConcurrentDictionary<ushort, PendingReliablePacket> pendingMap,
+        DateTime now)
+    {
+        foreach (var kvp in pendingMap)
         {
             var pending = kvp.Value;
             var elapsed = (now - pending.SendTime).TotalMilliseconds;
@@ -760,7 +842,7 @@ public sealed class UdpTransport : INetworkTransport
                 if (pending.Attempts >= MaxResendAttempts)
                 {
                     // Give up on this packet
-                    connection.PendingReliable.TryRemove(kvp.Key, out _);
+                    pendingMap.TryRemove(kvp.Key, out _);
                     Interlocked.Increment(ref packetsLost);
                     Interlocked.Increment(ref connection.PacketsLost);
                 }
@@ -773,12 +855,6 @@ public sealed class UdpTransport : INetworkTransport
                     Interlocked.Increment(ref packetsSent);
                 }
             }
-        }
-
-        // Send keepalive if needed
-        if ((now - connection.LastSendTime).TotalMilliseconds > KeepaliveIntervalMs)
-        {
-            SendKeepalive(connection);
         }
     }
 
@@ -888,12 +964,16 @@ public sealed class UdpTransport : INetworkTransport
         public float RoundTripTimeMs { get; set; }
 
         public ushort NextSendSequence;
+        public ushort NextSendOrderedSequence;
         public ushort LastReceivedSequence;
         public ushort NextExpectedSequence;
+        public ushort HighestReceivedUnorderedSequence;
 
         public HashSet<ushort> ReceivedSequences { get; } = [];
+        public HashSet<ushort> OrderedReceivedSequences { get; } = [];
         public Dictionary<ushort, byte[]> OrderedBuffer { get; } = [];
         public ConcurrentDictionary<ushort, PendingReliablePacket> PendingReliable { get; } = new();
+        public ConcurrentDictionary<ushort, PendingReliablePacket> PendingReliableOrdered { get; } = new();
 
         public long BytesSent;
         public long BytesReceived;
@@ -909,9 +989,17 @@ public sealed class UdpTransport : INetworkTransport
         public int Attempts { get; set; }
     }
 
-    private sealed class PendingMessage
+    private enum TransportEventKind : byte
     {
+        Connected,
+        Disconnected,
+        Data,
+    }
+
+    private sealed class TransportEvent
+    {
+        public required TransportEventKind Kind { get; init; }
         public required int ConnectionId { get; init; }
-        public required byte[] Data { get; init; }
+        public byte[]? Data { get; init; }
     }
 }

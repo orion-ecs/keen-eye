@@ -19,7 +19,11 @@ public sealed class NetworkClientSendSystem(NetworkClientPlugin plugin) : System
     private readonly byte[] sendBuffer = new byte[1024];
     private float pingTimer;
     private const float PingInterval = 1.0f; // Send ping every second
-    private uint lastSentInputTick;
+
+    // High-water mark of the newest input tick already sent, tracked per predicted
+    // entity. A single shared field skipped every predicted entity after the first one
+    // reached a given tick, so only one entity's input ever reached the server (#1100).
+    private readonly Dictionary<Entity, uint> lastSentInputTicks = [];
 
     // Owner-authoritative state tracking.
     private float ownerStateAccumulator;
@@ -77,7 +81,15 @@ public sealed class NetworkClientSendSystem(NetworkClientPlugin plugin) : System
         foreach (var entity in World.Query<LocallyOwned, Predicted, NetworkId>())
         {
             var inputBuffer = plugin.GetInputBuffer(entity) as IInputBuffer;
-            if (inputBuffer is null || inputBuffer.NewestTick <= lastSentInputTick)
+            if (inputBuffer is null)
+            {
+                continue;
+            }
+
+            // Per-entity high-water mark: each predicted entity advances independently
+            // so that two entities recording input for the same tick both send (#1100).
+            lastSentInputTicks.TryGetValue(entity, out var lastSentInputTick);
+            if (inputBuffer.NewestTick <= lastSentInputTick)
             {
                 continue;
             }
@@ -98,7 +110,7 @@ public sealed class NetworkClientSendSystem(NetworkClientPlugin plugin) : System
                 plugin.SendToServer(writer.GetWrittenSpan(), DeliveryMode.UnreliableSequenced);
             }
 
-            lastSentInputTick = inputBuffer.NewestTick;
+            lastSentInputTicks[entity] = inputBuffer.NewestTick;
         }
     }
 
