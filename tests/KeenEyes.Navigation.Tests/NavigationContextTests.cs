@@ -98,6 +98,25 @@ public class NavigationContextTests : IDisposable
     }
 
     [Fact]
+    public void SetDestination_WithoutTransform3D_DoesNotLeaveAgentPathPending()
+    {
+        // Regression for #1173: SetDestination marked the agent PathPending before the
+        // path request early-returned on the missing Transform3D. Because
+        // NavMeshAgentSystem skips PathPending agents, the flag stuck forever and the
+        // agent silently froze. The request must clear PathPending when it cannot be
+        // enqueued.
+        var entity = world.Spawn()
+            .With(NavMeshAgent.Create())
+            .Build();
+
+        context.SetDestination(entity, new Vector3(10, 0, 10));
+
+        ref readonly var agent = ref world.Get<NavMeshAgent>(entity);
+        agent.PathPending.ShouldBeFalse();
+        context.PendingRequestCount.ShouldBe(0);
+    }
+
+    [Fact]
     public void SetDestination_CalledTwice_CancelsPreviousRequest()
     {
         var entity = world.Spawn()

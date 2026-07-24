@@ -33,6 +33,7 @@ public sealed class DotRecastProvider : ICrowdNavigationProvider
     private NavMeshData? activeMesh;
     private NavMeshQueryPool? queryPool;
     private DotRecastCrowdManager? crowdManager;
+    private NavMeshObstacleManager? obstacleManager;
     private bool disposed;
 
     /// <summary>
@@ -128,6 +129,21 @@ public sealed class DotRecastProvider : ICrowdNavigationProvider
         crowdManager?.SetNavMesh(navMeshData);
     }
 
+    /// <summary>
+    /// Attaches an obstacle manager whose obstacles are consulted during query
+    /// filter construction so that polygons covered by dynamic obstacles are
+    /// excluded from pathfinding.
+    /// </summary>
+    /// <param name="manager">
+    /// The obstacle manager to consult, or <see langword="null"/> to stop
+    /// consulting any obstacle manager.
+    /// </param>
+    public void SetObstacleManager(NavMeshObstacleManager? manager)
+    {
+        ThrowIfDisposed();
+        obstacleManager = manager;
+    }
+
     #region Pathfinding
 
     /// <inheritdoc/>
@@ -204,7 +220,7 @@ public sealed class DotRecastProvider : ICrowdNavigationProvider
                 ? NavPointProperties.OffMeshConnection
                 : NavPointProperties.None;
 
-            waypoints[i] = new NavPoint(pos, (NavAreaType)area, (uint)pt.refs, properties);
+            waypoints[i] = new NavPoint(pos, (NavAreaType)area, pt.refs, properties);
 
             if (i > 0)
             {
@@ -586,10 +602,50 @@ public sealed class DotRecastProvider : ICrowdNavigationProvider
     private IDtQueryFilter CreateFilter(NavAreaMask areaMask)
     {
         // DtQueryDefaultFilter constructor takes include flags, exclude flags, and area costs array
-        return new DtQueryDefaultFilter((int)areaMask, 0, areaCosts);
+        var baseFilter = new DtQueryDefaultFilter((int)areaMask, 0, areaCosts);
+
+        // Consult the obstacle manager (if attached) so polygons covered by
+        // dynamic obstacles are excluded from queries that use this filter.
+        if (obstacleManager != null && activeMesh != null && obstacleManager.ObstacleCount > 0)
+        {
+            var excluded = new List<long>();
+            obstacleManager.GetExcludedPolygons(activeMesh.InternalNavMesh, excluded);
+            if (excluded.Count > 0)
+            {
+                return new ObstacleExclusionFilter(baseFilter, excluded);
+            }
+        }
+
+        return baseFilter;
     }
 
     private static Vector3 ToVector3(RcVec3f v) => new(v.X, v.Y, v.Z);
 
     private static RcVec3f ToRcVec3f(Vector3 v) => new(v.X, v.Y, v.Z);
+
+    /// <summary>
+    /// Query filter that excludes a fixed set of polygon references (those
+    /// covered by dynamic obstacles) on top of a wrapped base filter.
+    /// </summary>
+    private sealed class ObstacleExclusionFilter(IDtQueryFilter inner, IEnumerable<long> excluded) : IDtQueryFilter
+    {
+        private readonly HashSet<long> excluded = [.. excluded];
+
+        public bool PassFilter(long refs, DtMeshTile tile, DtPoly poly)
+            => !excluded.Contains(refs) && inner.PassFilter(refs, tile, poly);
+
+        public float GetCost(
+            RcVec3f pa,
+            RcVec3f pb,
+            long prevRef,
+            DtMeshTile prevTile,
+            DtPoly prevPoly,
+            long curRef,
+            DtMeshTile curTile,
+            DtPoly curPoly,
+            long nextRef,
+            DtMeshTile nextTile,
+            DtPoly nextPoly)
+            => inner.GetCost(pa, pb, prevRef, prevTile, prevPoly, curRef, curTile, curPoly, nextRef, nextTile, nextPoly);
+    }
 }

@@ -302,9 +302,10 @@ public sealed class GridNavigationProvider : INavigationProvider
                 grid.GetAreaType(centerCoord));
         }
 
-        // Spiral outward
+        // Spiral outward, checking the perimeter (Chebyshev ring) at each radius.
         float bestDistSq = float.MaxValue;
         GridCoordinate? best = null;
+        int? firstHitRing = null;
 
         for (int r = 1; r <= radiusCells; r++)
         {
@@ -333,10 +334,17 @@ public sealed class GridNavigationProvider : INavigationProvider
                 }
             }
 
-            // If we found something at this radius, we're done
+            // The first ring with a hit does not guarantee the nearest cell: a
+            // straight-line cell in ring r+1 (distance r+1) can be closer than a
+            // diagonal cell in ring r (distance up to r*sqrt(2)). Scan one extra
+            // ring beyond the first hit before committing to the true minimum.
             if (best.HasValue)
             {
-                break;
+                firstHitRing ??= r;
+                if (r >= firstHitRing.Value + 1)
+                {
+                    break;
+                }
             }
         }
 
