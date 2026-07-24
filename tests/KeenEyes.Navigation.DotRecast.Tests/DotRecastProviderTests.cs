@@ -467,9 +467,9 @@ public class DotRecastProviderTests : IDisposable
     public void FindPath_AfterRemovingManagerObstacle_ReturnsToStraightCorridor()
     {
         // Removing the obstacle from the manager must stop excluding its polygons.
-        var navMesh = TestHelper.BuildTestNavMesh();
+        var testNavMesh = TestHelper.BuildTestNavMesh();
         using var world = new World();
-        world.InstallPlugin(new DotRecastNavigationPlugin(navMesh, TestHelper.CreateTestConfig()));
+        world.InstallPlugin(new DotRecastNavigationPlugin(testNavMesh, TestHelper.CreateTestConfig()));
 
         var pathProvider = world.GetExtension<DotRecastProvider>();
         var obstacles = world.GetExtension<NavMeshObstacleManager>();
