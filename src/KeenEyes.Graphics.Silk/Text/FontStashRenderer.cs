@@ -44,6 +44,7 @@ internal sealed class FontStashRenderer : IFontStashRenderer2, IDisposable
     private uint currentTexture;
     private bool isBatching;
     private Matrix4x4 projection;
+    private Matrix4x4 activeProjection;
     private Vector2 screenSize;
     private bool disposed;
 
@@ -104,6 +105,10 @@ internal sealed class FontStashRenderer : IFontStashRenderer2, IDisposable
         indexCount = 0;
         currentTexture = 0;
 
+        // Remember the caller-supplied projection so Flush re-binds it (rather than
+        // the internal screen projection) before every draw call.
+        activeProjection = customProjection;
+
         device.UseProgram(shaderProgram);
         device.UniformMatrix4(projectionLocation, customProjection);
         device.Uniform1(textureLocation, 0);
@@ -140,7 +145,7 @@ internal sealed class FontStashRenderer : IFontStashRenderer2, IDisposable
 
         // Ensure our shader and state are active (may have been changed by other renderers)
         device.UseProgram(shaderProgram);
-        device.UniformMatrix4(projectionLocation, projection);
+        device.UniformMatrix4(projectionLocation, activeProjection);
         device.Uniform1(textureLocation, 0);
         device.Enable(RenderCapability.Blend);
         // FontStashSharp uses premultiplied alpha
