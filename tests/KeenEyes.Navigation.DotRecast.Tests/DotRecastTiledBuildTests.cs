@@ -39,8 +39,8 @@ public class DotRecastTiledBuildTests
     }
 
     // Counts how many distinct grid tiles the path's waypoints fall into, derived from
-    // the navmesh tile grid (origin + tile footprint). This does not rely on the
-    // waypoint polygon refs, which the provider stores as a lossy uint cast.
+    // the navmesh tile grid (origin + tile footprint) rather than the waypoint polygon
+    // refs, so the count is independent of how refs are encoded.
     private static int CountDistinctTilesAlongPath(NavMeshData mesh, NavPath path)
     {
         ref readonly var navParams = ref mesh.InternalNavMesh.GetParams();

@@ -427,4 +427,79 @@ public class DotRecastProviderTests : IDisposable
     }
 
     #endregion
+
+    #region Obstacle Manager Regression Tests
+
+    [Fact]
+    public void FindPath_WithObstacleAddedViaPluginManager_DetoursAroundExcludedPolygons()
+    {
+        // Regression for #1168: the plugin created and exposed a NavMeshObstacleManager,
+        // but the provider never consulted it, so obstacles added through it had zero
+        // effect on pathfinding. With the wiring in place, an obstacle straddling the
+        // straight corridor must push the path around the excluded polygons.
+        var navMesh = TestHelper.BuildTestNavMesh();
+        using var world = new World();
+        world.InstallPlugin(new DotRecastNavigationPlugin(navMesh, TestHelper.CreateTestConfig()));
+
+        var pathProvider = world.GetExtension<DotRecastProvider>();
+        var obstacles = world.GetExtension<NavMeshObstacleManager>();
+
+        var start = new Vector3(20f, 0f, 100f);
+        var end = new Vector3(180f, 0f, 100f);
+
+        var baseline = pathProvider.FindPath(start, end, AgentSettings.Default);
+        Assert.True(baseline.IsValid, "Baseline path across open terrain should be valid.");
+        Assert.True(
+            MaxAbsZDeviation(baseline, 100f) < 5f,
+            "Baseline path should follow the straight corridor.");
+
+        obstacles.AddBoxObstacle(new Vector3(100f, 0f, 100f), new Vector3(30f, 5f, 30f));
+
+        var detoured = pathProvider.FindPath(start, end, AgentSettings.Default);
+
+        Assert.True(detoured.IsValid, "Path should still route around the obstacle.");
+        Assert.True(
+            MaxAbsZDeviation(detoured, 100f) > 5f,
+            "The manager-added obstacle must push the path off the straight corridor.");
+    }
+
+    [Fact]
+    public void FindPath_AfterRemovingManagerObstacle_ReturnsToStraightCorridor()
+    {
+        // Removing the obstacle from the manager must stop excluding its polygons.
+        var navMesh = TestHelper.BuildTestNavMesh();
+        using var world = new World();
+        world.InstallPlugin(new DotRecastNavigationPlugin(navMesh, TestHelper.CreateTestConfig()));
+
+        var pathProvider = world.GetExtension<DotRecastProvider>();
+        var obstacles = world.GetExtension<NavMeshObstacleManager>();
+
+        var start = new Vector3(20f, 0f, 100f);
+        var end = new Vector3(180f, 0f, 100f);
+
+        int obstacleId = obstacles.AddBoxObstacle(new Vector3(100f, 0f, 100f), new Vector3(30f, 5f, 30f));
+        var detoured = pathProvider.FindPath(start, end, AgentSettings.Default);
+        Assert.True(MaxAbsZDeviation(detoured, 100f) > 5f, "Precondition: obstacle should force a detour.");
+
+        obstacles.RemoveObstacle(obstacleId);
+        var cleared = pathProvider.FindPath(start, end, AgentSettings.Default);
+
+        Assert.True(cleared.IsValid);
+        Assert.True(
+            MaxAbsZDeviation(cleared, 100f) < 5f,
+            "Removing the obstacle should restore the straight corridor.");
+    }
+
+    private static float MaxAbsZDeviation(NavPath path, float baseZ)
+    {
+        float max = 0f;
+        foreach (var waypoint in path)
+        {
+            max = MathF.Max(max, MathF.Abs(waypoint.Position.Z - baseZ));
+        }
+
+        return max;
+    }
+
+    #endregion
 }

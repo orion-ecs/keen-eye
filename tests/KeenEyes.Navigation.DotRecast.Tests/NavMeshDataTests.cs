@@ -254,6 +254,55 @@ public class NavMeshDataTests
 
     #endregion
 
+    #region Poly Ref And Area Regression Tests
+
+    [Fact]
+    public void FindNearestPoint_ReturnedPolygonId_RoundTripsToPolygonVertices()
+    {
+        // Regression for #1169: DotRecast packs salt/tile bits above bit 32, so
+        // truncating the poly ref to uint broke GetTileAndPolyByRef's salt check
+        // and GetPolygonVertices returned 0 vertices for a valid nearest point.
+        Assert.NotNull(navMesh);
+
+        var point = navMesh.FindNearestPoint(new Vector3(100f, 0f, 100f));
+        Assert.NotNull(point);
+        Assert.NotEqual(0L, point.Value.PolygonId);
+
+        var vertices = navMesh.GetPolygonVertices(point.Value.PolygonId);
+        Assert.True(
+            vertices.Length >= 3,
+            $"Expected the nearest polygon to round-trip to >=3 vertices, got {vertices.Length}.");
+    }
+
+    [Fact]
+    public void GetAreaType_OverWalkableGround_ReturnsWalkableNotRecastSentinel()
+    {
+        // Regression for #1170: ground polys were built with Recast's RC_WALKABLE_AREA
+        // (63), which is outside the 0-31 NavAreaType range, so SetAreaCost could never
+        // influence terrain cost. Walkable ground must report NavAreaType.Walkable.
+        Assert.NotNull(navMesh);
+
+        var areaType = navMesh.GetAreaType(new Vector3(100f, 0f, 100f));
+
+        Assert.Equal(NavAreaType.Walkable, areaType);
+        Assert.NotEqual(63, (int)areaType);
+    }
+
+    [Fact]
+    public void GetPolygonSurfaces_OverWalkableGround_AllAreasInValidRange()
+    {
+        // Regression for #1170: every surface area must fall in the 0-31 range that
+        // the area-cost table can address (63 is the out-of-range Recast sentinel).
+        Assert.NotNull(navMesh);
+
+        foreach (var surface in navMesh.GetPolygonSurfaces())
+        {
+            Assert.InRange((int)surface.Area, 0, 31);
+        }
+    }
+
+    #endregion
+
     #region GetPolygonSurfaces Tests
 
     [Fact]

@@ -286,9 +286,19 @@ public sealed class DotRecastMeshBuilder
         var navMesh = new DtNavMesh();
         navMesh.Init(navMeshParams, config.MaxVertsPerPoly);
 
-        foreach (var meshData in tiles)
+        for (int i = 0; i < tiles.Count; i++)
         {
-            navMesh.AddTile(meshData, 0, 0, out _);
+            // Surface AddTile failures instead of silently dropping tiles. The
+            // navmesh caps tile capacity at maxTiles (1 << 14 = 16384), so a world
+            // with more non-empty tiles than that would otherwise lose geometry
+            // with no diagnostic.
+            var addStatus = navMesh.AddTile(tiles[i], 0, 0, out _);
+            if (addStatus.Failed())
+            {
+                throw new InvalidOperationException(
+                    $"Failed to add navmesh tile {i} of {tiles.Count} (status: {addStatus.Value}). " +
+                    "The tile count may exceed the navmesh capacity of 16384 tiles.");
+            }
         }
 
         return new NavMeshData(navMesh, config.ToAgentSettings());
@@ -559,14 +569,29 @@ public sealed class DotRecastMeshBuilder
     /// <summary>
     /// Assigns a walkable polygon flag to every non-null-area polygon so the default
     /// Detour query filter (which requires at least one include flag bit set) can
-    /// traverse them.
+    /// traverse them, and remaps Recast's default walkable area sentinel to a valid
+    /// <see cref="NavAreaType"/>.
     /// </summary>
+    /// <remarks>
+    /// Recast voxelizes walkable spans with <see cref="RcRecast.RC_WALKABLE_AREA"/>
+    /// (63), which is required during region building but falls outside the 0-31
+    /// <see cref="NavAreaType"/> range. Left as-is, area-cost lookups (which index a
+    /// 32-entry table) can never target ground polygons, so
+    /// <c>SetAreaCost(NavAreaType.Walkable, ...)</c> would have no effect. Remapping
+    /// the sentinel to <see cref="NavAreaType.Walkable"/> here keeps custom
+    /// per-triangle areas intact while making default ground terrain cost-adjustable.
+    /// </remarks>
     private static void MarkWalkablePolys(RcPolyMesh mesh)
     {
         for (int i = 0; i < mesh.npolys; i++)
         {
             if (mesh.areas[i] != RcRecast.RC_NULL_AREA)
             {
+                if (mesh.areas[i] == RcRecast.RC_WALKABLE_AREA)
+                {
+                    mesh.areas[i] = (int)NavAreaType.Walkable;
+                }
+
                 mesh.flags[i] = 1;
             }
         }

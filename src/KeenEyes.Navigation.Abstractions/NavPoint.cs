@@ -25,7 +25,7 @@ namespace KeenEyes.Navigation.Abstractions;
 public readonly record struct NavPoint(
     Vector3 Position,
     NavAreaType AreaType = NavAreaType.Walkable,
-    uint PolygonId = 0,
+    long PolygonId = 0,
     NavPointProperties Properties = NavPointProperties.None)
 {
     /// <summary>

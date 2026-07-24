@@ -351,7 +351,7 @@ public sealed class NavigationContext : IDisposable
 
     private void RequestPathForAgent(Entity entity, Vector3 destination)
     {
-        if (provider == null || !world.Has<NavMeshAgent>(entity))
+        if (!world.Has<NavMeshAgent>(entity))
         {
             return;
         }
@@ -359,9 +359,15 @@ public sealed class NavigationContext : IDisposable
         // Cancel any existing request
         CancelRequestForAgent(entity);
 
-        // Get agent's current position from Transform3D
-        if (!world.Has<Common.Transform3D>(entity))
+        // A path request can only be enqueued when there is an active provider
+        // and a source position (Transform3D). SetDestination already marked the
+        // agent PathPending; if the request cannot be enqueued, clear that flag so
+        // the agent is not left stuck "computing" forever. NavMeshAgentSystem skips
+        // PathPending agents, so a stuck flag would silently freeze the agent.
+        if (provider == null || !world.Has<Common.Transform3D>(entity))
         {
+            ref var stuckAgent = ref world.Get<NavMeshAgent>(entity);
+            stuckAgent.PathPending = false;
             return;
         }
 

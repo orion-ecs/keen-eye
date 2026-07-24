@@ -314,6 +314,27 @@ public class GridNavigationProviderTests : IDisposable
     }
 
     [Fact]
+    public void FindNearestPoint_StraightCellInNextRing_ReturnsTrueNearestNotFirstRingHit()
+    {
+        // Regression for #1174: the search broke after the first ring containing any
+        // hit, but a straight-line cell one ring further out can be Euclidean-closer
+        // than a diagonal cell in the first-hit ring ((r+1) < r*sqrt(2) for r >= 3).
+        // Center at cell (10,10); leave only two walkable cells:
+        //   (13,13) -> diagonal in ring 3, distance sqrt(18) ~= 4.243
+        //   (14,10) -> straight  in ring 4, distance 4.0 (the true nearest)
+        provider.Grid.Fill(new GridCoordinate(0, 0), new GridCoordinate(19, 19), GridCell.Blocked);
+        provider.Grid[13, 13] = GridCell.Walkable;
+        provider.Grid[14, 10] = GridCell.Walkable;
+
+        var center = provider.Grid.ToWorldPosition(new GridCoordinate(10, 10));
+        var point = provider.FindNearestPoint(center, searchRadius: 6f);
+
+        Assert.NotNull(point);
+        var expected = provider.Grid.ToWorldPosition(new GridCoordinate(14, 10));
+        Assert.Equal(expected, point.Value.Position);
+    }
+
+    [Fact]
     public void FindNearestPoint_NoWalkableInRadius_ReturnsNull()
     {
         // Block a large area

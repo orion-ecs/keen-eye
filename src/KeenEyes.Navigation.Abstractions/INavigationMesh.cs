@@ -103,5 +103,5 @@ public interface INavigationMesh
     /// </summary>
     /// <param name="polygonId">The polygon identifier.</param>
     /// <returns>The vertices of the polygon, or an empty span if invalid.</returns>
-    ReadOnlySpan<Vector3> GetPolygonVertices(uint polygonId);
+    ReadOnlySpan<Vector3> GetPolygonVertices(long polygonId);
 }

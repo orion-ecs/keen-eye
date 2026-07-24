@@ -212,8 +212,10 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
             ? new DotRecastProvider(prebuiltMesh, config)
             : new DotRecastProvider(config);
 
-        // Create obstacle manager for dynamic carving
+        // Create obstacle manager for dynamic carving and connect it to the
+        // provider so manager-added obstacles exclude polygons during queries.
         obstacleManager = new NavMeshObstacleManager();
+        provider.SetObstacleManager(obstacleManager);
 
         // Register the provider as both the concrete type and the interface
         context.SetExtension(provider);

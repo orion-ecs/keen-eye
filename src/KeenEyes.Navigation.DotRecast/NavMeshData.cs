@@ -127,7 +127,7 @@ public sealed class NavMeshData : INavigationMesh
         }
 
         navMesh.GetPolyArea(nearestRef, out var area);
-        return new NavPoint(ToVector3(nearestPt), (NavAreaType)area, (uint)nearestRef);
+        return new NavPoint(ToVector3(nearestPt), (NavAreaType)area, nearestRef);
     }
 
     /// <inheritdoc/>
@@ -145,7 +145,7 @@ public sealed class NavMeshData : INavigationMesh
         }
 
         navMesh.GetPolyArea(randomRef, out var area);
-        return new NavPoint(ToVector3(randomPt), (NavAreaType)area, (uint)randomRef);
+        return new NavPoint(ToVector3(randomPt), (NavAreaType)area, randomRef);
     }
 
     /// <inheritdoc/>
@@ -173,7 +173,7 @@ public sealed class NavMeshData : INavigationMesh
         }
 
         navMesh.GetPolyArea(randomRef, out var area);
-        return new NavPoint(ToVector3(randomPt), (NavAreaType)area, (uint)randomRef);
+        return new NavPoint(ToVector3(randomPt), (NavAreaType)area, randomRef);
     }
 
     /// <inheritdoc/>
@@ -259,7 +259,7 @@ public sealed class NavMeshData : INavigationMesh
     }
 
     /// <inheritdoc/>
-    public ReadOnlySpan<Vector3> GetPolygonVertices(uint polygonId)
+    public ReadOnlySpan<Vector3> GetPolygonVertices(long polygonId)
     {
         navMesh.GetTileAndPolyByRef(polygonId, out var tile, out var poly);
 

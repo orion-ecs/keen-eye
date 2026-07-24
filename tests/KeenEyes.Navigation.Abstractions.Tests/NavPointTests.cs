@@ -16,7 +16,7 @@ public class NavPointTests
 
         Assert.Equal(position, point.Position);
         Assert.Equal(NavAreaType.Road, point.AreaType);
-        Assert.Equal(42u, point.PolygonId);
+        Assert.Equal(42L, point.PolygonId);
     }
 
     [Fact]
@@ -26,7 +26,20 @@ public class NavPointTests
         var point = new NavPoint(position);
 
         Assert.Equal(NavAreaType.Walkable, point.AreaType);
-        Assert.Equal(0u, point.PolygonId);
+        Assert.Equal(0L, point.PolygonId);
+    }
+
+    [Fact]
+    public void Constructor_PolygonIdAboveUInt32Range_PreservesFullValue()
+    {
+        // Regression for #1169: DotRecast packs salt/tile bits above bit 32, so
+        // PolygonId must be a 64-bit value. A ref that only differs from its
+        // uint-truncated form in the high bits must round-trip intact.
+        long polyRef = (1L << 40) | 49L;
+        var point = new NavPoint(new Vector3(1f, 2f, 3f), NavAreaType.Walkable, polyRef);
+
+        Assert.Equal(polyRef, point.PolygonId);
+        Assert.NotEqual((long)(uint)polyRef, point.PolygonId);
     }
 
     [Fact]
