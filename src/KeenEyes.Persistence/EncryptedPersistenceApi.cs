@@ -140,13 +140,12 @@ public sealed class EncryptedPersistenceApi
         var fileData = SaveFileFormat.Write(slotInfo, encryptedData, options);
         File.WriteAllBytes(filePath, fileData);
 
-        // Update slot info with sizes
-        return slotInfo with
-        {
-            UncompressedSize = snapshotData.Length,
-            CompressedSize = encryptedData.Length,
-            Compression = options.Compression
-        };
+        // Return the slot info exactly as persisted so its reported sizes match the
+        // on-disk (encrypted, then compressed) bytes. SaveFileFormat.Write stamps the
+        // container metadata with the size of the encrypted payload it received and the
+        // compressed length it wrote; reading that back keeps the returned SlotInfo
+        // consistent with what a later GetSlotInfo() call reports.
+        return SaveFileFormat.ReadMetadata(fileData);
     }
 
     /// <summary>
@@ -267,12 +266,9 @@ public sealed class EncryptedPersistenceApi
         var fileData = SaveFileFormat.Write(slotInfo, encryptedData, options);
         await File.WriteAllBytesAsync(filePath, fileData, cancellationToken).ConfigureAwait(false);
 
-        return slotInfo with
-        {
-            UncompressedSize = snapshotData.Length,
-            CompressedSize = encryptedData.Length,
-            Compression = options.Compression
-        };
+        // Return the slot info exactly as persisted so its reported sizes match the
+        // on-disk (encrypted, then compressed) bytes. See SaveToSlot for details.
+        return SaveFileFormat.ReadMetadata(fileData);
     }
 
     /// <summary>

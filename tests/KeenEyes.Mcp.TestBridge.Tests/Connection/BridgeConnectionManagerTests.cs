@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using KeenEyes.Mcp.TestBridge.Connection;
 
 namespace KeenEyes.Mcp.TestBridge.Tests.Connection;
@@ -199,6 +200,64 @@ public sealed class BridgeConnectionManagerTests : IAsyncDisposable
 
         result.ShouldBeFalse();
         bridge.ShouldBeNull();
+    }
+
+    #endregion
+
+    #region Ping Timeout Tests
+
+    [Fact]
+    public async Task PingWithTimeoutAsync_WhenPingStalls_CancelsAtPingTimeout()
+    {
+        // A short PingTimeout must abort a ping that never completes on its own.
+        // Before the fix the configured PingTimeout was never applied to the ping call,
+        // so a stalled ping would hang until the client's much larger request timeout.
+        manager = new BridgeConnectionManager
+        {
+            PingTimeout = TimeSpan.FromMilliseconds(150),
+            ConnectionTimeout = TimeSpan.FromSeconds(30)
+        };
+
+        var stopwatch = Stopwatch.StartNew();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await manager.PingWithTimeoutAsync(
+                () => Task.Delay(Timeout.InfiniteTimeSpan),
+                CancellationToken.None));
+
+        stopwatch.Stop();
+
+        // Enforced by PingTimeout (~150ms), well under ConnectionTimeout (30s).
+        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(5));
+    }
+
+    [Fact]
+    public async Task PingWithTimeoutAsync_WhenPingCompletesQuickly_DoesNotThrow()
+    {
+        manager = new BridgeConnectionManager
+        {
+            PingTimeout = TimeSpan.FromSeconds(5)
+        };
+
+        await Should.NotThrowAsync(async () =>
+            await manager.PingWithTimeoutAsync(() => Task.CompletedTask, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task PingWithTimeoutAsync_WhenLoopTokenCancelled_Cancels()
+    {
+        manager = new BridgeConnectionManager
+        {
+            PingTimeout = TimeSpan.FromSeconds(30)
+        };
+
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await manager.PingWithTimeoutAsync(
+                () => Task.Delay(Timeout.InfiniteTimeSpan),
+                cts.Token));
     }
 
     #endregion

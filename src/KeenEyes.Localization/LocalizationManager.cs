@@ -259,17 +259,27 @@ public sealed class LocalizationManager : ILocalization, IDisposable
     {
         try
         {
-            // Preload as RawAsset - this caches the file contents
-            // The actual typed load will happen when the asset is used
-            await assetManager.LoadAsync<KeenEyes.Assets.RawAsset>(
-                path,
-                KeenEyes.Assets.LoadPriority.Low,
-                cancellationToken);
+            // Warm the file into the OS cache without registering a typed asset entry.
+            //
+            // The asset cache is keyed by path only and ignores the requested type on a
+            // hit, so preloading through the manager as RawAsset would poison the cache:
+            // a later typed Load<T> of the same path returns the cached RawAsset (the
+            // wrong type), which surfaces as a silent null. Because the localization layer
+            // cannot know the eventual asset type, it warms the underlying file directly
+            // instead, leaving the typed load to populate the cache correctly on first use.
+            var fullPath = Path.Combine(assetManager.RootPath, path);
+            if (!File.Exists(fullPath))
+            {
+                return;
+            }
+
+            await using var stream = File.OpenRead(fullPath);
+            await stream.CopyToAsync(Stream.Null, cancellationToken);
         }
         catch
         {
             // Silently ignore preload failures - the asset might not exist
-            // or might need a specialized loader. The actual load will report errors.
+            // or be inaccessible. The actual typed load will report errors.
         }
     }
 
