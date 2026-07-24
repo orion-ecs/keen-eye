@@ -143,7 +143,7 @@ public sealed partial class World
     {
         // Use static abstract interface member for AOT-compatible access (no reflection)
         var componentTypes = TBundle.ComponentTypes;
-        if (componentTypes.Length > 0)
+        if (componentTypes.Count > 0)
         {
             archetypeManager.PreallocateArchetype(componentTypes, initialCapacity);
         }

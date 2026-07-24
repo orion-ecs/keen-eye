@@ -499,4 +499,158 @@ public class GeneratorShapeTests
     }
 
     #endregion
+
+    #region #1234 - IBundle.ComponentTypes is immutable at runtime
+
+    [Fact]
+    public void BundleGenerator_ComponentTypes_CannotBeCastToMutableArray()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace ShapeApp;
+
+            [Component]
+            public partial struct Position { public float X; public float Y; }
+
+            [Component]
+            public partial struct Velocity { public float X; public float Y; }
+
+            [Bundle]
+            public partial struct MotionBundle
+            {
+                public Position Position;
+                public Velocity Velocity;
+            }
+            """;
+
+        var (output, _, _) = Run(source, new ComponentGenerator(), new BundleGenerator());
+
+        AssertNoCompileErrors(output);
+
+        var assembly = EmitAndLoad(output);
+        var bundleType = assembly.GetType("ShapeApp.MotionBundle")!;
+        var componentTypes = bundleType.GetProperty("ComponentTypes")!.GetValue(null)!;
+
+        // The exposed value must be read-only and must not be castable back to a mutable Type[].
+        Assert.IsNotType<Type[]>(componentTypes, exactMatch: false);
+        Assert.IsType<System.Collections.Generic.IReadOnlyList<Type>>(componentTypes, exactMatch: false);
+
+        var list = (System.Collections.Generic.IReadOnlyList<Type>)componentTypes;
+        Assert.Equal(2, list.Count);
+    }
+
+    #endregion
+
+    #region #1233 - [Replicated] enum fields use the underlying-type bit width (not a fixed 8 bits)
+
+    [Fact]
+    public void ReplicatedGenerator_EnumFieldWithValueAtLeast256_RoundTrips()
+    {
+        // Facing.Far == 300 requires more than 8 bits. The old generator hardcoded 8-bit
+        // enum packing, silently truncating 300 to 44 (300 & 0xFF). With the underlying
+        // (short = 16-bit) width, the value must survive the serialize/deserialize round-trip.
+        var source = """
+            using KeenEyes.Network;
+
+            namespace ShapeApp;
+
+            public enum Facing : short
+            {
+                North = 0,
+                Far = 300,
+            }
+
+            [Replicated]
+            public partial struct EnumComp
+            {
+                public Facing Direction;
+            }
+
+            public static class EnumRoundTrip
+            {
+                public static int RoundTrip(int input)
+                {
+                    var comp = new EnumComp { Direction = (Facing)input };
+                    System.Span<byte> buffer = stackalloc byte[64];
+                    var writer = new KeenEyes.Network.Serialization.BitWriter(buffer);
+                    comp.NetworkSerialize(ref writer);
+                    var reader = new KeenEyes.Network.Serialization.BitReader(buffer);
+                    var back = new EnumComp();
+                    back.NetworkDeserialize(ref reader);
+                    return (int)back.Direction;
+                }
+            }
+            """;
+
+        var (output, _, _) = Run(source, new ReplicatedGenerator());
+
+        AssertNoCompileErrors(output);
+
+        var assembly = EmitAndLoad(output);
+        var harness = assembly.GetType("ShapeApp.EnumRoundTrip")!;
+        var roundTrip = harness.GetMethod("RoundTrip")!;
+
+        var result = (int)roundTrip.Invoke(null, [300])!;
+
+        Assert.Equal(300, result);
+    }
+
+    [Fact]
+    public void ReplicatedGenerator_EnumField_EmitsUnderlyingTypeBitWidth()
+    {
+        var source = """
+            using KeenEyes.Network;
+
+            namespace ShapeApp;
+
+            public enum Facing : short
+            {
+                North = 0,
+                Far = 300,
+            }
+
+            [Replicated]
+            public partial struct EnumComp
+            {
+                public Facing Direction;
+            }
+            """;
+
+        var (_, _, sources) = Run(source, new ReplicatedGenerator());
+
+        // Regression guard: the old generator emitted a hardcoded 8-bit width.
+        Assert.DoesNotContain(sources, s => s.Contains("ReadBits(8)"));
+        Assert.Contains(sources, s => s.Contains("ReadBits(16)") && s.Contains(", 16)"));
+    }
+
+    [Fact]
+    public void ReplicatedGenerator_LargeSixtyFourBitEnum_EmitsOverflowDiagnostic()
+    {
+        // A ulong-backed enum with a value above the 32-bit channel cannot be bit-packed
+        // losslessly, so the generator must warn (KEEN101) rather than truncate silently.
+        var source = """
+            using KeenEyes.Network;
+
+            namespace ShapeApp;
+
+            public enum HugeFlags : ulong
+            {
+                None = 0,
+                Big = 0x1_0000_0000UL,
+            }
+
+            [Replicated]
+            public partial struct HugeComp
+            {
+                public HugeFlags Flags;
+            }
+            """;
+
+        var (_, generatorDiagnostics, _) = Run(source, new ReplicatedGenerator());
+
+        Assert.Contains(generatorDiagnostics, d => d.Id == "KEEN101");
+    }
+
+    #endregion
 }

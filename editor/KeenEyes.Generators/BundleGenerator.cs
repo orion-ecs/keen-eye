@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using KeenEyes.Generators.Utilities;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
@@ -322,7 +323,38 @@ public sealed class BundleGenerator : IIncrementalGenerator
             }
             return false;
         }
+
+        // KEEN033: bundle structs must be partial so the generator can implement IBundle.
+        // Mirrors the Component/System/Query MustBePartial branches in AttributeUsageAnalyzer.
+        if (!IsPartialType(typeSymbol))
+        {
+            var location = typeSymbol.Locations.FirstOrDefault();
+            if (location is not null)
+            {
+                diagnostics.Add(new DiagnosticInfo(
+                    Diagnostics.BundleMustBePartial,
+                    location,
+                    ImmutableArray.Create(typeSymbol.Name)));
+            }
+            return false;
+        }
+
         return true;
+    }
+
+    private static bool IsPartialType(INamedTypeSymbol typeSymbol)
+    {
+        // Check if any declaration has the partial modifier.
+        foreach (var syntaxRef in typeSymbol.DeclaringSyntaxReferences)
+        {
+            if (syntaxRef.GetSyntax() is TypeDeclarationSyntax typeDecl &&
+                typeDecl.Modifiers.Any(SyntaxKind.PartialKeyword))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static List<ComponentFieldInfo>? ExtractAndValidateFields(
@@ -572,8 +604,10 @@ public sealed class BundleGenerator : IIncrementalGenerator
         sb.AppendLine($"partial struct {info.Name} : global::KeenEyes.IBundle");
         sb.AppendLine("{");
 
-        // Generate ComponentTypes static property for IBundle interface implementation
-        // Uses flattened component types to handle nested bundles correctly
+        // Generate ComponentTypes static property for IBundle interface implementation.
+        // Uses flattened component types to handle nested bundles correctly.
+        // The backing array is private and exposed only through a ReadOnlyCollection so
+        // callers cannot mutate (or cast back to) the shared static storage.
         sb.AppendLine("    private static readonly global::System.Type[] s_componentTypes = new global::System.Type[]");
         sb.AppendLine("    {");
         foreach (var componentType in info.FlattenedComponentTypes)
@@ -582,11 +616,14 @@ public sealed class BundleGenerator : IIncrementalGenerator
         }
         sb.AppendLine("    };");
         sb.AppendLine();
+        sb.AppendLine("    private static readonly global::System.Collections.ObjectModel.ReadOnlyCollection<global::System.Type> s_componentTypesReadOnly =");
+        sb.AppendLine("        new global::System.Collections.ObjectModel.ReadOnlyCollection<global::System.Type>(s_componentTypes);");
+        sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// Gets the component types that comprise this bundle.");
         sb.AppendLine("    /// Used for archetype pre-allocation optimization.");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine("    public static global::System.Type[] ComponentTypes => s_componentTypes;");
+        sb.AppendLine("    public static global::System.Collections.Generic.IReadOnlyList<global::System.Type> ComponentTypes => s_componentTypesReadOnly;");
         sb.AppendLine();
 
         // Generate constructor
@@ -922,8 +959,13 @@ public sealed class BundleGenerator : IIncrementalGenerator
             sb.AppendLine($"    {{");
             sb.AppendLine($"        return new {info.FullName}Ref(");
 
-            var refParams = info.Fields.Select(f => $"            ref world.Get<{GetComponentType(f)}>(entity)");
-            sb.AppendLine(string.Join(",\r\n", refParams));
+            // Emit one constructor argument per line via AppendLine so the line endings match
+            // the rest of the generated output (a hardcoded "\r\n" broke on non-Windows agents).
+            for (var fieldIndex = 0; fieldIndex < info.Fields.Length; fieldIndex++)
+            {
+                var separator = fieldIndex < info.Fields.Length - 1 ? "," : string.Empty;
+                sb.AppendLine($"            ref world.Get<{GetComponentType(info.Fields[fieldIndex])}>(entity){separator}");
+            }
 
             sb.AppendLine($"        );");
             sb.AppendLine($"    }}");
@@ -1306,6 +1348,18 @@ internal static partial class Diagnostics
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
         description: "Bundles must be value types (structs) to maintain consistency with component semantics.");
+
+    /// <summary>
+    /// KEEN033: Bundle struct must be partial.
+    /// </summary>
+    public static readonly DiagnosticDescriptor BundleMustBePartial = new(
+        id: "KEEN033",
+        title: "Bundle must be partial",
+        messageFormat: "Bundle struct '{0}' must be declared with 'partial' modifier",
+        category: "KeenEyes.Bundle",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        description: "Bundle structs must be declared as 'partial' to allow source generators to implement the IBundle interface.");
 
     /// <summary>
     /// KEEN021: Bundle field must be a component type.

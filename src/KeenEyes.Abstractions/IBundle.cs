@@ -54,6 +54,8 @@ public interface IBundle
     /// <remarks>
     /// This static abstract member is implemented by the source generator
     /// and provides AOT-compatible access to bundle component types without reflection.
+    /// The returned list is read-only so callers cannot mutate the shared backing
+    /// storage and corrupt bundle metadata process-wide.
     /// </remarks>
-    static abstract Type[] ComponentTypes { get; }
+    static abstract IReadOnlyList<Type> ComponentTypes { get; }
 }
