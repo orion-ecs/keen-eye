@@ -27,8 +27,17 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 {
     private readonly byte[] sendBuffer = new byte[4096];
 
-    // Track last sent component values per entity for delta detection (broadcast path).
+    // ACKNOWLEDGED per-entity baseline for delta detection (broadcast path): the state
+    // the connected clients are known to have received. Deltas and change detection are
+    // computed against this, so a field stays "changed" (and keeps being re-sent) until
+    // an ack confirms it. Advancing this on every send instead let a single dropped
+    // unreliable delta desync the client permanently (#1099).
     private readonly Dictionary<Entity, Dictionary<Type, object>> lastSentState = [];
+
+    // Snapshot of the full component state sent for an entity at pendingTick, promoted
+    // into lastSentState once every client has acknowledged that tick.
+    private readonly Dictionary<Entity, Dictionary<Type, object>> pendingState = [];
+    private readonly Dictionary<Entity, uint> pendingTick = [];
 
     // Track bytes sent this tick for bandwidth limiting
     private int bytesSentThisTick;
@@ -60,6 +69,10 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             return; // Not time for a network tick yet
         }
 
+        // Pull the transport's measured RTT into each client's state so lag compensation
+        // sees real latency instead of a permanent zero (#1102).
+        plugin.RefreshClientRoundTripTimes();
+
         if (plugin.Config.InterestManager is { } interestManager)
         {
             UpdateFiltered(deltaTime, interestManager);
@@ -74,6 +87,10 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
 
     private void UpdateBroadcast(float deltaTime)
     {
+        // Promote acknowledged pending snapshots into the confirmed baseline before
+        // computing this tick's deltas, so changes stay pending until a client ack (#1099).
+        PromoteAcknowledgedBaselines();
+
         // Check for clients that need full snapshots
         foreach (var client in plugin.GetConnectedClients())
         {
@@ -247,8 +264,9 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
             SendDeltaUpdate(entity, networkId, serializer);
         }
 
-        // Update last sent state for delta tracking
-        SaveSentState(entity, serializer);
+        // Record what was sent this tick as the pending snapshot. It becomes the confirmed
+        // baseline only once the client acknowledges this tick (#1099).
+        SavePendingState(entity, serializer);
     }
 
     private void SendDeltaUpdate(Entity entity, NetworkId networkId, INetworkSerializer? serializer)
@@ -735,20 +753,18 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
         return ownerAuthTypes;
     }
 
-    private void SaveSentState(Entity entity, INetworkSerializer? serializer)
+    private void SavePendingState(Entity entity, INetworkSerializer? serializer)
     {
         if (serializer is null)
         {
             return;
         }
 
-        if (!lastSentState.TryGetValue(entity, out var entityState))
-        {
-            entityState = [];
-            lastSentState[entity] = entityState;
-        }
+        // The snapshot sent this tick is the full current state of every replicated
+        // component. Rebuild it fresh each send (rather than mutating in place) so a stale
+        // entry from an earlier tick cannot linger after a component's value changes.
+        var entityState = new Dictionary<Type, object>();
 
-        // Save current state of all replicated components
         if (World is ISnapshotCapability snapshot)
         {
             foreach (var (type, value) in snapshot.GetComponents(entity))
@@ -760,6 +776,45 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
                 }
             }
         }
+
+        pendingState[entity] = entityState;
+        pendingTick[entity] = plugin.CurrentTick;
+    }
+
+    /// <summary>
+    /// Promotes each entity's pending snapshot into the confirmed baseline once every
+    /// connected client has acknowledged the tick the snapshot was sent on.
+    /// </summary>
+    /// <remarks>
+    /// Uses the minimum <see cref="ClientState.LastAckedTick"/> across all clients: the
+    /// baseline may only advance to a state every client is known to have. With no clients
+    /// connected there is nothing to confirm, so no promotion occurs.
+    /// </remarks>
+    private void PromoteAcknowledgedBaselines()
+    {
+        var minAckedTick = uint.MaxValue;
+        var clientCount = 0;
+        foreach (var client in plugin.GetConnectedClients())
+        {
+            clientCount++;
+            if (client.LastAckedTick < minAckedTick)
+            {
+                minAckedTick = client.LastAckedTick;
+            }
+        }
+
+        if (clientCount == 0)
+        {
+            return;
+        }
+
+        foreach (var (entity, tick) in pendingTick)
+        {
+            if (tick <= minAckedTick && pendingState.TryGetValue(entity, out var snapshot))
+            {
+                lastSentState[entity] = snapshot;
+            }
+        }
     }
 
     /// <summary>
@@ -769,6 +824,8 @@ public sealed class NetworkServerSendSystem(NetworkServerPlugin plugin) : System
     public void ClearEntityState(Entity entity)
     {
         lastSentState.Remove(entity);
+        pendingState.Remove(entity);
+        pendingTick.Remove(entity);
 
         foreach (var client in plugin.GetConnectedClients())
         {

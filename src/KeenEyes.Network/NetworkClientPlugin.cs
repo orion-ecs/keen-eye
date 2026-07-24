@@ -338,7 +338,14 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
         if (networkIdManager.TryGetLocalEntity(networkId, out var entity))
         {
             networkIdManager.UnregisterNetworkId(new NetworkId { Value = networkId });
-            snapshotBuffers.Remove(entity); // Clean up snapshot buffer
+
+            // Release all per-entity buffers so they do not leak for the lifetime of the
+            // client. Previously only the snapshot buffer was cleaned up, leaving input
+            // and prediction buffers to grow unbounded across despawns (#1104).
+            snapshotBuffers.Remove(entity);
+            inputBuffers.Remove(entity);
+            predictionSystem?.UnregisterEntity(entity);
+
             context.World.Despawn(entity);
         }
     }
@@ -395,7 +402,15 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
             case MessageType.EntitySpawn:
                 reader.ReadEntitySpawn(out var spawnNetworkId, out var ownerId);
-                var spawnedEntity = SpawnNetworkedEntity(spawnNetworkId, ownerId);
+                // Dedupe: a fresh client can receive both a FullSnapshot and the
+                // NeedsFullSync EntitySpawn broadcast for the same network ID in one tick.
+                // Spawning unconditionally created a second ghost and orphaned the first
+                // (RegisterMapping overwrites), so reuse the existing entity if present (#1101).
+                if (!networkIdManager.TryGetLocalEntity(spawnNetworkId, out var spawnedEntity))
+                {
+                    spawnedEntity = SpawnNetworkedEntity(spawnNetworkId, ownerId);
+                }
+
                 // Read and apply initial components
                 ApplyComponentUpdates(spawnedEntity, ref reader);
                 break;
@@ -560,6 +575,15 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
             if (serverStates is not null)
             {
+                // Owner-authoritative components on a locally owned entity: the local
+                // client is authoritative, so its value must win even on the
+                // reconciliation path. Excluding it here mirrors the direct-apply filter
+                // in ApplyComponent, which the reconcile decode path previously bypassed (#1103).
+                if (context.World.Has<LocallyOwned>(entity) && IsOwnerAuthoritative(componentType))
+                {
+                    continue;
+                }
+
                 serverStates[componentType] = component;
             }
             else
@@ -665,6 +689,14 @@ public sealed class NetworkClientPlugin(INetworkTransport transport, ClientNetwo
 
             if (serverStates is not null)
             {
+                // Owner-authoritative components on a locally owned entity stay under
+                // local authority even during reconciliation (#1103); see the matching
+                // exclusion on the delta decode path and in ApplyComponent.
+                if (context.World.Has<LocallyOwned>(entity) && IsOwnerAuthoritative(componentType))
+                {
+                    continue;
+                }
+
                 serverStates[componentType] = component;
             }
             else

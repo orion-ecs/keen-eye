@@ -39,6 +39,7 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         config is { StateHistoryTicks: > 0 } cfg ? new ServerStateHistory(cfg.StateHistoryTicks) : null;
 
     private IPluginContext? context;
+    private NetworkServerSendSystem? sendSystem;
     private LagCompensation? lagCompensation;
     private OwnerAuthoritativeComponentSet? ownerAuthTypes;
     private INetworkSerializer? ownerAuthTypesSource;
@@ -123,7 +124,8 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
 
         // Register systems
         context.AddSystem(new NetworkServerReceiveSystem(this), SystemPhase.EarlyUpdate);
-        context.AddSystem(new NetworkServerSendSystem(this), SystemPhase.LateUpdate);
+        sendSystem = new NetworkServerSendSystem(this);
+        context.AddSystem(sendSystem, SystemPhase.LateUpdate);
 
         // Subscribe to entity events for replication
         entityCreatedSubscription = context.World.OnEntityCreated(OnEntityCreated);
@@ -150,7 +152,29 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
         entityDestroyedSubscription?.Dispose();
 
         lagCompensation = null;
+        sendSystem = null;
         this.context = null;
+    }
+
+    /// <summary>
+    /// Copies each connected client's transport-measured round-trip time into its
+    /// <see cref="ClientState.RoundTripTimeMs"/>.
+    /// </summary>
+    /// <remarks>
+    /// The transport measures RTT (e.g. from reliable-packet acks), but that value was
+    /// never propagated to <see cref="ClientState"/>, so lag compensation always saw zero
+    /// latency (#1102). Called once per network tick by the send system.
+    /// </remarks>
+    internal void RefreshClientRoundTripTimes()
+    {
+        foreach (var state in clients.Values)
+        {
+            var rtt = transport.GetRoundTripTime(state.ClientId);
+            if (rtt >= 0f)
+            {
+                state.RoundTripTimeMs = rtt;
+            }
+        }
     }
 
     /// <summary>
@@ -630,6 +654,11 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     {
         // Drop any recorded state history for the despawned entity.
         stateHistory?.Remove(entity);
+
+        // Release the send system's per-entity delta baselines so they do not leak for
+        // the server's lifetime. Entity versions increment on despawn, so keys never
+        // collide and the dictionaries only ever grew (#1104).
+        sendSystem?.ClearEntityState(entity);
 
         // Remove from network tracking
         if (networkIdManager.TryGetNetworkId(entity, out var networkId))

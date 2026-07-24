@@ -68,7 +68,10 @@ public sealed class ClientPredictionSystem(
             return;
         }
 
-        ref var predState = ref World.Get<PredictionState>(entity);
+        // Note: any ref into PredictionState must be re-fetched AFTER ApplyServerState.
+        // Applying a registered-but-absent component migrates the entity to a new
+        // archetype, invalidating earlier refs; writing through a stale ref lands in the
+        // vacated slot and is silently lost (#1097).
 
         // Check if we have a prediction for this tick
         if (!predictionBuffers.TryGetValue(entity, out var buffer))
@@ -79,9 +82,10 @@ public sealed class ClientPredictionSystem(
         var predictedStates = buffer.GetStatesForTick(serverTick);
         if (predictedStates is null)
         {
-            // No prediction for this tick, just apply server state
+            // No prediction for this tick, just apply server state.
             ApplyServerState(entity, serverStates);
-            predState.LastConfirmedTick = serverTick;
+            ref var predStateAfterApply = ref World.Get<PredictionState>(entity);
+            predStateAfterApply.LastConfirmedTick = serverTick;
             return;
         }
 
@@ -90,17 +94,23 @@ public sealed class ClientPredictionSystem(
 
         if (correctionMagnitude > 0f)
         {
-            predState.MispredictionDetected = true;
+            // Reconcile applies server state (possible migration) and sets correction
+            // fields on its own freshly fetched ref, so fetch again here for the flags.
             Reconcile(entity, serverTick, serverStates, correctionMagnitude);
+
+            ref var predState = ref World.Get<PredictionState>(entity);
+            predState.MispredictionDetected = true;
+            predState.LastConfirmedTick = serverTick;
         }
         else
         {
+            ref var predState = ref World.Get<PredictionState>(entity);
             predState.MispredictionDetected = false;
             predState.LastCorrectionMagnitude = 0f;
+            predState.LastConfirmedTick = serverTick;
         }
 
-        // Update confirmed tick and clean up old predictions
-        predState.LastConfirmedTick = serverTick;
+        // Clean up old predictions
         buffer.RemoveOlderThan(serverTick);
     }
 

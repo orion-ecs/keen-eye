@@ -39,7 +39,12 @@ public sealed class TcpTransport : INetworkTransport
     private const int MaxMessageSize = 1024 * 1024; // 1 MB max message
 
     private readonly ConcurrentDictionary<int, ClientConnection> connections = new();
-    private readonly ConcurrentQueue<PendingMessage> incomingMessages = new();
+
+    // Connection/disconnection/data events raised from the background accept and receive
+    // loops are enqueued here and dispatched in order on the game-loop thread during
+    // Update(), so consumers never mutate World/plugin state off the loop (see #1098).
+    // Events raised from explicit game-loop calls (e.g. Disconnect) fire synchronously.
+    private readonly ConcurrentQueue<TransportEvent> events = new();
     private readonly Lock stateLock = new();
 
     private TcpListener? listener;
@@ -153,7 +158,8 @@ public sealed class TcpTransport : INetworkTransport
                 // Start receiving for this client
                 _ = ReceiveFromClientAsync(connection, cancellationToken);
 
-                ClientConnected?.Invoke(connectionId);
+                // Runs on the background accept loop: defer to Update() (see #1098).
+                events.Enqueue(new TransportEvent { Kind = TransportEventKind.Connected, ConnectionId = connectionId });
             }
             catch (OperationCanceledException)
             {
@@ -201,8 +207,9 @@ public sealed class TcpTransport : INetworkTransport
                 Interlocked.Add(ref bytesReceived, HeaderSize + messageLength);
                 Interlocked.Increment(ref packetsReceived);
 
-                incomingMessages.Enqueue(new PendingMessage
+                events.Enqueue(new TransportEvent
                 {
+                    Kind = TransportEventKind.Data,
                     ConnectionId = connection.Id,
                     Data = messageBuffer
                 });
@@ -218,16 +225,27 @@ public sealed class TcpTransport : INetworkTransport
         }
         finally
         {
-            HandleClientDisconnection(connection.Id);
+            // Runs on the background receive loop: defer the event to Update() (see #1098).
+            HandleClientDisconnection(connection.Id, deferEvent: true);
         }
     }
 
-    private void HandleClientDisconnection(int connectionId)
+    private void HandleClientDisconnection(int connectionId, bool deferEvent = false)
     {
         if (connections.TryRemove(connectionId, out var connection))
         {
             connection.Dispose();
-            ClientDisconnected?.Invoke(connectionId);
+
+            if (deferEvent)
+            {
+                // Background-thread origin: hand off to the game loop.
+                events.Enqueue(new TransportEvent { Kind = TransportEventKind.Disconnected, ConnectionId = connectionId });
+            }
+            else
+            {
+                // Called from an explicit game-loop operation (Disconnect/Send): safe to fire directly.
+                ClientDisconnected?.Invoke(connectionId);
+            }
         }
     }
 
@@ -308,8 +326,9 @@ public sealed class TcpTransport : INetworkTransport
                 Interlocked.Add(ref bytesReceived, HeaderSize + messageLength);
                 Interlocked.Increment(ref packetsReceived);
 
-                incomingMessages.Enqueue(new PendingMessage
+                events.Enqueue(new TransportEvent
                 {
+                    Kind = TransportEventKind.Data,
                     ConnectionId = 0, // Server is always ID 0 for clients
                     Data = messageBuffer
                 });
@@ -492,9 +511,23 @@ public sealed class TcpTransport : INetworkTransport
     {
         ThrowIfDisposed();
 
-        while (incomingMessages.TryDequeue(out var message))
+        // Drain connection/disconnection/data events in arrival order on the game loop.
+        while (events.TryDequeue(out var evt))
         {
-            DataReceived?.Invoke(message.ConnectionId, message.Data);
+            switch (evt.Kind)
+            {
+                case TransportEventKind.Connected:
+                    ClientConnected?.Invoke(evt.ConnectionId);
+                    break;
+
+                case TransportEventKind.Disconnected:
+                    ClientDisconnected?.Invoke(evt.ConnectionId);
+                    break;
+
+                case TransportEventKind.Data:
+                    DataReceived?.Invoke(evt.ConnectionId, evt.Data!);
+                    break;
+            }
         }
     }
 
@@ -586,9 +619,17 @@ public sealed class TcpTransport : INetworkTransport
         }
     }
 
-    private sealed class PendingMessage
+    private enum TransportEventKind : byte
     {
+        Connected,
+        Disconnected,
+        Data,
+    }
+
+    private sealed class TransportEvent
+    {
+        public required TransportEventKind Kind { get; init; }
         public required int ConnectionId { get; init; }
-        public required byte[] Data { get; init; }
+        public byte[]? Data { get; init; }
     }
 }
