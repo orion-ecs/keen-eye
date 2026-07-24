@@ -128,8 +128,10 @@ public sealed class ReloadManager : IDisposable
             return;
         }
 
-        // Debounce: track the change time
-        pendingReloads[relativePath] = DateTime.UtcNow;
+        // Trailing debounce: stamp this change and wait out the quiet period. A newer change to
+        // the same path overwrites the stamp, so only the most-recent change should reload.
+        var changeTime = DateTime.UtcNow;
+        pendingReloads[relativePath] = changeTime;
 
         try
         {
@@ -140,10 +142,14 @@ public sealed class ReloadManager : IDisposable
             return;
         }
 
-        // Check if this is still the most recent change
-        if (!pendingReloads.TryRemove(relativePath, out _))
+        // Only reload if this is still the most-recent change. The atomic key/value remove
+        // succeeds solely when the stored stamp is still ours; if a newer change arrived during
+        // the delay, the stamp differs, this remove fails, and that newer change's waiter reloads
+        // instead. Previously the stamp was never compared and an unconditional remove let the
+        // earliest waiter win, firing after the FIRST change and dropping the last (issue #1197).
+        if (!pendingReloads.TryRemove(new KeyValuePair<string, DateTime>(relativePath, changeTime)))
         {
-            return; // Another change superseded this one
+            return; // A newer change superseded this one.
         }
 
         // Check if the asset is loaded
