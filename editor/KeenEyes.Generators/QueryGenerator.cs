@@ -77,7 +77,9 @@ public sealed class QueryGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (field.IsStatic || field.IsConst)
+            // Skip compiler-generated fields (e.g. auto-property backing fields),
+            // whose names like <Foo>k__BackingField are not valid C# identifiers.
+            if (field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
             {
                 continue;
             }

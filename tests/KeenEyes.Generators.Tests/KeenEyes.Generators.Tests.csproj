@@ -18,6 +18,7 @@
     <ProjectReference Include="..\..\src\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Common\KeenEyes.Common.csproj" />
     <ProjectReference Include="..\..\src\KeenEyes.Core\KeenEyes.Core.csproj" />
+    <ProjectReference Include="..\..\src\KeenEyes.Network.Abstractions\KeenEyes.Network.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

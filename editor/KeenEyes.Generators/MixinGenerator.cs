@@ -204,7 +204,7 @@ public sealed class MixinGenerator : IIncrementalGenerator
         var componentFields = new HashSet<string>(
             typeSymbol.GetMembers()
                 .OfType<IFieldSymbol>()
-                .Where(f => !f.IsStatic && !f.IsConst)
+                .Where(f => !f.IsStatic && !f.IsConst && !f.IsImplicitlyDeclared)
                 .Select(f => f.Name));
 
         var conflictingFields = allMixinFields.Where(f => componentFields.Contains(f.Name)).ToArray();
@@ -279,7 +279,9 @@ public sealed class MixinGenerator : IIncrementalGenerator
                 continue;
             }
 
-            if (field.IsStatic || field.IsConst)
+            // Skip compiler-generated fields (e.g. auto-property backing fields),
+            // whose names like <Foo>k__BackingField are not valid C# identifiers.
+            if (field.IsStatic || field.IsConst || field.IsImplicitlyDeclared)
             {
                 continue;
             }
