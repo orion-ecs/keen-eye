@@ -247,11 +247,8 @@ public sealed class BridgeConnectionManager : IAsyncDisposable
                 var sw = Stopwatch.StartNew();
                 try
                 {
-                    using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    timeoutCts.CancelAfter(PingTimeout);
-
-                    // Use entity count as a lightweight ping
-                    await client.State.GetEntityCountAsync();
+                    // Use entity count as a lightweight ping, bounded by PingTimeout.
+                    await PingWithTimeoutAsync(() => client.State.GetEntityCountAsync(), ct);
                     sw.Stop();
 
                     LastPingLatencyMs = sw.Elapsed.TotalMilliseconds;
@@ -275,6 +272,30 @@ public sealed class BridgeConnectionManager : IAsyncDisposable
                 break;
             }
         }
+    }
+
+    /// <summary>
+    /// Executes a heartbeat ping operation, cancelling it if it exceeds <see cref="PingTimeout"/>.
+    /// </summary>
+    /// <param name="ping">The ping operation to execute (typically a lightweight state query).</param>
+    /// <param name="ct">A token that cancels the heartbeat loop itself.</param>
+    /// <returns>A task that completes when the ping succeeds.</returns>
+    /// <exception cref="OperationCanceledException">
+    /// Thrown when the ping does not complete within <see cref="PingTimeout"/> (or <paramref name="ct"/> is cancelled).
+    /// </exception>
+    /// <remarks>
+    /// The underlying ping call exposes no cancellation token of its own, so the configured
+    /// <see cref="PingTimeout"/> is enforced via <see cref="Task.WaitAsync(CancellationToken)"/>.
+    /// Without this, a stalled ping could only surface after the client's own request timeout.
+    /// </remarks>
+    internal async Task PingWithTimeoutAsync(Func<Task> ping, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(ping);
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeoutCts.CancelAfter(PingTimeout);
+
+        await ping().WaitAsync(timeoutCts.Token).ConfigureAwait(false);
     }
 
     private async Task HandlePingFailureAsync()
