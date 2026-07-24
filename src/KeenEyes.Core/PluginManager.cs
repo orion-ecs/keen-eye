@@ -76,7 +76,10 @@ internal sealed class PluginManager
         }
         catch
         {
-            // If Install throws, remove the plugin from the registry
+            // Install may have registered systems into the world before it threw.
+            // Roll those systems back so they are not left orphaned, then remove the
+            // plugin from the registry.
+            RemoveRegisteredSystems(context);
             lock (syncRoot)
             {
                 plugins.Remove(plugin.Name);
@@ -231,17 +234,33 @@ internal sealed class PluginManager
             plugins.Remove(name);
         }
 
-        // Call the plugin's uninstall hook (outside lock to allow plugins to use world APIs)
-        entry.Plugin.Uninstall(entry.Context);
+        // Call the plugin's uninstall hook (outside lock to allow plugins to use world APIs).
+        // Wrap in try/finally so a throwing Uninstall cannot leave the plugin's systems
+        // orphaned: the registry entry is already gone (removed above), so without this the
+        // systems would remain registered with no way to remove them.
+        try
+        {
+            entry.Plugin.Uninstall(entry.Context);
+        }
+        finally
+        {
+            RemoveRegisteredSystems(entry.Context);
+        }
 
-        // Remove and dispose all systems registered by the plugin
-        foreach (var system in entry.Context.RegisteredSystems)
+        return true;
+    }
+
+    /// <summary>
+    /// Removes and disposes all systems a plugin registered through its context.
+    /// </summary>
+    /// <param name="context">The plugin context whose registered systems should be torn down.</param>
+    private void RemoveRegisteredSystems(PluginContext context)
+    {
+        foreach (var system in context.RegisteredSystems)
         {
             systemManager.RemoveSystem(system);
             system.Dispose();
         }
-
-        return true;
     }
 
     /// <summary>

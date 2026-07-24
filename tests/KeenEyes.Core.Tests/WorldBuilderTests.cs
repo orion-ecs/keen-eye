@@ -162,6 +162,36 @@ public class WorldBuilderTests
     }
 
     [Fact]
+    public void Build_ReusedWithSystemInstance_ThrowsInvalidOperationException()
+    {
+        // Regression test for #1152: reusing a builder that holds a system instance would
+        // re-initialize the shared instance against the second world, rebinding it away from
+        // the first world and corrupting the first world's systems. Building twice must throw
+        // instead of silently rebinding.
+        var system = new TestPluginSystem();
+        var builder = new WorldBuilder()
+            .WithSystem(system);
+
+        using var world1 = builder.Build();
+
+        Assert.Throws<InvalidOperationException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void Build_ReusedWithSystemGroup_ThrowsInvalidOperationException()
+    {
+        // Regression test for #1152: system groups are shared instances and suffer the same
+        // cross-world rebinding hazard as bare system instances.
+        var group = new SystemGroup("TestGroup").Add(new TestPluginSystem());
+        var builder = new WorldBuilder()
+            .WithSystemGroup(group);
+
+        using var world1 = builder.Build();
+
+        Assert.Throws<InvalidOperationException>(() => builder.Build());
+    }
+
+    [Fact]
     public void WithPlugin_Null_ThrowsArgumentNullException()
     {
         var builder = new WorldBuilder();
