@@ -693,6 +693,75 @@ public class ParallelQueryExtensionsTests
         Assert.Equal(50, processedCount);
     }
 
+    [Fact]
+    public void ForEachParallel_WithStringTagFilter_AboveThreshold_OnlyProcessesTaggedEntities()
+    {
+        using var world = new World();
+        var processedCount = 0;
+
+        const int total = 200;
+        const int taggedCount = 10;
+
+        // Only the first few entities carry the "player" tag. String tags are per-entity,
+        // not archetype-matched, so the parallel chunk path must apply the filter explicitly.
+        for (int i = 0; i < total; i++)
+        {
+            var builder = world.Spawn().With(new ParallelTestPosition { X = i, Y = i });
+            if (i < taggedCount)
+            {
+                builder = builder.WithTag("player");
+            }
+
+            builder.Build();
+        }
+
+        // minEntityCount well below the population forces the parallel chunk path.
+        world.Query<ParallelTestPosition>()
+            .WithTag("player")
+            .ForEachParallel<ParallelTestPosition>(
+                (Entity e, ref ParallelTestPosition pos) =>
+                {
+                    Interlocked.Increment(ref processedCount);
+                },
+                minEntityCount: 10);
+
+        // Regression for #1154: the parallel path used to ignore WithTag and process all 200.
+        Assert.Equal(taggedCount, processedCount);
+    }
+
+    [Fact]
+    public void ForEachParallelReadOnly_WithoutStringTagFilter_AboveThreshold_ExcludesTaggedEntities()
+    {
+        using var world = new World();
+        var processedCount = 0;
+
+        const int total = 200;
+        const int taggedCount = 30;
+
+        for (int i = 0; i < total; i++)
+        {
+            var builder = world.Spawn().With(new ParallelTestPosition { X = i, Y = i });
+            if (i < taggedCount)
+            {
+                builder = builder.WithTag("frozen");
+            }
+
+            builder.Build();
+        }
+
+        world.Query<ParallelTestPosition>()
+            .WithoutTag("frozen")
+            .ForEachParallelReadOnly<ParallelTestPosition>(
+                (Entity e, in ParallelTestPosition pos) =>
+                {
+                    Interlocked.Increment(ref processedCount);
+                },
+                minEntityCount: 10);
+
+        // Regression for #1154: WithoutTag must exclude the tagged entities in the parallel path.
+        Assert.Equal(total - taggedCount, processedCount);
+    }
+
     #endregion
 
     #region Thread Safety

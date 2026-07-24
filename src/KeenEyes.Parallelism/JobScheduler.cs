@@ -104,9 +104,10 @@ public sealed class JobScheduler : IDisposable
     public JobHandle Schedule<T>(T job, JobHandle dependency) where T : IJob
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
+        ValidateDependency(dependency);
 
         var jobId = Interlocked.Increment(ref nextJobId);
-        var source = new JobCompletionSource();
+        var source = new JobCompletionSource { Owner = this };
         activeJobs[jobId] = source;
 
         var scheduled = new ScheduledJob(
@@ -153,6 +154,7 @@ public sealed class JobScheduler : IDisposable
     public JobHandle ScheduleParallel<T>(T job, int count, JobHandle dependency) where T : IParallelJob
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
+        ValidateDependency(dependency);
 
         if (count <= 0)
         {
@@ -160,7 +162,7 @@ public sealed class JobScheduler : IDisposable
         }
 
         var jobId = Interlocked.Increment(ref nextJobId);
-        var source = new JobCompletionSource();
+        var source = new JobCompletionSource { Owner = this };
         activeJobs[jobId] = source;
 
         var scheduled = new ScheduledJob(
@@ -209,6 +211,7 @@ public sealed class JobScheduler : IDisposable
     public JobHandle ScheduleBatch<T>(T job, int count, int batchSize, JobHandle dependency) where T : IBatchJob
     {
         ObjectDisposedException.ThrowIf(isDisposed, this);
+        ValidateDependency(dependency);
 
         if (count <= 0)
         {
@@ -222,7 +225,7 @@ public sealed class JobScheduler : IDisposable
         }
 
         var jobId = Interlocked.Increment(ref nextJobId);
-        var source = new JobCompletionSource();
+        var source = new JobCompletionSource { Owner = this };
         activeJobs[jobId] = source;
 
         var scheduled = new ScheduledJob(
@@ -371,6 +374,22 @@ public sealed class JobScheduler : IDisposable
         while (completedSources.TryTake(out var source))
         {
             source.Dispose();
+        }
+    }
+
+    private void ValidateDependency(JobHandle dependency)
+    {
+        // A dependency scheduled by a different JobScheduler will never be drained by this
+        // scheduler's queue processing (JobHandle carries no owning-scheduler drainer), so a
+        // job waiting on it would hang permanently. Reject it eagerly with a clear error
+        // instead. Scheduler-agnostic handles (the completed sentinel, combined handles) have
+        // no owner and are always allowed. See issue #1157.
+        var owner = dependency.OwningScheduler;
+        if (owner is not null && !ReferenceEquals(owner, this))
+        {
+            throw new InvalidOperationException(
+                "Cannot schedule a job with a dependency that belongs to a different JobScheduler. " +
+                "Job dependencies must be scheduled on the same JobScheduler instance.");
         }
     }
 

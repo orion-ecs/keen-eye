@@ -27,7 +27,15 @@ public sealed class ParallelSystemScheduler
     private readonly ParallelSystemBatcher batcher;
     private readonly CommandBufferPool commandBufferPool;
     private readonly ParallelOptions parallelOptions;
+    private readonly int minBatchSizeForParallel;
     private readonly List<ISystem> registeredSystems = [];
+
+    // Stable, monotonically-increasing command-buffer id per registered system instance.
+    // Keyed by reference so systems that override GetHashCode()/Equals cannot collide on
+    // a single CommandBufferPool key (which would throw on Rent and break deterministic
+    // flush ordering). See issue #1155.
+    private readonly Dictionary<ISystem, int> systemIds;
+    private int nextSystemId;
     private IReadOnlyList<SystemBatch>? cachedBatches;
     private bool batchesDirty = true;
 
@@ -56,9 +64,20 @@ public sealed class ParallelSystemScheduler
     /// </summary>
     /// <param name="world">The world to schedule systems for.</param>
     /// <param name="options">Optional parallel execution options.</param>
-    internal ParallelSystemScheduler(World world, ParallelOptions? options = null)
+    /// <param name="minBatchSizeForParallel">
+    /// Batches with fewer systems than this threshold execute sequentially rather than in parallel.
+    /// </param>
+    internal ParallelSystemScheduler(World world, ParallelOptions? options = null, int minBatchSizeForParallel = 2)
     {
         this.world = world;
+        this.minBatchSizeForParallel = minBatchSizeForParallel;
+
+        // IDE0028: a collection expression cannot carry the reference-equality comparer,
+        // which is required so systems overriding GetHashCode()/Equals do not collide on a
+        // single id (issue #1155). The explicit constructor is intentional.
+#pragma warning disable IDE0028
+        systemIds = new Dictionary<ISystem, int>(ReferenceEqualityComparer.Instance);
+#pragma warning restore IDE0028
         dependencyTracker = new SystemDependencyTracker();
         batcher = new ParallelSystemBatcher(dependencyTracker);
         commandBufferPool = new CommandBufferPool();
@@ -76,6 +95,7 @@ public sealed class ParallelSystemScheduler
     public void RegisterSystem(ISystem system)
     {
         registeredSystems.Add(system);
+        AssignSystemId(system);
         dependencyTracker.RegisterSystem(system);
         batchesDirty = true;
     }
@@ -88,8 +108,17 @@ public sealed class ParallelSystemScheduler
     public void RegisterSystem(ISystem system, ComponentDependencies dependencies)
     {
         registeredSystems.Add(system);
+        AssignSystemId(system);
         dependencyTracker.RegisterDependencies(system.GetType(), dependencies);
         batchesDirty = true;
+    }
+
+    private void AssignSystemId(ISystem system)
+    {
+        if (!systemIds.ContainsKey(system))
+        {
+            systemIds[system] = ++nextSystemId;
+        }
     }
 
     /// <summary>
@@ -102,7 +131,29 @@ public sealed class ParallelSystemScheduler
         var removed = registeredSystems.Remove(system);
         if (removed)
         {
-            dependencyTracker.Unregister(system.GetType());
+            systemIds.Remove(system);
+
+            // The dependency tracker keys by Type, but multiple instances of the same
+            // system type may be registered. Only drop the type's shared dependency
+            // registration when no other live instance of that type remains; otherwise
+            // a surviving sibling would silently fall back to empty dependencies and be
+            // batched to run concurrently with conflicting systems. See issue #1158.
+            var systemType = system.GetType();
+            var hasOtherInstance = false;
+            foreach (var other in registeredSystems)
+            {
+                if (other.GetType() == systemType)
+                {
+                    hasOtherInstance = true;
+                    break;
+                }
+            }
+
+            if (!hasOtherInstance)
+            {
+                dependencyTracker.Unregister(systemType);
+            }
+
             batchesDirty = true;
         }
         return removed;
@@ -114,6 +165,8 @@ public sealed class ParallelSystemScheduler
     public void Clear()
     {
         registeredSystems.Clear();
+        systemIds.Clear();
+        nextSystemId = 0;
         dependencyTracker.Clear();
         commandBufferPool.Clear();
         cachedBatches = null;
@@ -176,23 +229,26 @@ public sealed class ParallelSystemScheduler
             return;
         }
 
-        // Collect system IDs upfront for buffer management
-        var systemIds = new List<int>(systems.Count);
+        // Collect the stable command-buffer ids for this batch upfront for buffer management.
+        var bufferIds = new List<int>(systems.Count);
         for (int i = 0; i < systems.Count; i++)
         {
-            systemIds.Add(systems[i].GetHashCode());
+            bufferIds.Add(GetSystemId(systems[i]));
         }
 
         try
         {
-            if (systems.Count == 1)
+            if (systems.Count < minBatchSizeForParallel)
             {
-                // Single system - execute sequentially
-                ExecuteSystem(systems[0], deltaTime);
+                // Below the parallel threshold - execute sequentially.
+                for (int i = 0; i < systems.Count; i++)
+                {
+                    ExecuteSystem(systems[i], deltaTime);
+                }
             }
             else
             {
-                // Multiple systems - execute in parallel
+                // At or above the threshold - execute in parallel.
                 Parallel.ForEach(systems, parallelOptions, system =>
                 {
                     ExecuteSystem(system, deltaTime);
@@ -200,18 +256,25 @@ public sealed class ParallelSystemScheduler
             }
 
             // Flush all command buffers from this batch (also returns them to pool)
-            commandBufferPool.FlushBatches(world, [systemIds]);
+            commandBufferPool.FlushBatches(world, [bufferIds]);
         }
         catch
         {
             // On exception, clear buffers without flushing to avoid partial state
             // and return them to the pool for reuse
-            foreach (var systemId in systemIds)
+            foreach (var bufferId in bufferIds)
             {
-                commandBufferPool.Return(systemId);
+                commandBufferPool.Return(bufferId);
             }
             throw;
         }
+    }
+
+    private int GetSystemId(ISystem system)
+    {
+        return systemIds.TryGetValue(system, out var id)
+            ? id
+            : throw new InvalidOperationException("System is not registered with this scheduler.");
     }
 
     private void ExecuteSystem(ISystem system, float deltaTime)
@@ -224,7 +287,7 @@ public sealed class ParallelSystemScheduler
         // Get a CommandBuffer for this system
         // Note: Buffer is NOT returned here - ExecuteBatch handles flushing and returning
         // after all systems in the batch have completed, ensuring commands are not lost.
-        var systemId = system.GetHashCode();
+        var systemId = GetSystemId(system);
         var commandBuffer = commandBufferPool.Rent(systemId);
 
         if (system is SystemBase systemBase)

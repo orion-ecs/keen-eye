@@ -62,6 +62,9 @@ public static class ParallelQueryExtensions
         }
 
         // Collect all chunks across archetypes for parallel processing
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -70,6 +73,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, ref span1[i]);
             }
         });
@@ -101,6 +108,9 @@ public static class ParallelQueryExtensions
             return;
         }
 
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -109,6 +119,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, in span1[i]);
             }
         });
@@ -147,6 +161,9 @@ public static class ParallelQueryExtensions
             return;
         }
 
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -156,6 +173,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, ref span1[i], ref span2[i]);
             }
         });
@@ -190,6 +211,9 @@ public static class ParallelQueryExtensions
             return;
         }
 
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -199,6 +223,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, in span1[i], in span2[i]);
             }
         });
@@ -240,6 +268,9 @@ public static class ParallelQueryExtensions
             return;
         }
 
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -250,6 +281,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, ref span1[i], ref span2[i], ref span3[i]);
             }
         });
@@ -287,6 +322,9 @@ public static class ParallelQueryExtensions
             return;
         }
 
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -297,6 +335,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, in span1[i], in span2[i], in span3[i]);
             }
         });
@@ -341,6 +383,9 @@ public static class ParallelQueryExtensions
             return;
         }
 
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -352,6 +397,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, ref span1[i], ref span2[i], ref span3[i], ref span4[i]);
             }
         });
@@ -392,6 +441,9 @@ public static class ParallelQueryExtensions
             return;
         }
 
+        var world = query.World;
+        var description = query.Description;
+        var hasTagFilters = description.HasStringTagFilters;
         var chunks = CollectChunks(archetypes);
 
         Parallel.ForEach(chunks, chunk =>
@@ -403,6 +455,10 @@ public static class ParallelQueryExtensions
             for (int i = 0; i < chunk.Count; i++)
             {
                 var entity = chunk.GetEntity(i);
+                if (hasTagFilters && !MatchesStringTags(world, description, entity))
+                {
+                    continue;
+                }
                 action(entity, in span1[i], in span2[i], in span3[i], in span4[i]);
             }
         });
@@ -420,6 +476,29 @@ public static class ParallelQueryExtensions
             count += archetype.Count;
         }
         return count;
+    }
+
+    private static bool MatchesStringTags(World world, QueryDescription description, Entity entity)
+    {
+        // All required tags must be present.
+        foreach (var tag in description.WithStringTags)
+        {
+            if (!world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        // No excluded tags can be present.
+        foreach (var tag in description.WithoutStringTags)
+        {
+            if (world.HasTag(entity, tag))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static List<ArchetypeChunk> CollectChunks(IReadOnlyList<Archetype> archetypes)
