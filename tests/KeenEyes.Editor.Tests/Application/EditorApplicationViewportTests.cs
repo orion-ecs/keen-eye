@@ -15,14 +15,17 @@ public sealed class EditorApplicationViewportTests : IDisposable
 {
     public EditorApplicationViewportTests()
     {
-        // Reset settings to defaults before each test
-        EditorSettings.ResetToDefaults();
+        // EditorSettings is process-global static state. Reset it to defaults, forget any test
+        // settings path, and detach leaked SettingChanged subscribers so this class is isolated
+        // from other editor tests (see #1203). Unlike ResetToDefaults, ResetForTesting does not
+        // write to disk.
+        EditorSettings.ResetForTesting();
     }
 
     public void Dispose()
     {
-        // Clean up settings after tests
-        EditorSettings.ResetToDefaults();
+        // Leave no global state (or leaked SettingChanged subscriptions) behind for the next test.
+        EditorSettings.ResetForTesting();
     }
 
     #region ToggleGrid Tests
