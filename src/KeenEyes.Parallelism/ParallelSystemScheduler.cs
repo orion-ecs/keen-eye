@@ -39,6 +39,14 @@ public sealed class ParallelSystemScheduler
     private IReadOnlyList<SystemBatch>? cachedBatches;
     private bool batchesDirty = true;
 
+    // Reusable scratch buffers for ExecuteBatch, reused across batches to avoid a per-batch,
+    // per-frame List<int> plus a single-element wrapper array allocation. UpdateParallel runs
+    // batches sequentially and is driven by a single game-loop thread, so these buffers are
+    // never used by two batches concurrently. The wrapper holds a stable reference to
+    // batchBufferIds; only the list's contents change per batch.
+    private readonly List<int> batchBufferIds = [];
+    private readonly IEnumerable<int>[] batchBufferIdWrapper;
+
     /// <summary>
     /// Gets the dependency tracker used by this scheduler.
     /// </summary>
@@ -82,6 +90,7 @@ public sealed class ParallelSystemScheduler
         batcher = new ParallelSystemBatcher(dependencyTracker);
         commandBufferPool = new CommandBufferPool();
         parallelOptions = options ?? new ParallelOptions();
+        batchBufferIdWrapper = [batchBufferIds];
     }
 
     /// <summary>
@@ -230,7 +239,9 @@ public sealed class ParallelSystemScheduler
         }
 
         // Collect the stable command-buffer ids for this batch upfront for buffer management.
-        var bufferIds = new List<int>(systems.Count);
+        // Reuse the scratch list/wrapper (batches run sequentially) to avoid per-batch allocation.
+        var bufferIds = batchBufferIds;
+        bufferIds.Clear();
         for (int i = 0; i < systems.Count; i++)
         {
             bufferIds.Add(GetSystemId(systems[i]));
@@ -256,7 +267,7 @@ public sealed class ParallelSystemScheduler
             }
 
             // Flush all command buffers from this batch (also returns them to pool)
-            commandBufferPool.FlushBatches(world, [bufferIds]);
+            commandBufferPool.FlushBatches(world, batchBufferIdWrapper);
         }
         catch
         {

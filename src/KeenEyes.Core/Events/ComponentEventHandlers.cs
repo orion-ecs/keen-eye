@@ -199,11 +199,20 @@ internal sealed class ComponentEventHandlers
         private readonly Lock syncRoot = new();
         private readonly List<THandler> list = [];
 
+        // Immutable copy-on-write snapshot of the handler list in registration order.
+        // Rebuilt only when the handler set changes (Add/Remove), so firing a component
+        // lifecycle event never allocates. Invoke methods capture the current reference; the
+        // array is never mutated in place, so handlers that subscribe/unsubscribe during
+        // dispatch do not affect the in-flight invocation (the guarantee the old per-fire
+        // snapshot provided).
+        private THandler[] snapshot = [];
+
         public void Add(THandler handler)
         {
             lock (syncRoot)
             {
                 list.Add(handler);
+                Volatile.Write(ref snapshot, [.. list]);
             }
         }
 
@@ -211,67 +220,41 @@ internal sealed class ComponentEventHandlers
         {
             lock (syncRoot)
             {
-                list.Remove(handler);
+                if (list.Remove(handler))
+                {
+                    Volatile.Write(ref snapshot, [.. list]);
+                }
             }
         }
 
         public void InvokeAdded<T>(Entity entity, in T component) where T : struct, IComponent
         {
-            // Take a snapshot under lock, then invoke outside lock
-            // This prevents deadlocks if handlers try to subscribe/unsubscribe
-            THandler[] snapshot;
-            lock (syncRoot)
-            {
-                if (list.Count == 0)
-                {
-                    return;
-                }
-
-                snapshot = [.. list];
-            }
+            var current = Volatile.Read(ref snapshot);
 
             // Invoke in reverse order to match original behavior
-            for (int i = snapshot.Length - 1; i >= 0; i--)
+            for (int i = current.Length - 1; i >= 0; i--)
             {
-                ((Action<Entity, T>)(object)snapshot[i])(entity, component);
+                ((Action<Entity, T>)(object)current[i])(entity, component);
             }
         }
 
         public void InvokeRemoved(Entity entity)
         {
-            THandler[] snapshot;
-            lock (syncRoot)
-            {
-                if (list.Count == 0)
-                {
-                    return;
-                }
+            var current = Volatile.Read(ref snapshot);
 
-                snapshot = [.. list];
-            }
-
-            for (int i = snapshot.Length - 1; i >= 0; i--)
+            for (int i = current.Length - 1; i >= 0; i--)
             {
-                ((Action<Entity>)(object)snapshot[i])(entity);
+                ((Action<Entity>)(object)current[i])(entity);
             }
         }
 
         public void InvokeChanged<T>(Entity entity, in T oldValue, in T newValue) where T : struct, IComponent
         {
-            THandler[] snapshot;
-            lock (syncRoot)
-            {
-                if (list.Count == 0)
-                {
-                    return;
-                }
+            var current = Volatile.Read(ref snapshot);
 
-                snapshot = [.. list];
-            }
-
-            for (int i = snapshot.Length - 1; i >= 0; i--)
+            for (int i = current.Length - 1; i >= 0; i--)
             {
-                ((Action<Entity, T, T>)(object)snapshot[i])(entity, oldValue, newValue);
+                ((Action<Entity, T, T>)(object)current[i])(entity, oldValue, newValue);
             }
         }
     }

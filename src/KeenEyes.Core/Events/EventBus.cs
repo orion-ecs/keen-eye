@@ -205,6 +205,13 @@ public sealed class EventBus
         private readonly Lock syncRoot = new();
         private readonly List<THandler> list = [];
 
+        // Immutable copy-on-write snapshot of the handler list in registration order.
+        // Rebuilt only when the handler set changes (Add/Remove), so publishing a hot event
+        // never allocates. Invoke captures the current reference; because the array is never
+        // mutated in place, handlers that subscribe/unsubscribe during dispatch do not affect
+        // the in-flight invocation (the same guarantee the old per-publish snapshot provided).
+        private THandler[] snapshot = [];
+
         public int Count
         {
             get
@@ -221,6 +228,7 @@ public sealed class EventBus
             lock (syncRoot)
             {
                 list.Add(handler);
+                Volatile.Write(ref snapshot, [.. list]);
             }
         }
 
@@ -228,31 +236,24 @@ public sealed class EventBus
         {
             lock (syncRoot)
             {
-                list.Remove(handler);
+                if (list.Remove(handler))
+                {
+                    Volatile.Write(ref snapshot, [.. list]);
+                }
             }
         }
 
         public void Invoke<T>(in T evt)
         {
-            // Take a snapshot under lock, then invoke outside lock
-            // This prevents deadlocks if handlers try to subscribe/unsubscribe
-            THandler[] snapshot;
-            lock (syncRoot)
-            {
-                if (list.Count == 0)
-                {
-                    return;
-                }
+            // Read the current immutable snapshot without locking. Any concurrent Add/Remove
+            // installs a new array rather than mutating this one, so iteration is stable and
+            // handlers may subscribe/unsubscribe mid-dispatch without affecting this invocation.
+            var current = Volatile.Read(ref snapshot);
 
-                snapshot = [.. list];
-            }
-
-            // Invoke in registration order, as documented. The snapshot taken under
-            // lock lets handlers subscribe or unsubscribe during iteration without
-            // affecting the current dispatch.
-            for (int i = 0; i < snapshot.Length; i++)
+            // Invoke in registration order, as documented.
+            for (int i = 0; i < current.Length; i++)
             {
-                ((Action<T>)(object)snapshot[i])(evt);
+                ((Action<T>)(object)current[i])(evt);
             }
         }
     }

@@ -204,7 +204,25 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
         {
             lock (syncRoot)
             {
-                var archetype = GetOrCreateArchetypeNoLock(GetTypesSpan(componentArray, componentCount));
+                // Build the archetype identity from the component types using the sorted fast path.
+                // Extract the types into a rented buffer, sort+hash without any LINQ/iterator
+                // allocation, then return the buffer immediately (the id copies it internally).
+                Archetype archetype;
+                var typeBuffer = ArrayPool<Type>.Shared.Rent(componentCount == 0 ? 1 : componentCount);
+                try
+                {
+                    for (int i = 0; i < componentCount; i++)
+                    {
+                        typeBuffer[i] = componentArray[i].Info.Type;
+                    }
+
+                    var id = ArchetypeId.FromUnsortedTypes(typeBuffer.AsSpan(0, componentCount));
+                    archetype = GetOrCreateArchetypeNoLock(id);
+                }
+                finally
+                {
+                    ArrayPool<Type>.Shared.Return(typeBuffer);
+                }
 
                 // Add entity to archetype and write its components into the SAME chunk so the
                 // entity and its component data stay co-located (see issue #1092).
@@ -224,14 +242,6 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
         finally
         {
             ArrayPool<(ComponentInfo, object)>.Shared.Return(componentArray);
-        }
-    }
-
-    private static IEnumerable<Type> GetTypesSpan((ComponentInfo Info, object Data)[] components, int count)
-    {
-        for (int i = 0; i < count; i++)
-        {
-            yield return components[i].Info.Type;
         }
     }
 
@@ -645,13 +655,6 @@ public sealed class ArchetypeManager(ComponentRegistry componentRegistry, ChunkP
         }
 
         return true;
-    }
-
-    // Lock-free version for use within locked sections
-    private Archetype GetOrCreateArchetypeNoLock(IEnumerable<Type> componentTypes)
-    {
-        var id = new ArchetypeId(componentTypes);
-        return GetOrCreateArchetypeNoLock(id);
     }
 
     // Lock-free version for use within locked sections

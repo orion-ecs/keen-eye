@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace KeenEyes.AI;
 
 /// <summary>
@@ -22,8 +24,27 @@ public sealed class Blackboard
     /// <typeparam name="T">The type of the value.</typeparam>
     /// <param name="key">The key to store the value under.</param>
     /// <param name="value">The value to store.</param>
+    /// <remarks>
+    /// Value-type values are stored in a reusable typed cell rather than boxed directly, so
+    /// repeatedly writing the same key with the same value type (a common per-frame pattern,
+    /// e.g. updating a target position) reuses the existing cell and allocates nothing after
+    /// the first write. Reference-type values are stored as-is.
+    /// </remarks>
     public void Set<T>(string key, T value) where T : notnull
     {
+        if (typeof(T).IsValueType)
+        {
+            // Reuse an existing cell of the exact same type to avoid re-boxing on hot writes.
+            if (data.TryGetValue(key, out var existing) && existing is ValueCell<T> cell)
+            {
+                cell.Value = value;
+                return;
+            }
+
+            data[key] = new ValueCell<T>(value);
+            return;
+        }
+
         data[key] = value;
     }
 
@@ -35,7 +56,7 @@ public sealed class Blackboard
     /// <returns>The value if found and of the correct type; otherwise, default.</returns>
     public T? Get<T>(string key)
     {
-        if (data.TryGetValue(key, out var value) && value is T typed)
+        if (data.TryGetValue(key, out var value) && TryUnwrap<T>(value, out var typed))
         {
             return typed;
         }
@@ -52,7 +73,7 @@ public sealed class Blackboard
     /// <returns>The value if found and of the correct type; otherwise, the default value.</returns>
     public T Get<T>(string key, T defaultValue)
     {
-        if (data.TryGetValue(key, out var value) && value is T typed)
+        if (data.TryGetValue(key, out var value) && TryUnwrap<T>(value, out var typed))
         {
             return typed;
         }
@@ -69,7 +90,7 @@ public sealed class Blackboard
     /// <returns>True if the key was found and the value is of the correct type; otherwise, false.</returns>
     public bool TryGet<T>(string key, out T? value)
     {
-        if (data.TryGetValue(key, out var obj) && obj is T typed)
+        if (data.TryGetValue(key, out var obj) && TryUnwrap<T>(obj, out var typed))
         {
             value = typed;
             return true;
@@ -102,4 +123,56 @@ public sealed class Blackboard
     /// Gets the number of entries in the blackboard.
     /// </summary>
     public int Count => data.Count;
+
+    // Resolves a stored value to the requested type, matching the semantics of the original
+    // `stored is T` check. Values written through the value-type fast path live inside a
+    // ValueCell; the exact-type branch unwraps them without boxing, while the IValueCell branch
+    // falls back to the boxed value so cross-type / object / interface lookups behave exactly as
+    // a plain Dictionary<string, object> store would.
+    private static bool TryUnwrap<T>(object stored, [MaybeNullWhen(false)] out T typed)
+    {
+        if (stored is ValueCell<T> exact)
+        {
+            typed = exact.Value;
+            return true;
+        }
+
+        if (stored is IValueCell cell)
+        {
+            if (cell.BoxedValue is T boxed)
+            {
+                typed = boxed;
+                return true;
+            }
+
+            typed = default;
+            return false;
+        }
+
+        if (stored is T direct)
+        {
+            typed = direct;
+            return true;
+        }
+
+        typed = default;
+        return false;
+    }
+
+    // Non-generic view over a typed value cell, used to recover the boxed value on the rare
+    // cross-type lookup path.
+    private interface IValueCell
+    {
+        object BoxedValue { get; }
+    }
+
+    // Holds a value-type value so repeated same-type writes mutate in place instead of
+    // allocating a fresh box each time. Only ever instantiated for value types (see Set),
+    // so the boxed value is never null.
+    private sealed class ValueCell<T>(T value) : IValueCell
+    {
+        public T Value = value;
+
+        public object BoxedValue => Value!;
+    }
 }
