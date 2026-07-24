@@ -442,9 +442,11 @@ public class MeshAssetTests
         var mesh = new MeshAsset("Test", [], [], [], Vector3.Zero, Vector3.One);
 
         mesh.Dispose();
-        mesh.Dispose(); // Should not throw
 
-        Assert.True(true); // If we got here, no exception was thrown
+        // Disposing a second time must be a safe no-op.
+        var exception = Record.Exception(() => mesh.Dispose());
+
+        Assert.Null(exception);
     }
 
     [Fact]

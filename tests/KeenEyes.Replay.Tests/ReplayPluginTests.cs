@@ -594,19 +594,15 @@ public class ReplayPluginTests
     [Fact]
     public void RepeatedInstallUninstall_DoesNotLeakMemory()
     {
-        // This test verifies that repeated install/uninstall cycles don't accumulate resources
-        // by tracking GC collections and ensuring objects are properly cleaned up
-
-        // Force initial GC to establish baseline
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
+        // Verifies repeated install/uninstall cycles do not root the churned worlds:
+        // once the cycles complete and the disposed worlds fall out of scope, every one
+        // must be eligible for garbage collection. A leaked static/global reference would
+        // keep a world alive and fail the assertion below.
         var serializer = new MockComponentSerializer();
         const int iterations = 100;
 
-        // Act - repeated install/uninstall cycles
-        for (int i = 0; i < iterations; i++)
+        // Run each cycle in its own stack frame so no local reference keeps a world alive.
+        static WeakReference RunCycle(MockComponentSerializer serializer, int index)
         {
             using var world = new World();
             var plugin = new ReplayPlugin(serializer);
@@ -614,8 +610,7 @@ public class ReplayPluginTests
 
             var recorder = world.GetExtension<ReplayRecorder>();
 
-            // Do some recording work
-            recorder.StartRecording($"Test {i}");
+            recorder.StartRecording($"Test {index}");
             for (int frame = 0; frame < 10; frame++)
             {
                 recorder.BeginFrame(0.016f);
@@ -626,23 +621,32 @@ public class ReplayPluginTests
 
             world.UninstallPlugin<ReplayPlugin>();
 
-            // World is disposed by using statement
+            return new WeakReference(world);
         }
 
-        // Force GC to clean up
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        var weakWorlds = new List<WeakReference>(iterations);
+        for (int i = 0; i < iterations; i++)
+        {
+            weakWorlds.Add(RunCycle(serializer, i));
+        }
 
-        // If we made it here without running out of memory, the test passes
-        // A more sophisticated test could track WeakReferences to verify cleanup
-        Assert.True(true);
+        // Force collection. Retry a few times so a world merely awaiting finalization is not
+        // mistaken for a leak; a genuinely rooted world stays alive across every attempt.
+        for (int attempt = 0; attempt < 10 && weakWorlds.Exists(weakWorld => weakWorld.IsAlive); attempt++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
+        // Every churned world must have been collected; a survivor indicates a leak.
+        Assert.All(weakWorlds, weakWorld => Assert.False(weakWorld.IsAlive));
     }
 
     [Fact]
-    public void RepeatedInstallUninstall_WithActiveRecording_CleansUpProperly()
+    public void RepeatedInstallUninstall_WithActiveRecording_StopsRecordingOnUninstall()
     {
-        // Verify that uninstalling while recording is active properly cleans up
+        // Verify that, across repeated churn, uninstalling the plugin while a recording is
+        // active always stops the recording (the recorder's cleanup path runs on uninstall).
         var serializer = new MockComponentSerializer();
         const int iterations = 50;
 
@@ -655,25 +659,19 @@ public class ReplayPluginTests
             var recorder = world.GetExtension<ReplayRecorder>();
             recorder.StartRecording();
 
-            // Record some frames
+            // Record some frames via a full world tick to exercise the recording pipeline.
             for (int frame = 0; frame < 5; frame++)
             {
                 world.Update(0.016f);
             }
 
-            // Uninstall while still recording (should cancel recording)
+            Assert.True(recorder.IsRecording);
+
+            // Uninstall while still recording; the plugin's uninstall must cancel recording.
             world.UninstallPlugin<ReplayPlugin>();
 
-            // Verify recording was stopped
             Assert.False(recorder.IsRecording);
         }
-
-        // Force cleanup
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
-        Assert.True(true);
     }
 
     [Fact]

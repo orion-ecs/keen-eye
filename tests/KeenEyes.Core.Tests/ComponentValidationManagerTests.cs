@@ -259,17 +259,21 @@ public class ComponentValidationManagerTests
         using var world = new World();
         var manager = new ComponentValidationManager(world) { Mode = ValidationMode.Disabled };
 
-        // Register a failing validator
-        ComponentValidator<TestPosition> validator = (w, e, comp) => false;
+        // Register a validator that records whether it was ever invoked.
+        var validatorInvoked = false;
+        ComponentValidator<TestPosition> validator = (w, e, comp) =>
+        {
+            validatorInvoked = true;
+            return false;
+        };
         manager.RegisterValidator(validator);
 
         var entity = world.Spawn().Build();
 
-        // With mode disabled, validation should be skipped even with a failing validator
+        // With mode disabled, validation must be skipped even with a failing validator.
         manager.ValidateAdd(entity, new TestPosition { X = 1, Y = 2 });
 
-        // No exception thrown
-        Assert.True(true);
+        Assert.False(validatorInvoked);
     }
 
     [Fact]
@@ -278,15 +282,36 @@ public class ComponentValidationManagerTests
         using var world = new World();
         var manager = new ComponentValidationManager(world) { Mode = ValidationMode.Disabled };
 
-        var components = new List<(ComponentInfo Info, object Data)>();
-        var info = world.Components.GetOrRegister<TestPosition>();
-        components.Add((info, new TestPosition { X = 1, Y = 2 }));
+        // Register a constraint provider that records whether it was consulted. It also
+        // requires TestPosition for TestVelocity, so if validation ran on the build set
+        // below (which omits TestPosition) it would throw.
+        var providerConsulted = false;
+        ComponentValidationManager.TryGetConstraintsDelegate provider =
+            (Type componentType, out Type[] required, out Type[] conflicts) =>
+            {
+                providerConsulted = true;
+                if (componentType == typeof(TestVelocity))
+                {
+                    required = [typeof(TestPosition)];
+                    conflicts = [];
+                    return true;
+                }
 
-        // With mode disabled, validation should be skipped
+                required = [];
+                conflicts = [];
+                return false;
+            };
+        manager.RegisterConstraintProvider(provider);
+
+        var components = new List<(ComponentInfo Info, object Data)>();
+        var info = world.Components.GetOrRegister<TestVelocity>();
+        components.Add((info, new TestVelocity { X = 1, Y = 2 }));
+
+        // With mode disabled, validation must be skipped: no throw and the provider is
+        // never consulted.
         manager.ValidateBuild(components);
 
-        // No exception thrown
-        Assert.True(true);
+        Assert.False(providerConsulted);
     }
 
     [Fact]
@@ -295,8 +320,13 @@ public class ComponentValidationManagerTests
         using var world = new World();
         var manager = new ComponentValidationManager(world) { Mode = ValidationMode.Disabled };
 
-        // Register a failing validator
-        ComponentValidator<TestPosition> validator = (w, e, comp) => false;
+        // Register a validator that records whether it was ever invoked.
+        var validatorInvoked = false;
+        ComponentValidator<TestPosition> validator = (w, e, comp) =>
+        {
+            validatorInvoked = true;
+            return false;
+        };
         manager.RegisterValidator(validator);
 
         var entity = world.Spawn().Build();
@@ -304,11 +334,10 @@ public class ComponentValidationManagerTests
         var info = world.Components.GetOrRegister<TestPosition>();
         components.Add((info, new TestPosition { X = 1, Y = 2 }));
 
-        // With mode disabled, validation should be skipped
+        // With mode disabled, custom validation must be skipped.
         manager.ValidateBuildCustom(entity, components);
 
-        // No exception thrown
-        Assert.True(true);
+        Assert.False(validatorInvoked);
     }
 
     #endregion

@@ -376,14 +376,14 @@ public class ReplayPlaybackPluginTests
     [Fact]
     public void RepeatedInstallUninstall_DoesNotLeakMemory()
     {
-        // Force initial GC
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
-
+        // Verifies repeated install/uninstall cycles do not root the churned worlds:
+        // once the cycles complete and the disposed worlds fall out of scope, every one
+        // must be eligible for garbage collection. A leaked reference would keep a world
+        // alive and fail the assertion below.
         const int iterations = 100;
 
-        for (int i = 0; i < iterations; i++)
+        // Run each cycle in its own stack frame so no local reference keeps a world alive.
+        static WeakReference RunCycle()
         {
             using var world = new World();
             var plugin = new ReplayPlaybackPlugin();
@@ -401,14 +401,26 @@ public class ReplayPlaybackPluginTests
             }
 
             world.UninstallPlugin<ReplayPlaybackPlugin>();
+
+            return new WeakReference(world);
         }
 
-        // Force cleanup
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
+        var weakWorlds = new List<WeakReference>(iterations);
+        for (int i = 0; i < iterations; i++)
+        {
+            weakWorlds.Add(RunCycle());
+        }
 
-        Assert.True(true);
+        // Force collection. Retry a few times so a world merely awaiting finalization is not
+        // mistaken for a leak; a genuinely rooted world stays alive across every attempt.
+        for (int attempt = 0; attempt < 10 && weakWorlds.Exists(weakWorld => weakWorld.IsAlive); attempt++)
+        {
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+        }
+
+        // Every churned world must have been collected; a survivor indicates a leak.
+        Assert.All(weakWorlds, weakWorld => Assert.False(weakWorld.IsAlive));
     }
 
     [Fact]

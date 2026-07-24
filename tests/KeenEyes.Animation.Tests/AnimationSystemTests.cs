@@ -29,11 +29,24 @@ public class AnimationSystemTests : IDisposable
         world = new World();
         world.InstallPlugin(new AnimationPlugin());
 
+        var manager = world.GetExtension<AnimationManager>();
+        var clip = new AnimationClip { Name = "TestClip", Duration = 2f };
+        var clipId = manager.RegisterClip(clip);
+
+        var entity = world.Spawn()
+            .With(AnimationPlayer.ForClip(clipId))
+            .Build();
+
         var system = new AnimationPlayerSystem();
         world.AddSystem(system);
 
-        // Should not throw during update
-        system.Update(1f / 60f);
+        // Locating the AnimationManager lets the system resolve the clip and advance
+        // playback. If the manager were not found, the clip would be unresolved and the
+        // time would stay at zero (see AnimationPlayerSystem_SkipsInvalidClipId).
+        system.Update(0.5f);
+
+        ref readonly var player = ref world.Get<AnimationPlayer>(entity);
+        player.Time.ShouldBe(0.5f, 0.001f);
     }
 
     [Fact]
@@ -45,8 +58,10 @@ public class AnimationSystemTests : IDisposable
         var system = new AnimationPlayerSystem();
         world.AddSystem(system);
 
-        // Should not throw
-        system.Update(1f / 60f);
+        // With no AnimationManager registered, updating must be a safe no-op.
+        var exception = Record.Exception(() => system.Update(1f / 60f));
+
+        Assert.Null(exception);
     }
 
     [Fact]

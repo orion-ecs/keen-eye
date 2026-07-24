@@ -27,7 +27,9 @@ public class PhysicsCollisionCoverageTests : IDisposable
         world.InstallPlugin(new PhysicsPlugin());
         var physics = world.GetExtension<PhysicsWorld>();
 
-        // Create two bodies with incompatible collision filters
+        // Create two overlapping bodies with incompatible collision filters. Starting them
+        // overlapping guarantees the narrow phase would report contact if filtering were
+        // broken, so a clean run proves the filter actually suppressed the collision.
         var entity1 = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
@@ -40,7 +42,7 @@ public class PhysicsCollisionCoverageTests : IDisposable
             .Build();
 
         var entity2 = world.Spawn()
-            .With(new Transform3D(new Vector3(0f, 3f, 0f), Quaternion.Identity, Vector3.One))
+            .With(new Transform3D(new Vector3(0f, 4.5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(new CollisionFilter
@@ -50,14 +52,24 @@ public class PhysicsCollisionCoverageTests : IDisposable
             })
             .Build();
 
+        var collisionDetected = false;
+        using var subscription = world.Subscribe<CollisionEvent>(collision =>
+        {
+            if ((collision.EntityA == entity1 && collision.EntityB == entity2) ||
+                (collision.EntityA == entity2 && collision.EntityB == entity1))
+            {
+                collisionDetected = true;
+            }
+        });
+
         // Step simulation multiple times to allow potential collision
         for (int i = 0; i < 60; i++)
         {
             physics.Step(1f / 60f);
         }
 
-        // Both entities should pass through each other (no collision response)
-        // We can verify they didn't stop each other
+        // Incompatible filters must suppress the collision even though the bodies overlap.
+        Assert.False(collisionDetected);
         Assert.True(physics.HasPhysicsBody(entity1));
         Assert.True(physics.HasPhysicsBody(entity2));
     }
@@ -70,11 +82,12 @@ public class PhysicsCollisionCoverageTests : IDisposable
         var physics = world.GetExtension<PhysicsWorld>();
 
         var collisionDetected = false;
-        world.OnComponentAdded<Transform3D>((_, _) => { });
 
-        // Create two bodies that can collide with each other
+        // Create two overlapping bodies whose filters permit collision. Overlapping start
+        // positions force a deterministic contact on the first step, so the collision event
+        // is guaranteed to fire when filtering works.
         var entity1 = world.Spawn()
-            .With(new Transform3D(new Vector3(0f, 10f, 0f), Quaternion.Identity, Vector3.One))
+            .With(new Transform3D(new Vector3(0f, 5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(new CollisionFilter
@@ -85,7 +98,7 @@ public class PhysicsCollisionCoverageTests : IDisposable
             .Build();
 
         var entity2 = world.Spawn()
-            .With(new Transform3D(new Vector3(0f, 8f, 0f), Quaternion.Identity, Vector3.One))
+            .With(new Transform3D(new Vector3(0f, 4.5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(new CollisionFilter
@@ -111,8 +124,8 @@ public class PhysicsCollisionCoverageTests : IDisposable
             physics.Step(1f / 60f);
         }
 
-        // Should have detected collision since filters match
-        Assert.True(collisionDetected || physics.HasPhysicsBody(entity1));
+        // Matching filters plus overlapping bodies must produce a collision event.
+        Assert.True(collisionDetected);
     }
 
     #endregion
@@ -134,26 +147,34 @@ public class PhysicsCollisionCoverageTests : IDisposable
             .With(CollisionFilter.Trigger())
             .Build();
 
-        // Create a dynamic body that will fall through the trigger
+        // Create a dynamic body overlapping the trigger volume so a contact is guaranteed.
         var entity = world.Spawn()
-            .With(new Transform3D(new Vector3(0f, 10f, 0f), Quaternion.Identity, Vector3.One))
+            .With(new Transform3D(new Vector3(0f, 1f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .Build();
 
+        var triggerCollisionDetected = false;
         using var subscription = world.Subscribe<CollisionEvent>(collision =>
         {
-            // Subscribe to verify no crash occurs with triggers
+            if (((collision.EntityA == trigger && collision.EntityB == entity) ||
+                 (collision.EntityA == entity && collision.EntityB == trigger)) &&
+                collision.IsTrigger)
+            {
+                triggerCollisionDetected = true;
+            }
         });
 
-        // Step simulation
+        // Step simulation.
         for (int i = 0; i < 60; i++)
         {
             physics.Step(1f / 60f);
         }
 
-        // Trigger event might be detected depending on timing
-        // At minimum, both entities should still exist
+        // The overlap is detected and reported as a trigger collision (IsTrigger), meaning
+        // it was recorded without generating a solid contact constraint. If the trigger were
+        // (incorrectly) treated as solid, IsTrigger would be false and this would never flip.
+        Assert.True(triggerCollisionDetected);
         Assert.True(physics.HasPhysicsBody(trigger));
         Assert.True(physics.HasPhysicsBody(entity));
     }
@@ -169,7 +190,8 @@ public class PhysicsCollisionCoverageTests : IDisposable
         world.InstallPlugin(new PhysicsPlugin());
         var physics = world.GetExtension<PhysicsWorld>();
 
-        // Create two bodies with different materials
+        // Create two overlapping bodies with different materials so a contact is guaranteed
+        // and the material-combination code path runs.
         var entity1 = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
@@ -178,11 +200,21 @@ public class PhysicsCollisionCoverageTests : IDisposable
             .Build();
 
         var entity2 = world.Spawn()
-            .With(new Transform3D(new Vector3(0f, 3f, 0f), Quaternion.Identity, Vector3.One))
+            .With(new Transform3D(new Vector3(0f, 4.5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .With(PhysicsMaterial.Ice)
             .Build();
+
+        var collisionDetected = false;
+        using var subscription = world.Subscribe<CollisionEvent>(collision =>
+        {
+            if ((collision.EntityA == entity1 && collision.EntityB == entity2) ||
+                (collision.EntityA == entity2 && collision.EntityB == entity1))
+            {
+                collisionDetected = true;
+            }
+        });
 
         // Step simulation to allow collision
         for (int i = 0; i < 60; i++)
@@ -190,7 +222,8 @@ public class PhysicsCollisionCoverageTests : IDisposable
             physics.Step(1f / 60f);
         }
 
-        // Verify bodies still exist (collision occurred with combined material properties)
+        // The overlap must produce a collision, exercising the combined-material contact path.
+        Assert.True(collisionDetected);
         Assert.True(physics.HasPhysicsBody(entity1));
         Assert.True(physics.HasPhysicsBody(entity2));
     }
@@ -202,7 +235,7 @@ public class PhysicsCollisionCoverageTests : IDisposable
         world.InstallPlugin(new PhysicsPlugin());
         var physics = world.GetExtension<PhysicsWorld>();
 
-        // Entity with material
+        // Entity with material, overlapping the second body to guarantee a contact.
         var entity1 = world.Spawn()
             .With(new Transform3D(new Vector3(0f, 5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
@@ -212,10 +245,20 @@ public class PhysicsCollisionCoverageTests : IDisposable
 
         // Entity without material (will use default)
         var entity2 = world.Spawn()
-            .With(new Transform3D(new Vector3(0f, 3f, 0f), Quaternion.Identity, Vector3.One))
+            .With(new Transform3D(new Vector3(0f, 4.5f, 0f), Quaternion.Identity, Vector3.One))
             .With(PhysicsShape.Sphere(1f))
             .With(RigidBody.Dynamic(1f))
             .Build();
+
+        var collisionDetected = false;
+        using var subscription = world.Subscribe<CollisionEvent>(collision =>
+        {
+            if ((collision.EntityA == entity1 && collision.EntityB == entity2) ||
+                (collision.EntityA == entity2 && collision.EntityB == entity1))
+            {
+                collisionDetected = true;
+            }
+        });
 
         // Step simulation
         for (int i = 0; i < 60; i++)
@@ -223,6 +266,8 @@ public class PhysicsCollisionCoverageTests : IDisposable
             physics.Step(1f / 60f);
         }
 
+        // The body missing a material must still collide, using the default material.
+        Assert.True(collisionDetected);
         Assert.True(physics.HasPhysicsBody(entity1));
         Assert.True(physics.HasPhysicsBody(entity2));
     }
