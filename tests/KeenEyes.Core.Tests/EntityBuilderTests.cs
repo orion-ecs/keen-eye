@@ -580,4 +580,71 @@ public class WorldGetAllEntitiesTests
     }
 
     #endregion
+
+    #region Duplicate Component Deduplication (#1147)
+
+    [Fact]
+    public void Build_WithDuplicateTagComponent_CreatesSingleStorageEntry()
+    {
+        using var world = new World();
+
+        var entity = world.Spawn()
+            .WithTag<BuilderTestTag>()
+            .WithTag<BuilderTestTag>()
+            .Build();
+
+        // A duplicated tag must collapse to a single component entry; otherwise the
+        // archetype's component set and per-chunk storage disagree (see #1147).
+        Assert.True(world.Has<BuilderTestTag>(entity));
+        Assert.Equal(1, world.GetComponents(entity).Count(c => c.Type == typeof(BuilderTestTag)));
+    }
+
+    [Fact]
+    public void Build_WithDuplicateBoxedComponent_UsesLastValueAsSingleEntry()
+    {
+        using var world = new World();
+        var info = world.Components.Register<BuilderTestPosition>();
+
+        var entity = world.Spawn()
+            .WithBoxed(info, new BuilderTestPosition { X = 1f, Y = 2f })
+            .WithBoxed(info, new BuilderTestPosition { X = 3f, Y = 4f })
+            .Build();
+
+        Assert.Equal(1, world.GetComponents(entity).Count(c => c.Type == typeof(BuilderTestPosition)));
+
+        // Last-write-wins for data components.
+        ref readonly var component = ref world.Get<BuilderTestPosition>(entity);
+        Assert.Equal(3f, component.X);
+        Assert.Equal(4f, component.Y);
+    }
+
+    [Fact]
+    public void Build_WithDuplicateTagBeyondChunkCapacity_DoesNotCorruptStorage()
+    {
+        using var world = new World();
+
+        // Before the fix, a duplicated tag appended two values into a single backing
+        // array per entity while the chunk count advanced by one, filling the 128-slot
+        // chunk twice as fast and throwing "chunk is at capacity" at the 65th entity.
+        // Spawning well past a full chunk (and into a second) proves storage stays sound.
+        const int entityCount = ArchetypeChunk.DefaultCapacity * 2 + 1;
+        var entities = new Entity[entityCount];
+
+        for (int i = 0; i < entityCount; i++)
+        {
+            entities[i] = world.Spawn()
+                .WithTag<BuilderTestTag>()
+                .WithTag<BuilderTestTag>()
+                .Build();
+        }
+
+        foreach (var entity in entities)
+        {
+            Assert.True(world.IsAlive(entity));
+            Assert.True(world.Has<BuilderTestTag>(entity));
+            Assert.Equal(1, world.GetComponents(entity).Count(c => c.Type == typeof(BuilderTestTag)));
+        }
+    }
+
+    #endregion
 }
