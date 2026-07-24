@@ -66,19 +66,33 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     public EntityBuilder With<T>(T component) where T : struct, IComponent
     {
         var info = world.Components.GetOrRegister<T>();
+        AddOrReplace(info, component);
+        return this;
+    }
 
-        // Remove existing component of same type to support overrides
+    /// <summary>
+    /// Adds a component entry, replacing any existing entry of the same component type.
+    /// </summary>
+    /// <remarks>
+    /// Deduplication is required because the archetype layer collapses duplicate component
+    /// types into a single backing array per chunk while advancing the per-entity count once.
+    /// A builder that emitted two entries for the same type would append two values into that
+    /// single array per entity, filling the chunk twice as fast and crashing at capacity.
+    /// Deduplicating here keeps the archetype's component set and per-chunk storage consistent
+    /// (last-write-wins for data components; idempotent for tags).
+    /// </remarks>
+    private void AddOrReplace(ComponentInfo info, object data)
+    {
         for (int i = components.Count - 1; i >= 0; i--)
         {
-            if (components[i].Info.Type == typeof(T))
+            if (components[i].Info.Type == info.Type)
             {
                 components.RemoveAt(i);
                 break;
             }
         }
 
-        components.Add((info, component));
-        return this;
+        components.Add((info, data));
     }
 
     /// <summary>
@@ -132,7 +146,7 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
     public EntityBuilder WithTag<T>() where T : struct, ITagComponent
     {
         var info = world.Components.GetOrRegister<T>(isTag: true);
-        components.Add((info, default(T)!));
+        AddOrReplace(info, default(T)!);
         return this;
     }
 
@@ -215,7 +229,7 @@ public sealed class EntityBuilder : IEntityBuilder<EntityBuilder>
                 nameof(value));
         }
 
-        components.Add((info, value));
+        AddOrReplace(info, value);
         return this;
     }
 
