@@ -255,6 +255,38 @@ public class WorldExtensionTests
     }
 
     [Fact]
+    public void SetExtension_ReSettingSameInstance_DoesNotDisposeIt()
+    {
+        // Regression test for #1149: re-setting the SAME instance must not dispose it.
+        using var world = new World();
+        var extension = new DisposableTestExtension();
+
+        world.SetExtension(extension);
+        world.SetExtension(extension); // Same instance again.
+
+        Assert.False(extension.IsDisposed);
+        Assert.Equal(0, extension.DisposeCount);
+        Assert.True(world.HasExtension<DisposableTestExtension>());
+        Assert.Same(extension, world.GetExtension<DisposableTestExtension>());
+    }
+
+    [Fact]
+    public void RemoveExtension_WhenManagerOwned_DisposesExtension()
+    {
+        // No-leak regression guard: a genuinely manager-owned extension (the default)
+        // must still be disposed on removal.
+        using var world = new World();
+        var extension = new DisposableTestExtension();
+        world.SetExtension(extension);
+
+        var removed = world.RemoveExtension<DisposableTestExtension>();
+
+        Assert.True(removed);
+        Assert.True(extension.IsDisposed);
+        Assert.Equal(1, extension.DisposeCount);
+    }
+
+    [Fact]
     public void SetExtension_ReplacingMultipleTimes_DisposesEachPrevious()
     {
         using var world = new World();

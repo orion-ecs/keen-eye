@@ -230,7 +230,9 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
         if (streamingManager != null)
         {
             context.RegisterComponent<NavMeshStreamingAnchor>();
-            context.SetExtension(streamingManager);
+            // The streaming manager is caller-owned (see constructor); the caller disposes
+            // it after uninstall, so register it as not owned to keep removal non-disposing.
+            context.SetExtension(streamingManager, owned: false);
             context.AddSystem<NavMeshStreamingSystem>(SystemPhase.Update, order: -200);
         }
 
@@ -239,7 +241,9 @@ public sealed class DotRecastNavigationPlugin : IWorldPlugin
         if (tileCache != null && carveConfig != null)
         {
             context.RegisterComponent<NavMeshObstacle>();
-            context.SetExtension(tileCache);
+            // The tile cache is caller-owned (see constructor); register it as not owned so
+            // removal on uninstall does not dispose it out from under the caller.
+            context.SetExtension(tileCache, owned: false);
             context.AddSystem(new ObstacleCarveSystem(tileCache, carveConfig), SystemPhase.Update, order: -200);
         }
     }

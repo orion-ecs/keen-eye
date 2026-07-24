@@ -53,6 +53,7 @@ public sealed class NavigationPlugin : IWorldPlugin
     private readonly NavigationConfig config;
     private NavigationContext? navigationContext;
     private INavigationProvider? provider;
+    private bool providerExtensionRegistered;
     private EventSubscription? agentAddedSubscription;
     private EventSubscription? agentRemovedSubscription;
     private EventSubscription? crowdAgentRemovedSubscription;
@@ -104,13 +105,16 @@ public sealed class NavigationPlugin : IWorldPlugin
         context.SetExtension(navigationContext);
 
         // Ensure the INavigationProvider is accessible for direct queries.
-        // In the provider-plugin path (e.g. GridNavigationPlugin) the same instance is
-        // already registered; re-registering it would dispose it, because SetExtension
-        // disposes the extension it replaces. Only register when it is not already present.
+        // The provider is always borrowed: it is either a caller-supplied custom provider
+        // (NavigationConfig.CustomProvider) or one registered by a provider plugin such as
+        // GridNavigationPlugin. This plugin never creates the provider, so it registers it
+        // as caller-owned (owned: false) and never disposes it. In the provider-plugin path
+        // the same instance is already registered, so only register when it is absent.
         if (!context.TryGetExtension<INavigationProvider>(out var registered)
             || !ReferenceEquals(registered, provider))
         {
-            context.SetExtension(provider);
+            context.SetExtension(provider, owned: false);
+            providerExtensionRegistered = true;
         }
 
         // Register systems
@@ -140,19 +144,25 @@ public sealed class NavigationPlugin : IWorldPlugin
 
         // Remove extensions
         context.RemoveExtension<NavigationContext>();
-        context.RemoveExtension<INavigationProvider>();
+
+        // Only remove the INavigationProvider extension if this plugin registered it.
+        // When a provider plugin (e.g. GridNavigationPlugin) owns that registration, it
+        // must stay in place for as long as that plugin is installed. Because the provider
+        // is registered as caller-owned, removal here never disposes it.
+        if (providerExtensionRegistered)
+        {
+            context.RemoveExtension<INavigationProvider>();
+        }
 
         // Dispose the context
         navigationContext?.Dispose();
         navigationContext = null;
 
-        // Dispose provider only if we own it (not custom provided)
-        if (config.Strategy != NavigationStrategy.Custom)
-        {
-            provider?.Dispose();
-        }
-
+        // The provider is always borrowed (a caller-supplied custom provider or one owned
+        // by another plugin), so this plugin never disposes it — the caller or owning
+        // plugin retains that responsibility.
         provider = null;
+        providerExtensionRegistered = false;
 
         // Systems are automatically cleaned up by PluginManager
     }

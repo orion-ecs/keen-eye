@@ -312,7 +312,7 @@ public sealed class MockPluginContext : IPluginContext
     }
 
     /// <inheritdoc />
-    public void SetExtension<T>(T extension) where T : class
+    public void SetExtension<T>(T extension, bool owned = true) where T : class
     {
         ArgumentNullException.ThrowIfNull(extension);
         extensions[typeof(T)] = extension;

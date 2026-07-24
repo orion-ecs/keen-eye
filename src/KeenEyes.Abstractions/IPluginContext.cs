@@ -142,12 +142,19 @@ public interface IPluginContext
     /// </summary>
     /// <typeparam name="T">The extension type.</typeparam>
     /// <param name="extension">The extension instance to store.</param>
+    /// <param name="owned">
+    /// When <c>true</c> (the default) the world takes ownership of the instance and
+    /// disposes it (if it implements <see cref="IDisposable"/>) when it is replaced,
+    /// removed, or the world is disposed. Pass <c>false</c> when registering an instance
+    /// the plugin does not own (for example a caller-supplied or shared object owned by
+    /// another plugin) so it is never disposed by the world on removal.
+    /// </param>
     /// <remarks>
     /// Extensions allow plugins to expose custom APIs to application code.
     /// For example, a physics plugin might expose a <c>PhysicsWorld</c> extension
     /// that provides raycast and collision query methods.
     /// </remarks>
-    void SetExtension<T>(T extension) where T : class;
+    void SetExtension<T>(T extension, bool owned = true) where T : class;
 
     /// <summary>
     /// Removes an extension from the world.
