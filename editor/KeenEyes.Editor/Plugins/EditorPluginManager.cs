@@ -240,7 +240,19 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
         }
 
         var context = new EditorPluginContext(this, plugin);
-        plugin.Initialize(context);
+
+        try
+        {
+            plugin.Initialize(context);
+        }
+        catch
+        {
+            // Initialization failed after the context may have registered event
+            // subscriptions. Dispose them so a dead plugin's handlers never fire (#1177).
+            context.DisposeSubscriptions();
+            throw;
+        }
+
         plugins[plugin.Name] = new EditorPluginEntry(plugin, context);
     }
 
@@ -463,10 +475,12 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
             }
         }
 
+        // Declared outside the try so a failed Initialize can still dispose any
+        // subscriptions the context registered before throwing (#1177).
+        var context = new EditorPluginContext(this, loadedPlugin.Instance);
+
         try
         {
-            var context = new EditorPluginContext(this, loadedPlugin.Instance);
-
             // Wrap in SecurePluginContext if permissions are enabled
             IEditorContext pluginContext = permissionManager != null
                 ? new SecurePluginContext(context, permissionManager, pluginId)
@@ -484,6 +498,7 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
         }
         catch (PermissionDeniedException ex)
         {
+            context.DisposeSubscriptions();
             loadedPlugin.State = PluginState.Failed;
             loadedPlugin.ErrorMessage = $"Permission denied: {ex.RequiredPermission.GetDisplayName()}";
             LogError($"Plugin '{pluginId}' was denied permission: {ex.Message}");
@@ -491,6 +506,7 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
         }
         catch (Exception ex)
         {
+            context.DisposeSubscriptions();
             loadedPlugin.State = PluginState.Failed;
             loadedPlugin.ErrorMessage = $"Enable failed: {ex.Message}";
             LogError($"Failed to enable plugin '{loadedPlugin.Manifest.Id}': {ex.Message}");
@@ -808,9 +824,18 @@ internal sealed class EditorPluginManager : IDisposable, IEditorPluginLogger
     /// </summary>
     internal void RaiseSceneOpened(IWorld world)
     {
+        // Guard each handler so one plugin's fault cannot prevent other plugins'
+        // handlers from running (and cannot escape into the caller) (#1177).
         foreach (var handler in sceneOpenedHandlers)
         {
-            handler(world);
+            try
+            {
+                handler(world);
+            }
+            catch (Exception ex)
+            {
+                LogError($"A scene-opened handler threw an exception: {ex.Message}");
+            }
         }
     }
 

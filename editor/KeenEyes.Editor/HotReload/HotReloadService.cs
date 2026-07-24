@@ -62,6 +62,7 @@ public sealed class HotReloadService : IDisposable
     private PlayModeManager? playModeManager;
     private bool isPlayModeActive;
     private bool pendingReloadAfterPlayMode;
+    private DateTime playModeEnteredUtc;
     private bool disposed;
 
     /// <summary>
@@ -336,9 +337,11 @@ public sealed class HotReloadService : IDisposable
 
         if (isPlayModeActive && !wasPlayMode)
         {
-            // Entering play mode - pause file watching
+            // Entering play mode - pause file watching. Record when we paused so
+            // edits made while the watcher is disabled can be detected on exit.
             manager.StopWatching();
             pendingReloadAfterPlayMode = false;
+            playModeEnteredUtc = DateTime.UtcNow;
             Console.WriteLine("[HotReload] Paused - play mode active");
         }
         else if (!isPlayModeActive && wasPlayMode && EditorSettings.HotReloadAutoReload)
@@ -347,7 +350,16 @@ public sealed class HotReloadService : IDisposable
             manager.StartWatching();
             Console.WriteLine("[HotReload] Resumed - play mode ended");
 
-            // Check if we need to reload after play mode
+            // The file watcher was disabled for the whole play-mode duration, so
+            // its change callback never ran and could not queue a reload. Scan the
+            // project sources for edits made since we entered play mode; without
+            // this the deferred-reload path is unreachable and edits are lost (#1178).
+            if (!pendingReloadAfterPlayMode && HasSourceChangesSince(playModeEnteredUtc))
+            {
+                pendingReloadAfterPlayMode = true;
+            }
+
+            // Reload if changes were queued or detected while in play mode.
             if (pendingReloadAfterPlayMode)
             {
                 pendingReloadAfterPlayMode = false;
@@ -355,6 +367,47 @@ public sealed class HotReloadService : IDisposable
                 _ = ReloadAsync(); // Fire and forget
             }
         }
+    }
+
+    /// <summary>
+    /// Determines whether any source file under the configured game project has
+    /// been modified since the specified UTC timestamp.
+    /// </summary>
+    /// <param name="thresholdUtc">The UTC time to compare file write times against.</param>
+    /// <returns>True if at least one C# source file changed after the threshold.</returns>
+    private static bool HasSourceChangesSince(DateTime thresholdUtc)
+    {
+        var projectPath = EditorSettings.GameProjectPath;
+        if (string.IsNullOrEmpty(projectPath))
+        {
+            return false;
+        }
+
+        var projectDir = Path.GetDirectoryName(Path.GetFullPath(projectPath));
+        if (projectDir == null || !Directory.Exists(projectDir))
+        {
+            return false;
+        }
+
+        var objSegment = $"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}";
+        var binSegment = $"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}";
+
+        foreach (var file in Directory.EnumerateFiles(projectDir, "*.cs", SearchOption.AllDirectories))
+        {
+            // Skip generated/build output, mirroring the watcher's filtering.
+            if (file.Contains(objSegment, StringComparison.Ordinal) ||
+                file.Contains(binSegment, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (File.GetLastWriteTimeUtc(file) > thresholdUtc)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void OnReloadStarted()
