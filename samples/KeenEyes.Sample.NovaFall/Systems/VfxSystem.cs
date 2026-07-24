@@ -77,6 +77,21 @@ public sealed class VfxSystem : SystemBase
             SpawnGrazeSparks(in events);
         }
 
+        if (events.CrackStarted)
+        {
+            SpawnCrackDust(in events);
+        }
+
+        if (events.Crumbled)
+        {
+            SpawnCrumbleBursts(in events);
+        }
+
+        if (events.Bumped)
+        {
+            SpawnBumpRing(in events);
+        }
+
         ref var death = ref World.GetSingleton<DeathSequenceState>();
         if (death.Active && !death.EmberBurstSpawned)
         {
@@ -269,6 +284,81 @@ public sealed class VfxSystem : SystemBase
             HasSizeOverLifetime = true,
             SizeCurve = ParticleCurve.LinearFadeOut(),
         }, rectFragments: false, ttl: 0.7f);
+    }
+
+    /// <summary>
+    /// A pinch of dust puffing off a Brittle floor the instant it starts
+    /// cracking — the visible half of the telegraph (the crackle SFX is the
+    /// audible half).
+    /// </summary>
+    private void SpawnCrackDust(in FrameEvents events)
+    {
+        var palette = World.GetSingleton<Palette>();
+
+        SpawnBurst(events.CrackX, events.CrackY, ParticleEmitter.Burst(10, 0.6f) with
+        {
+            Shape = EmissionShape.Box(60f, 4f),
+            StartSpeedMin = 15f,
+            StartSpeedMax = 60f,
+            StartSizeMin = 2f,
+            StartSizeMax = 4f,
+            BlendMode = BlendMode.Alpha,
+            StartColor = (palette.FloorOutline * 0.8f) with { W = 0.7f },
+        }, new ParticleEmitterModifiers
+        {
+            HasGravity = true,
+            GravityY = 350f,
+            HasSizeOverLifetime = true,
+            SizeCurve = ParticleCurve.LinearFadeOut(),
+        }, rectFragments: false, ttl: 0.7f);
+    }
+
+    /// <summary>
+    /// A crumbling Brittle floor breaks into the same rotated-rect debris a
+    /// Floor Smash produces — one fragment vocabulary for "a floor died",
+    /// however it died.
+    /// </summary>
+    private void SpawnCrumbleBursts(in FrameEvents events)
+    {
+        var palette = World.GetSingleton<Palette>();
+        var gapLeft = events.CrumbleGapCenterX - events.CrumbleGapWidth / 2f;
+        var gapRight = events.CrumbleGapCenterX + events.CrumbleGapWidth / 2f;
+        var slabY = events.CrumbleY + Tuning.FloorThickness / 2f;
+
+        var leftWidth = Math.Max(gapLeft, 0f);
+        var rightWidth = Math.Max(Tuning.ShaftWidth - gapRight, 0f);
+        var totalWidth = Math.Max(leftWidth + rightWidth, 1f);
+
+        SpawnFragmentSlab(leftWidth / 2f, slabY, leftWidth,
+            (int)(Tuning.SmashFragmentCount * (leftWidth / totalWidth)), palette.FloorFill);
+        SpawnFragmentSlab(gapRight + rightWidth / 2f, slabY, rightWidth,
+            (int)(Tuning.SmashFragmentCount * (rightWidth / totalWidth)), palette.FloorFill);
+    }
+
+    /// <summary>
+    /// A small upward spark fan where a Bumper flung the ball — the launch is
+    /// loud enough on its own; this just marks the contact point.
+    /// </summary>
+    private void SpawnBumpRing(in FrameEvents events)
+    {
+        var palette = World.GetSingleton<Palette>();
+
+        SpawnBurst(events.BumpX, events.BumpY, ParticleEmitter.Burst(12, 0.4f) with
+        {
+            Shape = EmissionShape.Cone(10f, 0.9f, -Vector2.UnitY),
+            StartSpeedMin = 120f,
+            StartSpeedMax = 260f,
+            StartSizeMin = 2f,
+            StartSizeMax = 5f,
+            BlendMode = BlendMode.Additive,
+            StartColor = palette.UiAccent,
+        }, new ParticleEmitterModifiers
+        {
+            HasColorOverLifetime = true,
+            ColorGradient = ParticleGradient.FadeOut(palette.UiAccent),
+            HasSizeOverLifetime = true,
+            SizeCurve = ParticleCurve.LinearFadeOut(),
+        }, rectFragments: false, ttl: 0.5f);
     }
 
     private void SpawnDeathEmbers()

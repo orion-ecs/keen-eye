@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The sample IS the system under test: these tests pin down the
+         deterministic core (floor script, heat ladder, mode schedules) that
+         the headless simulation and future replay support depend on. -->
+    <ProjectReference Include="..\..\samples\KeenEyes.Sample.NovaFall\KeenEyes.Sample.NovaFall.csproj" />
+  </ItemGroup>
+
+</Project>

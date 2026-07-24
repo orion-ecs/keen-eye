@@ -15,6 +15,10 @@ material. They are released as **CC0 / public domain**.
 | `smash-crunch.wav` | Floor Smash crunch, pitch/volume scaled by impact speed |
 | `crush-rumble.wav` | Furnace proximity rumble loop |
 | `death-impact.wav` | Crush death impact |
+| `music-lead-surge.wav` | Music stem: driving 16th-note lead (swaps in during a Flashover Surge) |
+| `brittle-crackle.wav` | Brittle floor crack telegraph (starts >= 0.6s before the crumble) |
+| `bumper-boing.wav` | Bumper launch spring |
 
-The three music stems are exactly the same length and tempo (2 bars at 100 BPM)
-so they can be started in sync and cross-faded by heat tier without drifting.
+The four music stems are exactly the same length and tempo (2 bars at 100 BPM,
+trimmed to a 4.75 s seamless loop) so they can be started in sync and
+cross-faded by heat tier — and swapped during a Flashover — without drifting.

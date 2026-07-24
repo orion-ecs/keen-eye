@@ -43,6 +43,7 @@ public sealed class HudSystem(string? fontPath) : SystemBase
 
     private Entity heatBarFill;
     private Entity tierLabel;
+    private Entity savePipLabel;
     private Entity toastLabel;
     private Entity deathCard;
     private Entity deathScoreLabel;
@@ -139,6 +140,12 @@ public sealed class HudSystem(string? fontPath) : SystemBase
         tierLabel = WidgetFactory.CreateLabel(World, canvas, "HeatBar.Tier", "EMBER x1", font, new LabelConfig(
             Width: BarWidth, Height: 20, FontSize: 15));
         PlaceFixed(tierLabel, BarX, BarY + BarHeight + 6, BarWidth, 20, zIndex: 0);
+
+        // The small SAVE pip: visible while the run's one Adrenaline Save is
+        // still unspent, gone the moment it fires.
+        savePipLabel = WidgetFactory.CreateLabel(World, canvas, "HeatBar.SavePip", "SAVE", font, new LabelConfig(
+            Width: 60, Height: 20, FontSize: 13));
+        PlaceFixed(savePipLabel, BarX + BarWidth + 14, BarY - 1, 60, 20, zIndex: 0);
     }
 
     private void UpdateHeatBar(in Palette palette)
@@ -157,6 +164,16 @@ public sealed class HudSystem(string? fontPath) : SystemBase
             CultureInfo.InvariantCulture,
             $"{HeatSystem.NameForTier(heat.Tier)} x{HeatSystem.MultiplierForTier(heat.Tier)}");
         text.Color = palette.UiAccent;
+
+        var settings = World.GetSingleton<RunConfig>().Settings;
+        var showPip = World.GetSingleton<GameState>().Phase == GamePhase.Playing
+            && settings.AdrenalineEnabled
+            && World.GetSingleton<AdrenalineState>().Available;
+        World.Get<UIElement>(savePipLabel).Visible = showPip;
+        if (showPip)
+        {
+            World.Get<UIText>(savePipLabel).Color = palette.UiAccent with { W = 0.85f };
+        }
     }
 
     #endregion
@@ -185,6 +202,21 @@ public sealed class HudSystem(string? fontPath) : SystemBase
             }
 
             lastToastCombo = combo;
+        }
+
+        // Flashover moments outrank the combo ladder for the toast slot.
+        if (juiceEnabled)
+        {
+            ref readonly var events = ref World.GetSingleton<FrameEvents>();
+            if (events.SurgeStarted)
+            {
+                ShowToast("FLASHOVER", in palette);
+            }
+
+            if (events.SurgeSweepAwarded)
+            {
+                ShowToast("+1000 SURGE SWEEP", in palette);
+            }
         }
 
         if (toastSecondsRemaining <= 0f)
@@ -267,7 +299,7 @@ public sealed class HudSystem(string? fontPath) : SystemBase
             new LabelConfig(Width: 380, Height: 26, FontSize: 16, HorizontalAlign: TextAlignH.Center));
         deathDepthLabel = WidgetFactory.CreateLabel(World, deathCard, "DeathCard.Depth", string.Empty, font,
             new LabelConfig(Width: 380, Height: 26, FontSize: 16, HorizontalAlign: TextAlignH.Center));
-        WidgetFactory.CreateLabel(World, deathCard, "DeathCard.Prompt", "press A / D to dive again", font,
+        WidgetFactory.CreateLabel(World, deathCard, "DeathCard.Prompt", "press A / D for the menu", font,
             new LabelConfig(Width: 380, Height: 26, FontSize: 14, HorizontalAlign: TextAlignH.Center,
                 TextColor: new Vector4(0.7f, 0.75f, 0.85f, 1f)));
 

@@ -63,6 +63,7 @@ public sealed class HeatSystem : SystemBase
         }
 
         var dt = deltaTime * World.GetSingleton<TimeScale>().Value;
+        var settings = World.GetSingleton<RunConfig>().Settings;
         ref var heat = ref World.GetSingleton<HeatState>();
         ref var events = ref World.GetSingleton<FrameEvents>();
         ref var combo = ref World.GetSingleton<ComboState>();
@@ -74,6 +75,7 @@ public sealed class HeatSystem : SystemBase
         {
             heat.Heat = Math.Min(heat.Heat + events.GapsPassed * Tuning.HeatPerGap, Tuning.MaxHeat);
             combo.Combo += events.GapsPassed;
+            combo.MaxCombo = Math.Max(combo.MaxCombo, combo.Combo);
         }
 
         // Grazes add a smaller bonus and extend the consecutive-graze chain
@@ -85,16 +87,19 @@ public sealed class HeatSystem : SystemBase
         }
 
         // A Floor Smash spends one full tier: exactly the heat span between the
-        // current tier's entry threshold and the one below it.
+        // current tier's entry threshold and the one below it. Daily Inferno
+        // halves the cost via its mode settings.
         if (events.Smashed)
         {
-            var cost = ThresholdForTier(previousTier) - ThresholdForTier(previousTier - 1);
+            var cost = (ThresholdForTier(previousTier) - ThresholdForTier(previousTier - 1))
+                * settings.SmashCostMultiplier;
             heat.Heat = Math.Max(heat.Heat - cost, 0f);
         }
 
-        // A full-stop landing halves heat — punishing, but never back to zero —
-        // and breaks both the combo and the graze chain.
-        if (events.Landed)
+        // Any full-stop floor touch — a landing or a Bumper launch — halves
+        // heat (punishing, but never back to zero) and breaks both the combo
+        // and the graze chain.
+        if (events.Landed || events.Bumped)
         {
             heat.Heat *= 0.5f;
             combo.Combo = 0;
@@ -112,6 +117,11 @@ public sealed class HeatSystem : SystemBase
         if (resting)
         {
             heat.Heat = Math.Max(heat.Heat - Tuning.HeatDecayPerSecond * dt, 0f);
+        }
+        else if (settings.HeatDecaysMidAir)
+        {
+            // Daily Inferno's pressure: even the air is cold today.
+            heat.Heat = Math.Max(heat.Heat - Tuning.DailyMidAirHeatDecayPerSecond * dt, 0f);
         }
 
         heat.Tier = TierForHeat(heat.Heat);

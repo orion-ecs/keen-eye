@@ -125,6 +125,128 @@ public static class Tuning
     /// <summary>Seconds after death before a restart key press is accepted.</summary>
     public const float RestartCooldown = 0.75f;
 
+    // --- Floor personalities (Phase C gameplay) ---
+
+    /// <summary>First floor index at which Brittle floors may appear.</summary>
+    public const int BrittleMinFloorIndex = 12;
+
+    /// <summary>First floor index at which Bumper floors may appear.</summary>
+    public const int BumperMinFloorIndex = 25;
+
+    /// <summary>First floor index at which Pulse floors may appear.</summary>
+    public const int PulseMinFloorIndex = 40;
+
+    /// <summary>
+    /// Probability of each unlocked personality kind per floor. With all three
+    /// unlocked the combined chance stays at 3 x 0.083 = ~25% — personalities are
+    /// minority spice, so FREEFALL's difficulty curve stays the original's.
+    /// </summary>
+    public const float PersonalityChancePerKind = 0.083f;
+
+    /// <summary>
+    /// TELEGRAPH CONTRACT — seconds between a Brittle floor starting to crack
+    /// (visible crack + crackle SFX) and it crumbling. Every hazard must give at
+    /// least 0.6 s of warning before it can kill; the determinism test project
+    /// asserts this constant never drops below that.
+    /// </summary>
+    public const float BrittleCrumbleDelaySeconds = 0.65f;
+
+    /// <summary>Upward launch speed a Bumper floor imparts, in design units per second.</summary>
+    public const float BumperLaunchSpeed = 620f;
+
+    /// <summary>Seconds the bumper wobble visual rings after a launch.</summary>
+    public const float BumperWobbleSeconds = 0.5f;
+
+    /// <summary>
+    /// Exact loop length of the music stems in seconds (4.8 s generated minus the
+    /// 0.05 s seamless-loop crossfade trim). The Pulse floor beat grid divides this.
+    /// </summary>
+    public const float MusicLoopSeconds = 4.75f;
+
+    /// <summary>Pulse floor cycle length: half a music loop.</summary>
+    public const float PulsePeriodSeconds = MusicLoopSeconds / 2f;
+
+    /// <summary>Seconds a Pulse gap stays fully closed each cycle.</summary>
+    public const float PulseClosedSeconds = 0.6f;
+
+    /// <summary>
+    /// TELEGRAPH CONTRACT — seconds of shrinking-edges animation before a Pulse
+    /// gap closes. Must stay at or above 0.6 s (asserted by the test project).
+    /// </summary>
+    public const float PulseCloseTelegraphSeconds = 0.65f;
+
+    /// <summary>Seconds a Pulse gap takes to snap back open.</summary>
+    public const float PulseReopenSeconds = 0.15f;
+
+    // --- Flashover Surge (Phase C gameplay) ---
+
+    /// <summary>A surge triggers every time this many more floors have been cleared.</summary>
+    public const int SurgePeriodFloors = 40;
+
+    /// <summary>Surge duration in music-clock seconds.</summary>
+    public const float SurgeDurationSeconds = 10f;
+
+    /// <summary>Scroll speed multiplier while a surge is active.</summary>
+    public const float SurgeScrollMultiplier = 1.35f;
+
+    /// <summary>Floor Smashes inside one surge window needed for the Surge Sweep bonus.</summary>
+    public const int SurgeSweepSmashes = 5;
+
+    /// <summary>Score bonus for a Surge Sweep.</summary>
+    public const int SurgeSweepBonus = 1000;
+
+    // --- Adrenaline Save (Phase C gameplay) ---
+
+    /// <summary>Simulation time scale during an Adrenaline Save.</summary>
+    public const float AdrenalineTimeScale = 0.2f;
+
+    /// <summary>
+    /// REAL seconds an Adrenaline Save lasts. Ticked on raw (unscaled) delta time —
+    /// a clock slowed to 20% could never end its own slow-motion — which is still
+    /// deterministic in <c>--simulate</c> because the raw timestep there is fixed.
+    /// </summary>
+    public const float AdrenalineRealSeconds = 1.5f;
+
+    /// <summary>
+    /// The ball survives an Adrenaline Save once it is this far below the Furnace
+    /// ceiling — fully out of the crush zone.
+    /// </summary>
+    public const float AdrenalineEscapeMargin = 90f;
+
+    /// <summary>Music volume multiplier while an Adrenaline Save is active (the muffle).</summary>
+    public const float AdrenalineMusicDuck = 0.3f;
+
+    /// <summary>How far the palette desaturates during an Adrenaline Save (0..1).</summary>
+    public const float AdrenalineDesaturation = 0.75f;
+
+    // --- Daily Inferno (Phase C mode) ---
+
+    /// <summary>Daily Inferno run length in scaled-simulation seconds (3 minutes).</summary>
+    public const float DailyDurationSeconds = 180f;
+
+    /// <summary>Daily Inferno attempts allowed per calendar day.</summary>
+    public const int DailyAttemptsPerDay = 3;
+
+    /// <summary>Bronze / silver / gold depth thresholds for Daily Inferno medals, in meters.</summary>
+    public static readonly float[] DailyMedalDepths = [150f, 275f, 375f];
+
+    /// <summary>Floor spacing in Daily Inferno (denser than FREEFALL's 170).</summary>
+    public const float DailyFloorSpacing = 140f;
+
+    /// <summary>Heat lost per second while airborne in Daily Inferno.</summary>
+    public const float DailyMidAirHeatDecayPerSecond = 4f;
+
+    /// <summary>Floor Smash heat cost multiplier in Daily Inferno (halved).</summary>
+    public const float DailySmashCostMultiplier = 0.5f;
+
+    // --- Ember Garden (Phase C mode) ---
+
+    /// <summary>Fixed gentle scroll speed of Ember Garden, in design units per second.</summary>
+    public const float EmberScrollSpeed = 60f;
+
+    /// <summary>Pad stem volume in Ember Garden's ducked pad-only mix.</summary>
+    public const float EmberPadVolume = 0.55f;
+
     // --- Floor Smash (Phase B gameplay) ---
 
     /// <summary>Minimum heat tier (Plasma) at which a landing becomes a Floor Smash.</summary>
@@ -260,6 +382,27 @@ public static class Tuning
             UiAccent = new Vector4(0.920f, 0.970f, 1.000f, 1f),
         },
     ];
+
+    /// <summary>
+    /// The Flashover Surge palette override: the shaft burning white-hot.
+    /// <see cref="PaletteSystem"/> blends the live palette toward this while a
+    /// surge is active.
+    /// </summary>
+    public static readonly Palette SurgePalette = new()
+    {
+        Background = new Vector4(0.55f, 0.30f, 0.12f, 1f),
+        FloorFill = new Vector4(0.85f, 0.55f, 0.25f, 1f),
+        FloorOutline = new Vector4(1.00f, 0.95f, 0.85f, 1f),
+        Ball = new Vector4(1.00f, 0.98f, 0.92f, 1f),
+        Trail = new Vector4(1.00f, 0.85f, 0.55f, 1f),
+        UiAccent = new Vector4(1.00f, 0.93f, 0.80f, 1f),
+    };
+
+    /// <summary>Fraction of the surge palette mixed in at full surge blend.</summary>
+    public const float SurgePaletteStrength = 0.6f;
+
+    /// <summary>Surge palette blend-in/out rate per second.</summary>
+    public const float SurgeBlendPerSecond = 2.5f;
 
     // --- Particles (Phase B juice) ---
 

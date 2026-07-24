@@ -58,6 +58,25 @@ public partial struct SteerInput
 }
 
 /// <summary>
+/// The personality of a floor. Standard floors are plain slabs; the other kinds
+/// phase in by depth (see <see cref="FloorLayout.KindForFloor"/>) as minority spice.
+/// </summary>
+public enum FloorKind
+{
+    /// <summary>A plain slab with a gap.</summary>
+    Standard,
+
+    /// <summary>Cracks when landed on, then crumbles into fragments after a telegraphed delay.</summary>
+    Brittle,
+
+    /// <summary>Launches the ball back upward with an elastic impulse instead of catching it.</summary>
+    Bumper,
+
+    /// <summary>Its gap phases open and closed on the music beat, telegraphing each close.</summary>
+    Pulse,
+}
+
+/// <summary>
 /// A horizontal floor spanning the shaft, with a single gap the ball can fall through.
 /// </summary>
 [Component]
@@ -80,6 +99,18 @@ public partial struct Floor
     /// from stoking heat more than once.
     /// </summary>
     public bool Cleared;
+
+    /// <summary>The floor's personality.</summary>
+    public FloorKind Kind;
+
+    /// <summary>True once a Brittle floor has been landed on and started cracking.</summary>
+    public bool Cracking;
+
+    /// <summary>Scaled seconds since a Brittle floor started cracking.</summary>
+    public float CrackSeconds;
+
+    /// <summary>Seconds of bounce-ease wobble left on a Bumper floor after a launch.</summary>
+    public float WobbleSeconds;
 }
 
 /// <summary>
@@ -99,6 +130,11 @@ public partial struct RestingOn
 /// <summary>
 /// Immutable-per-run configuration for the current run.
 /// </summary>
+/// <remarks>
+/// Modes are configuration, not code paths: FREEFALL, DAILY INFERNO, and EMBER
+/// GARDEN all run the exact same systems, differing only in the knobs captured
+/// in <see cref="Settings"/> when the run starts.
+/// </remarks>
 public struct RunConfig
 {
     /// <summary>Seed driving all floor generation for this run.</summary>
@@ -109,6 +145,12 @@ public struct RunConfig
     /// Useful for practicing a specific layout and for deterministic testing.
     /// </summary>
     public bool PinSeed;
+
+    /// <summary>The mode this run belongs to.</summary>
+    public GameMode Mode;
+
+    /// <summary>The mode's knob values, captured from <see cref="ModeSettings.For"/>.</summary>
+    public ModeSettings Settings;
 }
 
 /// <summary>
@@ -244,6 +286,54 @@ public struct FrameEvents
 
     /// <summary>Tier after the change (valid when <see cref="TierChanged"/>).</summary>
     public int TierTo;
+
+    /// <summary>True if a Brittle floor started cracking this frame (the telegraph).</summary>
+    public bool CrackStarted;
+
+    /// <summary>Ball X at the moment the crack started.</summary>
+    public float CrackX;
+
+    /// <summary>Top Y of the cracking floor.</summary>
+    public float CrackY;
+
+    /// <summary>True if a Brittle floor crumbled this frame.</summary>
+    public bool Crumbled;
+
+    /// <summary>Top Y of the crumbled floor.</summary>
+    public float CrumbleY;
+
+    /// <summary>Gap center X of the crumbled floor, for fragment placement.</summary>
+    public float CrumbleGapCenterX;
+
+    /// <summary>Gap width of the crumbled floor, for fragment placement.</summary>
+    public float CrumbleGapWidth;
+
+    /// <summary>True if a Bumper floor launched the ball this frame.</summary>
+    public bool Bumped;
+
+    /// <summary>Ball X at the moment of the bumper launch.</summary>
+    public float BumpX;
+
+    /// <summary>Top Y of the launching Bumper floor.</summary>
+    public float BumpY;
+
+    /// <summary>Fall speed at the moment of the bumper launch, for boing pitch.</summary>
+    public float BumpImpactSpeed;
+
+    /// <summary>True if a Flashover Surge began this frame.</summary>
+    public bool SurgeStarted;
+
+    /// <summary>True if the active Flashover Surge ended this frame.</summary>
+    public bool SurgeEnded;
+
+    /// <summary>True if the Surge Sweep bonus was earned this frame.</summary>
+    public bool SurgeSweepAwarded;
+
+    /// <summary>True if the Adrenaline Save triggered this frame.</summary>
+    public bool AdrenalineTriggered;
+
+    /// <summary>True if the ball escaped the crush zone and survived its Adrenaline Save.</summary>
+    public bool AdrenalineSurvived;
 }
 
 /// <summary>
@@ -267,6 +357,9 @@ public struct ComboState
 
     /// <summary>Consecutive grazes since the last landing.</summary>
     public int ConsecutiveGrazes;
+
+    /// <summary>Highest combo reached this run, for cosmetic unlock milestones.</summary>
+    public int MaxCombo;
 }
 
 /// <summary>
@@ -280,6 +373,18 @@ public struct RunEventCounters
 
     /// <summary>Total grazes this run.</summary>
     public int Grazes;
+
+    /// <summary>Total Brittle floor crumbles this run.</summary>
+    public int Crumbles;
+
+    /// <summary>Total Bumper launches this run.</summary>
+    public int Bumps;
+
+    /// <summary>Flashover Surge windows entered this run.</summary>
+    public int SurgeWindows;
+
+    /// <summary>Adrenaline Saves used this run (0 or 1).</summary>
+    public int AdrenalineSavesUsed;
 }
 
 /// <summary>

@@ -3,19 +3,22 @@ using KeenEyes.Audio.Abstractions;
 namespace KeenEyes.Sample.NovaFall;
 
 /// <summary>
-/// Owns every sound in the game: three synced music stems cross-faded by heat
-/// tier, a fall-speed-pitched wind loop, a crush-proximity rumble, event
-/// one-shots (graze ting, tier-up swell, smash crunch, death impact), and the
-/// 400 ms of true silence in the death beat.
+/// Owns every sound in the game: four synced music stems cross-faded by heat
+/// tier and the Flashover Surge, a fall-speed-pitched wind loop, a
+/// crush-proximity rumble, event one-shots (graze ting, tier-up swell, smash
+/// crunch, brittle crackle, bumper boing, death impact), the Adrenaline Save's
+/// muffled duck, and the 400 ms of true silence in the death beat.
 /// </summary>
 /// <remarks>
 /// <para>
-/// STEM MIXING — the three loops (<c>music-pad</c>, <c>music-pulse</c>,
-/// <c>music-lead</c>) are exactly the same length and tempo and are started on
-/// the Music channel in the same frame, so they stay sample-locked forever.
-/// Intensity comes from mixing, not switching: the pad always plays, the pulse
-/// fades in at Flame, the lead at Plasma — so a tier change is a cross-fade,
-/// never a restart.
+/// STEM MIXING — the four loops (<c>music-pad</c>, <c>music-pulse</c>,
+/// <c>music-lead</c>, <c>music-lead-surge</c>) are exactly the same length and
+/// tempo and are started on the Music channel in the same frame, so they stay
+/// sample-locked forever. Intensity comes from mixing, not switching: the pad
+/// always plays, the pulse fades in at Flame, the lead at Plasma — and a
+/// Flashover Surge cross-fades the ordinary lead OUT and its surge variant IN,
+/// so even the event swap is a mix move, never a restart. Ember Garden's
+/// <see cref="StemMix.PadOnly"/> setting mutes everything but a ducked pad.
 /// </para>
 /// <para>
 /// PITCH AS PARAMETER — with WAV-only audio, per-sound pitch is the expressive
@@ -34,22 +37,27 @@ public sealed class NovaFallAudioSystem : SystemBase
     private AudioClipHandle padClip;
     private AudioClipHandle pulseClip;
     private AudioClipHandle leadClip;
+    private AudioClipHandle surgeLeadClip;
     private AudioClipHandle windClip;
     private AudioClipHandle rumbleClip;
     private AudioClipHandle tingClip;
     private AudioClipHandle swellClip;
     private AudioClipHandle crunchClip;
+    private AudioClipHandle crackleClip;
+    private AudioClipHandle boingClip;
     private AudioClipHandle impactClip;
 
     private SoundHandle padSound;
     private SoundHandle pulseSound;
     private SoundHandle leadSound;
+    private SoundHandle surgeLeadSound;
     private SoundHandle windSound;
     private SoundHandle rumbleSound;
 
     private float padVolume;
     private float pulseVolume;
     private float leadVolume;
+    private float surgeLeadVolume;
 
     private bool loadAttempted;
     private bool loaded;
@@ -113,11 +121,14 @@ public sealed class NovaFallAudioSystem : SystemBase
             padClip = LoadClip("music-pad.wav");
             pulseClip = LoadClip("music-pulse.wav");
             leadClip = LoadClip("music-lead.wav");
+            surgeLeadClip = LoadClip("music-lead-surge.wav");
             windClip = LoadClip("wind-loop.wav");
             rumbleClip = LoadClip("crush-rumble.wav");
             tingClip = LoadClip("graze-ting.wav");
             swellClip = LoadClip("tier-up-swell.wav");
             crunchClip = LoadClip("smash-crunch.wav");
+            crackleClip = LoadClip("brittle-crackle.wav");
+            boingClip = LoadClip("bumper-boing.wav");
             impactClip = LoadClip("death-impact.wav");
             loaded = true;
         }
@@ -142,6 +153,7 @@ public sealed class NovaFallAudioSystem : SystemBase
         padSound = audio!.Play(padClip, music with { Volume = 0.75f });
         pulseSound = audio.Play(pulseClip, music with { Volume = 0f });
         leadSound = audio.Play(leadClip, music with { Volume = 0f });
+        surgeLeadSound = audio.Play(surgeLeadClip, music with { Volume = 0f });
 
         var ambient = PlaybackOptions.Default with { Loop = true, Channel = AudioChannel.Ambient, Volume = 0f };
         windSound = audio.Play(windClip, ambient);
@@ -150,26 +162,54 @@ public sealed class NovaFallAudioSystem : SystemBase
         padVolume = 0.75f;
         pulseVolume = 0f;
         leadVolume = 0f;
+        surgeLeadVolume = 0f;
         loopsActive = true;
     }
 
     private void UpdateStemMix(float deltaTime, bool juiceEnabled)
     {
         var tier = World.GetSingleton<HeatState>().Tier;
+        var mix = World.GetSingleton<RunConfig>().Settings.Music;
+        var surging = World.GetSingleton<SurgeState>().Active;
 
-        // Pad always (swelling slightly with tier); pulse from Flame; lead from
-        // Plasma; Nova pushes everything up.
-        var padTarget = 0.75f + 0.10f * tier / 3f;
-        var pulseTarget = juiceEnabled && tier >= 1 ? (tier >= 3 ? 0.70f : 0.55f) : 0f;
-        var leadTarget = juiceEnabled && tier >= 2 ? (tier >= 3 ? 0.65f : 0.50f) : 0f;
+        float padTarget;
+        float pulseTarget;
+        float leadTarget;
+        float surgeLeadTarget;
+
+        if (mix == StemMix.PadOnly)
+        {
+            // Ember Garden: a ducked pad and nothing else. The other stems keep
+            // looping silently, so switching modes never breaks the sample lock.
+            padTarget = Tuning.EmberPadVolume;
+            pulseTarget = 0f;
+            leadTarget = 0f;
+            surgeLeadTarget = 0f;
+        }
+        else
+        {
+            // Pad always (swelling slightly with tier); pulse from Flame; lead
+            // from Plasma; Nova pushes everything up. A Flashover Surge swaps
+            // the lead for its surge variant — as a cross-fade, never a restart.
+            padTarget = 0.75f + 0.10f * tier / 3f;
+            pulseTarget = juiceEnabled && tier >= 1 ? (tier >= 3 ? 0.70f : 0.55f) : 0f;
+            leadTarget = juiceEnabled && tier >= 2 && !surging ? (tier >= 3 ? 0.65f : 0.50f) : 0f;
+            surgeLeadTarget = juiceEnabled && surging ? 0.70f : 0f;
+        }
 
         padVolume = MoveTowards(padVolume, padTarget, Tuning.StemFadePerSecond * deltaTime);
         pulseVolume = MoveTowards(pulseVolume, pulseTarget, Tuning.StemFadePerSecond * deltaTime);
         leadVolume = MoveTowards(leadVolume, leadTarget, Tuning.StemFadePerSecond * deltaTime);
+        surgeLeadVolume = MoveTowards(surgeLeadVolume, surgeLeadTarget, Tuning.StemFadePerSecond * deltaTime);
 
-        audio!.SetVolume(padSound, padVolume);
-        audio.SetVolume(pulseSound, pulseVolume);
-        audio.SetVolume(leadSound, leadVolume);
+        // The Adrenaline Save muffles the music channel — the world holds its
+        // breath — while the ambient danger cues (wind, rumble) stay honest.
+        var duck = World.GetSingleton<AdrenalineState>().Active ? Tuning.AdrenalineMusicDuck : 1f;
+
+        audio!.SetVolume(padSound, padVolume * duck);
+        audio.SetVolume(pulseSound, pulseVolume * duck);
+        audio.SetVolume(leadSound, leadVolume * duck);
+        audio.SetVolume(surgeLeadSound, surgeLeadVolume * duck);
     }
 
     private void UpdateWindAndRumble(bool juiceEnabled)
@@ -232,6 +272,30 @@ public sealed class NovaFallAudioSystem : SystemBase
             {
                 Volume = 0.55f + 0.45f * impact,
                 Pitch = 0.85f + 0.4f * impact,
+            });
+        }
+
+        if (events.CrackStarted)
+        {
+            // The audible half of the Brittle telegraph: this starts a full
+            // crumble delay (>= 0.6 s) before the floor lets go.
+            audio!.Play(crackleClip, PlaybackOptions.Default with { Volume = 0.8f });
+        }
+
+        if (events.Crumbled)
+        {
+            // The crumble reuses the smash crunch, smaller and drier — same
+            // vocabulary, lower stakes.
+            audio!.Play(crunchClip, PlaybackOptions.Default with { Volume = 0.4f, Pitch = 1.2f });
+        }
+
+        if (events.Bumped)
+        {
+            var impact = Math.Clamp(events.BumpImpactSpeed / Tuning.MaxFallSpeed, 0f, 1f);
+            audio!.Play(boingClip, PlaybackOptions.Default with
+            {
+                Volume = 0.6f + 0.3f * impact,
+                Pitch = 0.9f + 0.25f * impact,
             });
         }
     }

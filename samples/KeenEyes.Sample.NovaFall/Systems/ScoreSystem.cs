@@ -24,21 +24,30 @@ public sealed class ScoreSystem : SystemBase
         ref var score = ref World.GetSingleton<ScoreState>();
         var depth = World.GetSingleton<ScrollState>().Depth;
         var tier = World.GetSingleton<HeatState>().Tier;
+        var settings = World.GetSingleton<RunConfig>().Settings;
         ref readonly var events = ref World.GetSingleton<FrameEvents>();
+
+        // In Ember Garden heat drives visuals only — the multiplier stays x1.
+        var multiplier = settings.HeatAffectsScore ? HeatSystem.MultiplierForTier(tier) : 1;
 
         var metersThisFrame = depth - score.LastDepth;
         if (metersThisFrame > 0f)
         {
-            score.Score += metersThisFrame * HeatSystem.MultiplierForTier(tier);
+            score.Score += metersThisFrame * multiplier;
         }
 
         score.LastDepth = depth;
 
-        // Flat event bonuses: near-misses and Floor Smashes.
+        // Flat event bonuses: near-misses, Floor Smashes, and the Surge Sweep.
         score.Score += events.Grazes * Tuning.GrazeScoreBonus;
         if (events.Smashed)
         {
             score.Score += Tuning.SmashScoreBonus;
+        }
+
+        if (events.SurgeSweepAwarded)
+        {
+            score.Score += Tuning.SurgeSweepBonus;
         }
     }
 }
