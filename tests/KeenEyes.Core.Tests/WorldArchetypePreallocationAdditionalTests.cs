@@ -27,7 +27,7 @@ public sealed class WorldArchetypePreallocationAdditionalTests
 
     private readonly struct TestBundle : IBundle
     {
-        public static Type[] ComponentTypes => [typeof(Component1), typeof(Component2)];
+        public static IReadOnlyList<Type> ComponentTypes => [typeof(Component1), typeof(Component2)];
 
         public Component1 Component1 { get; init; }
         public Component2 Component2 { get; init; }
@@ -35,7 +35,7 @@ public sealed class WorldArchetypePreallocationAdditionalTests
 
     private readonly struct EmptyBundle : IBundle
     {
-        public static Type[] ComponentTypes => [];
+        public static IReadOnlyList<Type> ComponentTypes => [];
     }
 
     private static void RegisterComponents(World world)

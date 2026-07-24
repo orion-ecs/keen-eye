@@ -189,19 +189,24 @@ public sealed class WorldConfigGenerator : IIncrementalGenerator
 
     private static string? FindSimilarType(Compilation compilation, string typeName)
     {
-        var allTypes = compilation.GetSymbolsWithName(
-            name => true,
-            SymbolFilter.Type)
+        var loweredTypeName = typeName.ToLowerInvariant();
+
+        // Push the name-similarity test into the GetSymbolsWithName predicate so Roslyn only
+        // binds the (typically few) symbols whose name is a plausible typo match, instead of
+        // resolving every type symbol in the compilation just to filter afterwards.
+        return compilation.GetSymbolsWithName(IsSimilarName, SymbolFilter.Type)
             .OfType<INamedTypeSymbol>()
             .Where(t => t.TypeKind == TypeKind.Struct)
             .Select(t => t.Name)
-            .ToList();
+            .FirstOrDefault();
 
-        var loweredTypeName = typeName.ToLowerInvariant();
-        return allTypes
-            .FirstOrDefault(t => t.ToLowerInvariant().Contains(loweredTypeName) ||
-                       loweredTypeName.Contains(t.ToLowerInvariant()) ||
-                       LevenshteinDistance(t.ToLowerInvariant(), loweredTypeName) <= 2);
+        bool IsSimilarName(string name)
+        {
+            var lowered = name.ToLowerInvariant();
+            return lowered.Contains(loweredTypeName) ||
+                   loweredTypeName.Contains(lowered) ||
+                   LevenshteinDistance(lowered, loweredTypeName) <= 2;
+        }
     }
 
     private static int LevenshteinDistance(string s1, string s2)

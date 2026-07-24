@@ -59,6 +59,75 @@ public class BundleGeneratorTests
     }
 
     [Fact]
+    public void BundleGenerator_ComponentTypes_IsReadOnlyAndNotMutableArray()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Bundle]
+            public partial struct SimpleBundle
+            {
+                public Position Position;
+            }
+            """;
+
+        var (diagnostics, generatedTrees) = RunGenerator(source);
+
+        Assert.DoesNotContain(diagnostics, d => d.Severity == DiagnosticSeverity.Error);
+
+        // #1234: ComponentTypes must be exposed as a read-only list, never a mutable Type[]
+        // (which callers could mutate to corrupt the shared static backing store).
+        Assert.Contains(generatedTrees, t =>
+            t.Contains("global::System.Collections.Generic.IReadOnlyList<global::System.Type> ComponentTypes"));
+
+        // Regression guard: the old contract returned a mutable array.
+        Assert.DoesNotContain(generatedTrees, t => t.Contains("global::System.Type[] ComponentTypes"));
+
+        // The backing array must be wrapped so it cannot be cast back to Type[] and mutated.
+        Assert.Contains(generatedTrees, t => t.Contains("ReadOnlyCollection<global::System.Type>"));
+    }
+
+    [Fact]
+    public void BundleGenerator_OnNonPartialStruct_ProducesMustBePartialDiagnostic()
+    {
+        var source = """
+            using KeenEyes;
+
+            namespace TestApp;
+
+            [Component]
+            public partial struct Position
+            {
+                public float X;
+                public float Y;
+            }
+
+            [Bundle]
+            public struct NotPartialBundle
+            {
+                public Position Position;
+            }
+            """;
+
+        var (diagnostics, _) = RunGenerator(source);
+
+        // #1239(a): a non-partial [Bundle] must get a targeted KEEN033 diagnostic rather than
+        // a raw CS0260 pointing at generated code.
+        Assert.Contains(diagnostics, d =>
+            d.Id == "KEEN033" &&
+            d.Severity == DiagnosticSeverity.Error);
+    }
+
+    [Fact]
     public void BundleGenerator_ImplementsIBundle()
     {
         var source = """

@@ -32,6 +32,18 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
         defaultSeverity: DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
 
+    /// <summary>
+    /// Diagnostic reported when a replicated enum field is backed by a 64-bit
+    /// underlying type whose values cannot round-trip through the 32-bit bit-packing channel.
+    /// </summary>
+    private static readonly DiagnosticDescriptor EnumValueExceedsPackedWidth = new(
+        id: "KEEN101",
+        title: "Enum value exceeds bit-packed width",
+        messageFormat: "Enum field '{0}' has an underlying type '{1}' with a value that does not fit in the {2}-bit replication channel. Values above the channel width are truncated. Use a 32-bit-or-smaller underlying type or a custom serializer.",
+        category: "KeenEyes.Network",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -69,6 +81,20 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
                         component.Location,
                         component.Name,
                         component.Fields.Length));
+                }
+
+                // Warn about enum fields whose values cannot fit the bit-packed channel.
+                foreach (var field in component.Fields)
+                {
+                    if (field is { SerializationType: FieldSerializationType.Enum, EnumOverflow: true })
+                    {
+                        ctx.ReportDiagnostic(Diagnostic.Create(
+                            EnumValueExceedsPackedWidth,
+                            field.Location,
+                            field.Name,
+                            field.TypeName,
+                            field.EnumBits));
+                    }
                 }
 
                 var partialSource = GenerateNetworkSerializable(component);
@@ -161,12 +187,26 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
                 // If types don't match, quantized remains null (skip quantization)
             }
 
+            var serializationType = GetFieldSerializationType(field.Type);
+
+            // For enums, compute the bit width from the underlying type rather than
+            // assuming 8 bits (which silently truncates values >= 256).
+            var enumBits = 0;
+            var enumOverflow = false;
+            if (serializationType == FieldSerializationType.Enum)
+            {
+                (enumBits, enumOverflow) = ComputeEnumBitWidth(field.Type);
+            }
+
             fields.Add(new ReplicatedFieldInfo(
                 field.Name,
                 field.Type.ToDisplayString(),
-                GetFieldSerializationType(field.Type),
+                serializationType,
                 quantized,
-                IsInterpolatable(field.Type)));
+                IsInterpolatable(field.Type),
+                enumBits,
+                enumOverflow,
+                field.Locations.FirstOrDefault()));
         }
 
         return new ReplicatedComponentInfo(
@@ -221,6 +261,70 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
             "System.Numerics.Vector4" => FieldSerializationType.Vector4,
             "System.Numerics.Quaternion" => FieldSerializationType.Quaternion,
             _ => FieldSerializationType.Unsupported
+        };
+    }
+
+    /// <summary>
+    /// Determines the number of bits required to bit-pack an enum field based on its
+    /// underlying type, and whether any declared value overflows the 32-bit channel.
+    /// </summary>
+    private static (int Bits, bool Overflow) ComputeEnumBitWidth(ITypeSymbol type)
+    {
+        // The bit-packing channel (BitWriter.WriteBits / BitReader.ReadBits) supports 1-32 bits.
+        const int channelMax = 32;
+
+        var underlying = type is INamedTypeSymbol { EnumUnderlyingType: { } underlyingType }
+            ? underlyingType.SpecialType
+            : SpecialType.System_Int32;
+
+        var underlyingBits = underlying switch
+        {
+            SpecialType.System_Byte or SpecialType.System_SByte => 8,
+            SpecialType.System_Int16 or SpecialType.System_UInt16 => 16,
+            SpecialType.System_Int32 or SpecialType.System_UInt32 => 32,
+            SpecialType.System_Int64 or SpecialType.System_UInt64 => 64,
+            _ => 32
+        };
+
+        var bits = underlyingBits < channelMax ? underlyingBits : channelMax;
+
+        // Only 64-bit-backed enums can hold values that do not fit the 32-bit channel.
+        var overflow = false;
+        if (underlyingBits > channelMax && type is INamedTypeSymbol enumType)
+        {
+            foreach (var member in enumType.GetMembers())
+            {
+                if (member is IFieldSymbol { IsConst: true, HasConstantValue: true } constField &&
+                    constField.ConstantValue is not null &&
+                    !FitsInBits(constField.ConstantValue, bits))
+                {
+                    overflow = true;
+                    break;
+                }
+            }
+        }
+
+        return (bits, overflow);
+    }
+
+    /// <summary>
+    /// Determines whether an enum constant value round-trips through an unsigned channel of the given bit width.
+    /// </summary>
+    private static bool FitsInBits(object constantValue, int bits)
+    {
+        var max = bits >= 64 ? ulong.MaxValue : (1UL << bits) - 1UL;
+
+        return constantValue switch
+        {
+            ulong u => u <= max,
+            long l => l >= 0 && (ulong)l <= max,
+            uint ui => ui <= max,
+            int i => i >= 0 && (ulong)i <= max,
+            ushort us => us <= max,
+            short s => s >= 0 && (ulong)s <= max,
+            byte b => b <= max,
+            sbyte sb => sb >= 0 && (ulong)sb <= max,
+            _ => false
         };
     }
 
@@ -369,8 +473,8 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
                     sb.AppendLine($"        writer.WriteFloat((float){field.Name});");
                     break;
                 case FieldSerializationType.Enum:
-                    // Assume 8-bit enum
-                    sb.AppendLine($"        writer.WriteBits((uint){field.Name}, 8);");
+                    // Bit width is derived from the enum's underlying type (capped at the 32-bit channel).
+                    sb.AppendLine($"        writer.WriteBits(unchecked((uint){field.Name}), {field.EnumBits});");
                     break;
                 case FieldSerializationType.Vector2:
                     sb.AppendLine($"        writer.WriteFloat({field.Name}.X);");
@@ -444,7 +548,7 @@ public sealed class ReplicatedGenerator : IIncrementalGenerator
                     sb.AppendLine($"        {field.Name} = reader.ReadFloat();");
                     break;
                 case FieldSerializationType.Enum:
-                    sb.AppendLine($"        {field.Name} = ({field.TypeName})reader.ReadBits(8);");
+                    sb.AppendLine($"        {field.Name} = ({field.TypeName})reader.ReadBits({field.EnumBits});");
                     break;
                 case FieldSerializationType.Vector2:
                     sb.AppendLine($"        {field.Name} = new System.Numerics.Vector2(reader.ReadFloat(), reader.ReadFloat());");
@@ -850,7 +954,10 @@ internal sealed record ReplicatedFieldInfo(
     string TypeName,
     FieldSerializationType SerializationType,
     QuantizedInfo? Quantized,
-    bool IsInterpolatable);
+    bool IsInterpolatable,
+    int EnumBits,
+    bool EnumOverflow,
+    Location? Location);
 
 internal sealed record QuantizedInfo(float Min, float Max, float Resolution);
 
