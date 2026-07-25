@@ -637,6 +637,35 @@ world.Spawn()
     .Build();
 ```
 
+### Blend Modes
+
+The 2D batch renderer (`I2DRenderer` in `KeenEyes.Graphics.Abstractions`) exposes a blend mode that applies to subsequent draw calls:
+
+```csharp
+renderer.Begin();
+renderer.FillRect(0, 0, 100, 100, backgroundColor);   // Alpha (default)
+
+renderer.SetBlendMode(BlendMode.Additive);            // Flushes the queued alpha draws
+renderer.FillCircle(50, 50, 20, glowColor);           // Drawn additively
+
+renderer.End();
+```
+
+The contract:
+
+- `SetBlendMode(mode)` - setting a mode different from `CurrentBlendMode` flushes the current batch so already-queued geometry is drawn with the previous mode; draws issued afterwards use the new mode. Setting the same mode is a no-op.
+- `CurrentBlendMode` - the mode applied to subsequent draw calls.
+- `Begin()` resets the blend mode to `BlendMode.Alpha`.
+
+| `BlendMode` | Source Factor | Destination Factor | Typical Use |
+|-------------|---------------|--------------------|-------------|
+| `Alpha` | `SrcAlpha` | `OneMinusSrcAlpha` | Standard alpha blending (default) |
+| `Additive` | `SrcAlpha` | `One` | Glow, fire, light effects |
+| `Multiply` | `DstColor` | `OneMinusSrcAlpha` | Darkening, shadows, tinting |
+| `Premultiplied` | `One` | `OneMinusSrcAlpha` | Textures with premultiplied alpha |
+
+`BlendModeExtensions.ToBlendFactors()` converts a `BlendMode` to its `(BlendFactor Src, BlendFactor Dst)` pair for custom renderer implementations. The particle system's `ParticleRenderSystem` is the canonical consumer: it groups emitters by blend mode and issues one batch per mode (see [Particles](particles.md)).
+
 ### Sprite Animation
 
 Animate sprites by updating texture source rectangles or swapping textures:

@@ -43,8 +43,8 @@ It also exposes a `ParticleManager` as a world extension, retrievable with `worl
 ```csharp
 using System.Numerics;
 using KeenEyes.Common;
+using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Particles.Components;
-using KeenEyes.Particles.Data;
 
 var fire = world.Spawn()
     .With(new Transform2D(new Vector2(400, 300), 0, Vector2.One))
@@ -71,7 +71,7 @@ Adding a `ParticleEmitter` component fires `World.OnComponentAdded<ParticleEmitt
 - **Spawn ranges** - `LifetimeMin`/`LifetimeMax`, `StartSizeMin`/`StartSizeMax`, `StartSpeedMin`/`StartSpeedMax`, `StartRotationMin`/`StartRotationMax` are all sampled uniformly at random per particle.
 - **Shape** - `Shape` (an `EmissionShape`) controls where particles spawn and their initial direction.
 - **Space** - `Space` (a `ParticleSpace`) selects world- or local-space simulation (see [Simulation Space](#simulation-space-world-vs-local) below); defaults to `ParticleSpace.World`.
-- **Visuals** - `Texture` (a `TextureHandle`; particles render as filled circles when it's not valid), `StartColor`, `BlendMode`, and `TextureSheetColumns`/`TextureSheetRows` for sprite-sheet animation (see [Texture Sheet Animation](#texture-sheet-animation) below).
+- **Visuals** - `Texture` (a `TextureHandle`; particles render as filled circles when it's not valid), `StartColor`, `BlendMode` (the renderer's `BlendMode` enum from `KeenEyes.Graphics.Abstractions` - see [Graphics Guide](graphics.md#blend-modes)), and `TextureSheetColumns`/`TextureSheetRows` for sprite-sheet animation (see [Texture Sheet Animation](#texture-sheet-animation) below).
 - **Playback** - `IsPlaying` toggles emission on and off without removing the component.
 
 `ParticleEmitter.Default` provides sensible starting values, and `ParticleEmitter.Burst(count, lifetime)` / `ParticleEmitter.Continuous(rate, lifetime)` are convenience factories for the two emission modes.
@@ -178,7 +178,7 @@ int totalActive = particles.TotalActiveParticles;
 
 - Particles live in `ParticlePool`'s parallel arrays (`PositionsX`/`PositionsY`, `VelocitiesX`/`VelocitiesY`, `ColorsR/G/B/A`, `Sizes`, `Rotations`, `Ages`, `Lifetimes`, etc.), not as ECS entities, so spawning and updating thousands of particles avoids archetype moves and per-particle component lookups entirely.
 - Allocation and release use an O(1) free list (`ParticlePool.Allocate`/`Release`); pools grow by doubling capacity on demand rather than reallocating per particle.
-- `ParticleRenderSystem` groups active emitters by `BlendMode` before rendering, issuing one `I2DRenderer.Begin()`/`End()` batch per blend mode (rendered in multiply → transparent → premultiplied → additive order) instead of one draw call per particle.
+- `ParticleRenderSystem` groups active emitters by `BlendMode` before rendering, issuing one `I2DRenderer.Begin()`/`End()` batch per blend mode (rendered in multiply → alpha → premultiplied → additive order) instead of one draw call per particle.
 - `ParticleCurve` and `ParticleGradient` pre-sample 64 points at construction, so evaluating them during `ParticleUpdateSystem` is a constant-time lookup and lerp with no per-frame allocation.
 
 ## Next Steps

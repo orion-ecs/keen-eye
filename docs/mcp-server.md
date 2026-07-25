@@ -579,22 +579,33 @@ To enable TestBridge in your KeenEyes game, add the TestBridge plugin:
 
 ```csharp
 using KeenEyes.TestBridge;
+using KeenEyes.TestBridge.Ipc;
 
 // In your game initialization
 var world = new World();
 world.InstallPlugin(new TestBridgePlugin(new TestBridgeOptions
 {
-    PipeName = "KeenEyes.TestBridge",
-    EnableCapture = true,
-    EnableInput = true
+    EnableIpc = true,
+    EnableCapture = true
 }));
+
+// Start the IPC server the MCP server connects to
+var bridgeServer = new IpcBridgeServer(
+    world.GetExtension<ITestBridge>(),
+    new IpcOptions { PipeName = "MyGame.TestBridge" });
+await bridgeServer.StartAsync();
 ```
 
 See [TestBridge Architecture Guide](testbridge.md) for detailed setup instructions.
 
+For a .NET process that wants to drive a running game directly (without going through MCP),
+use `TestBridgeClient` from the `KeenEyes.TestBridge.Client` package - see
+[Connecting from an External .NET Process](testbridge.md#connecting-from-an-external-net-process).
+
 ## Related Documentation
 
 - [TestBridge Architecture Guide](testbridge.md) - Complete architecture, IPC protocol, command reference
+- [C# Remote Client](testbridge.md#connecting-from-an-external-net-process) - `TestBridgeClient`, the reference IPC client for external tools and IDE plugins
 - [Testing Guide](testing.md) - Unit testing with mocks
 - [ECS Fundamentals](getting-started.md) - Understanding entities and components
 - [Plugin Development](plugins.md) - Creating custom game plugins

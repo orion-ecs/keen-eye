@@ -12,7 +12,7 @@
     },
     "name": {
       "type": "string",
-      "description": "Scene name used for generated method naming (e.g., LoadMain)",
+      "description": "Scene name used for generated method naming (e.g., SpawnMain)",
       "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
     },
     "version": {

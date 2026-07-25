@@ -110,7 +110,9 @@ The SDK exposes version information for tooling:
 During build, the SDK generates:
 
 - `obj/keeneyes.version.json` - Version compatibility info
-- `bin/keeneyes.project.json` - Project metadata for editor
+- `bin/keeneyes.project.json` - Project metadata for external tooling
+
+Nothing consumes `keeneyes.project.json` yet; the planned consumers (editor project detection, VS Code extension project discovery) are tracked in [issue #386](https://github.com/orion-ecs/keen-eye/issues/386).
 
 ## SDK Flavors
 

@@ -445,7 +445,7 @@ World (facade)
 ├── ComponentValidationManager - Component constraint enforcement
 ├── SaveManager                - World persistence orchestration
 ├── SnapshotManager            - World state serialization (static utility class)
-├── SceneManager               - Scene loading and management
+├── SceneManager               - In-memory scene lifecycle (spawn/unload/transition of tagged entity groups; no file I/O)
 ├── StatisticsManager          - Memory and performance stats
 └── ComponentArrayPoolManager  - Component array pooling
 ```
