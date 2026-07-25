@@ -1293,39 +1293,45 @@ Beyond these, the server exposes nine more tool categories — `mutation_*`, `sy
 
 ### Integrating TestBridge in Your Application
 
-To add TestBridge support to a KeenEyes game/application:
+To add TestBridge support to a KeenEyes game/application, install `TestBridgePlugin`
+(which registers the `ITestBridge` extension) and host an `IpcBridgeServer` on a named
+pipe. Note that `TestBridgeManager` shown in the editor section above is **editor-internal**
+and not available to games — games compose the same two pieces directly:
 
 ```csharp
-using KeenEyes.TestBridge;
-using KeenEyes.TestBridge.Ipc;
+using KeenEyes.TestBridge;      // TestBridgePlugin, TestBridgeOptions, IpcOptions, ITestBridge
+using KeenEyes.TestBridge.Ipc;  // IpcBridgeServer
 
-public class Game
-{
-    private TestBridgeManager? testBridge;
+using var world = new World();
 
-    public void Initialize(World world)
-    {
-        // Create the bridge manager
-        testBridge = new TestBridgeManager(world);
+// The plugin exposes the in-process bridge as an ITestBridge extension.
+world.InstallPlugin(new TestBridgePlugin(new TestBridgeOptions { EnableIpc = true }));
 
-        // Start IPC server (optional - for external tool connections)
-        _ = testBridge.StartIpcServerAsync("MyGame.TestBridge");
-    }
+// The IPC server makes it reachable by external tools (the MCP server).
+using var bridge = new IpcBridgeServer(
+    world.GetExtension<ITestBridge>(),
+    new IpcOptions { PipeName = "MyGame.TestBridge" });
 
-    public void Shutdown()
-    {
-        testBridge?.Dispose();
-    }
-}
+await bridge.StartAsync();
+
+// ... run the game loop ...
+
+await bridge.StopAsync();
 ```
+
+Follow the `<AppName>.TestBridge` pipe-naming convention. For a complete working example,
+see `samples/KeenEyes.Sample.NovaFall/Program.cs`, which starts the bridge in windowed mode
+only and treats failure as non-fatal.
 
 For headless/CI testing, use the in-process bridge directly:
 
 ```csharp
-using KeenEyes.TestBridge;
+using KeenEyes.Input.Abstractions;    // Key
+using KeenEyes.TestBridge;            // InProcessBridge
+using KeenEyes.TestBridge.State;      // EntityQuery
 
-var world = new World();
-var bridge = new InProcessBridge(world, inputContext, captureContext);
+using var world = new World();
+var bridge = new InProcessBridge(world);
 
 // Inject input
 await bridge.Input.KeyPressAsync(Key.Space);
