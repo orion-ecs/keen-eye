@@ -1,6 +1,7 @@
 using System.Numerics;
 
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk.Backend;
 
 namespace KeenEyes.Graphics.Silk.Resources;
 
@@ -78,11 +79,11 @@ internal sealed class ShaderManager : IDisposable
         // Check for linking errors
         if (!Device.GetProgramLinkStatus(program))
         {
-            string infoLog = Device.GetProgramInfoLog(program);
+            string detail = Device.DescribeShaderFailure(Device.GetProgramInfoLog(program));
             Device.DeleteProgram(program);
             Device.DeleteShader(vertexShader);
             Device.DeleteShader(fragmentShader);
-            throw new InvalidOperationException($"Shader program linking failed: {infoLog}");
+            throw new InvalidOperationException($"Shader program linking failed: {detail}");
         }
 
         // Clean up shader objects (they're now part of the program)
@@ -113,9 +114,9 @@ internal sealed class ShaderManager : IDisposable
 
         if (!Device.GetShaderCompileStatus(shader))
         {
-            string infoLog = Device.GetShaderInfoLog(shader);
+            string detail = Device.DescribeShaderFailure(Device.GetShaderInfoLog(shader));
             Device.DeleteShader(shader);
-            throw new InvalidOperationException($"Shader compilation failed ({type}): {infoLog}");
+            throw new InvalidOperationException($"Shader compilation failed ({type}): {detail}");
         }
 
         return shader;

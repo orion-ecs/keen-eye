@@ -21,6 +21,21 @@ namespace KeenEyes.Graphics.Abstractions;
 /// </remarks>
 public interface IGraphicsDevice : IDisposable
 {
+    #region Capability
+
+    /// <summary>
+    /// Queries the driver for its identity and API version.
+    /// </summary>
+    /// <returns>The driver's vendor, renderer, version strings, and parsed API version.</returns>
+    /// <remarks>
+    /// Used to log which driver a session actually got, and to reject drivers below the engine's
+    /// minimum before any shader is compiled. Implementations query the driver on each call
+    /// rather than caching, so callers should hold the result if they need it repeatedly.
+    /// </remarks>
+    GraphicsDeviceInfo GetDeviceInfo();
+
+    #endregion
+
     #region Buffer Operations
 
     /// <summary>

@@ -95,6 +95,28 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// </summary>
     public Dictionary<string, int> UniformLocations { get; } = [];
 
+    /// <summary>
+    /// Driver identity and version to report. Defaults to a modern OpenGL 4.6 device so that
+    /// capability checks pass.
+    /// </summary>
+    public GraphicsDeviceInfo DeviceInfo { get; set; } = new(
+        Vendor: "KeenEyes",
+        Renderer: "MockGraphicsDevice",
+        Version: "4.6.0 KeenEyes Mock",
+        ShadingLanguageVersion: "4.60",
+        MajorVersion: 4,
+        MinorVersion: 6);
+
+    #region Capability
+
+    public GraphicsDeviceInfo GetDeviceInfo()
+    {
+        Calls.Add($"GetDeviceInfo() => {DeviceInfo}");
+        return DeviceInfo;
+    }
+
+    #endregion
+
     #region Buffer Operations
 
     public uint GenVertexArray()

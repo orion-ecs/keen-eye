@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk.Backend;
 using KeenEyes.Graphics.Silk.Rendering2D;
 using KeenEyes.Graphics.Silk.Resources;
 using KeenEyes.Graphics.Silk.Shaders;
@@ -229,8 +230,17 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     /// Separated from <see cref="HandleWindowLoad"/> so that resource setup is independent
     /// of window and device acquisition, which keeps the GPU lifecycle testable headlessly.
     /// </remarks>
+    /// <exception cref="UnsupportedGraphicsDeviceException">
+    /// Thrown when the driver's OpenGL version is below the engine's minimum. Checked here,
+    /// before any shader exists, so an unsupported driver reports itself instead of failing
+    /// later as an unexplained shader compilation error.
+    /// </exception>
     internal void InitializeResources(IGraphicsDevice graphicsDevice)
     {
+        var deviceInfo = graphicsDevice.GetDeviceInfo();
+        GlCapabilities.EnsureMinimumVersion(deviceInfo);
+        Debug.WriteLine($"Graphics device: OpenGL {deviceInfo}");
+
         device = graphicsDevice;
 
         // Initialize resource managers with the device
