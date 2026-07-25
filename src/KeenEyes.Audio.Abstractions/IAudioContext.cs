@@ -44,6 +44,35 @@ public interface IAudioContext : IDisposable
     bool IsInitialized { get; }
 
     /// <summary>
+    /// Gets the failure that prevented the audio backend from initializing, or
+    /// <see langword="null"/> if initialization has not failed.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Audio is optional hardware: a machine may have no output device, or no native
+    /// audio runtime installed at all. A backend that cannot open a device leaves
+    /// <see cref="IsInitialized"/> <see langword="false"/> and records the reason here
+    /// instead of tearing down the host application, so a game can report the loss of
+    /// capability and keep running silently.
+    /// </para>
+    /// <para>
+    /// This is <see langword="null"/> while the backend simply has not initialized yet
+    /// (for example before the window has loaded). Use <see cref="IsInitialized"/> to
+    /// decide whether audio may be used, and this property to explain why it may not.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// if (!audio.IsInitialized)
+    /// {
+    ///     Console.WriteLine($"Audio unavailable: {audio.InitializationError?.Message}");
+    ///     return;
+    /// }
+    /// </code>
+    /// </example>
+    AudioException? InitializationError { get; }
+
+    /// <summary>
     /// Gets or sets the master volume (0.0 to 1.0).
     /// </summary>
     /// <remarks>

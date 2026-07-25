@@ -24,20 +24,46 @@ internal sealed unsafe class OpenALDevice : IAudioDevice
 
     internal OpenALDevice(string? deviceName = null)
     {
-        alc = ALContext.GetApi(soft: true);
-        al = AL.GetApi(soft: true);
+        // Loading the native OpenAL library is the first thing that can fail, and Silk.NET
+        // reports it as a bare Exception ("Could not load from any of the possible library
+        // names!") that says nothing about audio. Translate it into a typed, actionable
+        // failure: the caller cannot fix the load, but it can degrade to silence.
+        ALContext? loadedContextApi = null;
+        try
+        {
+            loadedContextApi = ALContext.GetApi(soft: true);
+            al = AL.GetApi(soft: true);
+            alc = loadedContextApi;
+        }
+        catch (Exception ex)
+        {
+            loadedContextApi?.Dispose();
+            throw new AudioInitializationException(
+                "The native OpenAL runtime could not be loaded (soft_oal.dll on Windows, " +
+                "libopenal.so on Linux, libopenal.dylib on macOS). Reference the " +
+                "Silk.NET.OpenAL.Soft.Native package so the runtime is published next to the " +
+                "application, or install a system OpenAL implementation.",
+                ex);
+        }
 
         device = alc.OpenDevice(deviceName);
         if (device == null)
         {
-            throw new AudioInitializationException("Failed to open OpenAL device");
+            throw new AudioInitializationException(
+                deviceName is null
+                    ? "OpenAL could not open the default audio output device. The machine may " +
+                      "have no audio output, or no audio backend the OpenAL runtime can drive."
+                    : $"OpenAL could not open the audio output device '{deviceName}'. Check the " +
+                      "device name, or leave it unset to use the system default device.");
         }
 
         context = alc.CreateContext(device, null);
         if (context == null)
         {
             alc.CloseDevice(device);
-            throw new AudioInitializationException("Failed to create OpenAL context");
+            throw new AudioInitializationException(
+                $"OpenAL opened the audio output device '{deviceName ?? "default"}' but could not " +
+                "create a playback context on it.");
         }
 
         alc.MakeContextCurrent(context);

@@ -26,8 +26,31 @@ public class AudioException : Exception
 /// <summary>
 /// Thrown when audio device initialization fails.
 /// </summary>
-/// <param name="message">The error message.</param>
-public class AudioInitializationException(string message) : AudioException(message);
+/// <remarks>
+/// Typical causes are a missing native OpenAL runtime and a machine with no usable
+/// audio output device. Audio is optional hardware, so callers should treat this as a
+/// recoverable loss of capability rather than a fatal error.
+/// </remarks>
+public class AudioInitializationException : AudioException
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AudioInitializationException"/> class.
+    /// </summary>
+    /// <param name="message">The error message.</param>
+    public AudioInitializationException(string message) : base(message)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="AudioInitializationException"/> class.
+    /// </summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The backend exception that caused the failure.</param>
+    public AudioInitializationException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
 
 /// <summary>
 /// Thrown when loading an audio file fails.

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using KeenEyes.Graphics.Abstractions;
 using KeenEyes.Graphics.Silk.Rendering2D;
@@ -217,7 +218,20 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         window = new SilkWindow(windowProvider.Window, isAlreadyLoaded: true);
 
         // Create device from window
-        device = window.CreateDevice();
+        InitializeResources(window.CreateDevice());
+    }
+
+    /// <summary>
+    /// Binds the context to a graphics device and creates the built-in GPU resources.
+    /// </summary>
+    /// <param name="graphicsDevice">The device to render through.</param>
+    /// <remarks>
+    /// Separated from <see cref="HandleWindowLoad"/> so that resource setup is independent
+    /// of window and device acquisition, which keeps the GPU lifecycle testable headlessly.
+    /// </remarks>
+    internal void InitializeResources(IGraphicsDevice graphicsDevice)
+    {
+        device = graphicsDevice;
 
         // Initialize resource managers with the device
         meshManager.Device = device;
@@ -924,6 +938,22 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
     #endregion
 
+    /// <summary>
+    /// Releases every GPU-backed resource this context owns.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Called from the window's Closing event, while the OpenGL context is still valid, and
+    /// again from <see cref="Dispose"/> as a backstop.
+    /// </para>
+    /// <para>
+    /// The backstop path can run after the OpenGL context is gone - a window whose load
+    /// aborted never raises Closing, and a destroyed window takes its context with it. Deleting
+    /// a GPU object without a current context throws from the driver binding, so each
+    /// disposal is isolated: <see cref="Dispose"/> must not throw, or teardown failures escape
+    /// <c>World.Dispose()</c> and crash an application that already handled the real error.
+    /// </para>
+    /// </remarks>
     private void DisposeGpuResources()
     {
         if (gpuResourcesDisposed)
@@ -933,14 +963,45 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
         gpuResourcesDisposed = true;
 
-        renderTargetManager?.Dispose();
-        renderer2D?.Dispose();
-        textRenderer?.Dispose();
-        fontManager?.Dispose();
-        meshManager.Dispose();
-        textureManager.Dispose();
-        shaderManager.Dispose();
-        instanceBufferManager.Dispose();
+        TryDispose(renderTargetManager, nameof(renderTargetManager));
+        TryDispose(renderer2D, nameof(renderer2D));
+        TryDispose(textRenderer, nameof(textRenderer));
+        TryDispose(fontManager, nameof(fontManager));
+        TryDispose(meshManager, nameof(meshManager));
+        TryDispose(textureManager, nameof(textureManager));
+        TryDispose(shaderManager, nameof(shaderManager));
+        TryDispose(instanceBufferManager, nameof(instanceBufferManager));
+    }
+
+    /// <summary>
+    /// Disposes one GPU resource owner, reporting rather than propagating failures.
+    /// </summary>
+    /// <param name="resource">The resource owner to dispose; ignored when null.</param>
+    /// <param name="description">The field name, used in the diagnostic message.</param>
+    /// <remarks>
+    /// The catch is deliberately broad because the failure it exists for comes from the
+    /// graphics driver binding: Silk.NET surfaces a lost or non-current OpenGL context as
+    /// whatever the underlying loader throws (for example <c>GlfwException</c> from the GLFW
+    /// error callback), and there is no exception type to filter on. Nothing else can be
+    /// done about a failed GPU delete during shutdown, so it is logged and skipped.
+    /// </remarks>
+    private static void TryDispose(IDisposable? resource, string description)
+    {
+        if (resource is null)
+        {
+            return;
+        }
+
+        try
+        {
+            resource.Dispose();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(
+                $"Graphics teardown: disposing {description} failed " +
+                $"({ex.GetType().Name}: {ex.Message}). The OpenGL context is most likely already gone.");
+        }
     }
 
     /// <inheritdoc />

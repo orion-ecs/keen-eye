@@ -21,6 +21,13 @@ internal sealed class PluginManager
 {
     private readonly Lock syncRoot = new();
     private readonly Dictionary<string, PluginEntry> plugins = [];
+
+    /// <summary>
+    /// Plugin names in installation order, so <see cref="UninstallAll"/> can tear down
+    /// dependents before their dependencies. Dictionary enumeration order is an
+    /// implementation detail, so the order is tracked explicitly.
+    /// </summary>
+    private readonly List<string> installOrder = [];
     private readonly World world;
     private readonly SystemManager systemManager;
 
@@ -67,6 +74,7 @@ internal sealed class PluginManager
 
             context = new PluginContext(world, plugin);
             plugins[plugin.Name] = new PluginEntry(plugin, context);
+            installOrder.Add(plugin.Name);
         }
 
         // Call Install outside lock to allow plugins to use world APIs
@@ -83,6 +91,7 @@ internal sealed class PluginManager
             lock (syncRoot)
             {
                 plugins.Remove(plugin.Name);
+                installOrder.Remove(plugin.Name);
             }
             throw;
         }
@@ -193,17 +202,24 @@ internal sealed class PluginManager
     /// <summary>
     /// Uninstalls all plugins, disposing their registered systems.
     /// </summary>
+    /// <remarks>
+    /// Plugins are uninstalled in reverse installation order. Plugins declare their
+    /// dependencies by requiring an extension to already exist at install time (a graphics
+    /// plugin requires a window plugin, for example), so a dependent must tear down while its
+    /// dependency is still alive - tearing the window down first would leave the graphics
+    /// plugin releasing GPU resources against a destroyed context.
+    /// </remarks>
     internal void UninstallAll()
     {
         string[] names;
         lock (syncRoot)
         {
-            names = [.. plugins.Keys];
+            names = [.. installOrder];
         }
 
-        foreach (var name in names)
+        for (var i = names.Length - 1; i >= 0; i--)
         {
-            UninstallPluginInternal(name);
+            UninstallPluginInternal(names[i]);
         }
     }
 
@@ -216,6 +232,7 @@ internal sealed class PluginManager
         lock (syncRoot)
         {
             plugins.Clear();
+            installOrder.Clear();
         }
     }
 
@@ -232,6 +249,7 @@ internal sealed class PluginManager
                 return false;
             }
             plugins.Remove(name);
+            installOrder.Remove(name);
         }
 
         // Call the plugin's uninstall hook (outside lock to allow plugins to use world APIs).

@@ -70,6 +70,7 @@ file sealed class MockAudioContext : IAudioContext
 
     public IAudioDevice? Device => null;
     public bool IsInitialized => true;
+    public AudioException? InitializationError => null;
     public float MasterVolume { get; set; } = 1f;
 
     public AudioClipHandle LoadClip(string path)

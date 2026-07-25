@@ -23,6 +23,10 @@
 
   <ItemGroup>
     <PackageReference Include="Silk.NET.OpenAL" />
+    <!-- Silk.NET.OpenAL is bindings only. This package carries the OpenAL Soft native
+         runtime for every supported RID, so a consuming game gets working audio without
+         asking the user to install OpenAL by hand (Windows has no system OpenAL at all). -->
+    <PackageReference Include="Silk.NET.OpenAL.Soft.Native" />
   </ItemGroup>
 
 </Project>

@@ -19,6 +19,14 @@ namespace KeenEyes.Audio.Silk;
 /// ECS components <see cref="AudioSource"/> and <see cref="AudioListener"/> are registered
 /// automatically, along with systems to synchronize them with the OpenAL backend.
 /// </para>
+/// <para>
+/// Installing the plugin does not touch the audio hardware: OpenAL is opened when the
+/// window loads. A machine with no OpenAL runtime or no output device therefore does not
+/// fail installation and does not fail the window loop - the context reports
+/// <see cref="IAudioContext.IsInitialized"/> <see langword="false"/> and explains why
+/// through <see cref="IAudioContext.InitializationError"/>. Check
+/// <see cref="IAudioContext.IsInitialized"/> before loading clips.
+/// </para>
 /// </remarks>
 /// <example>
 /// <code>
