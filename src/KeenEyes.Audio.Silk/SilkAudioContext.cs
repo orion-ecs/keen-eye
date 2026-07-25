@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Numerics;
 using KeenEyes.Audio.Abstractions;
 using KeenEyes.Audio.Silk.Backend;
@@ -18,6 +19,14 @@ namespace KeenEyes.Audio.Silk;
 /// The audio context uses a shared <see cref="ISilkWindowProvider"/> to coordinate
 /// lifecycle with the window, initializing OpenAL when the window loads and
 /// cleaning up when it closes.
+/// </para>
+/// <para>
+/// If OpenAL cannot be initialized - no native OpenAL runtime, or no usable output
+/// device - the context stays uninitialized instead of failing the window load:
+/// <see cref="IsInitialized"/> is <see langword="false"/> and
+/// <see cref="InitializationError"/> holds the typed reason. Applications should check
+/// <see cref="IsInitialized"/> before loading clips or playing sounds so that a machine
+/// without audio still runs.
 /// </para>
 /// </remarks>
 [PluginExtension("SilkAudio")]
@@ -53,6 +62,9 @@ public sealed class SilkAudioContext : IAudioContext
     public bool IsInitialized => initialized;
 
     /// <inheritdoc />
+    public AudioException? InitializationError { get; private set; }
+
+    /// <inheritdoc />
     public float MasterVolume
     {
         get => masterVolume;
@@ -75,11 +87,28 @@ public sealed class SilkAudioContext : IAudioContext
 
     private void HandleWindowLoad()
     {
-        device = new OpenALDevice(config.DeviceName);
-        sourcePool = new SourcePool(device, config.MaxOneShotSources);
-        device.SetListenerGain(config.InitialMasterVolume);
-        masterVolume = config.InitialMasterVolume;
-        initialized = true;
+        // This runs inside the window's Load event, so throwing here would abort the whole
+        // window loop and take the application down with it. Audio is optional hardware:
+        // record the failure, stay uninitialized, and let the application decide (see
+        // IAudioContext.InitializationError). The loss of capability is never silent - it is
+        // observable on the context and written to the debug log.
+        try
+        {
+            device = new OpenALDevice(config.DeviceName);
+            sourcePool = new SourcePool(device, config.MaxOneShotSources);
+            device.SetListenerGain(config.InitialMasterVolume);
+            masterVolume = config.InitialMasterVolume;
+            initialized = true;
+        }
+        catch (AudioException ex)
+        {
+            device?.Dispose();
+            device = null;
+            sourcePool = null;
+            initialized = false;
+            InitializationError = ex;
+            Debug.WriteLine($"Audio unavailable: {ex.Message}");
+        }
     }
 
     private void HandleWindowClosing()
@@ -491,11 +520,23 @@ public sealed class SilkAudioContext : IAudioContext
 
     private void ThrowIfNotInitialized()
     {
-        if (!initialized)
+        if (initialized)
+        {
+            return;
+        }
+
+        // Name the real cause when the device failed: "wait for the window to load" would be
+        // actively misleading on a machine where audio is simply unavailable.
+        if (InitializationError is not null)
         {
             throw new InvalidOperationException(
-                "Audio not initialized. Wait for window to load.");
+                $"Audio is unavailable: {InitializationError.Message} " +
+                "Check IAudioContext.IsInitialized before using audio.",
+                InitializationError);
         }
+
+        throw new InvalidOperationException(
+            "Audio not initialized. Wait for window to load.");
     }
 
     private void DisposeAudioResources()

@@ -227,6 +227,8 @@ public sealed class AudioSourceSystemTests : IDisposable
 
         public bool IsInitialized => true;
 
+        public AudioException? InitializationError => null;
+
         public float MasterVolume { get; set; } = 1f;
 
         public uint GetBufferId(AudioClipHandle handle) => handle.IsValid ? 1u : 0u;

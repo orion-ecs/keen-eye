@@ -52,6 +52,43 @@ Installing `SilkAudioPlugin` registers:
 
 If the window plugin was not installed first, `Install` throws an `InvalidOperationException`.
 
+### The Native OpenAL Runtime
+
+`Silk.NET.OpenAL` provides bindings only - the actual implementation is a native library
+(`soft_oal.dll` on Windows, `libopenal.so` on Linux, `libopenal.dylib` on macOS). Windows ships no
+system OpenAL at all, so `KeenEyes.Audio.Silk` references
+[`Silk.NET.OpenAL.Soft.Native`](https://www.nuget.org/packages/Silk.NET.OpenAL.Soft.Native), which
+publishes the OpenAL Soft runtime for every supported RID into `runtimes/<rid>/native/` next to the
+application. Games that reference `KeenEyes.Audio.Silk` get this automatically and need no manual
+OpenAL install.
+
+### Audio Is Optional Hardware
+
+Audio can be unavailable for reasons outside the application's control: no output device, no audio
+backend the runtime can drive, or a native runtime that was stripped from the deployment. That must
+never stop a game from starting, so the backend degrades instead of failing:
+
+- The device is opened when the window loads, not when the plugin is installed. `Install` therefore
+  never fails because of missing audio hardware.
+- If the device cannot be opened, the context stays uninitialized rather than aborting the window
+  loop: `IAudioContext.IsInitialized` is `false` and `IAudioContext.InitializationError` holds a
+  typed `AudioInitializationException` naming the cause and the remedy.
+- Calling `LoadClip`, `CreateClip`, `Play`, or `PlayAt` on an uninitialized context throws. Check
+  `IsInitialized` first:
+
+```csharp
+var audio = world.GetExtension<IAudioContext>();
+
+if (!audio.IsInitialized)
+{
+    Console.WriteLine($"Audio unavailable: {audio.InitializationError?.Message}");
+    return;     // Play on in silence.
+}
+```
+
+The `AudioSource`/`AudioListener` systems already no-op when no device is present, so ECS-driven
+sound needs no extra guard - only direct `IAudioContext` calls do.
+
 ### Playing a One-Shot Sound
 
 ```csharp

@@ -155,6 +155,30 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     public int SimulatedErrorCode { get; set; }
 
     /// <summary>
+    /// Gets or sets whether every delete operation throws, simulating a lost graphics context.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A real backend cannot delete GPU objects once its context has been destroyed or is no
+    /// longer current: the driver binding throws instead. Setting this after resources have
+    /// been created reproduces that state, which is how teardown paths are tested for the
+    /// rule that disposal must never throw.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var device = new MockGraphicsDevice();
+    /// var program = device.CreateProgram();
+    ///
+    /// // The window died and took the context with it.
+    /// device.ThrowOnDelete = true;
+    ///
+    /// Assert.Null(Record.Exception(() =&gt; renderer.Dispose()));
+    /// </code>
+    /// </example>
+    public bool ThrowOnDelete { get; set; }
+
+    /// <summary>
     /// Gets or sets the simulated framebuffer data returned by <see cref="ReadFramebuffer"/>.
     /// </summary>
     /// <remarks>
@@ -176,6 +200,20 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     #endregion
 
     #region Test Control
+
+    /// <summary>
+    /// Throws when <see cref="ThrowOnDelete"/> is set, mimicking a driver binding that cannot
+    /// service a GPU delete because no context is current.
+    /// </summary>
+    /// <param name="operation">The delete operation being simulated.</param>
+    private void ThrowIfContextLost(string operation)
+    {
+        if (ThrowOnDelete)
+        {
+            throw new InvalidOperationException(
+                $"{operation} was called with no usable graphics context.");
+        }
+    }
 
     /// <summary>
     /// Resets all tracking state and counters.
@@ -282,6 +320,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// <inheritdoc />
     public void DeleteVertexArray(uint vao)
     {
+        ThrowIfContextLost(nameof(DeleteVertexArray));
         VAOs.Remove(vao);
         if (BoundVAO == vao)
         {
@@ -292,6 +331,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// <inheritdoc />
     public void DeleteBuffer(uint buffer)
     {
+        ThrowIfContextLost(nameof(DeleteBuffer));
         Buffers.Remove(buffer);
         foreach (var target in BoundBuffers.Where(kv => kv.Value == buffer).Select(kv => kv.Key).ToList())
         {
@@ -464,6 +504,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// <inheritdoc />
     public void DeleteTexture(uint texture)
     {
+        ThrowIfContextLost(nameof(DeleteTexture));
         Textures.Remove(texture);
         foreach (var unit in BoundTextures.Where(kv => kv.Value == texture).Select(kv => kv.Key).ToList())
         {
@@ -585,12 +626,14 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// <inheritdoc />
     public void DeleteShader(uint shader)
     {
+        ThrowIfContextLost(nameof(DeleteShader));
         Shaders.Remove(shader);
     }
 
     /// <inheritdoc />
     public void DeleteProgram(uint program)
     {
+        ThrowIfContextLost(nameof(DeleteProgram));
         Programs.Remove(program);
         if (BoundProgram == program)
         {
@@ -855,6 +898,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// <inheritdoc />
     public void DeleteFramebuffer(uint framebuffer)
     {
+        ThrowIfContextLost(nameof(DeleteFramebuffer));
         Framebuffers.Remove(framebuffer);
         if (BoundFramebuffer == framebuffer)
         {
@@ -894,6 +938,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     /// <inheritdoc />
     public void DeleteRenderbuffer(uint renderbuffer)
     {
+        ThrowIfContextLost(nameof(DeleteRenderbuffer));
         Renderbuffers.Remove(renderbuffer);
         if (BoundRenderbuffer == renderbuffer)
         {

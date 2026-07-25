@@ -26,8 +26,11 @@ namespace KeenEyes.Sample.NovaFall;
 /// graze, and the smash crunch scales with impact speed.
 /// </para>
 /// <para>
-/// All fades use real delta time. Missing asset files or a missing audio
-/// context disable the system gracefully (one console warning, then silence).
+/// All fades use real delta time. Missing asset files, a missing audio context,
+/// or an audio device the machine cannot provide (no OpenAL runtime, no output
+/// device) disable the system gracefully: one console warning, then silence, and
+/// the game keeps playing. This is the pattern to copy - audio is optional
+/// hardware, so a game must never require it to start.
 /// </para>
 /// </remarks>
 public sealed class NovaFallAudioSystem : SystemBase
@@ -61,6 +64,7 @@ public sealed class NovaFallAudioSystem : SystemBase
 
     private bool loadAttempted;
     private bool loaded;
+    private bool unavailableReported;
     private bool loopsActive;
     private bool deathImpactPlayed;
     private bool silenced;
@@ -72,6 +76,16 @@ public sealed class NovaFallAudioSystem : SystemBase
         if (!juice.PresentationAvailable
             || !World.TryGetExtension<IAudioContext>(out var context) || context is null)
         {
+            return;
+        }
+
+        // The extension exists as soon as the audio plugin is installed, but the device is
+        // opened later, when the window loads - and it can fail (no OpenAL runtime installed,
+        // no output device). Playing into an uninitialized context throws, so check first and
+        // fall silent instead.
+        if (!context.IsInitialized)
+        {
+            ReportAudioUnavailable(context.InitializationError);
             return;
         }
 
@@ -106,6 +120,23 @@ public sealed class NovaFallAudioSystem : SystemBase
         UpdateStemMix(deltaTime, juice.Enabled);
         UpdateWindAndRumble(juice.Enabled);
         PlayEventOneShots(juice.Enabled);
+    }
+
+    /// <summary>
+    /// Warns once that the game is running without sound, naming the reason the backend gave.
+    /// </summary>
+    /// <param name="error">The backend failure, or null when audio simply never initialized.</param>
+    private void ReportAudioUnavailable(AudioException? error)
+    {
+        if (unavailableReported)
+        {
+            return;
+        }
+
+        unavailableReported = true;
+        Console.WriteLine(error is null
+            ? "Audio unavailable - continuing without sound."
+            : $"Audio unavailable: {error.Message} Continuing without sound.");
     }
 
     private bool EnsureClipsLoaded()

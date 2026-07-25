@@ -157,6 +157,12 @@ world.InstallPlugin(new SilkInputPlugin(inputConfig));
 GameSetup.InstallSimulationPlugins(world);
 world.InstallPlugin(new ParticlesPlugin());
 world.InstallPlugin(new AnimationPlugin());
+
+// Audio is optional hardware. Installing the plugin only registers systems and the
+// context - the OpenAL device is opened when the window loads, so a machine with no
+// audio runtime or no output device cannot fail here, and does not fail the window
+// loop either: the context reports IsInitialized == false and NovaFallAudioSystem
+// prints one warning and plays the game silently.
 world.InstallPlugin(new SilkAudioPlugin());
 world.InstallPlugin(new UIPlugin());
 
@@ -254,8 +260,14 @@ catch (Exception ex)
     // surface a wide range of platform exceptions (missing display, driver, or GL
     // context errors). A demo recovers by reporting the failure and exiting rather
     // than crashing, so a catch-all is appropriate here.
-    Console.WriteLine($"Error: {ex.Message}");
-    Console.WriteLine("Windowed mode requires a display. Try --simulate 600 for the headless check.");
+    //
+    // Report WHAT failed rather than guessing WHY: a blanket "requires a display"
+    // is actively misleading on a machine that has one, and it hides the real
+    // exception type behind a wrong diagnosis. The headless hint is worth printing
+    // either way, but as a suggestion, not as a cause.
+    Console.WriteLine($"Startup failed: {ex.GetType().Name}: {ex.Message}");
+    Console.WriteLine("The windowed mode needs a display, a GPU driver, and OpenGL 3.3. "
+        + "For a check that needs none of them, run with --simulate 600.");
 }
 finally
 {
