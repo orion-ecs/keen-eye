@@ -6,6 +6,7 @@ using FontStashSharp;
 using FontStashSharp.Interfaces;
 
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk.Backend;
 
 namespace KeenEyes.Graphics.Silk.Text;
 
@@ -266,7 +267,7 @@ internal sealed class FontStashRenderer : IFontStashRenderer2, IDisposable
         if (!device.GetShaderCompileStatus(vertexShader))
         {
             var log = device.GetShaderInfoLog(vertexShader);
-            throw new InvalidOperationException($"Failed to compile text vertex shader: {log}");
+            throw new InvalidOperationException($"Failed to compile text vertex shader: {device.DescribeShaderFailure(log)}");
         }
 
         var fragmentShader = device.CreateShader(Abstractions.ShaderType.Fragment);
@@ -276,7 +277,7 @@ internal sealed class FontStashRenderer : IFontStashRenderer2, IDisposable
         if (!device.GetShaderCompileStatus(fragmentShader))
         {
             var log = device.GetShaderInfoLog(fragmentShader);
-            throw new InvalidOperationException($"Failed to compile text fragment shader: {log}");
+            throw new InvalidOperationException($"Failed to compile text fragment shader: {device.DescribeShaderFailure(log)}");
         }
 
         shaderProgram = device.CreateProgram();
@@ -287,7 +288,7 @@ internal sealed class FontStashRenderer : IFontStashRenderer2, IDisposable
         if (!device.GetProgramLinkStatus(shaderProgram))
         {
             var log = device.GetProgramInfoLog(shaderProgram);
-            throw new InvalidOperationException($"Failed to link text shader program: {log}");
+            throw new InvalidOperationException($"Failed to link text shader program: {device.DescribeShaderFailure(log)}");
         }
 
         device.DetachShader(shaderProgram, vertexShader);

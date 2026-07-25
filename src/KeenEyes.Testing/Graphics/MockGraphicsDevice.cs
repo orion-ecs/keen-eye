@@ -36,6 +36,18 @@ namespace KeenEyes.Testing.Graphics;
 /// </example>
 public sealed class MockGraphicsDevice : IGraphicsDevice
 {
+    /// <summary>
+    /// The driver identity a freshly created or reset mock reports: a modern OpenGL 4.6 device,
+    /// so tests that do not care about capability checks always pass them.
+    /// </summary>
+    private static readonly GraphicsDeviceInfo defaultDeviceInfo = new(
+        Vendor: "KeenEyes",
+        Renderer: "MockGraphicsDevice",
+        Version: "4.6.0 KeenEyes Mock",
+        ShadingLanguageVersion: "4.60",
+        MajorVersion: 4,
+        MinorVersion: 6);
+
     private uint nextHandle = 1;
     private bool disposed;
 
@@ -179,6 +191,24 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     public bool ThrowOnDelete { get; set; }
 
     /// <summary>
+    /// Gets or sets the driver identity and version returned by <see cref="GetDeviceInfo"/>.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to a modern OpenGL 4.6 device so that capability checks pass. Set it to an old
+    /// version to exercise the paths that reject a driver the engine cannot run on.
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var device = new MockGraphicsDevice
+    /// {
+    ///     DeviceInfo = new GraphicsDeviceInfo(
+    ///         "Microsoft Corporation", "Microsoft Basic Render Driver", "1.1.0", "", 1, 1)
+    /// };
+    /// </code>
+    /// </example>
+    public GraphicsDeviceInfo DeviceInfo { get; set; } = defaultDeviceInfo;
+
+    /// <summary>
     /// Gets or sets the simulated framebuffer data returned by <see cref="ReadFramebuffer"/>.
     /// </summary>
     /// <remarks>
@@ -241,6 +271,7 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
         ShouldFailShaderCompile = false;
         ShouldFailProgramLink = false;
         SimulatedErrorCode = 0;
+        DeviceInfo = defaultDeviceInfo;
         SimulatedFramebufferData = null;
         SimulatedFramebufferWidth = 0;
         SimulatedFramebufferHeight = 0;
@@ -254,6 +285,13 @@ public sealed class MockGraphicsDevice : IGraphicsDevice
     {
         DrawCalls.Clear();
     }
+
+    #endregion
+
+    #region Capability
+
+    /// <inheritdoc />
+    public GraphicsDeviceInfo GetDeviceInfo() => DeviceInfo;
 
     #endregion
 

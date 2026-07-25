@@ -17,6 +17,33 @@ public sealed class OpenGLDevice(GL gl) : IGraphicsDevice
     private readonly GL gl = gl ?? throw new ArgumentNullException(nameof(gl));
     private bool disposed;
 
+    #region Capability
+
+    /// <inheritdoc />
+    public GraphicsDeviceInfo GetDeviceInfo()
+    {
+        string version = gl.GetStringS(StringName.Version) ?? string.Empty;
+        string renderer = gl.GetStringS(StringName.Renderer) ?? string.Empty;
+        string vendor = gl.GetStringS(StringName.Vendor) ?? string.Empty;
+        string shadingLanguage = gl.GetStringS(StringName.ShadingLanguageVersion) ?? string.Empty;
+
+        int major = gl.GetInteger(GetPName.MajorVersion);
+        int minor = gl.GetInteger(GetPName.MinorVersion);
+
+        if (major <= 0)
+        {
+            // GL_MAJOR_VERSION and GL_MINOR_VERSION were added in OpenGL 3.0. An older driver
+            // raises GL_INVALID_ENUM and leaves the value untouched, so drain that error and fall
+            // back to the version string, which every OpenGL version reports.
+            gl.GetError();
+            (major, minor) = GlVersionString.Parse(version);
+        }
+
+        return new GraphicsDeviceInfo(vendor, renderer, version, shadingLanguage, major, minor);
+    }
+
+    #endregion
+
     #region Buffer Operations
 
     /// <inheritdoc />

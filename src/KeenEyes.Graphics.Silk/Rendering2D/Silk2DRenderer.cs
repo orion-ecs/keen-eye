@@ -3,6 +3,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk.Backend;
 using KeenEyes.Graphics.Silk.Resources;
 
 namespace KeenEyes.Graphics.Silk.Rendering2D;
@@ -163,7 +164,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         if (!device.GetShaderCompileStatus(vertexShader))
         {
             var log = device.GetShaderInfoLog(vertexShader);
-            throw new InvalidOperationException($"Failed to compile 2D vertex shader: {log}");
+            throw new InvalidOperationException($"Failed to compile 2D vertex shader: {device.DescribeShaderFailure(log)}");
         }
 
         var fragmentShader = device.CreateShader(Abstractions.ShaderType.Fragment);
@@ -173,7 +174,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         if (!device.GetShaderCompileStatus(fragmentShader))
         {
             var log = device.GetShaderInfoLog(fragmentShader);
-            throw new InvalidOperationException($"Failed to compile 2D fragment shader: {log}");
+            throw new InvalidOperationException($"Failed to compile 2D fragment shader: {device.DescribeShaderFailure(log)}");
         }
 
         shaderProgram = device.CreateProgram();
@@ -184,7 +185,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         if (!device.GetProgramLinkStatus(shaderProgram))
         {
             var log = device.GetProgramInfoLog(shaderProgram);
-            throw new InvalidOperationException($"Failed to link 2D shader program: {log}");
+            throw new InvalidOperationException($"Failed to link 2D shader program: {device.DescribeShaderFailure(log)}");
         }
 
         device.DetachShader(shaderProgram, vertexShader);
@@ -257,7 +258,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         if (!device.GetShaderCompileStatus(vertexShader))
         {
             var log = device.GetShaderInfoLog(vertexShader);
-            throw new InvalidOperationException($"Failed to compile rounded rect vertex shader: {log}");
+            throw new InvalidOperationException($"Failed to compile rounded rect vertex shader: {device.DescribeShaderFailure(log)}");
         }
 
         var fragmentShader = device.CreateShader(Abstractions.ShaderType.Fragment);
@@ -267,7 +268,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         if (!device.GetShaderCompileStatus(fragmentShader))
         {
             var log = device.GetShaderInfoLog(fragmentShader);
-            throw new InvalidOperationException($"Failed to compile rounded rect fragment shader: {log}");
+            throw new InvalidOperationException($"Failed to compile rounded rect fragment shader: {device.DescribeShaderFailure(log)}");
         }
 
         roundedRectShaderProgram = device.CreateProgram();
@@ -278,7 +279,7 @@ public sealed class Silk2DRenderer : I2DRenderer
         if (!device.GetProgramLinkStatus(roundedRectShaderProgram))
         {
             var log = device.GetProgramInfoLog(roundedRectShaderProgram);
-            throw new InvalidOperationException($"Failed to link rounded rect shader program: {log}");
+            throw new InvalidOperationException($"Failed to link rounded rect shader program: {device.DescribeShaderFailure(log)}");
         }
 
         device.DetachShader(roundedRectShaderProgram, vertexShader);

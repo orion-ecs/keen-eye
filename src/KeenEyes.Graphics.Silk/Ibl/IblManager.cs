@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 
 using KeenEyes.Graphics.Abstractions;
+using KeenEyes.Graphics.Silk.Backend;
 using KeenEyes.Graphics.Silk.Shaders;
 
 namespace KeenEyes.Graphics.Silk.Ibl;
@@ -299,7 +300,7 @@ public sealed class IblManager(IGraphicsContext graphics, IGraphicsDevice device
         {
             string log = device.GetShaderInfoLog(vertexShader);
             device.DeleteShader(vertexShader);
-            throw new InvalidOperationException($"Vertex shader compilation failed: {log}");
+            throw new InvalidOperationException($"Vertex shader compilation failed: {device.DescribeShaderFailure(log)}");
         }
 
         uint fragmentShader = device.CreateShader(ShaderType.Fragment);
@@ -311,7 +312,7 @@ public sealed class IblManager(IGraphicsContext graphics, IGraphicsDevice device
             string log = device.GetShaderInfoLog(fragmentShader);
             device.DeleteShader(vertexShader);
             device.DeleteShader(fragmentShader);
-            throw new InvalidOperationException($"Fragment shader compilation failed: {log}");
+            throw new InvalidOperationException($"Fragment shader compilation failed: {device.DescribeShaderFailure(log)}");
         }
 
         uint program = device.CreateProgram();
@@ -325,7 +326,7 @@ public sealed class IblManager(IGraphicsContext graphics, IGraphicsDevice device
             device.DeleteProgram(program);
             device.DeleteShader(vertexShader);
             device.DeleteShader(fragmentShader);
-            throw new InvalidOperationException($"Shader program linking failed: {log}");
+            throw new InvalidOperationException($"Shader program linking failed: {device.DescribeShaderFailure(log)}");
         }
 
         device.DetachShader(program, vertexShader);

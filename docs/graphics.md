@@ -18,6 +18,31 @@ This separation allows:
 - Writing backend-agnostic plugins and systems
 - Testing graphics logic without GPU dependencies
 
+## Requirements and capability detection
+
+The Silk.NET backend requires **OpenGL 3.3 or newer**. Every built-in shader declares
+`#version 330 core`, so this is a hard floor, not a recommendation.
+
+When the window loads, the backend asks the device for its identity via
+`IGraphicsDevice.GetDeviceInfo()`, which returns a `GraphicsDeviceInfo` carrying the driver's
+vendor, renderer, version, and shading language version strings plus the parsed major/minor
+version. It then:
+
+1. **Rejects a driver below 3.3** by throwing `UnsupportedGraphicsDeviceException` before any
+   shader or renderer is created. The message states the detected version, the driver's renderer
+   and vendor strings, the required version, and the likely remedy - installing the GPU vendor's
+   driver. The exception also exposes the `GraphicsDeviceInfo` for callers that want to present it
+   themselves.
+2. **Logs one line** naming the driver it did get (`Debug.WriteLine`), so a session's OpenGL and
+   shading language versions appear in diagnostic output even when everything works.
+
+Shader compilation and linking failures also append the driver's OpenGL and shading language
+versions to the info log, so a version mismatch is self-evident in the error text.
+
+The classic cause of a below-minimum driver on Windows is that no vendor GPU driver is installed,
+which leaves the Microsoft Basic Display Adapter software fallback in place; it reports OpenGL
+1.1, as do remote-desktop sessions.
+
 ## Quick Start
 
 ```csharp
