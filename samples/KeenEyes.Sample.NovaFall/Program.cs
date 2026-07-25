@@ -151,9 +151,25 @@ using var world = new World();
 
 // Install plugins (order matters: window first, then graphics and input, then
 // the gameplay/juice plugins that build on them).
-world.InstallPlugin(new SilkWindowPlugin(windowConfig));
-world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
-world.InstallPlugin(new SilkInputPlugin(inputConfig));
+//
+// The window, graphics and input plugins are the hard requirements, and they are
+// the ones that touch the platform: SilkWindowPlugin.Install creates the window
+// (and therefore initializes GLFW) right here, so on a machine with no display
+// this is where startup fails - before the game loop is ever reached. Guarding
+// only the loop would let that surface as an unhandled crash, so the same
+// diagnostic covers the installation.
+try
+{
+    world.InstallPlugin(new SilkWindowPlugin(windowConfig));
+    world.InstallPlugin(new SilkGraphicsPlugin(graphicsConfig));
+    world.InstallPlugin(new SilkInputPlugin(inputConfig));
+}
+catch (Exception ex)
+{
+    ReportStartupFailure(ex);
+    return;
+}
+
 GameSetup.InstallSimulationPlugins(world);
 world.InstallPlugin(new ParticlesPlugin());
 world.InstallPlugin(new AnimationPlugin());
@@ -260,14 +276,7 @@ catch (Exception ex)
     // surface a wide range of platform exceptions (missing display, driver, or GL
     // context errors). A demo recovers by reporting the failure and exiting rather
     // than crashing, so a catch-all is appropriate here.
-    //
-    // Report WHAT failed rather than guessing WHY: a blanket "requires a display"
-    // is actively misleading on a machine that has one, and it hides the real
-    // exception type behind a wrong diagnosis. The headless hint is worth printing
-    // either way, but as a suggestion, not as a cause.
-    Console.WriteLine($"Startup failed: {ex.GetType().Name}: {ex.Message}");
-    Console.WriteLine("The windowed mode needs a display, a GPU driver, and OpenGL 3.3. "
-        + "For a check that needs none of them, run with --simulate 600.");
+    ReportStartupFailure(ex);
 }
 finally
 {
@@ -281,6 +290,18 @@ finally
 }
 
 Console.WriteLine("Sample complete!");
+
+// Reports a startup failure the honest way: WHAT failed comes first, because a
+// blanket "requires a display" is actively misleading on a machine that has one
+// and hides the real exception type behind a wrong diagnosis. The requirement
+// list follows as a suggestion, never as the stated cause.
+static void ReportStartupFailure(Exception ex)
+{
+    Console.WriteLine($"Startup failed: {ex.GetType().Name}: {ex.Message}");
+    Console.WriteLine("Windowed mode needs a display, a GPU driver, and OpenGL 3.3; "
+        + "the line above says which of those actually failed. "
+        + "For a check that needs none of them, run with --simulate 600.");
+}
 
 // Headless determinism harness: builds the world with no window, graphics,
 // audio, particle, animation, or UI plugins (every juice system no-ops), steps
