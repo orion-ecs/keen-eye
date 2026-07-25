@@ -1255,6 +1255,17 @@ Pre-built prompts for common workflows:
 - Security is a concern
 - Performance is critical
 
+**Pipe names used in this repository:**
+
+| Pipe name | Host |
+|-----------|------|
+| `KeenEyes.TestBridge` | Library default (`IpcOptions.PipeName`) |
+| `KeenEyes.Editor.TestBridge` | Editor UI world |
+| `KeenEyes.Editor.Scene.TestBridge` | Editor's currently loaded scene world |
+| `KeenEyes.Sample.UI.TestBridge` | `samples/KeenEyes.Sample.UI` |
+| `KeenEyes.InputDebugger.TestBridge` | `samples/KeenEyes.Sample.InputDebugger` |
+| `KeenEyes.NovaFall.TestBridge` | `samples/KeenEyes.Sample.NovaFall` |
+
 ### TCP
 
 **Advantages:**
@@ -1369,7 +1380,9 @@ without hand-rolling the IPC protocol, add the `KeenEyes.TestBridge.Client` pack
 
 `TestBridgeClient` implements `ITestBridge` over the same named-pipe/TCP transport used by
 the MCP server, so the exact same calling code (`client.Input`, `client.State`, etc.) works
-whether you're in-process or out-of-process.
+whether you're in-process or out-of-process. It is the reference client implementation of
+the IPC protocol, and the intended building block for external tooling such as IDE plugins
+that need to talk to a running KeenEyes application.
 
 ```csharp
 using KeenEyes.TestBridge;

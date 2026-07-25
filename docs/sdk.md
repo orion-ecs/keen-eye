@@ -139,6 +139,8 @@ Add additional KeenEyes packages as needed:
 
 The SDK defines item types for game assets and editor integration.
 
+A note on what these do at build time today: code generation for `.kescene`, `.keprefab`, and `.keworld` files is driven by `AdditionalFiles` — the SDK auto-detects files with those extensions and registers each one as both an `AdditionalFiles` entry (consumed by the source generators, which emit `Spawn<Name>` methods for scenes/prefabs and `Configure<Name>`/`Apply<Name>` methods for world configs) and the corresponding item type. The `<KeenEyesScene>`/`<KeenEyesPrefab>`/`<KeenEyesWorld>` items themselves only feed build-log messages and are bookkeeping for future editor integration. `<KeenEyesAsset>` is the one item type with build-time behavior of its own: matching files are copied to the output directory.
+
 ### Scenes
 
 Scene files define world configuration and entity setup:
@@ -241,7 +243,7 @@ The SDK generates `keeneyes.project.json` in the output directory:
 }
 ```
 
-This file enables tooling to detect and introspect KeenEyes projects.
+The file is emitted on every build so external tooling can detect and introspect KeenEyes projects. No tooling consumes it yet — the planned consumers (editor project detection, VS Code extension project discovery) are tracked in [issue #386](https://github.com/orion-ecs/keen-eye/issues/386).
 
 ## Comparison: SDK vs Manual Setup
 

@@ -23,7 +23,7 @@
     },
     "base": {
       "type": ["string", "null"],
-      "description": "Base prefab name for inheritance (null if no base)"
+      "description": "Base prefab name for inheritance (null if no base). Parsed but not yet implemented - the generator ignores it and reports diagnostic KEEN064."
     },
     "root": {
       "$ref": "#/$defs/prefabEntity",

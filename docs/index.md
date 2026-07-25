@@ -91,6 +91,12 @@ Jump straight to practical examples:
 | [Input Handling](cookbook/input-handling.md) | Keyboard, mouse, gamepad, action mapping |
 | [Scene Management](cookbook/scene-management.md) | Load, unload, and transition between scenes |
 
+## Samples
+
+Runnable example projects live in the repository's `samples/` directory, ranging from focused single-feature demos (e.g. `KeenEyes.Sample.Replay`, `KeenEyes.Sample.InputDebugger`) to complete games. Highlight:
+
+- **NOVAFALL** (`samples/KeenEyes.Sample.NovaFall`) - the flagship 2D arcade sample, a reimagining of *Fall Down*. Its 26 systems exercise the 2D batch renderer (`I2DRenderer`), particles, animation, UI, spatial partitioning, and audio together. It exposes a TestBridge named pipe (`KeenEyes.NovaFall.TestBridge`) that can be registered in `.mcp.json` for MCP-driven inspection, and offers a headless deterministic simulation mode (`--simulate <frames>`, plus `--seed` and `--mode`) whose output is byte-identical for the same seed and mode - handy for CI.
+
 ## Design Philosophy
 
 KeenEyes makes deliberate choices that differ from many game engines:
