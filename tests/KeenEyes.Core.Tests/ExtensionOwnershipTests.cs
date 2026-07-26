@@ -70,4 +70,82 @@ public class ExtensionOwnershipTests
         Assert.True(extension.IsDisposed);
         Assert.Equal(1, extension.DisposeCount);
     }
+
+    #region Aliased Registration Tests
+
+    [Fact]
+    public void SetExtension_ReplacingAliasOfMultiRegisteredInstance_DoesNotDisposeIt()
+    {
+        // Plugins routinely register one object under both its interface and its concrete
+        // type (SilkInputPlugin does exactly this). Replacing the interface alias must not
+        // dispose the instance while the concrete registration still resolves to it —
+        // doing so left NOVAFALL with a disposed input context that never initialized.
+        using var world = new World();
+        var shared = new AliasedTestExtension();
+        world.SetExtension<IAliasedTestExtension>(shared);
+        world.SetExtension(shared);
+
+        world.SetExtension<IAliasedTestExtension>(new AliasedTestExtension());
+
+        Assert.False(shared.IsDisposed);
+        Assert.Same(shared, world.GetExtension<AliasedTestExtension>());
+    }
+
+    [Fact]
+    public void RemoveExtension_WhenInstanceStillAliased_DoesNotDisposeIt()
+    {
+        using var world = new World();
+        var shared = new AliasedTestExtension();
+        world.SetExtension<IAliasedTestExtension>(shared);
+        world.SetExtension(shared);
+
+        var removed = world.RemoveExtension<IAliasedTestExtension>();
+
+        Assert.True(removed);
+        Assert.False(shared.IsDisposed);
+        Assert.Same(shared, world.GetExtension<AliasedTestExtension>());
+    }
+
+    [Fact]
+    public void RemoveExtension_WhenLastAliasRemoved_DisposesInstance()
+    {
+        // The flip side: once no registration resolves to the instance any more, the
+        // manager still owns it and must dispose it exactly once.
+        using var world = new World();
+        var shared = new AliasedTestExtension();
+        world.SetExtension<IAliasedTestExtension>(shared);
+        world.SetExtension(shared);
+
+        world.RemoveExtension<IAliasedTestExtension>();
+        world.RemoveExtension<AliasedTestExtension>();
+
+        Assert.True(shared.IsDisposed);
+        Assert.Equal(1, shared.DisposeCount);
+    }
+
+    #endregion
+}
+
+/// <summary>
+/// Interface used to register a single instance under two extension keys.
+/// </summary>
+public interface IAliasedTestExtension;
+
+/// <summary>
+/// A disposable extension registered under both its interface and its concrete type.
+/// </summary>
+public sealed class AliasedTestExtension : IAliasedTestExtension, IDisposable
+{
+    /// <summary>Gets whether <see cref="Dispose"/> has been called.</summary>
+    public bool IsDisposed { get; private set; }
+
+    /// <summary>Gets how many times <see cref="Dispose"/> has been called.</summary>
+    public int DisposeCount { get; private set; }
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        DisposeCount++;
+        IsDisposed = true;
+    }
 }
