@@ -1,8 +1,10 @@
 # ADR-015: Component Schema Migrations
 
-**Status:** Proposed
-**Date:** 2026-01-03
-**Issue:** [#352](https://github.com/orion-ecs/keen-eye/issues/352)
+**Status:** Accepted
+**Revision:** v2
+**Implementation:** Partial
+**First accepted:** 2026-01-03 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-004](004-reflection-elimination.md) (AOT / no reflection) · [ADR-007](007-capability-based-plugin-architecture.md) (plugin capabilities) · [#352](https://github.com/orion-ecs/keen-eye/issues/352) · [#96](https://github.com/orion-ecs/keen-eye/issues/96)
 
 ## Context
 
@@ -43,13 +45,13 @@ If this component changes (e.g., adding `Shield` field), existing save files bec
 
 ## Decision
 
-Implement a **versioned component migration system** with three layers:
+KeenEyes implements a **versioned component migration system** with three layers:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Source Generators                         │
 │  - Generate version metadata                                 │
-│  - Generate migration delegates                              │
+│  - Generate component migrators                              │
 │  - Generate compatibility checks                             │
 └──────────────────────────┬──────────────────────────────────┘
                            │
@@ -89,81 +91,65 @@ public static partial class ComponentMigrationMetadata
 {
     public static int GetVersion<T>() where T : struct, IComponent;
     public static int GetVersion(Type componentType);
+    public static int GetVersion(string componentTypeName);
 }
 ```
 
 ### Migration Functions
 
-Migration functions transform data from one version to the next:
+Migration methods transform data from one version to the next. They are annotated with `[MigrateFrom(fromVersion)]` directly (there is no method-name argument — the generator discovers each method by attribute placement) and receive the old data as a `JsonElement` rather than a typed previous-version struct:
 
 ```csharp
 [Component(Version = 2)]
-[MigrateFrom(1, nameof(MigrateFromV1))]
 public partial struct Health
 {
     public int Current;
     public int Max;
     public int Shield;
 
-    private static Health MigrateFromV1(HealthV1 old)
+    [MigrateFrom(1)]
+    private static Health MigrateFromV1(JsonElement oldData)
     {
         return new Health
         {
-            Current = old.Current,
-            Max = old.Max,
+            Current = oldData.GetProperty("current").GetInt32(),
+            Max = oldData.GetProperty("max").GetInt32(),
             Shield = 0  // Default for new field
         };
     }
 }
-
-// Previous version preserved for migration
-[Obsolete("Use Health instead")]
-public readonly struct HealthV1
-{
-    public readonly int Current;
-    public readonly int Max;
-}
 ```
+
+Because the old data arrives as JSON, previous-version types (`HealthV1`, etc.) do not need to be preserved — only the current struct definition exists.
 
 ### Migration Chain Resolution
 
-The source generator builds a migration graph:
+Migration chaining is exposed through the `IComponentMigrator` interface, implemented by the source-generated `ComponentSerializer` with strongly-typed dispatch — no delegate dictionary and no `DynamicInvoke` (which would be reflection-adjacent):
 
 ```csharp
-// Generated
-public static partial class ComponentMigrationRegistry
+public interface IComponentMigrator
 {
-    private static readonly Dictionary<(Type, int, int), Delegate> migrations = new()
-    {
-        [(typeof(Health), 1, 2)] = (Func<HealthV1, Health>)Health.MigrateFromV1,
-        [(typeof(Health), 2, 3)] = (Func<HealthV2, Health>)Health.MigrateFromV2,
-    };
+    bool CanMigrate(string typeName, int fromVersion, int toVersion);
+    bool CanMigrate(Type type, int fromVersion, int toVersion);
 
-    public static T Migrate<T>(object source, int fromVersion) where T : struct, IComponent
-    {
-        var currentVersion = GetVersion<T>();
-        var current = source;
+    JsonElement? Migrate(string typeName, JsonElement data, int fromVersion, int toVersion);
+    JsonElement? Migrate(Type type, JsonElement data, int fromVersion, int toVersion);
 
-        // Chain migrations: v1 → v2 → v3
-        for (int v = fromVersion; v < currentVersion; v++)
-        {
-            var migration = migrations[(typeof(T), v, v + 1)];
-            current = migration.DynamicInvoke(current);
-        }
-
-        return (T)current;
-    }
+    IEnumerable<int> GetMigrationVersions(string typeName);
+    IEnumerable<int> GetMigrationVersions(Type type);
 }
 ```
+
+Multi-step chains execute inside the generated migrator: migrating v1 → v4 invokes v1→v2, v2→v3, then v3→v4 in sequence. `MigrationGraph` and the `KEEN114` analyzer warning detect gaps in the chain at build time; cycles are structurally impossible because each migration steps exactly one version forward toward the current version.
 
 ### Serialization Integration
 
 Version metadata is stored in serialized data:
 
-**Binary format:**
+**Binary format** (snapshot format v2; v1 files default every component to version 1):
 ```
 [ComponentTypeId: int32]
-[Version: int16]          // NEW: version tag
+[Version: int16]          // version tag
 [DataLength: int32]
 [ComponentData: bytes]
 ```
@@ -182,35 +168,11 @@ Version metadata is stored in serialized data:
 }
 ```
 
-Deserializers check version before instantiation:
+Version handling is integrated into `SnapshotManager` restoration rather than a per-serializer `DeserializeComponent<T>` method. Each `SerializedComponent` carries its schema version, and on restore `SnapshotManager` compares it against the generated serializer's `GetVersion(type)`:
 
-```csharp
-public T DeserializeComponent<T>(BinaryReader reader) where T : struct, IComponent
-{
-    var serializedVersion = reader.ReadInt16();
-    var currentVersion = ComponentMigrationMetadata.GetVersion<T>();
-
-    if (serializedVersion == currentVersion)
-    {
-        // Fast path: direct deserialization
-        return DeserializeDirect<T>(reader);
-    }
-    else if (serializedVersion < currentVersion)
-    {
-        // Migration path: deserialize old version, then migrate
-        var oldData = DeserializeVersioned(typeof(T), serializedVersion, reader);
-        return ComponentMigrationRegistry.Migrate<T>(oldData, serializedVersion);
-    }
-    else
-    {
-        // Future version: cannot downgrade
-        throw new ComponentVersionException(
-            $"Cannot load {typeof(T).Name} v{serializedVersion} " +
-            $"(current version is v{currentVersion}). " +
-            "Update the game to load this save file.");
-    }
-}
-```
+- **Version matches** — fast path: direct deserialization.
+- **Serialized version is older** — the old `JsonElement` data is migrated through `IComponentMigrator` before deserialization.
+- **Serialized version is newer, or no migration path exists** — restore throws `ComponentVersionException` (a save from a newer game build cannot be downgraded).
 
 ### Default Value Injection
 
@@ -228,42 +190,23 @@ public partial struct Health
 }
 ```
 
-The source generator produces an automatic migration:
-
-```csharp
-// Generated
-private static Health AutoMigrateFromV1(HealthV1 old)
-{
-    return new Health
-    {
-        Current = old.Current,
-        Max = old.Max,
-        Shield = 0  // From [DefaultValue]
-    };
-}
-```
+The source generator produces the automatic migration: existing fields are copied from the old JSON data and annotated fields receive their `[DefaultValue]` — no hand-written migration method is needed. The `Currency` component in `samples/KeenEyes.Sample.SchemaMigration` demonstrates a three-version evolution using only `[DefaultValue]` attributes.
 
 ### Batch Upgrader Tool
 
-CLI tool for upgrading save files:
+The `keeneyes migrate` command ships with dry-run, backup, glob-pattern, output-directory, verbose, and continue-on-error support, and analyzes component versions in both JSON and binary save files:
 
 ```bash
-# Preview migrations
+# Preview which files contain versioned components
 dotnet keeneyes migrate --path ./saves/ --dry-run
 
-# Output:
-# save1.dat:
-#   Health v1 → v3 (12 entities)
-#   Inventory v2 → v3 (5 entities)
-# save2.dat:
-#   Health v1 → v3 (8 entities)
-
-# Apply migrations
+# Validate files, creating backups first
 dotnet keeneyes migrate --path ./saves/ --backup
 
 # Creates backup: ./saves/save1.dat.backup
-# Upgrades: ./saves/save1.dat
 ```
+
+**Not yet implemented: offline data transformation.** Because the CLI cannot load the game's generated serializer, it validates and copies files rather than rewriting component data — actual migration executes when the game loads the save, via `SnapshotManager`. For the same reason the analysis reports the versions found in a file but cannot determine true target versions. Rewriting data offline would require the user to supply a serializer assembly (future work).
 
 ## Alternatives Considered
 
@@ -340,60 +283,61 @@ migrations:
 
 1. **Save compatibility** - Games can evolve components without breaking saves
 2. **Explicit migrations** - Developers control exactly how data transforms
-3. **AOT compatible** - Source-generated delegates, no reflection
-4. **Tooling support** - Batch upgrader for existing save files
+3. **AOT compatible** - Source-generated migrators, no reflection
+4. **Tooling support** - `keeneyes migrate` CLI analyzes and backs up existing save files (offline data rewriting not yet implemented)
 5. **Gradual adoption** - Version defaults to 1, migration optional
 
 ### Negative
 
 1. **Version tracking overhead** - 2 bytes per component in binary format
-2. **Old version types** - Must keep `HealthV1`, `HealthV2` for migrations
+2. **Untyped migration input** - Migration methods read old data from a `JsonElement`, so field access inside migrations is stringly-typed and not compiler-checked (the trade-off for not keeping old version types around)
 3. **Migration complexity** - Multi-step migrations can be hard to reason about
 4. **Testing burden** - Each migration path needs testing
 
 ### Risks
 
-1. **Circular dependencies** - Migration A→B→C→A (detected by generator)
-2. **Missing migrations** - Version gap with no handler (runtime error)
+1. **Circular dependencies** - Structurally impossible as-built: each migration steps exactly one version forward, so the real risk is gaps in the chain
+2. **Missing migrations** - Version gap with no handler (KEEN114 analyzer warning at build time; `ComponentVersionException` at load)
 3. **Cross-component migrations** - Component A needs data from Component B (not supported initially)
 4. **Performance during load** - Many migrations on large saves
 
 ## Implementation Phases
 
-### Phase 1: Version Infrastructure ([#697](https://github.com/orion-ecs/keen-eye/issues/697))
-- `[Component(Version = n)]` attribute support
-- Version metadata in serialization format
-- `ComponentMigrationMetadata` source generator
-- Version mismatch detection (throw, don't migrate yet)
+### Phase 1: Version Infrastructure ([#697](https://github.com/orion-ecs/keen-eye/issues/697)) — ✅ Shipped
+- [x] `[Component(Version = n)]` attribute support
+- [x] Version metadata in serialization format (int16 tag in binary snapshot format v2)
+- [x] `ComponentMigrationMetadata` source generator
+- [x] Version mismatch detection (`ComponentVersionException`)
 
-### Phase 2: Migration Pipeline ([#698](https://github.com/orion-ecs/keen-eye/issues/698))
-- `[MigrateFrom]` attribute
-- `ComponentMigrationRegistry` source generator
-- Single-step migration execution
-- Integration with `IComponentSerializer`
+### Phase 2: Migration Pipeline ([#698](https://github.com/orion-ecs/keen-eye/issues/698)) — ✅ Shipped
+- [x] `[MigrateFrom]` attribute
+- [x] Generated migrator (shipped as `IComponentMigrator` implemented by the generated `ComponentSerializer`, not a `ComponentMigrationRegistry`)
+- [x] Single-step migration execution
+- [x] Integration with `IComponentSerializer`
 
-### Phase 3: Migration Chaining ([#699](https://github.com/orion-ecs/keen-eye/issues/699))
-- Multi-step migration (v1 → v2 → v3)
-- Migration graph validation
-- Cycle detection
-- Gap detection
+### Phase 3: Migration Chaining ([#699](https://github.com/orion-ecs/keen-eye/issues/699)) — ✅ Shipped
+- [x] Multi-step migration (v1 → v2 → v3)
+- [x] Migration graph validation (`MigrationGraph`)
+- [x] Cycle detection (`MigrationGraph.HasCycles`; cycles are structurally impossible as-built)
+- [x] Gap detection (KEEN114 analyzer warning)
 
-### Phase 4: Default Value Injection ([#700](https://github.com/orion-ecs/keen-eye/issues/700))
-- `[DefaultValue]` attribute for new fields
-- Auto-generated migrations for simple additions
-- Combine with explicit migrations
+### Phase 4: Default Value Injection ([#700](https://github.com/orion-ecs/keen-eye/issues/700)) — ✅ Shipped
+- [x] `[DefaultValue]` attribute for new fields
+- [x] Auto-generated migrations for simple additions
+- [x] Combine with explicit migrations
 
-### Phase 5: Batch Upgrader Tool ([#701](https://github.com/orion-ecs/keen-eye/issues/701))
-- `dotnet keeneyes migrate` command
-- Dry-run mode
-- Backup creation
-- Progress reporting
+### Phase 5: Batch Upgrader Tool ([#701](https://github.com/orion-ecs/keen-eye/issues/701)) — ✅ Shipped (with caveat)
+- [x] `dotnet keeneyes migrate` command (plus `--pattern`, `--output`, `--continue-on-error`)
+- [x] Dry-run mode
+- [x] Backup creation
+- [x] Progress reporting
+- Not yet implemented: offline component-data rewriting — the CLI validates and copies files, and migration executes at game load (would require a user-supplied serializer assembly)
 
-### Phase 6: Documentation and Samples ([#702](https://github.com/orion-ecs/keen-eye/issues/702))
-- Migration best practices guide
-- Sample showing 3-version evolution
-- Troubleshooting guide
-- API documentation
+### Phase 6: Documentation and Samples ([#702](https://github.com/orion-ecs/keen-eye/issues/702)) — ✅ Shipped
+- [x] Migration best practices guide (`docs/migrations.md`)
+- [x] Sample showing 3-version evolution (`samples/KeenEyes.Sample.SchemaMigration`)
+- [x] Troubleshooting guide
+- [x] API documentation
 
 ## Related
 
@@ -405,5 +349,12 @@ migrations:
 - [#700](https://github.com/orion-ecs/keen-eye/issues/700) - Default Value Injection
 - [#701](https://github.com/orion-ecs/keen-eye/issues/701) - Batch Upgrader Tool
 - [#702](https://github.com/orion-ecs/keen-eye/issues/702) - Documentation and Samples
-- ADR-004: Reflection Elimination (AOT compatibility constraints)
-- ADR-007: Capability-Based Plugin Architecture (serialization capability)
+- [ADR-004: Reflection Elimination](004-reflection-elimination.md) (AOT compatibility constraints)
+- [ADR-007: Capability-Based Plugin Architecture](007-capability-based-plugin-architecture.md) (serialization capability)
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Status corrected Proposed → Accepted — all six phase issues (#697–#702) and parent #352 closed. Implementation marked Partial: Phases 1–4 and 6 fully shipped; Phase 5's `keeneyes migrate` CLI analyzes, backs up, and copies save files but does not rewrite component data offline (migration runs at game load). Decision amended to the as-built API: `[MigrateFrom(fromVersion)]` methods taking `JsonElement` (no preserved `HealthV1`-style types), `IComponentMigrator` on the generated `ComponentSerializer` instead of a `ComponentMigrationRegistry` delegate dictionary with `DynamicInvoke`, version handling in `SnapshotManager` restore, and the circular-dependency risk reclassified as structurally impossible (KEEN114 gap detection is the real safeguard).
+- **v1 — 2026-01-03 (#352):** Proposed — versioned component schema migration system ([Component(Version)], [MigrateFrom], [DefaultValue], source-generated migrators, serialized version tags, and a CLI batch upgrader) so save files remain loadable as component definitions evolve.

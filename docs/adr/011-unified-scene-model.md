@@ -1,8 +1,10 @@
 # ADR-011: Unified Scene Model
 
 **Status:** Accepted
-**Date:** 2026-01-01
-**Issue:** [#431](https://github.com/orion-ecs/keen-eye/issues/431)
+**Revision:** v2
+**Implementation:** Partial
+**First accepted:** 2026-01-01 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-001](001-world-manager-architecture.md) (World managers) · [#431](https://github.com/orion-ecs/keen-eye/issues/431) · [#1079](https://github.com/orion-ecs/keen-eye/issues/1079)
 
 ## Context
 
@@ -32,16 +34,22 @@ This mirrors Godot's elegant approach where **everything is a scene** (`.tscn`).
 
 ### Model
 
-Scenes are entity hierarchies. A scene definition produces a root entity with descendants. How you use it determines whether it behaves like a "prefab" or a "level":
+Scenes are entity hierarchies. A scene definition produces a root entity with descendants. How you use it determines whether it behaves like a "prefab" or a "level".
+
+As built, the runtime splits this across two cooperating pieces:
+
+- **Generated static spawn methods** — the unified generator turns each `.kescene`/`.keprefab` file into a `Scenes.SpawnX(world, ...)` method that instantiates the file-defined entity hierarchy.
+- **`world.Scenes` (`SceneManager`)** — manages lifecycle. `Spawn(string name)` creates a scene root entity (`SceneRootTag` + `SceneMetadata`), `AddToScene` associates spawned entities with that root, and `Unload`/`TransitionEntity`/`MarkPersistent` handle reference counting and persistence.
 
 ```csharp
-// Spawn multiple instances (prefab usage)
-var player = world.Scenes.Spawn("Player");
-var enemy1 = world.Scenes.Spawn("Enemy");
-var enemy2 = world.Scenes.Spawn("Enemy");
+// Instantiate file-defined hierarchies (prefab usage) via generated spawn methods
+var player = Scenes.SpawnPlayer(world);
+var enemy1 = Scenes.SpawnEnemy(world);
+var enemy2 = Scenes.SpawnEnemy(world);
 
-// Spawn as current level (scene usage)
+// Create a scene root for lifecycle tracking (level usage)
 var level = world.Scenes.Spawn("ForestLevel");
+world.Scenes.AddToScene(Scenes.SpawnForestLevel(world), level);
 
 // Unload when transitioning
 world.Scenes.Unload(level);
@@ -49,7 +57,7 @@ world.Scenes.Unload(level);
 
 ### Components
 
-All scene-related components live in `KeenEyes.Abstractions`:
+All scene-related components live in `KeenEyes.Abstractions` (namespace `KeenEyes.Scenes`):
 
 ```csharp
 /// <summary>
@@ -108,17 +116,22 @@ public partial class World
 }
 ```
 
-**SceneManager API:**
+**SceneManager API (as built):**
 
 | Method | Description |
 |--------|-------------|
-| `Spawn(string name)` | Spawn a scene by name, returns root entity |
-| `Spawn(string name, Vector3 position)` | Spawn with position override |
+| `Spawn(string name)` | Create an empty scene root entity (`SceneRootTag` + `SceneMetadata`) for lifecycle tracking |
+| `AddToScene(Entity entity, Entity scene)` | Associate an entity with a scene root (increments reference count) |
+| `RemoveFromScene(Entity entity, Entity scene)` | Remove an entity from a scene (decrements reference count) |
 | `Unload(Entity sceneRoot)` | Unload scene, respecting persistence and reference counts |
 | `MarkPersistent(Entity entity)` | Mark entity to survive scene unloads |
 | `TransitionEntity(Entity entity, Entity toScene)` | Move entity to another scene (increments ref count) |
 | `GetLoaded()` | Get all currently loaded scene roots |
 | `GetScene(string name)` | Get loaded scene by name |
+| `IsLoaded(string name)` | Check whether a scene with the given name is loaded |
+| `LoadedCount` | Number of currently loaded scenes |
+
+Note that `SceneManager` does not instantiate file-defined content — the generated static `Scenes.SpawnX` methods do that. There is also no `Spawn(string name, Vector3 position)` overload; per-instance overrides are typed optional parameters on the generated spawn methods, derived from each file's `overridableFields` list.
 
 ### Scene Transitions and Persistence
 
@@ -181,18 +194,21 @@ The `.kescene` format remains unchanged. The existing JSON schema works for both
 
 ### Generator
 
-One unified generator produces spawn methods:
+One unified generator — `SceneGenerator` (`editor/KeenEyes.Generators/SceneGenerator.cs`) — processes both `.kescene` and `.keprefab` AdditionalFiles and produces spawn methods. It emits a `Scenes` class with an `All` list and one spawn method per asset; each method's optional parameters come from that file's `overridableFields` list (there is no fixed position parameter):
 
 ```csharp
-// Generated code
+// Generated code — optional parameters derive from each file's overridableFields
 public static partial class Scenes
 {
     public static IReadOnlyList<string> All { get; } = ["Player", "Enemy", "ForestLevel"];
 
-    public static Entity SpawnPlayer(World world, Vector3? position = null) { ... }
-    public static Entity SpawnEnemy(World world, Vector3? position = null) { ... }
+    public static Entity SpawnPlayer(World world, /* overridable-field parameters */) { ... }
+    public static Entity SpawnEnemy(World world, /* overridable-field parameters */) { ... }
     public static Entity SpawnForestLevel(World world) { ... }
 }
+
+// Usage: overrides are typed named arguments
+var enemy = Scenes.SpawnEnemy(world, myGamePositionX: 100, myGamePositionY: 50);
 ```
 
 ### Systems Do Not Load/Unload with Scenes
@@ -207,28 +223,36 @@ Systems are registered on the World and query for matching entities. When scene 
 - **Matches Godot's proven approach** - Everything is a scene
 - **Less code duplication** - One generator, one manager
 - **Flexible usage** - Same file can be instanced many times or loaded as a level
-- **Clean API** - `world.Scenes.Spawn("Player")` for everything
+- **Clean API** - Generated `Scenes.SpawnX` methods plus `world.Scenes` lifecycle management for everything
 
 ### Negative
 
-- **Migration** - Existing `.keprefab` files need migration to `.kescene`
+- **Migration** - Superseded: the anticipated migration of existing `.keprefab` files to `.kescene` never happened and is not planned. Both extensions remain first-class inputs to the single unified `SceneGenerator` (the SDK auto-includes `**/*.keprefab`, samples still use it, and `docs/prefabs.md` documents the workflow as current).
 - **Naming** - "Scene" for a player entity may feel odd initially
 
 ### Neutral
 
-- **Deprecation path** - `PrefabManager` and `PrefabGenerator` will be deprecated in favor of the unified model
+- **Deprecation path** - Completed and exceeded: `PrefabGenerator` was merged into `SceneGenerator`, and the entire runtime prefab API (`PrefabManager`, `EntityPrefab`, `IPrefabCapability`, `World.Prefabs`) was deprecated and then removed outright in July 2026 ([#1079](https://github.com/orion-ecs/keen-eye/issues/1079)). The unified model is the only prefab/scene mechanism.
 
 ## Implementation
 
-1. Add scene components to `KeenEyes.Abstractions`
-2. Add `SceneManager` to `KeenEyes.Core` with `world.Scenes` accessor
-3. Update `SceneGenerator` to handle all use cases
-4. Deprecate `PrefabManager` and `PrefabGenerator`
-5. Update editor to use unified model
-6. Migrate existing `.keprefab` files to `.kescene`
+- [x] Add scene components to `KeenEyes.Abstractions` (`KeenEyes.Scenes` namespace)
+- [x] Add `SceneManager` to `KeenEyes.Core` with `world.Scenes` accessor
+- [x] Update `SceneGenerator` to handle all use cases — unified over `.kescene` and `.keprefab`
+- [x] Deprecate `PrefabManager` and `PrefabGenerator` — exceeded: `PrefabGenerator` merged into `SceneGenerator`, and the runtime prefab API was subsequently removed entirely ([#1079](https://github.com/orion-ecs/keen-eye/issues/1079))
+- [x] Update editor to use unified model (`EditorWorldManager`)
+- [ ] ~~Migrate existing `.keprefab` files to `.kescene`~~ — superseded: both extensions remain supported by the unified generator; no migration planned
 
 ## References
 
 - [Issue #431: Scene Management Research](https://github.com/orion-ecs/keen-eye/issues/431)
+- [Issue #1079: Remove deprecated runtime prefab API](https://github.com/orion-ecs/keen-eye/issues/1079)
 - [Godot Scene System](https://docs.godotengine.org/en/stable/getting_started/step_by_step/scenes_and_nodes.html)
-- [ADR-001: World Manager Architecture](./001-world-manager-architecture.md)
+- [ADR-001: World Manager Architecture](001-world-manager-architecture.md)
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Implementation marked Partial: `SceneManager.Spawn(name)` creates only an empty scene root — file-defined hierarchies spawn via generated static `Scenes.SpawnX` methods with `overridableFields` parameters, and the documented `Spawn(name, Vector3)` overload was never built; the planned `.keprefab`→`.kescene` migration was superseded (both extensions stay first-class). Decision/Consequences/Implementation amended to the as-built split (generated spawn methods vs. `world.Scenes` lifecycle), full SceneManager API table, and the complete removal of the runtime prefab API (#1079).
+- **v1 — 2026-01-01 (#431):** Accepted — Unify prefabs and scenes into a single scene concept (one file model, one generator, one runtime lifecycle manager), resolving issue #431's scene-management questions.

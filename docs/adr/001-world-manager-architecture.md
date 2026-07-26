@@ -1,8 +1,10 @@
 # ADR-001: World Manager Architecture
 
-**Status:** Accepted
-**Date:** 2025-12-07
-**Issue:** [#82](https://github.com/orion-ecs/keen-eye/issues/82)
+**Status:** Amended
+**Revision:** v4
+**Implementation:** Shipped
+**First accepted:** 2025-12-07 · **Last amended:** 2026-07-26
+**Relates to:** [#82](https://github.com/orion-ecs/keen-eye/issues/82) · [#332](https://github.com/orion-ecs/keen-eye/issues/332)
 
 ## Context
 
@@ -29,21 +31,30 @@ This violates the Single Responsibility Principle. The class is difficult to:
 
 ## Decision
 
-Refactor `World` into a **facade pattern** with specialized internal managers:
+Refactor `World` into a **facade pattern** with specialized internal managers. The original decision named 11 managers (8 to extract plus 3 pre-existing); the pattern has since absorbed every new World concern, and the shipped architecture is:
 
 ```
-World (facade, target ~300-400 lines)
-├── HierarchyManager      - Parent-child entity relationships
-├── SystemManager         - System registration, ordering, execution
-├── PluginManager         - Plugin lifecycle
-├── SingletonManager      - Global resource storage
-├── ExtensionManager      - Plugin-provided APIs
-├── EntityNamingManager   - Entity name registration and lookup
-├── EventManager          - Component and entity lifecycle events
-├── ChangeTracker         - Dirty flag tracking (enhanced with EntityPool)
-├── ArchetypeManager      - (existing) Component storage
-├── QueryManager          - (existing) Query caching
-└── ComponentRegistry     - (existing) Component type registry
+World (facade)
+├── HierarchyManager           - Parent-child entity relationships
+├── SystemManager              - System registration, ordering, execution
+├── SystemHookManager          - Before/after system execution hooks
+├── PluginManager              - Plugin lifecycle
+├── SingletonManager           - Global resource storage
+├── ExtensionManager           - Plugin-provided APIs
+├── EntityNamingManager        - Entity name registration and lookup
+├── EventManager               - Component and entity lifecycle events
+├── MessageManager             - Inter-system messaging
+├── TagManager                 - String-based entity tagging
+├── ChangeTracker              - Dirty flag tracking with entity reconstruction
+├── ArchetypeManager           - (pre-existing) Component storage
+├── QueryManager               - (pre-existing) Query caching
+├── ComponentRegistry          - (pre-existing) Component type registry
+├── ComponentValidationManager - Component constraint enforcement
+├── SaveManager                - World persistence orchestration
+├── SnapshotManager            - World state serialization (static utility class)
+├── SceneManager               - In-memory scene lifecycle (spawn/unload/transition of tagged entity groups)
+├── StatisticsManager          - Memory and performance stats
+└── ComponentArrayPoolManager  - Component array pooling
 ```
 
 ### Implementation Order
@@ -59,11 +70,11 @@ Extract managers in order of size and isolation (largest/cleanest first):
 7. ✅ **EventManager** (~140 lines) - Consolidates EventBus, ComponentEventHandlers, EntityEventHandlers
 8. ✅ **ChangeTracker** (enhanced) - Added EntityPool dependency for entity reconstruction
 
-**Current Status:** World.cs reduced from 3,073 to ~2,272 lines (~26% reduction)
+**Current Status:** Extraction is complete. `World.cs` proper is 235 lines (core fields, constructor, Dispose), meeting the ~300-400 line facade target. The facade's public surface is organized as partial-class files (`World.Entities.cs`, `World.Systems.cs`, etc.) containing thin one-line delegations to managers — the partial split rejected as Option 1 proved useful as file organization *on top of*, not instead of, manager extraction.
 
 ### Design Constraints
 
-- Managers are `internal` (not public API)
+- Managers default to `internal` (not public API); all eight managers extracted under this ADR are internal. A minority are deliberately public where users need direct access (`ArchetypeManager`, `QueryManager`, `ComponentRegistry`, `ComponentValidationManager`, `ComponentArrayPoolManager`, `SceneManager`), exposed as properties on `World`
 - `World` remains the single entry point (facade pattern)
 - Public API unchanged - **no breaking changes**
 - Each manager takes minimal dependencies
@@ -152,3 +163,12 @@ This exception does not violate per-world isolation principles because worlds ca
 
 - Public API unchanged
 - Performance impact negligible (one extra method call)
+
+---
+
+## Changelog
+
+- **v4 — 2026-07-26 (living-ADR conversion):** Status set to Amended (decision shipped 2025-12-07 and twice amended in place); Implementation: Shipped with no gaps — all eight planned extractions exist as internal managers. Decision diagram expanded from the original 11 managers to the 20 shipped today; obsolete "~2,272 lines" status replaced with the as-built result (World.cs is a 235-line facade with its delegation surface split across partial files); "managers are `internal`" constraint amended to record the deliberately public managers (ArchetypeManager, QueryManager, ComponentRegistry, ComponentValidationManager, ComponentArrayPoolManager, SceneManager).
+- **v3 — 2026-01-04 (49db2cc4 / issue #332):** Added 'Explicit Static State Exceptions' section documenting the ComponentArrayPoolManager static delegate cache (rentDelegates/returnDelegates/lockObj) as an accepted exception to the no-static-state principle, with six justifications.
+- **v2 — 2025-12-07 (fdcfc15a):** Progress update: marked all eight extraction phases complete, added EntityNamingManager, EventManager, and enhanced ChangeTracker to the architecture diagram, and recorded World.cs reduction from 3,073 to ~2,272 lines.
+- **v1 — 2025-12-07 (b25913ab / issue #82):** Accepted — refactor the 3,073-line World class into a facade over specialized internal managers to restore single responsibility, testability, and maintainability.

@@ -1,7 +1,9 @@
 # ADR-005: Graphics and Input Abstraction Layers
 
 **Status:** Accepted
-**Date:** 2025-12-16
+**Revision:** v2
+**Implementation:** Shipped
+**First accepted:** 2025-12-16 · **Last amended:** 2026-07-26
 
 ## Context
 
@@ -57,19 +59,19 @@ Create a layered abstraction architecture that separates loop management from gr
 │   (Core loop contract)                                       │
 └─────────────────────────────────────────────────────────────┘
                               │
-          ┌───────────────────┴───────────────────┐
-          ▼                                       ▼
-┌─────────────────────────┐         ┌─────────────────────────┐
-│ KeenEyes.Graphics       │         │ KeenEyes.Input          │
-│ .Abstractions           │         │ .Abstractions           │
-│ IGraphicsContext        │         │ IInputContext           │
-│ (extends ILoopProvider) │         │ (extends ILoopProvider) │
-└─────────────────────────┘         └─────────────────────────┘
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│   KeenEyes.Platform.Silk (+ Platform.Silk.Abstractions)      │
+│   SilkWindowPlugin registers SilkLoopProvider                 │
+│   (Owns the window and the main loop)                         │
+└─────────────────────────────────────────────────────────────┘
           │                                       │
           ▼                                       ▼
 ┌─────────────────────────┐         ┌─────────────────────────┐
-│ KeenEyes.Graphics.Silk  │         │ KeenEyes.Input.Silk     │
-│ (Silk.NET OpenGL impl)  │         │ (Silk.NET input impl)   │
+│ KeenEyes.Graphics       │         │ KeenEyes.Input          │
+│ .Abstractions / .Silk   │         │ .Abstractions / .Silk   │
+│ IGraphicsContext        │         │ IInputContext           │
+│ (subscribes to loop)    │         │ (subscribes to loop)    │
 └─────────────────────────┘         └─────────────────────────┘
 ```
 
@@ -91,6 +93,10 @@ public interface ILoopProvider
     void Initialize();
     void Run();
     bool IsInitialized { get; }
+
+    // Render-thread marshaling for operations needing the GL context
+    Task<T> InvokeOnRenderThreadAsync<T>(Func<T> action);
+    void InvokeOnRenderThread(Action action);
 }
 ```
 
@@ -116,15 +122,15 @@ Key features:
 - **Backend-agnostic**: Works with any `ILoopProvider` implementation
 - **Consistent API**: Same pattern regardless of graphics backend or input-only mode
 
-#### IGraphicsContext Extension
+#### Loop Ownership (Platform Layer)
 
-`IGraphicsContext` now extends `ILoopProvider`:
+The loop contract sits below the graphics and input layers: neither `IGraphicsContext` nor `IInputContext` extends `ILoopProvider` — both are `IDisposable` only. A dedicated platform layer (`KeenEyes.Platform.Silk` / `KeenEyes.Platform.Silk.Abstractions`) owns windowing and the main loop: `SilkWindowPlugin` registers `SilkLoopProvider` as the world's `ILoopProvider`, and the graphics and input plugins subscribe to that shared loop.
 
 ```csharp
-public interface IGraphicsContext : ILoopProvider, IDisposable
+public interface IGraphicsContext : IDisposable
 {
     // Graphics-specific members (meshes, textures, shaders)
-    // Loop members inherited from ILoopProvider
+    // Use ILoopProvider (from SilkWindowPlugin) for the main loop
 }
 ```
 
@@ -132,25 +138,46 @@ public interface IGraphicsContext : ILoopProvider, IDisposable
 
 ```
 KeenEyes.Abstractions (IWorld, ILoopProvider)
-    ↑
-KeenEyes.Runtime (WorldRunnerBuilder)
-    ↑
-KeenEyes.Graphics.Abstractions (IGraphicsContext : ILoopProvider)
-    ↑
-KeenEyes.Graphics.Silk (SilkGraphicsContext implementation)
+    ↑                              ↑
+KeenEyes.Runtime          KeenEyes.Platform.Silk.Abstractions
+(WorldRunnerBuilder)               ↑
+                          KeenEyes.Platform.Silk
+                          (SilkWindowPlugin, SilkLoopProvider)
+                               ↑              ↑
+                 KeenEyes.Graphics.Silk   KeenEyes.Input.Silk
+                 (rendering only)         (input only)
 ```
+
+The Silk graphics and input packages depend on the platform layer for the loop; they contribute no loop implementation of their own.
 
 ### Registration
 
-Plugins register as both specific and abstract types:
+Registration is split by responsibility. `SilkWindowPlugin` (KeenEyes.Platform.Silk) registers the `ILoopProvider` extension that enables `WorldRunnerBuilder`:
 
 ```csharp
+// SilkWindowPlugin — owns window and loop
 public void Install(IPluginContext context)
 {
-    graphicsContext = new SilkGraphicsContext(config);
+    provider = new SilkWindowProvider(config);
+    var loopProvider = new SilkLoopProvider(provider);
+
+    context.SetExtension<ISilkWindowProvider>(provider);
+    context.SetExtension<ILoopProvider>(loopProvider);  // Enables WorldRunnerBuilder
+}
+```
+
+`SilkGraphicsPlugin` registers only graphics-facing extensions and requires the window plugin to be installed first:
+
+```csharp
+// SilkGraphicsPlugin — graphics-facing extensions only
+public void Install(IPluginContext context)
+{
+    graphicsContext = new SilkGraphicsContext(windowProvider, config);
 
     context.SetExtension<IGraphicsContext>(graphicsContext);
-    context.SetExtension<ILoopProvider>(graphicsContext);  // Enables WorldRunnerBuilder
+    context.SetExtension<I2DRendererProvider>(graphicsContext);
+    context.SetExtension<ITextRendererProvider>(graphicsContext);
+    context.SetExtension<IFontManagerProvider>(graphicsContext);
 }
 ```
 
@@ -206,10 +233,10 @@ world.Run();  // World contains loop logic
 |---------|-------------|
 | **Backend swapping** | Replace `SilkGraphicsPlugin` with `SDLGraphicsPlugin` without changing application code |
 | **Platform migration** | Same game code runs on different platforms with appropriate backend |
-| **Testability** | Mock `ILoopProvider` for testing loop-dependent logic |
+| **Testability** | Mock `ILoopProvider` for testing loop-dependent logic (`MockLoopProvider` ships in `KeenEyes.Testing`) |
 | **Reduced boilerplate** | Auto-update removes repetitive `world.Update()` wiring |
 | **Consistent patterns** | Follows existing builder patterns (EntityBuilder, QueryBuilder) |
-| **Future-proof** | Input, audio, and other systems can provide loops |
+| **Future-proof** | Input, audio, and other systems share the platform-provided loop |
 
 ### Negative
 
@@ -221,24 +248,32 @@ world.Run();  // World contains loop logic
 
 ### Neutral
 
-- Existing `IGraphicsContext` event wiring still works (for advanced use cases)
+- Direct event wiring against `ILoopProvider` still works (for advanced use cases)
 - No changes to component, system, or query APIs
 - Build complexity unchanged (packages already existed)
 
 ## Future Work
 
-This architecture enables planned features:
+This architecture enabled planned features; status as of the latest revision:
 
-1. **Input Abstraction** (`KeenEyes.Input.Abstractions`)
-   - `IInputContext : ILoopProvider`
+1. **Input Abstraction** (`KeenEyes.Input.Abstractions`) — ✅ Shipped
+   - `KeenEyes.Input.Abstractions` and `KeenEyes.Input.Silk` exist
+   - `IInputContext : IDisposable` — input subscribes to the platform-provided loop rather than providing one
    - Backend-agnostic input polling and events
-   - Same builder pattern
 
-2. **Headless Loop Provider**
+2. **Headless Loop Provider** — Not yet implemented
    - Simple timer-based loop for servers
    - No window or graphics dependency
-   - Enables CLI tools and dedicated servers
+   - Would enable CLI tools and dedicated servers
+   - The only `ILoopProvider` implementations today are `SilkLoopProvider` (windowed, KeenEyes.Platform.Silk) and `MockLoopProvider` (test-only, KeenEyes.Testing)
 
-3. **Multi-Backend Applications**
+3. **Multi-Backend Applications** — Not yet implemented
    - Swap backends at runtime (e.g., Vulkan fallback to OpenGL)
    - Platform-specific backend selection
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Status Accepted confirmed; Implementation marked Shipped. Decision amended to as-built loop ownership: `IGraphicsContext`/`IInputContext` no longer extend `ILoopProvider` — the platform layer (`KeenEyes.Platform.Silk`) owns window and loop, with `SilkWindowPlugin` registering `SilkLoopProvider` and `SilkGraphicsPlugin` registering graphics-facing extensions only; architecture and package-dependency diagrams and the registration example updated to match. Future Work updated: input abstraction shipped (as `IInputContext : IDisposable`); headless server loop provider and runtime multi-backend swapping remain unimplemented (`MockLoopProvider` covers testing only).
+- **v1 — 2025-12-16 (e63b8c0b):** Accepted — introduce layered loop abstraction: ILoopProvider in KeenEyes.Abstractions plus WorldRunnerBuilder in KeenEyes.Runtime, separating main-loop orchestration from the Silk.NET graphics backend and paving the way for backend-agnostic input.

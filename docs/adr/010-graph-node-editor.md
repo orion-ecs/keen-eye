@@ -1,7 +1,10 @@
 # ADR-010: Graph Node Editor Architecture
 
 **Status:** Accepted
-**Date:** 2024-12-31
+**Revision:** v2
+**Implementation:** Shipped
+**First accepted:** 2025-12-31 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-009](009-kesl-shader-language.md) (KESL)
 
 ## Context
 
@@ -11,7 +14,7 @@ KeenEyes needs visual editing capabilities for:
 
 The existing UI system (ECS-based, retained mode, 40+ widgets) provides a solid foundation but lacks graph-specific primitives: nodes, connections, ports, pan/zoom canvas.
 
-With the KESL shader language prototype complete (ADR-009), we need a visual frontend that:
+With the KESL shader language prototype complete ([ADR-009](009-kesl-shader-language.md)), we need a visual frontend that:
 1. Allows non-programmers to compose compute shaders
 2. Provides real-time validation feedback
 3. Generates KESL source that compiles via existing pipeline
@@ -24,21 +27,32 @@ Implement a **generic graph node editor framework** with KESL-specific node type
 ### Architecture Overview
 
 ```
-KeenEyes.Graph.Abstractions/     # Generic graph primitives
+src/KeenEyes.Graph.Abstractions/  # Generic graph primitives
 ├── Components (GraphCanvas, GraphNode, GraphConnection)
 ├── Ports (PortDefinition, PortTypeId, PortDirection)
 └── Interfaces (INodeTypeDefinition, IGraphRenderer)
 
-KeenEyes.Graph/                  # Core editing infrastructure
-├── Systems (Input, Layout, Render)
+src/KeenEyes.Graph/               # Core editing infrastructure
+├── Systems (Input, Layout, Render, ContextMenu, Widgets)
 ├── GraphContext extension
-└── Registries (Port, NodeType)
+├── Registries (Port, NodeType)
+├── Built-in nodes (Comment, Group, Reroute)
+└── Commands (undo/redo command objects)
 
-KeenEyes.Graph.Kesl/             # KESL-specific nodes
-├── Node definitions
-├── KeslGraphCompiler (Graph → AST)
-└── KeslGraphValidator
+editor/KeenEyes.Graph.Kesl/       # KESL-specific tooling (editor tier)
+├── Nodes (Flow, Logic, Math, Shader, Vector libraries)
+├── Compiler (KeslGraphCompiler: Graph → AST)
+├── Validation (KeslGraphValidator + rules)
+├── Editing (KeslGraphParser, KeslGraphExporter, source mapping)
+└── Preview (ShaderPreviewPanel, ShaderExecutor)
 ```
+
+The KESL package lives in the editor tier (`editor/KeenEyes.Graph.Kesl`) rather than
+`src/` — it is editor tooling, not a runtime library — and grew bidirectional `.kesl`
+editing (parse/export with source mapping) and a CPU-interpreted component preview
+alongside the compiler and validator. The core `KeenEyes.Graph` package additionally
+ships built-in Comment/Group/Reroute nodes and an in-node widget system
+(`GraphWidgetSystem`, `NodeWidgets`).
 
 ### Data Model
 
@@ -50,9 +64,10 @@ public struct GraphNode : IComponent
 {
     public Vector2 Position;      // Canvas coordinates
     public float Width;
+    public float Height;          // Calculated by the layout system
     public int NodeTypeId;
-    public bool IsSelected;
     public Entity Canvas;
+    public string? DisplayName;   // Null = use the node type's name
 }
 
 // Connections are entities
@@ -80,6 +95,9 @@ public readonly record struct PortDefinition(
 - Connections need metadata, can be selected → entities
 - Ports don't have independent lifecycle, positions derived from node → registry
 
+Selection state lives in tag components (`GraphNodeSelectedTag`, `GraphConnectionSelectedTag`)
+rather than a bool field on the component, keeping selection queryable via archetypes.
+
 ### Port Type System
 
 Types support **implicit widening only**:
@@ -89,9 +107,12 @@ Types support **implicit widening only**:
 | `float` | `float2`, `float3`, `float4` |
 | `float2` | `float3`, `float4` |
 | `float3` | `float4` |
-| `int` | `float` |
+| `int` | `float`, `int2`, `int3`, `int4` |
+| `int2` | `int3`, `int4` |
+| `int3` | `int4` |
 
-No narrowing conversions (lossy). Connection validation:
+No narrowing conversions (lossy). `PortTypeId.Flow` is connectable only to `Flow` —
+execution-order ports never mix with data ports. Connection validation:
 
 ```csharp
 public static bool CanConnect(PortTypeId source, PortTypeId target)
@@ -99,12 +120,18 @@ public static bool CanConnect(PortTypeId source, PortTypeId target)
     if (source == target) return true;
     if (target == PortTypeId.Any) return true;
 
+    // Flow can only connect to flow
+    if (source == PortTypeId.Flow || target == PortTypeId.Flow) return false;
+
     return (source, target) switch
     {
         (PortTypeId.Float, PortTypeId.Float2 or PortTypeId.Float3 or PortTypeId.Float4) => true,
         (PortTypeId.Float2, PortTypeId.Float3 or PortTypeId.Float4) => true,
         (PortTypeId.Float3, PortTypeId.Float4) => true,
         (PortTypeId.Int, PortTypeId.Float) => true,
+        (PortTypeId.Int, PortTypeId.Int2 or PortTypeId.Int3 or PortTypeId.Int4) => true,
+        (PortTypeId.Int2, PortTypeId.Int3 or PortTypeId.Int4) => true,
+        (PortTypeId.Int3, PortTypeId.Int4) => true,
         _ => false
     };
 }
@@ -161,15 +188,19 @@ public interface INodeTypeDefinition
     int TypeId { get; }
     string Name { get; }
     string Category { get; }
-    PortDefinition[] Inputs { get; }
-    PortDefinition[] Outputs { get; }
+    IReadOnlyList<PortDefinition> InputPorts { get; }
+    IReadOnlyList<PortDefinition> OutputPorts { get; }
+    bool IsCollapsible { get; }
 
     void Initialize(Entity node, IWorld world);
-    void RenderBody(Entity node, IWorld world, I2DRenderer renderer);
+    float RenderBody(Entity node, IWorld world, I2DRenderer renderer, Rectangle bodyArea);
 }
 ```
 
-Source generator support (future):
+`RenderBody` receives the available body area and returns the height it actually
+consumed, letting the layout system size nodes around custom content.
+
+Source generator support (future — not yet implemented):
 
 ```csharp
 [GraphNode("Add", Category = "Math")]
@@ -223,35 +254,35 @@ Run shader on small sample (1-10 entities), display delta.
 ## Implementation Phases
 
 ### Phase 1: Foundation
-- [ ] `GraphCanvas`, `GraphNode`, `GraphConnection` components
-- [ ] `GraphContext` extension with CreateCanvas, CreateNode, Connect
-- [ ] Basic rendering (rectangles for nodes, lines for connections)
-- [ ] Pan/zoom/drag nodes
+- [x] `GraphCanvas`, `GraphNode`, `GraphConnection` components
+- [x] `GraphContext` extension with CreateCanvas, CreateNode, Connect
+- [x] Basic rendering (rectangles for nodes, lines for connections)
+- [x] Pan/zoom/drag nodes
 
 ### Phase 2: Connections
-- [ ] Bezier curve rendering
-- [ ] Port type system with validation
-- [ ] Connection creation via drag-from-port
-- [ ] Port highlighting on hover
+- [x] Bezier curve rendering
+- [x] Port type system with validation
+- [x] Connection creation via drag-from-port
+- [x] Port highlighting on hover
 
 ### Phase 3: Interaction Polish
-- [ ] Multi-select with box selection
-- [ ] Undo/redo integration via ChangeTracker
-- [ ] Context menu for node creation
-- [ ] Keyboard shortcuts (delete, duplicate, select all)
+- [x] Multi-select with box selection
+- [x] Undo/redo via explicit command objects and the `IUndoRedoManager` extension (not ChangeTracker as originally planned)
+- [x] Context menu for node creation
+- [x] Keyboard shortcuts (delete, duplicate, select all)
 
 ### Phase 4: Node System
-- [ ] `INodeTypeDefinition` interface
-- [ ] `NodeTypeRegistry`
-- [ ] Custom node body rendering
-- [ ] Source generator for `[GraphNode]` (future)
+- [x] `INodeTypeDefinition` interface
+- [x] `NodeTypeRegistry`
+- [x] Custom node body rendering
+- [ ] Source generator for `[GraphNode]` — not yet implemented; remains future work
 
 ### Phase 5: KESL Integration
-- [ ] KESL-specific node library
-- [ ] `KeslGraphCompiler` (graph → AST)
-- [ ] Real-time validation with error highlighting
-- [ ] Component preview panel
-- [ ] Bidirectional: parse .kesl files into graph
+- [x] KESL-specific node library
+- [x] `KeslGraphCompiler` (graph → AST)
+- [x] Validation — `KeslGraphValidator` ships with four rules (no-cycles, required-inputs, single-root, type-compatibility); the in-editor error-highlighting UI integration is not yet wired up
+- [x] Component preview panel
+- [x] Bidirectional: parse .kesl files into graph
 
 ## Alternatives Considered
 
@@ -314,5 +345,17 @@ Execute KESL graphs at runtime without code generation:
 ### Neutral
 
 - Graph data model is serializable via existing WorldSnapshot
-- Integrates with existing undo/redo (ChangeTracker)
+- Undo/redo uses explicit command objects (create/delete/move/duplicate node and create/delete connection) pushed to the world's `IUndoRedoManager` extension when present; `GraphContext` exposes `*Undoable` variants of each mutating operation
 - UI plugin required as dependency
+
+## References
+
+- [ADR-009](009-kesl-shader-language.md) — KESL shader language; graphs compile to its AST
+- [Graph Node Editor documentation](../graph.md) — user-facing guide, including the as-built divergences from this ADR
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Implementation marked Shipped — all five phases landed (`src/KeenEyes.Graph`, `src/KeenEyes.Graph.Abstractions`, `editor/KeenEyes.Graph.Kesl`); named gaps: `[GraphNode]` source generator (still future) and in-editor error-highlighting UI for validation. Body amended to as-built reality: selection moved from a `GraphNode.IsSelected` bool to `GraphNodeSelectedTag`/`GraphConnectionSelectedTag` tag components (and `GraphNode` gained `Height`/`DisplayName`); undo/redo uses command objects + `IUndoRedoManager` instead of ChangeTracker; `INodeTypeDefinition` updated to shipped signatures (`IReadOnlyList` ports, height-returning `RenderBody`); port widening table extended with int-vector rows and the Flow-only-to-Flow rule; architecture diagram updated to place KeenEyes.Graph.Kesl in the editor tier with its Editing/Preview subsystems. First-accepted date corrected 2024-12-31 → 2025-12-31 (git).
+- **v1 — 2025-12-31 (c8a3690a):** Accepted — generic graph node editor framework (KeenEyes.Graph + Abstractions) with KESL shader nodes as the first domain: hybrid entity/registry data model, implicit-widening port types, IGraphRenderer, and graph-to-KESL-AST compilation.

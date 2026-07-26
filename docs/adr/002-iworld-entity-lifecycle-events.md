@@ -1,8 +1,10 @@
 # ADR-002: Complete IWorld Event System
 
 **Status:** Accepted
-**Date:** 2025-12-10
-**Issue:** [#206](https://github.com/tyevco/keen-eye/issues/206) (Phase 1: Grid-Based Spatial Partitioning)
+**Revision:** v3
+**Implementation:** Shipped
+**First accepted:** 2025-12-10 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-001](001-world-manager-architecture.md) (World managers) · [ADR-003](003-command-buffer-abstraction.md) (CommandBuffer) · [#206](https://github.com/orion-ecs/keen-eye/issues/206)
 
 ## Context
 
@@ -169,7 +171,7 @@ public EventSubscription OnEntityDestroyed(Action<Entity> handler)
     => eventManager.OnEntityDestroyed(handler);
 ```
 
-3. **Fire component events during entity creation** using delegate-per-component-type pattern (see ADR-003 for details):
+3. **Fire component events during entity creation** using a delegate-per-component-type pattern (this ADR is the authoritative record of the pattern; [ADR-003](003-command-buffer-abstraction.md) and [ADR-004](004-reflection-elimination.md) apply the same reflection-free delegate approach elsewhere in the engine):
 ```csharp
 // In World.CreateEntity()
 foreach (var (info, data) in components)
@@ -245,7 +247,7 @@ Wait for more plugin use cases before expanding IWorld:
 - **Plugins can react to entity lifecycle** without internal World access
 - **SpatialPlugin works correctly** - entities indexed on creation, removed on destruction
 - **Consistent event model** - both entities and components have lifecycle events
-- **No reflection overhead** - component events use delegate-per-type pattern (see ADR-003)
+- **No reflection overhead** - component events use the delegate-per-type pattern described in Implementation Strategy above; [ADR-003](003-command-buffer-abstraction.md) and [ADR-004](004-reflection-elimination.md) apply the same reflection-free approach elsewhere
 - **Symmetric API** - creation and destruction both have events
 - **Cleaner abstractions** - All IWorld signature types now in Abstractions package
 
@@ -308,12 +310,13 @@ All 2114 tests passing with 0 warnings.
 
 ## Related Decisions
 
-- **ADR-003** (TBD): Reflection-Free Component Event Dispatching - Details the delegate-per-type pattern used to fire component events with boxed data
-- **ADR-001**: World Manager Architecture - EventManager consolidation enables this change
+- [ADR-003](003-command-buffer-abstraction.md): CommandBuffer Abstraction and Reflection Elimination - Applies the same delegate-capture approach to command execution. (A separate ADR titled "Reflection-Free Component Event Dispatching" was originally planned but never written; the delegate-per-component-type event dispatch pattern is documented in this ADR's Implementation Strategy.)
+- [ADR-004](004-reflection-elimination.md): Reflection Elimination for AOT Compatibility - The broader reflection-elimination record
+- [ADR-001](001-world-manager-architecture.md): World Manager Architecture - EventManager consolidation enables this change
 
 ## References
 
-- Issue [#206](https://github.com/tyevco/keen-eye/issues/206) - Phase 1: Grid-Based Spatial Partitioning
+- Issue [#206](https://github.com/orion-ecs/keen-eye/issues/206) - Phase 1: Grid-Based Spatial Partitioning
 - Commit: "Complete IWorld event system + fire component events during entity creation"
 - Files changed:
   - `src/KeenEyes.Abstractions/IWorld.cs` - Added `Set<T>`, `OnComponentChanged<T>`, `OnEntityCreated`, `OnEntityDestroyed`
@@ -323,7 +326,7 @@ All 2114 tests passing with 0 warnings.
   - `src/KeenEyes.Abstractions/IQueryBuilder.cs` - New (IWorld.Query() return types)
   - `src/KeenEyes.Core/World.Entities.cs` - Fire component/entity events during creation
   - `src/KeenEyes.Core/EventManager.cs` - Expose entity event subscriptions
-  - `src/KeenEyes.Core/ComponentRegistry.cs` - Add IComponent constraint, setup event dispatchers
+  - `src/KeenEyes.Core/Components/ComponentRegistry.cs` - Add IComponent constraint, setup event dispatchers
   - `src/KeenEyes.Spatial/Systems/SpatialUpdateSystem.cs` - Subscribe to entity destroyed
 
 ### IWorld Evolution
@@ -340,3 +343,11 @@ All 2114 tests passing with 0 warnings.
 - Added: `OnEntityDestroyed` - React to entity destruction
 
 This evolution reflects the lesson that plugin isolation requires **complete** lifecycle coverage, not minimal surface area. Incomplete interfaces force workarounds (casting, fragile event ordering) that defeat the purpose of abstraction.
+
+---
+
+## Changelog
+
+- **v3 — 2026-07-26 (living-ADR conversion):** Converted to living-document header; status stays Accepted, Implementation: Shipped — every specified API verified in code (IWorld.Set/OnComponentChanged/OnEntityCreated/OnEntityDestroyed, Abstractions type moves, FireAddedBoxed dispatch, SpatialUpdateSystem wiring). Body amended to correct the forward reference to a planned "ADR-003: Reflection-Free Component Event Dispatching" that was never written under that scope — the shipped ADR-003 is the CommandBuffer abstraction record, and this ADR remains the authoritative documentation of the delegate-per-component-type event dispatch pattern (ADR-004 covers broader reflection elimination). Fixed wrong-org issue links (tyevco → orion-ecs) and the moved ComponentRegistry.cs path.
+- **v2 — 2025-12-10 (1a875176):** Added 'Supporting Architecture Changes' section documenting the moves of EventSubscription, IEntityBuilder, SystemBase into KeenEyes.Abstractions and the new IQueryBuilder interfaces, plus the corresponding Consequences bullets and Files-changed entries.
+- **v1 — 2025-12-10 (#206, f04b516c):** Accepted — Complete the IWorld interface with full lifecycle coverage (Set<T>, OnComponentChanged<T>, OnEntityCreated, OnEntityDestroyed) and fire component events during entity creation via a delegate-per-component-type pattern, so stateful plugins like SpatialPlugin can index entities correctly.

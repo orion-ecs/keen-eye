@@ -175,6 +175,7 @@
 - name: Troubleshooting
   href: troubleshooting.md
 - name: Architecture Decisions
+  href: adr/index.md
   items:
     - name: ADR-001 World Manager Architecture
       href: adr/001-world-manager-architecture.md

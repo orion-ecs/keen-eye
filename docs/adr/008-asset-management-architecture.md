@@ -1,8 +1,10 @@
 # ADR-008: Asset Management Architecture
 
-**Date:** 2024-12-21
-**Status:** Proposed
-**References:** Issue #428 (Epic), Issue #429 (Implementation)
+**Status:** Accepted
+**Revision:** v2
+**Implementation:** Partial
+**First accepted:** 2025-12-21 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-007](007-capability-based-plugin-architecture.md) (plugin capabilities) · [#428](https://github.com/orion-ecs/keen-eye/issues/428) · [#429](https://github.com/orion-ecs/keen-eye/issues/429)
 
 ## Context
 
@@ -42,7 +44,7 @@ Create `KeenEyes.Assets` as a higher-level abstraction that coordinates with exi
 │                                                                          │
 │  ┌────────────────┐  ┌────────────────┐  ┌────────────────┐             │
 │  │  AssetManager  │  │ StreamingMgr   │  │ ReloadManager  │             │
-│  │  (facade)      │  │ (async queue)  │  │ (dev mode)     │             │
+│  │  (facade)      │  │ (batch stream) │  │ (dev mode)     │             │
 │  └───────┬────────┘  └───────┬────────┘  └───────┬────────┘             │
 │          │                   │                   │                       │
 │          ▼                   ▼                   ▼                       │
@@ -133,8 +135,8 @@ public readonly struct AssetHandle<T> : IDisposable, IEquatable<AssetHandle<T>>
 #### 3. Component-Friendly AssetRef<T>
 
 ```csharp
-[Component]
-public partial struct AssetRef<T> where T : class, IDisposable
+public struct AssetRef<T> : IComponent, IEquatable<AssetRef<T>>
+    where T : class, IDisposable
 {
     /// <summary>Path to the asset for serialization.</summary>
     public string Path;
@@ -143,8 +145,16 @@ public partial struct AssetRef<T> where T : class, IDisposable
     internal int HandleId;
 
     public readonly bool IsResolved => HandleId > 0;
+    public readonly bool HasPath => !string.IsNullOrEmpty(Path);
+
+    public static AssetRef<T> FromPath(string path) => new() { Path = path };
+
+    /// <summary>Clears the resolved handle, forcing re-resolution.</summary>
+    public void Invalidate() => HandleId = 0;
 }
 ```
+
+`AssetRef<T>` is a plain struct implementing `IComponent` — the `[Component]` source generator does not apply to generic types, so no fluent builder methods are generated for it.
 
 **Usage in ECS:**
 ```csharp
@@ -156,6 +166,8 @@ world.Spawn()
 
 // AssetResolutionSystem automatically resolves paths to handles
 ```
+
+`AssetResolutionSystem` resolves the four built-in instantiations — `AssetRef<TextureAsset>`, `AssetRef<AudioClipAsset>`, `AssetRef<MeshAsset>`, and `AssetRef<RawAsset>` — rather than resolving generically over all `AssetRef<T>` types. Custom asset types are loaded through `AssetManager` directly.
 
 #### 4. Pluggable Loaders via IAssetLoader<T>
 
@@ -182,13 +194,20 @@ public readonly record struct AssetLoadContext(
 **Built-in Loaders:**
 | Loader | Asset Type | Extensions | Dependency |
 |--------|------------|------------|------------|
-| `TextureLoader` | `TextureAsset` | .png, .jpg, .bmp, .tga | StbImageSharp, IGraphicsContext |
-| `AudioClipLoader` | `AudioClipAsset` | .wav, .ogg | NVorbis, IAudioContext |
+| `TextureLoader` | `TextureAsset` | .png, .jpg/.jpeg, .bmp, .tga, .gif, .psd, .hdr | StbImageSharp, IGraphicsContext |
+| `DdsTextureLoader` | `TextureAsset` | .dds | Pfim, IGraphicsContext |
+| `SpriteAtlasLoader` | `SpriteAtlasAsset` | .atlas, .json | IGraphicsContext |
+| `AnimationLoader` | `AnimationAsset` | .keanim | IGraphicsContext |
+| `FontLoader` | `FontAsset` | .ttf, .otf | IFontManagerProvider |
+| `AudioClipLoader` | `AudioClipAsset` | .wav, .ogg, .mp3, .flac | NVorbis, NLayer, built-in FLAC decoder, IAudioContext |
 | `MeshLoader` | `MeshAsset` | .gltf, .glb | SharpGLTF |
-| `JsonLoader<T>` | `T` | .json | System.Text.Json |
-| `RawLoader` | `RawAsset` | * | None |
+| `ModelLoader` | `ModelAsset` | .gltf, .glb | SharpGLTF |
+| `SkeletalAnimationLoader` | `SkeletalAnimationAsset` | .gltf, .glb | SharpGLTF |
+| `RawLoader` | `RawAsset` | .bin, .dat, .raw, .bytes | None |
 
-#### 5. Async Loading with Priority Queue
+The originally planned `JsonLoader<T>` (System.Text.Json) was not implemented; JSON-backed formats are handled by dedicated loaders (sprite atlases, animations) instead.
+
+#### 5. Async Loading and Batch Streaming
 
 ```csharp
 public enum LoadPriority
@@ -199,38 +218,18 @@ public enum LoadPriority
     Low = 3,        // Background loading
     Streaming = 4   // Lowest priority, for level streaming
 }
-
-public sealed class StreamingManager
-{
-    private readonly PriorityQueue<LoadRequest, LoadPriority> queue;
-    private readonly SemaphoreSlim concurrencyLimit;
-    private readonly int maxConcurrentLoads;
-
-    public async Task<AssetHandle<T>> LoadAsync<T>(
-        string path,
-        LoadPriority priority = LoadPriority.Normal,
-        CancellationToken ct = default) where T : class, IDisposable
-    {
-        // Queue the request
-        var request = new LoadRequest(path, typeof(T), priority);
-        queue.Enqueue(request, priority);
-
-        // Wait for slot
-        await concurrencyLimit.WaitAsync(ct);
-        try
-        {
-            var loader = GetLoader<T>();
-            using var stream = fileSystem.Open(path);
-            var asset = await loader.LoadAsync(stream, new AssetLoadContext(path, manager), ct);
-            return cache.AddAndGetHandle<T>(path, asset);
-        }
-        finally
-        {
-            concurrencyLimit.Release();
-        }
-    }
-}
 ```
+
+Async loading is exposed directly on the `AssetManager` facade:
+
+```csharp
+public async Task<AssetHandle<T>> LoadAsync<T>(
+    string path,
+    LoadPriority priority = LoadPriority.Normal,
+    CancellationToken cancellationToken = default) where T : class, IDisposable;
+```
+
+The `LoadPriority` enum is part of the API, but requests are **not** scheduled through a priority queue — the originally sketched `PriorityQueue<LoadRequest, LoadPriority>` scheduler was not implemented. Instead, `StreamingManager` is a batch streaming utility for level loads: queue paths with `Queue<T>(path)` / `QueueMany<T>(paths)`, run them with a bounded-concurrency worker (`Start(maxConcurrent)`, capped via `SemaphoreSlim`), track `Progress` / `QueuedCount` / `IsStreaming`, subscribe to `OnAssetStreamed` / `OnStreamingComplete` / `OnStreamingError`, and await `WaitForCompletionAsync()`. All streaming loads run at `LoadPriority.Streaming`.
 
 #### 6. Reference-Counted Cache with Policies
 
@@ -317,6 +316,8 @@ public sealed class ReloadManager : IDisposable
 }
 ```
 
+The debounce delay is a constructor parameter (default 100 ms); there is no separate `ReloadConfig` type.
+
 ### Project Structure
 
 ```
@@ -329,113 +330,137 @@ src/KeenEyes.Assets/
 │   ├── AssetManager.cs                # Central facade
 │   ├── AssetHandle.cs                 # AssetHandle<T> struct
 │   ├── AssetRef.cs                    # AssetRef<T> component
-│   ├── AssetState.cs                  # State enum
-│   └── AssetMetadata.cs               # Metadata record
+│   └── AssetState.cs                  # State enum
 │
 ├── Loading/
 │   ├── IAssetLoader.cs                # Loader interface
 │   ├── AssetLoadContext.cs            # Context passed to loaders
+│   ├── AssetLoadException.cs          # Load failure exception
 │   ├── LoadPriority.cs                # Priority enum
 │   └── LoaderRegistry.cs              # Extension → Loader mapping
 │
 ├── Caching/
 │   ├── AssetCache.cs                  # Central cache
 │   ├── AssetEntry.cs                  # Cache entry
-│   ├── CachePolicy.cs                 # Policy enum
+│   ├── CachePolicy.cs                 # Policy enum (LRU, Manual, Aggressive)
 │   └── CacheStats.cs                  # Statistics record
 │
 ├── Streaming/
-│   ├── StreamingManager.cs            # Async load queue
-│   └── StreamingConfig.cs             # Configuration
+│   └── StreamingManager.cs            # Batch level streaming
 │
 ├── Loaders/
-│   ├── TextureLoader.cs               # PNG, JPG via StbImageSharp
-│   ├── AudioClipLoader.cs             # WAV, OGG via NVorbis
+│   ├── TextureLoader.cs               # PNG, JPG, BMP, TGA, ... via StbImageSharp
+│   ├── DdsTextureLoader.cs            # DDS via Pfim
+│   ├── SpriteAtlasLoader.cs           # Sprite atlas JSON
+│   ├── AnimationLoader.cs             # Sprite animation (.keanim)
+│   ├── SkeletalAnimationLoader.cs     # Skeletal animation via SharpGLTF
+│   ├── FontLoader.cs                  # TTF/OTF via IFontManagerProvider
+│   ├── AudioClipLoader.cs             # WAV, OGG, MP3, FLAC (NVorbis, NLayer)
+│   ├── FlacDecoder.cs                 # Built-in FLAC decoding
 │   ├── MeshLoader.cs                  # GLTF via SharpGLTF
-│   ├── JsonLoader.cs                  # JSON via System.Text.Json
+│   ├── ModelLoader.cs                 # Full model import via SharpGLTF
 │   └── RawLoader.cs                   # Raw binary
 │
-├── Assets/
-│   ├── TextureAsset.cs                # Wrapper for TextureHandle
-│   ├── AudioClipAsset.cs              # Wrapper for AudioClipHandle
-│   ├── MeshAsset.cs                   # Contains vertex/index data
-│   └── RawAsset.cs                    # Raw byte array
+├── Assets/                            # Wrapper asset types
+│   ├── TextureAsset.cs, TextureData.cs
+│   ├── AudioClipAsset.cs
+│   ├── MeshAsset.cs, ModelAsset.cs, MaterialData.cs
+│   ├── FontAsset.cs
+│   ├── SpriteAtlasAsset.cs
+│   ├── AnimationAsset.cs, SkeletonAsset.cs, SkeletalAnimationAsset.cs
+│   └── RawAsset.cs
+│
+├── Data/                              # Atlas & animation JSON models
+│   ├── AtlasJsonModels.cs, AtlasJsonContext.cs
+│   ├── AnimationJsonModels.cs
+│   └── SpriteRegion.cs
+│
+├── Manifest/                          # Asset manifest support
+│   ├── AssetManifest.cs
+│   ├── AssetManifestBuilder.cs
+│   ├── AssetInfo.cs
+│   └── ManifestStatistics.cs
 │
 ├── HotReload/
-│   ├── ReloadManager.cs               # FileSystemWatcher wrapper
-│   └── ReloadConfig.cs                # Configuration
+│   └── ReloadManager.cs               # FileSystemWatcher wrapper
 │
 └── Systems/
-    ├── AssetResolutionSystem.cs       # Resolves AssetRef<T> → handles
-    └── AssetUploadSystem.cs           # Processes pending GPU uploads
+    └── AssetResolutionSystem.cs       # Resolves AssetRef<T> → handles
 ```
+
+Originally planned but not built: `Core/AssetMetadata.cs`, `Streaming/StreamingConfig.cs`, `HotReload/ReloadConfig.cs`, `Loaders/JsonLoader.cs`, and `Systems/AssetUploadSystem.cs`.
 
 ### Dependencies
 
-**Required:**
+**Project references (all unconditional):**
 - `KeenEyes.Abstractions` (IWorldPlugin, IComponent, etc.)
 - `KeenEyes.Core` (World, System, Query)
+- `KeenEyes.Common` (shared utilities)
+- `KeenEyes.Animation` (animation asset types)
+- `KeenEyes.Graphics.Abstractions` (IGraphicsContext for texture/atlas/font loaders)
+- `KeenEyes.Audio.Abstractions` (IAudioContext for AudioClipLoader)
+
+**Packages:**
 - `StbImageSharp` (pure C# image loading)
 - `SharpGLTF.Core` (pure C# glTF loading)
 - `NVorbis` (pure C# Ogg Vorbis decoding)
+- `NLayer` (pure C# MP3 decoding)
+- `Pfim` (DDS texture loading)
 
-**Optional (for built-in loaders):**
-- `KeenEyes.Graphics.Abstractions` (IGraphicsContext for TextureLoader)
-- `KeenEyes.Audio.Abstractions` (IAudioContext for AudioClipLoader)
+The Graphics and Audio abstractions were originally sketched as optional dependencies; as built they are hard compile-time references. What remains conditional is loader *registration* at runtime — `AssetsPlugin` only registers the graphics- and audio-backed loaders when the corresponding subsystem extensions are present in the world.
 
 ### Plugin Integration
 
 ```csharp
-public sealed class AssetsPlugin : IWorldPlugin
+public sealed class AssetsPlugin(AssetsConfig? config = null) : IWorldPlugin
 {
-    private readonly AssetsConfig config;
+    private readonly AssetsConfig resolvedConfig = config ?? AssetsConfig.Default;
     private AssetManager? assetManager;
     private ReloadManager? reloadManager;
 
     public string Name => "Assets";
 
-    public AssetsPlugin(AssetsConfig? config = null)
-    {
-        this.config = config ?? new AssetsConfig();
-    }
-
     public void Install(IPluginContext context)
     {
         // Create asset manager
-        assetManager = new AssetManager(config);
+        assetManager = new AssetManager(resolvedConfig);
 
-        // Register built-in loaders if dependencies available
-        if (context.TryGetExtension<IGraphicsContext>(out var graphics))
+        // Graphics-dependent loaders
+        if (context.TryGetExtension<IGraphicsContext>(out var graphics) && graphics != null)
         {
             assetManager.RegisterLoader(new TextureLoader(graphics));
+            assetManager.RegisterLoader(new DdsTextureLoader(graphics));
+            assetManager.RegisterLoader(new SpriteAtlasLoader());
+            assetManager.RegisterLoader(new AnimationLoader());
+
+            // FontLoader requires an IFontManager (from IFontManagerProvider)
+            if (graphics is IFontManagerProvider fontProvider &&
+                fontProvider.GetFontManager() is { } fontManager)
+            {
+                assetManager.RegisterLoader(new FontLoader(fontManager));
+            }
         }
 
-        if (context.TryGetExtension<IAudioContext>(out var audio))
+        // Audio-dependent loader
+        if (context.TryGetExtension<IAudioContext>(out var audio) && audio != null)
         {
             assetManager.RegisterLoader(new AudioClipLoader(audio));
         }
 
         // Always register these (no external dependencies)
         assetManager.RegisterLoader(new MeshLoader());
-        assetManager.RegisterLoader(new JsonLoader<object>());
         assetManager.RegisterLoader(new RawLoader());
 
         // Register as extension
         context.SetExtension(assetManager);
 
-        // Register component types
-        context.RegisterComponent<AssetRef<TextureAsset>>();
-        context.RegisterComponent<AssetRef<AudioClipAsset>>();
-        context.RegisterComponent<AssetRef<MeshAsset>>();
+        // Register the asset resolution system
+        context.AddSystem<AssetResolutionSystem>(SystemPhase.EarlyUpdate, order: -100);
 
-        // Register systems
-        context.AddSystem<AssetResolutionSystem>(SystemPhase.PreUpdate, order: -100);
-        context.AddSystem<AssetUploadSystem>(SystemPhase.PreUpdate, order: -99);
-
-        // Hot reload (dev mode only)
-        if (config.EnableHotReload)
+        // Hot reload requires the asset root to exist
+        if (resolvedConfig.EnableHotReload && Directory.Exists(resolvedConfig.RootPath))
         {
-            reloadManager = new ReloadManager(config.RootPath, assetManager);
+            reloadManager = new ReloadManager(resolvedConfig.RootPath, assetManager);
         }
     }
 
@@ -447,6 +472,8 @@ public sealed class AssetsPlugin : IWorldPlugin
     }
 }
 ```
+
+Differences from the original sketch: no explicit `RegisterComponent<AssetRef<...>>` calls are needed, there is no `AssetUploadSystem` (GPU upload happens inside the graphics-backed loaders), and the single `AssetResolutionSystem` runs in `SystemPhase.EarlyUpdate` (order -100) rather than `PreUpdate`.
 
 ### Usage Examples
 
@@ -537,7 +564,7 @@ Adopt an existing asset management library.
 - **Unified API** - One way to load all asset types
 - **Automatic caching** - No duplicate loads
 - **Memory management** - Reference counting prevents leaks
-- **Async loading** - No frame hitches
+- **Async loading** - Task-based `LoadAsync` and `StreamingManager` batch streaming keep loads off the frame (loads are concurrency-capped, not priority-scheduled)
 - **Dev experience** - Hot reload speeds iteration
 - **Extensibility** - Custom loaders for game-specific formats
 - **ECS integration** - AssetRef<T> components work with queries
@@ -554,48 +581,57 @@ Adopt an existing asset management library.
 - Built-in loaders require corresponding subsystem plugins to be installed first
 - Hot reload only works with file-based assets (not embedded resources)
 
-## Implementation Plan
+## Implementation Status
 
-### Phase 1: Core Infrastructure
-1. Create project structure
-2. Implement `AssetHandle<T>`, `AssetRef<T>`, `AssetState`
-3. Implement `AssetCache` with reference counting
-4. Implement `AssetManager` facade
-5. Implement `LoaderRegistry`
-6. Implement `IAssetLoader<T>` interface
+The system shipped 2025-12-21 in commit `f3ab185d` — the same commit that added this ADR. Status of the original plan:
 
-### Phase 2: Built-in Loaders
-1. `RawLoader` (simplest, no dependencies)
-2. `JsonLoader<T>` (System.Text.Json)
-3. `TextureLoader` (StbImageSharp + IGraphicsContext)
-4. `AudioClipLoader` (NVorbis + IAudioContext)
-5. `MeshLoader` (SharpGLTF)
+### Phase 1: Core Infrastructure ✅
+1. ✅ Project structure
+2. ✅ `AssetHandle<T>`, `AssetRef<T>`, `AssetState`
+3. ✅ `AssetCache` with reference counting
+4. ✅ `AssetManager` facade
+5. ✅ `LoaderRegistry`
+6. ✅ `IAssetLoader<T>` interface
 
-### Phase 3: Async & Streaming
-1. Implement `StreamingManager`
-2. Implement priority queue
-3. Implement `AssetUploadSystem` for GPU uploads
-4. Add progress callbacks
+### Phase 2: Built-in Loaders ✅ (except JsonLoader)
+1. ✅ `RawLoader` (simplest, no dependencies)
+2. Not implemented: `JsonLoader<T>` (System.Text.Json)
+3. ✅ `TextureLoader` (StbImageSharp + IGraphicsContext) — plus `DdsTextureLoader`, `SpriteAtlasLoader`, `AnimationLoader`, and `FontLoader` beyond the plan
+4. ✅ `AudioClipLoader` (NVorbis + IAudioContext) — plus MP3 via NLayer and built-in FLAC decoding
+5. ✅ `MeshLoader` (SharpGLTF) — plus `ModelLoader` and `SkeletalAnimationLoader`
 
-### Phase 4: ECS Integration
-1. Implement `AssetResolutionSystem`
-2. Register component types
-3. Create `AssetsPlugin`
+### Phase 3: Async & Streaming — partial
+1. ✅ `StreamingManager` (as a batch level-streaming helper)
+2. Not implemented: priority-queue load scheduling (`LoadPriority` exists as an API parameter only)
+3. Not implemented: `AssetUploadSystem` for GPU uploads (uploads happen inside graphics-backed loaders)
+4. ✅ Progress callbacks (`StreamingManager.Progress` / `OnAssetStreamed`)
 
-### Phase 5: Hot Reload
-1. Implement `ReloadManager`
-2. Add file watching
-3. Implement reload callbacks
+### Phase 4: ECS Integration ✅
+1. ✅ `AssetResolutionSystem` (resolves the four built-in `AssetRef<T>` instantiations)
+2. Component-type registration — not needed as built (no `RegisterComponent` calls)
+3. ✅ `AssetsPlugin`
 
-### Phase 6: Polish
-1. Cache policies (LRU eviction)
-2. Cache statistics
-3. Sample application
-4. Documentation
+### Phase 5: Hot Reload ✅
+1. ✅ `ReloadManager`
+2. ✅ File watching (FileSystemWatcher, debounced)
+3. ✅ Reload callbacks (`OnAssetReloaded`)
+
+### Phase 6: Polish — partial
+1. ✅ Cache policies (LRU, Manual, Aggressive)
+2. ✅ Cache statistics (`CacheStats`, `GetCacheStats`)
+3. Not implemented: sample application (no sample currently uses `AssetsPlugin`/`AssetManager`)
+4. ✅ Documentation ([docs/assets.md](../assets.md))
 
 ## References
 
-- Issue #428: Epic: Asset Management
-- Issue #429: Create KeenEyes.Assets project
-- docs/research/asset-loading.md: Library evaluation research
-- ADR-007: Capability-based Plugin Architecture
+- [#428](https://github.com/orion-ecs/keen-eye/issues/428): Epic: Asset Management
+- [#429](https://github.com/orion-ecs/keen-eye/issues/429): Create KeenEyes.Assets project
+- [asset-loading research](../research/asset-loading.md): Library evaluation research
+- [ADR-007: Capability-based Plugin Architecture](./007-capability-based-plugin-architecture.md)
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Status corrected Proposed → Accepted (implemented in the same commit that added the ADR; header date corrected 2024 → 2025-12-21). Implementation marked Partial — not built: `JsonLoader<T>`, `AssetUploadSystem`, priority-queue load scheduling, and a sample application. Body amended to the as-built code: expanded loader table (DDS/atlas/animation/font/model/skeletal loaders, MP3/FLAC audio), `AssetRef<T>` as a plain `IComponent` struct resolved for four hard-coded instantiations, async loading on `AssetManager.LoadAsync` with `StreamingManager` as a batch streaming helper, plugin wiring (conditional loader registration, `EarlyUpdate` order -100, hot reload gated on the asset root existing), hard Graphics/Audio project references plus NLayer/Pfim packages, and the as-built project tree (Manifest/, Data/, no config classes).
+- **v1 — 2025-12-21 (#428/#429, f3ab185d):** Accepted — create KeenEyes.Assets as a unified asset layer (caching, refcounting, async loading, pluggable loaders, hot reload) coordinating with Graphics/Audio; implementation landed in the same commit as the ADR.

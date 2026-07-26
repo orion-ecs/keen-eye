@@ -1,7 +1,9 @@
 # ADR-009: KESL - KeenEyes Shader Language
 
-**Status:** Proposed
-**Date:** 2024-12-31
+**Status:** Accepted
+**Revision:** v2
+**Implementation:** Partial
+**First accepted:** 2025-12-31 · **Last amended:** 2026-07-26
 
 ## Context
 
@@ -32,7 +34,7 @@ This is error-prone, verbose, and requires maintaining synchronization between s
 Implement **KESL (KeenEyes Shader Language)**, a custom shader language that:
 
 1. Provides first-class ECS query semantics
-2. Transpiles to GLSL (with future HLSL/SPIR-V support)
+2. Transpiles to GLSL and HLSL (`ShaderBackend` also reserves MSL and SPIR-V values for future backends)
 3. Generates C# binding code automatically
 4. Integrates with KeenEyes build system
 
@@ -94,27 +96,32 @@ public sealed class UpdatePhysicsShader : IGpuComputeSystem
 
 ```
 src/
-├── KeenEyes.Shaders/                    # Core abstractions
-│   ├── IGpuComputeSystem.cs             # Interface for GPU systems
-│   ├── GpuBuffer.cs                     # Buffer abstraction
-│   └── GpuQueryExtensions.cs            # World extensions
+└── KeenEyes.Shaders/                    # Runtime abstractions
+    ├── IGpuComputeSystem.cs             # Interfaces for GPU systems
+    ├── IGpuDevice.cs                    # Device abstraction
+    ├── GpuBuffer.cs                     # Buffer abstraction
+    ├── GpuCommandBuffer.cs              # Command recording
+    ├── CompiledShader.cs
+    ├── QueryDescriptor.cs               # ECS query description
+    ├── ShaderBackend.cs                 # GLSL | HLSL | MSL | SPIRV
+    └── HotReload/                       # KeslFileWatcher, ShaderRegistry
+editor/
 ├── KeenEyes.Shaders.Compiler/           # Compiler library
-│   ├── Lexer/
-│   │   ├── Token.cs
-│   │   ├── TokenKind.cs
-│   │   └── Lexer.cs
-│   ├── Parser/
-│   │   ├── Ast/                         # AST node types
-│   │   └── Parser.cs
-│   ├── Semantics/
-│   │   ├── TypeChecker.cs
-│   │   └── SymbolTable.cs
-│   └── CodeGen/
-│       ├── GlslGenerator.cs
-│       └── CSharpBindingGenerator.cs
-└── KeenEyes.Shaders.Tools/              # CLI tool (keslc)
-    └── Program.cs
+│   ├── Lexing/                          # Token, TokenKind, Lexer
+│   ├── Parsing/                         # Parser + Ast/ node types
+│   ├── Diagnostics/                     # Error codes, formatter, suggestions
+│   └── CodeGen/                         # GlslGenerator, HlslGenerator,
+│                                        #   CSharpBindingGenerator
+├── KeenEyes.Shaders.Generator/          # Roslyn source generator
+│                                        #   (fills the planned keslc CLI role)
+├── KeenEyes.Shaders.VsCode/             # TextMate grammar + snippets
+└── KeenEyes.Graph.Kesl/                 # Node-graph authoring for KESL
+tools/
+├── KeenEyes.Lsp.Kesl/                   # KESL language server
+└── vscode-kesl/                         # VSCode extension (LSP client)
 ```
+
+The compiler lives under `editor/` (build-time tooling), not `src/`; only the runtime abstractions ship as a `src/` library. The originally planned `Semantics/` directory (TypeChecker, SymbolTable) and the standalone `keslc` CLI were not built — see the pipeline notes below.
 
 ### Compilation Pipeline
 
@@ -135,23 +142,17 @@ src/
 │  Output: AST (ComputeShaderNode)               │
 └────────────────────────────────────────────────┘
                          │
-                         ▼
-┌────────────────────────────────────────────────┐
-│              Semantic Analysis                  │
-│  - Resolve component types                     │
-│  - Type check expressions                      │
-│  - Validate GPU compatibility                  │
-└────────────────────────────────────────────────┘
-                         │
             ┌────────────┴────────────┐
             ▼                         ▼
 ┌────────────────────────┐ ┌─────────────────────┐
-│    GLSL Generator      │ │  C# Binding Gen     │
+│  GLSL/HLSL Generator   │ │  C# Binding Gen     │
 └────────────────────────┘ └─────────────────────┘
             │                         │
             ▼                         ▼
       Foo.comp.glsl          FooShader.g.cs
 ```
+
+A semantic-analysis stage between parsing and code generation — resolving component types against ECS registration metadata, type-checking expressions, and validating GPU compatibility and read/write access — is designed but **not yet implemented**. `KeslCompiler.Compile` runs lexer → parser → code generators only; error codes KESL300–306 (`UndefinedComponent`, `TypeMismatch`, `UndefinedField`, ...) are reserved for it in `KeslErrorCodes.cs` but are never emitted, and component names are currently trusted as written. This is the main outstanding gap in the implementation.
 
 ### Grammar (EBNF)
 
@@ -219,7 +220,7 @@ literal        = NUMBER | "true" | "false" ;
 
 ### Component Mapping
 
-KESL references components by name. The compiler resolves these against registered component types:
+KESL references components by name. The design has the compiler resolve these against registered component types (this resolution belongs to the not-yet-implemented semantic-analysis stage; today component names are trusted as written):
 
 ```csharp
 // Component registration (source generator metadata)
@@ -313,7 +314,7 @@ public sealed partial class UpdatePhysicsShader : IGpuComputeSystem, IDisposable
 
 ### Error Handling
 
-Compiler errors include source location:
+Compiler errors include source location. The shipped diagnostics pipeline (`editor/KeenEyes.Shaders.Compiler/Diagnostics/`) provides a structured `Diagnostic` type with source spans, a KESL error-code taxonomy, caret-style formatting via `DiagnosticFormatter`, and "did you mean" suggestions via `SuggestionEngine`. Syntax-level errors (KESL1xx/2xx) are emitted today; semantic errors such as the one below require the unimplemented semantic-analysis stage (KESL3xx codes are reserved) and currently surface at GLSL compile or runtime instead:
 
 ```
 physics.kesl:12:5: error: Cannot write to read-only component 'Velocity'
@@ -325,53 +326,45 @@ Runtime errors (GPU validation) are surfaced through the graphics abstraction la
 
 ### Build Integration
 
-**MSBuild Target:**
-```xml
-<Target Name="CompileKesl" BeforeTargets="CoreCompile">
-  <ItemGroup>
-    <KeslFile Include="**/*.kesl" />
-  </ItemGroup>
-
-  <Exec Command="keslc @(KeslFile) -o $(IntermediateOutputPath)kesl/"
-        Condition="'@(KeslFile)' != ''" />
-
-  <ItemGroup>
-    <Compile Include="$(IntermediateOutputPath)kesl/*.g.cs" />
-    <EmbeddedResource Include="$(IntermediateOutputPath)kesl/*.glsl" />
-  </ItemGroup>
-</Target>
-```
+Build integration ships through the KeenEyes SDK plus a Roslyn incremental source generator — no external tool invocation (the originally planned `keslc` Exec-based MSBuild target was never built):
 
 **SDK Integration:**
 ```xml
-<!-- In KeenEyes.Sdk.targets -->
+<!-- In KeenEyes.Sdk (Sdk.targets) — .kesl files feed the source generator -->
 <ItemGroup>
   <KeenEyesShader Include="**/*.kesl" />
+  <AdditionalFiles Include="**/*.kesl" />
 </ItemGroup>
 ```
 
+`KeslSourceGenerator` (`editor/KeenEyes.Shaders.Generator`, an `IIncrementalGenerator`) compiles the `.kesl` `AdditionalFiles` during Roslyn compilation and injects the generated C# bindings directly into the compilation.
+
 ## Implementation Phases
 
-### Phase 1: Prototype (This PR)
-- [x] Research document
+### Phase 1: Prototype ✅ (shipped with the initial prototype, Dec 2025)
+- [x] Research document ([docs/research/shader-language.md](../research/shader-language.md))
 - [x] Architecture document
-- [ ] Lexer implementation
-- [ ] Parser implementation
-- [ ] GLSL code generator
-- [ ] Basic C# binding generator
-- [ ] Unit tests
+- [x] Lexer implementation (`editor/KeenEyes.Shaders.Compiler/Lexing/`)
+- [x] Parser implementation (recursive descent, `Parsing/` + `Parsing/Ast/`)
+- [x] GLSL code generator (`CodeGen/GlslGenerator.cs`)
+- [x] Basic C# binding generator (`CodeGen/CSharpBindingGenerator.cs`)
+- [x] Unit tests (`tests/KeenEyes.Shaders.Compiler.Tests`)
 
-### Phase 2: Integration
-- [ ] `KeenEyes.Shaders` abstractions
-- [ ] MSBuild targets
-- [ ] Hot-reload support
-- [ ] Error message improvements
+### Phase 2: Integration ✅
+- [x] `KeenEyes.Shaders` abstractions (`src/KeenEyes.Shaders`)
+- [x] MSBuild targets — implemented as SDK-level `.kesl` → `AdditionalFiles` wiring for the source generator, not a standalone Exec target (see Build Integration)
+- [x] Hot-reload support (`src/KeenEyes.Shaders/HotReload/` — `KeslFileWatcher`, `ShaderRegistry`, `IHotReloadable`)
+- [x] Error message improvements (structured diagnostics with error codes and "did you mean" suggestions)
 
-### Phase 3: Polish
-- [ ] Source generator integration
-- [ ] IDE support (syntax highlighting)
-- [ ] HLSL backend
-- [ ] Rendering shader support (vertex/fragment)
+### Phase 3: Polish ✅
+- [x] Source generator integration (`editor/KeenEyes.Shaders.Generator`)
+- [x] IDE support — TextMate grammar and snippets (`editor/KeenEyes.Shaders.VsCode`), an LSP server with completion, hover, go-to-definition, and diagnostics (`tools/KeenEyes.Lsp.Kesl`), and a VSCode LSP client extension (`tools/vscode-kesl`)
+- [x] HLSL backend (`CodeGen/HlslGenerator.cs`)
+- [x] Rendering shader support (vertex/fragment) — plus geometry shaders and pipeline composition
+
+The language has grown beyond the ADR's compute-only scope: vertex, fragment, and geometry shaders plus pipeline composition are supported, and `editor/KeenEyes.Graph.Kesl` adds node-graph authoring for KESL. See [docs/shaders.md](../shaders.md) for the user-facing documentation.
+
+**Not yet implemented:** the semantic-analysis stage (component resolution against ECS metadata, expression type checking, read/write access validation — error codes KESL300–306 are reserved for it), and the `keslc` CLI (superseded by the Roslyn source generator).
 
 ## Alternatives Considered
 
@@ -425,7 +418,7 @@ Adopt WGSL and generate bindings from it:
 ### Positive
 
 - **Reduced boilerplate:** 80% less code for GPU systems
-- **Type safety:** Compile-time validation of component access
+- **Type safety:** Compile-time validation of component access — partially realized: syntax-level diagnostics with source spans and suggestions ship today (KESL1xx/2xx), but compile-time component/type validation (KESL3xx) awaits the semantic-analysis stage
 - **Single source of truth:** One file defines GPU behavior and CPU bindings
 - **Better error messages:** Domain-specific errors, not generic GPU errors
 - **Future extensibility:** Foundation for advanced GPU features
@@ -442,3 +435,15 @@ Adopt WGSL and generate bindings from it:
 - Existing shader workflows remain supported (KESL is additive)
 - Performance equivalent to hand-written shaders
 - Integrates with existing graphics abstractions
+
+## References
+
+- [Shader language research document](../research/shader-language.md)
+- [KESL user documentation](../shaders.md)
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Status corrected Proposed → Accepted (header year fixed 2024 → 2025); Implementation marked Partial — the semantic-analysis stage (component resolution, type checking, read-only-write validation; codes KESL300–306 reserved but never emitted) and the `keslc` CLI (superseded by the Roslyn source generator) never shipped. All Phase 1–3 checklist items checked as shipped; Architecture amended to the as-built layout (compiler under `editor/`, `KeenEyes.Shaders.Generator`, LSP server + VSCode extensions, `Graph.Kesl` node authoring); Build Integration rewritten from the `keslc` Exec target to SDK `AdditionalFiles` + source generator; Decision updated to reflect the shipped HLSL backend.
+- **v1 — 2025-12-31 (c877d9e0):** Proposed — KESL, a custom ECS-aware shader language transpiling to GLSL with generated C# bindings, to replace verbose manual ECS-to-GPU marshaling; shipped alongside the prototype lexer, parser, GLSL/C# generators, and 30 unit tests.

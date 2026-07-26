@@ -1,7 +1,10 @@
 # ADR-013: Dynamic Plugin Loading
 
-**Status:** Proposed
-**Date:** 2026-01-02
+**Status:** Accepted
+**Revision:** v2
+**Implementation:** Partial
+**First accepted:** 2026-01-02 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-012](012-editor-plugin-extension-architecture.md) (editor plugins) · [ADR-007](007-capability-based-plugin-architecture.md) (plugin capabilities)
 
 ## Context
 
@@ -35,7 +38,8 @@ KeenEyes Editor needs to support third-party plugins distributed as NuGet packag
 Implement a **tiered plugin loading system** with three levels of dynamism:
 
 ### Tier 1: Static Plugins (Default)
-- Loaded at startup, require editor restart to add/remove
+- As built, Tier 1 is on-demand loading rather than a startup scan: built-in plugins are compiled into the editor and installed in `EditorApplication`, while installed third-party plugins are recorded in the persisted `PluginRegistry` and loaded via the Plugin Manager panel (`EditorPluginManager.LoadDynamicPlugin`)
+- No automatic startup scan of plugin folders is wired (`DiscoverPlugins()` exists but has no production caller)
 - Simplest, most stable approach
 - All plugins work at this tier
 
@@ -66,7 +70,6 @@ MyPlugin.1.0.0.nupkg
 
 ```json
 {
-  "$schema": "https://keeneyes.dev/schemas/plugin-manifest-v1.json",
   "name": "My Awesome Plugin",
   "id": "com.example.myawesomeplugin",
   "version": "1.0.0",
@@ -98,13 +101,15 @@ MyPlugin.1.0.0.nupkg
 }
 ```
 
+The manifest contract is defined by `KeenEyes.Editor.Plugins.PluginManifest` (`Parse`/`TryParse`/`ToJson`) rather than a published JSON Schema — no plugin-manifest schema file exists in `schemas/`. Beyond the fields above, the shipped format also supports `security` (publicKeyToken, assemblyHash) and `permissions` (required/optional permission lists) sections, consumed by the plugin security subsystem.
+
 ### Architecture
 
 ```
-EditorPluginManager
+EditorPluginManager            # Facade: lifecycle + state transitions
 ├── PluginRepository           # Discovers installed plugins
 │   ├── Scan NuGet global cache
-│   ├── Scan local plugin folder
+│   ├── Scan local plugin folders
 │   └── Parse manifests
 │
 ├── PluginLoader               # Loads/unloads assemblies
@@ -113,16 +118,22 @@ EditorPluginManager
 │   ├── Instantiate IEditorPlugin via reflection
 │   └── Unload context (if collectible)
 │
-├── PluginRegistry             # Tracks loaded plugins
-│   ├── Plugin metadata
-│   ├── Load state (Unloaded, Loaded, Enabled, Disabled)
-│   └── Dependency graph
+├── LoadedPlugin + PluginState # Per-plugin state machine
 │
-└── PluginLifecycle            # Manages state transitions
-    ├── Load → Enable → Disable → Unload
-    ├── Dependency ordering
-    └── Error recovery
+├── Registry/PluginRegistry    # Persisted registry of installed packages
+│
+├── Dependencies/              # PluginDependencyResolver + DependencyGraph
+│   ├── Load ordering (topological sort)
+│   ├── Version constraints (NuGet VersionRange)
+│   └── Circular-dependency detection
+│
+├── Installation/              # PluginInstaller / PluginUninstaller
+├── NuGet/                     # NuGetClient (package acquisition)
+└── Security/                  # AssemblyAnalyzer, PluginSignatureVerifier,
+                               # PermissionManager, TrustedPublisherStore
 ```
+
+There is no separate `PluginLifecycle` type: state transitions and error recovery live in `EditorPluginManager` itself, with per-plugin state carried by `LoadedPlugin`. Note that `PluginRegistry` is the *persisted installed-package registry*, not an in-memory load-state tracker. The `Installation/`, `NuGet/`, and `Security/` subsystems were added after this ADR was first written.
 
 ### PluginLoadContext
 
@@ -171,30 +182,34 @@ internal sealed class PluginLoadContext : AssemblyLoadContext
 
 ### Plugin States
 
+The shipped `PluginState` enum defines six states: `Discovered`, `Loaded`, `Enabled`, `Disabled`, `Failed`, and `Unloading`. There is no terminal `Unloaded` state — after a hot-reload unload completes, the plugin reverts to `Discovered`.
+
 ```
-                    ┌──────────────┐
-         install   │  Discovered  │   scan
-            ┌──────│   (on disk)  │◄──────┐
-            │      └──────────────┘       │
-            │                             │
-            ▼                             │
-    ┌──────────────┐              ┌───────┴──────┐
-    │    Loaded    │◄────────────►│   Unloaded   │
-    │  (in memory) │   unload*    │  (assembly   │
-    └──────┬───────┘              │   released)  │
-           │                      └──────────────┘
-           │ enable                     ▲
-           ▼                            │ unload*
-    ┌──────────────┐                    │
-    │   Enabled    │────────────────────┘
+    ┌──────────────┐
+    │  Discovered  │◄───────────────────────────┐
+    │   (on disk)  │                            │
+    └──────┬───────┘                            │
+           │ load                       ┌───────┴──────┐
+           ▼                            │  Unloading   │
+    ┌──────────────┐      unload*       │ (transitional│
+    │    Loaded    │───────────────────►│  during hot  │
+    │  (in memory) │                    │   reload)    │
+    └──────┬───────┘                    └──────────────┘
+           │ enable                             ▲
+           ▼                                    │
+    ┌──────────────┐                            │
+    │   Enabled    │────────────────────────────┘
     │  (running)   │     disable + unload*
     └──────┬───────┘
-           │ disable
-           ▼
-    ┌──────────────┐
-    │   Disabled   │
-    │  (sleeping)  │
-    └──────────────┘
+           │ disable / enable
+           ▼        ▲
+    ┌───────────────┴──┐
+    │     Disabled     │
+    │    (sleeping)    │
+    └──────────────────┘
+
+    Failed — load or Initialize() threw; error isolation
+             keeps the editor running
 
     * Only for hot-reload plugins
 ```
@@ -227,40 +242,39 @@ For unloading to work, ALL references to plugin types must be released:
 3. **Cached types** - No `Type` or `MethodInfo` references retained
 4. **Static fields** - Plugin must not store in host statics
 
-The `EditorPluginContext` tracks all resources and disposes them on unload:
+The `EditorPluginContext` tracks every event subscription a plugin registers and disposes them on disable/unload; UI cleanup flows through the panel capability rather than a per-context entity list. Capability registrations (panels, drawers, tools, gizmos, shortcuts) are tracked as weak references so `UnloadDiagnostics` can report anything that fails to collect after an unload:
 
 ```csharp
-public sealed class EditorPluginContext : IEditorContext, IDisposable
+internal sealed class EditorPluginContext : IEditorContext
 {
     private readonly List<EventSubscription> subscriptions = [];
-    private readonly List<Entity> createdPanels = [];
-    private readonly WeakReference<IEditorPlugin> pluginRef;
 
-    public void Dispose()
+    // Weak-referenced capability registrations for unload diagnostics
+    private readonly List<WeakReference<object>> registeredPanels = [];
+    // ... drawers, tools, gizmos, shortcuts
+
+    internal void DisposeSubscriptions()
     {
-        // Dispose subscriptions (removes event handlers)
-        foreach (var sub in subscriptions)
-            sub.Dispose();
-
-        // Destroy created UI entities
-        foreach (var entity in createdPanels)
-            EditorWorld.Despawn(entity);
-
-        // Clear capability registrations
-        // ...
+        foreach (var subscription in subscriptions)
+        {
+            subscription.Dispose();
+        }
+        subscriptions.Clear();
     }
 }
 ```
+
+Hot reload additionally preserves plugin state across reloads via `IStatefulPlugin.SaveState`/`RestoreState` (see the [hot reload guide](../editor-plugin-hot-reload.md)).
 
 ### Error Handling
 
 Plugin failures are isolated:
 
 ```csharp
-public void EnablePlugin(string pluginId)
+public void EnableDynamicPlugin(string pluginId)
 {
     var entry = registry.Get(pluginId);
-    var context = new EditorPluginContext(this, entry.Manifest);
+    var context = new EditorPluginContext(this, entry.Plugin);
 
     try
     {
@@ -269,9 +283,9 @@ public void EnablePlugin(string pluginId)
     }
     catch (Exception ex)
     {
-        // Log error, keep plugin in Loaded state
+        // Log error, mark the plugin Failed, release its resources
         logger.Error($"Plugin {pluginId} failed to initialize: {ex}");
-        context.Dispose();
+        context.DisposeSubscriptions();
         entry.State = PluginState.Failed;
 
         // Optionally show user notification
@@ -291,31 +305,34 @@ Plugins are discovered from:
 
 ### API Surface
 
+The shipped lifecycle surface lives on `EditorPluginManager`:
+
 ```csharp
-// Plugin management
-editorPlugins.InstallFromNuGet("com.example.myplugin", "1.0.0");
-editorPlugins.InstallFromPath("/path/to/MyPlugin.dll");
-editorPlugins.UninstallPlugin("com.example.myplugin");
+// Discovery and loading
+editorPlugins.DiscoverPlugins();
+editorPlugins.LoadDynamicPlugin("com.example.myplugin");
 
 // Enable/disable
-editorPlugins.EnablePlugin("com.example.myplugin");
-editorPlugins.DisablePlugin("com.example.myplugin");
+editorPlugins.EnableDynamicPlugin("com.example.myplugin");
+editorPlugins.DisableDynamicPlugin("com.example.myplugin");
 
 // Hot reload (opt-in plugins only)
-editorPlugins.ReloadPlugin("com.example.myplugin");
+editorPlugins.UnloadDynamicPlugin("com.example.myplugin");
+editorPlugins.ReloadDynamicPlugin("com.example.myplugin");
 
 // Query
-var plugin = editorPlugins.GetPlugin("com.example.myplugin");
-var all = editorPlugins.GetAllPlugins();
-var enabled = editorPlugins.GetEnabledPlugins();
+var plugin = editorPlugins.GetDynamicPlugin("com.example.myplugin");
+var all = editorPlugins.GetDynamicPlugins();
 ```
+
+Package install, uninstall, and update do not live on the manager: they flow through `PluginInstaller` (`CreatePlanAsync`/`ExecuteAsync`) and `PluginUninstaller`, driven by the `keeneyes plugin install|uninstall|update|list|search` CLI commands and the Plugin Manager panel's Browse tab. (`InstallPlugin<T>()` exists but installs in-process built-in plugin instances, not packages.)
 
 ### User Experience
 
 1. **Plugin Manager Panel** - UI for browsing, installing, enabling plugins
 2. **Restart Indicator** - Shows when restart is needed for full changes
 3. **Error Recovery** - Disable failing plugins, offer to uninstall
-4. **Development Mode** - Auto-reload on rebuild (for plugin developers)
+4. **Development Mode** - Not yet implemented: auto-reload on rebuild. Plugin reload is manual (Plugin Manager panel Reload action / `ReloadDynamicPlugin`); the editor's `HotReloadManager` auto-reload applies to game assemblies, not editor plugins
 
 ## Consequences
 
@@ -341,30 +358,41 @@ var enabled = editorPlugins.GetEnabledPlugins();
 
 ## Implementation Phases
 
-### Phase 1: Static Loading
-- Plugin manifest schema
-- Plugin discovery from NuGet cache
-- PluginLoadContext with dependency resolution
-- Basic PluginLoader (load-only)
+### Phase 1: Static Loading — shipped, with two gaps
+- [x] Plugin manifest format (`PluginManifest` `Parse`/`TryParse`/`ToJson`)
+- [x] Plugin discovery from NuGet cache and plugin folders (`PluginRepository`)
+- [x] PluginLoadContext with dependency resolution
+- [x] Basic PluginLoader (load-only)
+- Not yet implemented: a published manifest JSON Schema (the contract lives in `PluginManifest.cs`)
+- Not yet implemented: startup auto-load of installed plugins — loading is on-demand; `DiscoverPlugins()` has no production caller
 
-### Phase 2: Enable/Disable
-- PluginRegistry with state tracking
-- Enable/Disable API
-- Plugin Manager panel UI
+### Phase 2: Enable/Disable — shipped
+- [x] Per-plugin state tracking (`LoadedPlugin` + `PluginState`)
+- [x] Enable/Disable API (`EnableDynamicPlugin` / `DisableDynamicPlugin`)
+- [x] Plugin Manager panel UI (`PluginManagerPlugin`)
 
-### Phase 3: Hot Reload
-- Collectible context support
-- Resource tracking in context
-- Unload API
-- Development mode auto-reload
+### Phase 3: Hot Reload — shipped, except auto-reload
+- [x] Collectible context support
+- [x] Resource tracking in context (`EditorPluginContext` subscription tracking, `UnloadDiagnostics` leak reporting)
+- [x] Unload/reload API (`UnloadDynamicPlugin` / `ReloadDynamicPlugin`), with `IStatefulPlugin.SaveState`/`RestoreState` state preservation
+- Not yet implemented: development mode auto-reload on rebuild
 
-### Phase 4: NuGet Integration
-- `keeneyes plugin install <package>` CLI
-- In-editor package browser
-- Version upgrade handling
+### Phase 4: NuGet Integration — shipped
+- [x] `keeneyes plugin install|uninstall|update|list|search` CLI (plus `keeneyes sources add|list|remove`)
+- [x] In-editor package browser (Plugin Manager Browse tab)
+- [x] Version upgrade handling (`PluginUpdateCommand` over `PluginInstaller`/`NuGetClient`)
 
 ## Related
 
 - [ADR-012: Editor Plugin Extension Architecture](012-editor-plugin-extension-architecture.md)
 - [ADR-007: Capability-Based Plugin Architecture](007-capability-based-plugin-architecture.md)
+- [Editor Plugin Hot Reload guide](../editor-plugin-hot-reload.md)
+- [Editor Plugin Dependencies guide](../editor-plugin-dependencies.md)
 - [.NET AssemblyLoadContext docs](https://learn.microsoft.com/en-us/dotnet/core/dependency-loading/understanding-assemblyloadcontext)
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Status corrected Proposed → Accepted — the infrastructure landed in the same commit as the ADR (f678a831) and the index already listed it as Accepted. Implementation marked Partial: development-mode auto-reload of plugins, startup auto-load of installed plugins (`DiscoverPlugins()` has no callers; loading is on-demand), and a published plugin-manifest JSON Schema remain unimplemented. Body amended to as-built reality: shipped API names (`EnableDynamicPlugin`/`DisableDynamicPlugin`/`UnloadDynamicPlugin`/`ReloadDynamicPlugin`; install via `PluginInstaller` + `keeneyes plugin` CLI, not `InstallFromNuGet`), real component decomposition (no `PluginLifecycle` type; `PluginRegistry` is the persisted install registry; `Dependencies/`, `Installation/`, `NuGet/`, `Security/` subsystems), actual `PluginState` set (adds `Failed`/`Unloading`, no terminal `Unloaded`), `EditorPluginContext` subscription tracking plus `IStatefulPlugin`/`UnloadDiagnostics`, manifest contract defined by `PluginManifest.cs` (dead `$schema` URL removed; `security`/`permissions` sections documented), and the phase checklist updated to shipped status.
+- **v1 — 2026-01-02 (f678a831):** Accepted — tiered dynamic plugin loading for editor plugins (Tier 1 static, Tier 2 enable/disable, Tier 3 collectible-ALC hot reload) with NuGet-package distribution and keeneyes-plugin.json manifests; landed together with the initial infrastructure (PluginLoadContext, PluginLoader, PluginRepository, PluginManifest, LoadedPlugin, EditorPluginManager dynamic-plugin API).

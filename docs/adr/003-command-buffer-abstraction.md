@@ -1,8 +1,10 @@
 # ADR-003: CommandBuffer Abstraction and Reflection Elimination
 
 **Status:** Accepted
-**Date:** 2025-12-10
-**Related Work:** Plugin Architecture, Performance Optimization
+**Revision:** v3
+**Implementation:** Shipped
+**First accepted:** 2025-12-10 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-001](001-world-manager-architecture.md) (World managers) · [ADR-002](002-iworld-entity-lifecycle-events.md) (IWorld events)
 
 ## Context
 
@@ -81,8 +83,11 @@ KeenEyes.Abstractions/
     ├── AddComponentCommand.cs   (delegate-based, no reflection)
     ├── DespawnCommand.cs
     ├── RemoveComponentCommand.cs
-    └── SetComponentCommand.cs
+    ├── SetComponentCommand.cs
+    └── PlaceholderResolvingCommand.cs  (base class: resolves same-buffer placeholder entities at flush time)
 ```
+
+Spawn commands return negative placeholder IDs, which later commands in the same buffer can target; `PlaceholderResolvingCommand` (added after the initial move) resolves these placeholders to real entities at flush time.
 
 **Key Changes:**
 
@@ -320,20 +325,19 @@ All 2,172 tests passing, zero warnings.
 
 ## Future Considerations
 
-- **Command Pooling** - Reuse command objects to reduce GC pressure
+- ✅ **Command Pooling** - Shipped as `CommandBufferPool` (`src/KeenEyes.Core/Parallelism/CommandBufferPool.cs`): per-system isolated buffers for parallel system execution, with thread-safe rent/return and deterministic ordered merging against a shared placeholder-to-entity map
 - **Batch Optimization** - Process similar commands together for cache efficiency
 - **Async Commands** - Support for async/await in command execution
 - **Command Validation** - Pre-execution validation for debugging
 
 ## Related Decisions
 
-- **ADR-001**: World Manager Architecture - EventManager provides command execution infrastructure
-- **ADR-002**: Complete IWorld Event System - IWorld.Spawn() must return IEntityBuilder
+- [ADR-001](001-world-manager-architecture.md): World Manager Architecture - EventManager provides command execution infrastructure
+- [ADR-002](002-iworld-entity-lifecycle-events.md): IWorld Entity Lifecycle Events - IWorld.Spawn() must return IEntityBuilder
 
 ## References
 
-- Commit: "refactor: Enhance CommandBuffer and generator for plugin architecture"
-- Commit: "refactor: Move CommandBuffer implementation to Abstractions"
+- Commit: dd4e5bf0 ("refactor: Enhance CommandBuffer and generator for plugin architecture") - the entire move and reflection elimination landed in this single commit
 - Files changed:
   - `src/KeenEyes.Abstractions/ICommandBuffer.cs` - New interface
   - `src/KeenEyes.Abstractions/CommandBuffer.cs` - Moved from Core
@@ -360,3 +364,11 @@ All 2,172 tests passing, zero warnings.
 - Generated methods work with interfaces and concrete types
 
 This evolution reflects the principle that **performance and isolation should not be opposing goals**. By combining the delegate capture pattern with dual method generation, we achieve both zero-reflection performance and clean plugin isolation without compromise.
+
+---
+
+## Changelog
+
+- **v3 — 2026-07-26 (living-ADR conversion):** Converted to living-document format; Status remains Accepted, Implementation: Shipped (fully verified — command system in Abstractions, zero reflection, Core/Commands removed, dual generator output). Body amended to as-built reality: `PlaceholderResolvingCommand.cs` added to the Commands/ listing (same-buffer placeholder resolution at flush time), the "Command Pooling" future item marked shipped as `CommandBufferPool`; Related Decisions converted to links with the ADR-002 title corrected to "IWorld Entity Lifecycle Events", and References fixed to the single real commit dd4e5bf0 (the second cited commit never existed).
+- **v2 — 2025-12-31 (e636b5b3):** Reference path updated from src/KeenEyes.Generators/ComponentGenerator.cs to editor/KeenEyes.Generators/ComponentGenerator.cs as part of the repo-wide move of generators/SDK projects to editor/ (one-line change; otherwise mechanical).
+- **v1 — 2025-12-10 (dd4e5bf0):** Accepted — Move the entire CommandBuffer system from Core to KeenEyes.Abstractions and eliminate reflection via the delegate-capture pattern, giving plugins Core-free access and ~20-50x faster command execution; generator emits dual (generic + interface) extension methods.

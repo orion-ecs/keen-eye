@@ -1,7 +1,9 @@
 # ADR-006: Custom MSBuild SDK for KeenEyes Projects
 
 **Status:** Accepted
-**Date:** 2025-12-18
+**Revision:** v2
+**Implementation:** Shipped
+**First accepted:** 2025-12-18 · **Last amended:** 2026-07-26
 
 ## Context
 
@@ -43,8 +45,8 @@ Create custom MSBuild SDK packages that encapsulate KeenEyes conventions and dep
 
 | Package | Target Use Case | Default Dependencies |
 |---------|-----------------|---------------------|
-| `KeenEyes.Sdk` | Games and applications | Core + Generators |
-| `KeenEyes.Sdk.Plugin` | Plugin libraries | Abstractions + Generators |
+| `KeenEyes.Sdk` | Games and applications | Core + Generators + Shaders.Generator |
+| `KeenEyes.Sdk.Plugin` | Plugin libraries | Abstractions + Generators (opt-in Common) |
 | `KeenEyes.Sdk.Library` | Reusable ECS libraries | Core + Generators (private) |
 
 ### Minimal Project File
@@ -62,31 +64,41 @@ The SDK automatically:
 - Sets `OutputType=Exe` (for main SDK) or `Library` (for Plugin/Library SDKs)
 - Enables `IsAotCompatible=true`
 - References appropriate KeenEyes packages with correct attributes
-- Defines custom ItemGroup types for editor integration
+- Defines custom ItemGroup types and auto-detects KeenEyes file types for build-time processing
+
+Package references per flavor:
+
+- `KeenEyes.Sdk` references `KeenEyes.Core`, `KeenEyes.Generators` (as analyzer), and
+  `KeenEyes.Shaders.Generator` (as analyzer, for KESL shader compilation). Each is individually
+  opt-out via `IncludeKeenEyesCore`, `IncludeKeenEyesGenerators`, and `IncludeKeenEyesShaders`.
+- `KeenEyes.Sdk.Plugin` references `KeenEyes.Abstractions` (opt-out via
+  `IncludeKeenEyesAbstractions`) and `KeenEyes.Generators`, with opt-in `KeenEyes.Common`
+  (`IncludeKeenEyesCommon=true`).
+- `KeenEyes.Sdk.Library` references `KeenEyes.Core` and `KeenEyes.Generators` with
+  `PrivateAssets=all` on Generators, so the analyzer does not flow to library consumers.
 
 ### Custom ItemGroups
 
-The SDK defines item types for future editor and build pipeline integration:
+The SDK defines six item types for editor and build pipeline integration:
+
+| Item Type | File Extension | Handling |
+|-----------|----------------|----------|
+| `KeenEyesScene` | `.kescene` | Auto-detected, fed to source generators |
+| `KeenEyesPrefab` | `.keprefab` | Auto-detected, fed to source generators |
+| `KeenEyesWorld` | `.keworld` | Auto-detected, fed to source generators |
+| `KeenEyesShader` | `.kesl` | Auto-detected, fed to the KESL shader generator |
+| `KeenEyesAsset` | any | Copied to the output directory by the `CopyKeenEyesAssets` target |
+| `KeenEyesSystem` | — | ItemDefinitionGroup metadata for system declarations |
+
+Scene, prefab, world, and shader files are auto-detected by glob in `Sdk.targets` and forwarded
+as `AdditionalFiles` to the KeenEyes source generators, so consumers do not declare these
+ItemGroups manually — dropping a `.kescene` or `.kesl` file anywhere in the project is enough.
+Explicit declarations remain possible for `KeenEyesAsset` items:
 
 ```xml
-<!-- Scene definitions -->
-<ItemGroup>
-  <KeenEyesScene Include="Scenes/**/*.kescene" />
-</ItemGroup>
-
-<!-- Prefab templates -->
-<ItemGroup>
-  <KeenEyesPrefab Include="Prefabs/**/*.keprefab" />
-</ItemGroup>
-
 <!-- Game assets (auto-copied to output) -->
 <ItemGroup>
   <KeenEyesAsset Include="Assets/**/*" />
-</ItemGroup>
-
-<!-- World configuration -->
-<ItemGroup>
-  <KeenEyesWorld Include="Worlds/**/*.keworld" />
 </ItemGroup>
 ```
 
@@ -101,16 +113,23 @@ The SDK generates `keeneyes.project.json` in the output directory:
   "sdkVersion": "0.1.0",
   "coreVersion": "0.1.0",
   "targetFramework": "net10.0",
+  "outputType": "Exe",
   "isAotCompatible": true,
   "features": ["ECS", "SourceGenerators", "AOT"]
 }
 ```
+
+The Library SDK variant additionally records `isPackable`. Every build also writes
+`keeneyes.version.json` (SDK, Core, and minimum-Core versions) to the intermediate output path
+for version-compatibility checking.
 
 This enables:
 - Editor project detection without loading the full MSBuild graph
 - Version compatibility checking
 - Upgrade path recommendations
 - Feature flag queries
+
+Editor-side consumption of these files is not yet implemented (see Future Considerations).
 
 ### Version Properties
 
@@ -173,7 +192,7 @@ Create a package with `.props` and `.targets` files instead of an SDK:
 - **Version coupling** - SDK version implies compatible package versions
 - **Editor foundation** - Project detection, metadata, custom item types ready
 - **Upgrade tooling** - Version properties enable compatibility checking
-- **Asset pipeline ready** - Custom ItemGroups for future build-time processing
+- **Asset pipeline active** - Scene, prefab, world, and shader files auto-flow to source generators at build time; assets auto-copy to output
 
 ### Negative
 
@@ -225,12 +244,27 @@ Users can disable automatic references:
 <PropertyGroup>
   <IncludeKeenEyesCore>false</IncludeKeenEyesCore>
   <IncludeKeenEyesGenerators>false</IncludeKeenEyesGenerators>
+  <IncludeKeenEyesShaders>false</IncludeKeenEyesShaders>
 </PropertyGroup>
 ```
 
+The Plugin SDK additionally offers `IncludeKeenEyesAbstractions` (opt-out) and
+`IncludeKeenEyesCommon` (opt-in, default `false`).
+
 ## Future Considerations
 
-1. **Editor integration** - Read `keeneyes.project.json` for project discovery
-2. **Asset processing** - Build targets for scene/prefab compilation
-3. **Analyzers** - Include KeenEyes-specific Roslyn analyzers
-4. **Upgrade CLI** - `dotnet keeneyes upgrade` command using version metadata
+1. **Editor integration** - Read `keeneyes.project.json` for project discovery. Not yet implemented: the file is generated on every build, but no editor code consumes it.
+2. **Asset processing** - Build targets for scene/prefab compilation. Partially shipped: scene, prefab, world, and shader files are auto-detected and fed to source generators (see Custom ItemGroups); dedicated compilation targets beyond that remain future work.
+3. **Analyzers** - Include KeenEyes-specific Roslyn analyzers. Not yet implemented.
+4. **Upgrade CLI** - `dotnet keeneyes upgrade` command using version metadata. Not yet implemented: `keeneyes.version.json` carries the data, but no CLI command reads it.
+
+## Related
+
+- [ADR-009](009-kesl-shader-language.md) (KESL shader language) — the game SDK ships the KESL shader generator wiring (`KeenEyes.Shaders.Generator` auto-reference and `.kesl` auto-detection).
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** No status change (Accepted since 2025-12-18); Implementation: Shipped — all three SDK packages, convention defaults, opt-outs, version properties, and metadata generation are in place; templates and docs consume them. Decision amended to as-built reality: item types grew from four to six (`KeenEyesShader`, `KeenEyesSystem`) and are auto-detected by glob and fed to source generators as `AdditionalFiles` rather than declared manually; the game SDK also auto-references `KeenEyes.Shaders.Generator` (opt-out `IncludeKeenEyesShaders`); `keeneyes.project.json` gained `outputType` (and `isPackable` for Library) and a second `keeneyes.version.json` is written to the intermediate output path. Noted that no editor code consumes the metadata files yet; added Related link to ADR-009.
+- **v1 — 2025-12-18 (3b6053a1):** Accepted — Introduce KeenEyes.Sdk / KeenEyes.Sdk.Plugin / KeenEyes.Sdk.Library MSBuild SDKs to replace consumer boilerplate with convention defaults, automatic package references, custom item types, and keeneyes.project.json metadata; implemented in the same commit.
