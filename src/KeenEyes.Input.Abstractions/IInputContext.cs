@@ -47,6 +47,11 @@ public interface IInputContext : IDisposable
     /// Returns the first available keyboard. For systems with multiple keyboards,
     /// use <see cref="Keyboards"/> to access all connected devices.
     /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when there is no keyboard to return, either because input has not
+    /// initialized yet or because the machine has none. Test <see cref="Keyboards"/>
+    /// first if either case is possible.
+    /// </exception>
     IKeyboard Keyboard { get; }
 
     /// <summary>
@@ -56,15 +61,31 @@ public interface IInputContext : IDisposable
     /// Returns the first available mouse. For systems with multiple mice,
     /// use <see cref="Mice"/> to access all connected devices.
     /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when there is no mouse to return, either because input has not
+    /// initialized yet or because the machine has none. Test <see cref="Mice"/>
+    /// first if either case is possible.
+    /// </exception>
     IMouse Mouse { get; }
 
     /// <summary>
     /// Gets the primary gamepad device.
     /// </summary>
     /// <remarks>
-    /// Returns the first connected gamepad (index 0), or a disconnected placeholder
-    /// if no gamepad is connected. Check <see cref="IGamepad.IsConnected"/> before use.
+    /// <para>
+    /// Returns the first gamepad the backend knows about. A gamepad is optional
+    /// hardware and is absent on most machines, so treat this property as unsafe by
+    /// default: query <see cref="ConnectedGamepadCount"/> or <see cref="Gamepads"/>
+    /// and keep the game playable when the answer is "none".
+    /// </para>
     /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// Thrown when there is no gamepad to return — the normal state of a machine with
+    /// no controller plugged in. Check <see cref="ConnectedGamepadCount"/> or
+    /// <see cref="Gamepads"/> before reading this property, and
+    /// <see cref="IGamepad.IsConnected"/> on the result, since a backend may expose a
+    /// fixed slot with nothing plugged into it.
+    /// </exception>
     IGamepad Gamepad { get; }
 
     /// <summary>

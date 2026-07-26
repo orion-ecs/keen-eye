@@ -50,7 +50,12 @@ public sealed class MockInputContext : IInputContext
     /// <summary>
     /// Creates a new mock input context with the specified number of gamepads.
     /// </summary>
-    /// <param name="gamepadCount">The number of gamepad slots to create. Defaults to 4.</param>
+    /// <param name="gamepadCount">
+    /// The number of gamepad slots to create. Defaults to 4; slot 0 starts connected.
+    /// Pass <c>0</c> to model the common real-world machine that has a keyboard and mouse
+    /// but no controller at all — that configuration makes <see cref="Gamepad"/> throw,
+    /// exactly as a hardware backend does, so tests can prove code takes the safe path.
+    /// </param>
     public MockInputContext(int gamepadCount = 4)
     {
         keyboard = new MockKeyboard();
@@ -257,7 +262,13 @@ public sealed class MockInputContext : IInputContext
     public IMouse Mouse => mouse;
 
     /// <inheritdoc />
-    public IGamepad Gamepad => gamepads.Length > 0 ? gamepads[0] : throw new InvalidOperationException("No gamepads available.");
+    public IGamepad Gamepad => gamepads.Length > 0
+        ? gamepads[0]
+        : throw new InvalidOperationException(
+            $"No gamepad is connected, so {nameof(Gamepad)} has no device to return. " +
+            $"Check {nameof(ConnectedGamepadCount)} or {nameof(Gamepads)} first and handle the case " +
+            $"where none is present. This mirrors a real backend on a machine with no controller: " +
+            $"construct {nameof(MockInputContext)} with a non-zero gamepadCount to model one.");
 
     /// <inheritdoc />
     public ImmutableArray<IKeyboard> Keyboards => [keyboard];

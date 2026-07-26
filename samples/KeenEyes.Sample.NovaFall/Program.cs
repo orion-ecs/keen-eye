@@ -243,14 +243,27 @@ try
         .OnReady(() =>
         {
             var input = world.GetExtension<IInputContext>();
-            input.Keyboard.OnKeyDown += eventArgs =>
+            var keyboard = InputDevices.FirstKeyboard(input);
+            if (keyboard is not null)
             {
-                if (eventArgs.Key == Key.Escape)
+                keyboard.OnKeyDown += eventArgs =>
                 {
-                    Console.WriteLine("Escape pressed - exiting...");
-                    System.Environment.Exit(0);
-                }
-            };
+                    if (eventArgs.Key == Key.Escape)
+                    {
+                        Console.WriteLine("Escape pressed - exiting...");
+                        System.Environment.Exit(0);
+                    }
+                };
+            }
+            else
+            {
+                Console.WriteLine("No keyboard detected — close the window to exit.");
+            }
+
+            if (input.ConnectedGamepadCount == 0)
+            {
+                Console.WriteLine("No gamepad detected — keyboard controls cover everything.");
+            }
 
             // The UI layout system needs to know the pixel canvas size.
             if (world.TryGetExtension<KeenEyes.Graphics.Abstractions.IGraphicsContext>(out var graphics)
@@ -272,11 +285,12 @@ try
 }
 catch (Exception ex)
 {
-    // Top-level demo entry point: initializing the windowing/graphics stack can
-    // surface a wide range of platform exceptions (missing display, driver, or GL
-    // context errors). A demo recovers by reporting the failure and exiting rather
-    // than crashing, so a catch-all is appropriate here.
-    ReportStartupFailure(ex);
+    // Top-level demo entry point: Run() covers BOTH startup (window/graphics/GL
+    // creation, which can surface a wide range of platform exceptions) and the frame
+    // loop itself, so anything escaping here may have come from either. A demo
+    // recovers by reporting the failure and exiting rather than crashing, so a
+    // catch-all is appropriate here.
+    ReportRunFailure(ex);
 }
 finally
 {
@@ -291,17 +305,30 @@ finally
 
 Console.WriteLine("Sample complete!");
 
-// Reports a startup failure the honest way: WHAT failed comes first, because a
-// blanket "requires a display" is actively misleading on a machine that has one
-// and hides the real exception type behind a wrong diagnosis. The requirement
-// list follows as a suggestion, never as the stated cause.
+// Reports a failure the honest way: WHAT failed comes first, because a blanket
+// "requires a display" is actively misleading on a machine that has one and hides
+// the real exception type behind a wrong diagnosis. The requirement list follows as
+// a suggestion, never as the stated cause.
 static void ReportStartupFailure(Exception ex)
 {
     Console.WriteLine($"Startup failed: {ex.GetType().Name}: {ex.Message}");
-    Console.WriteLine("Windowed mode needs a display, a GPU driver, and OpenGL 3.3; "
-        + "the line above says which of those actually failed. "
-        + "For a check that needs none of them, run with --simulate 600.");
+    Console.WriteLine(PlatformHint());
 }
+
+// Same idea for the loop, minus the false claim of "startup": Run() returns only
+// once the frame loop ends, so a throw from frame 1 lands here too, and labelling
+// that a startup failure sends readers hunting in entirely the wrong place.
+static void ReportRunFailure(Exception ex)
+{
+    Console.WriteLine($"NOVAFALL stopped: {ex.GetType().Name}: {ex.Message}");
+    Console.WriteLine("Run() covers both startup and the frame loop, so this may be a fault from the "
+        + "first frames rather than from starting up.");
+    Console.WriteLine(PlatformHint());
+}
+
+static string PlatformHint()
+    => "Windowed mode needs a display, a GPU driver, and OpenGL 3.3; the line above says which of those "
+        + "actually failed. For a check that needs none of them, run with --simulate 600.";
 
 // Headless determinism harness: builds the world with no window, graphics,
 // audio, particle, animation, or UI plugins (every juice system no-ops), steps

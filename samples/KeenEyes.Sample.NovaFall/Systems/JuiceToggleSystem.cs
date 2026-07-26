@@ -23,7 +23,13 @@ public sealed class JuiceToggleSystem : SystemBase
             return;
         }
 
-        var isDown = input.Keyboard.IsKeyDown(Key.J);
+        var keyboard = InputDevices.FirstKeyboard(input);
+        if (keyboard is null)
+        {
+            return;
+        }
+
+        var isDown = keyboard.IsKeyDown(Key.J);
         if (isDown && !wasDown)
         {
             ref var juice = ref World.GetSingleton<JuiceConfig>();

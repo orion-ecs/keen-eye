@@ -1,0 +1,16 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- SilkInputContext has an internal constructor (the plugin owns creation), so these
+         tests rely on the InternalsVisibleTo already declared by KeenEyes.Input.Silk. -->
+    <ProjectReference Include="..\..\src\KeenEyes.Input.Silk\KeenEyes.Input.Silk.csproj" />
+  </ItemGroup>
+
+</Project>

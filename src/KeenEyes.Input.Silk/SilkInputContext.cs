@@ -35,13 +35,15 @@ public sealed class SilkInputContext : IInputContext
     private bool disposed;
 
     /// <inheritdoc />
-    public IKeyboard Keyboard => primaryKeyboard ?? throw new InvalidOperationException("Input not initialized. Wait for window to load.");
+    public IKeyboard Keyboard => primaryKeyboard
+        ?? throw DeviceUnavailable(nameof(Keyboard), "keyboard", nameof(Keyboards));
 
     /// <inheritdoc />
-    public IMouse Mouse => primaryMouse ?? throw new InvalidOperationException("Input not initialized. Wait for window to load.");
+    public IMouse Mouse => primaryMouse
+        ?? throw DeviceUnavailable(nameof(Mouse), "mouse", nameof(Mice));
 
     /// <inheritdoc />
-    public IGamepad Gamepad => primaryGamepad ?? throw new InvalidOperationException("Input not initialized. Wait for window to load.");
+    public IGamepad Gamepad => primaryGamepad ?? throw GamepadUnavailable();
 
     /// <inheritdoc />
     public ImmutableArray<IKeyboard> Keyboards => keyboards;
@@ -58,6 +60,13 @@ public sealed class SilkInputContext : IInputContext
     /// <summary>
     /// Gets whether the input context has been initialized.
     /// </summary>
+    /// <remarks>
+    /// This becomes <see langword="true"/> only once the window has loaded AND the shared
+    /// Silk.NET input context was actually obtained from it. While it is <see langword="false"/>
+    /// no devices exist at all; once it is <see langword="true"/>, the device collections
+    /// (<see cref="Keyboards"/>, <see cref="Mice"/>, <see cref="Gamepads"/>) report what the
+    /// machine really has, which for gamepads is frequently nothing.
+    /// </remarks>
     public bool IsInitialized => initialized;
 
     #region Global Events
@@ -102,31 +111,68 @@ public sealed class SilkInputContext : IInputContext
         this.windowProvider = windowProvider;
         this.config = config;
 
-        // Hook into window load to initialize input
-        windowProvider.Window.Load += OnWindowLoad;
+        // Hook into the provider's load event rather than the window's: the provider
+        // creates the Silk.NET input context inside its own window-load handler and
+        // then raises this, so InputContext is guaranteed to exist by the time we run.
+        windowProvider.OnLoad += OnWindowLoad;
     }
 
     private void OnWindowLoad()
     {
         // Get the input context from the shared window provider
-        silkInput = windowProvider.InputContext;
+        var silkInputContext = windowProvider.InputContext;
+        if (silkInputContext is null)
+        {
+            // Nothing to wrap, so stay uninitialized: claiming otherwise would make
+            // IsInitialized report success while every device getter fails, which is
+            // exactly the lie that makes "no gamepad" look like "window not loaded".
+            return;
+        }
+
+        silkInput = silkInputContext;
 
         // Wrap Silk.NET devices in our abstractions
-        InitializeDevices();
+        InitializeDevices(silkInputContext);
 
         initialized = true;
     }
 
-    private void InitializeDevices()
-    {
-        if (silkInput is null)
-        {
-            return;
-        }
+    /// <summary>
+    /// Builds the exception thrown when a primary device is unavailable, distinguishing
+    /// "input has not initialized yet" from "this machine has no such device" — two very
+    /// different problems that used to share one misleading message.
+    /// </summary>
+    /// <param name="property">The name of the property being read.</param>
+    /// <param name="deviceName">The human-readable device name.</param>
+    /// <param name="checkHint">The property (or properties) the caller should test first.</param>
+    private InvalidOperationException DeviceUnavailable(string property, string deviceName, string checkHint)
+        => initialized
+            ? new InvalidOperationException(
+                $"No {deviceName} is connected, so {property} has no device to return. " +
+                $"Check {checkHint} first and handle the case where none is present.")
+            : new InvalidOperationException(
+                $"Input is not initialized, so {property} is unavailable. Wait for the window to load " +
+                $"(see {nameof(IsInitialized)}) before reading input devices.");
 
+    /// <summary>
+    /// Builds the exception for a missing primary gamepad, which has a third case the other
+    /// devices do not: gamepad support switched off in configuration. Reporting that as
+    /// "nothing is plugged in" would send the caller looking for a hardware problem.
+    /// </summary>
+    private InvalidOperationException GamepadUnavailable()
+        => initialized && !config.EnableGamepads
+            ? new InvalidOperationException(
+                $"Gamepad support is disabled ({nameof(SilkInputConfig)}." +
+                $"{nameof(SilkInputConfig.EnableGamepads)} is false), so {nameof(Gamepad)} has no device " +
+                $"to return, whether or not a controller is plugged in.")
+            : DeviceUnavailable(
+                nameof(Gamepad), "gamepad", $"{nameof(ConnectedGamepadCount)} or {nameof(Gamepads)}");
+
+    private void InitializeDevices(SilkInput.IInputContext silkInputContext)
+    {
         // Initialize keyboards
         var keyboardList = new List<IKeyboard>();
-        foreach (var keyboard in silkInput.Keyboards)
+        foreach (var keyboard in silkInputContext.Keyboards)
         {
             var wrapper = new SilkKeyboard(keyboard);
             keyboardList.Add(wrapper);
@@ -137,7 +183,7 @@ public sealed class SilkInputContext : IInputContext
 
         // Initialize mice
         var mouseList = new List<IMouse>();
-        foreach (var mouse in silkInput.Mice)
+        foreach (var mouse in silkInputContext.Mice)
         {
             var wrapper = new SilkMouse(mouse, config);
             mouseList.Add(wrapper);
@@ -150,7 +196,7 @@ public sealed class SilkInputContext : IInputContext
         if (config.EnableGamepads)
         {
             var gamepadList = new List<IGamepad>();
-            foreach (var gamepad in silkInput.Gamepads.Take(config.MaxGamepads))
+            foreach (var gamepad in silkInputContext.Gamepads.Take(config.MaxGamepads))
             {
                 var wrapper = new SilkGamepad(gamepad, config.GamepadDeadzone);
                 gamepadList.Add(wrapper);
@@ -160,7 +206,7 @@ public sealed class SilkInputContext : IInputContext
             primaryGamepad = gamepadList.Count > 0 ? (SilkGamepad)gamepadList[0] : null;
 
             // Subscribe to connection events
-            silkInput.ConnectionChanged += OnConnectionChanged;
+            silkInputContext.ConnectionChanged += OnConnectionChanged;
         }
     }
 
@@ -225,7 +271,7 @@ public sealed class SilkInputContext : IInputContext
 
         disposed = true;
 
-        windowProvider.Window.Load -= OnWindowLoad;
+        windowProvider.OnLoad -= OnWindowLoad;
 
         if (silkInput is not null && config.EnableGamepads)
         {
