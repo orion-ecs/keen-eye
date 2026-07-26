@@ -4,13 +4,29 @@ namespace KeenEyes.Sample.NovaFall;
 
 /// <summary>
 /// Integrates ball motion: gravity, steering acceleration, horizontal speed clamp,
-/// and wall clamping at the shaft edges.
+/// and clamping to the shaft edges — the side walls and the shaft floor.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Vertical integration is skipped while the ball rests on a floor —
 /// <see cref="CollisionSystem"/> keeps the resting ball glued to the floor that
 /// carries it upward. Horizontal steering always applies, which is how the player
 /// slides a resting ball toward the gap.
+/// </para>
+/// <para>
+/// TEACHING NOTE — the play field is a box, and every side of it must be a wall.
+/// The ball falls faster (<see cref="Tuning.MaxFallSpeed"/>) than the shaft rises
+/// (<see cref="Tuning.MaxScrollSpeed"/>), so a player who threads several gaps in
+/// a row genuinely outruns the shaft. Without the shaft-floor clamp below, such a
+/// run leaves the play field entirely: no floor can ever be spawned deep enough
+/// to reach it again, no collision can fire, and — because depth (and therefore
+/// score) accrues from the scroll speed rather than from the ball — the run
+/// becomes unloseable with an ever-climbing score. Clamping instead of killing is
+/// deliberate: NOVAFALL's fantasy is that falling is safety, so the original
+/// TI-83 behaviour is the right one — the ball rides the bottom of the shaft and
+/// the rising floors sweep up into it, which is self-correcting and creates
+/// tension rather than punishing good play.
+/// </para>
 /// </remarks>
 public sealed class BallMovementSystem : SystemBase
 {
@@ -67,6 +83,27 @@ public sealed class BallMovementSystem : SystemBase
             {
                 velocity.Y = Math.Min(velocity.Y + Tuning.Gravity * dt, Tuning.MaxFallSpeed);
                 position.Y += velocity.Y * dt;
+            }
+
+            // Shaft-floor clamp: the same idea as the wall clamp above, applied to
+            // the bottom edge of the play field. The bound mirrors the horizontal
+            // one exactly — the shaft's extent minus the ball's radius — so the
+            // ball comes to rest with its lowest point on the bottom edge.
+            //
+            // Applied outside the airborne branch on purpose: this is an
+            // invariant of the ball, not a step of the fall integration.
+            var maxY = Tuning.ShaftHeight - ball.Radius;
+            if (position.Y > maxY)
+            {
+                position.Y = maxY;
+
+                // Rest, don't bank speed. Leaving the accumulated fall velocity in
+                // place would store energy the ball can never spend and would make
+                // the very next frame's floor contact read as a colossal impact.
+                // Zero (rather than a bounce) also keeps velocity.Y >= 0, which is
+                // what CollisionSystem's landing test requires, so a floor rising
+                // into a bottomed-out ball still lands it normally.
+                velocity.Y = 0f;
             }
         }
     }

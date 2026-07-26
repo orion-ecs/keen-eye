@@ -6,7 +6,8 @@ namespace KeenEyes.Sample.NovaFall;
 
 /// <summary>
 /// Scrolls floors upward, escalates scroll speed with depth, spawns new floors
-/// below the view, and despawns floors that scroll past the Furnace ceiling.
+/// below the deepest point that can matter (the view bottom or the ball,
+/// whichever is lower), and despawns floors that scroll past the Furnace ceiling.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -96,9 +97,26 @@ public sealed class FloorScrollSystem : SystemBase
             World.Despawn(entity);
         }
 
-        // Keep the shaft filled one floor beyond the bottom of the view. The
-        // spacing is a mode knob: Daily Inferno packs the shaft denser.
-        while (!anyFloors || lowestY < Tuning.ShaftHeight + settings.FloorSpacing)
+        // Keep the shaft filled one floor beyond the LOWEST point that can
+        // matter. That is normally the bottom of the view, but the ball is the
+        // thing collisions are about, so it counts too: filling relative to
+        // max(view bottom, ball) makes "no floor below the ball" structurally
+        // impossible instead of merely unlikely.
+        //
+        // BallMovementSystem clamps the ball into the play field (and runs
+        // first, at order 10), so the view bound wins every frame in practice
+        // and the floor script is byte-identical to before this guard existed.
+        // That is exactly what defence in depth should look like: inert while
+        // the primary invariant holds, load-bearing the moment it does not.
+        var fillToY = Tuning.ShaftHeight;
+        foreach (var entity in World.Query<Ball, Position2D>())
+        {
+            fillToY = Math.Max(fillToY, World.Get<Position2D>(entity).Y);
+            break;
+        }
+
+        // The spacing is a mode knob: Daily Inferno packs the shaft denser.
+        while (!anyFloors || lowestY < fillToY + settings.FloorSpacing)
         {
             var y = anyFloors ? lowestY + settings.FloorSpacing : Tuning.FirstFloorY;
             SpawnFloor(seed, scroll.NextFloorIndex, y);
