@@ -290,6 +290,19 @@ public static class SnapshotManager
                 var info = (ComponentInfo?)serialization.Components.Get(type)
                     ?? RegisterComponent(serialization, type, component.TypeName, component.IsTag, serializer);
 
+                if (component.IsTag || !componentData.HasValue)
+                {
+                    // Tags are serialized with null data (see CreateSnapshot), so restore
+                    // a default instance — mirrors DeltaRestorer.CreateEntity.
+                    var defaultValue = serializer.CreateDefault(component.TypeName);
+                    if (defaultValue is not null)
+                    {
+                        builder.WithBoxed(info, defaultValue);
+                    }
+
+                    continue;
+                }
+
                 // Convert the data to the correct type if needed
                 var value = ConvertComponentData(componentData, type, serializer);
                 if (value is not null)
