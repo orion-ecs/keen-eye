@@ -46,22 +46,19 @@ internal sealed class ExtensionManager
     /// <remarks>
     /// If an owned extension of the same type already exists and implements
     /// <see cref="IDisposable"/>, it is disposed before being replaced. Re-setting the
-    /// exact same instance never disposes it, regardless of ownership.
+    /// exact same instance never disposes it, regardless of ownership, and neither does
+    /// replacing one registration of an instance that is still registered under another
+    /// type — plugins routinely alias a single object under both its interface and its
+    /// concrete type, and disposing it out from under the surviving alias would leave a
+    /// dead object reachable through the manager.
     /// </remarks>
     internal void SetExtension<T>(T extension, bool owned = true) where T : class
     {
         ArgumentNullException.ThrowIfNull(extension);
         lock (syncRoot)
         {
-            // Only dispose the previous instance when it is a different, manager-owned
-            // object. Re-setting the same instance (or replacing a caller-owned one)
-            // must never dispose it out from under a live user.
-            if (extensions.TryGetValue(typeof(T), out var existing)
-                && !ReferenceEquals(existing, extension)
-                && !unownedExtensions.Contains(typeof(T)))
-            {
-                (existing as IDisposable)?.Dispose();
-            }
+            extensions.TryGetValue(typeof(T), out var existing);
+            var existingWasOwned = !unownedExtensions.Contains(typeof(T));
 
             extensions[typeof(T)] = extension;
             if (owned)
@@ -72,7 +69,38 @@ internal sealed class ExtensionManager
             {
                 unownedExtensions.Add(typeof(T));
             }
+
+            // Only dispose the previous instance when it is a different, manager-owned
+            // object that no surviving registration still points at. Re-setting the same
+            // instance, replacing a caller-owned one, or dropping one alias of a
+            // multi-registered object must never dispose it out from under a live user.
+            if (existing is not null
+                && !ReferenceEquals(existing, extension)
+                && existingWasOwned
+                && !IsRegistered(existing))
+            {
+                (existing as IDisposable)?.Dispose();
+            }
         }
+    }
+
+    /// <summary>
+    /// Determines whether an instance is still reachable through any registration.
+    /// </summary>
+    /// <param name="instance">The instance to look for.</param>
+    /// <returns>True if some registered type still resolves to <paramref name="instance"/>.</returns>
+    /// <remarks>Callers must hold <c>syncRoot</c>.</remarks>
+    private bool IsRegistered(object instance)
+    {
+        foreach (var registered in extensions.Values)
+        {
+            if (ReferenceEquals(registered, instance))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -137,7 +165,8 @@ internal sealed class ExtensionManager
     /// <remarks>
     /// If the extension is manager-owned and implements <see cref="IDisposable"/>, it is
     /// disposed. Caller-owned extensions (registered with <c>owned: false</c>) are removed
-    /// without being disposed, leaving disposal to the registrant that created them.
+    /// without being disposed, leaving disposal to the registrant that created them, and
+    /// so are instances still registered under another type.
     /// </remarks>
     internal bool RemoveExtension<T>() where T : class
     {
@@ -146,8 +175,9 @@ internal sealed class ExtensionManager
             if (extensions.Remove(typeof(T), out var existing))
             {
                 // HashSet.Remove returns true when the type was caller-owned; in that
-                // case the manager must not dispose it.
-                if (!unownedExtensions.Remove(typeof(T)))
+                // case the manager must not dispose it. Neither may it dispose an
+                // instance that is still aliased under another registered type.
+                if (!unownedExtensions.Remove(typeof(T)) && !IsRegistered(existing))
                 {
                     (existing as IDisposable)?.Dispose();
                 }
