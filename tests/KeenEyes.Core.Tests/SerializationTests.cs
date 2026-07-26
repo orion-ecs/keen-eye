@@ -699,6 +699,71 @@ public class SerializationTests
     #region RestoreSnapshot Tests
 
     [Fact]
+    public void RestoreSnapshot_WithTagComponent_RestoresTagOnEntity()
+    {
+        using var world1 = new World();
+        world1.Spawn("Tagged")
+            .With(new SerializablePosition { X = 1, Y = 2 })
+            .WithTag<SerializableTag>()
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
+        var json = SnapshotManager.ToJson(snapshot);
+        var loadedSnapshot = SnapshotManager.FromJson(json);
+
+        using var world2 = new World();
+        _ = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot!, testSerializer);
+
+        var restoredEntity = world2.GetEntityByName("Tagged");
+        Assert.True(restoredEntity.IsValid);
+        Assert.True(world2.Has<SerializablePosition>(restoredEntity));
+        Assert.True(world2.Has<SerializableTag>(restoredEntity));
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithTagComponent_FromBinary_RestoresTagOnEntity()
+    {
+        using var world1 = new World();
+        world1.Spawn("Tagged")
+            .With(new SerializablePosition { X = 1, Y = 2 })
+            .WithTag<SerializableTag>()
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
+        var binary = SnapshotManager.ToBinary(snapshot, testSerializer);
+        var loadedSnapshot = SnapshotManager.FromBinary(binary, testSerializer);
+
+        using var world2 = new World();
+        _ = SnapshotManager.RestoreSnapshot(world2, loadedSnapshot, testSerializer);
+
+        var restoredEntity = world2.GetEntityByName("Tagged");
+        Assert.True(restoredEntity.IsValid);
+        Assert.True(world2.Has<SerializableTag>(restoredEntity));
+    }
+
+    [Fact]
+    public void RestoreSnapshot_WithTagComponent_RestoredTagMatchesQueries()
+    {
+        using var world1 = new World();
+        world1.Spawn("Tagged")
+            .With(new SerializablePosition { X = 1, Y = 2 })
+            .WithTag<SerializableTag>()
+            .Build();
+        world1.Spawn("Untagged")
+            .With(new SerializablePosition { X = 3, Y = 4 })
+            .Build();
+
+        var snapshot = SnapshotManager.CreateSnapshot(world1, TestSerializerFactory.CreateForSerializationTests());
+
+        using var world2 = new World();
+        _ = SnapshotManager.RestoreSnapshot(world2, snapshot, testSerializer);
+
+        var tagged = world2.Query<SerializablePosition>().With<SerializableTag>().ToList();
+        Assert.Single(tagged);
+        Assert.Equal("Tagged", world2.GetName(tagged[0]));
+    }
+
+    [Fact]
     public void RestoreSnapshot_RecreatesEntities()
     {
         using var world1 = new World();
