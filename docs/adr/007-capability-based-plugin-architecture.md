@@ -1,7 +1,10 @@
 # ADR-007: Capability-Based Plugin Architecture
 
 **Status:** Accepted
-**Date:** 2025-12-20
+**Revision:** v2
+**Implementation:** Shipped
+**First accepted:** 2025-12-20 · **Last amended:** 2026-07-26
+**Relates to:** [ADR-001](001-world-manager-architecture.md) (World managers) · [ADR-003](003-command-buffer-abstraction.md) (CommandBuffer)
 
 ## Context
 
@@ -48,16 +51,18 @@ Extract cohesive World features into **capability interfaces**. Plugins request 
 | `IStatisticsCapability` | Memory profiling | Abstractions |
 | `IInspectionCapability` | Entity inspection for debugging | Abstractions |
 | `ISnapshotCapability` | Basic world snapshot operations | Abstractions |
-| `ISerializationCapability` | AOT-aware serialization with ComponentRegistry | Core* |
-| `IPrefabCapability` | Entity templates | Core* |
+| `ISerializationCapability` | AOT-aware serialization via `IComponentRegistry` | Abstractions |
+| `ISaveLoadCapability` | World save/load orchestration (extends `IPersistenceCapability`) | Core* |
 
-*Core capabilities depend on Core types (`EntityPrefab`, `ComponentInfo`, etc.).
+*Core capabilities depend on Core types and therefore live in `KeenEyes.Core`.
+
+An `IPrefabCapability` (entity templates) originally shipped with this ADR but was removed along with the runtime prefab API, which was superseded by source-generated spawn methods.
 
 **Note on ISnapshotCapability vs ISerializationCapability:**
 
 `ISnapshotCapability` provides simple snapshot operations (`GetComponents`, `GetAllSingletons`, `SetSingleton`, `Clear`) without exposing Core types. This allows plugins that only need basic snapshot functionality to depend solely on Abstractions.
 
-`ISerializationCapability` extends `ISnapshotCapability` and adds `IComponentRegistry` access, which is required for AOT-compatible serialization where component registration happens at runtime. This interface lives in Core because it exposes `ComponentInfo`.
+`ISerializationCapability` extends `ISnapshotCapability` and adds `IComponentRegistry` access, which is required for AOT-compatible serialization where component registration happens at runtime. Both interfaces live in Abstractions: `ISerializationCapability` exposes the abstraction types `IComponentRegistry`/`IComponentInfo` (defined alongside it), not Core's `ComponentInfo`, so no Core dependency is required.
 
 ### New Plugin Pattern
 
@@ -65,9 +70,9 @@ Extract cohesive World features into **capability interfaces**. Plugins request 
 public void Install(IPluginContext context)
 {
     // Request specific capability
-    if (context.TryGetCapability<IPrefabCapability>(out var prefabs))
+    if (context.TryGetCapability<ITagCapability>(out var tags))
     {
-        prefabs.RegisterPrefab("Enemy", enemyPrefab);
+        tags.AddTag(entity, "Enemy");
     }
 
     // Or require it (throws if unavailable)
@@ -78,20 +83,19 @@ public void Install(IPluginContext context)
 
 ### Mock Implementations for Testing
 
-Each capability has a corresponding mock in `KeenEyes.Testing`:
+`KeenEyes.Testing` ships seven capability mocks — `MockHierarchyCapability`, `MockInspectionCapability`, `MockPersistenceCapability`, `MockStatisticsCapability`, `MockSystemHookCapability`, `MockTagCapability`, `MockValidationCapability` — and `MockPluginContext.SetCapability<T>()` wires them into a plugin context:
 
 ```csharp
 // Test plugin without real World
-var mockPrefabs = new MockPrefabCapability();
-var mockContext = new PluginContextBuilder()
-    .WithCapability<IPrefabCapability>(mockPrefabs)
-    .Build();
+var mockHooks = new MockSystemHookCapability();
+var mockContext = new MockPluginContext()
+    .SetCapability<ISystemHookCapability>(mockHooks);
 
 plugin.Install(mockContext);
 
 // Verify behavior
-Assert.Single(mockPrefabs.RegistrationOrder);
-Assert.Equal("Enemy", mockPrefabs.RegistrationOrder[0]);
+Assert.True(mockHooks.WasHookAdded);
+Assert.Equal(1, mockHooks.HookCount);
 ```
 
 ### IWorld Already Provides Core Hierarchy
@@ -128,10 +132,10 @@ UI systems (`UIRenderSystem`, `UILayoutSystem`, `UIHitTester`) were casting to `
 ## Implementation
 
 ### Phase 1: Core Capabilities ✅
-- Created `IHierarchyCapability`, `IValidationCapability`, `ITagCapability`, `IStatisticsCapability` in Abstractions
-- Created `IPrefabCapability` in Core
-- Updated `World` to implement all capability interfaces
-- Created mock implementations in `KeenEyes.Testing`
+- `IHierarchyCapability`, `IValidationCapability`, `ITagCapability`, `IStatisticsCapability` — along with `IInspectionCapability`, `IPersistenceCapability`, `ISnapshotCapability`, `ISerializationCapability`, and `ISystemHookCapability` — live in Abstractions; `ISaveLoadCapability` lives in Core
+- `World` implements all capability interfaces
+- Seven mock capabilities plus `MockPluginContext.SetCapability<T>()` ship in `KeenEyes.Testing`
+- `IPrefabCapability` shipped in this phase but was later removed with the runtime prefab API (superseded by source-generated spawn methods)
 
 ### Phase 2: UI System Cleanup ✅
 - Updated `UIRenderSystem`, `UILayoutSystem`, `UIHitTester` to use `IWorld.GetChildren()` instead of casting to `World`
@@ -143,5 +147,12 @@ UI systems (`UIRenderSystem`, `UILayoutSystem`, `UIHitTester`) were casting to `
 
 ## Related
 
-- ADR-001: World Manager Architecture (internal managers)
-- ADR-003: Command Buffer Abstraction (similar pattern for ICommandBuffer)
+- [ADR-001](001-world-manager-architecture.md): World Manager Architecture (internal managers)
+- [ADR-003](003-command-buffer-abstraction.md): Command Buffer Abstraction (similar pattern for ICommandBuffer)
+
+---
+
+## Changelog
+
+- **v2 — 2026-07-26 (living-ADR conversion):** Implementation marked Shipped (status was already Accepted). Capability table corrected to as-built layout: `ISerializationCapability` lives in Abstractions and exposes `IComponentRegistry`/`IComponentInfo` (not Core's `ComponentInfo`); `IPrefabCapability` removed with the runtime prefab API (superseded by source-generated spawn methods) and Core's `ISaveLoadCapability` added in its place. Code examples rewritten against shipped APIs: `ITagCapability`/`IHierarchyCapability` plugin pattern and `MockPluginContext.SetCapability<T>()` with the seven shipped mocks, replacing the never-shipped `PluginContextBuilder`/`MockPrefabCapability`.
+- **v1 — 2025-12-20 (ef18fedd):** Accepted — extract World features into capability interfaces so plugins request explicit capabilities via IPluginContext instead of casting to World; shipped with interfaces, World implementations, Testing mocks, and UI-system IWorld cleanup.

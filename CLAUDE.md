@@ -430,6 +430,20 @@ The wrong form does not error usefully — it prints `failed: 0, succeeded: 0` a
 4. **Systems are explicit** - User registers what they need per-world
 5. **Builders are generated** - `WithPosition(x, y)` instead of `With(new Position{...})`
 
+## Architecture Decision Records (ADRs)
+
+ADRs in `docs/adr/` are **living documents, not immutable records**. Each describes present-tense reality and carries a current-state header (`Status`, `Revision: vN`, `Implementation`, `First accepted` / `Last amended`, `Relates to`) plus a newest-first `## Changelog`. Full policy: [docs/adr/index.md](docs/adr/index.md).
+
+**Rules for agents:**
+
+1. **If your code change invalidates something an ADR says, amend the ADR in the same PR.** Don't leave the record stale, and don't write "Update:" notes — edit the body in place.
+2. **Amending in place** = edit the living sections to present-tense reality, bump `Revision`, update `Last amended`, and add exactly one Changelog line stating *what changed and why* (format: `- **vN — YYYY-MM-DD (#issue/PR):** ...`). The Revision must always equal the number of Changelog entries, and the top entry's `vN` must match it.
+3. **Section semantics:** `Context` and `Alternatives Considered` are **frozen** history — never rewrite them to match later reality. `Decision`, `Consequences`, and implementation/phase sections are **living** — keep them true. Planned-but-unshipped items get labeled ("Not yet implemented: …"), never silently deleted.
+4. **New decision area** → new ADR: copy [docs/adr/TEMPLATE.md](docs/adr/TEMPLATE.md), take the next number, add it to the `docs/toc.yml` "Architecture Decisions" node and the index table in `docs/adr/index.md`.
+5. **Reversal** → a new ADR that supersedes the old one; the old ADR's Status flips to `Superseded by ADR-NNN` with links both ways. Never delete an ADR.
+6. **Status ≠ Implementation.** `Status` is about the decision (`Proposed`/`Accepted`/`Amended`/`Superseded by ADR-NNN`/`Deprecated`); `Implementation` is about the code (`Not started`/`Partial`/`Shipped`). Only claim `Shipped` from verified code, and reserve `Amended` for real post-acceptance decision changes — fixing a stale field is a correction, recorded in the Changelog.
+7. **Keep the index in sync:** any change to an ADR's `Status` or `Implementation` must be mirrored in the table in `docs/adr/index.md`.
+
 ## World Manager Architecture
 
 The `World` class uses a **facade pattern** with specialized internal managers. This keeps `World` as a thin coordinator (~300-400 lines) while delegating to focused managers.

@@ -352,18 +352,15 @@ public void GetThrows()
 
 ## Architecture Decisions
 
-Major architectural decisions are documented as ADRs (Architecture Decision Records) in `docs/adr/`.
+Major architectural decisions are documented as ADRs (Architecture Decision Records) in `docs/adr/`. The full index and policy live in [docs/adr/index.md](docs/adr/index.md).
 
-Before making significant changes, check if an ADR exists. If proposing a new architectural direction, consider writing an ADR.
+**ADRs are living documents, not immutable records.** Each carries a current-state header (`Status`, `Revision`, `Implementation`, dates) and a newest-first Changelog. When a decision evolves:
 
-### Key ADRs
+- **Refinement of an existing decision** → amend the ADR in place: edit the body to present-tense reality, bump `Revision`, add one Changelog line. Don't mint a near-duplicate ADR.
+- **Genuinely new decision area** → a new ADR, copied from [docs/adr/TEMPLATE.md](docs/adr/TEMPLATE.md).
+- **Reversal** → a new ADR that supersedes the old one; the old ADR's Status flips to `Superseded by ADR-NNN` with links both ways. ADRs are never deleted.
 
-| ADR | Topic |
-|-----|-------|
-| [ADR-001](docs/adr/001-world-manager-architecture.md) | World Manager facade pattern |
-| [ADR-004](docs/adr/004-reflection-elimination.md) | Native AOT and reflection elimination |
-| [ADR-006](docs/adr/006-custom-msbuild-sdk.md) | Custom MSBuild SDK |
-| [ADR-007](docs/adr/007-capability-based-plugin-architecture.md) | Plugin architecture |
+Before making significant changes, check if an ADR exists — and if you change what an ADR describes, amend the ADR in the same PR. If proposing a new architectural direction, write an ADR.
 
 ---
 

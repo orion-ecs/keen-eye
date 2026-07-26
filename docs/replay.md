@@ -324,4 +324,4 @@ The `samples/KeenEyes.Sample.Racing` sample enables trails on its ghosts (`Ghost
 - [Systems Guide](systems.md) - System phases and ordering, relevant to the internal `ReplayFrameEndSystem` and `SystemEventPhase` filtering
 - [Serialization Guide](serialization.md) - `IComponentSerializer`, `WorldSnapshot`, and `SnapshotManager`, which underpin replay snapshots
 - `samples/KeenEyes.Sample.Replay` - Runnable sample covering recording, custom events, ring-buffer crash replay, file save/load, and snapshot-based seeking
-- [ADR-014: Replay Playback Runtime and Editor Integration](adr/014-replay-playback-runtime-editor-integration.md) - Original design document (note: proposed/aspirational; some API shapes in the ADR differ from the shipped implementation described above)
+- [ADR-014: Replay Playback Runtime and Editor Integration](adr/014-replay-playback-runtime-editor-integration.md) - Design decision record (living document, kept in sync with the shipped implementation)

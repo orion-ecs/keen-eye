@@ -229,6 +229,7 @@ using var world = new WorldBuilder()
 
 Key design decisions are documented as Architecture Decision Records:
 
+- [ADR index](adr/index.md) - All architecture decision records, with status and implementation state
 - [ADR-001: World Manager Architecture](adr/001-world-manager-architecture.md) - Refactoring World into specialized managers
 - [ADR-002: Complete IWorld Event System](adr/002-iworld-entity-lifecycle-events.md) - Entity lifecycle events
 - [ADR-003: CommandBuffer Abstraction](adr/003-command-buffer-abstraction.md) - Plugin isolation (20-50x performance boost)

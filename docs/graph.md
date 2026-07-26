@@ -291,4 +291,4 @@ Two smaller enums round out the widget/connection styling surface: `ConnectionSt
 - [Plugins Guide](plugins.md) - How plugins work
 - [Systems Guide](systems.md) - System design patterns
 - [UI System Guide](ui.md) - The retained-mode UI system graphs render alongside
-- [ADR-010: Graph Node Editor Architecture](adr/010-graph-node-editor.md) - Original design document (note: aspirational in places — e.g. it shows `GraphNode.IsSelected` as a bool field, but the shipped implementation uses `GraphNodeSelectedTag` instead)
+- [ADR-010: Graph Node Editor Architecture](adr/010-graph-node-editor.md) - Design decision record (living document, kept in sync with the shipped implementation)
