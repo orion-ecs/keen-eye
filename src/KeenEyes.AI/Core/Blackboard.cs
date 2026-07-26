@@ -124,6 +124,35 @@ public sealed class Blackboard
     /// </summary>
     public int Count => data.Count;
 
+    /// <summary>
+    /// Enumerates every entry as a key and its boxed value, for inspection by debug and
+    /// editor tooling.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// This is a read-only inspection surface, not a storage view: value-type entries are
+    /// returned as their real boxed value with their real runtime type, so a caller sees
+    /// <c>Single</c> / <c>1.5</c> rather than any internal storage representation. It is the
+    /// enumeration counterpart to <see cref="TryGet{T}"/> and performs no mutation.
+    /// </para>
+    /// <para>
+    /// Intended for diagnostics (debug panels, the test bridge, AI inspectors) rather than
+    /// gameplay code: enumerating boxes every value-type entry, so prefer the typed
+    /// <see cref="Get{T}(string)"/> / <see cref="TryGet{T}"/> accessors on hot paths.
+    /// Enumerating while the blackboard is being modified throws, as with any dictionary.
+    /// </para>
+    /// </remarks>
+    public IEnumerable<KeyValuePair<string, object>> Entries
+    {
+        get
+        {
+            foreach (var kvp in data)
+            {
+                yield return new KeyValuePair<string, object>(kvp.Key, Unwrap(kvp.Value));
+            }
+        }
+    }
+
     // Resolves a stored value to the requested type, matching the semantics of the original
     // `stored is T` check. Values written through the value-type fast path live inside a
     // ValueCell; the exact-type branch unwraps them without boxing, while the IValueCell branch
@@ -158,6 +187,10 @@ public sealed class Blackboard
         typed = default;
         return false;
     }
+
+    // Recovers the value a caller stored, undoing the value-type cell wrapper so no storage
+    // detail escapes through the inspection surface.
+    private static object Unwrap(object stored) => stored is IValueCell cell ? cell.BoxedValue : stored;
 
     // Non-generic view over a typed value cell, used to recover the boxed value on the rare
     // cross-type lookup path.
