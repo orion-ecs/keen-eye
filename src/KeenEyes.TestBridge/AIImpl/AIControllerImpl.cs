@@ -52,7 +52,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
     /// <inheritdoc />
     public Task<BehaviorTreeSnapshot?> GetBehaviorTreeStateAsync(int entityId, CancellationToken cancellationToken = default)
     {
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity) || !world.Has<BehaviorTreeComponent>(entity))
         {
             return Task.FromResult<BehaviorTreeSnapshot?>(null);
@@ -81,7 +81,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult(false);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult(false);
@@ -108,7 +108,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
     /// <inheritdoc />
     public Task<StateMachineSnapshot?> GetStateMachineStateAsync(int entityId, CancellationToken cancellationToken = default)
     {
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity) || !world.Has<StateMachineComponent>(entity))
         {
             return Task.FromResult<StateMachineSnapshot?>(null);
@@ -168,7 +168,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult(false);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult(false);
@@ -180,7 +180,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
     /// <inheritdoc />
     public Task<bool> ForceStateTransitionByNameAsync(int entityId, string stateName, CancellationToken cancellationToken = default)
     {
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity) || !world.Has<StateMachineComponent>(entity))
         {
             return Task.FromResult(false);
@@ -235,7 +235,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
     /// <inheritdoc />
     public Task<UtilityAISnapshot?> GetUtilityAIStateAsync(int entityId, CancellationToken cancellationToken = default)
     {
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity) || !world.Has<UtilityComponent>(entity))
         {
             return Task.FromResult<UtilityAISnapshot?>(null);
@@ -268,7 +268,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult<IReadOnlyList<UtilityScoreSnapshot>>([]);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity) || !world.Has<UtilityComponent>(entity))
         {
             return Task.FromResult<IReadOnlyList<UtilityScoreSnapshot>>([]);
@@ -302,7 +302,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult(false);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult(false);
@@ -323,7 +323,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult<IReadOnlyList<BlackboardEntrySnapshot>>([]);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult<IReadOnlyList<BlackboardEntrySnapshot>>([]);
@@ -347,7 +347,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult<BlackboardEntrySnapshot?>(null);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult<BlackboardEntrySnapshot?>(null);
@@ -377,7 +377,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult(false);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult(false);
@@ -408,7 +408,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult(false);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult(false);
@@ -431,7 +431,7 @@ internal sealed class AIControllerImpl(World world) : IAIController
             return Task.FromResult(false);
         }
 
-        var entity = new Entity(entityId, 0);
+        var entity = FindEntityById(entityId);
         if (!world.IsAlive(entity))
         {
             return Task.FromResult(false);
@@ -451,25 +451,32 @@ internal sealed class AIControllerImpl(World world) : IAIController
 
     #region Helper Methods
 
-#pragma warning disable S3011 // Reflection should not be used to increase accessibility of classes, methods, or fields - Acceptable for debug tooling
     private static List<BlackboardEntrySnapshot> GetBlackboardEntries(Blackboard blackboard)
     {
-        // Blackboard doesn't expose its keys directly, so we need to use reflection
-        // This is acceptable for debug tooling
-        var entries = new List<BlackboardEntrySnapshot>();
+        var entries = new List<BlackboardEntrySnapshot>(blackboard.Count);
 
-        var dataField = typeof(Blackboard).GetField("data", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (dataField?.GetValue(blackboard) is Dictionary<string, object> data)
+        foreach (var (key, value) in blackboard.Entries)
         {
-            foreach (var kvp in data)
-            {
-                entries.Add(CreateBlackboardEntry(kvp.Key, kvp.Value));
-            }
+            entries.Add(CreateBlackboardEntry(key, value));
         }
 
         return entries;
     }
-#pragma warning restore S3011
+
+    // TestBridge callers address entities by id alone, so the current version has to be
+    // recovered from the world before the entity handle can be used.
+    private Entity FindEntityById(int entityId)
+    {
+        foreach (var entity in world.GetAllEntities())
+        {
+            if (entity.Id == entityId)
+            {
+                return entity;
+            }
+        }
+
+        return Entity.Null;
+    }
 
 #pragma warning disable IL2026, IL3050 // AOT compatibility - Acceptable for debug tooling which uses dynamic serialization
     private static BlackboardEntrySnapshot CreateBlackboardEntry(string key, object value)

@@ -285,8 +285,9 @@ public sealed class AIDebugPanel : IEditorPanel
             return null;
         }
 
-        // Note: Blackboard doesn't expose enumeration, so we return a placeholder
-        // A real implementation would need to extend Blackboard to support this
+        // Only the entry count is surfaced today because nothing in the panel renders
+        // individual entries yet. When it does, enumerate Blackboard.Entries - that inspection
+        // API returns unwrapped values, so no reflection over Blackboard is needed.
         return new BlackboardDebugInfo
         {
             EntryCount = blackboard.Count

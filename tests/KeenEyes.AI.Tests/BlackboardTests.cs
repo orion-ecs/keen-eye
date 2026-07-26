@@ -192,6 +192,112 @@ public class BlackboardTests
 
     #endregion
 
+    #region Entries Tests
+
+    [Fact]
+    public void Entries_WithEmptyBlackboard_YieldsNothing()
+    {
+        var blackboard = new Blackboard();
+
+        blackboard.Entries.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Entries_WithValueTypeEntry_YieldsBoxedValueWithRealRuntimeType()
+    {
+        var blackboard = new Blackboard();
+        blackboard.Set("speed", 1.5f);
+
+        var entry = blackboard.Entries.ShouldHaveSingleItem();
+
+        entry.Key.ShouldBe("speed");
+        entry.Value.GetType().ShouldBe(typeof(float));
+        entry.Value.ShouldBe(1.5f);
+    }
+
+    [Fact]
+    public void Entries_WithStructEntry_YieldsBoxedStructNotStorageWrapper()
+    {
+        var blackboard = new Blackboard();
+        blackboard.Set("target", new Vector3(1, 2, 3));
+
+        var entry = blackboard.Entries.ShouldHaveSingleItem();
+
+        entry.Value.GetType().ShouldBe(typeof(Vector3));
+        entry.Value.ShouldBe(new Vector3(1, 2, 3));
+    }
+
+    [Fact]
+    public void Entries_WithReferenceTypeEntry_YieldsSameInstance()
+    {
+        var blackboard = new Blackboard();
+        var waypoints = new List<Vector3> { new(1, 0, 0) };
+        blackboard.Set("waypoints", waypoints);
+
+        var entry = blackboard.Entries.ShouldHaveSingleItem();
+
+        entry.Value.ShouldBeSameAs(waypoints);
+    }
+
+    [Fact]
+    public void Entries_AfterRepeatedSetOfSameKeyAndType_YieldsLatestValueOnce()
+    {
+        var blackboard = new Blackboard();
+
+        // The same-type write path mutates the existing cell in place rather than replacing it.
+        blackboard.Set("speed", 1.5f);
+        blackboard.Set("speed", 9.25f);
+        blackboard.Set("speed", 4.5f);
+
+        var entry = blackboard.Entries.ShouldHaveSingleItem();
+
+        entry.Value.GetType().ShouldBe(typeof(float));
+        entry.Value.ShouldBe(4.5f);
+    }
+
+    [Fact]
+    public void Entries_WithMixedEntries_YieldsEveryKeyWithItsRealType()
+    {
+        var blackboard = new Blackboard();
+        blackboard.Set("speed", 1.5f);
+        blackboard.Set("ticks", 7);
+        blackboard.Set("name", "goblin");
+
+        var entries = blackboard.Entries.ToDictionary(e => e.Key, e => e.Value);
+
+        entries.Count.ShouldBe(3);
+        entries["speed"].ShouldBe(1.5f);
+        entries["ticks"].ShouldBe(7);
+        entries["name"].ShouldBe("goblin");
+    }
+
+    [Fact]
+    public void Entries_AfterRemove_DoesNotYieldRemovedKey()
+    {
+        var blackboard = new Blackboard();
+        blackboard.Set("speed", 1.5f);
+        blackboard.Set("ticks", 7);
+
+        blackboard.Remove("speed");
+
+        var entry = blackboard.Entries.ShouldHaveSingleItem();
+        entry.Key.ShouldBe("ticks");
+    }
+
+    [Fact]
+    public void Entries_AfterOverwritingValueTypeWithReferenceType_YieldsReferenceValue()
+    {
+        var blackboard = new Blackboard();
+        blackboard.Set("k", 7);
+        blackboard.Set("k", "hello");
+
+        var entry = blackboard.Entries.ShouldHaveSingleItem();
+
+        entry.Value.ShouldBe("hello");
+    }
+
+    #endregion
+
     #region BBKeys Tests
 
     [Fact]
