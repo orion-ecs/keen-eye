@@ -410,6 +410,18 @@ dotnet test tests/KeenEyes.Core.Tests -- --filter-namespace "KeenEyes.Core.Tests
 
 `--filter-not-method`, `--filter-not-class`, etc. negate. Each test project lives in `tests/KeenEyes.<Area>.Tests` mirroring `src/`.
 
+**Flag placement matters, and getting it wrong looks like success.** Only *test-platform* options go after `--`. Options belonging to `dotnet test` itself — notably `--max-parallel-test-modules` — must come **before** it:
+
+```bash
+# CORRECT: driver option before --
+dotnet test tests/KeenEyes.Core.Tests --max-parallel-test-modules 1
+
+# WRONG: runs ZERO tests and exits 5
+dotnet test tests/KeenEyes.Core.Tests -- --max-parallel-test-modules 1
+```
+
+The wrong form does not error usefully — it prints `failed: 0, succeeded: 0` and exits 5. **`failed: 0` is therefore not evidence a test ran**; always check `succeeded`/`total` (or the exit code) before treating a targeted run as proof. MTP exit code 5 means "zero tests ran".
+
 ## Key Design Decisions
 
 1. **Components are structs** - Cache-friendly, value semantics
