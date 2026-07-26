@@ -191,21 +191,34 @@ internal sealed class ExtensionManager
     /// Clears all extensions.
     /// </summary>
     /// <remarks>
-    /// All manager-owned extensions implementing <see cref="IDisposable"/> are disposed.
-    /// Caller-owned extensions (registered with <c>owned: false</c>) are removed without
-    /// being disposed.
+    /// All manager-owned extensions implementing <see cref="IDisposable"/> are disposed
+    /// <em>exactly once</em>, even when the same instance is registered under several types —
+    /// plugins routinely alias one object across its interfaces and its concrete type
+    /// (<c>SilkGraphicsPlugin</c> registers a single context under five). Caller-owned
+    /// extensions (registered with <c>owned: false</c>) are removed without being disposed;
+    /// an instance is disposed if <em>any</em> of its registrations is manager-owned.
     /// </remarks>
     internal void Clear()
     {
         lock (syncRoot)
         {
+            // Collect distinct instances first: disposing inside the loop would call
+            // Dispose() once per registration, which only stays harmless for as long as
+            // every extension happens to be idempotent.
+            var owned = new HashSet<object>(ReferenceEqualityComparer.Instance);
             foreach (var (type, extension) in extensions)
             {
                 if (!unownedExtensions.Contains(type))
                 {
-                    (extension as IDisposable)?.Dispose();
+                    owned.Add(extension);
                 }
             }
+
+            foreach (var extension in owned)
+            {
+                (extension as IDisposable)?.Dispose();
+            }
+
             extensions.Clear();
             unownedExtensions.Clear();
         }

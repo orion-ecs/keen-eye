@@ -123,6 +123,59 @@ public class ExtensionOwnershipTests
         Assert.Equal(1, shared.DisposeCount);
     }
 
+    [Fact]
+    public void WorldDispose_WithInstanceAliasedUnderSeveralTypes_DisposesItExactlyOnce()
+    {
+        // World.Dispose() clears the extension manager, which used to dispose once per
+        // registration rather than once per instance. SilkGraphicsPlugin aliases a single
+        // context under five keys, so teardown called Dispose() on it five times; that only
+        // stayed harmless because those implementations happen to guard on a disposed flag.
+        var shared = new AliasedTestExtension();
+
+        using (var world = new World())
+        {
+            world.SetExtension<IAliasedTestExtension>(shared);
+            world.SetExtension(shared);
+        }
+
+        Assert.True(shared.IsDisposed);
+        Assert.Equal(1, shared.DisposeCount);
+    }
+
+    [Fact]
+    public void WorldDispose_WithAliasedInstanceOwnedUnderOnlyOneType_StillDisposesItOnce()
+    {
+        // Ownership is per-registration, so an instance can be owned under one key and
+        // caller-owned under another. Any owned registration means the manager disposes it,
+        // and it must still happen exactly once regardless of which key is seen first.
+        var shared = new AliasedTestExtension();
+
+        using (var world = new World())
+        {
+            world.SetExtension<IAliasedTestExtension>(shared, owned: false);
+            world.SetExtension(shared);
+        }
+
+        Assert.True(shared.IsDisposed);
+        Assert.Equal(1, shared.DisposeCount);
+    }
+
+    [Fact]
+    public void WorldDispose_WithAliasedInstanceCallerOwnedThroughout_NeverDisposesIt()
+    {
+        // No registration claimed ownership, so disposal stays the caller's job.
+        var shared = new AliasedTestExtension();
+
+        using (var world = new World())
+        {
+            world.SetExtension<IAliasedTestExtension>(shared, owned: false);
+            world.SetExtension(shared, owned: false);
+        }
+
+        Assert.False(shared.IsDisposed);
+        Assert.Equal(0, shared.DisposeCount);
+    }
+
     #endregion
 }
 
