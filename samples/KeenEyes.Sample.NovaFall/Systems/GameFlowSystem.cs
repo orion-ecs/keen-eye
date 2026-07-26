@@ -19,7 +19,9 @@ namespace KeenEyes.Sample.NovaFall;
 /// <para>
 /// Without an input context (headless <c>--simulate</c> mode) the menu takes no
 /// actions; the harness drives <see cref="GameState"/> directly. The time limit,
-/// being a pure music-clock comparison, applies identically in both.
+/// being a pure music-clock comparison, applies identically in both. Devices are
+/// resolved through <see cref="InputDevices"/>, so the loop runs on keyboard alone
+/// when no controller is attached.
 /// </para>
 /// </remarks>
 public sealed class GameFlowSystem : SystemBase
@@ -113,7 +115,12 @@ public sealed class GameFlowSystem : SystemBase
             return;
         }
 
-        var keyboard = input.Keyboard;
+        var keyboard = InputDevices.FirstKeyboard(input);
+        if (keyboard is null)
+        {
+            return;
+        }
+
         var leftDown = keyboard.IsKeyDown(Key.A) || keyboard.IsKeyDown(Key.Left);
         var rightDown = keyboard.IsKeyDown(Key.D) || keyboard.IsKeyDown(Key.Right);
         var tabDown = keyboard.IsKeyDown(Key.Tab);
@@ -244,14 +251,16 @@ public sealed class GameFlowSystem : SystemBase
             return false;
         }
 
-        var keyboard = input.Keyboard;
-        if (keyboard.IsKeyDown(Key.Space) || keyboard.IsKeyDown(Key.Enter))
+        var keyboard = InputDevices.FirstKeyboard(input);
+        if (keyboard is not null && (keyboard.IsKeyDown(Key.Space) || keyboard.IsKeyDown(Key.Enter)))
         {
             return true;
         }
 
-        var gamepad = input.Gamepad;
-        return gamepad.IsConnected && gamepad.IsButtonDown(GamepadButton.South);
+        // Space/Enter is the whole control scheme; the South button is a bonus for
+        // whoever brought a controller, so its absence must not block the dive.
+        var gamepad = InputDevices.FirstConnectedGamepad(input);
+        return gamepad is not null && gamepad.IsButtonDown(GamepadButton.South);
     }
 
     private bool IsSteerPressed()
@@ -261,9 +270,10 @@ public sealed class GameFlowSystem : SystemBase
             return false;
         }
 
-        var keyboard = input.Keyboard;
-        return keyboard.IsKeyDown(Key.A) || keyboard.IsKeyDown(Key.D)
-            || keyboard.IsKeyDown(Key.Left) || keyboard.IsKeyDown(Key.Right);
+        var keyboard = InputDevices.FirstKeyboard(input);
+        return keyboard is not null
+            && (keyboard.IsKeyDown(Key.A) || keyboard.IsKeyDown(Key.D)
+                || keyboard.IsKeyDown(Key.Left) || keyboard.IsKeyDown(Key.Right));
     }
 
     /// <summary>

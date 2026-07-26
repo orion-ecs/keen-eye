@@ -12,6 +12,9 @@
          deterministic core (floor script, heat ladder, mode schedules) that
          the headless simulation and future replay support depend on. -->
     <ProjectReference Include="..\..\samples\KeenEyes.Sample.NovaFall\KeenEyes.Sample.NovaFall.csproj" />
+    <!-- MockInputContext: models a machine whose gamepad slot count is zero, which is what
+         made the sample crash for a player with no controller (#1256). -->
+    <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
   </ItemGroup>
 
 </Project>

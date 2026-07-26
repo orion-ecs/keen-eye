@@ -10,7 +10,8 @@ namespace KeenEyes.Sample.NovaFall;
 /// <remarks>
 /// This is the only simulation system that touches input devices. When no input
 /// context is available (headless <c>--simulate</c> mode), it does nothing and the
-/// steering axis stays at zero.
+/// steering axis stays at zero. Device lookups go through <see cref="InputDevices"/>
+/// so a missing gamepad — the normal case — costs nothing but the gamepad branch.
 /// </remarks>
 public sealed class InputSteerSystem : SystemBase
 {
@@ -24,21 +25,25 @@ public sealed class InputSteerSystem : SystemBase
 
         var axis = 0f;
 
-        var keyboard = input.Keyboard;
-        if (keyboard.IsKeyDown(Key.A) || keyboard.IsKeyDown(Key.Left))
+        var keyboard = InputDevices.FirstKeyboard(input);
+        if (keyboard is not null)
         {
-            axis -= 1f;
-        }
+            if (keyboard.IsKeyDown(Key.A) || keyboard.IsKeyDown(Key.Left))
+            {
+                axis -= 1f;
+            }
 
-        if (keyboard.IsKeyDown(Key.D) || keyboard.IsKeyDown(Key.Right))
-        {
-            axis += 1f;
+            if (keyboard.IsKeyDown(Key.D) || keyboard.IsKeyDown(Key.Right))
+            {
+                axis += 1f;
+            }
         }
 
         // Gamepad left stick only contributes when the keyboard is idle, so the
-        // two devices never fight over the ball.
-        var gamepad = input.Gamepad;
-        if (axis.IsApproximatelyZero() && gamepad.IsConnected)
+        // two devices never fight over the ball. No controller attached is the
+        // common case, not an error: the stick simply never contributes.
+        var gamepad = InputDevices.FirstConnectedGamepad(input);
+        if (gamepad is not null && axis.IsApproximatelyZero())
         {
             axis = Math.Clamp(gamepad.LeftStick.X, -1f, 1f);
         }

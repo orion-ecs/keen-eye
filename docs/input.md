@@ -70,7 +70,11 @@ var input = world.GetExtension<IInputContext>();
 // Primary devices (most common use case)
 IKeyboard keyboard = input.Keyboard;
 IMouse mouse = input.Mouse;
-IGamepad gamepad = input.Gamepad;
+
+// A gamepad is optional hardware: `input.Gamepad` THROWS when no controller is
+// plugged in, which is the normal state of most machines. Ask first, and keep the
+// game playable when the answer is "none".
+IGamepad? gamepad = input.ConnectedGamepadCount > 0 ? input.Gamepad : null;
 
 // All connected devices (multi-device support)
 ImmutableArray<IKeyboard> keyboards = input.Keyboards;
@@ -231,10 +235,23 @@ mouse.SetPosition(new Vector2(400, 300));  // Center cursor
 
 ### Connection Status
 
-```csharp
-var gamepad = input.Gamepad;
+`input.Gamepad` throws when there is no gamepad to return, so it can never be the
+thing you use to *test* for a gamepad. Go through the collection instead — it is
+always safe to enumerate, empty or not:
 
-if (!gamepad.IsConnected)
+```csharp
+// Find the first connected gamepad, or nothing.
+IGamepad? gamepad = null;
+foreach (var candidate in input.Gamepads)
+{
+    if (candidate.IsConnected)
+    {
+        gamepad = candidate;
+        break;
+    }
+}
+
+if (gamepad is null)
 {
     Console.WriteLine("No gamepad connected");
     return;
@@ -337,7 +354,6 @@ public class PlayerMovementSystem : ISystem
         if (input is null) return;
 
         var keyboard = input.Keyboard;
-        var gamepad = input.Gamepad;
 
         // Calculate movement from keyboard
         var moveDir = Vector2.Zero;
@@ -346,9 +362,9 @@ public class PlayerMovementSystem : ISystem
         if (keyboard.IsKeyDown(Key.A)) moveDir.X -= 1;
         if (keyboard.IsKeyDown(Key.D)) moveDir.X += 1;
 
-        // Or from gamepad
-        if (gamepad.IsConnected)
-            moveDir = gamepad.LeftStick;
+        // Or from gamepad, if one is actually plugged in
+        if (input.ConnectedGamepadCount > 0)
+            moveDir = input.Gamepad.LeftStick;
 
         // Apply to player entities
         foreach (var entity in world!.Query<Transform3D, PlayerTag>())
@@ -775,7 +791,10 @@ public class UnifiedInputSystem : ISystem
         var input = World.GetExtension<IInputContext>();
         var kb = input.Keyboard;
         var mouse = input.Mouse;
-        var gamepad = input.Gamepad;
+
+        // Null when no controller is attached — reading input.Gamepad directly would
+        // throw, and every gamepad branch below is written to be skippable.
+        var gamepad = input.ConnectedGamepadCount > 0 ? input.Gamepad : null;
 
         // Movement: keyboard OR gamepad
         var moveDir = Vector2.Zero;
@@ -787,7 +806,7 @@ public class UnifiedInputSystem : ISystem
         if (kb.IsKeyDown(Key.D)) moveDir.X += 1;
 
         // Gamepad overrides if connected and active
-        if (gamepad.IsConnected)
+        if (gamepad is not null)
         {
             var stick = gamepad.LeftStick;
             if (stick.LengthSquared() > 0.01f)
@@ -801,7 +820,7 @@ public class UnifiedInputSystem : ISystem
         // Aim: mouse OR right stick
         var aimDir = Vector2.Zero;
 
-        if (gamepad.IsConnected &&
+        if (gamepad is not null &&
             gamepad.RightStick.LengthSquared() > 0.01f)
         {
             aimDir = Vector2.Normalize(gamepad.RightStick);
@@ -852,7 +871,7 @@ public class InputDeviceTracker : ISystem
         }
 
         // Check for gamepad activity
-        if (input.Gamepad.IsConnected)
+        if (input.ConnectedGamepadCount > 0)
         {
             var gp = input.Gamepad;
             if (gp.LeftStick.LengthSquared() > 0.1f ||
