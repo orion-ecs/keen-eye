@@ -31,6 +31,10 @@ namespace KeenEyes.Network;
 /// </example>
 public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetworkConfig? config = null) : INetworkPlugin
 {
+    // Scratch buffer for building full-snapshot messages; also the upper bound on a
+    // single snapshot message for transports whose MaxMessageSize is larger than this.
+    private const int SnapshotBufferSize = 64 * 1024;
+
     private readonly INetworkTransport transport = transport;
     private readonly ServerNetworkConfig config = config ?? new ServerNetworkConfig();
     private readonly NetworkIdManager networkIdManager = new(isServer: true);
@@ -227,8 +231,18 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     /// <param name="clientId">The client ID.</param>
     /// <param name="data">The data to send.</param>
     /// <param name="mode">The delivery mode.</param>
+    /// <remarks>
+    /// Payloads larger than the transport's <see cref="INetworkTransport.MaxMessageSize"/>
+    /// are dropped with a diagnostic instead of being sent; a dropped message must never
+    /// take down the server's game loop (#1278).
+    /// </remarks>
     public void SendToClient(int clientId, ReadOnlySpan<byte> data, DeliveryMode mode)
     {
+        if (ExceedsTransportLimit(data.Length))
+        {
+            return;
+        }
+
         transport.Send(clientId, data, mode);
     }
 
@@ -237,8 +251,18 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     /// </summary>
     /// <param name="data">The data to send.</param>
     /// <param name="mode">The delivery mode.</param>
+    /// <remarks>
+    /// Payloads larger than the transport's <see cref="INetworkTransport.MaxMessageSize"/>
+    /// are dropped with a diagnostic instead of being sent; a dropped message must never
+    /// take down the server's game loop (#1278).
+    /// </remarks>
     public void SendToAll(ReadOnlySpan<byte> data, DeliveryMode mode)
     {
+        if (ExceedsTransportLimit(data.Length))
+        {
+            return;
+        }
+
         transport.SendToAll(data, mode);
     }
 
@@ -248,9 +272,32 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
     /// <param name="excludeClientId">The client ID to exclude.</param>
     /// <param name="data">The data to send.</param>
     /// <param name="mode">The delivery mode.</param>
+    /// <remarks>
+    /// Payloads larger than the transport's <see cref="INetworkTransport.MaxMessageSize"/>
+    /// are dropped with a diagnostic instead of being sent; a dropped message must never
+    /// take down the server's game loop (#1278).
+    /// </remarks>
     public void SendToAllExcept(int excludeClientId, ReadOnlySpan<byte> data, DeliveryMode mode)
     {
+        if (ExceedsTransportLimit(data.Length))
+        {
+            return;
+        }
+
         transport.SendToAllExcept(excludeClientId, data, mode);
+    }
+
+    private bool ExceedsTransportLimit(int payloadLength)
+    {
+        if (payloadLength <= transport.MaxMessageSize)
+        {
+            return false;
+        }
+
+        System.Diagnostics.Debug.WriteLine(
+            $"[NetworkServer] Dropped {payloadLength}-byte message: exceeds transport MaxMessageSize " +
+            $"({transport.MaxMessageSize} bytes). Split the message or reduce replicated component payloads.");
+        return true;
     }
 
     /// <summary>
@@ -320,40 +367,108 @@ public sealed class NetworkServerPlugin(INetworkTransport transport, ServerNetwo
             entities.Add((entity, netId, owner.ClientId));
         }
 
-        // Use a large buffer for the snapshot
-        var buffer = new byte[64 * 1024]; // 64KB buffer
-        var writer = new NetworkMessageWriter(buffer);
-        writer.WriteHeader(MessageType.FullSnapshot, currentTick);
-        writer.WriteEntityCount((ushort)entities.Count);
+        // Entities are packed greedily into as many FullSnapshot messages as the
+        // transport's MaxMessageSize requires; a whole-world message would exceed a
+        // datagram transport's budget and crash the send (#1278). The client handler
+        // is incremental (it spawns/updates per message), so the chunks compose.
+        var buffer = new byte[SnapshotBufferSize];
+        var scratch = new byte[SnapshotBufferSize];
 
-        foreach (var (entity, netId, ownerId) in entities)
+        // Per-message overhead: header + entity count.
+        var probe = new NetworkMessageWriter(scratch);
+        probe.WriteHeader(MessageType.FullSnapshot, currentTick);
+        probe.WriteEntityCount(0);
+        var overhead = probe.BytesWritten;
+
+        var budget = Math.Min(transport.MaxMessageSize, buffer.Length);
+
+        // Measuring each entity separately over-estimates the packed message size
+        // (byte-rounding per entity), so accumulating byte sizes can never overflow
+        // the budget once written for real.
+        var batch = new List<(Entity entity, NetworkId netId, int ownerId)>();
+        var batchBytes = overhead;
+        foreach (var item in entities)
         {
-            writer.WriteEntitySpawn(netId.Value, ownerId);
+            var measureWriter = new NetworkMessageWriter(scratch);
+            WriteEntityFullState(ref measureWriter, item.entity, item.netId, item.ownerId, serializer);
+            var entityBytes = measureWriter.BytesWritten;
 
-            // Write all replicated components
-            var toSend = new List<(Type, object)>();
-            if (context.World is ISnapshotCapability snapshot)
+            if (overhead + entityBytes > budget)
             {
-                foreach (var (type, value) in snapshot.GetComponents(entity))
-                {
-                    if (serializer.IsNetworkSerializable(type))
-                    {
-                        toSend.Add((type, value));
-                    }
-                }
+                System.Diagnostics.Debug.WriteLine(
+                    $"[NetworkServer] Entity with network id {item.netId.Value} skipped in full snapshot: " +
+                    $"{entityBytes} bytes of component state cannot fit in one transport message " +
+                    $"(budget {budget} bytes). The client will not receive this entity.");
+                continue;
             }
 
-            writer.WriteComponentCount((byte)toSend.Count);
-            foreach (var (type, value) in toSend)
+            if (batch.Count > 0 && batchBytes + entityBytes > budget)
             {
-                writer.WriteComponent(serializer, type, value);
+                SendFullSnapshotBatch(clientId, batch, buffer, serializer);
+                batch.Clear();
+                batchBytes = overhead;
             }
+
+            batch.Add(item);
+            batchBytes += entityBytes;
         }
 
-        transport.Send(clientId, writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+        // Flush the final batch; an empty world still sends one empty snapshot message
+        // so late joiners observe the same message flow as before.
+        if (batch.Count > 0 || entities.Count == 0)
+        {
+            SendFullSnapshotBatch(clientId, batch, buffer, serializer);
+        }
 
         // Send hierarchy relationships
         SendHierarchySnapshot(clientId);
+    }
+
+    private void SendFullSnapshotBatch(
+        int clientId,
+        List<(Entity entity, NetworkId netId, int ownerId)> batch,
+        byte[] buffer,
+        INetworkSerializer serializer)
+    {
+        var writer = new NetworkMessageWriter(buffer);
+        writer.WriteHeader(MessageType.FullSnapshot, currentTick);
+        writer.WriteEntityCount((ushort)batch.Count);
+
+        foreach (var (entity, netId, ownerId) in batch)
+        {
+            WriteEntityFullState(ref writer, entity, netId, ownerId, serializer);
+        }
+
+        SendToClient(clientId, writer.GetWrittenSpan(), DeliveryMode.ReliableOrdered);
+    }
+
+    private void WriteEntityFullState(
+        ref NetworkMessageWriter writer,
+        Entity entity,
+        NetworkId netId,
+        int ownerId,
+        INetworkSerializer serializer)
+    {
+        writer.WriteEntitySpawn(netId.Value, ownerId);
+
+        // Write all replicated components
+        var toSend = new List<(Type, object)>();
+        if (context?.World is ISnapshotCapability snapshot)
+        {
+            foreach (var (type, value) in snapshot.GetComponents(entity))
+            {
+                if (serializer.IsNetworkSerializable(type))
+                {
+                    toSend.Add((type, value));
+                }
+            }
+        }
+
+        writer.WriteComponentCount((byte)toSend.Count);
+        foreach (var (type, value) in toSend)
+        {
+            writer.WriteComponent(serializer, type, value);
+        }
     }
 
     private void SendHierarchySnapshot(int clientId)

@@ -80,6 +80,23 @@ public interface INetworkTransport : IDisposable
     Task ConnectAsync(string address, int port, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the maximum payload size in bytes that a single <see cref="Send"/> call accepts.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Callers that build variable-size messages (e.g. replication snapshots) must split
+    /// them so each message fits within this limit. Passing a larger payload to
+    /// <see cref="Send"/> is a caller error and transports may throw.
+    /// </para>
+    /// <para>
+    /// Datagram transports return their MTU-derived budget (UDP: 1192 bytes); stream
+    /// transports return their framing limit (TCP: 1 MiB); in-memory transports return
+    /// <see cref="int.MaxValue"/>.
+    /// </para>
+    /// </remarks>
+    int MaxMessageSize { get; }
+
+    /// <summary>
     /// Sends data to a specific connection.
     /// </summary>
     /// <param name="connectionId">

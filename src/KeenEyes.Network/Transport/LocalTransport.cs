@@ -92,6 +92,9 @@ public sealed class LocalTransport : INetworkTransport
     public bool IsClient => !isServer && State == ConnectionState.Connected;
 
     /// <inheritdoc/>
+    public int MaxMessageSize => int.MaxValue;
+
+    /// <inheritdoc/>
     public event Action<ConnectionState>? StateChanged;
 
     /// <inheritdoc/>
