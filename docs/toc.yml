@@ -207,6 +207,8 @@
       href: adr/014-replay-playback-runtime-editor-integration.md
     - name: ADR-015 Component Schema Migrations
       href: adr/015-component-schema-migrations.md
+    - name: ADR-016 Mobile Platform Support
+      href: adr/016-mobile-platform-support.md
 - name: Performance
   items:
     - name: AOT vs JIT Benchmarks

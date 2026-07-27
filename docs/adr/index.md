@@ -43,3 +43,4 @@ If a code change invalidates something an ADR says, amend the ADR in the same PR
 | [ADR-013](013-dynamic-plugin-loading.md) | Dynamic Plugin Loading | Accepted | Partial |
 | [ADR-014](014-replay-playback-runtime-editor-integration.md) | Replay Playback Runtime and Editor Integration | Amended | Partial |
 | [ADR-015](015-component-schema-migrations.md) | Component Schema Migrations | Accepted | Partial |
+| [ADR-016](016-mobile-platform-support.md) | Mobile Platform Support (iOS & Android) | Proposed | Not started |

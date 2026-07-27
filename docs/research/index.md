@@ -47,6 +47,7 @@ Research reports document:
 | [Shader Management](shader-management.md) | Research Complete | Shader compilation and management |
 | [Shader Language (KESL)](shader-language.md) | Research Complete | Custom shader language design |
 | [Windowing & Input](windowing-input.md) | Research Complete | Window management and input handling |
+| [Mobile Platform Support](mobile-platform-support.md) | Research Complete | iOS/Android graphics, audio, input, and packaging under Native AOT |
 
 ## Contributing
 
