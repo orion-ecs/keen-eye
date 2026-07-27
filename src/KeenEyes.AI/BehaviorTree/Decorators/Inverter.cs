@@ -28,12 +28,12 @@ public sealed class Inverter : DecoratorNode
     {
         if (Child == null)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
 
         var state = Child.Execute(entity, blackboard, world);
 
-        return SetState(state switch
+        return SetState(blackboard, state switch
         {
             BTNodeState.Success => BTNodeState.Failure,
             BTNodeState.Failure => BTNodeState.Success,

@@ -181,9 +181,9 @@ public sealed class AIDebugPanel : IEditorPanel
         }
 
         var nodeInfos = new List<BTNodeDebugInfo>();
-        if (component.Definition.Root != null)
+        if (component.Definition.Root != null && component.Blackboard is { } blackboard)
         {
-            CollectNodeInfos(component.Definition.Root, 0, nodeInfos);
+            CollectNodeInfos(component.Definition.Root, blackboard, 0, nodeInfos);
         }
 
         return new BehaviorTreeDebugInfo
@@ -196,26 +196,26 @@ public sealed class AIDebugPanel : IEditorPanel
         };
     }
 
-    private static void CollectNodeInfos(BTNode node, int depth, List<BTNodeDebugInfo> infos)
+    private static void CollectNodeInfos(BTNode node, Blackboard blackboard, int depth, List<BTNodeDebugInfo> infos)
     {
         infos.Add(new BTNodeDebugInfo
         {
             Name = node.Name,
             TypeName = node.GetType().Name,
             Depth = depth,
-            LastState = node.LastState
+            LastState = node.GetLastState(blackboard)
         });
 
         if (node is CompositeNode composite)
         {
             foreach (var child in composite.Children)
             {
-                CollectNodeInfos(child, depth + 1, infos);
+                CollectNodeInfos(child, blackboard, depth + 1, infos);
             }
         }
         else if (node is DecoratorNode decorator && decorator.Child != null)
         {
-            CollectNodeInfos(decorator.Child, depth + 1, infos);
+            CollectNodeInfos(decorator.Child, blackboard, depth + 1, infos);
         }
     }
 

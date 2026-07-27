@@ -66,7 +66,7 @@ public sealed class UtilitySystem : SystemBase
                 // If action completed (not running), trigger re-evaluation next tick
                 if (state != BTNodeState.Running)
                 {
-                    utility.CurrentAction.Action.Reset();
+                    utility.CurrentAction.Action.Reset(blackboard);
                     utility.TimeSinceEvaluation = utility.EvaluationInterval;
                 }
             }
@@ -120,7 +120,7 @@ public sealed class UtilitySystem : SystemBase
         if (selectedAction != utility.CurrentAction && utility.CurrentAction?.Action != null)
         {
             utility.CurrentAction.Action.OnInterrupted(entity, blackboard, world);
-            utility.CurrentAction.Action.Reset();
+            utility.CurrentAction.Action.Reset(blackboard);
         }
 
         utility.CurrentAction = selectedAction;

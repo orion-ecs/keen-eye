@@ -37,9 +37,6 @@ namespace KeenEyes.AI.Actions;
 /// </example>
 public sealed class PatrolAction : IAIAction
 {
-    private bool isWaiting;
-    private float waitTimer;
-    private bool pathRequested;
 
     /// <summary>
     /// The waypoints to patrol through.
@@ -73,8 +70,6 @@ public sealed class PatrolAction : IAIAction
     /// </summary>
     public float ArrivalTolerance { get; set; } = 0.5f;
 
-    // Track direction for ping-pong mode
-    private bool reverseDirection;
 
     /// <inheritdoc/>
     public BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world)
@@ -112,29 +107,30 @@ public sealed class PatrolAction : IAIAction
         blackboard.Set(BBKeys.PatrolIndex, currentIndex);
 
         var deltaTime = blackboard.Get(BBKeys.DeltaTime, 0f);
+        var memory = blackboard.GetMemory<PatrolMemory>(this);
 
         // Handle waiting at waypoint
-        if (isWaiting)
+        if (memory.IsWaiting)
         {
-            waitTimer -= deltaTime;
-            if (waitTimer > 0)
+            memory.WaitTimer -= deltaTime;
+            if (memory.WaitTimer > 0)
             {
                 return BTNodeState.Running;
             }
 
-            isWaiting = false;
-            pathRequested = false;
+            memory.IsWaiting = false;
+            memory.PathRequested = false;
 
             // Move to next waypoint
             if (PingPong)
             {
-                if (reverseDirection)
+                if (memory.ReverseDirection)
                 {
                     currentIndex--;
                     if (currentIndex < 0)
                     {
                         currentIndex = 1;
-                        reverseDirection = false;
+                        memory.ReverseDirection = false;
                     }
                 }
                 else
@@ -143,7 +139,7 @@ public sealed class PatrolAction : IAIAction
                     if (currentIndex >= waypoints.Length)
                     {
                         currentIndex = waypoints.Length - 2;
-                        reverseDirection = true;
+                        memory.ReverseDirection = true;
                     }
                 }
             }
@@ -176,28 +172,28 @@ public sealed class PatrolAction : IAIAction
         // Check if we've reached the waypoint
         var distanceToWaypoint = Vector3.Distance(transform.Position, targetWaypoint);
         if (distanceToWaypoint <= ArrivalTolerance ||
-            (agent.HasPath && agent.RemainingDistance <= agent.StoppingDistance && pathRequested))
+            (agent.HasPath && agent.RemainingDistance <= agent.StoppingDistance && memory.PathRequested))
         {
             if (WaitTimeAtWaypoint > 0)
             {
-                isWaiting = true;
-                waitTimer = WaitTimeAtWaypoint;
+                memory.IsWaiting = true;
+                memory.WaitTimer = WaitTimeAtWaypoint;
                 nav.Stop(entity);
                 return BTNodeState.Running;
             }
 
             // No wait, move to next waypoint immediately
-            pathRequested = false;
+            memory.PathRequested = false;
 
             if (PingPong)
             {
-                if (reverseDirection)
+                if (memory.ReverseDirection)
                 {
                     currentIndex--;
                     if (currentIndex < 0)
                     {
                         currentIndex = Math.Min(1, waypoints.Length - 1);
-                        reverseDirection = false;
+                        memory.ReverseDirection = false;
                     }
                 }
                 else
@@ -206,7 +202,7 @@ public sealed class PatrolAction : IAIAction
                     if (currentIndex >= waypoints.Length)
                     {
                         currentIndex = Math.Max(0, waypoints.Length - 2);
-                        reverseDirection = true;
+                        memory.ReverseDirection = true;
                     }
                 }
             }
@@ -231,19 +227,19 @@ public sealed class PatrolAction : IAIAction
 
             // Request path to new waypoint
             nav.SetDestination(entity, waypoints[currentIndex]);
-            pathRequested = true;
+            memory.PathRequested = true;
             return BTNodeState.Running;
         }
 
         // Request initial path if not yet done
-        if (!pathRequested)
+        if (!memory.PathRequested)
         {
             nav.SetDestination(entity, targetWaypoint);
-            pathRequested = true;
+            memory.PathRequested = true;
         }
 
         // Check for pathfinding failure
-        if (!agent.HasPath && !agent.PathPending && pathRequested)
+        if (!agent.HasPath && !agent.PathPending && memory.PathRequested)
         {
             // Try next waypoint if current is unreachable
             return BTNodeState.Running; // Keep trying
@@ -259,18 +255,19 @@ public sealed class PatrolAction : IAIAction
     }
 
     /// <inheritdoc/>
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
-        isWaiting = false;
-        waitTimer = 0f;
-        pathRequested = false;
-        reverseDirection = false;
+        var memory = blackboard.GetMemory<PatrolMemory>(this);
+        memory.IsWaiting = false;
+        memory.WaitTimer = 0f;
+        memory.PathRequested = false;
+        memory.ReverseDirection = false;
     }
 
     /// <inheritdoc/>
     public void OnInterrupted(Entity entity, Blackboard blackboard, IWorld world)
     {
-        Reset();
+        Reset(blackboard);
 
         // Stop the agent when interrupted
         if (world.Has<NavMeshAgent>(entity) &&
@@ -279,5 +276,16 @@ public sealed class PatrolAction : IAIAction
         {
             nav.Stop(entity);
         }
+    }
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="PatrolAction"/>.
+    /// </summary>
+    internal sealed class PatrolMemory
+    {
+        public bool IsWaiting { get; set; }
+        public float WaitTimer { get; set; }
+        public bool PathRequested { get; set; }
+        public bool ReverseDirection { get; set; }
     }
 }

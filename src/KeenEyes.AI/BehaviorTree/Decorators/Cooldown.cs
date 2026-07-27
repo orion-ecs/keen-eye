@@ -28,7 +28,6 @@ namespace KeenEyes.AI.BehaviorTree.Decorators;
 /// </example>
 public sealed class Cooldown : DecoratorNode
 {
-    private float lastExecutionTime = float.MinValue;
 
     /// <summary>
     /// Gets or sets the cooldown duration in seconds.
@@ -45,19 +44,20 @@ public sealed class Cooldown : DecoratorNode
     public bool CooldownOnFailure { get; set; }
 
     /// <inheritdoc/>
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
-        // Note: We don't reset lastExecutionTime here because
+        base.Reset(blackboard);
+        // Note: We don't reset LastExecutionTime here because
         // cooldowns should persist across tree resets
     }
 
     /// <summary>
-    /// Resets the cooldown timer, allowing immediate execution.
+    /// Resets the cooldown timer for one entity, allowing immediate execution.
     /// </summary>
-    public void ResetCooldown()
+    /// <param name="blackboard">The blackboard of the entity whose cooldown to clear.</param>
+    public void ResetCooldown(Blackboard blackboard)
     {
-        lastExecutionTime = float.MinValue;
+        ((CooldownMemory)GetMemory(blackboard)).LastExecutionTime = float.MinValue;
     }
 
     /// <inheritdoc/>
@@ -65,16 +65,18 @@ public sealed class Cooldown : DecoratorNode
     {
         if (Child == null)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
+
+        var memory = (CooldownMemory)GetMemory(blackboard);
 
         // Get current time from blackboard
         var currentTime = blackboard.Get(BBKeys.Time, 0f);
 
         // Check if still on cooldown
-        if (currentTime - lastExecutionTime < Duration)
+        if (currentTime - memory.LastExecutionTime < Duration)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
 
         var state = Child.Execute(entity, blackboard, world);
@@ -82,9 +84,21 @@ public sealed class Cooldown : DecoratorNode
         // Start cooldown on completion (based on settings)
         if (state == BTNodeState.Success || (CooldownOnFailure && state == BTNodeState.Failure))
         {
-            lastExecutionTime = currentTime;
+            memory.LastExecutionTime = currentTime;
         }
 
-        return SetState(state);
+        return SetState(blackboard, state);
+    }
+
+    /// <inheritdoc/>
+    protected internal override BTNodeMemory GetMemory(Blackboard blackboard)
+        => blackboard.GetMemory<CooldownMemory>(this);
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="Cooldown"/>.
+    /// </summary>
+    internal sealed class CooldownMemory : BTNodeMemory
+    {
+        public float LastExecutionTime { get; set; } = float.MinValue;
     }
 }

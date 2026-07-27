@@ -34,8 +34,6 @@ namespace KeenEyes.AI.BehaviorTree.Decorators;
 /// </example>
 public sealed class Repeater : DecoratorNode
 {
-    private int currentCount;
-
     /// <summary>
     /// Gets or sets the number of times to repeat. Use -1 for infinite.
     /// </summary>
@@ -51,10 +49,10 @@ public sealed class Repeater : DecoratorNode
     public bool IgnoreFailure { get; set; }
 
     /// <inheritdoc/>
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
-        currentCount = 0;
+        base.Reset(blackboard);
+        ((RepeaterMemory)GetMemory(blackboard)).CurrentCount = 0;
     }
 
     /// <inheritdoc/>
@@ -62,14 +60,16 @@ public sealed class Repeater : DecoratorNode
     {
         if (Child == null)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
 
+        var memory = (RepeaterMemory)GetMemory(blackboard);
+
         // Check if we've reached the count (for non-infinite)
-        if (Count >= 0 && currentCount >= Count)
+        if (Count >= 0 && memory.CurrentCount >= Count)
         {
-            currentCount = 0;
-            return SetState(BTNodeState.Success);
+            memory.CurrentCount = 0;
+            return SetState(blackboard, BTNodeState.Success);
         }
 
         var state = Child.Execute(entity, blackboard, world);
@@ -77,29 +77,41 @@ public sealed class Repeater : DecoratorNode
         switch (state)
         {
             case BTNodeState.Running:
-                return SetState(BTNodeState.Running);
+                return SetState(blackboard, BTNodeState.Running);
 
             case BTNodeState.Failure when !IgnoreFailure:
-                currentCount = 0;
-                return SetState(BTNodeState.Failure);
+                memory.CurrentCount = 0;
+                return SetState(blackboard, BTNodeState.Failure);
 
             case BTNodeState.Success:
             case BTNodeState.Failure: // when IgnoreFailure is true
-                currentCount++;
-                Child.Reset();
+                memory.CurrentCount++;
+                Child.Reset(blackboard);
 
                 // Check if we just hit the count
-                if (Count >= 0 && currentCount >= Count)
+                if (Count >= 0 && memory.CurrentCount >= Count)
                 {
-                    currentCount = 0;
-                    return SetState(BTNodeState.Success);
+                    memory.CurrentCount = 0;
+                    return SetState(blackboard, BTNodeState.Success);
                 }
 
                 // More iterations needed - keep running
-                return SetState(BTNodeState.Running);
+                return SetState(blackboard, BTNodeState.Running);
 
             default:
-                return SetState(state);
+                return SetState(blackboard, state);
         }
+    }
+
+    /// <inheritdoc/>
+    protected internal override BTNodeMemory GetMemory(Blackboard blackboard)
+        => blackboard.GetMemory<RepeaterMemory>(this);
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="Repeater"/>.
+    /// </summary>
+    internal sealed class RepeaterMemory : BTNodeMemory
+    {
+        public int CurrentCount { get; set; }
     }
 }

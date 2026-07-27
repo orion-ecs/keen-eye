@@ -141,7 +141,7 @@ public class UtilityActionTests
 
         action.CalculateScore(entity, blackboard, world);
 
-        action.LastScore.ShouldBe(0.75f);
+        action.GetLastScore(blackboard).ShouldBe(0.75f);
     }
 
     [Fact]

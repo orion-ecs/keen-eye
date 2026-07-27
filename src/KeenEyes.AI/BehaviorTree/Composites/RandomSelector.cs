@@ -27,40 +27,44 @@ namespace KeenEyes.AI.BehaviorTree.Composites;
 /// </example>
 public sealed class RandomSelector : CompositeNode
 {
-    private readonly List<int> shuffledIndices = [];
-    private bool needsShuffle = true;
-
     /// <summary>
     /// Gets or sets the random seed. If null, uses system random.
     /// </summary>
     public int? Seed { get; set; }
 
     /// <inheritdoc/>
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
-        needsShuffle = true;
-        shuffledIndices.Clear();
+        base.Reset(blackboard);
+        var memory = (RandomSelectorMemory)GetMemory(blackboard);
+        memory.NeedsShuffle = true;
+        memory.ShuffledIndices.Clear();
     }
+
+    /// <inheritdoc/>
+    protected internal override BTNodeMemory GetMemory(Blackboard blackboard)
+        => blackboard.GetMemory<RandomSelectorMemory>(this);
 
     /// <inheritdoc/>
     public override BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world)
     {
         if (Children.Count == 0)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
+
+        var memory = (RandomSelectorMemory)GetMemory(blackboard);
 
         // Shuffle on first execution
-        if (needsShuffle)
+        if (memory.NeedsShuffle)
         {
-            ShuffleIndices();
-            needsShuffle = false;
+            ShuffleIndices(memory.ShuffledIndices);
+            memory.NeedsShuffle = false;
         }
 
-        while (currentChildIndex < shuffledIndices.Count)
+        while (memory.CurrentChildIndex < memory.ShuffledIndices.Count)
         {
-            var childIndex = shuffledIndices[currentChildIndex];
+            var childIndex = memory.ShuffledIndices[memory.CurrentChildIndex];
             var child = Children[childIndex];
             var state = child.Execute(entity, blackboard, world);
 
@@ -68,28 +72,28 @@ public sealed class RandomSelector : CompositeNode
             {
                 case BTNodeState.Success:
                     // Found a successful child - reset for next run
-                    currentChildIndex = 0;
-                    needsShuffle = true;
-                    return SetState(BTNodeState.Success);
+                    memory.CurrentChildIndex = 0;
+                    memory.NeedsShuffle = true;
+                    return SetState(blackboard, BTNodeState.Success);
 
                 case BTNodeState.Running:
                     // Child still running - wait for completion
-                    return SetState(BTNodeState.Running);
+                    return SetState(blackboard, BTNodeState.Running);
 
                 case BTNodeState.Failure:
                     // Child failed - try next child
-                    currentChildIndex++;
+                    memory.CurrentChildIndex++;
                     break;
             }
         }
 
         // All children failed - reset for next run
-        currentChildIndex = 0;
-        needsShuffle = true;
-        return SetState(BTNodeState.Failure);
+        memory.CurrentChildIndex = 0;
+        memory.NeedsShuffle = true;
+        return SetState(blackboard, BTNodeState.Failure);
     }
 
-    private void ShuffleIndices()
+    private void ShuffleIndices(List<int> shuffledIndices)
     {
         shuffledIndices.Clear();
 
@@ -106,5 +110,14 @@ public sealed class RandomSelector : CompositeNode
             var j = random.Next(i + 1);
             (shuffledIndices[i], shuffledIndices[j]) = (shuffledIndices[j], shuffledIndices[i]);
         }
+    }
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="RandomSelector"/>.
+    /// </summary>
+    internal sealed class RandomSelectorMemory : CompositeMemory
+    {
+        public List<int> ShuffledIndices { get; } = [];
+        public bool NeedsShuffle { get; set; } = true;
     }
 }

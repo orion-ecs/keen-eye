@@ -24,8 +24,6 @@ namespace KeenEyes.AI.BehaviorTree.Leaves;
 /// </example>
 public sealed class WaitNode : BTNode
 {
-    private float elapsed;
-
     /// <summary>
     /// Gets or sets the duration to wait in seconds.
     /// </summary>
@@ -50,37 +48,38 @@ public sealed class WaitNode : BTNode
     /// </summary>
     public float MaxDuration { get; set; } = 2f;
 
-    private float? randomizedDuration;
-
     /// <inheritdoc/>
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
-        elapsed = 0f;
-        randomizedDuration = null;
+        base.Reset(blackboard);
+        var memory = (WaitMemory)GetMemory(blackboard);
+        memory.Elapsed = 0f;
+        memory.RandomizedDuration = null;
     }
 
     /// <inheritdoc/>
     public override BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world)
     {
+        var memory = (WaitMemory)GetMemory(blackboard);
+
         // Determine target duration
-        var targetDuration = GetTargetDuration();
+        var targetDuration = GetTargetDuration(memory);
 
         // Get delta time from blackboard
         var deltaTime = blackboard.Get(BBKeys.DeltaTime, 0f);
-        elapsed += deltaTime;
+        memory.Elapsed += deltaTime;
 
-        if (elapsed >= targetDuration)
+        if (memory.Elapsed >= targetDuration)
         {
-            elapsed = 0f;
-            randomizedDuration = null;
-            return SetState(BTNodeState.Success);
+            memory.Elapsed = 0f;
+            memory.RandomizedDuration = null;
+            return SetState(blackboard, BTNodeState.Success);
         }
 
-        return SetState(BTNodeState.Running);
+        return SetState(blackboard, BTNodeState.Running);
     }
 
-    private float GetTargetDuration()
+    private float GetTargetDuration(WaitMemory memory)
     {
         if (!UseRandomDuration)
         {
@@ -88,7 +87,20 @@ public sealed class WaitNode : BTNode
         }
 
         // Calculate randomized duration once per execution
-        randomizedDuration ??= MinDuration + (Random.Shared.NextSingle() * (MaxDuration - MinDuration));
-        return randomizedDuration.Value;
+        memory.RandomizedDuration ??= MinDuration + (Random.Shared.NextSingle() * (MaxDuration - MinDuration));
+        return memory.RandomizedDuration.Value;
+    }
+
+    /// <inheritdoc/>
+    protected internal override BTNodeMemory GetMemory(Blackboard blackboard)
+        => blackboard.GetMemory<WaitMemory>(this);
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="WaitNode"/>.
+    /// </summary>
+    internal sealed class WaitMemory : BTNodeMemory
+    {
+        public float Elapsed { get; set; }
+        public float? RandomizedDuration { get; set; }
     }
 }

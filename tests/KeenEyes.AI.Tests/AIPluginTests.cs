@@ -376,13 +376,7 @@ internal sealed class TestPluginBTNode(BTNodeState resultState) : BTNode
     public override BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world)
     {
         ExecuteCount++;
-        LastState = resultState;
-        return resultState;
-    }
-
-    public override void Reset()
-    {
-        base.Reset();
+        return SetState(blackboard, resultState);
     }
 }
 
@@ -397,7 +391,7 @@ internal sealed class TestPluginAction(Action? onExecute = null) : IAIAction
         return BTNodeState.Running;
     }
 
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
     }
 
@@ -417,7 +411,7 @@ internal sealed class OrderTrackingAction(List<string> order, string name) : IAI
         return BTNodeState.Success;
     }
 
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
     }
 

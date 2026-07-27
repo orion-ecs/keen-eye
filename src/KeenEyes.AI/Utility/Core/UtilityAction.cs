@@ -71,7 +71,10 @@ public sealed class UtilityAction
     /// <summary>
     /// Gets or sets the last calculated score (for debugging).
     /// </summary>
-    public float LastScore { get; private set; }
+    /// <param name="blackboard">The blackboard of the entity whose score to read.</param>
+    /// <returns>The score from the entity's most recent <see cref="CalculateScore"/> call.</returns>
+    public float GetLastScore(Blackboard blackboard)
+        => blackboard.GetMemory<UtilityActionMemory>(this).LastScore;
 
     /// <summary>
     /// Calculates the utility score for this action.
@@ -82,9 +85,10 @@ public sealed class UtilityAction
     /// <returns>The action's utility score.</returns>
     public float CalculateScore(Entity entity, Blackboard blackboard, IWorld world)
     {
+        var memory = blackboard.GetMemory<UtilityActionMemory>(this);
         if (Considerations.Count == 0)
         {
-            LastScore = Weight;
+            memory.LastScore = Weight;
             return Weight;
         }
 
@@ -98,7 +102,7 @@ public sealed class UtilityAction
             // Early exit if score becomes negligible
             if (score.IsApproximatelyZero())
             {
-                LastScore = 0f;
+                memory.LastScore = 0f;
                 return 0f;
             }
         }
@@ -110,7 +114,15 @@ public sealed class UtilityAction
         var makeUpValue = (1f - score) * modificationFactor;
         score += makeUpValue * score;
 
-        LastScore = score;
+        memory.LastScore = score;
         return score;
+    }
+
+    /// <summary>
+    /// Per-entity scoring memory for <see cref="UtilityAction"/>.
+    /// </summary>
+    internal sealed class UtilityActionMemory
+    {
+        public float LastScore { get; set; }
     }
 }

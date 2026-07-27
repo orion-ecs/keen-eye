@@ -390,6 +390,7 @@ public class DecoratorTests
     [Fact]
     public void Decorator_Reset_ResetsChild()
     {
+        var blackboard = new Blackboard();
         var child = new TestBTNode(BTNodeState.Success);
         var inverter = new Inverter
         {
@@ -397,7 +398,7 @@ public class DecoratorTests
             Child = child
         };
 
-        inverter.Reset();
+        inverter.Reset(blackboard);
 
         child.WasReset.ShouldBeTrue();
     }

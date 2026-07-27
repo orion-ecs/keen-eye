@@ -48,12 +48,18 @@ public sealed class Consideration
     /// <summary>
     /// Gets or sets the last raw input value (for debugging).
     /// </summary>
-    public float LastInputValue { get; private set; }
+    /// <param name="blackboard">The blackboard of the entity whose evaluation to read.</param>
+    /// <returns>The raw input value from the entity's most recent evaluation.</returns>
+    public float GetLastInputValue(Blackboard blackboard)
+        => blackboard.GetMemory<ConsiderationMemory>(this).LastInputValue;
 
     /// <summary>
     /// Gets or sets the last output value (for debugging).
     /// </summary>
-    public float LastOutputValue { get; private set; }
+    /// <param name="blackboard">The blackboard of the entity whose evaluation to read.</param>
+    /// <returns>The curved output score from the entity's most recent evaluation.</returns>
+    public float GetLastOutputValue(Blackboard blackboard)
+        => blackboard.GetMemory<ConsiderationMemory>(this).LastOutputValue;
 
     /// <summary>
     /// Evaluates this consideration for the given entity.
@@ -64,15 +70,25 @@ public sealed class Consideration
     /// <returns>The consideration's score (typically 0-1).</returns>
     public float Evaluate(Entity entity, Blackboard blackboard, IWorld world)
     {
+        var memory = blackboard.GetMemory<ConsiderationMemory>(this);
         if (Input == null || Curve == null)
         {
-            LastInputValue = 1f;
-            LastOutputValue = 1f;
+            memory.LastInputValue = 1f;
+            memory.LastOutputValue = 1f;
             return 1f;
         }
 
-        LastInputValue = Input.GetValue(entity, blackboard, world);
-        LastOutputValue = Curve.Evaluate(LastInputValue);
-        return LastOutputValue;
+        memory.LastInputValue = Input.GetValue(entity, blackboard, world);
+        memory.LastOutputValue = Curve.Evaluate(memory.LastInputValue);
+        return memory.LastOutputValue;
+    }
+
+    /// <summary>
+    /// Per-entity evaluation memory for <see cref="Consideration"/>.
+    /// </summary>
+    internal sealed class ConsiderationMemory
+    {
+        public float LastInputValue { get; set; }
+        public float LastOutputValue { get; set; }
     }
 }

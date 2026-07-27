@@ -37,8 +37,6 @@ namespace KeenEyes.AI.Actions;
 /// </example>
 public sealed class ChaseAction : IAIAction
 {
-    private float timeSinceLastUpdate;
-    private bool initialPathRequested;
 
     /// <summary>
     /// The target entity to chase.
@@ -132,16 +130,17 @@ public sealed class ChaseAction : IAIAction
         }
 
         var deltaTime = blackboard.Get(BBKeys.DeltaTime, 0f);
-        timeSinceLastUpdate += deltaTime;
+        var memory = blackboard.GetMemory<ChaseMemory>(this);
+        memory.TimeSinceLastUpdate += deltaTime;
 
         // Request initial path or update path at intervals
-        bool shouldUpdatePath = !initialPathRequested || timeSinceLastUpdate >= UpdateInterval;
+        bool shouldUpdatePath = !memory.InitialPathRequested || memory.TimeSinceLastUpdate >= UpdateInterval;
 
         if (shouldUpdatePath)
         {
             nav.SetDestination(entity, targetPosition);
-            timeSinceLastUpdate = 0f;
-            initialPathRequested = true;
+            memory.TimeSinceLastUpdate = 0f;
+            memory.InitialPathRequested = true;
 
             // Store update timing in blackboard
             blackboard.Set(BBKeys.ChaseUpdateInterval, UpdateInterval);
@@ -149,11 +148,11 @@ public sealed class ChaseAction : IAIAction
         }
         else
         {
-            blackboard.Set(BBKeys.ChaseTimeSinceUpdate, timeSinceLastUpdate);
+            blackboard.Set(BBKeys.ChaseTimeSinceUpdate, memory.TimeSinceLastUpdate);
         }
 
         // Check if path is valid
-        if (!agent.HasPath && !agent.PathPending && initialPathRequested)
+        if (!agent.HasPath && !agent.PathPending && memory.InitialPathRequested)
         {
             // Path computation failed - target may be unreachable
             return BTNodeState.Failure;
@@ -169,16 +168,17 @@ public sealed class ChaseAction : IAIAction
     }
 
     /// <inheritdoc/>
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
-        timeSinceLastUpdate = 0f;
-        initialPathRequested = false;
+        var memory = blackboard.GetMemory<ChaseMemory>(this);
+        memory.TimeSinceLastUpdate = 0f;
+        memory.InitialPathRequested = false;
     }
 
     /// <inheritdoc/>
     public void OnInterrupted(Entity entity, Blackboard blackboard, IWorld world)
     {
-        Reset();
+        Reset(blackboard);
 
         // Stop the agent when interrupted
         if (world.Has<NavMeshAgent>(entity) &&
@@ -187,5 +187,14 @@ public sealed class ChaseAction : IAIAction
         {
             nav.Stop(entity);
         }
+    }
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="ChaseAction"/>.
+    /// </summary>
+    internal sealed class ChaseMemory
+    {
+        public float TimeSinceLastUpdate { get; set; }
+        public bool InitialPathRequested { get; set; }
     }
 }

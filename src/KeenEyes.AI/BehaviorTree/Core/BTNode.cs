@@ -29,13 +29,16 @@ public abstract class BTNode
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets the last execution state of this node.
+    /// Gets the last execution state of this node for the entity owning the blackboard.
     /// </summary>
+    /// <param name="blackboard">The blackboard of the entity whose state to read.</param>
+    /// <returns>The last state this node returned for that entity.</returns>
     /// <remarks>
     /// Useful for debugging and visualization to see the state of each node
-    /// after tree evaluation.
+    /// after tree evaluation. Node definitions are shared between entities, so the
+    /// last state is per-entity and lives in the blackboard (#1281).
     /// </remarks>
-    public BTNodeState LastState { get; protected set; } = BTNodeState.Running;
+    public BTNodeState GetLastState(Blackboard blackboard) => GetMemory(blackboard).LastState;
 
     /// <summary>
     /// Executes this node for the given entity.
@@ -47,16 +50,32 @@ public abstract class BTNode
     public abstract BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world);
 
     /// <summary>
-    /// Resets the node state for a new execution.
+    /// Resets the node's per-entity execution state for a new run.
     /// </summary>
+    /// <param name="blackboard">The blackboard of the entity whose state to reset.</param>
     /// <remarks>
     /// Called when the behavior tree restarts or when this node needs to be
-    /// re-evaluated from scratch. Override to reset internal state.
+    /// re-evaluated from scratch. Override to reset state stored in the node's memory;
+    /// never store execution state on the node instance itself — definitions are
+    /// shared between entities.
     /// </remarks>
-    public virtual void Reset()
+    public virtual void Reset(Blackboard blackboard)
     {
-        LastState = BTNodeState.Running;
+        GetMemory(blackboard).LastState = BTNodeState.Running;
     }
+
+    /// <summary>
+    /// Gets this node's per-entity execution memory from the blackboard.
+    /// </summary>
+    /// <param name="blackboard">The blackboard of the entity executing this node.</param>
+    /// <returns>The memory holding this node's mutable state for that entity.</returns>
+    /// <remarks>
+    /// Override in nodes that need more state than <see cref="BTNodeMemory.LastState"/>,
+    /// returning a <see cref="BTNodeMemory"/> subclass. A node must always return the
+    /// same memory type — the blackboard stores one entry per node.
+    /// </remarks>
+    protected internal virtual BTNodeMemory GetMemory(Blackboard blackboard)
+        => blackboard.GetMemory<BTNodeMemory>(this);
 
     /// <summary>
     /// Called when this node is interrupted before completion.
@@ -73,13 +92,14 @@ public abstract class BTNode
     }
 
     /// <summary>
-    /// Updates the last state and returns it.
+    /// Updates the last state for the entity owning the blackboard and returns it.
     /// </summary>
+    /// <param name="blackboard">The blackboard of the entity executing this node.</param>
     /// <param name="state">The new state.</param>
     /// <returns>The state (for chaining).</returns>
-    protected BTNodeState SetState(BTNodeState state)
+    protected BTNodeState SetState(Blackboard blackboard, BTNodeState state)
     {
-        LastState = state;
+        GetMemory(blackboard).LastState = state;
         return state;
     }
 }

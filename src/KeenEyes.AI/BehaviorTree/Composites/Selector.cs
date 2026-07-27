@@ -34,31 +34,32 @@ public sealed class Selector : CompositeNode
     /// <inheritdoc/>
     public override BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world)
     {
-        while (currentChildIndex < Children.Count)
+        var memory = GetCompositeMemory(blackboard);
+        while (memory.CurrentChildIndex < Children.Count)
         {
-            var child = Children[currentChildIndex];
+            var child = Children[memory.CurrentChildIndex];
             var state = child.Execute(entity, blackboard, world);
 
             switch (state)
             {
                 case BTNodeState.Success:
                     // Found a successful child - selector succeeds
-                    currentChildIndex = 0;
-                    return SetState(BTNodeState.Success);
+                    memory.CurrentChildIndex = 0;
+                    return SetState(blackboard, BTNodeState.Success);
 
                 case BTNodeState.Running:
                     // Child still running - wait for completion
-                    return SetState(BTNodeState.Running);
+                    return SetState(blackboard, BTNodeState.Running);
 
                 case BTNodeState.Failure:
                     // Child failed - try next child
-                    currentChildIndex++;
+                    memory.CurrentChildIndex++;
                     break;
             }
         }
 
         // All children failed - selector fails
-        currentChildIndex = 0;
-        return SetState(BTNodeState.Failure);
+        memory.CurrentChildIndex = 0;
+        return SetState(blackboard, BTNodeState.Failure);
     }
 }

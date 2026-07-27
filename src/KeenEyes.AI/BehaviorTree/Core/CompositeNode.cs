@@ -18,20 +18,15 @@ public abstract class CompositeNode : BTNode
     /// </summary>
     public List<BTNode> Children { get; set; } = [];
 
-    /// <summary>
-    /// The index of the currently executing child (for resumable composites).
-    /// </summary>
-    protected int currentChildIndex;
-
     /// <inheritdoc/>
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
-        currentChildIndex = 0;
+        base.Reset(blackboard);
+        GetCompositeMemory(blackboard).CurrentChildIndex = 0;
 
         foreach (var child in Children)
         {
-            child.Reset();
+            child.Reset(blackboard);
         }
     }
 
@@ -43,10 +38,33 @@ public abstract class CompositeNode : BTNode
         // Interrupt all running children
         foreach (var child in Children)
         {
-            if (child.LastState == BTNodeState.Running)
+            if (child.GetLastState(blackboard) == BTNodeState.Running)
             {
                 child.OnInterrupted(entity, blackboard, world);
             }
         }
+    }
+
+    /// <inheritdoc/>
+    protected internal override BTNodeMemory GetMemory(Blackboard blackboard)
+        => blackboard.GetMemory<CompositeMemory>(this);
+
+    /// <summary>
+    /// Gets this composite's per-entity memory, including the resumable child cursor.
+    /// </summary>
+    /// <param name="blackboard">The blackboard of the entity executing this node.</param>
+    /// <returns>The composite memory for that entity.</returns>
+    protected CompositeMemory GetCompositeMemory(Blackboard blackboard)
+        => (CompositeMemory)GetMemory(blackboard);
+
+    /// <summary>
+    /// Per-entity execution memory for composite nodes.
+    /// </summary>
+    public class CompositeMemory : BTNodeMemory
+    {
+        /// <summary>
+        /// Gets or sets the index of the currently executing child (for resumable composites).
+        /// </summary>
+        public int CurrentChildIndex { get; set; }
     }
 }

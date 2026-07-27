@@ -59,7 +59,7 @@ public sealed class BehaviorTreeSystem : SystemBase
             {
                 // Tree completed - reset for next tick
                 bt.RunningNode = null;
-                definition.Reset();
+                definition.Reset(blackboard);
             }
         }
     }

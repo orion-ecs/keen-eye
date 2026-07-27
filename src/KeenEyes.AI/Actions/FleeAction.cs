@@ -33,9 +33,6 @@ namespace KeenEyes.AI.Actions;
 /// </example>
 public sealed class FleeAction : IAIAction
 {
-    private bool pathRequested;
-    private Vector3 fleeDestination;
-    private int retryCount;
 
     /// <summary>
     /// The minimum distance to maintain from the threat.
@@ -70,7 +67,6 @@ public sealed class FleeAction : IAIAction
     /// </summary>
     public float UpdateInterval { get; set; } = 1.0f;
 
-    private float timeSinceLastUpdate;
 
     /// <inheritdoc/>
     public BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world)
@@ -107,11 +103,12 @@ public sealed class FleeAction : IAIAction
         }
 
         var deltaTime = blackboard.Get(BBKeys.DeltaTime, 0f);
-        timeSinceLastUpdate += deltaTime;
+        var memory = blackboard.GetMemory<FleeMemory>(this);
+        memory.TimeSinceLastUpdate += deltaTime;
 
         // Calculate flee destination if needed
-        bool shouldUpdatePath = !pathRequested ||
-                                (UpdateWhileFleeing && timeSinceLastUpdate >= UpdateInterval);
+        bool shouldUpdatePath = !memory.PathRequested ||
+                                (UpdateWhileFleeing && memory.TimeSinceLastUpdate >= UpdateInterval);
 
         if (shouldUpdatePath)
         {
@@ -123,17 +120,17 @@ public sealed class FleeAction : IAIAction
 
             if (newDestination.HasValue)
             {
-                fleeDestination = newDestination.Value;
-                nav.SetDestination(entity, fleeDestination);
-                pathRequested = true;
-                timeSinceLastUpdate = 0f;
-                retryCount = 0;
-                blackboard.Set(BBKeys.Destination, fleeDestination);
+                memory.FleeDestination = newDestination.Value;
+                nav.SetDestination(entity, memory.FleeDestination);
+                memory.PathRequested = true;
+                memory.TimeSinceLastUpdate = 0f;
+                memory.RetryCount = 0;
+                blackboard.Set(BBKeys.Destination, memory.FleeDestination);
             }
-            else if (!pathRequested)
+            else if (!memory.PathRequested)
             {
-                retryCount++;
-                if (retryCount >= MaxRetries)
+                memory.RetryCount++;
+                if (memory.RetryCount >= MaxRetries)
                 {
                     return BTNodeState.Failure;
                 }
@@ -141,17 +138,17 @@ public sealed class FleeAction : IAIAction
         }
 
         // Check for pathfinding failure
-        if (!agent.HasPath && !agent.PathPending && pathRequested)
+        if (!agent.HasPath && !agent.PathPending && memory.PathRequested)
         {
-            retryCount++;
-            if (retryCount >= MaxRetries)
+            memory.RetryCount++;
+            if (memory.RetryCount >= MaxRetries)
             {
                 return BTNodeState.Failure;
             }
 
             // Try a new flee destination
-            pathRequested = false;
-            timeSinceLastUpdate = UpdateInterval; // Force recalculation
+            memory.PathRequested = false;
+            memory.TimeSinceLastUpdate = UpdateInterval; // Force recalculation
         }
 
         // Check if we've reached the flee destination
@@ -163,8 +160,8 @@ public sealed class FleeAction : IAIAction
             }
 
             // Not far enough, find a new flee point
-            pathRequested = false;
-            timeSinceLastUpdate = UpdateInterval;
+            memory.PathRequested = false;
+            memory.TimeSinceLastUpdate = UpdateInterval;
         }
 
         // Store current path in blackboard
@@ -261,18 +258,19 @@ public sealed class FleeAction : IAIAction
     }
 
     /// <inheritdoc/>
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
-        pathRequested = false;
-        fleeDestination = Vector3.Zero;
-        retryCount = 0;
-        timeSinceLastUpdate = 0f;
+        var memory = blackboard.GetMemory<FleeMemory>(this);
+        memory.PathRequested = false;
+        memory.FleeDestination = Vector3.Zero;
+        memory.RetryCount = 0;
+        memory.TimeSinceLastUpdate = 0f;
     }
 
     /// <inheritdoc/>
     public void OnInterrupted(Entity entity, Blackboard blackboard, IWorld world)
     {
-        Reset();
+        Reset(blackboard);
 
         // Stop the agent when interrupted
         if (world.Has<NavMeshAgent>(entity) &&
@@ -281,5 +279,16 @@ public sealed class FleeAction : IAIAction
         {
             nav.Stop(entity);
         }
+    }
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="FleeAction"/>.
+    /// </summary>
+    internal sealed class FleeMemory
+    {
+        public bool PathRequested { get; set; }
+        public Vector3 FleeDestination { get; set; }
+        public int RetryCount { get; set; }
+        public float TimeSinceLastUpdate { get; set; }
     }
 }

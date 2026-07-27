@@ -29,18 +29,18 @@ public sealed class ActionNode : BTNode
     {
         if (Action == null)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
 
         var state = Action.Execute(entity, blackboard, world);
-        return SetState(state);
+        return SetState(blackboard, state);
     }
 
     /// <inheritdoc/>
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
-        Action?.Reset();
+        base.Reset(blackboard);
+        Action?.Reset(blackboard);
     }
 
     /// <inheritdoc/>
