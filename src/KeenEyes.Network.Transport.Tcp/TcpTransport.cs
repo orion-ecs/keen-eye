@@ -36,7 +36,7 @@ namespace KeenEyes.Network.Transport.Tcp;
 public sealed class TcpTransport : INetworkTransport
 {
     private const int HeaderSize = 4; // 4 bytes for message length
-    private const int MaxMessageSize = 1024 * 1024; // 1 MB max message
+    private const int MaxMessageBytes = 1024 * 1024; // 1 MB max message
 
     private readonly ConcurrentDictionary<int, ClientConnection> connections = new();
 
@@ -94,6 +94,9 @@ public sealed class TcpTransport : INetworkTransport
 
     /// <inheritdoc/>
     public bool IsClient => !isServer && State == ConnectionState.Connected;
+
+    /// <inheritdoc/>
+    public int MaxMessageSize => TcpTransport.MaxMessageBytes;
 
     /// <summary>
     /// Gets the local port the transport is bound to.
@@ -189,7 +192,7 @@ public sealed class TcpTransport : INetworkTransport
                 }
 
                 var messageLength = BitConverter.ToInt32(headerBuffer, 0);
-                if (messageLength <= 0 || messageLength > MaxMessageSize)
+                if (messageLength <= 0 || messageLength > MaxMessageBytes)
                 {
                     break; // Invalid message, disconnect
                 }
@@ -308,7 +311,7 @@ public sealed class TcpTransport : INetworkTransport
                 }
 
                 var messageLength = BitConverter.ToInt32(headerBuffer, 0);
-                if (messageLength <= 0 || messageLength > MaxMessageSize)
+                if (messageLength <= 0 || messageLength > MaxMessageBytes)
                 {
                     break; // Invalid message, disconnect
                 }

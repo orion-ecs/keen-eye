@@ -357,6 +357,11 @@ New clients automatically receive a full world snapshot:
 serverPlugin.SendFullSnapshot(clientId);
 ```
 
+The snapshot is chunked: entities are packed into as many `FullSnapshot` messages as
+the transport's `MaxMessageSize` requires, and the client applies each message
+incrementally. A single entity whose replicated state exceeds the transport budget is
+skipped with a diagnostic rather than crashing the server.
+
 ## Transport Layer
 
 Implement `INetworkTransport` for your networking library:
@@ -369,6 +374,8 @@ public interface INetworkTransport : IDisposable
     event Action<int, ReadOnlySpan<byte>>? DataReceived;
     event Action<ConnectionState>? StateChanged;
 
+    int MaxMessageSize { get; }
+
     Task ListenAsync(int port, CancellationToken cancellationToken = default);
     Task ConnectAsync(string address, int port, CancellationToken cancellationToken = default);
     void Disconnect(int clientId = 0);
@@ -378,6 +385,12 @@ public interface INetworkTransport : IDisposable
     void Update();
 }
 ```
+
+`MaxMessageSize` is the largest payload a single `Send` accepts (UDP: 1192 bytes from
+its MTU budget; TCP: 1 MiB framing limit; LocalTransport: unbounded). The replication
+layer splits full snapshots so every message fits, and the server plugin's send helpers
+drop oversized payloads with a diagnostic instead of letting the exception kill the
+game loop.
 
 ### LocalTransport (Testing)
 

@@ -114,6 +114,9 @@ public sealed class UdpTransport : INetworkTransport
     /// <inheritdoc/>
     public bool IsClient => !isServer && State == ConnectionState.Connected;
 
+    /// <inheritdoc/>
+    public int MaxMessageSize => MaxPayloadSize;
+
     /// <summary>
     /// Gets the local port the transport is bound to.
     /// </summary>
