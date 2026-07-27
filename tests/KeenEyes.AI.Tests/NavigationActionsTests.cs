@@ -124,7 +124,7 @@ public class NavigationActionsTests : IDisposable
         action.Execute(entity, blackboard, world);
 
         // Reset
-        action.Reset();
+        action.Reset(blackboard);
 
         // Execute again - should request new path
         var result = action.Execute(entity, blackboard, world);

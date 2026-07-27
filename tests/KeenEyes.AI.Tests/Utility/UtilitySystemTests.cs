@@ -531,7 +531,7 @@ internal sealed class TestUtilityAction(Action? onExecute = null) : IAIAction
         return state;
     }
 
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
         WasReset = true;
     }
@@ -551,7 +551,7 @@ internal sealed class InterruptibleUtilityAction(Action onInterrupted) : IAIActi
         return BTNodeState.Running;
     }
 
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
     }
 

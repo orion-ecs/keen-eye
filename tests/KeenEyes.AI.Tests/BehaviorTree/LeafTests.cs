@@ -76,6 +76,7 @@ public class LeafTests
     [Fact]
     public void ActionNode_Reset_ResetsAction()
     {
+        var blackboard = new Blackboard();
         var action = new TestAction();
 
         var actionNode = new ActionNode
@@ -84,7 +85,7 @@ public class LeafTests
             Action = action
         };
 
-        actionNode.Reset();
+        actionNode.Reset(blackboard);
 
         action.WasReset.ShouldBeTrue();
     }
@@ -232,7 +233,7 @@ public class LeafTests
         waitNode.Execute(entity, blackboard, world);
 
         // Reset
-        waitNode.Reset();
+        waitNode.Reset(blackboard);
 
         // Execute again - should still be running
         var result = waitNode.Execute(entity, blackboard, world);
@@ -272,7 +273,7 @@ internal sealed class InterruptibleAction(Action onInterrupted) : IAIAction
         return BTNodeState.Running;
     }
 
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
     }
 

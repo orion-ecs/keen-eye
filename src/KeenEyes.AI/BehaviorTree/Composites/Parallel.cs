@@ -62,7 +62,7 @@ public sealed class Parallel : CompositeNode
     {
         if (Children.Count == 0)
         {
-            return SetState(BTNodeState.Success);
+            return SetState(blackboard, BTNodeState.Success);
         }
 
         var successCount = 0;
@@ -97,7 +97,7 @@ public sealed class Parallel : CompositeNode
 
         if (shouldFail)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
 
         // Check success policy
@@ -110,10 +110,10 @@ public sealed class Parallel : CompositeNode
 
         if (shouldSucceed)
         {
-            return SetState(BTNodeState.Success);
+            return SetState(blackboard, BTNodeState.Success);
         }
 
         // Still running if neither success nor failure conditions are met
-        return SetState(BTNodeState.Running);
+        return SetState(blackboard, BTNodeState.Running);
     }
 }

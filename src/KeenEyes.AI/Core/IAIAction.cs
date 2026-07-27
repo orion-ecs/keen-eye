@@ -27,12 +27,18 @@ public interface IAIAction
     BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world);
 
     /// <summary>
-    /// Resets the action state for a new execution.
+    /// Resets the action's per-entity execution state for a new run.
     /// </summary>
+    /// <param name="blackboard">The blackboard of the entity whose state to reset.</param>
     /// <remarks>
     /// Called when the behavior tree restarts or when this action needs to be re-evaluated.
+    /// Action instances are shared between every entity running the same behavior
+    /// definition; store mutable state in a memory object obtained from
+    /// <see cref="Blackboard.GetMemory{TMemory}"/>, never in instance fields (#1281).
     /// </remarks>
-    void Reset() { }
+    void Reset(Blackboard blackboard)
+    {
+    }
 
     /// <summary>
     /// Called when the action is interrupted before completion.

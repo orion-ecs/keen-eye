@@ -139,7 +139,7 @@ public sealed class StateMachineSystem : SystemBase
 
         // Reset actions in the new state
         var newState = definition.GetState(fsm.CurrentStateIndex);
-        newState.ResetActions();
+        newState.ResetActions(blackboard);
 
         // Execute OnEnter for new state
         newState.ExecuteEnterActions(entity, blackboard, World);

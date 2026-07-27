@@ -34,8 +34,6 @@ namespace KeenEyes.AI.Actions;
 /// </example>
 public sealed class MoveToAction : IAIAction
 {
-    private bool pathRequested;
-    private float pathRequestTime;
 
     /// <summary>
     /// The destination to move to.
@@ -101,13 +99,14 @@ public sealed class MoveToAction : IAIAction
         }
 
         var currentTime = blackboard.Get(BBKeys.Time, 0f);
+        var memory = blackboard.GetMemory<MoveToMemory>(this);
 
         // Request path if we haven't yet
-        if (!pathRequested)
+        if (!memory.PathRequested)
         {
             nav.SetDestination(entity, destination);
-            pathRequested = true;
-            pathRequestTime = currentTime;
+            memory.PathRequested = true;
+            memory.PathRequestTime = currentTime;
             return BTNodeState.Running;
         }
 
@@ -118,7 +117,7 @@ public sealed class MoveToAction : IAIAction
             return BTNodeState.Failure;
         }
 
-        if (agent.PathPending && currentTime - pathRequestTime > PathTimeout)
+        if (agent.PathPending && currentTime - memory.PathRequestTime > PathTimeout)
         {
             // Timeout waiting for path
             return BTNodeState.Failure;
@@ -134,16 +133,17 @@ public sealed class MoveToAction : IAIAction
     }
 
     /// <inheritdoc/>
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
-        pathRequested = false;
-        pathRequestTime = 0f;
+        var memory = blackboard.GetMemory<MoveToMemory>(this);
+        memory.PathRequested = false;
+        memory.PathRequestTime = 0f;
     }
 
     /// <inheritdoc/>
     public void OnInterrupted(Entity entity, Blackboard blackboard, IWorld world)
     {
-        Reset();
+        Reset(blackboard);
 
         // Stop the agent when interrupted
         if (world.Has<NavMeshAgent>(entity) &&
@@ -152,5 +152,14 @@ public sealed class MoveToAction : IAIAction
         {
             nav.Stop(entity);
         }
+    }
+
+    /// <summary>
+    /// Per-entity execution memory for <see cref="MoveToAction"/>.
+    /// </summary>
+    internal sealed class MoveToMemory
+    {
+        public bool PathRequested { get; set; }
+        public float PathRequestTime { get; set; }
     }
 }

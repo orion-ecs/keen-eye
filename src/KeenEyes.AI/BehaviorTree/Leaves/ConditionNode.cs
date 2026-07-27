@@ -40,10 +40,10 @@ public sealed class ConditionNode : BTNode
     {
         if (Condition == null)
         {
-            return SetState(BTNodeState.Failure);
+            return SetState(blackboard, BTNodeState.Failure);
         }
 
         var result = Condition.Evaluate(entity, blackboard, world);
-        return SetState(result ? BTNodeState.Success : BTNodeState.Failure);
+        return SetState(blackboard, result ? BTNodeState.Success : BTNodeState.Failure);
     }
 }

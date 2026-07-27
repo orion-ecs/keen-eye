@@ -165,7 +165,7 @@ public class ConsiderationTests
 
         consideration.Evaluate(entity, blackboard, world);
 
-        consideration.LastInputValue.ShouldBe(0.7f);
+        consideration.GetLastInputValue(blackboard).ShouldBe(0.7f);
     }
 
     [Fact]
@@ -184,7 +184,7 @@ public class ConsiderationTests
 
         consideration.Evaluate(entity, blackboard, world);
 
-        consideration.LastOutputValue.ShouldBe(0.25f);
+        consideration.GetLastOutputValue(blackboard).ShouldBe(0.25f);
     }
 
     [Fact]
@@ -203,8 +203,8 @@ public class ConsiderationTests
 
         consideration.Evaluate(entity, blackboard, world);
 
-        consideration.LastInputValue.ShouldBe(1f);
-        consideration.LastOutputValue.ShouldBe(1f);
+        consideration.GetLastInputValue(blackboard).ShouldBe(1f);
+        consideration.GetLastOutputValue(blackboard).ShouldBe(1f);
     }
 
     #endregion

@@ -108,21 +108,21 @@ public sealed class State
     /// <summary>
     /// Resets all actions in this state.
     /// </summary>
-    internal void ResetActions()
+    internal void ResetActions(Blackboard blackboard)
     {
         foreach (var action in OnEnterActions)
         {
-            action.Reset();
+            action.Reset(blackboard);
         }
 
         foreach (var action in OnUpdateActions)
         {
-            action.Reset();
+            action.Reset(blackboard);
         }
 
         foreach (var action in OnExitActions)
         {
-            action.Reset();
+            action.Reset(blackboard);
         }
     }
 }

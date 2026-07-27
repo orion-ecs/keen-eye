@@ -88,33 +88,38 @@ public sealed class BehaviorTree
     }
 
     /// <summary>
-    /// Resets the entire behavior tree.
+    /// Resets the entire behavior tree's execution state for one entity.
     /// </summary>
-    public void Reset()
+    /// <param name="blackboard">The blackboard of the entity whose run should restart.</param>
+    /// <remarks>
+    /// Definitions are shared between entities; resetting one entity's blackboard leaves
+    /// every other entity's progress through this tree untouched (#1281).
+    /// </remarks>
+    public void Reset(Blackboard blackboard)
     {
-        ResetNode(Root);
+        ResetNode(Root, blackboard);
     }
 
-    private static void ResetNode(BTNode? node)
+    private static void ResetNode(BTNode? node, Blackboard blackboard)
     {
         if (node == null)
         {
             return;
         }
 
-        node.Reset();
+        node.Reset(blackboard);
 
         // Recursively reset children based on node type
         if (node is CompositeNode composite)
         {
             foreach (var child in composite.Children)
             {
-                ResetNode(child);
+                ResetNode(child, blackboard);
             }
         }
         else if (node is DecoratorNode decorator)
         {
-            ResetNode(decorator.Child);
+            ResetNode(decorator.Child, blackboard);
         }
     }
 }

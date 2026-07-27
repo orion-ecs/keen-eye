@@ -39,7 +39,7 @@ public sealed class UntilFail : DecoratorNode
     {
         if (Child == null)
         {
-            return SetState(BTNodeState.Success);
+            return SetState(blackboard, BTNodeState.Success);
         }
 
         var state = Child.Execute(entity, blackboard, world);
@@ -48,15 +48,15 @@ public sealed class UntilFail : DecoratorNode
         {
             case BTNodeState.Failure:
                 // Child failed - we're done (successfully)
-                return SetState(BTNodeState.Success);
+                return SetState(blackboard, BTNodeState.Success);
 
             case BTNodeState.Success:
                 // Child succeeded - reset and continue
-                Child.Reset();
-                return SetState(BTNodeState.Running);
+                Child.Reset(blackboard);
+                return SetState(blackboard, BTNodeState.Running);
 
             default:
-                return SetState(state);
+                return SetState(blackboard, state);
         }
     }
 }

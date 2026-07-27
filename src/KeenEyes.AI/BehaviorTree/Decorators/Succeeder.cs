@@ -37,12 +37,12 @@ public sealed class Succeeder : DecoratorNode
     {
         if (Child == null)
         {
-            return SetState(BTNodeState.Success);
+            return SetState(blackboard, BTNodeState.Success);
         }
 
         var state = Child.Execute(entity, blackboard, world);
 
-        return SetState(state == BTNodeState.Running
+        return SetState(blackboard, state == BTNodeState.Running
             ? BTNodeState.Running
             : BTNodeState.Success);
     }

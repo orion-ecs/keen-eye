@@ -134,6 +134,7 @@ public class StateTests
     [Fact]
     public void ResetActions_ResetsAllActions()
     {
+        var blackboard = new Blackboard();
         var action1 = new TestAction();
         var action2 = new TestAction();
 
@@ -148,7 +149,7 @@ public class StateTests
         action1.SetState(BTNodeState.Success);
         action2.SetState(BTNodeState.Failure);
 
-        state.ResetActions();
+        state.ResetActions(blackboard);
 
         action1.WasReset.ShouldBeTrue();
         action2.WasReset.ShouldBeTrue();
@@ -174,7 +175,7 @@ internal sealed class TestAction(Action? onExecute = null) : IAIAction
         return state;
     }
 
-    public void Reset()
+    public void Reset(Blackboard blackboard)
     {
         WasReset = true;
     }

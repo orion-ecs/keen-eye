@@ -183,6 +183,7 @@ public class SelectorTests
     [Fact]
     public void Reset_ResetsAllChildren()
     {
+        var blackboard = new Blackboard();
         var child1 = new TestBTNode(BTNodeState.Success);
         var child2 = new TestBTNode(BTNodeState.Success);
 
@@ -192,7 +193,7 @@ public class SelectorTests
             Children = [child1, child2]
         };
 
-        selector.Reset();
+        selector.Reset(blackboard);
 
         child1.WasReset.ShouldBeTrue();
         child2.WasReset.ShouldBeTrue();
@@ -212,13 +213,12 @@ internal sealed class TestBTNode(BTNodeState resultState) : BTNode
     public override BTNodeState Execute(Entity entity, Blackboard blackboard, IWorld world)
     {
         ExecuteCount++;
-        LastState = resultState;
-        return resultState;
+        return SetState(blackboard, resultState);
     }
 
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
+        base.Reset(blackboard);
         WasReset = true;
     }
 
@@ -236,13 +236,12 @@ internal sealed class StateChangingBTNode(BTNodeState[] states) : BTNode
     {
         var state = states[Math.Min(currentIndex, states.Length - 1)];
         currentIndex++;
-        LastState = state;
-        return state;
+        return SetState(blackboard, state);
     }
 
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
+        base.Reset(blackboard);
         currentIndex = 0;
     }
 }

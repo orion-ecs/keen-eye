@@ -160,7 +160,7 @@ public sealed class AIContext
             return false;
         }
 
-        component.Definition.Reset();
+        component.Definition.Reset(component.GetOrCreateBlackboard());
         component.RunningNode = null;
         component.LastResult = BTNodeState.Success;
 

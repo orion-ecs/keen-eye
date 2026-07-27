@@ -19,10 +19,10 @@ public abstract class DecoratorNode : BTNode
     public BTNode? Child { get; set; }
 
     /// <inheritdoc/>
-    public override void Reset()
+    public override void Reset(Blackboard blackboard)
     {
-        base.Reset();
-        Child?.Reset();
+        base.Reset(blackboard);
+        Child?.Reset(blackboard);
     }
 
     /// <inheritdoc/>
@@ -30,7 +30,7 @@ public abstract class DecoratorNode : BTNode
     {
         base.OnInterrupted(entity, blackboard, world);
 
-        if (Child?.LastState == BTNodeState.Running)
+        if (Child?.GetLastState(blackboard) == BTNodeState.Running)
         {
             Child.OnInterrupted(entity, blackboard, world);
         }

@@ -17,6 +17,52 @@ namespace KeenEyes.AI;
 public sealed class Blackboard
 {
     private readonly Dictionary<string, object> data = [];
+    private Dictionary<object, object>? nodeMemories;
+
+    /// <summary>
+    /// Gets the per-entity execution memory for a behavior definition node or action,
+    /// creating it on first access.
+    /// </summary>
+    /// <typeparam name="TMemory">The memory type the node stores its execution state in.</typeparam>
+    /// <param name="node">
+    /// The definition object (BT node, AI action, utility action) the memory belongs to.
+    /// Keyed by reference identity, so shared definitions get one memory per blackboard.
+    /// </param>
+    /// <returns>The memory instance for this blackboard's entity.</returns>
+    /// <remarks>
+    /// Behavior definitions (trees, state machines, utility sets) are shared between
+    /// entities; anything that changes while a definition runs must live here rather
+    /// than in the definition instance (#1281). Each definition object must always
+    /// request the same <typeparamref name="TMemory"/>; requesting a different type
+    /// discards the previously stored memory.
+    /// </remarks>
+    public TMemory GetMemory<TMemory>(object node) where TMemory : class, new()
+    {
+        nodeMemories ??= [];
+        if (nodeMemories.TryGetValue(node, out var existing) && existing is TMemory typed)
+        {
+            return typed;
+        }
+
+        var created = new TMemory();
+        nodeMemories[node] = created;
+        return created;
+    }
+
+    /// <summary>
+    /// Removes the stored execution memory for a definition node, if any.
+    /// </summary>
+    /// <param name="node">The definition object whose memory should be discarded.</param>
+    /// <returns>True when a memory entry existed and was removed.</returns>
+    public bool RemoveMemory(object node) => nodeMemories?.Remove(node) ?? false;
+
+    /// <summary>
+    /// Removes all stored node execution memories.
+    /// </summary>
+    /// <remarks>
+    /// Blackboard data set via <see cref="Set{T}"/> is unaffected.
+    /// </remarks>
+    public void ClearMemories() => nodeMemories?.Clear();
 
     /// <summary>
     /// Sets a value in the blackboard.

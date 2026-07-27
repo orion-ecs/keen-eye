@@ -208,6 +208,7 @@ public class SequenceTests
     [Fact]
     public void Reset_ResetsAllChildren()
     {
+        var blackboard = new Blackboard();
         var child1 = new TestBTNode(BTNodeState.Success);
         var child2 = new TestBTNode(BTNodeState.Success);
 
@@ -217,7 +218,7 @@ public class SequenceTests
             Children = [child1, child2]
         };
 
-        sequence.Reset();
+        sequence.Reset(blackboard);
 
         child1.WasReset.ShouldBeTrue();
         child2.WasReset.ShouldBeTrue();
@@ -243,7 +244,7 @@ public class SequenceTests
         sequence.Execute(entity, blackboard, world);
 
         // Reset
-        sequence.Reset();
+        sequence.Reset(blackboard);
         node1.ResetExecuteCount();
 
         // Execute again - should start from first child
