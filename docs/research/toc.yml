@@ -40,6 +40,8 @@
       href: shader-language.md
     - name: Windowing & Input
       href: windowing-input.md
+    - name: Mobile Platform Support
+      href: mobile-platform-support.md
 - name: Architecture Research
   items:
     - name: Scene Editor Architecture
