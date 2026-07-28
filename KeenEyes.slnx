@@ -128,6 +128,7 @@
     <Project Path="tests/KeenEyes.Particles.Tests/KeenEyes.Particles.Tests.csproj" />
     <Project Path="tests/KeenEyes.Persistence.Tests/KeenEyes.Persistence.Tests.csproj" />
     <Project Path="tests/KeenEyes.Physics.Tests/KeenEyes.Physics.Tests.csproj" />
+    <Project Path="tests/KeenEyes.Platform.Silk.Tests/KeenEyes.Platform.Silk.Tests.csproj" />
     <Project Path="tests/KeenEyes.Replay.Tests/KeenEyes.Replay.Tests.csproj" />
     <Project Path="tests/KeenEyes.Sample.NovaFall.Tests/KeenEyes.Sample.NovaFall.Tests.csproj" />
     <Project Path="tests/KeenEyes.Shaders.Compiler.Tests/KeenEyes.Shaders.Compiler.Tests.csproj" />

@@ -115,6 +115,12 @@ world.CreateRunner()
 - **Backend-agnostic**: Works with any `ILoopProvider` implementation
 - **Clean syntax**: No manual event wiring
 
+> **macOS: call `Run()` on the process main thread.** `Run()` creates the OS window, and AppKit
+> only permits that on the thread the process started on. An `await` before `Run()` moves the rest
+> of an async `Main` onto a thread-pool thread and the Mac build dies at startup, even though
+> Windows and Linux are happy. See
+> [Runtime: threading](runtime.md#threading-call-run-on-the-process-main-thread).
+
 ### Explicit Update Control
 
 For custom update logic, provide an `OnUpdate` callback:

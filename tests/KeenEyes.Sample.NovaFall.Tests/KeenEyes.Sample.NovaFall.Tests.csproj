@@ -17,4 +17,13 @@
     <ProjectReference Include="..\..\src\KeenEyes.Testing\KeenEyes.Testing.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- StartupOrderingTests inspects the entry point itself: the ordering of the
+         TestBridge start against Run() is a startup property no runtime test can
+         observe, because Run() needs a window (#1364). Embedding the file keeps the
+         test hermetic - it cannot drift onto a stale copy or a wrong path. -->
+    <EmbeddedResource Include="..\..\samples\KeenEyes.Sample.NovaFall\Program.cs"
+                      LogicalName="KeenEyes.Sample.NovaFall.Tests.Program.cs.txt" />
+  </ItemGroup>
+
 </Project>

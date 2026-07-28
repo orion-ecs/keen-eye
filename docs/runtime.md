@@ -230,6 +230,30 @@ world.CreateRunner()
 Console.WriteLine("Application ended.");
 ```
 
+## Threading: call `Run()` on the process main thread
+
+`Run()` is what creates the OS window, and macOS only allows that on the process main thread —
+AppKit terminates the process with `NSWindow should only be instantiated on the main thread!`
+rather than raising a catchable error. The trap is an `await` anywhere before `Run()`: in an async
+`Main`, everything after the first `await` resumes on a thread-pool thread, so the window ends up
+being created there. Windows and Linux accept it, which is why this shows up only once someone
+runs your game on a Mac. Do startup work synchronously before `Run()` (block with
+`GetAwaiter().GetResult()` if it is async), or move it into `OnReady`/after `Run()` returns —
+awaiting is fine there, because the window already exists. The Silk loop provider checks the
+calling thread on macOS immediately before window creation and throws an `InvalidOperationException`
+naming this cause, so the failure is a managed exception instead of a process abort.
+
+```csharp
+// Wrong on macOS: the continuation - including Run() - resumes off the main thread.
+await bridgeServer.StartAsync();
+world.CreateRunner().Run();
+
+// Right: startup stays synchronous, so Run() still runs where the process started.
+bridgeServer.StartAsync().GetAwaiter().GetResult();
+world.CreateRunner().Run();
+await bridgeServer.StopAsync();   // after Run() returns, awaiting is safe
+```
+
 ## Error Handling
 
 If no `ILoopProvider` is registered, `CreateRunner()` throws:

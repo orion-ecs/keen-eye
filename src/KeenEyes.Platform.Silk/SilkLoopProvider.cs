@@ -96,6 +96,12 @@ public sealed class SilkLoopProvider : ILoopProvider
     /// <inheritdoc />
     public void Run()
     {
+        // The OS window does not exist yet: SilkWindowProvider's constructor only built the
+        // managed IWindow. Initialize() below is what reaches glfwCreateWindow, so this is the
+        // last point at which a wrong-thread caller can still be told about it in managed code -
+        // on macOS the AppKit failure is an Objective-C exception that aborts the process.
+        WindowThreadGuard.EnsureWindowCreationThread();
+
         // Initialize the window first - this creates the GL context and fires Load events.
         // All subscribers to windowProvider.OnLoad (like SilkGraphicsContext) will run here.
         windowProvider.Window.Initialize();
