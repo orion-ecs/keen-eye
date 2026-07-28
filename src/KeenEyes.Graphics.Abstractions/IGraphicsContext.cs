@@ -55,14 +55,48 @@ public interface IGraphicsContext : IDisposable
     bool IsInitialized { get; }
 
     /// <summary>
-    /// Gets the current window width in pixels.
+    /// Gets the current window width in logical points.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Logical points are the coordinate space pointer positions are reported in, so this is
+    /// the size UI layout, hit-testing, and 2D projections must be built from. On a HiDPI
+    /// display (Retina, Windows display scaling, Linux fractional scaling) it is smaller than
+    /// <see cref="FramebufferWidth"/>.
+    /// </para>
+    /// <para>
+    /// Use <see cref="FramebufferWidth"/> instead for anything measured in device pixels: the
+    /// viewport, scissor rectangles, and full-screen framebuffer reads.
+    /// </para>
+    /// </remarks>
     int Width { get; }
 
     /// <summary>
-    /// Gets the current window height in pixels.
+    /// Gets the current window height in logical points.
     /// </summary>
+    /// <remarks>
+    /// See <see cref="Width"/> for the distinction between logical points and device pixels.
+    /// </remarks>
     int Height { get; }
+
+    /// <summary>
+    /// Gets the current framebuffer width in device pixels.
+    /// </summary>
+    /// <remarks>
+    /// This is the resolution the window is actually rendered at. It equals <see cref="Width"/>
+    /// at 1x scaling and exceeds it on a HiDPI display. Size the viewport, scissor rectangles,
+    /// and screenshots from this pair; size layout and projections from <see cref="Width"/>.
+    /// </remarks>
+    int FramebufferWidth { get; }
+
+    /// <summary>
+    /// Gets the current framebuffer height in device pixels.
+    /// </summary>
+    /// <remarks>
+    /// See <see cref="FramebufferWidth"/> for the distinction between device pixels and
+    /// logical points.
+    /// </remarks>
+    int FramebufferHeight { get; }
 
     #endregion
 
@@ -470,10 +504,16 @@ public interface IGraphicsContext : IDisposable
     /// <summary>
     /// Sets the viewport.
     /// </summary>
-    /// <param name="x">The left edge in pixels.</param>
-    /// <param name="y">The bottom edge in pixels.</param>
-    /// <param name="width">The width in pixels.</param>
-    /// <param name="height">The height in pixels.</param>
+    /// <param name="x">The left edge in device pixels.</param>
+    /// <param name="y">The bottom edge in device pixels.</param>
+    /// <param name="width">The width in device pixels.</param>
+    /// <param name="height">The height in device pixels.</param>
+    /// <remarks>
+    /// All four arguments are in device pixels, not logical points. To cover the whole window,
+    /// pass <see cref="FramebufferWidth"/> and <see cref="FramebufferHeight"/> - passing
+    /// <see cref="Width"/> and <see cref="Height"/> renders into a fraction of the window on a
+    /// HiDPI display.
+    /// </remarks>
     void SetViewport(int x, int y, int width, int height);
 
     /// <summary>

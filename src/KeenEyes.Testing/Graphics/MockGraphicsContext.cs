@@ -34,6 +34,8 @@ namespace KeenEyes.Testing.Graphics;
 public sealed class MockGraphicsContext : IGraphicsContext
 {
     private int nextHandleId = 1;
+    private int? framebufferWidth;
+    private int? framebufferHeight;
     private bool disposed;
     private ShaderHandle boundShader;
     private MeshHandle boundMesh;
@@ -168,6 +170,32 @@ public sealed class MockGraphicsContext : IGraphicsContext
 
     /// <inheritdoc />
     public int Height { get; set; } = 600;
+
+    /// <summary>
+    /// Gets or sets the framebuffer width in device pixels.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to <see cref="Width"/> (1x scaling). Set it to a multiple of <see cref="Width"/>
+    /// to simulate a HiDPI display without HiDPI hardware.
+    /// </remarks>
+    public int FramebufferWidth
+    {
+        get => framebufferWidth ?? Width;
+        set => framebufferWidth = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the framebuffer height in device pixels.
+    /// </summary>
+    /// <remarks>
+    /// Defaults to <see cref="Height"/> (1x scaling). Set it to a multiple of
+    /// <see cref="Height"/> to simulate a HiDPI display without HiDPI hardware.
+    /// </remarks>
+    public int FramebufferHeight
+    {
+        get => framebufferHeight ?? Height;
+        set => framebufferHeight = value;
+    }
 
     /// <inheritdoc />
     public ShaderHandle LitShader { get; }

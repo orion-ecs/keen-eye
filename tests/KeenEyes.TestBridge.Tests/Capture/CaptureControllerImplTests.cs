@@ -608,5 +608,74 @@ public class CaptureControllerImplTests
         return (new CaptureControllerImpl(context), device);
     }
 
+    /// <summary>
+    /// Builds a controller for a 2x display: a window of <paramref name="logicalWidth"/> x
+    /// <paramref name="logicalHeight"/> points backed by a framebuffer twice that in pixels.
+    /// </summary>
+    private static CaptureControllerImpl CreateRetinaController(int logicalWidth, int logicalHeight)
+    {
+        var device = new MockGraphicsDevice
+        {
+            SimulatedFramebufferData = new byte[logicalWidth * 2 * logicalHeight * 2 * 4],
+            SimulatedFramebufferWidth = logicalWidth * 2,
+            SimulatedFramebufferHeight = logicalHeight * 2,
+        };
+
+        var context = new MockGraphicsContext
+        {
+            IsInitialized = true,
+            Device = device,
+            Width = logicalWidth,
+            Height = logicalHeight,
+            FramebufferWidth = logicalWidth * 2,
+            FramebufferHeight = logicalHeight * 2,
+        };
+
+        return new CaptureControllerImpl(context);
+    }
+
+    #endregion
+
+    #region HiDPI displays (#1352)
+
+    [Fact]
+    public async Task CaptureFrameAsync_OnHiDpiDisplay_CapturesTheWholeFramebufferInPixels()
+    {
+        var controller = CreateRetinaController(400, 300);
+
+        var frame = await controller.CaptureFrameAsync();
+
+        // A screenshot is a pixel read: sizing it from the window's logical size would capture
+        // a quarter of the frame.
+        frame.Width.ShouldBe(800);
+        frame.Height.ShouldBe(600);
+        frame.Pixels.Length.ShouldBe(800 * 600 * 4);
+    }
+
+    [Fact]
+    public async Task GetFrameSizeAsync_OnHiDpiDisplay_ReportsFramebufferPixels()
+    {
+        var controller = CreateRetinaController(400, 300);
+
+        var (width, height) = await controller.GetFrameSizeAsync();
+
+        // Must agree with what CaptureFrameAsync actually returns.
+        width.ShouldBe(800);
+        height.ShouldBe(600);
+    }
+
+    [Fact]
+    public async Task CaptureRegionAsync_OnHiDpiDisplay_AcceptsRegionsAcrossTheWholeFramebuffer()
+    {
+        var controller = CreateRetinaController(400, 300);
+
+        // A region beyond the logical size but inside the framebuffer used to be rejected as
+        // "outside screen bounds".
+        var frame = await controller.CaptureRegionAsync(500, 400, 100, 100);
+
+        frame.Width.ShouldBe(100);
+        frame.Height.ShouldBe(100);
+    }
+
     #endregion
 }

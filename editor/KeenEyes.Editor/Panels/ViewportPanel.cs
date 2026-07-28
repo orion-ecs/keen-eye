@@ -279,7 +279,14 @@ public static class ViewportPanel
 
         // Set viewport and clear. The clear affects the whole framebuffer, which is
         // safe only because this pass runs before any UI is drawn this frame.
-        graphics.SetViewport(viewportX, viewportY, viewportWidth, viewportHeight);
+        // The panel bounds come from UI layout, which is in logical points, while the
+        // viewport is in device pixels - so scale across on HiDPI displays (#1352).
+        var (pixelScaleX, pixelScaleY) = GetPixelScale(graphics);
+        graphics.SetViewport(
+            (int)(viewportX * pixelScaleX),
+            (int)(viewportY * pixelScaleY),
+            (int)(viewportWidth * pixelScaleX),
+            (int)(viewportHeight * pixelScaleY));
         graphics.SetClearColor(EditorColors.ViewportBackground);
         graphics.Clear(ClearMask.ColorBuffer | ClearMask.DepthBuffer);
         graphics.SetDepthTest(true);
@@ -354,10 +361,21 @@ public static class ViewportPanel
         // Hand the context back to the UI pass: full-window viewport with the 2D
         // pipeline state the UI renderer expects (the 2D renderer manages its own
         // blend state but not viewport or culling).
-        graphics.SetViewport(0, 0, graphics.Width, graphics.Height);
+        graphics.SetViewport(0, 0, graphics.FramebufferWidth, graphics.FramebufferHeight);
         graphics.SetDepthTest(false);
         graphics.SetCulling(false);
     }
+
+    /// <summary>
+    /// Gets how many device pixels there are per logical point.
+    /// </summary>
+    /// <remarks>
+    /// UI layout works in logical points so that it lines up with pointer input, but the GL
+    /// viewport is in device pixels. The two differ on any HiDPI display.
+    /// </remarks>
+    private static (float X, float Y) GetPixelScale(IGraphicsContext graphics)
+        => (graphics.Width > 0 ? (float)graphics.FramebufferWidth / graphics.Width : 1f,
+            graphics.Height > 0 ? (float)graphics.FramebufferHeight / graphics.Height : 1f);
 
     /// <summary>
     /// Focuses the viewport camera on a specific entity.

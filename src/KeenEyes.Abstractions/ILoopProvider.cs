@@ -47,6 +47,13 @@ public interface ILoopProvider
     /// <summary>
     /// Raised when the window or viewport is resized.
     /// </summary>
+    /// <remarks>
+    /// Parameters are the new width and height in logical points - the same space pointer
+    /// positions are reported in - which makes this the event UI layout should follow. On a
+    /// HiDPI display these are smaller than the framebuffer's pixel size, so anything measured
+    /// in pixels (viewports, render targets) must be sized from the graphics context's
+    /// framebuffer size instead.
+    /// </remarks>
     event Action<int, int>? OnResize;
 
     /// <summary>

@@ -26,13 +26,21 @@ namespace KeenEyes.Graphics.Abstractions;
 public interface IWindow : IDisposable
 {
     /// <summary>
-    /// Gets the current window width in pixels.
+    /// Gets the current window width in logical points.
     /// </summary>
+    /// <remarks>
+    /// Logical points are the space pointer positions are reported in, which on a HiDPI display
+    /// is smaller than the framebuffer. For the pixel size the window is rendered at, use
+    /// <see cref="IGraphicsContext.FramebufferWidth"/>.
+    /// </remarks>
     int Width { get; }
 
     /// <summary>
-    /// Gets the current window height in pixels.
+    /// Gets the current window height in logical points.
     /// </summary>
+    /// <remarks>
+    /// See <see cref="Width"/> for the distinction between logical points and device pixels.
+    /// </remarks>
     int Height { get; }
 
     /// <summary>
@@ -68,8 +76,9 @@ public interface IWindow : IDisposable
     /// Event raised when the window is resized.
     /// </summary>
     /// <remarks>
-    /// Parameters are the new width and height in pixels.
-    /// Use this to update viewport dimensions and projection matrices.
+    /// Parameters are the new width and height in logical points (see <see cref="Width"/>).
+    /// Use this to update projection matrices and layout. Viewport dimensions are in device
+    /// pixels and must follow the framebuffer size instead.
     /// </remarks>
     event Action<int, int>? OnResize;
 
