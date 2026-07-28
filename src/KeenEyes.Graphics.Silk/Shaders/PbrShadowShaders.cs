@@ -102,24 +102,18 @@ internal static class PbrShadowShaders
         // Spot light shadow maps
         uniform sampler2D uSpotShadowMap0;
         uniform sampler2D uSpotShadowMap1;
-        uniform sampler2D uSpotShadowMap2;
-        uniform sampler2D uSpotShadowMap3;
         uniform mat4 uSpotLightSpaceMatrix0;
         uniform mat4 uSpotLightSpaceMatrix1;
-        uniform mat4 uSpotLightSpaceMatrix2;
-        uniform mat4 uSpotLightSpaceMatrix3;
         uniform int uSpotShadowCount;
-        uniform int uSpotShadowLightIndices[4];
+        uniform int uSpotShadowLightIndices[2];
 
         // Point light shadow maps (cubemaps)
         uniform samplerCube uPointShadowMap0;
         uniform samplerCube uPointShadowMap1;
-        uniform samplerCube uPointShadowMap2;
-        uniform samplerCube uPointShadowMap3;
-        uniform vec3 uPointLightPositions[4];
-        uniform float uPointLightFarPlanes[4];
+        uniform vec3 uPointLightPositions[2];
+        uniform float uPointLightFarPlanes[2];
         uniform int uPointShadowCount;
-        uniform int uPointShadowLightIndices[4];
+        uniform int uPointShadowLightIndices[2];
 
         // Material factors
         uniform vec4 uBaseColorFactor;
@@ -320,33 +314,27 @@ internal static class PbrShadowShaders
         mat4 getSpotLightSpaceMatrix(int shadowIndex)
         {
             if (shadowIndex == 0) return uSpotLightSpaceMatrix0;
-            if (shadowIndex == 1) return uSpotLightSpaceMatrix1;
-            if (shadowIndex == 2) return uSpotLightSpaceMatrix2;
-            return uSpotLightSpaceMatrix3;
+            return uSpotLightSpaceMatrix1;
         }
 
         // Sample spot shadow map by index
         float sampleSpotShadowMap(int shadowIndex, vec2 coords)
         {
             if (shadowIndex == 0) return texture(uSpotShadowMap0, coords).r;
-            if (shadowIndex == 1) return texture(uSpotShadowMap1, coords).r;
-            if (shadowIndex == 2) return texture(uSpotShadowMap2, coords).r;
-            return texture(uSpotShadowMap3, coords).r;
+            return texture(uSpotShadowMap1, coords).r;
         }
 
         // Get spot shadow map texel size by index
         vec2 getSpotShadowMapTexelSize(int shadowIndex)
         {
             if (shadowIndex == 0) return 1.0 / textureSize(uSpotShadowMap0, 0);
-            if (shadowIndex == 1) return 1.0 / textureSize(uSpotShadowMap1, 0);
-            if (shadowIndex == 2) return 1.0 / textureSize(uSpotShadowMap2, 0);
-            return 1.0 / textureSize(uSpotShadowMap3, 0);
+            return 1.0 / textureSize(uSpotShadowMap1, 0);
         }
 
         // Find the shadow map index for a given light index
         int findSpotShadowIndex(int lightIndex)
         {
-            for (int s = 0; s < uSpotShadowCount && s < 4; ++s)
+            for (int s = 0; s < uSpotShadowCount && s < 2; ++s)
             {
                 if (uSpotShadowLightIndices[s] == lightIndex) return s;
             }
@@ -405,15 +393,13 @@ internal static class PbrShadowShaders
         float samplePointShadowMap(int shadowIndex, vec3 direction)
         {
             if (shadowIndex == 0) return texture(uPointShadowMap0, direction).r;
-            if (shadowIndex == 1) return texture(uPointShadowMap1, direction).r;
-            if (shadowIndex == 2) return texture(uPointShadowMap2, direction).r;
-            return texture(uPointShadowMap3, direction).r;
+            return texture(uPointShadowMap1, direction).r;
         }
 
         // Find the shadow map index for a given point light index
         int findPointShadowIndex(int lightIndex)
         {
-            for (int s = 0; s < uPointShadowCount && s < 4; ++s)
+            for (int s = 0; s < uPointShadowCount && s < 2; ++s)
             {
                 if (uPointShadowLightIndices[s] == lightIndex) return s;
             }

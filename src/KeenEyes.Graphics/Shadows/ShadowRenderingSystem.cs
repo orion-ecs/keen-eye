@@ -24,6 +24,7 @@ public sealed class ShadowRenderingSystem : ISystem
     private IGraphicsContext? graphics;
     private ShadowMapManager? shadowManager;
     private ShaderHandle depthShader;
+    private ShaderHandle pointDepthShader;
     private bool shadersCreated;
     private bool disposed;
 
@@ -179,6 +180,49 @@ public sealed class ShadowRenderingSystem : ISystem
             """;
 
         depthShader = graphics!.CreateShader(depthVertexSource, depthFragmentSource);
+
+        // Point-light pass: the sampled cubemap is the COLOR attachment of the cubemap
+        // render target (depth goes to a discarded renderbuffer), so the fragment shader
+        // must write the normalized light distance as color — a depth-only shader leaves
+        // the sampled faces unwritten and point shadows never appear (#1280).
+        const string pointVertexSource = """
+            #version 330 core
+
+            layout (location = 0) in vec3 aPosition;
+
+            uniform mat4 uModel;
+            uniform mat4 uLightSpaceMatrix;
+
+            out vec3 vWorldPos;
+
+            void main()
+            {
+                vec4 worldPos = uModel * vec4(aPosition, 1.0);
+                vWorldPos = worldPos.xyz;
+                gl_Position = uLightSpaceMatrix * worldPos;
+            }
+            """;
+
+        const string pointFragmentSource = """
+            #version 330 core
+
+            in vec3 vWorldPos;
+
+            uniform vec3 uLightPos;
+            uniform float uFarPlane;
+
+            out vec4 FragColor;
+
+            void main()
+            {
+                // Linear distance normalized to [0, 1]; the PBR shader reconstructs it
+                // by multiplying with the light's far plane.
+                float lightDistance = length(vWorldPos - uLightPos) / uFarPlane;
+                FragColor = vec4(lightDistance, 0.0, 0.0, 1.0);
+            }
+            """;
+
+        pointDepthShader = graphics.CreateShader(pointVertexSource, pointFragmentSource);
     }
 
     private void CollectShadowCasters()
@@ -342,12 +386,17 @@ public sealed class ShadowRenderingSystem : ISystem
         var data = shadowData.Value;
         int resolution = data.RenderTarget.Size;
 
-        // Bind depth shader
-        graphics!.BindShader(depthShader);
+        // Bind the distance-writing point shadow shader
+        graphics!.BindShader(pointDepthShader);
+        graphics.SetUniform("uLightPos", lightPosition);
+        graphics.SetUniform("uFarPlane", range);
 
         // Configure render state
         graphics.SetDepthTest(true);
         graphics.SetCulling(true, CullFaceMode.Front); // Render back faces to reduce peter-panning
+
+        // Faces clear to 1.0 = max distance = fully lit where nothing is rendered.
+        graphics.SetClearColor(new Vector4(1f, 1f, 1f, 1f));
 
         // Render each cubemap face
         CubemapFace[] faces =
@@ -365,7 +414,7 @@ public sealed class ShadowRenderingSystem : ISystem
             // Bind the cubemap face as render target
             graphics.BindCubemapRenderTarget(data.RenderTarget, faces[faceIndex]);
             graphics.SetViewport(0, 0, resolution, resolution);
-            graphics.Clear(ClearMask.DepthBuffer);
+            graphics.Clear(ClearMask.ColorBuffer | ClearMask.DepthBuffer);
 
             // Get the light-space matrix for this face
             var lightSpaceMatrix = CascadeUtils.GetPointLightShadowMatrix(lightPosition, range, faceIndex);
@@ -400,6 +449,7 @@ public sealed class ShadowRenderingSystem : ISystem
         if (shadersCreated && graphics is not null)
         {
             graphics.DeleteShader(depthShader);
+            graphics.DeleteShader(pointDepthShader);
         }
 
         shadowManager?.Dispose();

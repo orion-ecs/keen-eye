@@ -454,11 +454,10 @@ internal sealed class RenderTargetManager(IGraphicsDevice device) : IDisposable
         device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapS, (int)TextureWrapMode.ClampToEdge);
         device.TexParameter(TextureTarget.Texture2D, TextureParam.WrapT, (int)TextureWrapMode.ClampToEdge);
 
-        // For shadow mapping: enable depth comparison
-        // GL_TEXTURE_COMPARE_MODE = 0x884C, GL_COMPARE_REF_TO_TEXTURE = 0x884E
-        device.TexParameter(TextureTarget.Texture2D, TextureParam.CompareMode, 0x884E);
-        // GL_TEXTURE_COMPARE_FUNC with GL_LEQUAL = 0x0203
-        device.TexParameter(TextureTarget.Texture2D, TextureParam.CompareFunc, 0x0203);
+        // No GL_TEXTURE_COMPARE_MODE here: the shadow shaders sample these textures
+        // through plain sampler2D and compare depths manually. Combining
+        // COMPARE_REF_TO_TEXTURE with a non-shadow sampler yields undefined results
+        // per the GL spec (#1280); hardware PCF would require sampler2DShadow.
 
         return texture;
     }
