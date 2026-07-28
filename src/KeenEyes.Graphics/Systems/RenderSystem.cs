@@ -27,15 +27,19 @@ namespace KeenEyes.Graphics;
 public sealed class RenderSystem : ISystem
 {
     private const int MaxLights = 8;
-    private const int MaxCascades = 4;
-    private const int MaxSpotShadows = 4;
-    private const int MaxPointShadows = 4;
-    private const int ShadowMapBaseTextureUnit = 8;
+    internal const int MaxCascades = 4;
+    // Spot and point shadow capacity is bounded by texture units: OpenGL 3.3 only
+    // guarantees 16 fragment texture units, and material (0-4), IBL (5-7), and the four
+    // CSM cascades (8-11) already occupy twelve. Two point cubemaps (12-13) and two spot
+    // maps (14-15) fill the guaranteed range exactly (#1280).
+    internal const int MaxSpotShadows = 2;
+    internal const int MaxPointShadows = 2;
+    internal const int ShadowMapBaseTextureUnit = 8;
     private const int IblIrradianceTextureUnit = 5;
     private const int IblSpecularTextureUnit = 6;
     private const int IblBrdfLutTextureUnit = 7;
-    private const int PointShadowMapBaseTextureUnit = 12;
-    private const int SpotShadowMapBaseTextureUnit = 16;
+    internal const int PointShadowMapBaseTextureUnit = 12;
+    internal const int SpotShadowMapBaseTextureUnit = 14;
 
     private IWorld? world;
     private IGraphicsContext? graphics;
@@ -577,7 +581,7 @@ public sealed class RenderSystem : ISystem
 
         graphics!.SetUniform("uSpotShadowCount", spotShadowCount);
 
-        // Bind spot shadow map textures to slots 16-19
+        // Bind spot shadow map textures to slots 14-15
         for (int i = 0; i < MaxSpotShadows; i++)
         {
             int textureUnit = SpotShadowMapBaseTextureUnit + i;
@@ -630,7 +634,7 @@ public sealed class RenderSystem : ISystem
 
         graphics!.SetUniform("uPointShadowCount", pointShadowCount);
 
-        // Bind point shadow map cubemap textures to slots 12-15
+        // Bind point shadow map cubemap textures to slots 12-13
         for (int i = 0; i < MaxPointShadows; i++)
         {
             int textureUnit = PointShadowMapBaseTextureUnit + i;
@@ -644,7 +648,11 @@ public sealed class RenderSystem : ISystem
                 {
                     var data = pointShadowData.Value;
                     var shadowMapTexture = graphics.GetCubemapRenderTargetTexture(data.RenderTarget);
-                    graphics.BindTexture(shadowMapTexture, textureUnit);
+
+                    // Cubemap handles carry raw GL ids and must go through the cubemap
+                    // binding path; BindTexture would resolve them in the TextureManager
+                    // ID space and bind the wrong texture (#1280).
+                    graphics.BindCubemapTexture(shadowMapTexture, textureUnit);
                     graphics.SetUniform($"uPointShadowMap{i}", textureUnit);
                     graphics.SetUniform($"uPointLightPositions[{i}]", data.LightPosition);
                     graphics.SetUniform($"uPointLightFarPlanes[{i}]", data.FarPlane);
@@ -652,8 +660,10 @@ public sealed class RenderSystem : ISystem
                 }
                 else
                 {
-                    // Shadow data not available yet, bind fallback
-                    graphics.BindTexture(graphics.WhiteTexture, textureUnit);
+                    // Shadow data not available yet. Units 12-13 are reserved for point
+                    // cubemaps; the shader never samples slots at or beyond
+                    // uPointShadowCount, so an unbound unit is safe and binding the 2D
+                    // white texture here would be a sampler-type mismatch.
                     graphics.SetUniform($"uPointShadowMap{i}", textureUnit);
                     graphics.SetUniform($"uPointLightPositions[{i}]", Vector3.Zero);
                     graphics.SetUniform($"uPointLightFarPlanes[{i}]", 1f);
@@ -662,8 +672,7 @@ public sealed class RenderSystem : ISystem
             }
             else
             {
-                // Bind white texture as fallback for unused slots
-                graphics.BindTexture(graphics.WhiteTexture, textureUnit);
+                // Unused slot: see comment above — never sampled, keep the unit unbound.
                 graphics.SetUniform($"uPointShadowMap{i}", textureUnit);
                 graphics.SetUniform($"uPointLightPositions[{i}]", Vector3.Zero);
                 graphics.SetUniform($"uPointLightFarPlanes[{i}]", 1f);
