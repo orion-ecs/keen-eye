@@ -153,11 +153,13 @@ using var world = new World();
 // the gameplay/juice plugins that build on them).
 //
 // The window, graphics and input plugins are the hard requirements, and they are
-// the ones that touch the platform: SilkWindowPlugin.Install creates the window
-// (and therefore initializes GLFW) right here, so on a machine with no display
-// this is where startup fails - before the game loop is ever reached. Guarding
-// only the loop would let that surface as an unhandled crash, so the same
-// diagnostic covers the installation.
+// the ones that touch the platform. SilkWindowPlugin.Install initializes GLFW here
+// but only builds the managed window object - the OS window itself is created
+// later, by Run(). A machine with no display therefore fails at this install, so
+// guarding only the loop would let that surface as an unhandled crash and the same
+// diagnostic has to cover the installation too. (The two-stage split is not
+// cosmetic: it is why an await before Run() moves OS window creation onto a
+// thread-pool thread, which macOS rejects - see the ordering note below.)
 try
 {
     world.InstallPlugin(new SilkWindowPlugin(windowConfig));
