@@ -220,6 +220,14 @@ Console.WriteLine("Starting...");
 // TestBridge: expose the live game world to external tools (the MCP server)
 // over a named pipe, following the editor's integration pattern. Windowed
 // mode only — headless CI runs stay free of IPC endpoints.
+//
+// The start is blocked on rather than awaited ON PURPOSE, and this is not a
+// tidy-up candidate: an 'await' here would resume the rest of this file - Run()
+// included - on a thread-pool thread, and Run() is what creates the OS window.
+// macOS/AppKit only permits that on the process main thread and aborts the
+// process outright otherwise (#1364). Everything up to Run() therefore stays
+// synchronous. Blocking (rather than fire-and-forget) also keeps a failed start
+// reportable: it surfaces here instead of in an unobserved task.
 var bridgePlugin = new TestBridgePlugin(new TestBridgeOptions { EnableIpc = true });
 var bridgeServer = default(IpcBridgeServer);
 try
@@ -228,7 +236,7 @@ try
     bridgeServer = new IpcBridgeServer(
         world.GetExtension<ITestBridge>(),
         new IpcOptions { PipeName = "KeenEyes.NovaFall.TestBridge" });
-    await bridgeServer.StartAsync();
+    bridgeServer.StartAsync().GetAwaiter().GetResult();
     Console.WriteLine("[TestBridge] IPC server started on pipe: KeenEyes.NovaFall.TestBridge");
 }
 catch (Exception ex)
@@ -295,7 +303,9 @@ catch (Exception ex)
 finally
 {
     // TestBridge teardown mirrors the editor's: stop the pipe server before the
-    // world (and the bridge plugin inside it) is disposed.
+    // world (and the bridge plugin inside it) is disposed. Awaiting is safe here
+    // and nowhere above: Run() has already returned, so the only work the
+    // continuation can land on a thread-pool thread is teardown.
     if (bridgeServer is not null)
     {
         await bridgeServer.StopAsync();

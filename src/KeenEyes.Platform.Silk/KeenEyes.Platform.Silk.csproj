@@ -5,7 +5,13 @@
     <Description>Silk.NET window and platform plugin for KeenEyes ECS</Description>
     <PackageTags>ecs;silk.net;window;platform;opengl;vulkan</PackageTags>
     <IsAotCompatible>true</IsAotCompatible>
+    <!-- Required by [LibraryImport]: the source-generated marshalling stub is unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="KeenEyes.Platform.Silk.Tests" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\KeenEyes.Abstractions\KeenEyes.Abstractions.csproj" />
