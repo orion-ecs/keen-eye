@@ -16,6 +16,10 @@ on:
       - 'Directory.Packages.props'
       - 'Directory.Build.props'
       - '.editorconfig'
+      # So a change to this workflow actually runs it. Without this the filter skips
+      # CI-only commits, which would leave a newly added job unverified until some
+      # unrelated PR happened to touch code.
+      - '.github/workflows/build.yml'
   pull_request:
     branches:
       - main
@@ -31,6 +35,7 @@ on:
       - 'Directory.Packages.props'
       - 'Directory.Build.props'
       - '.editorconfig'
+      - '.github/workflows/build.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -102,6 +107,47 @@ jobs:
           file: coverage-report/Cobertura.xml
           format: cobertura
         continue-on-error: true
+
+  # The suite has never run on macOS: until now the only Apple Silicon coverage in the
+  # repo was the AOT publish job in aot-compatibility.yml. This job exists to find out
+  # what breaks, so it is deliberately NON-BLOCKING for its first outings — nothing here
+  # has ever executed on macOS and wedging every PR on unknown platform failures would
+  # be the wrong trade. Promote it to required once it has been green for a while
+  # (tracked in the issue that added it).
+  #
+  # Coverage/reporting is intentionally omitted: Linux already produces those, and this
+  # job answers a different question — does the engine work on Apple Silicon.
+  test-macos:
+    name: Test (macOS, Apple Silicon)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: ./global.json
+          cache: true
+          cache-dependency-path: '**/packages.lock.json'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      # No display on the runner, so windowed samples cannot be launched here; this
+      # covers the headless suite only. Retina-specific rendering is covered by the
+      # scaled-framebuffer unit tests rather than by real hardware.
+      - name: Test
+        timeout-minutes: 20
+        run: dotnet test --no-build --configuration Release --verbosity normal
 
   format-check:
     name: Format Check
