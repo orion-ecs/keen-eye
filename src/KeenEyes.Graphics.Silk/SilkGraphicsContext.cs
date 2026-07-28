@@ -86,6 +86,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         // Subscribe to window lifecycle events
         windowProvider.OnLoad += HandleWindowLoad;
         windowProvider.OnResize += HandleWindowResize;
+        windowProvider.OnFramebufferResize += HandleFramebufferResize;
         windowProvider.OnClosing += HandleWindowClosing;
     }
 
@@ -103,15 +104,17 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     /// <inheritdoc />
     public bool IsInitialized => initialized;
 
-    /// <summary>
-    /// Gets the current window width in pixels.
-    /// </summary>
-    public int Width => window?.Width ?? 0;
+    /// <inheritdoc />
+    public int Width => windowProvider.Width;
 
-    /// <summary>
-    /// Gets the current window height in pixels.
-    /// </summary>
-    public int Height => window?.Height ?? 0;
+    /// <inheritdoc />
+    public int Height => windowProvider.Height;
+
+    /// <inheritdoc />
+    public int FramebufferWidth => windowProvider.FramebufferWidth;
+
+    /// <inheritdoc />
+    public int FramebufferHeight => windowProvider.FramebufferHeight;
 
     /// <summary>
     /// The built-in unlit shader handle.
@@ -265,18 +268,57 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         // Set clear color
         device.ClearColor(config.ClearColor.X, config.ClearColor.Y, config.ClearColor.Z, config.ClearColor.W);
 
+        // Cover the whole framebuffer. Drivers default the viewport to the framebuffer size,
+        // but stating it explicitly means the first frame is correct even when the window was
+        // created at a size the driver default did not account for.
+        if (FramebufferWidth > 0 && FramebufferHeight > 0)
+        {
+            device.Viewport(0, 0, (uint)FramebufferWidth, (uint)FramebufferHeight);
+        }
+
         // Create built-in resources
         CreateBuiltInResources();
 
         initialized = true;
     }
 
+    /// <summary>
+    /// Follows the window's logical size, which drives the 2D and text projections.
+    /// </summary>
+    /// <remarks>
+    /// The projections stay in logical points so that drawing coordinates keep matching the
+    /// pointer positions the input layer reports. The viewport is deliberately not touched
+    /// here - it is sized in device pixels and follows <see cref="HandleFramebufferResize"/>.
+    /// </remarks>
     private void HandleWindowResize(int width, int height)
     {
-        device?.Viewport(0, 0, (uint)width, (uint)height);
         renderer2D?.SetScreenSize(width, height);
         textRenderer?.SetScreenSize(width, height);
+        renderer2D?.SetPixelScale(PixelScaleX, PixelScaleY);
     }
+
+    /// <summary>
+    /// Follows the framebuffer's pixel size, which drives the viewport.
+    /// </summary>
+    /// <remarks>
+    /// A viewport sized from logical points covers only a fraction of the framebuffer on a
+    /// HiDPI display, which renders the whole frame small in one corner (#1352).
+    /// </remarks>
+    private void HandleFramebufferResize(int width, int height)
+    {
+        device?.Viewport(0, 0, (uint)width, (uint)height);
+        renderer2D?.SetPixelScale(PixelScaleX, PixelScaleY);
+    }
+
+    /// <summary>
+    /// Gets the horizontal device pixels per logical point, 1 when the two spaces agree.
+    /// </summary>
+    private float PixelScaleX => Width > 0 ? (float)FramebufferWidth / Width : 1f;
+
+    /// <summary>
+    /// Gets the vertical device pixels per logical point, 1 when the two spaces agree.
+    /// </summary>
+    private float PixelScaleY => Height > 0 ? (float)FramebufferHeight / Height : 1f;
 
     private void HandleWindowClosing()
     {
@@ -337,10 +379,13 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         var whiteId = textureManager.CreateSolidColorTexture(255, 255, 255, 255);
         WhiteTexture = new TextureHandle(whiteId, 1, 1);
 
-        // Create 2D renderer
+        // Create 2D renderer. Its projection is in logical points so that 2D drawing
+        // coordinates match the pointer positions the input layer reports; only its scissor
+        // rectangles are converted to device pixels via the pixel scale.
         renderer2D = new Silk2DRenderer(device!, textureManager, Width, Height);
+        renderer2D.SetPixelScale(PixelScaleX, PixelScaleY);
 
-        // Create font manager and text renderer
+        // Create font manager and text renderer (also projected in logical points)
         fontManager = new SilkFontManager(device!);
         textRenderer = new SilkTextRenderer(device!, fontManager, fontManager.TextureManager, Width, Height);
     }
@@ -864,10 +909,11 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     {
         renderTargetManager?.UnbindRenderTarget();
 
-        // Restore the default viewport
-        if (window is not null)
+        // Restore the default viewport. Render target sizes are in texels, so the size we
+        // return to must be in device pixels too - not logical points.
+        if (FramebufferWidth > 0 && FramebufferHeight > 0)
         {
-            device?.Viewport(0, 0, (uint)window.Width, (uint)window.Height);
+            device?.Viewport(0, 0, (uint)FramebufferWidth, (uint)FramebufferHeight);
         }
     }
 
@@ -1027,6 +1073,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
         // Unsubscribe from window provider events
         windowProvider.OnLoad -= HandleWindowLoad;
         windowProvider.OnResize -= HandleWindowResize;
+        windowProvider.OnFramebufferResize -= HandleFramebufferResize;
         windowProvider.OnClosing -= HandleWindowClosing;
 
         DisposeGpuResources();

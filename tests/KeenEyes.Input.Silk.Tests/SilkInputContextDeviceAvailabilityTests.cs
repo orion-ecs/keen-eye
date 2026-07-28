@@ -158,6 +158,15 @@ public class SilkInputContextDeviceAvailabilityTests
 
         public SilkInput.IInputContext InputContext => silkInputContext!;
 
+        // Sizes are irrelevant to input; nothing here is ever measured.
+        public int Width => 0;
+
+        public int Height => 0;
+
+        public int FramebufferWidth => 0;
+
+        public int FramebufferHeight => 0;
+
         public event Action? OnLoad;
 
         // The rest of the lifecycle is irrelevant to input, so these accept subscribers
@@ -167,6 +176,8 @@ public class SilkInputContextDeviceAvailabilityTests
         public event Action<double>? OnRender { add { } remove { } }
 
         public event Action<int, int>? OnResize { add { } remove { } }
+
+        public event Action<int, int>? OnFramebufferResize { add { } remove { } }
 
         public event Action? OnClosing { add { } remove { } }
 

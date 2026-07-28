@@ -289,6 +289,10 @@ file sealed class MockGraphicsContext : IGraphicsContext
     public int Width => 800;
     public int Height => 600;
 
+    // 1x display: the framebuffer matches the window's logical size.
+    public int FramebufferWidth => 800;
+    public int FramebufferHeight => 600;
+
     // Default resources
     public ShaderHandle LitShader => new(1);
     public ShaderHandle UnlitShader => new(2);

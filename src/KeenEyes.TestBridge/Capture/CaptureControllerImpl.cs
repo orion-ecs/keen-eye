@@ -74,10 +74,15 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
     /// <summary>
     /// Core frame capture logic that must run on the render thread.
     /// </summary>
+    /// <remarks>
+    /// Sized from the framebuffer rather than the window's logical size: a screenshot is a
+    /// pixel read, so on a HiDPI display a logically-sized read would capture a quarter of the
+    /// frame and stretch it (#1352).
+    /// </remarks>
     private FrameCapture CaptureFrameCore()
     {
-        var width = graphicsContext!.Width;
-        var height = graphicsContext.Height;
+        var width = graphicsContext!.FramebufferWidth;
+        var height = graphicsContext.FramebufferHeight;
         var pixels = new byte[width * height * 4];
 
         // Read pixels from GPU framebuffer
@@ -128,7 +133,9 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
             return Task.FromResult((0, 0));
         }
 
-        return Task.FromResult((graphicsContext!.Width, graphicsContext.Height));
+        // The "frame" is what a capture returns, so this reports pixels to match
+        // CaptureFrameCore rather than the window's logical size.
+        return Task.FromResult((graphicsContext!.FramebufferWidth, graphicsContext.FramebufferHeight));
     }
 
     /// <inheritdoc />
@@ -149,10 +156,15 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
     /// <summary>
     /// Core region capture logic that must run on the render thread.
     /// </summary>
+    /// <remarks>
+    /// The region is in framebuffer pixels, the same space the returned pixels are in, so the
+    /// bounds check and the Y flip use the framebuffer size rather than the window's logical
+    /// size (#1352).
+    /// </remarks>
     private FrameCapture CaptureRegionCore(int x, int y, int width, int height)
     {
-        var screenWidth = graphicsContext!.Width;
-        var screenHeight = graphicsContext.Height;
+        var frameWidth = graphicsContext!.FramebufferWidth;
+        var frameHeight = graphicsContext.FramebufferHeight;
 
         // Validate bounds
         if (x < 0 || y < 0 || width <= 0 || height <= 0)
@@ -160,16 +172,16 @@ internal sealed class CaptureControllerImpl(IGraphicsContext? graphicsContext = 
             throw new ArgumentOutOfRangeException(nameof(width), "Region dimensions must be positive and coordinates non-negative.");
         }
 
-        if (x + width > screenWidth || y + height > screenHeight)
+        if (x + width > frameWidth || y + height > frameHeight)
         {
             throw new ArgumentOutOfRangeException(nameof(width),
-                $"Region ({x}, {y}, {width}x{height}) extends outside screen bounds ({screenWidth}x{screenHeight}).");
+                $"Region ({x}, {y}, {width}x{height}) extends outside screen bounds ({frameWidth}x{frameHeight}).");
         }
 
         var pixels = new byte[width * height * 4];
 
-        // Convert screen coordinates (top-left origin) to OpenGL (bottom-left origin)
-        var glY = screenHeight - y - height;
+        // Convert region coordinates (top-left origin) to OpenGL (bottom-left origin)
+        var glY = frameHeight - y - height;
 
         graphicsContext.Device!.ReadFramebuffer(x, glY, width, height, PixelFormat.RGBA, pixels);
 

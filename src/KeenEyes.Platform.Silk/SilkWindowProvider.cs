@@ -36,11 +36,24 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
         window.Update += HandleWindowUpdate;
         window.Render += HandleWindowRender;
         window.Resize += HandleWindowResize;
+        window.FramebufferResize += HandleFramebufferResize;
         window.Closing += HandleWindowClosing;
     }
 
     /// <inheritdoc />
     public IWindow Window => window;
+
+    /// <inheritdoc />
+    public int Width => window.Size.X;
+
+    /// <inheritdoc />
+    public int Height => window.Size.Y;
+
+    /// <inheritdoc />
+    public int FramebufferWidth => window.FramebufferSize.X;
+
+    /// <inheritdoc />
+    public int FramebufferHeight => window.FramebufferSize.Y;
 
     /// <inheritdoc />
     public IInputContext InputContext
@@ -79,6 +92,9 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
     public event Action<int, int>? OnResize;
 
     /// <inheritdoc />
+    public event Action<int, int>? OnFramebufferResize;
+
+    /// <inheritdoc />
     public event Action? OnClosing;
 
     private void HandleWindowLoad()
@@ -102,6 +118,11 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
         OnResize?.Invoke(size.X, size.Y);
     }
 
+    private void HandleFramebufferResize(Vector2D<int> size)
+    {
+        OnFramebufferResize?.Invoke(size.X, size.Y);
+    }
+
     private void HandleWindowClosing()
     {
         OnClosing?.Invoke();
@@ -122,6 +143,7 @@ internal sealed class SilkWindowProvider : ISilkWindowProvider
         window.Update -= HandleWindowUpdate;
         window.Render -= HandleWindowRender;
         window.Resize -= HandleWindowResize;
+        window.FramebufferResize -= HandleFramebufferResize;
         window.Closing -= HandleWindowClosing;
 
         inputContext?.Dispose();

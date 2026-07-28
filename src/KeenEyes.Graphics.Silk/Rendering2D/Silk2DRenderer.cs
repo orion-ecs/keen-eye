@@ -57,6 +57,7 @@ public sealed class Silk2DRenderer : I2DRenderer
     private Matrix4x4 screenProjection;
     private Matrix4x4 activeProjection;
     private Vector2 screenSize;
+    private Vector2 pixelScale = Vector2.One;
     private bool disposed;
 
     /// <summary>
@@ -85,12 +86,38 @@ public sealed class Silk2DRenderer : I2DRenderer
     /// <summary>
     /// Updates the screen size for projection matrix calculation.
     /// </summary>
-    /// <param name="width">The new screen width.</param>
-    /// <param name="height">The new screen height.</param>
+    /// <param name="width">The new screen width in logical points.</param>
+    /// <param name="height">The new screen height in logical points.</param>
+    /// <remarks>
+    /// The size is in logical points, not device pixels, so that drawing coordinates share a
+    /// space with the pointer positions the input layer reports.
+    /// </remarks>
     public void SetScreenSize(float width, float height)
     {
         screenSize = new Vector2(width, height);
         UpdateProjection();
+    }
+
+    /// <summary>
+    /// Sets how many device pixels there are per logical point.
+    /// </summary>
+    /// <param name="scaleX">Horizontal device pixels per logical point.</param>
+    /// <param name="scaleY">Vertical device pixels per logical point.</param>
+    /// <remarks>
+    /// Scissor rectangles are the one part of this renderer that OpenGL interprets in device
+    /// pixels rather than in the projection's space, so clip rectangles supplied in logical
+    /// points are scaled by this factor. It is 1 when the framebuffer matches the window's
+    /// logical size, which leaves 1x displays untouched.
+    /// </remarks>
+    public void SetPixelScale(float scaleX, float scaleY)
+    {
+        pixelScale = new Vector2(scaleX, scaleY);
+
+        if (clipStack.Count > 0)
+        {
+            Flush();
+            ApplyClip(clipStack.Peek());
+        }
     }
 
     /// <inheritdoc />
@@ -745,9 +772,17 @@ public sealed class Silk2DRenderer : I2DRenderer
     private void ApplyClip(in Rectangle rect)
     {
         device.Enable(RenderCapability.ScissorTest);
-        // OpenGL scissor uses bottom-left origin, so flip Y
-        int y = (int)(screenSize.Y - rect.Y - rect.Height);
-        device.Scissor((int)rect.X, y, (uint)rect.Width, (uint)rect.Height);
+
+        // OpenGL scissor uses bottom-left origin, so flip Y.
+        float y = screenSize.Y - rect.Y - rect.Height;
+
+        // The clip rectangle arrives in logical points, but OpenGL interprets scissor
+        // rectangles in device pixels - so convert before handing it over (#1352).
+        device.Scissor(
+            (int)(rect.X * pixelScale.X),
+            (int)(y * pixelScale.Y),
+            (uint)(rect.Width * pixelScale.X),
+            (uint)(rect.Height * pixelScale.Y));
     }
 
     /// <inheritdoc />

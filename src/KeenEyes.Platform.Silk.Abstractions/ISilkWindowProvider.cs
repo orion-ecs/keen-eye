@@ -46,6 +46,44 @@ public interface ISilkWindowProvider : IDisposable
     IWindow Window { get; }
 
     /// <summary>
+    /// Gets the window width in logical points.
+    /// </summary>
+    /// <remarks>
+    /// Logical points are the coordinate space Silk.NET reports pointer positions in, so this
+    /// is the space UI layout and hit-testing must use. On a HiDPI display it is smaller than
+    /// <see cref="FramebufferWidth"/>. Use <see cref="FramebufferWidth"/> for anything measured
+    /// in device pixels, such as the GL viewport.
+    /// </remarks>
+    int Width { get; }
+
+    /// <summary>
+    /// Gets the window height in logical points.
+    /// </summary>
+    /// <remarks>
+    /// See <see cref="Width"/> for the distinction between logical points and device pixels.
+    /// </remarks>
+    int Height { get; }
+
+    /// <summary>
+    /// Gets the framebuffer width in device pixels.
+    /// </summary>
+    /// <remarks>
+    /// On a HiDPI display (Retina, Windows display scaling, Linux fractional scaling) the
+    /// framebuffer is larger than the window's logical size. This is the value the GL viewport,
+    /// scissor rectangles, and full-screen pixel reads must be sized from.
+    /// </remarks>
+    int FramebufferWidth { get; }
+
+    /// <summary>
+    /// Gets the framebuffer height in device pixels.
+    /// </summary>
+    /// <remarks>
+    /// See <see cref="FramebufferWidth"/> for the distinction between device pixels and
+    /// logical points.
+    /// </remarks>
+    int FramebufferHeight { get; }
+
+    /// <summary>
     /// Gets the Silk.NET input context for keyboard, mouse, and gamepad access.
     /// </summary>
     /// <remarks>
@@ -84,9 +122,23 @@ public interface ISilkWindowProvider : IDisposable
     /// Raised when the window is resized.
     /// </summary>
     /// <remarks>
-    /// Parameters are the new width and height in pixels.
+    /// Parameters are the new width and height in <b>logical points</b> (see
+    /// <see cref="Width"/>). Subscribe to this for UI layout and anything else that shares a
+    /// coordinate space with pointer input. Framebuffer-sized resources must follow
+    /// <see cref="OnFramebufferResize"/> instead, because the two sizes differ on a HiDPI
+    /// display and do not always change together.
     /// </remarks>
     event Action<int, int>? OnResize;
+
+    /// <summary>
+    /// Raised when the framebuffer is resized.
+    /// </summary>
+    /// <remarks>
+    /// Parameters are the new width and height in <b>device pixels</b> (see
+    /// <see cref="FramebufferWidth"/>). Subscribe to this for the GL viewport and any resource
+    /// measured in texels.
+    /// </remarks>
+    event Action<int, int>? OnFramebufferResize;
 
     /// <summary>
     /// Raised when the window is closing.
