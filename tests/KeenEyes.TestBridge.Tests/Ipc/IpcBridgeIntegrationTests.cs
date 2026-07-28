@@ -8,7 +8,7 @@ namespace KeenEyes.TestBridge.Tests.Ipc;
 /// </summary>
 public class IpcBridgeIntegrationTests : IAsyncLifetime
 {
-    private readonly string testPipeName = $"KeenEyes.TestBridge.Tests.{Guid.NewGuid():N}";
+    private readonly string testPipeName = TestPipeName.Create();
     private World? world;
     private InProcessBridge? inProcessBridge;
     private KeenEyes.TestBridge.Ipc.IpcBridgeServer? server;

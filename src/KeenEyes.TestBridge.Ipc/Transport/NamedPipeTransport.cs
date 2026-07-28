@@ -38,6 +38,11 @@ public sealed class NamedPipeTransport : IIpcTransport
     public NamedPipeTransport(string pipeName, bool isServer)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pipeName);
+
+        // Fail here, with the name and the limit, rather than letting the BCL throw an
+        // ArgumentOutOfRangeException from inside the pipe stream that mentions neither.
+        UnixPipePath.ThrowIfTooLong(pipeName, nameof(pipeName));
+
         this.pipeName = pipeName;
         this.isServer = isServer;
     }
