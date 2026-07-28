@@ -462,10 +462,13 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
             return default;
         }
 
-        var fontPath = FindSystemFont();
+        // Selects by loadability, not existence: a candidate that exists but the
+        // rasterizer cannot open (macOS ships most system fonts as multi-face .ttc
+        // collections) is skipped rather than shadowing a working one.
+        var fontPath = SystemFonts.FindFirstUsable();
         if (fontPath is null)
         {
-            Console.WriteLine("Warning: No suitable system font found");
+            Console.WriteLine("Warning: No usable system font found");
             return default;
         }
 
@@ -1736,30 +1739,6 @@ public sealed class EditorApplication : IDisposable, IEditorShortcutActions
 
         var entity = sceneWorld!.Spawn("New Entity").Build();
         Console.WriteLine($"Created entity: {sceneWorld.GetName(entity)}");
-    }
-
-    private static string? FindSystemFont()
-    {
-        string[] candidates =
-        [
-            @"C:\Windows\Fonts\segoeui.ttf",
-            @"C:\Windows\Fonts\arial.ttf",
-            @"C:\Windows\Fonts\calibri.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/TTF/DejaVuSans.ttf",
-            "/System/Library/Fonts/Helvetica.ttc",
-            "/Library/Fonts/Arial.ttf"
-        ];
-
-        foreach (var path in candidates)
-        {
-            if (File.Exists(path))
-            {
-                return path;
-            }
-        }
-
-        return null;
     }
 
     #region IEditorShortcutActions Implementation

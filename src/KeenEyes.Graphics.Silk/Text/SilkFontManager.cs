@@ -58,8 +58,9 @@ internal sealed class SilkFontManager : IFontManager
         // Get or create FontSystem for this file
         if (!fontSystems.TryGetValue(path, out var fontSystem))
         {
+            var data = File.ReadAllBytes(path);
             fontSystem = CreateFontSystem();
-            fontSystem.AddFont(File.ReadAllBytes(path));
+            AddFont(fontSystem, data, path);
             fontSystems[path] = fontSystem;
         }
 
@@ -74,7 +75,7 @@ internal sealed class SilkFontManager : IFontManager
         if (!fontSystems.TryGetValue(key, out var fontSystem))
         {
             fontSystem = CreateFontSystem();
-            fontSystem.AddFont(data.ToArray());
+            AddFont(fontSystem, data.ToArray(), key);
             fontSystems[key] = fontSystem;
         }
 
@@ -281,6 +282,43 @@ internal sealed class SilkFontManager : IFontManager
         };
 
         return new FontSystem(settings);
+    }
+
+    /// <summary>
+    /// Adds font data to a font system, translating the rasterizer's opaque failures into
+    /// messages that name the font and say what to do about it.
+    /// </summary>
+    /// <param name="fontSystem">The font system to add the face to.</param>
+    /// <param name="data">The font file bytes.</param>
+    /// <param name="source">The path or name identifying the font, for diagnostics.</param>
+    /// <exception cref="NotSupportedException">Thrown when the data is a TrueType Collection.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when the rasterizer rejects the data.</exception>
+    private static void AddFont(FontSystem fontSystem, byte[] data, string source)
+    {
+        // Checked before AddFont because FontStashSharp reports a collection as a bare
+        // "stbtt_InitFont failed", which names neither the file nor the format.
+        if (SystemFonts.IsFontCollection(data))
+        {
+            fontSystem.Dispose();
+            throw new NotSupportedException(SystemFonts.DescribeUnsupportedCollection(source));
+        }
+
+        try
+        {
+            fontSystem.AddFont(data);
+        }
+        catch (Exception ex)
+        {
+            // Boundary wrap: FontStashSharp throws a bare System.Exception whose message
+            // carries no indication of which font failed. Report the observation - this
+            // font, this rasterizer message - without asserting a cause we did not check.
+            fontSystem.Dispose();
+            throw new InvalidOperationException(
+                $"Font '{source}' was rejected by the FontStashSharp rasterizer ({ex.Message}). "
+                + "Check that the file is an uncorrupted single-font .ttf or .otf; "
+                + "TrueType Collections (.ttc) and web formats (.woff, .woff2) are not supported.",
+                ex);
+        }
     }
 
     private FontHandle CreateFontHandle(FontSystem fontSystem, float size)
