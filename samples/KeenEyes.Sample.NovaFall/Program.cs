@@ -66,6 +66,10 @@ using KeenEyes.TestBridge;
 using KeenEyes.TestBridge.Ipc;
 using KeenEyes.UI;
 
+// Aliased rather than imported wholesale: KeenEyes.Graphics.Abstractions also defines an
+// Environment type, which would collide with System.Environment used below.
+using SystemFonts = KeenEyes.Graphics.Abstractions.SystemFonts;
+
 // --- Parse arguments ---
 
 var pinnedSeed = default(ulong?);
@@ -118,10 +122,13 @@ Console.WriteLine("  J                             - Toggle juice on/off");
 Console.WriteLine("  Escape                        - Exit");
 Console.WriteLine();
 
-var fontPath = FindSystemFont();
+// Find a font the rasterizer can actually open. SystemFonts checks loadability rather
+// than existence, so a present-but-unsupported candidate (macOS ships most of its system
+// fonts as multi-face .ttc collections) is skipped instead of shadowing a working one.
+var fontPath = SystemFonts.FindFirstUsable();
 if (fontPath is null)
 {
-    Console.WriteLine("Warning: no system font found; the score will show in the window title.");
+    Console.WriteLine("Warning: no usable system font found; the score will show in the window title.");
 }
 
 var windowConfig = new WindowConfig
@@ -394,30 +401,4 @@ static void RunHeadlessSimulation(int frames, ulong seed, GameMode mode)
         CultureInfo.InvariantCulture,
         $"final: depth={scroll.Depth:F3}m speed={scroll.Speed:F3} floorsSpawned={scroll.NextFloorIndex} " +
         $"score={score.Score:F3} heat={heat.Heat:F3} tier={heat.Tier} phase={phase}"));
-}
-
-// Finds a usable system font for the HUD, or null if none exists.
-static string? FindSystemFont()
-{
-    string[] candidates =
-    [
-        @"C:\Windows\Fonts\segoeui.ttf",
-        @"C:\Windows\Fonts\arial.ttf",
-        @"C:\Windows\Fonts\calibri.ttf",
-        @"C:\Windows\Fonts\verdana.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial.ttf"
-    ];
-
-    foreach (var path in candidates)
-    {
-        if (File.Exists(path))
-        {
-            return path;
-        }
-    }
-
-    return null;
 }

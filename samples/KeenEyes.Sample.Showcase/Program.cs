@@ -46,11 +46,13 @@ Console.WriteLine("  Left Click         - Capture mouse for look control");
 Console.WriteLine("  Escape             - Release mouse / Exit");
 Console.WriteLine();
 
-// Find a suitable font file
-var fontPath = FindSystemFont();
+// Find a font the rasterizer can actually open. SystemFonts checks loadability rather
+// than existence, so a present-but-unsupported candidate (macOS ships most of its system
+// fonts as multi-face .ttc collections) is skipped instead of shadowing a working one.
+var fontPath = SystemFonts.FindFirstUsable();
 if (fontPath is null)
 {
-    Console.WriteLine("Warning: No suitable system font found. Text will not be visible.");
+    Console.WriteLine("Warning: No usable system font found. Text will not be visible.");
 }
 else
 {
@@ -176,41 +178,20 @@ try
 }
 catch (Exception ex)
 {
-    // Top-level demo entry point: initializing the windowing/graphics stack can surface a
-    // wide range of platform exceptions (missing display, driver, or GL context errors).
+    // Top-level demo entry point: Run() covers window creation, graphics initialization,
+    // asset loading, and the frame loop, so a wide range of exceptions can surface here.
     // A demo recovers by reporting the failure and exiting rather than crashing, so a
-    // catch-all is appropriate here.
-    Console.WriteLine($"Error: {ex.Message}");
-    Console.WriteLine("This sample requires a display.");
+    // catch-all is appropriate - but it must report WHAT failed rather than assert a
+    // cause it never checked. A blanket "requires a display" is actively misleading on a
+    // machine that has one, and hides the real exception behind a wrong diagnosis.
+    Console.WriteLine($"Showcase stopped: {ex.GetType().Name}: {ex.Message}");
+    Console.WriteLine("Run() covers startup and the frame loop, so this may be a fault from the "
+        + "first frames rather than from starting up.");
+    Console.WriteLine("Windowed mode needs a display, a GPU driver, OpenGL 3.3, and a loadable "
+        + "system font; the line above says which of those actually failed.");
 }
 
 Console.WriteLine("Sample complete!");
-
-// Find a suitable system font
-static string? FindSystemFont()
-{
-    string[] candidates =
-    [
-        @"C:\Windows\Fonts\segoeui.ttf",
-        @"C:\Windows\Fonts\arial.ttf",
-        @"C:\Windows\Fonts\calibri.ttf",
-        @"C:\Windows\Fonts\verdana.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/TTF/DejaVuSans.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial.ttf"
-    ];
-
-    foreach (var path in candidates)
-    {
-        if (File.Exists(path))
-        {
-            return path;
-        }
-    }
-
-    return null;
-}
 
 // Create the 3D scene
 static void CreateScene(World world, IGraphicsContext graphics, MeshHandle groundMesh, MeshHandle wallMesh)

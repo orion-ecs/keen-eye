@@ -35,7 +35,13 @@ public interface IFontManager : IResourceManager<FontHandle>
     /// <param name="path">The path to the font file (TTF, OTF).</param>
     /// <param name="size">The font size in pixels.</param>
     /// <returns>The font handle.</returns>
+    /// <remarks>
+    /// Only single-face fonts are supported. TrueType Collections (<c>.ttc</c>) bundle
+    /// several faces in one file and are rejected; use <see cref="SystemFonts.FindFirstUsable()"/>
+    /// to pick a system font that loads.
+    /// </remarks>
     /// <exception cref="FileNotFoundException">Thrown when the font file is not found.</exception>
+    /// <exception cref="NotSupportedException">Thrown when the file is a TrueType Collection.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the font cannot be loaded.</exception>
     FontHandle LoadFont(string path, float size);
 
@@ -46,6 +52,7 @@ public interface IFontManager : IResourceManager<FontHandle>
     /// <param name="size">The font size in pixels.</param>
     /// <param name="name">A name for the font (for debugging).</param>
     /// <returns>The font handle.</returns>
+    /// <exception cref="NotSupportedException">Thrown when the data is a TrueType Collection.</exception>
     /// <exception cref="InvalidOperationException">Thrown when the font data is invalid.</exception>
     FontHandle LoadFontFromMemory(ReadOnlySpan<byte> data, float size, string? name = null);
 

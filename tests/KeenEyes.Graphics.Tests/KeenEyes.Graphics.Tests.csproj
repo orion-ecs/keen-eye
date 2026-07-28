@@ -20,4 +20,20 @@
     <PackageReference Include="StbImageWriteSharp" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- FontDiscoveryCallSiteTests asserts that the four font-discovery call sites all go
+         through the shared SystemFonts locator instead of re-growing the existence-only
+         copies that made every macOS sample fail (#1365). Two of them are samples and one
+         is the editor app, none of which this project can reference, so their sources are
+         embedded: MSBuild then fails if a path drifts, and the test cannot read a stale copy. -->
+    <EmbeddedResource Include="..\..\samples\KeenEyes.Sample.UI\Program.cs"
+                      LogicalName="KeenEyes.Graphics.Tests.CallSites.Sample.UI.Program.cs.txt" />
+    <EmbeddedResource Include="..\..\samples\KeenEyes.Sample.Showcase\Program.cs"
+                      LogicalName="KeenEyes.Graphics.Tests.CallSites.Sample.Showcase.Program.cs.txt" />
+    <EmbeddedResource Include="..\..\samples\KeenEyes.Sample.NovaFall\Program.cs"
+                      LogicalName="KeenEyes.Graphics.Tests.CallSites.Sample.NovaFall.Program.cs.txt" />
+    <EmbeddedResource Include="..\..\editor\KeenEyes.Editor\Application\EditorApplication.cs"
+                      LogicalName="KeenEyes.Graphics.Tests.CallSites.EditorApplication.cs.txt" />
+  </ItemGroup>
+
 </Project>
