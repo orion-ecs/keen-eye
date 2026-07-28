@@ -59,6 +59,10 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     private readonly ISilkWindowProvider windowProvider;
     private readonly MeshManager meshManager = new();
     private readonly TextureManager textureManager = new();
+
+    // Texture-manager handles minted for render-target attachments, keyed by
+    // (render target id, is-depth). See GetRenderTargetTexture (#1279).
+    private readonly Dictionary<(int TargetId, bool Depth), TextureHandle> renderTargetTextures = [];
     private readonly ShaderManager shaderManager = new();
     private readonly InstanceBufferManager instanceBufferManager = new();
 
@@ -198,6 +202,7 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
     internal MeshManager MeshManager => meshManager;
     internal TextureManager TextureManager => textureManager;
+    internal RenderTargetManager? RenderTargets => renderTargetManager;
     internal ShaderManager ShaderManager => shaderManager;
 
     /// <inheritdoc />
@@ -873,36 +878,78 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
 
     /// <inheritdoc />
     public TextureHandle GetRenderTargetColorTexture(RenderTargetHandle target)
-    {
-        if (renderTargetManager is null)
-        {
-            return TextureHandle.Invalid;
-        }
-
-        var textureId = renderTargetManager.GetColorTextureId(target);
-        if (textureId == 0)
-        {
-            return TextureHandle.Invalid;
-        }
-
-        return new TextureHandle((int)textureId, target.Width, target.Height);
-    }
+        => GetRenderTargetTexture(target, depth: false);
 
     /// <inheritdoc />
     public TextureHandle GetRenderTargetDepthTexture(RenderTargetHandle target)
+        => GetRenderTargetTexture(target, depth: true);
+
+    /// <summary>
+    /// Resolves a render-target attachment to a handle in the texture manager's ID space.
+    /// </summary>
+    /// <remarks>
+    /// Render-target textures are created by the render-target manager with raw GL ids,
+    /// but consumers bind the returned handle through <see cref="BindTexture"/>, which
+    /// resolves ids in the texture manager's separate space (#1279). The GL id is
+    /// therefore registered (non-owning — the render-target manager keeps GPU ownership)
+    /// and the resulting handle cached so per-frame lookups stay allocation-free.
+    /// </remarks>
+    private TextureHandle GetRenderTargetTexture(RenderTargetHandle target, bool depth)
     {
         if (renderTargetManager is null)
         {
             return TextureHandle.Invalid;
         }
 
-        var textureId = renderTargetManager.GetDepthTextureId(target);
+        var textureId = depth
+            ? renderTargetManager.GetDepthTextureId(target)
+            : renderTargetManager.GetColorTextureId(target);
         if (textureId == 0)
         {
             return TextureHandle.Invalid;
         }
 
-        return new TextureHandle((int)textureId, target.Width, target.Height);
+        var key = (target.Id, depth);
+        if (renderTargetTextures.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var handleId = textureManager.RegisterExternalTexture(
+            textureId, target.Width, target.Height, ownsGpuTexture: false);
+        var handle = new TextureHandle(handleId, target.Width, target.Height);
+        renderTargetTextures[key] = handle;
+        return handle;
+    }
+
+    /// <summary>
+    /// Drops the texture-manager registrations for a render target's attachments.
+    /// </summary>
+    /// <param name="target">The render target being deleted.</param>
+    /// <param name="adoptColorTexture">
+    /// When true, the color attachment's registration survives and the texture manager
+    /// takes GPU ownership of it (the keep-texture delete flow); otherwise both
+    /// registrations are removed (never GPU-deleting — the render-target manager owns
+    /// the GL objects while the target exists).
+    /// </param>
+    private void ReleaseRenderTargetTextures(RenderTargetHandle target, bool adoptColorTexture)
+    {
+        if (renderTargetTextures.Remove((target.Id, false), out var color))
+        {
+            if (adoptColorTexture)
+            {
+                textureManager.AdoptExternalTexture(color.Id);
+            }
+            else
+            {
+                textureManager.DeleteTexture(color.Id);
+            }
+        }
+
+        if (renderTargetTextures.Remove((target.Id, true), out var depthHandle))
+        {
+            textureManager.DeleteTexture(depthHandle.Id);
+        }
     }
 
     /// <inheritdoc />
@@ -925,12 +972,16 @@ public sealed class SilkGraphicsContext : IGraphicsContext, I2DRendererProvider,
     /// <inheritdoc />
     public void DeleteRenderTarget(RenderTargetHandle target)
     {
+        ReleaseRenderTargetTextures(target, adoptColorTexture: false);
         renderTargetManager?.DeleteRenderTarget(target);
     }
 
     /// <inheritdoc />
     public void DeleteRenderTargetKeepTexture(RenderTargetHandle target)
     {
+        // The color texture outlives the target: its registration stays and the texture
+        // manager takes over GPU ownership so a later DeleteTexture/Dispose cleans it up.
+        ReleaseRenderTargetTextures(target, adoptColorTexture: true);
         renderTargetManager?.DeleteRenderTargetKeepTexture(target);
     }
 

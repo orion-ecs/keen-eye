@@ -338,8 +338,14 @@ internal sealed class TextureManager : IDisposable
     /// <param name="gpuHandle">The GPU texture handle.</param>
     /// <param name="width">The texture width.</param>
     /// <param name="height">The texture height.</param>
+    /// <param name="ownsGpuTexture">
+    /// When true (default), the manager deletes the GPU texture when the entry is deleted
+    /// or the manager is disposed. Pass false when another owner (e.g. the render-target
+    /// manager) controls the GPU texture's lifetime; the entry then only provides handle
+    /// resolution and its removal never touches the GPU object.
+    /// </param>
     /// <returns>The texture resource handle.</returns>
-    public int RegisterExternalTexture(uint gpuHandle, int width, int height)
+    public int RegisterExternalTexture(uint gpuHandle, int width, int height, bool ownsGpuTexture = true)
     {
         var textureData = new TextureData
         {
@@ -347,12 +353,33 @@ internal sealed class TextureManager : IDisposable
             Width = width,
             Height = height,
             HasAlpha = true,
-            DeleteAction = DeleteTextureData
+            DeleteAction = ownsGpuTexture ? DeleteTextureData : null
         };
 
         int id = nextTextureId++;
         textures[id] = textureData;
         return id;
+    }
+
+    /// <summary>
+    /// Takes GPU ownership of a previously registered non-owning external texture.
+    /// </summary>
+    /// <remarks>
+    /// Used when the original owner relinquishes the GPU texture (e.g.
+    /// <c>DeleteRenderTargetKeepTexture</c> keeps the color texture alive); from then on
+    /// the manager deletes it like any other texture.
+    /// </remarks>
+    /// <param name="textureId">The texture resource handle.</param>
+    /// <returns>True when the entry exists and ownership was taken.</returns>
+    public bool AdoptExternalTexture(int textureId)
+    {
+        if (textures.TryGetValue(textureId, out var data))
+        {
+            data.DeleteAction = DeleteTextureData;
+            return true;
+        }
+
+        return false;
     }
 
     private void DeleteTextureData(TextureData data)
