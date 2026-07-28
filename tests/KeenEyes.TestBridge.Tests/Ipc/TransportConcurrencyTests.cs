@@ -82,7 +82,7 @@ public class TransportConcurrencyTests
     public async Task NamedPipeTransport_ConcurrentSends_PreserveFrameIntegrity()
     {
         var cancellationToken = TestContext.Current.CancellationToken;
-        var pipeName = $"KeenEyes.TestBridge.Tests.{Guid.NewGuid():N}";
+        var pipeName = TestPipeName.Create();
 
         using var server = new NamedPipeTransport(pipeName, isServer: true);
         using var client = new NamedPipeTransport(pipeName, isServer: false);
